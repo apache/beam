@@ -17,9 +17,14 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 /**
@@ -28,12 +33,21 @@ import org.apache.flink.util.Collector;
  * FlinkDoFnFunction}.
  */
 public class FlinkMultiOutputPruningFunction<T>
-    implements FlatMapFunction<WindowedValue<RawUnionValue>, WindowedValue<T>> {
+    extends RichFlatMapFunction<WindowedValue<RawUnionValue>, WindowedValue<T>> {
 
   private final int ourOutputTag;
+  private final SerializablePipelineOptions options;
 
-  public FlinkMultiOutputPruningFunction(int ourOutputTag) {
+  public FlinkMultiOutputPruningFunction(int ourOutputTag, PipelineOptions options) {
     this.ourOutputTag = ourOutputTag;
+    this.options = new SerializablePipelineOptions(options);
+  }
+
+  @Override
+  public void open(Configuration parameters) {
+    // Initialize FileSystems for any coders which may want to use the FileSystem,
+    // see https://issues.apache.org/jira/browse/BEAM-8303
+    FileSystems.setDefaultPipelineOptions(options.get());
   }
 
   @Override

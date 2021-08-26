@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.util.Map;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -31,10 +28,14 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -70,8 +71,8 @@ public class ReplacementOutputsTest {
 
   @Test
   public void singletonSucceeds() {
-    Map<PValue, ReplacementOutput> replacements =
-        ReplacementOutputs.singleton(ints.expand(), replacementInts);
+    Map<PCollection<?>, ReplacementOutput> replacements =
+        ReplacementOutputs.singleton(PValues.expandValue(ints), replacementInts);
 
     assertThat(replacements, Matchers.hasKey(replacementInts));
 
@@ -86,9 +87,9 @@ public class ReplacementOutputsTest {
   public void singletonMultipleOriginalsThrows() {
     thrown.expect(IllegalArgumentException.class);
     ReplacementOutputs.singleton(
-        ImmutableMap.<TupleTag<?>, PValue>builder()
-            .putAll(ints.expand())
-            .putAll(moreInts.expand())
+        ImmutableMap.<TupleTag<?>, PCollection<?>>builder()
+            .putAll(PValues.expandValue(ints))
+            .putAll(PValues.fullyExpand(moreInts.expand()))
             .build(),
         replacementInts);
   }
@@ -102,9 +103,9 @@ public class ReplacementOutputsTest {
     PCollectionTuple original =
         PCollectionTuple.of(intsTag, ints).and(strsTag, strs).and(moreIntsTag, moreInts);
 
-    Map<PValue, ReplacementOutput> replacements =
+    Map<PCollection<?>, ReplacementOutput> replacements =
         ReplacementOutputs.tagged(
-            original.expand(),
+            PValues.expandOutput((POutput) original),
             PCollectionTuple.of(strsTag, replacementStrs)
                 .and(moreIntsTag, moreReplacementInts)
                 .and(intsTag, replacementInts));
@@ -143,7 +144,7 @@ public class ReplacementOutputsTest {
     thrown.expectMessage(intsTag.toString());
     thrown.expectMessage(ints.toString());
     ReplacementOutputs.tagged(
-        original.expand(),
+        PValues.expandOutput(original),
         PCollectionTuple.of(strsTag, replacementStrs).and(moreIntsTag, moreReplacementInts));
   }
 
@@ -156,7 +157,7 @@ public class ReplacementOutputsTest {
     thrown.expectMessage(moreIntsTag.toString());
     thrown.expectMessage(moreReplacementInts.toString());
     ReplacementOutputs.tagged(
-        original.expand(),
+        PValues.expandOutput(original),
         PCollectionTuple.of(strsTag, replacementStrs)
             .and(moreIntsTag, moreReplacementInts)
             .and(intsTag, replacementInts));

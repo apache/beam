@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.runtime;
 
 import java.util.Collection;
@@ -40,8 +39,7 @@ public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void
       throw new RuntimeException(e);
     }
 
-    windows
-        .stream()
+    windows.stream()
         .map(
             window ->
                 WindowedValue.of(

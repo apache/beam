@@ -23,8 +23,8 @@ Setting up a local Jenkins instance is useful for testing Jenkins job changes
 without affecting the production instance. Using Docker makes the setup very
 straightforward.
 
-As of now, this setup allows you to test Job DSL scripts. Imported Beam jobs
-will not succeed due to some tools (like gcloud) and credentials missing.
+As of now, this setup allows you to test Job DSL scripts. **Imported Beam jobs
+will not succeed due to some tools (like gcloud) and credentials missing.**
 
 ## Jenkins on Docker
 
@@ -94,7 +94,7 @@ http://127.0.0.1:8080. And map jenkins_home of running container to JENKINS_HOME
 on your OS file system.
 
 You can setup your Jenkins instance to look like the Apache Beam Jenkins using
-[these steps](#beam-config). (Running Beam Job DSL groovy scripts)
+[these steps](#running-beam-job-dsl-groovy-scripts). (Running Beam Job DSL groovy scripts)
 
 ### Forking your Jenkins instance
 
@@ -118,13 +118,13 @@ docker run -p 127.0.0.1:8080:8080 -v ${JENKINS_HOME}:/var/jenkins_home jenkins/j
       Jenkins instance will only be available via localhost and not your machine
       hostname.
 
-### Running Beam Job DSL groovy scripts {#beam-config}
+### Running Beam Job DSL groovy scripts
 
 On Beam we configure Jenkins jobs via groovy job dsl scripts. If you want to run
 those on your docker instance of Jenkins, you will need to do some setup on top
 of installing default plugins:
 
-1.  Install following plugins
+1.  Make sure the following plugins are installed (Manage Jenkins -> Manage Plugins)
     1.  Environment Injector
     1.  GitHub pull request build (ghprb)
     1.  Groovy
@@ -140,9 +140,32 @@ of installing default plugins:
     1.  Go to Manage Jenkins -> Configure Global Security
     1.  Unmark "Enable script security for Job DSL scripts"
 1.  Set up Job DSL jobs import job. (Seed job)
-    1.  Refer to seedjobconfig.xml for parameters.
+    1.  Refer to [seedjobconfig.xml](./seedjobconfig.xml) for parameters.
     1.  Go to Jenkins -> New Item -> Freestyle project
     1.  Build step: Process Job DSLs
+
+## Additional Jenkins hints
+
+### Importing DSL jobs from a local git repository
+
+By default, Seed job imports DSL job definitions from the Apache Beam Github
+repository. But there is also a possibility to import these definitions from
+your local git repository, which makes testing much easier because you don't
+have to git push every time changes were made.
+
+1. Build Jenkins image using provided scripts.
+1. Provide an environment variable *BEAM_HOME* pointing to the beam root
+   directory, for example: `export BEAM_HOME=~/my/beam/directory`.
+1. Run image using the following command: `docker run -d -p 127.0.0.1:8080:8080
+   -v $BEAM_HOME:/var/jenkins_real_home/beam:ro beamjenkins`. The only difference is
+   the *-v* option which sets up a bind mount.
+1. Sign in to Jenkins.
+    1. Go to the *sample_seed_job* and open its configuration. Scroll down to
+       the **Source Code Management** section.
+    1. Fill the **Repository URL** field with *file:///var/jenkins_real_home/beam*.
+
+You can choose any branch from your local repo. Just remember that all changes
+must be committed. You don’t have to checkout the branch you chose.
 
 ## Additional docker hints
 

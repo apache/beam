@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.collect.ImmutableList;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.List;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
@@ -26,11 +27,28 @@ import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** {@link PTransform} overrides for Flink runner. */
-public class FlinkTransformOverrides {
-  public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
+class FlinkTransformOverrides {
+  static List<PTransformOverride> getDefaultOverrides(FlinkPipelineOptions options) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
+    if (options.isStreaming()) {
+      builder
+          .add(
+              PTransformOverride.of(
+                  FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory
+                      .writeFilesNeedsOverrides(),
+                  new FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory(
+                      checkNotNull(options))))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
+                  CreateStreamingFlinkView.Factory.INSTANCE));
+    }
     builder
         .add(
             PTransformOverride.of(
@@ -38,15 +56,9 @@ public class FlinkTransformOverrides {
         .add(
             PTransformOverride.of(
                 PTransformMatchers.urnEqualTo(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
-                streaming
+                options.isStreaming()
                     ? new SplittableParDoViaKeyedWorkItems.OverrideFactory()
                     : new SplittableParDoNaiveBounded.OverrideFactory()));
-    if (streaming) {
-      builder.add(
-          PTransformOverride.of(
-              PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-              new CreateStreamingFlinkView.Factory()));
-    }
     return builder.build();
   }
 }

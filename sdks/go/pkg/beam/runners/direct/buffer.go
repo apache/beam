@@ -19,11 +19,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
-// buffer buffers all input and notifies on FinishBundle. It is also a ReStream.
+// buffer buffers all input and notifies on FinishBundle. It is also a SideInputAdapter.
 // It is used as a guard for the wait node to buffer data used as side input.
 type buffer struct {
 	uid    exec.UnitID
@@ -43,14 +44,14 @@ func (n *buffer) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *buffer) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (n *buffer) StartBundle(ctx context.Context, id string, data exec.DataContext) error {
 	n.buf = nil
 	n.done = false
 	return nil
 }
 
-func (n *buffer) ProcessElement(ctx context.Context, elm exec.FullValue, values ...exec.ReStream) error {
-	n.buf = append(n.buf, elm)
+func (n *buffer) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
+	n.buf = append(n.buf, *elm)
 	return nil
 }
 
@@ -63,11 +64,11 @@ func (n *buffer) Down(ctx context.Context) error {
 	return nil
 }
 
-func (n *buffer) Open() exec.Stream {
+func (n *buffer) NewIterable(ctx context.Context, reader exec.StateReader, w typex.Window) (exec.ReStream, error) {
 	if !n.done {
 		panic(fmt.Sprintf("buffer[%v] incomplete: %v", n.uid, len(n.buf)))
 	}
-	return &exec.FixedStream{Buf: n.buf}
+	return &exec.FixedReStream{Buf: n.buf}, nil
 }
 
 func (n *buffer) String() string {
@@ -83,11 +84,16 @@ type wait struct {
 	next exec.Node
 
 	instID string
-	mgr    exec.DataManager
+	mgr    exec.DataContext
 
-	buf   []exec.FullValue
+	buf   []bufElement
 	ready int  // guards ready
 	done  bool // FinishBundle called for main input?
+}
+
+type bufElement struct {
+	elm    exec.FullValue
+	values []exec.ReStream
 }
 
 func (w *wait) ID() exec.UnitID {
@@ -111,8 +117,8 @@ func (w *wait) notify(ctx context.Context) error {
 	if err := w.next.StartBundle(ctx, w.instID, w.mgr); err != nil {
 		return err
 	}
-	for _, elm := range w.buf {
-		if err := w.next.ProcessElement(ctx, elm); err != nil {
+	for _, element := range w.buf {
+		if err := w.next.ProcessElement(ctx, &element.elm, element.values...); err != nil {
 			return err
 		}
 	}
@@ -131,19 +137,19 @@ func (w *wait) Up(ctx context.Context) error {
 	return nil
 }
 
-func (w *wait) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (w *wait) StartBundle(ctx context.Context, id string, data exec.DataContext) error {
 	return nil // done in notify
 }
 
-func (w *wait) ProcessElement(ctx context.Context, elm exec.FullValue, values ...exec.ReStream) error {
+func (w *wait) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
 	if w.ready < w.need {
 		// log.Printf("buffer[%v]: %v", w.UID, elm)
-		w.buf = append(w.buf, elm)
+		w.buf = append(w.buf, bufElement{elm: *elm, values: values})
 		return nil
 	}
 
 	// log.Printf("NOT buffer[%v]: %v", w.UID, elm)
-	return w.next.ProcessElement(ctx, elm)
+	return w.next.ProcessElement(ctx, elm, values...)
 }
 
 func (w *wait) FinishBundle(ctx context.Context) error {

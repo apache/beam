@@ -17,7 +17,7 @@
 
 """Test for the multiple_output_pardo example."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import re
@@ -32,12 +32,12 @@ class MultipleOutputParDo(unittest.TestCase):
 
   SAMPLE_TEXT = 'A whole new world\nA new fantastic point of view'
   EXPECTED_SHORT_WORDS = [('A', 2), ('new', 2), ('of', 1)]
-  EXPECTED_WORDS = [
-      ('whole', 1), ('world', 1), ('fantastic', 1), ('point', 1), ('view', 1)]
+  EXPECTED_WORDS = [('whole', 1), ('world', 1), ('fantastic', 1), ('point', 1),
+                    ('view', 1)]
 
   def create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
+      f.write(contents.encode('utf-8'))
       return f.name
 
   def get_wordcount_results(self, result_path):
@@ -53,9 +53,9 @@ class MultipleOutputParDo(unittest.TestCase):
     temp_path = self.create_temp_file(self.SAMPLE_TEXT)
     result_prefix = temp_path + '.result'
 
-    multiple_output_pardo.run([
-        '--input=%s*' % temp_path,
-        '--output=%s' % result_prefix])
+    multiple_output_pardo.run(
+        ['--input=%s*' % temp_path, '--output=%s' % result_prefix],
+        save_main_session=False)
 
     expected_char_count = len(''.join(self.SAMPLE_TEXT.split('\n')))
     with open_shards(result_prefix + '-chars-*-of-*') as f:

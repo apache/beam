@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.stream.Collectors;
@@ -52,12 +50,19 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link
  * DirectGroupAlsoByWindow} {@link PTransform}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
   private final PipelineOptions options;
@@ -81,7 +86,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
   private <K, V> TransformEvaluator<KeyedWorkItem<K, V>> createEvaluator(
       AppliedPTransform<
-              PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
+              PCollection<KeyedWorkItem<K, V>>,
+              PCollection<KV<K, Iterable<V>>>,
               DirectGroupAlsoByWindow<K, V>>
           application,
       CommittedBundle<KeyedWorkItem<K, V>> inputBundle) {
@@ -100,7 +106,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     private final EvaluationContext evaluationContext;
     private final PipelineOptions options;
     private final AppliedPTransform<
-            PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
+            PCollection<KeyedWorkItem<K, V>>,
+            PCollection<KV<K, Iterable<V>>>,
             DirectGroupAlsoByWindow<K, V>>
         application;
 
@@ -120,7 +127,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
         PipelineOptions options,
         CommittedBundle<KeyedWorkItem<K, V>> inputBundle,
         final AppliedPTransform<
-                PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
+                PCollection<KeyedWorkItem<K, V>>,
+                PCollection<KV<K, Iterable<V>>>,
                 DirectGroupAlsoByWindow<K, V>>
             application) {
       this.evaluationContext = evaluationContext;
@@ -193,6 +201,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           .addOutput(outputBundles)
           .withTimerUpdate(stepContext.getTimerUpdate())
           .addUnprocessedElements(unprocessedElements.build())
+          .withBundleFinalizations(stepContext.getAndClearFinalizations())
           .build();
     }
 

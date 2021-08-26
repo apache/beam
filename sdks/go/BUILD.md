@@ -20,8 +20,7 @@
 # Go build
 
 This document describes the [Go](https://golang.org) code layout and build integration
-with Gradle. The setup is non-trivial, because the Go toolchain expects a
-certain layout and Gradle support is limited.
+with Gradle.
 
 Goals:
 
@@ -32,16 +31,25 @@ Goals:
 
 In short, the goals are to make both worlds work well.
 
+## Go Modules
+
+Beam publishes a single Go Module for SDK developement and usage, in the `sdks` directory.
+This puts all Go code necessary for user pipeline development and for execution
+under the same module.
+This includes container bootloader code in the Java and Python SDK directories.
+
+Pipeline authors will require a dependency on `github.com/apache/beam/sdks/v2` in their
+`go.mod` files to use beam.
+
 ### Gradle integration
 
-The Go toolchain expects the package name to match the directory structure,
-which in turn must be rooted in `github.com/apache/beam` for `go get` to work.
-This directory prefix is beyond the repo itself and we must copy the Go source
-code into such a layout to invoke the tool chain. We use a single directory
-`sdks/go` for all shared library code and export it as a zip file during the 
-build process to be used by various tools, such as `sdks/java/container`.
-This scheme balances the convenience of combined Go setup with the desire
-for a unified layout across languages. Python seems to do the same.
+To integrate with Gradle, we use a gradle plugin called GoGradle.
+However, we disable GoGradle vendoring in favour of using Go Modules
+for dependency management.
+GoGradle handles invoking the go toolchain or gradle and jenkins,
+using the same dependencies as SDK contributors and users.
+For the rare Go binary, such as the container boot loaders, it should be
+possible to build the same binary with both Gradle and the usual Go tool.
 
 The container build adds a small twist to the build integration, because
 container images use linux/amd64 but the development setup might not. We
@@ -50,17 +58,24 @@ images where needed, generally placed in `target/linux_amd64`.
 
 ### Go development setup
 
-Developers must clone their git repository into:
-```
-$GOPATH/src/github.com/apache
+To develop the SDK, it should be sufficient to clone the repository, make
+changes and execute tests from within the module directory (`<repo>/sdks/...`).
 
+Go users can just `go get` the code directly. For example:
 ```
-to match the package structure expected by the code imports. Go users can just
-`go get` the code directly. For example:
-```
-go get github.com/apache/beam/sdks/go/...
+go get github.com/apache/beam/sdks/v2/go/pkg/beam
 ```
 Developers must invoke Go for cross-compilation manually, if desired.
 
 If you make changes to .proto files, you will need to rebuild the generated code.
 Consult `pkg/beam/model/PROTOBUF.md`.
+
+If you make changes to .tmpl files, then add the specialize tool to your path.
+You can install specialize using:
+```
+go get github.com/apache/beam/sdks/v2/go/cmd/specialize
+```
+Add it to your path:
+```
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+```

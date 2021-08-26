@@ -17,4 +17,8 @@
  */
 
 /** Transform for reading and parsing files with Apache Tika. */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.tika;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.examples.complete.game;
 
 import org.apache.beam.examples.complete.game.StatefulTeamScore.UpdateTeamScoreFn;
@@ -160,7 +159,6 @@ public class StatefulTeamScoreTest {
             .apply(ParDo.of(new UpdateTeamScoreFn(100)));
 
     String redTeam = TestUser.RED_ONE.getTeam();
-    String blueTeam = TestUser.BLUE_ONE.getTeam();
 
     IntervalWindow window1 = new IntervalWindow(baseTime, teamWindowDuration);
     IntervalWindow window2 = new IntervalWindow(window1.end(), teamWindowDuration);

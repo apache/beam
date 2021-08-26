@@ -19,9 +19,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 )
 
 // Impulse emits its single element in one invocation.
@@ -39,12 +39,12 @@ func (n *Impulse) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *Impulse) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (n *Impulse) StartBundle(ctx context.Context, id string, data exec.DataContext) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 
 func (n *Impulse) Process(ctx context.Context) error {
-	value := exec.FullValue{
+	value := &exec.FullValue{
 		Windows:   window.SingleGlobalWindow,
 		Timestamp: mtime.Now(),
 		Elm:       n.Value,

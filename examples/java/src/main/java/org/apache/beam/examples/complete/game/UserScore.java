@@ -19,6 +19,7 @@ package org.apache.beam.examples.complete.game;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.complete.game.utils.WriteToText;
 import org.apache.beam.sdk.Pipeline;
@@ -69,6 +70,9 @@ import org.slf4j.LoggerFactory;
  * value for example batch data file, or use {@code injector.Injector} to generate your own batch
  * data.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UserScore {
 
   /** Class to hold info about a game event. */
@@ -100,6 +104,10 @@ public class UserScore {
       return this.score;
     }
 
+    public Long getTimestamp() {
+      return this.timestamp;
+    }
+
     public String getKey(String keyname) {
       if ("team".equals(keyname)) {
         return this.team;
@@ -108,8 +116,35 @@ public class UserScore {
       }
     }
 
-    public Long getTimestamp() {
-      return this.timestamp;
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || o.getClass() != this.getClass()) {
+        return false;
+      }
+
+      GameActionInfo gameActionInfo = (GameActionInfo) o;
+
+      if (!this.getUser().equals(gameActionInfo.getUser())) {
+        return false;
+      }
+
+      if (!this.getTeam().equals(gameActionInfo.getTeam())) {
+        return false;
+      }
+
+      if (!this.getScore().equals(gameActionInfo.getScore())) {
+        return false;
+      }
+
+      return this.getTimestamp().equals(gameActionInfo.getTimestamp());
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(user, team, score, timestamp);
     }
   }
 
@@ -173,8 +208,11 @@ public class UserScore {
   public interface Options extends PipelineOptions {
 
     @Description("Path to the data file(s) containing game data.")
-    // The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
-    // day's worth (roughly) of data.
+    /* The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
+    day's worth (roughly) of data.
+
+    Note: You may want to use a small sample dataset to test it locally/quickly : gs://apache-beam-samples/game/small/gaming_data.csv
+    You can also download it via the command line gsutil cp gs://apache-beam-samples/game/small/gaming_data.csv ./destination_folder/gaming_data.csv */
     @Default.String("gs://apache-beam-samples/game/gaming_data*.csv")
     String getInput();
 

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -25,6 +24,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,7 +43,11 @@ public class KeyedWorkItemCoderTest {
   public void testEncodeDecodeEqual() throws Exception {
     Iterable<TimerData> timers =
         ImmutableList.of(
-            TimerData.of(StateNamespaces.global(), new Instant(500L), TimeDomain.EVENT_TIME));
+            TimerData.of(
+                StateNamespaces.global(),
+                new Instant(500L),
+                new Instant(500L),
+                TimeDomain.EVENT_TIME));
     Iterable<WindowedValue<Integer>> elements =
         ImmutableList.of(
             WindowedValue.valueInGlobalWindow(1),

@@ -17,12 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,7 +29,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -51,6 +47,10 @@ import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,9 +70,15 @@ import org.slf4j.LoggerFactory;
  * <p>This transform is intended to be used by a runner during pipeline translation to convert a
  * Read.Bounded into a Read.Unbounded.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PCollection<T>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
+
+  // Using 64MB in cases where we cannot compute a valid estimated size for a source.
+  private static final long DEFAULT_ESTIMATED_SIZE = 64 * 1024 * 1024;
 
   private final BoundedSource<T> source;
 
@@ -124,16 +130,25 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
     public List<BoundedToUnboundedSourceAdapter<T>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       try {
-        long desiredBundleSize = boundedSource.getEstimatedSizeBytes(options) / desiredNumSplits;
-        if (desiredBundleSize <= 0) {
+        long estimatedSize = boundedSource.getEstimatedSizeBytes(options);
+        if (estimatedSize <= 0) {
+          // Source is unable to provide a valid estimated size. So using default size.
           LOG.warn(
-              "BoundedSource {} cannot estimate its size, skips the initial splits.",
-              boundedSource);
-          return ImmutableList.of(this);
+              "Cannot determine a valid estimated size for BoundedSource {}. Using default "
+                  + "size of {} bytes",
+              boundedSource,
+              DEFAULT_ESTIMATED_SIZE);
+          estimatedSize = DEFAULT_ESTIMATED_SIZE;
         }
+
+        // Each split should at least be of size 1 byte.
+        long desiredBundleSize = Math.max(estimatedSize / desiredNumSplits, 1);
+
         List<? extends BoundedSource<T>> splits = boundedSource.split(desiredBundleSize, options);
-        return splits
-            .stream()
+        if (splits.size() == 0) {
+          splits = ImmutableList.of(boundedSource);
+        }
+        return splits.stream()
             .map(input -> new BoundedToUnboundedSourceAdapter<>(input))
             .collect(Collectors.toList());
       } catch (Exception e) {
@@ -157,7 +172,10 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       return boundedSource.getDefaultOutputCoder();
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     @Override
     public Coder<Checkpoint<T>> getCheckpointMarkCoder() {
       return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());

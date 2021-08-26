@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.channel;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.net.HostAndPort;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1p36p0.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 
 /** Creates a {@link SocketAddress} based upon a supplied string. */
 public class SocketAddressFactory {

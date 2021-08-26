@@ -42,14 +42,17 @@ deps:
   google-apitools:
     owners:
 
+  google-cloud-core:
+    owners:
+
   google-cloud-bigquery:
     owners: markflyhigh
 
+  google-cloud-bigtable:
+    owners:
+
   google-cloud-pubsub:
     owners: markflyhigh
-
-  googledatastore:
-    owners:
 
   grpcio:
     owners: robertwb
@@ -63,10 +66,10 @@ deps:
   mock:
     owners:
 
-  oauth2client:
-    owners:
+  pymongo:
+    owners: yichi
 
-  proto-google-cloud-datastore-v1:
+  oauth2client:
     owners:
 
   proto-google-cloud-pubsub-v1:
@@ -87,11 +90,17 @@ deps:
   pyyaml:
     owners: robertwb
 
-  six:
-    owners: robertwb
-
   typing:
     owners: robertwb
+
+  pandas:
+    owners: bhulette, robertwb
+
+  pyarrow:
+    owners: bhulette
+
+  numpy:
+    owners: bhulette
 
 # No dependency added below this line.
 ...

@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.net.URI;
 import java.util.Objects;
@@ -25,8 +26,12 @@ import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.hadoop.fs.Path;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link ResourceId} implementation for the {@link HadoopFileSystem}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class HadoopResourceId implements ResourceId {
   private final URI uri;
 
@@ -36,6 +41,8 @@ class HadoopResourceId implements ResourceId {
 
   @Override
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
+    checkState(
+        isDirectory(), String.format("Expected this resource is a directory, but had [%s].", uri));
     if (resolveOptions == StandardResolveOptions.RESOLVE_DIRECTORY) {
       if (!other.endsWith("/")) {
         other += "/";
@@ -62,6 +69,10 @@ class HadoopResourceId implements ResourceId {
 
   @Override
   public String getFilename() {
+    if (isDirectory()) {
+      Path parentPath = new Path(uri).getParent();
+      return parentPath == null ? null : parentPath.getName();
+    }
     return new Path(uri).getName();
   }
 
@@ -76,7 +87,7 @@ class HadoopResourceId implements ResourceId {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof HadoopResourceId)) {
       return false;
     }

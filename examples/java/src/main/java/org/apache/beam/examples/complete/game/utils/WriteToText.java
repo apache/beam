@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.complete.game.utils;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -47,6 +47,9 @@ import org.joda.time.format.DateTimeFormatter;
  * Generate, format, and write rows. Use provided information about the field names and types, as
  * well as lambda functions that describe how to generate their values.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WriteToText<InputT> extends PTransform<PCollection<InputT>, PDone> {
 
   private static final DateTimeFormatter formatter =

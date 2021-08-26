@@ -20,6 +20,8 @@ package org.apache.beam.runners.flink.translation.types;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -88,7 +90,32 @@ public final class EncodedValueSerializer extends TypeSerializerSingleton<byte[]
   }
 
   @Override
-  public boolean canEqual(Object obj) {
-    return obj instanceof EncodedValueSerializer;
+  public TypeSerializerSnapshot<byte[]> snapshotConfiguration() {
+    return new TypeSerializerSnapshot<byte[]>() {
+      @Override
+      public int getCurrentVersion() {
+        return 1;
+      }
+
+      @Override
+      public void writeSnapshot(DataOutputView out) throws IOException {}
+
+      @Override
+      public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
+          throws IOException {}
+
+      @Override
+      public TypeSerializer<byte[]> restoreSerializer() {
+        return new EncodedValueSerializer();
+      }
+
+      @Override
+      public TypeSerializerSchemaCompatibility<byte[]> resolveSchemaCompatibility(
+          TypeSerializer<byte[]> newSerializer) {
+        return newSerializer instanceof EncodedValueSerializer
+            ? TypeSerializerSchemaCompatibility.compatibleAsIs()
+            : TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+      }
+    };
   }
 }

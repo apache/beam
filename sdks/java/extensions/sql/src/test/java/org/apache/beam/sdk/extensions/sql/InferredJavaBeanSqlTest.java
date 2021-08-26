@@ -20,15 +20,17 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.TestUtils.tuple;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.schemas.DefaultSchema;
+import java.util.Objects;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -65,6 +67,23 @@ public class InferredJavaBeanSqlTest {
     public void setName(String name) {
       this.name = name;
     }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PersonBean that = (PersonBean) o;
+      return Objects.equals(ageYears, that.ageYears) && Objects.equals(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(ageYears, name);
+    }
   }
 
   /** Order JavaBean. */
@@ -94,6 +113,25 @@ public class InferredJavaBeanSqlTest {
 
     public void setBuyerName(String buyerName) {
       this.buyerName = buyerName;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      OrderBean orderBean = (OrderBean) o;
+      return Objects.equals(amount, orderBean.amount)
+          && Objects.equals(buyerName, orderBean.buyerName);
+    }
+
+    @Override
+    public int hashCode() {
+
+      return Objects.hash(amount, buyerName);
     }
   }
 

@@ -32,7 +32,7 @@ This example uses the default behavior for BigQuery source and sinks that
 represents table rows as plain Python dictionaries.
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import argparse
 import logging
@@ -53,32 +53,44 @@ def count_tornadoes(input_data):
     Months without tornadoes are skipped.
   """
 
-  return (input_data
-          | 'months with tornadoes' >> beam.FlatMap(
-              lambda row: [(int(row['month']), 1)] if row['tornado'] else [])
-          | 'monthly count' >> beam.CombinePerKey(sum)
-          | 'format' >> beam.Map(
-              lambda k_v: {'month': k_v[0], 'tornado_count': k_v[1]}))
+  return (
+      input_data
+      | 'months with tornadoes' >> beam.FlatMap(
+          lambda row: [(int(row['month']), 1)] if row['tornado'] else [])
+      | 'monthly count' >> beam.CombinePerKey(sum)
+      | 'format' >>
+      beam.Map(lambda k_v: {
+          'month': k_v[0], 'tornado_count': k_v[1]
+      }))
 
 
 def run(argv=None):
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      default='clouddataflow-readonly:samples.weather_stations',
-                      help=('Input BigQuery table to process specified as: '
-                            'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
+  parser.add_argument(
+      '--input',
+      default='clouddataflow-readonly:samples.weather_stations',
+      help=(
+          'Input BigQuery table to process specified as: '
+          'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
   parser.add_argument(
       '--output',
       required=True,
-      help=
-      ('Output BigQuery table for results specified as: PROJECT:DATASET.TABLE '
-       'or DATASET.TABLE.'))
+      help=(
+          'Output BigQuery table for results specified as: '
+          'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
+
+  parser.add_argument(
+      '--gcs_location',
+      required=False,
+      help=('GCS Location to store files to load '
+            'data into Bigquery'))
+
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
 
     # Read the table rows into a PCollection.
-    rows = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input))
+    rows = p | 'read' >> beam.io.ReadFromBigQuery(table=known_args.input)
     counts = count_tornadoes(rows)
 
     # Write the output using a "Write" transform that has side effects.

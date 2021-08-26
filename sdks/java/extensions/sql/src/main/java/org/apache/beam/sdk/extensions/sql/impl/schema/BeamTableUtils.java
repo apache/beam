@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import static org.apache.beam.sdk.values.Row.toRow;
@@ -23,14 +22,21 @@ import static org.apache.beam.sdk.values.Row.toRow;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.util.NlsString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
@@ -42,6 +48,9 @@ import org.joda.time.DateTime;
  *
  * <p>TODO: Does not yet support nested types.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class BeamTableUtils {
 
   /**
@@ -82,7 +91,7 @@ public final class BeamTableUtils {
     StringWriter writer = new StringWriter();
     try (CSVPrinter printer = csvFormat.print(writer)) {
       for (int i = 0; i < row.getFieldCount(); i++) {
-        printer.print(row.getValue(i).toString());
+        printer.print(row.getBaseValue(i, Object.class).toString());
       }
       printer.println();
     } catch (IOException e) {
@@ -91,28 +100,56 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
+  /**
+   * Attempt to cast an object to a specified Schema.Field.Type.
+   *
+   * @throws IllegalArgumentException if the value cannot be cast to that type.
+   * @return The casted object in Schema.Field.Type.
+   */
   public static Object autoCastField(Schema.Field field, Object rawObj) {
     if (rawObj == null) {
-      if (!field.getNullable()) {
+      if (!field.getType().getNullable()) {
         throw new IllegalArgumentException(String.format("Field %s not nullable", field.getName()));
       }
       return null;
     }
 
-    TypeName type = field.getType().getTypeName();
-    if (type.isStringType()) {
+    FieldType type = field.getType();
+    if (CalciteUtils.isStringType(type)) {
       if (rawObj instanceof NlsString) {
         return ((NlsString) rawObj).getValue();
       } else {
         return rawObj;
       }
-    } else if (type.isDateType()) {
-      return DateTime.parse(rawObj.toString());
-    } else if (type.isNumericType()
+    } else if (CalciteUtils.DATE.typesEqual(type) || CalciteUtils.NULLABLE_DATE.typesEqual(type)) {
+      if (rawObj instanceof GregorianCalendar) { // used by the SQL CLI
+        GregorianCalendar calendar = (GregorianCalendar) rawObj;
+        return Instant.ofEpochMilli(calendar.getTimeInMillis())
+            .atZone(calendar.getTimeZone().toZoneId())
+            .toLocalDate();
+      } else {
+        return LocalDate.ofEpochDay((Integer) rawObj);
+      }
+    } else if (CalciteUtils.TIME.typesEqual(type) || CalciteUtils.NULLABLE_TIME.typesEqual(type)) {
+      if (rawObj instanceof GregorianCalendar) { // used by the SQL CLI
+        GregorianCalendar calendar = (GregorianCalendar) rawObj;
+        return Instant.ofEpochMilli(calendar.getTimeInMillis())
+            .atZone(calendar.getTimeZone().toZoneId())
+            .toLocalTime();
+      } else {
+        return LocalTime.ofNanoOfDay((Long) rawObj);
+      }
+    } else if (CalciteUtils.isDateTimeType(type)) {
+      // Internal representation of Date in Calcite is convertible to Joda's Datetime.
+      return new DateTime(rawObj);
+    } else if (type.getTypeName().isNumericType()
         && ((rawObj instanceof String)
-            || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL))) {
+            || (rawObj instanceof BigDecimal && type.getTypeName() != TypeName.DECIMAL))) {
       String raw = rawObj.toString();
-      switch (type) {
+      if (raw.trim().isEmpty()) {
+        return null;
+      }
+      switch (type.getTypeName()) {
         case BYTE:
           return Byte.valueOf(raw);
         case INT16:
@@ -128,6 +165,10 @@ public final class BeamTableUtils {
         default:
           throw new UnsupportedOperationException(
               String.format("Column type %s is not supported yet!", type));
+      }
+    } else if (type.getTypeName().isPrimitiveType()) {
+      if (TypeName.BYTES.equals(type.getTypeName()) && rawObj instanceof ByteString) {
+        return ((ByteString) rawObj).getBytes();
       }
     }
     return rawObj;

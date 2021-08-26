@@ -18,16 +18,17 @@
 """A object to control to the Job API Co-Process
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import subprocess
 import time
-from builtins import object
 
 import grpc
 
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class DockerRPCManager(object):
@@ -35,10 +36,11 @@ class DockerRPCManager(object):
   """
   def __init__(self, run_command=None):
     # TODO(BEAM-2431): Change this to a docker container from a command.
-    self.process = subprocess.Popen(
-        ['python',
-         '-m',
-         'apache_beam.runners.experimental.python_rpc_direct.server'])
+    self.process = subprocess.Popen([
+        'python',
+        '-m',
+        'apache_beam.runners.experimental.python_rpc_direct.server'
+    ])
 
     self.channel = grpc.insecure_channel('localhost:50051')
     self.service = beam_job_api_pb2_grpc.JobServiceStub(self.channel)
@@ -51,5 +53,5 @@ class DockerRPCManager(object):
   def __del__(self):
     """Terminate the co-process when the manager is GC'ed
     """
-    logging.info('Shutting the co-process')
+    _LOGGER.info('Shutting the co-process')
     self.process.terminate()

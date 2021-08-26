@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,7 +34,7 @@ public class PCollectionViewTranslationTest {
   @Test
   public void testViewFnTranslation() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     assertEquals(
         new TestViewFn(),
         PCollectionViewTranslation.viewFnFromProto(
@@ -44,7 +44,7 @@ public class PCollectionViewTranslationTest {
   @Test
   public void testWindowMappingFnTranslation() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     assertEquals(
         new GlobalWindows().getDefaultWindowMappingFn(),
         PCollectionViewTranslation.windowMappingFnFromProto(
@@ -65,7 +65,12 @@ public class PCollectionViewTranslationTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public TypeDescriptor<Object> getTypeDescriptor() {
+      return new TypeDescriptor<Object>() {};
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof TestViewFn;
     }
 

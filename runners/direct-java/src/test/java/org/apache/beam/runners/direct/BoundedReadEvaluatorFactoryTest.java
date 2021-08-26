@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
@@ -26,11 +27,8 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +36,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CountDownLatch;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.direct.BoundedReadEvaluatorFactory.BoundedSourceShard;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -57,6 +56,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -69,6 +70,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BoundedReadEvaluatorFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class BoundedReadEvaluatorFactoryTest {
   private BoundedSource<Long> source;
   private PCollection<Long> longs;
@@ -78,6 +82,7 @@ public class BoundedReadEvaluatorFactoryTest {
   private AppliedPTransform<?, ?, ?> longsProducer;
 
   @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   private PipelineOptions options;
 
   @Before
@@ -85,11 +90,10 @@ public class BoundedReadEvaluatorFactoryTest {
     MockitoAnnotations.initMocks(this);
     source = CountingSource.upTo(10L);
     longs = p.apply(Read.from(source));
-
-    options = PipelineOptionsFactory.create();
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
     factory =
         new BoundedReadEvaluatorFactory(
-            context, options, Long.MAX_VALUE /* minimum size for dynamic splits */);
+            context, p.getOptions(), Long.MAX_VALUE /* minimum size for dynamic splits */);
     bundleFactory = ImmutableListBundleFactory.create();
     longsProducer = DirectGraphs.getProducer(longs);
   }
@@ -139,6 +143,7 @@ public class BoundedReadEvaluatorFactoryTest {
       elems[i] = (long) i;
     }
     PCollection<Long> read = p.apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
     AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
     Collection<CommittedBundle<?>> unreadInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context, options)
@@ -189,6 +194,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     PCollection<Long> read =
         p.apply(Read.from(SourceTestUtils.toUnsplittableSource(CountingSource.upTo(10L))));
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
     AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());

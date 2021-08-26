@@ -21,9 +21,9 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
-import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.tools.RelConversionException;
-import org.apache.calcite.tools.ValidationException;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelConversionException;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.ValidationException;
 import org.junit.Before;
 import org.junit.Ignore;
 
@@ -39,7 +39,7 @@ public class BeamSqlExplainTest {
     cli = new BeamSqlCli().metaStore(metaStore);
 
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
@@ -47,14 +47,14 @@ public class BeamSqlExplainTest {
             + "COMMENT '' ");
 
     cli.execute(
-        "create table A (\n"
+        "CREATE EXTERNAL TABLE A (\n"
             + "c1 int COMMENT 'c1',\n"
             + "c2 int COMMENT 'c2')\n"
             + "TYPE 'text'\n"
             + "COMMENT '' ");
 
     cli.execute(
-        "create table B (\n"
+        "CREATE EXTERNAL TABLE B (\n"
             + "c1 int COMMENT 'c1',\n"
             + "c2 int COMMENT 'c2')\n"
             + "TYPE 'text'\n"
@@ -68,7 +68,7 @@ public class BeamSqlExplainTest {
 
     assertEquals(
         "BeamCalcRel(expr#0..3=[{inputs}], c1=[$t0], c2=[$t3])\n"
-            + "  BeamJoinRel(condition=[=($0, $3)], joinType=[inner])\n"
+            + "  BeamCoGBKJoinRel(condition=[=($0, $3)], joinType=[inner])\n"
             + "    BeamCalcRel(expr#0..1=[{inputs}], expr#2=[0], expr#3=[>($t0, $t2)],"
             + " proj#0..1=[{exprs}], $condition=[$t3])\n"
             + "      BeamIOSourceRel(table=[[beam, A]])\n"

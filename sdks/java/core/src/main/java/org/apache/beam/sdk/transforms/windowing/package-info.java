@@ -46,4 +46,4 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;

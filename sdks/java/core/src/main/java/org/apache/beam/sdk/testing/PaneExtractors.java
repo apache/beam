@@ -36,6 +36,9 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * coder of any output {@link PCollection}, as appropriate {@link TypeDescriptor TypeDescriptors}
  * cannot be obtained when the extractor is created.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 final class PaneExtractors {
   private PaneExtractors() {}
 
@@ -58,6 +61,10 @@ final class PaneExtractors {
 
   static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> earlyPanes() {
     return new ExtractEarlyPanes<>();
+  }
+
+  static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> latePanes() {
+    return new ExtractLatePanes<>();
   }
 
   static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> allPanes() {
@@ -150,6 +157,20 @@ final class PaneExtractors {
       List<T> outputs = new ArrayList<>();
       for (ValueInSingleWindow<T> value : input) {
         if (value.getPane().getTiming() == PaneInfo.Timing.EARLY) {
+          outputs.add(value.getValue());
+        }
+      }
+      return outputs;
+    }
+  }
+
+  private static class ExtractLatePanes<T>
+      extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
+    @Override
+    public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
+      List<T> outputs = new ArrayList<>();
+      for (ValueInSingleWindow<T> value : input) {
+        if (value.getPane().getTiming() == PaneInfo.Timing.LATE) {
           outputs.add(value.getValue());
         }
       }

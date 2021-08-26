@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
@@ -28,6 +27,9 @@ import org.apache.beam.sdk.fn.data.LogicalEndpoint;
  * for a {@link LogicalEndpoint}.
  */
 @AutoValue
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class RemoteOutputReceiver<T> {
   public static <T> RemoteOutputReceiver of(Coder<T> coder, FnDataReceiver<T> receiver) {
     return new AutoValue_RemoteOutputReceiver<>(coder, receiver);

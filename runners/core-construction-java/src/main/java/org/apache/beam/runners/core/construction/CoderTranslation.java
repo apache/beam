@@ -15,15 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableBiMap;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,16 +26,39 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CoderTranslation {
+
+  /**
+   * Pass through additional parameters beyond the components and payload to be able to translate
+   * specific coders.
+   *
+   * <p>Portability state API backed coders is an example of such a coder translator requiring
+   * additional parameters.
+   */
+  public interface TranslationContext {
+    /** The default translation context containing no additional parameters. */
+    TranslationContext DEFAULT = new DefaultTranslationContext();
+  }
+
+  /** A convenient class representing a default context containing no additional parameters. */
+  private static class DefaultTranslationContext implements TranslationContext {}
+
   // This URN says that the coder is just a UDF blob this SDK understands
   // TODO: standardize such things
-  public static final String JAVA_SERIALIZED_CODER_URN = "urn:beam:coders:javasdk:0.1";
+  public static final String JAVA_SERIALIZED_CODER_URN = "beam:coders:javasdk:0.1";
 
   @VisibleForTesting
   static final BiMap<Class<? extends Coder>, String> KNOWN_CODER_URNS = loadCoderURNs();
@@ -91,11 +109,9 @@ public class CoderTranslation {
     return RunnerApi.Coder.newBuilder()
         .addAllComponentCoderIds(componentIds)
         .setSpec(
-            SdkFunctionSpec.newBuilder()
-                .setSpec(
-                    FunctionSpec.newBuilder()
-                        .setUrn(KNOWN_CODER_URNS.get(coder.getClass()))
-                        .setPayload(ByteString.copyFrom(translator.getPayload(coder)))))
+            FunctionSpec.newBuilder()
+                .setUrn(KNOWN_CODER_URNS.get(coder.getClass()))
+                .setPayload(ByteString.copyFrom(translator.getPayload(coder))))
         .build();
   }
 
@@ -112,31 +128,36 @@ public class CoderTranslation {
     RunnerApi.Coder.Builder coderBuilder = RunnerApi.Coder.newBuilder();
     return coderBuilder
         .setSpec(
-            SdkFunctionSpec.newBuilder()
-                .setSpec(
-                    FunctionSpec.newBuilder()
-                        .setUrn(JAVA_SERIALIZED_CODER_URN)
-                        .setPayload(
-                            ByteString.copyFrom(SerializableUtils.serializeToByteArray(coder)))
-                        .build()))
+            FunctionSpec.newBuilder()
+                .setUrn(JAVA_SERIALIZED_CODER_URN)
+                .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(coder)))
+                .build())
         .build();
   }
 
-  public static Coder<?> fromProto(RunnerApi.Coder protoCoder, RehydratedComponents components)
+  public static Coder<?> fromProto(
+      RunnerApi.Coder protoCoder, RehydratedComponents components, TranslationContext context)
       throws IOException {
-    String coderSpecUrn = protoCoder.getSpec().getSpec().getUrn();
+    String coderSpecUrn = protoCoder.getSpec().getUrn();
     if (coderSpecUrn.equals(JAVA_SERIALIZED_CODER_URN)) {
       return fromCustomCoder(protoCoder);
     }
-    return fromKnownCoder(protoCoder, components);
+    return fromKnownCoder(protoCoder, components, context);
   }
 
-  private static Coder<?> fromKnownCoder(RunnerApi.Coder coder, RehydratedComponents components)
+  private static Coder<?> fromKnownCoder(
+      RunnerApi.Coder coder, RehydratedComponents components, TranslationContext context)
       throws IOException {
-    String coderUrn = coder.getSpec().getSpec().getUrn();
+    String coderUrn = coder.getSpec().getUrn();
     List<Coder<?>> coderComponents = new ArrayList<>();
     for (String componentId : coder.getComponentCoderIdsList()) {
-      Coder<?> innerCoder = components.getCoder(componentId);
+      // Only store coders in RehydratedComponents as long as we are not using a custom
+      // translation context.
+      Coder<?> innerCoder =
+          context == TranslationContext.DEFAULT
+              ? components.getCoder(componentId)
+              : fromProto(
+                  components.getComponents().getCodersOrThrow(componentId), components, context);
       coderComponents.add(innerCoder);
     }
     Class<? extends Coder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
@@ -147,12 +168,12 @@ public class CoderTranslation {
         coderUrn,
         KNOWN_CODER_URNS.values());
     return translator.fromComponents(
-        coderComponents, coder.getSpec().getSpec().getPayload().toByteArray());
+        coderComponents, coder.getSpec().getPayload().toByteArray(), context);
   }
 
   private static Coder<?> fromCustomCoder(RunnerApi.Coder protoCoder) throws IOException {
     return (Coder<?>)
         SerializableUtils.deserializeFromByteArray(
-            protoCoder.getSpec().getSpec().getPayload().toByteArray(), "Custom Coder Bytes");
+            protoCoder.getSpec().getPayload().toByteArray(), "Custom Coder Bytes");
   }
 }

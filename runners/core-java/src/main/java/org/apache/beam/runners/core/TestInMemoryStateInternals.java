@@ -25,6 +25,10 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.joda.time.Instant;
 
 /** Simulates state like {@link InMemoryStateInternals} and provides some extra helper methods. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
   public TestInMemoryStateInternals(K key) {
     super(key);

@@ -19,6 +19,8 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // GenID is a simple UnitID generator.
@@ -32,18 +34,36 @@ func (g *GenID) New() UnitID {
 	return UnitID(g.last)
 }
 
+type doFnError struct {
+	doFn string
+	err  error
+	uid  UnitID
+	pid  string
+}
+
+func (e *doFnError) Error() string {
+	return fmt.Sprintf("DoFn[UID:%v, PID:%v, Name: %v] failed:\n%v", e.uid, e.pid, e.doFn, e.err)
+}
+
 // callNoPanic calls the given function and catches any panic.
 func callNoPanic(ctx context.Context, fn func(context.Context) error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v %s", r, debug.Stack())
+			// Check if the panic value is from a failed DoFn, and return it without a panic trace.
+			if e, ok := r.(*doFnError); ok {
+				err = e
+			} else {
+				// Top level error is the panic itself, but also include the stack trace as the original error.
+				// Higher levels can then add appropriate context without getting pushed down by the stack trace.
+				err = errors.SetTopLevelMsgf(errors.Errorf("panic: %v %s", r, debug.Stack()), "panic: %v", r)
+			}
 		}
 	}()
 	return fn(ctx)
 }
 
 // MultiStartBundle calls StartBundle on multiple nodes. Convenience function.
-func MultiStartBundle(ctx context.Context, id string, data DataManager, list ...Node) error {
+func MultiStartBundle(ctx context.Context, id string, data DataContext, list ...Node) error {
 	for _, n := range list {
 		if err := n.StartBundle(ctx, id, data); err != nil {
 			return err

@@ -16,8 +16,9 @@
 package typex
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"reflect"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
 
 // This file defines data types that programs use to indicate a
@@ -34,6 +35,7 @@ var (
 
 	EventTimeType = reflect.TypeOf((*EventTime)(nil)).Elem()
 	WindowType    = reflect.TypeOf((*Window)(nil)).Elem()
+	PaneInfoType  = reflect.TypeOf((*PaneInfo)(nil)).Elem()
 
 	KVType            = reflect.TypeOf((*KV)(nil)).Elem()
 	CoGBKType         = reflect.TypeOf((*CoGBK)(nil)).Elem()
@@ -61,6 +63,21 @@ type Window interface {
 
 	// Equals returns true iff the windows are identical.
 	Equals(o Window) bool
+}
+
+type PaneTiming byte
+
+const (
+	PaneEarly   PaneTiming = 0
+	PaneOnTime  PaneTiming = 1
+	PaneLate    PaneTiming = 2
+	PaneUnknown PaneTiming = 3
+)
+
+type PaneInfo struct {
+	Timing                     PaneTiming
+	IsFirst, IsLast            bool
+	Index, NonSpeculativeIndex int64
 }
 
 // KV, CoGBK, WindowedValue represent composite generic types. They are not used

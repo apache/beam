@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.runners;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -28,7 +29,6 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.values.PBegin;
@@ -59,7 +60,7 @@ public class TransformTreeTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   enum TransformsSeen {
-    READ,
+    IMPULSE,
     WRITE,
     SAMPLE
   }
@@ -138,7 +139,7 @@ public class TransformTreeTest {
               assertNotNull(node.getEnclosingNode());
               assertTrue(node.isCompositeNode());
             }
-            assertThat(transform, not(instanceOf(Read.Bounded.class)));
+            assertThat(transform, not(instanceOf(Impulse.class)));
             return CompositeBehavior.ENTER_TRANSFORM;
           }
 
@@ -153,18 +154,18 @@ public class TransformTreeTest {
           @Override
           public void visitPrimitiveTransform(TransformHierarchy.Node node) {
             PTransform<?, ?> transform = node.getTransform();
-            // Pick is a composite, should not be visited here.
+            // Composites should not be visited here.
             assertThat(transform, not(instanceOf(Combine.Globally.class)));
             assertThat(transform, not(instanceOf(WriteFiles.class)));
-            if (transform instanceof Read.Bounded
-                && node.getEnclosingNode().getTransform() instanceof TextIO.Read) {
-              assertTrue(visited.add(TransformsSeen.READ));
-            }
+            assertThat(transform, not(instanceOf(TextIO.Read.class)));
+            // There are multiple impulses in the graph so we don't validate that we haven't
+            // seen one before.
+            visited.add(TransformsSeen.IMPULSE);
           }
         });
 
-    assertTrue(visited.equals(EnumSet.allOf(TransformsSeen.class)));
-    assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE)));
+    assertEquals(visited, EnumSet.allOf(TransformsSeen.class));
+    assertEquals(left, EnumSet.of(TransformsSeen.SAMPLE));
   }
 
   @Test(expected = IllegalArgumentException.class)

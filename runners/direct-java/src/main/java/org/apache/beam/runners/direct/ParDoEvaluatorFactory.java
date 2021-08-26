@@ -17,10 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
@@ -30,16 +26,22 @@ import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link TransformEvaluatorFactory} for {@link ParDo.MultiOutput}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluatorFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
@@ -63,7 +65,8 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     return new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
       @Override
       public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> application) throws Exception {
-        return DoFnLifecycleManager.of(ParDoTranslation.getDoFn(application));
+        return DoFnLifecycleManager.of(
+            ParDoTranslation.getDoFn(application), application.getPipeline().getOptions());
       }
     };
   }
@@ -81,7 +84,9 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
                 inputBundle.getKey(),
                 ParDoTranslation.getSideInputs(application),
                 (TupleTag<OutputT>) ParDoTranslation.getMainOutputTag(application),
-                ParDoTranslation.getAdditionalOutputTags(application).getAll());
+                ParDoTranslation.getAdditionalOutputTags(application).getAll(),
+                ParDoTranslation.getSchemaInformation(application),
+                ParDoTranslation.getSideInputMapping(application));
     return evaluator;
   }
 
@@ -104,7 +109,9 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       StructuralKey<?> inputBundleKey,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> additionalOutputTags)
+      List<TupleTag<?>> additionalOutputTags,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping)
       throws Exception {
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =
@@ -122,6 +129,8 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
             additionalOutputTags,
             stepContext,
             fnManager.get(),
+            doFnSchemaInformation,
+            sideInputMapping,
             fnManager),
         fnManager);
   }
@@ -135,6 +144,8 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       List<TupleTag<?>> additionalOutputTags,
       DirectStepContext stepContext,
       DoFn<InputT, OutputT> fn,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping,
       DoFnLifecycleManager fnManager)
       throws Exception {
     try {
@@ -150,7 +161,9 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           sideInputs,
           mainOutputTag,
           additionalOutputTags,
-          pcollections(application.getOutputs()),
+          application.getOutputs(),
+          doFnSchemaInformation,
+          sideInputMapping,
           runnerFactory);
     } catch (Exception e) {
       try {
@@ -163,13 +176,5 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       }
       throw e;
     }
-  }
-
-  static Map<TupleTag<?>, PCollection<?>> pcollections(Map<TupleTag<?>, PValue> outputs) {
-    Map<TupleTag<?>, PCollection<?>> pcs = new HashMap<>();
-    for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
-      pcs.put(output.getKey(), (PCollection<?>) output.getValue());
-    }
-    return pcs;
   }
 }

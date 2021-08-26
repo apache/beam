@@ -15,22 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.BatchStatefulParDoOverrides.StatefulMultiOutputParDo;
 import org.apache.beam.runners.dataflow.BatchStatefulParDoOverrides.StatefulSingleOutputParDo;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -38,6 +35,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.StateSpec;
@@ -46,11 +46,11 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -70,13 +70,13 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     pipeline.apply(Create.of(KV.of(1, 2))).apply(ParDo.of(fn));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 
   @Test
   public void testFnApiSingleOutputOverrideNonCrashing() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions("--experiments=beam_fn_api");
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setRunner(DataflowRunner.class);
     Pipeline pipeline = Pipeline.create(options);
 
@@ -84,7 +84,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     pipeline.apply(Create.of(KV.of(1, 2))).apply(ParDo.of(fn));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 
@@ -103,7 +103,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
         .apply(ParDo.of(fn).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 
@@ -113,7 +113,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
           + "exposes a way to know when the replacement is not required by checking that the "
           + "preceding ParDos to a GBK are key preserving.")
   public void testFnApiMultiOutputOverrideNonCrashing() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions("--experiments=beam_fn_api");
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setRunner(DataflowRunner.class);
     Pipeline pipeline = Pipeline.create(options);
 
@@ -126,7 +126,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
         .apply(ParDo.of(fn).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 
@@ -147,7 +147,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof DummyStatefulDoFn;
     }
 
@@ -159,7 +159,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
 
   private static class FindBatchStatefulDoFnVisitor extends PipelineVisitor.Defaults {
 
-    @Nullable private DoFn<?, ?> batchStatefulDoFn;
+    private @Nullable DoFn<?, ?> batchStatefulDoFn;
 
     public DoFn<?, ?> getStatefulDoFn() {
       assertThat(batchStatefulDoFn, not(nullValue()));
@@ -198,6 +198,10 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     options.setTempLocation(GcsPath.fromComponents("somebucket", "some/path").toString());
     options.setFilesToStage(new ArrayList<>());
     options.setGcsUtil(mockGcsUtil);
+
+    // Enable the FileSystems API to know about gs:// URIs in this test.
+    FileSystems.setDefaultPipelineOptions(options);
+
     return options;
   }
 }

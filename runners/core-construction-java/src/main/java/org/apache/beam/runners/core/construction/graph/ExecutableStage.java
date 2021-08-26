@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -28,6 +28,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.TimerId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.UserStateId;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.WireCoderSetting;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -69,6 +70,14 @@ public interface ExecutableStage {
    * runner-side processing.
    */
   Environment getEnvironment();
+
+  /**
+   * Returns a set of {@link WireCoderSetting}s this stage executes in.
+   *
+   * <p>A {@link WireCoderSetting} consists of settings which is used to configure the type of the
+   * wire coder for a dedicated PCollection.
+   */
+  Collection<WireCoderSetting> getWireCoderSettings();
 
   /**
    * Returns the root {@link PCollectionNode} of this {@link ExecutableStage}. This {@link
@@ -135,6 +144,7 @@ public interface ExecutableStage {
     ExecutableStagePayload.Builder payload = ExecutableStagePayload.newBuilder();
 
     payload.setEnvironment(getEnvironment());
+    payload.addAllWireCoderSettings(getWireCoderSettings());
 
     // Populate inputs and outputs of the stage payload and outer PTransform simultaneously.
     PCollectionNode input = getInputPCollection();
@@ -184,8 +194,7 @@ public interface ExecutableStage {
             .toBuilder()
             .clearTransforms()
             .putAllTransforms(
-                getTransforms()
-                    .stream()
+                getTransforms().stream()
                     .collect(
                         Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform))));
 
@@ -210,41 +219,46 @@ public interface ExecutableStage {
   static ExecutableStage fromPayload(ExecutableStagePayload payload) {
     Components components = payload.getComponents();
     Environment environment = payload.getEnvironment();
+    Collection<WireCoderSetting> wireCoderSettings = payload.getWireCoderSettingsList();
 
     PCollectionNode input =
         PipelineNode.pCollection(
             payload.getInput(), components.getPcollectionsOrThrow(payload.getInput()));
     List<SideInputReference> sideInputs =
-        payload
-            .getSideInputsList()
-            .stream()
+        payload.getSideInputsList().stream()
             .map(sideInputId -> SideInputReference.fromSideInputId(sideInputId, components))
             .collect(Collectors.toList());
     List<UserStateReference> userStates =
-        payload
-            .getUserStatesList()
-            .stream()
+        payload.getUserStatesList().stream()
             .map(userStateId -> UserStateReference.fromUserStateId(userStateId, components))
             .collect(Collectors.toList());
     List<TimerReference> timers =
-        payload
-            .getTimersList()
-            .stream()
+        payload.getTimersList().stream()
             .map(timerId -> TimerReference.fromTimerId(timerId, components))
             .collect(Collectors.toList());
     List<PTransformNode> transforms =
-        payload
-            .getTransformsList()
-            .stream()
+        payload.getTransformsList().stream()
             .map(id -> PipelineNode.pTransform(id, components.getTransformsOrThrow(id)))
             .collect(Collectors.toList());
     List<PCollectionNode> outputs =
-        payload
-            .getOutputsList()
-            .stream()
+        payload.getOutputsList().stream()
             .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
             .collect(Collectors.toList());
     return ImmutableExecutableStage.of(
-        components, environment, input, sideInputs, userStates, timers, transforms, outputs);
+        components,
+        environment,
+        input,
+        sideInputs,
+        userStates,
+        timers,
+        transforms,
+        outputs,
+        wireCoderSettings);
   }
+
+  /**
+   * The default wire coder settings which returns an empty list, i.e., the WireCoder for each
+   * PCollection and timer will be a WINDOWED_VALUE coder.
+   */
+  Collection<WireCoderSetting> DEFAULT_WIRE_CODER_SETTINGS = Collections.emptyList();
 }

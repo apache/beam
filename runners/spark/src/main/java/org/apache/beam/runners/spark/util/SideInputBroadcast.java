@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.util;
 
 import java.io.ByteArrayInputStream;
@@ -24,6 +23,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.util.SizeEstimator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +31,9 @@ import org.slf4j.LoggerFactory;
  * Broadcast helper for side inputs. Helps to do the transformation from bytes transform to
  * broadcast transform to value by coder
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SideInputBroadcast<T> implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(SideInputBroadcast.class);
@@ -66,12 +69,16 @@ public class SideInputBroadcast<T> implements Serializable {
   private T deserialize() {
     T val;
     try {
-      val = coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
+      val = coder.decode(new ByteArrayInputStream(bcast.value()));
     } catch (IOException ioe) {
       // this should not ever happen, log it if it does.
       LOG.warn(ioe.getMessage());
       val = null;
     }
     return val;
+  }
+
+  public long getBroadcastSizeEstimate() {
+    return SizeEstimator.estimate(bytes);
   }
 }

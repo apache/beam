@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -39,6 +40,9 @@ import org.slf4j.LoggerFactory;
 
 /** Options that can be used to configure the {@link DataflowRunner}. */
 @Description("Options that configure the Dataflow pipeline.")
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public interface DataflowPipelineOptions
     extends PipelineOptions,
         GcpOptions,
@@ -90,6 +94,12 @@ public interface DataflowPipelineOptions
 
   void setUpdate(boolean value);
 
+  /** If set, the snapshot from which the job should be created. */
+  @Description("If set, the snapshot from which the job should be created.")
+  String getCreateFromSnapshot();
+
+  void setCreateFromSnapshot(String value);
+
   /** Where the runner should generate a template file. Must either be local or Cloud Storage. */
   @Description(
       "Where the runner should generate a template file. "
@@ -97,6 +107,17 @@ public interface DataflowPipelineOptions
   String getTemplateLocation();
 
   void setTemplateLocation(String value);
+
+  /**
+   * Service options are set by the user and configure the service. This decouples service side
+   * feature availability from the Apache Beam release cycle.
+   */
+  @Description(
+      "Service options are set by the user and configure the service. This "
+          + "decouples service side feature availability from the Apache Beam release cycle.")
+  List<String> getDataflowServiceOptions();
+
+  void setDataflowServiceOptions(List<String> options);
 
   /** Run the job as a specific service account, instead of the default GCE robot. */
   @Hidden
@@ -110,17 +131,12 @@ public interface DataflowPipelineOptions
    * The Google Compute Engine <a
    * href="https://cloud.google.com/compute/docs/regions-zones/regions-zones">region</a> for
    * creating Dataflow jobs.
-   *
-   * <p>NOTE: The Cloud Dataflow service does not yet honor this setting. However, once service
-   * support is added then users of this SDK will be able to control the region.
    */
-  @Hidden
-  @Experimental
   @Description(
       "The Google Compute Engine region for creating Dataflow jobs. See "
           + "https://cloud.google.com/compute/docs/regions-zones/regions-zones for a list of valid "
-          + "options. Default is up to the Dataflow service.")
-  @Default.String("us-central1")
+          + "options.")
+  @Default.InstanceFactory(DefaultGcpRegionFactory.class)
   String getRegion();
 
   void setRegion(String region);
@@ -136,6 +152,30 @@ public interface DataflowPipelineOptions
   String getPipelineUrl();
 
   void setPipelineUrl(String urlString);
+
+  @Description("The customized dataflow worker jar")
+  String getDataflowWorkerJar();
+
+  void setDataflowWorkerJar(String dataflowWorkerJar);
+
+  /** Set of available Flexible Resource Scheduling goals. */
+  enum FlexResourceSchedulingGoal {
+    /** No goal specified. */
+    UNSPECIFIED,
+
+    /** Optimize for lower execution time. */
+    SPEED_OPTIMIZED,
+
+    /** Optimize for lower cost. */
+    COST_OPTIMIZED,
+  }
+
+  /** This option controls Flexible Resource Scheduling mode. */
+  @Description("Controls the Flexible Resource Scheduling mode.")
+  @Default.Enum("UNSPECIFIED")
+  FlexResourceSchedulingGoal getFlexRSGoal();
+
+  void setFlexRSGoal(FlexResourceSchedulingGoal goal);
 
   /** Returns a default staging location under {@link GcpOptions#getGcpTempLocation}. */
   class StagingLocationFactory implements DefaultValueFactory<String> {
@@ -170,4 +210,11 @@ public interface DataflowPipelineOptions
           .toString();
     }
   }
+
+  /** If enabled then the literal key will be logged to Cloud Logging if a hot key is detected. */
+  @Description(
+      "If enabled then the literal key will be logged to Cloud Logging if a hot key is detected.")
+  boolean isHotKeyLoggingEnabled();
+
+  void setHotKeyLoggingEnabled(boolean value);
 }

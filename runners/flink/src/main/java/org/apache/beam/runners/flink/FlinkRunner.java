@@ -17,27 +17,27 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
-
-import com.google.common.base.Joiner;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.program.DetachedEnvironment;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +46,9 @@ import org.slf4j.LoggerFactory;
  * to a Flink Plan and then executing them either locally or on a Flink cluster, depending on the
  * configuration.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkRunner.class);
@@ -62,52 +65,37 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   public static FlinkRunner fromOptions(PipelineOptions options) {
     FlinkPipelineOptions flinkOptions =
         PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
-    ArrayList<String> missing = new ArrayList<>();
-
-    if (flinkOptions.getAppName() == null) {
-      missing.add("appName");
-    }
-    if (missing.size() > 0) {
-      throw new IllegalArgumentException(
-          "Missing required values: " + Joiner.on(',').join(missing));
-    }
-
-    if (flinkOptions.getFilesToStage() == null) {
-      flinkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader()));
-      LOG.info(
-          "PipelineOptions.filesToStage was not specified. "
-              + "Defaulting to files from the classpath: will stage {} files. "
-              + "Enable logging at DEBUG level to see which files will be staged.",
-          flinkOptions.getFilesToStage().size());
-      LOG.debug("Classpath elements: {}", flinkOptions.getFilesToStage());
-    }
-
-    // Set Flink Master to [auto] if no option was specified.
-    if (flinkOptions.getFlinkMaster() == null) {
-      flinkOptions.setFlinkMaster("[auto]");
-    }
-
     return new FlinkRunner(flinkOptions);
   }
 
-  private FlinkRunner(FlinkPipelineOptions options) {
+  protected FlinkRunner(FlinkPipelineOptions options) {
     this.options = options;
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
   }
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
+    // Portable flink only support SDF as read.
+    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    }
+
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
 
     MetricsEnvironment.setMetricsSupported(true);
 
     LOG.info("Executing pipeline using FlinkRunner.");
 
+    if (!options.getFasterCopy()) {
+      LOG.warn(
+          "For maximum performance you should set the 'fasterCopy' option. See more at https://issues.apache.org/jira/browse/BEAM-11146");
+    }
+
     FlinkPipelineExecutionEnvironment env = new FlinkPipelineExecutionEnvironment(options);
 
     LOG.info("Translating pipeline to Flink program.");
-    env.translate(this, pipeline);
+    env.translate(pipeline);
 
     JobExecutionResult result;
     try {
@@ -121,11 +109,11 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   }
 
   static PipelineResult createPipelineResult(JobExecutionResult result, PipelineOptions options) {
-    if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
+    String resultClassName = result.getClass().getCanonicalName();
+    if (resultClassName.equals("org.apache.flink.core.execution.DetachedJobExecutionResult")) {
       LOG.info("Pipeline submitted in Detached mode");
-      FlinkDetachedRunnerResult flinkDetachedRunnerResult = new FlinkDetachedRunnerResult();
       // no metricsPusher because metrics are not supported in detached mode
-      return flinkDetachedRunnerResult;
+      return new FlinkDetachedRunnerResult();
     } else {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
       Map<String, Object> accumulators = result.getAllAccumulatorResults();
@@ -139,13 +127,16 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
           new FlinkRunnerResult(accumulators, result.getNetRuntime());
       MetricsPusher metricsPusher =
           new MetricsPusher(
-              flinkRunnerResult.getMetricsContainerStepMap(), options, flinkRunnerResult);
+              flinkRunnerResult.getMetricsContainerStepMap(),
+              options.as(MetricsOptions.class),
+              flinkRunnerResult);
       metricsPusher.start();
       return flinkRunnerResult;
     }
   }
 
   /** For testing. */
+  @VisibleForTesting
   public FlinkPipelineOptions getPipelineOptions() {
     return options;
   }
@@ -196,5 +187,11 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
               + "versions of the Flink runner will require deterministic key coders.",
           ptransformViewNamesWithNonDeterministicKeyCoders);
     }
+  }
+
+  @VisibleForTesting
+  JobGraph getJobGraph(Pipeline p) {
+    FlinkPipelineExecutionEnvironment env = new FlinkPipelineExecutionEnvironment(options);
+    return env.getJobGraph(p);
   }
 }

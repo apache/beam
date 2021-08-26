@@ -16,17 +16,26 @@
  * limitations under the License.
  */
 
+plugins { id 'org.apache.beam.module' }
 
 // We specifically enumerate all the projects that we depend on since
 // the list is used in both defining the included set for the uber jar
 // and also the set of project level dependencies.
-def dependOnProjects = [":beam-model-pipeline", ":beam-model-fn-execution", ":beam-sdks-java-core",
-                        ":beam-sdks-java-fn-execution",
-                        ":beam-sdks-java-extensions-google-cloud-platform-core",
-                        ":beam-runners-core-java", ":beam-runners-core-construction-java"]
+def dependOnShadedProjects = [":model:pipeline", ":model:fn-execution", ":sdks:java:core"]
+def dependOnProjects = [":sdks:java:fn-execution",
+                        ":sdks:java:extensions:google-cloud-platform-core",
+                        ":runners:core-java", ":runners:core-construction-java"]
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE <<
+applyJavaNature(
+  classesTriggerCheckerBugs: [
+    'AssignWindowsRunner': 'https://github.com/typetools/checker-framework/issues/3794',
+    'WindowMergingFnRunner': 'https://github.com/typetools/checker-framework/issues/3794',
+  ],
+  automaticModuleName: 'org.apache.beam.fn.harness',
+  validateShadowJar: false,
+  enableJmh: true,
+  testShadowJar: true,
+  shadowClosure:
   // Create an uber jar without repackaging for the SDK harness
   // TODO: We have been releasing this in the past, consider not
   // releasing it since its typically bad practice to release 'all'
@@ -40,24 +49,30 @@ applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE 
       // Include all dependencies and transitive dependencies
       include(dependency(".*:.*"))
     }
-  })
+  },
+)
 
 description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 dependencies {
-  dependOnProjects.each {
+  dependOnShadedProjects.each {
     compile project(path: it, configuration: "shadow")
   }
-  compile library.java.jackson_databind
-  compile library.java.guava
+  dependOnProjects.each {
+    compile project(it)
+  }
+  shadow library.java.vendored_guava_26_0_jre
+  shadowTest library.java.powermock
+  shadowTest library.java.powermock_mockito
   compile library.java.joda_time
   compile library.java.slf4j_api
-  provided library.java.error_prone_annotations
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
+  compile library.java.vendored_grpc_1_36_0
   testCompile library.java.junit
   testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(":runners:core-construction-java")
+  shadowTestRuntimeClasspath library.java.slf4j_jdk14
+  jmhCompile project(path: ":sdks:java:harness", configuration: "shadowTest")
+  jmhRuntime library.java.slf4j_jdk14
 }

@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.local;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A (Key, Coder) pair that uses the structural value of the key (as provided by {@link
@@ -37,14 +37,12 @@ public abstract class StructuralKey<K> {
 
   /** Get the empty {@link StructuralKey}. All instances of the empty key are considered equal. */
   public static StructuralKey<?> empty() {
-    StructuralKey<Object> emptyKey =
-        new StructuralKey<Object>() {
-          @Override
-          public Object getKey() {
-            return this;
-          }
-        };
-    return emptyKey;
+    return new StructuralKey<Object>() {
+      @Override
+      public Object getKey() {
+        return this;
+      }
+    };
   }
 
   /** Create a new Structural Key of the provided key that can be encoded by the provided coder. */
@@ -79,7 +77,7 @@ public abstract class StructuralKey<K> {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == this) {
         return true;
       }

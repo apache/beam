@@ -15,20 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collections;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.metrics.MetricKey;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Representation of multiple metric updates. */
-@Experimental(Kind.METRICS)
 @AutoValue
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class MetricUpdates {
 
   public static final MetricUpdates EMPTY =

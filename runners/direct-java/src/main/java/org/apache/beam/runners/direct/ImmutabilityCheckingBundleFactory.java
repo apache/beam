@@ -17,10 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.SetMultimap;
 import org.apache.beam.runners.direct.DirectRunner.Enforcement;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
@@ -31,6 +29,8 @@ import org.apache.beam.sdk.util.MutationDetector;
 import org.apache.beam.sdk.util.MutationDetectors;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
 import org.joda.time.Instant;
 
 /**
@@ -43,6 +43,9 @@ import org.joda.time.Instant;
  * <p>This catches errors during the execution of a {@link DoFn} caused by modifying an element
  * after it is added to an output {@link PCollection}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ImmutabilityCheckingBundleFactory implements BundleFactory {
   /**
    * Create a new {@link ImmutabilityCheckingBundleFactory} that uses the underlying {@link

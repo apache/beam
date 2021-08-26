@@ -17,35 +17,144 @@ package runnerlib
 
 import (
 	"context"
-	"fmt"
+	"io"
+	"os"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
+	"github.com/golang/protobuf/proto"
+	"google.golang.org/grpc"
 )
 
 // Stage stages the worker binary and any additional files to the given
 // artifact staging endpoint. It returns the retrieval token if successful.
-func Stage(ctx context.Context, id, endpoint, binary, st string, files ...artifact.KeyedFile) (retrievalToken string, err error) {
+func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken string, err error) {
 	ctx = grpcx.WriteWorkerID(ctx, id)
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
-		return "", fmt.Errorf("failed to connect to artifact service: %v", err)
+		return "", errors.WithContext(err, "connecting to artifact service")
 	}
 	defer cc.Close()
 
+	if err := StageViaPortableApi(ctx, cc, binary, st); err == nil {
+		return "", nil
+	}
+
+	return StageViaLegacyApi(ctx, cc, binary, st)
+}
+
+func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) error {
 	client := jobpb.NewArtifactStagingServiceClient(cc)
 
-	files = append(files, artifact.KeyedFile{Key: "worker", Filename: binary})
+	stream, err := client.ReverseArtifactRetrievalService(context.Background())
+	if err != nil {
+		return err
+	}
+
+	if err := stream.Send(&jobpb.ArtifactResponseWrapper{StagingToken: st}); err != nil {
+		return err
+	}
+
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		switch request := in.Request.(type) {
+		case *jobpb.ArtifactRequestWrapper_ResolveArtifact:
+			err = stream.Send(&jobpb.ArtifactResponseWrapper{
+				Response: &jobpb.ArtifactResponseWrapper_ResolveArtifactResponse{
+					&jobpb.ResolveArtifactsResponse{
+						Replacements: request.ResolveArtifact.Artifacts,
+					},
+				}})
+			if err != nil {
+				return err
+			}
+
+		case *jobpb.ArtifactRequestWrapper_GetArtifact:
+			switch typeUrn := request.GetArtifact.Artifact.TypeUrn; typeUrn {
+			case graphx.URNArtifactGoWorker:
+				if err := StageFile(binary, stream); err != nil {
+					return errors.Wrap(err, "failed to stage Go worker binary")
+				}
+			case "beam:artifact:type:file:v1":
+				typePl := pipepb.ArtifactFilePayload{}
+				if err := proto.Unmarshal(request.GetArtifact.Artifact.TypePayload, &typePl); err != nil {
+					return errors.Wrap(err, "failed to parse artifact file payload")
+				}
+				if err := StageFile(typePl.GetPath(), stream); err != nil {
+					return errors.Wrapf(err, "failed to stage file %v", typePl.GetPath())
+				}
+			default:
+				return errors.Errorf("request has unexpected artifact type %s", typeUrn)
+			}
+
+		default:
+			return errors.Errorf("request has unexpected type %T", request)
+		}
+	}
+}
+
+func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtifactRetrievalServiceClient) error {
+	fd, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+
+	data := make([]byte, 1<<20)
+	for {
+		n, err := fd.Read(data)
+		if n > 0 {
+			sendErr := stream.Send(&jobpb.ArtifactResponseWrapper{
+				Response: &jobpb.ArtifactResponseWrapper_GetArtifactResponse{
+					&jobpb.GetArtifactResponse{
+						Data: data[:n],
+					},
+				}})
+
+			if sendErr != nil {
+				return errors.Wrap(sendErr, "chunk send failed")
+			}
+		}
+
+		if err == io.EOF {
+			sendErr := stream.Send(&jobpb.ArtifactResponseWrapper{
+				IsLast: true,
+				Response: &jobpb.ArtifactResponseWrapper_GetArtifactResponse{
+					&jobpb.GetArtifactResponse{},
+				}})
+			return sendErr
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func StageViaLegacyApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retrievalToken string, err error) {
+	client := jobpb.NewLegacyArtifactStagingServiceClient(cc)
+
+	files := []artifact.KeyedFile{artifact.KeyedFile{Key: "worker", Filename: binary}}
 
 	md, err := artifact.MultiStage(ctx, client, 10, files, st)
 	if err != nil {
-		return "", fmt.Errorf("failed to stage artifacts: %v", err)
+		return "", errors.WithContext(err, "staging artifacts")
 	}
 	token, err := artifact.Commit(ctx, client, md, st)
 	if err != nil {
-		return "", fmt.Errorf("failed to commit artifacts: %v", err)
+		return "", errors.WithContext(err, "committing artifacts")
 	}
 	return token, nil
 }

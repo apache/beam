@@ -27,6 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 
 /**
@@ -35,7 +36,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
  * <p>It defines APIs for writing file systems agnostic code.
  *
  * <p>All methods are protected, and they are for file system providers to implement. Clients should
- * use {@link FileSystems} utility.
+ * use the {@link FileSystems} utility.
  */
 @Experimental(Kind.FILESYSTEM)
 public abstract class FileSystem<ResourceIdT extends ResourceId> {
@@ -113,6 +114,9 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    *
    * @param srcResourceIds the references of the source resources
    * @param destResourceIds the references of the destination resources
+   * @param moveOptions move options specifying handling of error conditions
+   * @throws UnsupportedOperationException if move options are specified and not supported by the
+   *     FileSystem
    * @throws FileNotFoundException if the source resources are missing. When rename throws, the
    *     state of the resources is unknown but safe: for every (source, destination) pair of
    *     resources, the following are possible: a) source exists, b) destination exists, c) source
@@ -121,13 +125,13 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    *     resource.
    */
   protected abstract void rename(
-      List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds) throws IOException;
+      List<ResourceIdT> srcResourceIds,
+      List<ResourceIdT> destResourceIds,
+      MoveOptions... moveOptions)
+      throws IOException;
 
   /**
    * Deletes a collection of resources.
-   *
-   * <p>It is allowed but not recommended to delete directories recursively. Callers depends on
-   * {@link FileSystems} and uses {@code DeleteOptions}.
    *
    * @param resourceIds the references of the resources to delete.
    * @throws FileNotFoundException if resources are missing. When delete throws, each resource might

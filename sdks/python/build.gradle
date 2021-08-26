@@ -16,281 +16,109 @@
  * limitations under the License.
  */
 
-// Define common lifecycle tasks and artifact types
-apply plugin: "base"
+plugins { id 'org.apache.beam.module' }
+applyPythonNature()
 
-// For some reason base doesn't define a test task  so we define it below and make
-// check depend on it. This makes the Python project similar to the task layout like
-// Java projects, see https://docs.gradle.org/4.2.1/userguide/img/javaPluginTasks.png
-task test {}
-check.dependsOn test
 
-def envdir = "${project.buildDir}/gradleenv"
-def tox_opts = "-c tox.ini --recreate"
+/*************************************************************************************************/
+// Basic build and Python environment setup/cleanup
 
-task setupVirtualenv {
+task buildPython {
+  dependsOn 'setupVirtualenv'
+
   doLast {
-    exec {
-      commandLine 'virtualenv', "${envdir}"
-    }
+    logger.info('Building Python Dependencies')
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
-    }
-  }
-  // Gradle will delete outputs whenever it thinks they are stale. Putting a
-  // specific binary here could make gradle delete it while pip will believe
-  // the package is fully installed.
-  outputs.dirs(envdir)
-}
-
-configurations { distConfig }
-
-task sdist(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
-    }
-    def collection = fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz'}
-    println "sdist archive name: ${collection.singleFile}"
-    // we need a fixed name for the artifact
-    copy { from collection.singleFile; into "${project.buildDir}"; rename { 'apache-beam.tar.gz' } }
-  }
-}
-
-artifacts {
-  distConfig file: file("${project.buildDir}/apache-beam.tar.gz"), builtBy: sdist
-}
-
-task cleanPython(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python setup.py clean"
-    }
-  }
-}
-clean.dependsOn cleanPython
-
-task buildPython(dependsOn: 'setupVirtualenv') {
-  doLast {
-    println 'Building Python Dependencies'
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python setup.py build --build-base ${project.buildDir}"
+      args '-c', ". ${envdir}/bin/activate && python setup.py build --build-base ${buildDir}"
     }
   }
 }
 build.dependsOn buildPython
 
-task lint {}
-check.dependsOn lint
+// Create a Python source distribution tarball.
+def tarball = "apache-beam.tar.gz"
+task sdist {
+  dependsOn setupVirtualenv
 
-task lintPy27(dependsOn: 'setupVirtualenv') {
   doLast {
+    // Build artifact
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-lint"
+      args '-c', ". ${envdir}/bin/activate && python setup.py -q sdist --formats zip,gztar --dist-dir ${buildDir}"
     }
-  }
-}
-lint.dependsOn lintPy27
 
-task lintPy27_3(dependsOn: 'setupVirtualenv') {
+    def collection = fileTree(buildDir){ include "**/*${project.sdk_version}*.tar.gz" exclude 'srcs/**'}
+
+    // we need a fixed name for the artifact
+    copy { from collection.singleFile; into buildDir; rename { tarball } }
+    logger.info('Create distribution tar file {} in {}', tarball, buildDir)
+  }
+  inputs.files(pythonSdkDeps)
+      .withPropertyName('pythonSdkDeps')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
+  outputs.file "${buildDir}/${tarball}"
+}
+
+artifacts {
+  distTarBall file: file("${buildDir}/${tarball}"), builtBy: sdist
+}
+
+
+/*************************************************************************************************/
+// Non-testing builds and analysis tasks
+
+// Snapshot of dependency requirements defined in setup.py.
+// Results will be stored in files under Gradle build directory.
+task depSnapshot {
+  dependsOn 'installGcpTest'
+
   doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-lint3"
+    def outputDir = file(buildDir)
+    if (!outputDir.exists()) {
+      outputDir.mkdirs()
     }
-  }
-}
-lint.dependsOn lintPy27_3
+    def requirementsFile = "${outputDir}/requirements.txt"
 
-task lintPy3(dependsOn: 'setupVirtualenv') {
-  doLast {
+    logger.info('Snapshoting full dependencies requirements with versions info to build/requirements.txt.')
     exec {
+      // Remove useless item "pkg-resources" from file which is introduced by a bug in Ubuntu.
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py3-lint"
-    }
-  }
-}
-lint.dependsOn lintPy3
-
-task testGcp(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-gcp"
-    }
-  }
-}
-test.dependsOn testGcp
-
-task testPython(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27"
-    }
-  }
-}
-test.dependsOn testPython
-
-task testCython(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-cython"
-    }
-  }
-}
-test.dependsOn testCython
-// Ensure that testCython runs exclusively to other tests. This line is not
-// actually required, since gradle doesn't do parallel execution within a
-// project.
-testCython.mustRunAfter testPython, testGcp
-
-task docs(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e docs"
-    }
-  }
-}
-assemble.dependsOn docs
-
-task cover(dependsOn: 'setupVirtualenv') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e cover"
+      args '-c', ". ${envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${requirementsFile}"
     }
   }
 }
 
-task preCommit() {
-  dependsOn "docs"
-  dependsOn "testCython"
-  dependsOn "testPython"
-  dependsOn "testGcp"
-  dependsOn "lint"
+task dependencyUpdates {
+  dependsOn ':dependencyUpdates'
+  dependsOn ':sdks:python:test-suites:tox:pycommon:dependency-check'
 }
 
-task installGcpTest(dependsOn: 'setupVirtualenv') {
+task buildSnapshot() {
+  dependsOn 'sdist'
+  dependsOn 'depSnapshot'
+}
+
+task startPortableRunner {
+  dependsOn 'buildPython'
+
   doLast {
+    def jobPort = project.findProperty("jobPort") ?: 8099
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -e .[gcp,test]"
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort}"
     }
   }
 }
 
-task localWordCount(dependsOn: 'installGcpTest') {
+// Run this task to validate the python environment setup for contributors
+task wordCount {
+  description "Run the Python word count example"
+  dependsOn 'installGcpTest'
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct"
-      // TODO: Check that the output file is generated and runs.
-    }
-  }
-}
-
-// Before running this, you need to:
-//
-// 1. build the SDK container:
-//
-//    ./gradlew -p sdks/python/container docker
-//
-// 2. start a local JobService, for example, the Portable Flink runner
-//    (in a separate shell since it continues to run):
-//
-//    ./gradlew :beam-runners-flink_2.11-job-server:runShadow
-//
-// Then you can run this example:
-//
-//    ./gradlew :beam-sdks-python:portableWordCount
-//
-task portableWordCount(dependsOn: 'installGcpTest') {
-  doLast {
-    exec {
-      executable 'sh'
-      // TODO: Figure out GCS credentials and use real GCS input and output.
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --input /etc/profile --output /tmp/py-wordcount-direct --experiments=beam_fn_api --runner=PortableRunner --job_endpoint=localhost:8099 --sdk_location=container"
-      // TODO: Check that the output file is generated and runs.
-    }
-  }
-}
-
-task postCommitITTests(dependsOn: 'installGcpTest') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT batch"
-    }
-  }
-}
-
-task validatesRunnerBatchTests(dependsOn: 'installGcpTest') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner batch"
-    }
-  }
-}
-
-task validatesRunnerStreamingTests(dependsOn: 'installGcpTest') {
-  doLast {
-    exec {
-      executable 'sh'
-      // TODO(BEAM-3544,BEAM-5025): Disable tests with sickbay-streaming tag.
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner,'!sickbay-streaming' streaming"
-    }
-  }
-}
-
-task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh"
-    }
-  }
-}
-
-def flinkCompatibilityMatrix = {
-  def type = it
-  def name = 'flinkCompatibilityMatrix' + type
-  tasks.create(name: name) {
-    dependsOn 'setupVirtualenv'
-    dependsOn ':beam-sdks-python-container:docker'
-    dependsOn ':beam-runners-flink_2.11-job-server:jar'
-    doLast {
-      exec {
-        executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test ${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} ${type}"
-      }
-    }
-  }
-}
-
-flinkCompatibilityMatrix('Batch')
-flinkCompatibilityMatrix('Streaming')
-
-task postCommit() {
-  dependsOn "preCommit"
-  dependsOn "localWordCount"
-  dependsOn "hdfsIntegrationTest"
-  dependsOn "postCommitITTests"
-}
-
-task dependencyUpdates(dependsOn: ':dependencyUpdates') {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', "./scripts/run_dependency_check.sh"
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --runner DirectRunner --output /tmp/output.txt"
     }
   }
 }

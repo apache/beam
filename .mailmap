@@ -1,0 +1,577 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# License); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an AS IS BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+Abbass Marouni <amarouni@talend.com>
+Abdullah Bashir <mabdullah353@gmail.com>
+Adam Horky <adam.horky@firma.seznam.cz>
+Adam Horky <horky.adam@gmail.com>
+Ahmet Altay <aaltay@gmail.com>
+Ahmet Altay <altay@altay-macbookpro2.roam.corp.google.com>
+Ahmet Altay <altay@google.com>
+Alan Myrvold <alan@Alans-MacBook.local>
+Alan Myrvold <alan.myrvold@comcast.net>
+Alan Myrvold <amyrvold@amyrvold-macbookpro.roam.corp.google.com>
+Alan Myrvold <amyrvold@google.com>
+Aleksandr Kokhaniukov <alexander.kohanyukov@gmail.com>
+Alex Amato <ajamato@ajamato2016.sea.corp.google.com>
+Alex Amato <ajamato@ajamato-linux0.sea.corp.google.com>
+Alex Amato <ajamato@google.com>
+Alexander Dejanovski <alex@thelastpickle.com>
+Alexander Hoem Rosbach <alexander@rosbach.no>
+Alexey Diomin <diominay@gmail.com>
+Alexey Romanenko <33895511+aromanenko-dev@users.noreply.github.com>
+Alexey Romanenko <aromanenko-dev@gmail.com>
+Alexey Romanenko <aromanenko.dev@gmail.com>
+Alex Filatov <alex-filatov@users.noreply.github.com>
+Alex Van Boxel <alex@vanboxel.be>
+Aljoscha Krettek <aljoscha.krettek@gmail.com>
+Amit Sela <amitsela33@gmail.com>
+Amy Unruh <amyu@google.com>
+Anders Johnson <andersjohnson@google.com>
+Andrea Foegler <foegler@foegler-macbookpro3.roam.corp.google.com>
+Andrea Foegler <foegler@google.com>
+Andreas Ehrencrona <andreas.ehrencrona@velik.it>
+andreich <andreich@google.com>
+Andrew Brampton <bramp@google.com>
+Andrew Fulton <afulton@me.com>
+Andrew Fulton <andrew@flumaion.com>
+Andrew Martin <amartin@spotify.com>
+Andrew Martin <andrewsmartin.mg@gmail.com>
+Andrew Pilloud <apilloud@google.com>
+Andrew Pilloud <apilloud@users.noreply.github.com>
+Aneesh Naman <aneeshnaman@google.com>
+Anil Muppalla <anil@spotify.com>
+Ankit Jhalaria <ajhalaria@godaddy.com>
+Ankur Goenka <angoenka@users.noreply.github.com>
+Ankur Goenka <ankurgoenka@gmail.com>
+Ankur Goenka <goenka@goenka.svl.corp.google.com>
+Antonio D'souza <adsouza@gmail.com>
+Anton Kedin <33067037+akedin@users.noreply.github.com>
+Anton Kedin <kedin@google.com>
+Anton Kedin <kedin@kedin-macbookpro.roam.corp.google.com>
+Arnaud <arnaudfournier921@gmail.com>
+ArnaudFnr <arnaudfournier021@gmail.com>
+Arnaud Fournier <arnaudfournier921@gmail.com>
+Arun Sethia <sethia.arun@gmail.com>
+Asha Rostamianfar <arostami@google.com>
+Austin.Bennett <austin.bennett@mbp.Academy-AP>
+Aviem Zur <aviemzur@gmail.com>
+Axel Magnuson <axelmagn@gmail.com>
+Batkhuyag Batsaikhan <batbat@google.com>
+Ben Chambers <bchambers@bchambers-macbookpro2.roam.corp.google.com>
+Ben Chambers <bchambers@google.com>
+Ben Chambers <bjchambers@users.noreply.github.com>
+Ben Sidhom <bsidhom@gmail.com>
+Ben Sidhom <sidhom@google.com>
+Ben Song <songb@google.com>
+Benson Margulies <bimargulies@bimargulies.sea.corp.google.com>
+Benson Margulies <bimargulies@google.com>
+Bill Neubauer <wcn@google.com>
+Bingfeng Shu <44354306+BingfengShu@users.noreply.github.com>
+Bingfeng Shu <bshu@bshu.svl.corp.google.com>
+Borisa Zivkovic <borisa.zivkovic@huawei.com>
+Boyuan Zhang <36090911+boyuanzz@users.noreply.github.com>
+Boyuan Zhang <boyuan@google.com>
+Boyuan Zhang <boyuanz@google.com>
+Braden Bassingthwaite <bbassingthwaite@vendasta.com>
+Brian Foo <bfoo@bfoo-macbookpro.roam.corp.google.com>
+Brian Hulette <bhulette@google.com>
+Brian Hulette <hulettbh@gmail.com>
+Brian Martin <brianmartin@gmail.com>
+Brian Quinlan <brian@sweetapp.com>
+Cade Markegard <cademarkegard@gmail.com>
+Cao Manh Dat <datcm@apache.org>
+Carl McGraw <carlm@accretivetg.com>
+Carlos Alonso <carlos.alonso@cabify.com>
+Chaim Turkel <cyturel@gmail.com>
+Chamikara Jayalath <chamikara@apache.org>
+Chamikara Jayalath <chamikara@chamikara-linux.svl.corp.google.com>
+Chamikara Jayalath <chamikara@google.com>
+Chandni Singh <chandni.singh@capitalone.com>
+Chang chen <baibaichen@gmail.com>
+Charles Chen <ccy@google.com>
+Charles Chen <charlesccychen@users.noreply.github.com>
+Chen Bin <bchen@talend.com>
+Chikanaga Tomoyuki <t-chikanaga@groovenauts.jp>
+Chinmay Kolhatkar <chinmay@apache.org>
+Chris Broadfoot <cbro@golang.org>
+Christian Hudon <chrish@pianocktail.org>
+Christian Schneider <chris@die-schneider.net>
+Chuan Yu Foo <1147435+chuanyu@users.noreply.github.com>
+Chuan Yu Foo <cyfoo@google.com>
+Cindy Kuhn <ckuhn@google.com>
+Cody Schroeder <schroederc@google.com>
+Colin Phipps <cph@moria.org.uk>
+Colin Phipps <fipsy@google.com>
+colinreid <colinreid@google.com>
+Colm O hEigeartaigh <coheigea@apache.org>
+Colm O hEigeartaigh <coheigea@users.noreply.github.com>
+Connell O'Callahan <40410951+connelloG@users.noreply.github.com>
+Cory Brzycki <supercclank@gmail.com>
+Cory Brzycki <supercclank@google.com>
+Craig Chambers <45049052+CraigChambersG@users.noreply.github.com>
+Craig Chambers <chambers@google.com>
+Craig Citro <craigcitro@google.com>
+Cristian <me@cristian.io>
+Damien Gouyette <damien.gouyette@gmail.com>
+Dan Duong <danduong@google.com>
+Daniel Halperin <daniel@halper.in>
+Daniel Halperin <dhalperi@google.com>
+Daniel Halperin <dhalperi@users.noreply.github.com>
+Daniel Kulp <dkulp@apache.org>
+Daniel Mills <millsd@google.com>
+Daniel Mills <millsd@millsd.sea.corp.google.com>
+Daniel Norberg <dano@spotify.com>
+Daniel Oliveira <daniel.o.programmer@gmail.com>
+Daniel Oliveira <younghoono@gmail.com>
+Dan Ringwalt <ringwalt@google.com>
+Dariusz Aniszewski <dariusz@aniszewski.eu>
+Dariusz Aniszewski <dariusz.aniszewski@polidea.com>
+Dat Tran <dattran@sentifi.com>
+David Alves <david.alves@cloudera.com>
+DavidB <david.billings@gandlake.com>
+David Cavazos <davido262@gmail.com>
+David Cavazos <dcavazos@google.com>
+David Desberg <david.desberg@uber.com>
+David Hrbacek <david.hrbacek@firma.seznam.cz>
+David Moravek <david.moravek@firma.seznam.cz>
+David Moravek <david.moravek@gmail.com>
+David Rieber <drieber@google.com>
+David Sabater <david.sabater@gmail.com>
+David Sabater Dinter <david.sabater@gmail.com>
+David Volquartz Lebech <david@lebech.info>
+David Yan <davidyan@apache.org>
+Davor Bonaci <davorbonaci@users.noreply.github.com>
+Davor Bonaci <davor@davor-macbookair.roam.corp.google.com>
+Davor Bonaci <davor@google.com>
+Dawid Wysakowicz <dawid@getindata.com>
+Dennis Huo <dhuo@google.com>
+Derek Perez <pzd@google.com>
+Devin Donnelly <ddonnelly@google.com>
+Devon Meunier <devon.meunier@shopify.com>
+Dipti Kulkarni <dipti_dkulkarni@persistent.co.in>
+Dmytro Ivanov <dimon.ivan@gmail.com>
+Dusan Rychnovsky <dusan.rychnovsky@firma.seznam.cz>
+Dustin Rhodes <dcrhodes@google.com>
+Ed Hartwell Goose <ed@mention-me.com>
+Elliott Brossard <elliottb@google.com>
+Eric Anderson <eandersonm@gmail.com>
+Eric Beach <ebeach@google.com>
+Eric Roshan-Eisner <ede@alum.mit.edu>
+Eric Roshan-Eisner <edre@google.com>
+Etienne Chauchot and Jean-Baptiste Onofré <echauchot@gmail.com+jbonofre@apache.org>
+Etienne Chauchot <echauchot@apache.org>
+Etienne Chauchot <echauchot@gmail.com>
+Eugene Kirpichov <ekirpichov@gmail.com>
+Eugene Kirpichov <kirpichov@google.com>
+Exprosed <larryruili@gmail.com>
+Fabien Rousseau <fabien.rousseau@happn.com>
+Flavio Fiszman <flaviocf@flaviocf-macbookpro.roam.corp.google.com>
+Flavio Fiszman <flaviocf@google.com>
+Frances Perry <fjp@google.com>
+Frances Perry <francesperry@users.noreply.github.com>
+Frank Yellin <fy@fyellin.com>
+Gareth Western <gareth@garethwestern.com>
+Garrett Jones <garrettjonesgoogle@users.noreply.github.com>
+Gaurav Gupta <gaugupt3@cisco.com>
+Geet Kumar <geet.kumar75@gmail.com>
+Geet Kumar <gkumar7@users.noreply.github.com>
+Gene Peters <gene@telligent-data.com>
+Gergely Novak <gnovak@hortonworks.com>
+Gleb Kanterov <gleb@spotify.com>
+Gleb Kanterov <kanterov@users.noreply.github.com>
+Glenn Ammons <ammons@google.com>
+Grzegorz Kołakowski <grzegorz.kolakowski@getindata.com>
+Guillaume Blaquiere <guillaume.blaquiere@hrsys.Fr>
+Gus Katsiapis <katsiapis@katsiapis-linux.mtv.corp.google.com>
+Hadar Hod <hadarh@google.com>
+Hai Lu <halu@linkedin.com>
+Harch Vardhan <ananvay@google.com>
+Harsh Vardhan <ananvay2000@yahoo.com>
+Heejong Lee <heejong@gmail.com>
+Henning Rohde <herohde@google.com>
+Henning Rohde <herohde@seekerror.org>
+Henry Deist <hdeist@google.com>
+Henry Suryawirawan <hsuryawirawan@google.com>
+Holden Karau <holdenkarau@google.com>
+Holden Karau <holden@pigscanfly.ca>
+Holden Karau <holden@us.ibm.com>
+Ho Tien Vu <ho0001vu@gmail.com>
+Huygaa Batsaikhan <batbat@batbat-linuxworkstation.sea.corp.google.com>
+Huygaa Batsaikhan <batbat@google.com>
+Ian Zhou <ianzhou@google.com>
+Igor Bernstein <igorbernstein@google.com>
+Ilya Figotin <ifigotin@gmail.com>
+Ilya Ganelin <ilya.ganelin@capitalone.com>
+Innocent Djiofack <djiofack007@gmail.com>
+Ismaël Mejía <iemejia@apache.org>
+Ismaël Mejía <iemejia@gmail.com>
+Itamar Ostricher <itamarost@gmail.com>
+Jack Hsueh <jhsueh@opengov.com>
+Jacky <jackyq2015@gmail.com>
+Jacob Marble <jmarble@kochava.com>
+Jakob Homan <jghoman@gmail.com>
+James Malone <jamalone@gmail.com>
+James Malone <jamesmalone@google.com>
+James Xu <xumingmingv@gmail.com>
+Jan Lukavsky <jan.lukavsky@firma.seznam.cz>
+Jan Lukavsky <jan.lukavsky@o2.cz>
+Jan Lukavsky <je.ik@seznam.cz>
+Jan Lukavský <je.ik@seznam.cz>
+Jára Vaněk <jaromir.vanek2@firma.seznam.cz>
+Jaromir Vanek <vanek.jaromir@gmail.com>
+Jason Dobry <jdobry@google.com>
+Jason Kuster <jason@google.com>
+Jason Kuster <jasonkuster@google.com>
+Jason White <jason.white@shopify.com>
+Javier Antonio Gonzalez Trejo <javier.antonio.gonzalez.trejo@gmail.com>
+Javier Moreno <bluelephant@gmail.com>
+Jean-Baptiste Onofré <jb@nanthrax.net>
+Jean-Baptiste Onofré <jbonofre@apache.org>
+Jean-Philippe Martin <jpmartin@google.com>
+Jeff Gardner <gardnerj@google.com>
+Jeff Klukas <jeff@klukas.net>
+Jeffrey Scott Keone Payne <jeffkpayne@gmail.com>
+Jeremie Lenfant-Engelmann <jeremiele@google.com>
+Jeremy Hurwitz <hurwitz@google.com>
+Jeremy Lewi <jlewi@google.com>
+Jeremy Weinstein <jeremydw@gmail.com>
+Jeroen Steggink <jsteggink@users.noreply.github.com>
+Jesse Anderson <jesse@smokinghand.com>
+Jianfeng Qian <Jianfeng.Qian@outlook.com>
+JiJun Tang <tangjijun@yhd.com>
+Jingsong Li <lzljs3620320@aliyun.com>
+Jins George <jins.george@aeris.net>
+Joachim van der Herten <joachim.vanderherten@ugent.be>
+João Cabrita <kewne@protonmail.com>
+Joar Wandborg <joar@wandborg.se>
+Joey Baruch <joey.baruch@gmail.com>
+John MacMillan <johnmac@ca.ibm.com>
+Josh <joshformangornall@gmail.com>
+Joshua Litt <joshualitt@google.com>
+Joshua Litt <joshualitt@joshualitt.mtv.corp.google.com>
+Josh Wills <josh.wills@gmail.com>
+Josh Wills <jwills@cloudera.com>
+Jozef Vilcek <Jozef.Vilcek@sizmek.com>
+Jozef Vilcek <jozo.vilcek@gmail.com>
+Juan Rael <juan@qlogic.io>
+Julien Phalip <jphalip@gmail.com>
+Julien Tournay <boudhevil@gmail.com>
+Juliet Hougland <juliet@cloudera.com>
+Justin Tumale <fjetumale@gmail.com>
+Kadir Cetinkaya <kadircet@google.com>
+Kai Jiang <jiangkai@gmail.com>
+Kamil Szewczyk <szewinho@gmail.com>
+Karen Nino <knino@google.com>
+Kasia Kucharczyk <2536609+kkucharc@users.noreply.github.com>
+Kasia Kucharczyk <katarzyna.kucharczyk@polidea.com>
+Keiji Yoshida <keijiyoshida.mail@gmail.com>
+Keisuke Kondo <keisuke.kondo@istellar.jp>
+Keith McNeill <mcneill@anibla.net>
+Kelly Westbrooks <kwestbrooks@google.com>
+Kengo Seki <sekikn@apache.org>
+Kenneth Jung <kmj@google.com>
+Kenneth Knowles <kenn@apache.org>
+Kenneth Knowles <kenn@kennknowles.com>
+Kenneth Knowles <klk@google.com>
+Kevin Graney <kmg@google.com>
+Kevin Graney <nanonet@gmail.com>
+Kevin Peterson <kpeterson@nestlabs.com>
+Kevin Si <kevinsi@google.com>
+Kevin Sookocheff <kevin.sookocheff@workiva.com>
+Kirill Kozlov <kozlov.k.e@gmail.com>
+Kobi Salant <kobi.salant@gmail.com>
+Kobi Salant <ksalant@payapal.com>
+Kostas Kloudas <kkloudas@gmail.com>
+Kris Hildrum <hildrum@google.com>
+Krzysztof Trubalski <k.trubalski@ocado.com>
+Kurt Kluever <kak@google.com>
+Kyle Weaver <kcweaver@google.com>
+Kyle Winkelman <kyle.winkelman@optum.com>
+Lara Schmidt <laraschmidt@google.com>
+Leen Toelen <leen.toelen@tomtom.com>
+Leen Toelen <toelen@gmail.com>
+Levi Bowman <lbowman@gmail.com>
+Liam Miller-Cushon <cushon@google.com>
+Liang Zhang <liangzhang@google.com>
+Logan HAUSPIE <logan.hauspie.pro@gmail.com>
+Lorenzo Caggioni <lorenzo.caggioni@gmail.com>
+Lucas Amorim <lucasamorim@Lucass-MacBook-Pro.local>
+Lucas Amorim <lucasamorim@Lucass-MBP.hitronhub.home>
+Lucas Amorim <lucasamorim@protonmail.com>
+Luis Enrique Ortíz Ramirez <luisortramirez2211@gmail.com>
+Luis Osa <luis.osa.gdc@gmail.com>
+Lukas Drbal <lukas.drbal@gmail.com>
+Lukasz Cwik <lcwik@google.com>
+Lukasz Cwik <lukecwik@gmail.com>
+Łukasz Gajowy <lukasz.gajowy@gmail.com>
+Łukasz Gajowy <lukasz.gajowy@polidea.com>
+Luke Cwik <lcwik@google.com>
+Luke Cwik <lcwik@visitor-lcwik.wat.corp.google.com>
+Luke Cwik <lukecwik@gmail.com>
+Luke Zhu <luke.l.zhu@gmail.com>
+Luke Zhu <luke_zhu@brown.edu>
+Magnus Runesson <magru@spotify.com>
+Magnus Runesson <M.Runesson@gmail.com>
+Mairbek Khadikov <mairbek@google.com>
+Mairbek Khadikov <mkhadikov@gmail.com>
+Malo Denielou <malo@google.com>
+Manuel Fahndrich <fahndrich@google.com>
+Manu Zhang <owenzhang1990@gmail.com>
+Manu Zhang <OwenZhang1990@gmail.com>
+Marco Buccini <mbuccini@talend.com>
+Marek Simunek <marek.simunek@firma.seznam.cz>
+Marek Simunek <marek-simunek@seznam.cz>
+Maria Garcia Herrero <mariagh@google.com>
+María García Herrero <mariagh@mariagh.svl.corp.google.com>
+Marian Dvorsky <mariand@google.com>
+Maria Python <mariapython@users.noreply.github.com>
+Mark Daoust <markdaoust@google.com>
+Mark Liu <markflyhigh@users.noreply.github.com>
+Mark Liu <markliu@google.com>
+Mark Liu <markliu@markliu0.mtv.corp.google.com>
+Mark Liu <markliu@markliu-macbookpro.roam.corp.google.com>
+Mark Liu <markliu@markliu.svl.corp.google.com>
+Mark Shields <markshields@google.com>
+Mārtiņš Kalvāns <martins.kalvans@gmail.com>
+Martin Suchanek <mrtn@nrd.io>
+Márton Elek <elek@users.noreply.github.com>
+Mathieu Blanchard <mathieu.blanchard@happn.fr>
+Matt Austern <austern@google.com>
+Matthew Jones <mlety2@gmail.com>
+Matthias Baetens <baetensmatthias@gmail.com>
+Matthias Feys <matthiasfeys@gmail.com>
+Matthias Feys <matthiasfeys@hotmail.com>
+Matthias Feys <matthias@ml6.eu>
+Matthias Wessendorf <matzew@apache.org>
+Matt Lang <mattlang@google.com>
+Matt Lee <mattl@users.noreply.github.com>
+Maximilian Michels <max@posteo.de>
+Maximilian Michels <mxm@apache.org>
+Max <max@posteo.de>
+Max Shytikov <mshytikov@gmail.com>
+Melissa Pashniak <melissapa@google.com>
+Mergebot <mergebot@apache.org>
+Micah Wylde <micah@micahw.com>
+Micah Wylde <mwylde@lyft.com>
+Michael Luckey <25622840+adude3141@users.noreply.github.com>
+Michael Luckey <michael.luckey@ext.gfk.com>
+Michal Walenia <32354134+mwalenia@users.noreply.github.com>
+Michal Walenia <michal.walenia@polidea.com>
+Mike Pedersen <mike@mikepedersen.dk>
+Mike Pedersen <noctune9@gmail.com>
+Mikhail Gryzykhin <12602502+Ardagan@users.noreply.github.com>
+Mikhail Gryzykhin <gryzykhin.mikhail@gmail.com>
+Mikhail Gryzykhin <migryz@google.com>
+Mikhail Shmulyan <mshmulyan@google.com>
+Miles Saul <msaul@google.com>
+Miles Saul <msaul@msaul0.wat.corp.google.com>
+Mitch Shanklin <mshanklin@google.com>
+Motty Gruda <Mottyg1@gmail.com>
+Nathan Howell <nhowell@godaddy.com>
+Nawaid Shamim <nawaid.shamim@bbc.co.uk>
+Neda Mirian <nedam@google.com>
+Neda Mirian <neda.mirian@gmail.com>
+Neelesh Srinivas Salian <nsalian@cloudera.com>
+Neville Li <neville.lyh@gmail.com>
+Neville Li <neville@spotify.com>
+Niel Markwick <nielm@google.com>
+Niel Markwick <nielm@users.noreply.github.com>
+Niels Basjes <nbasjes@bol.com>
+Niels Basjes <niels@basjes.nl>
+Nigel Kilmer <nkilmer@google.com>
+Ole Langbehn <ole.langbehn@inoio.de>
+Ondrej Kvasnicka <ondrej.kvasnicka@firma.seznam.cz>
+Pablo Estrada <pabloem@google.com>
+Pablo Estrada <pabloem@users.noreply.github.com>
+Pascal Gula <pascal.gula@gmail.com>
+Pastuszka Przemysław <pastuszka.przemyslaw@gmail.com>
+Paul Gerver <pfgerver@gmail.com>
+Paul Gerver <pgerver@us.ibm.com>
+PaulVelthuis93 <paulvelthuis93@gmail.com>
+Pavel Slechta <pavel.slechta@firma.seznam.cz>
+Pawel Kaczmarczyk <pawel.pk.kaczmarczyk@gmail.com>
+Pawel Kaczmarczyk <p.kaczmarczyk@ocado.com>
+Pei He <hepei.hp@alibaba-inc.com>
+Pei He <hepeimail@gmail.com>
+Pei He <pei@apache.org>
+Pei He <peihe0@gmail.com>
+Pei He <peihe@google.com>
+Pei He <peihe@users.noreply.github.com>
+Peter Gergo Barna <pbarna@hortonworks.com>
+Petr Novotnik <petr.novotnik@firma.seznam.cz>
+Petr Shevtsov <petr.shevtsov@gmail.com>
+Pramod Immaneni <pramod@datatorrent.com>
+Prateek Chanda <prateekkol21@gmail.com>
+Prem Kumar Karunakaran <p.karunakaran@metrosystems.net>
+Radhika S Kulkarni <radhika_kulkarni1@persistent.co.in>
+Rafael Fernández <rfernand@google.com>
+Rafal Wojdyla <rav@spotify.com>
+Rafal Wojdyla <ravwojdyla@gmail.com>
+Raghu Angadi <rangadi@apache.org>
+Raghu Angadi <rangadi@google.com>
+Rahul Sabbineni <duraza@users.noreply.github.com>
+Renat <regata@users.noreply.github.com>
+Reuven Lax <relax@google.com>
+Reuven Lax <relax@relax-macbookpro2.roam.corp.google.com>
+Reuven Lax <relax@relax-macbookpro.roam.corp.google.com>
+Rezan Achmad <rezanachmad@gmail.com>
+Reza Rokni <7542791+rezarokni@users.noreply.github.com>
+Reza Rokni <rezarokni@google.com>
+Robbe Sneyders <robbe.sneyders@gmail.com>
+Robbe Sneyders <robbe.sneyders@ml6.eu>
+Rob Earhart <earhart@gmail.com>
+Rob Earhart <earhart@google.com>
+Robert Bradshaw <robertwb@gmail.com>
+Robert Bradshaw <robertwb@google.com>
+Robert Burke <lostluck@users.noreply.github.com>
+Robert Burke <rober@frantil.com>
+Robert Burke <robert@frantil.com>
+Roberto Congiu <rcongiu@agentace.com>
+Robin Qiu <robinyq@rodete-desktop-imager.corp.google.com>
+Rodrigo Benenson <rodrigo.benenson@gmail.com>
+Romain Yon <yonromai@users.noreply.github.com>
+Rong Ou <rong.ou@gmail.com>
+Roy Lenferink <lenferinkroy@gmail.com>
+Rui Wang <amaliujia@163.com>
+Rui Wang <amaliujia@gmail.com>
+Rui Wang <amaliujia@users.noreply.github.com>
+Rune Fevang <fevang@exabel.com>
+Ruoyu Liu <ruoyu@google.com>
+Ruoyun Huang <huangry@gmail.com>
+Ryan Culbertson <ryan@spotify.com>
+Ryan Niemocienski <niemo@google.com>
+Ryan Skraba <ryan@skraba.com>
+Ryan Williams <ryan.blake.williams@gmail.com>
+sabhyankar <abhyankar@gmail.com>
+Sam McVeety <sam.mcveety@gmail.com>
+Sam McVeety <sgmc@google.com>
+Sam Rohde <rohde.samuel@gmail.com>
+Sam Waggoner <samuel.waggoner@healthsparq.com>
+Sam Whittle <samuelw@google.com>
+Sam Whittle <scwhittle@users.noreply.github.com>
+Sandeep Deshmukh <sandeep@datatorrent.com>
+Sandeep Parikh <sandeep@clusterbeep.org>
+Scott Wegner <scott@apache.com>
+Scott Wegner <scott@apache.org>
+Scott Wegner <swegner2@gmail.com>
+Scott Wegner <swegner@google.com>
+Scott Wegner <swegner@outlook.com>
+Sean O'Keefe <seano314@users.noreply.github.com>
+Sean Owen <sowen@cloudera.com>
+Sean Owen <srowen@gmail.com>
+Sela <ansela@paypal.com>
+Sergei Lebedev <s.lebedev@criteo.com>
+Sergey Beryozkin <sberyozkin@gmail.com>
+Sergio Fernández <sergio@wikier.org>
+Sergiy Byelozyorov <sergiyb@chromium.org>
+Seshadri Chakkravarthy <sesh.cr@gmail.com>
+Seunghyun Lee <shlee0605@gmail.com>
+Shashank Prabhakara <shashank@infoworks.io>
+Shinsuke Sugaya <shinsuke@apache.org>
+Shnitz <andrewktan@gmail.com>
+Silviu Calinoiu <silviuc@google.com>
+Simon Plovyt <40612002+splovyt@users.noreply.github.com>
+Sindy Li <qinyeli@qinyeli.svl.corp.google.com>
+Sindy Li <qinyeli@umich.edu>
+Slava Chernyak <chernyak@google.com>
+Slaven Bilac <slaven@google.com>
+SokolovMS <m.s.sokolov.92@gmail.com>
+Solomon Duskis <sduskis@google.com>
+Sourabh Bajaj <sb2nov@gmail.com>
+Sourabh Bajaj <sourabhbajaj@google.com>
+Stas Levin <staslevin@apache.org>
+Stas Levin <staslevin@gmail.com>
+Stas Levin <staslev@users.noreply.github.com>
+Stefano Baghino <stefano@baghino.me>
+Stepan Kadlec <stepan.kadlec@oracle.com>
+Stephan Ewen <sewen@apache.org>
+Stephan Hoyer <shoyer@google.com>
+Stephen Gildea <gildea@google.com>
+Stephen Lumenta <stephen.lumenta@gmail.com>
+Stephen Sisk <sisk@google.com>
+Stephen Sisk <ssisk@users.noreply.github.com>
+Steve Niemitz <sniemitz@twitter.com>
+Steve Wheeler <stevewheeler@google.com>
+Stijn Decubber <stijn.decubber@ml6.eu>
+Sumit Chawla <sumichaw@cisco.com>
+Sunil Pedapudi <skpedapudi@gmail.com>
+Taro Murao <taro.murao@gmail.com>
+Ted Yu <yuzhihong@gmail.com>
+Teng Peng <josephtengpeng@gmail.com>
+Theodore Siu <theosiu@theosiu-macbookpro24.roam.corp.google.com>
+Thomas Groh <tgroh@google.com>
+Thomas Groh <tgroh@users.noreply.github.com>
+Thomas Weise <thw@apache.org>
+Thomas Weise <tweise@lyft.com>
+Thomas Weise <tweise@users.noreply.github.com>
+Tianyang Hu <htyleo@gmail.com>
+Tibor Kiss <tibor.kiss@gmail.com>
+Tim Robertson <timrobertson100@gmail.com>
+Tim Robertson <timrobertson100@gmial.com>
+Tim Sears <sears.tim@gmail.com>
+Tobias Feldhaus <tobias.feldhaus@localsearch.ch>
+Tomas Novak <tomas.novak@firma.seznam.cz>
+Tomas Roos <ptomasroos@gmail.com>
+Tom Haines <thomas.haines@practiceinsight.io>
+Tom White <tom@cloudera.com>
+Tudor Marian <tudorm@google.com>
+Tyler Akidau <takidau@apache.org>
+Tyler Akidau <takidau@google.com>
+Udi Meiri <ehudm@google.com>
+Udi Meiri (Ehud) <udim@users.noreply.github.com>
+Udi Meiri <udim@users.noreply.github.com>
+Uri Silberstein <uri.silberstein@gmail.com>
+Uwe Jugel <uwe.jugel@lovoo.com>
+Vaclav Plajt <vaclav.plajt@firma.seznam.cz>
+Vaclav Plajt <vaclav.plajt@gmail.com>
+Valentyn Tymofieiev <valentyn@google.com>
+Valient Gough <vgough@google.com>
+Varun Dhussa <varundhussa@google.com>
+Vassil Kolarov <vas@vas.io>
+Vikas Kedigehalli <vikasrk@google.com>
+Vitalii Tverdokhlib <vitaliytv@nitralabs.com>
+Vladisav Jelisavcic <vj@apache.org>
+Vojtech Janota <vojtech.janota@oracle.com>
+Ward Van Assche <ward@piesync.com>
+Wesley Tanaka <wtanaka@yahoo.com>
+성준영 <wnsdud1861@gmail.com>
+Won Wook SONG <wonook@apache.org>
+Wout Scheepers <Wout.Scheepers@vente-exclusive.com>
+wslulciuc <willy@bounceexchange.com>
+Xin Wang <xinwang@apache.org>
+Xinyu Liu <xiliu@linkedin.com>
+Xinyu Liu <xiliu@xiliu-ld1.linkedin.biz>
+Xinyu Liu <xinyuliu.us@gmail.com>
+Yifan Zou <35050780+yifanzou@users.noreply.github.com>
+Yifan Zou <yifanzou@google.com>
+Yifan Zou <yifanzou@rodete-desktop-imager.corp.google.com>
+Yifan Zou <yifanzou@yifanzou-linuxworkstation.sea.corp.google.com>
+Yifan Zou <yifanzou@yifanzou-macbookpro.roam.corp.google.com>
+Younghee Kwon <younghee.kwon@gmail.com>
+Yuan (Terry) Tang <terrytangyuan@gmail.com>
+Yueyang Qiu <robinyqiu@gmail.com>
+Yunqing Zhou <zhouyunqing@zhouyunqing-macbookpro3.roam.corp.google.com>
+Yunqing Zhou <zhouyunqing@zhouyunqing-macbookpro.roam.corp.google.com>
+Zang <szang@lm-sea-11001278.corp.ebay.com>
+Zhuo Peng <1835738+brills@users.noreply.github.com>
+zhuoyao <zhuoyao@google.com>
+Zohar Yahav <zoy@giggles.nyc.corp.google.com>
+Zohar Yahav <zoy@smtp.corp.google.com>
+Zongwei Zhou <zongweiz@google.com>
+Zur, Aviem <azur@paypal.com>
+波特 <haozhi.shz@alibaba-inc.com>
+琨瑜 <yiyan.lyy@alibaba-inc.com>

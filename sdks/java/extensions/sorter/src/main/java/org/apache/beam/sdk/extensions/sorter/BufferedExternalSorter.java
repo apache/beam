@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sorter;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.io.Serializable;
+import org.apache.beam.sdk.extensions.sorter.ExternalSorter.Options.SorterType;
 import org.apache.beam.sdk.values.KV;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 
 /**
  * {@link Sorter} that will use in memory sorting until the values can't fit into memory and will
@@ -30,17 +32,20 @@ import org.apache.beam.sdk.values.KV;
  */
 public class BufferedExternalSorter implements Sorter {
   public static Options options() {
-    return new Options("/tmp", 100);
+    return new Options("/tmp", 100, SorterType.HADOOP);
   }
 
   /** Contains configuration for the sorter. */
   public static class Options implements Serializable {
     private final String tempLocation;
     private final int memoryMB;
+    private final SorterType sorterType;
 
-    private Options(String tempLocation, int memoryMB) {
+    private Options(String tempLocation, int memoryMB, SorterType sorterType) {
+      checkMemoryMB(memoryMB, sorterType);
       this.tempLocation = tempLocation;
       this.memoryMB = memoryMB;
+      this.sorterType = sorterType;
     }
 
     /** Sets the path to a temporary location where the sorter writes intermediate files. */
@@ -49,7 +54,7 @@ public class BufferedExternalSorter implements Sorter {
           !tempLocation.startsWith("gs://"),
           "BufferedExternalSorter does not support GCS temporary location");
 
-      return new Options(tempLocation, memoryMB);
+      return new Options(tempLocation, memoryMB, sorterType);
     }
 
     /** Returns the configured temporary location. */
@@ -59,27 +64,42 @@ public class BufferedExternalSorter implements Sorter {
 
     /**
      * Sets the size of the memory buffer in megabytes. This controls both the buffer for initial in
-     * memory sorting and the buffer used when external sorting. Must be greater than zero and less
-     * than 2048.
+     * memory sorting and the buffer used when external sorting. Must be greater than zero. Must be
+     * less than 2048 if sorter type is Hadoop.
      */
     public Options withMemoryMB(int memoryMB) {
-      checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
-      // Hadoop's external sort stores the number of available memory bytes in an int, this prevents
-      // overflow
-      checkArgument(memoryMB < 2048, "memoryMB must be less than 2048");
-      return new Options(tempLocation, memoryMB);
+      return new Options(tempLocation, memoryMB, sorterType);
     }
 
     /** Returns the configured size of the memory buffer. */
     public int getMemoryMB() {
       return memoryMB;
     }
+
+    /** Sets the external sorter type. */
+    public Options withExternalSorterType(SorterType sorterType) {
+      return new Options(tempLocation, memoryMB, sorterType);
+    }
+
+    /** Returns the external sorter type. */
+    public SorterType getExternalSorterType() {
+      return sorterType;
+    }
+
+    private static void checkMemoryMB(int memoryMB, SorterType sorterType) {
+      checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
+      if (sorterType == SorterType.HADOOP) {
+        // Hadoop's external sort stores the number of available memory bytes in an int, this
+        // prevents overflow
+        checkArgument(memoryMB < 2048, "memoryMB must be less than 2048 for Hadoop sorter");
+      }
+    }
   }
 
   private final ExternalSorter externalSorter;
-  private InMemorySorter inMemorySorter;
 
-  boolean inMemorySorterFull;
+  /** The in-memory sorter is set to {@code null} when it fills up. */
+  private @Nullable InMemorySorter inMemorySorter;
 
   BufferedExternalSorter(ExternalSorter externalSorter, InMemorySorter inMemorySorter) {
     this.externalSorter = externalSorter;
@@ -88,8 +108,9 @@ public class BufferedExternalSorter implements Sorter {
 
   public static BufferedExternalSorter create(Options options) {
     ExternalSorter.Options externalSorterOptions = new ExternalSorter.Options();
-    externalSorterOptions.setMemoryMB(options.getMemoryMB());
     externalSorterOptions.setTempLocation(options.getTempLocation());
+    externalSorterOptions.setSorterType(options.getExternalSorterType());
+    externalSorterOptions.setMemoryMB(options.getMemoryMB());
 
     InMemorySorter.Options inMemorySorterOptions = new InMemorySorter.Options();
     inMemorySorterOptions.setMemoryMB(options.getMemoryMB());
@@ -100,13 +121,12 @@ public class BufferedExternalSorter implements Sorter {
 
   @Override
   public void add(KV<byte[], byte[]> record) throws IOException {
-    if (!inMemorySorterFull) {
+    if (inMemorySorter != null) {
       if (inMemorySorter.addIfRoom(record)) {
         return;
       } else {
         // Flushing contents of in memory sorter to external sorter so we can rely on external
         // from here on out
-        inMemorySorterFull = true;
         transferToExternalSorter();
       }
     }
@@ -119,6 +139,7 @@ public class BufferedExternalSorter implements Sorter {
    * Transfers all of the records loaded so far into the in memory sorter over to the external
    * sorter.
    */
+  @RequiresNonNull("inMemorySorter")
   private void transferToExternalSorter() throws IOException {
     for (KV<byte[], byte[]> record : inMemorySorter.sort()) {
       externalSorter.add(record);
@@ -129,7 +150,7 @@ public class BufferedExternalSorter implements Sorter {
 
   @Override
   public Iterable<KV<byte[], byte[]>> sort() throws IOException {
-    if (!inMemorySorterFull) {
+    if (inMemorySorter != null) {
       return inMemorySorter.sort();
     } else {
       return externalSorter.sort();

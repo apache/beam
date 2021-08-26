@@ -17,18 +17,33 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
-from __future__ import absolute_import
-
-from builtins import object
-from builtins import range
+# pytype: skip-file
 
 globals()['INT64_MAX'] = 2**63 - 1
 globals()['INT64_MIN'] = -2**63
 
-POWER_TEN = [10e-1, 10e0, 10e1, 10e2, 10e3, 10e4, 10e5,
-             10e6, 10e7, 10e8, 10e9, 10e10, 10e11,
-             10e12, 10e13, 10e14, 10e15, 10e16, 10e17,
-             10e18]
+POWER_TEN = [
+    10e-1,
+    10e0,
+    10e1,
+    10e2,
+    10e3,
+    10e4,
+    10e5,
+    10e6,
+    10e7,
+    10e8,
+    10e9,
+    10e10,
+    10e11,
+    10e12,
+    10e13,
+    10e14,
+    10e15,
+    10e16,
+    10e17,
+    10e18
+]
 
 
 def get_log10_round_to_floor(element):

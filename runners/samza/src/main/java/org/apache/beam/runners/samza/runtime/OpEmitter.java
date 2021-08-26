@@ -15,14 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.runtime;
 
+import java.util.Collection;
+import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /** Output emitter for Samza {@link Op}. */
 public interface OpEmitter<OutT> {
+
+  void emitFuture(CompletionStage<Collection<WindowedValue<OutT>>> resultFuture);
+
   void emitElement(WindowedValue<OutT> element);
 
   void emitWatermark(Instant watermark);

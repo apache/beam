@@ -15,17 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.data;
 
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
 /**
  * The {@link BeamFnDataClient} is able to forward inbound elements to a {@link FnDataReceiver} and
@@ -43,11 +43,19 @@ public interface BeamFnDataClient {
    *
    * <p>The receiver is not required to be thread safe.
    */
-  <T> InboundDataClient receive(
+  default <T> InboundDataClient receive(
       ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint inputLocation,
-      Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> receiver);
+      Coder<T> coder,
+      FnDataReceiver<T> receiver) {
+    return receive(
+        apiServiceDescriptor, inputLocation, new DecodingFnDataReceiver<T>(coder, receiver));
+  }
+
+  InboundDataClient receive(
+      ApiServiceDescriptor apiServiceDescriptor,
+      LogicalEndpoint inputLocation,
+      FnDataReceiver<ByteString> receiver);
 
   /**
    * Creates a {@link CloseableFnDataReceiver} using the provided instruction id and target.
@@ -58,8 +66,8 @@ public interface BeamFnDataClient {
    *
    * <p>The returned closeable receiver is not thread safe.
    */
-  <T> CloseableFnDataReceiver<WindowedValue<T>> send(
+  <T> CloseableFnDataReceiver<T> send(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
-      Coder<WindowedValue<T>> coder);
+      Coder<T> coder);
 }

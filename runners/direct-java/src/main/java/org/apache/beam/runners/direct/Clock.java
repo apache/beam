@@ -17,11 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.sdk.annotations.Internal;
 import org.joda.time.Instant;
 
 /** Access to the current time. */
-@Internal
 @FunctionalInterface
 public interface Clock {
   /** Returns the current time as an {@link Instant}. */

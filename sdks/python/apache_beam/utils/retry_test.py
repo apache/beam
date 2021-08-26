@@ -17,10 +17,11 @@
 
 """Unit tests for the retry module."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import unittest
-from builtins import object
+
+from parameterized import parameterized
 
 from apache_beam.utils import retry
 
@@ -36,7 +37,6 @@ except ImportError:
 
 class FakeClock(object):
   """A fake clock object implementing sleep() and recording calls."""
-
   def __init__(self):
     self.calls = []
 
@@ -46,7 +46,6 @@ class FakeClock(object):
 
 class FakeLogger(object):
   """A fake logger object implementing log() and recording calls."""
-
   def __init__(self):
     self.calls = []
 
@@ -56,25 +55,24 @@ class FakeLogger(object):
 
 
 @retry.with_exponential_backoff(clock=FakeClock())
-def test_function(a, b):
+def _test_function(a, b):
   _ = a, b
   raise NotImplementedError
 
 
 @retry.with_exponential_backoff(initial_delay_secs=0.1, num_retries=1)
-def test_function_with_real_clock(a, b):
+def _test_function_with_real_clock(a, b):
   _ = a, b
   raise NotImplementedError
 
 
 @retry.no_retries
-def test_no_retry_function(a, b):
+def _test_no_retry_function(a, b):
   _ = a, b
   raise NotImplementedError
 
 
 class RetryTest(unittest.TestCase):
-
   def setUp(self):
     self.clock = FakeClock()
     self.logger = FakeLogger()
@@ -97,81 +95,109 @@ class RetryTest(unittest.TestCase):
   def test_with_explicit_decorator(self):
     # We pass one argument as positional argument and one as keyword argument
     # so that we cover both code paths for argument handling.
-    self.assertRaises(NotImplementedError, test_function, 10, b=20)
+    self.assertRaises(NotImplementedError, _test_function, 10, b=20)
 
   def test_with_no_retry_decorator(self):
-    self.assertRaises(NotImplementedError, test_no_retry_function, 1, 2)
+    self.assertRaises(NotImplementedError, _test_no_retry_function, 1, 2)
 
   def test_with_real_clock(self):
-    self.assertRaises(NotImplementedError,
-                      test_function_with_real_clock, 10, b=20)
+    self.assertRaises(
+        NotImplementedError, _test_function_with_real_clock, 10, b=20)
 
   def test_with_default_number_of_retries(self):
-    self.assertRaises(NotImplementedError,
-                      retry.with_exponential_backoff(clock=self.clock)(
-                          self.permanent_failure),
-                      10, b=20)
+    self.assertRaises(
+        NotImplementedError,
+        retry.with_exponential_backoff(clock=self.clock)(
+            self.permanent_failure),
+        10,
+        b=20)
     self.assertEqual(len(self.clock.calls), 7)
 
   def test_with_explicit_number_of_retries(self):
-    self.assertRaises(NotImplementedError,
-                      retry.with_exponential_backoff(
-                          clock=self.clock, num_retries=10)(
-                              self.permanent_failure),
-                      10, b=20)
+    self.assertRaises(
+        NotImplementedError,
+        retry.with_exponential_backoff(clock=self.clock,
+                                       num_retries=10)(self.permanent_failure),
+        10,
+        b=20)
     self.assertEqual(len(self.clock.calls), 10)
 
   @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
   def test_with_http_error_that_should_not_be_retried(self):
-    self.assertRaises(HttpError,
-                      retry.with_exponential_backoff(
-                          clock=self.clock, num_retries=10)(
-                              self.http_error),
-                      404)
+    self.assertRaises(
+        HttpError,
+        retry.with_exponential_backoff(clock=self.clock,
+                                       num_retries=10)(self.http_error),
+        404)
     # Make sure just one call was made.
     self.assertEqual(len(self.clock.calls), 0)
 
   @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
   def test_with_http_error_that_should_be_retried(self):
-    self.assertRaises(HttpError,
-                      retry.with_exponential_backoff(
-                          clock=self.clock, num_retries=10)(
-                              self.http_error),
-                      500)
+    self.assertRaises(
+        HttpError,
+        retry.with_exponential_backoff(clock=self.clock,
+                                       num_retries=10)(self.http_error),
+        500)
     self.assertEqual(len(self.clock.calls), 10)
 
   def test_with_explicit_initial_delay(self):
-    self.assertRaises(NotImplementedError,
-                      retry.with_exponential_backoff(
-                          initial_delay_secs=10.0, clock=self.clock,
-                          fuzz=False)(
-                              self.permanent_failure),
-                      10, b=20)
+    self.assertRaises(
+        NotImplementedError,
+        retry.with_exponential_backoff(
+            initial_delay_secs=10.0, clock=self.clock,
+            fuzz=False)(self.permanent_failure),
+        10,
+        b=20)
     self.assertEqual(len(self.clock.calls), 7)
     self.assertEqual(self.clock.calls[0], 10.0)
 
+  @parameterized.expand([(str(i), i) for i in range(0, 1000, 47)])
+  def test_with_stop_after_secs(self, _, stop_after_secs):
+    max_delay_secs = 10
+    self.assertRaises(
+        NotImplementedError,
+        retry.with_exponential_backoff(
+            num_retries=10000,
+            initial_delay_secs=10.0,
+            clock=self.clock,
+            fuzz=False,
+            max_delay_secs=max_delay_secs,
+            stop_after_secs=stop_after_secs)(self.permanent_failure),
+        10,
+        b=20)
+    total_delay = sum(self.clock.calls)
+    self.assertLessEqual(total_delay, stop_after_secs)
+    self.assertGreaterEqual(total_delay, stop_after_secs - max_delay_secs)
+
   def test_log_calls_for_permanent_failure(self):
-    self.assertRaises(NotImplementedError,
-                      retry.with_exponential_backoff(
-                          clock=self.clock, logger=self.logger.log)(
-                              self.permanent_failure),
-                      10, b=20)
+    self.assertRaises(
+        NotImplementedError,
+        retry.with_exponential_backoff(
+            clock=self.clock, logger=self.logger.log)(self.permanent_failure),
+        10,
+        b=20)
     self.assertEqual(len(self.logger.calls), 7)
-    for message, func_name, exn_name  in self.logger.calls:
+    for message, func_name, exn_name in self.logger.calls:
       self.assertTrue(message.startswith('Retry with exponential backoff:'))
       self.assertEqual(exn_name, 'NotImplementedError\n')
       self.assertEqual(func_name, 'permanent_failure')
 
   def test_log_calls_for_transient_failure(self):
     result = retry.with_exponential_backoff(
-        clock=self.clock, logger=self.logger.log, fuzz=False)(
-            self.transient_failure)(10, b=20)
+        clock=self.clock, logger=self.logger.log,
+        fuzz=False)(self.transient_failure)(
+            10, b=20)
     self.assertEqual(result, 30)
     self.assertEqual(len(self.clock.calls), 4)
-    self.assertEqual(self.clock.calls,
-                     [5.0 * 1, 5.0 * 2, 5.0 * 4, 5.0 * 8,])
+    self.assertEqual(self.clock.calls, [
+        5.0 * 1,
+        5.0 * 2,
+        5.0 * 4,
+        5.0 * 8,
+    ])
     self.assertEqual(len(self.logger.calls), 4)
-    for message, func_name, exn_name  in self.logger.calls:
+    for message, func_name, exn_name in self.logger.calls:
       self.assertTrue(message.startswith('Retry with exponential backoff:'))
       self.assertEqual(exn_name, 'NotImplementedError\n')
       self.assertEqual(func_name, 'transient_failure')

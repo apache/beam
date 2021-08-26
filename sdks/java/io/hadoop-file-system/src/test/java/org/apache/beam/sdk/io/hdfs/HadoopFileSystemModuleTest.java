@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,8 +59,8 @@ public class HadoopFileSystemModuleTest {
     assertThat(
         deserializedConfiguration,
         Matchers.<Map.Entry<String, String>>containsInAnyOrder(
-            new AbstractMap.SimpleEntry("testPropertyA", "A"),
-            new AbstractMap.SimpleEntry("testPropertyB", "B"),
-            new AbstractMap.SimpleEntry("testPropertyC", "baseC")));
+            new AbstractMap.SimpleEntry<>("testPropertyA", "A"),
+            new AbstractMap.SimpleEntry<>("testPropertyB", "B"),
+            new AbstractMap.SimpleEntry<>("testPropertyC", "baseC")));
   }
 }

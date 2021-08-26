@@ -21,19 +21,12 @@ import (
 	"io"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/session"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/proto"
-)
-
-const (
-	unknown = iota
-	instructionRequest
-	instructionResponse
-	dataReceive
-	dataSend
 )
 
 // capture is set by the capture hook below.
@@ -76,7 +69,7 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	body := bufPool.Get().(*proto.Buffer)
 	defer bufPool.Put(body)
 	if err := body.Marshal(pb); err != nil {
-		return fmt.Errorf("Unable to marshal message for session recording: %v", err)
+		return errors.Wrap(err, "unable to marshal message for session recording")
 	}
 
 	eh := &session.EntryHeader{
@@ -87,13 +80,13 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	hdr := bufPool.Get().(*proto.Buffer)
 	defer bufPool.Put(hdr)
 	if err := hdr.Marshal(eh); err != nil {
-		return fmt.Errorf("Unable to marshal message header for session recording: %v", err)
+		return errors.Wrap(err, "unable to marshal message header for session recording")
 	}
 
 	l := bufPool.Get().(*proto.Buffer)
 	defer bufPool.Put(l)
 	if err := l.EncodeVarint(uint64(len(hdr.Bytes()))); err != nil {
-		return fmt.Errorf("Unable to write entry header length: %v", err)
+		return errors.Wrap(err, "unable to write entry header length")
 	}
 
 	// Acquire the lock to write the file.
@@ -101,18 +94,18 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	defer sessionLock.Unlock()
 
 	if _, err := capture.Write(l.Bytes()); err != nil {
-		return fmt.Errorf("Unable to write entry header length: %v", err)
+		return errors.Wrap(err, "unable to write entry header length")
 	}
 	if _, err := capture.Write(hdr.Bytes()); err != nil {
-		return fmt.Errorf("Unable to write entry header: %v", err)
+		return errors.Wrap(err, "unable to write entry header")
 	}
 	if _, err := capture.Write(body.Bytes()); err != nil {
-		return fmt.Errorf("Unable to write entry body: %v", err)
+		return errors.Wrap(err, "unable to write entry body")
 	}
 	return nil
 }
 
-func recordInstructionRequest(req *pb.InstructionRequest) error {
+func recordInstructionRequest(req *fnpb.InstructionRequest) error {
 	return recordMessage(session.Kind_INSTRUCTION_REQUEST,
 		&session.Entry{
 			Kind: session.Kind_INSTRUCTION_REQUEST,
@@ -122,7 +115,7 @@ func recordInstructionRequest(req *pb.InstructionRequest) error {
 		})
 }
 
-func recordInstructionResponse(resp *pb.InstructionResponse) error {
+func recordInstructionResponse(resp *fnpb.InstructionResponse) error {
 	return recordMessage(session.Kind_INSTRUCTION_RESPONSE,
 		&session.Entry{
 			Kind: session.Kind_INSTRUCTION_RESPONSE,
@@ -132,7 +125,7 @@ func recordInstructionResponse(resp *pb.InstructionResponse) error {
 		})
 }
 
-func recordStreamReceive(data *pb.Elements) error {
+func recordStreamReceive(data *fnpb.Elements) error {
 	return recordMessage(session.Kind_DATA_RECEIVED,
 		&session.Entry{
 			Kind: session.Kind_DATA_RECEIVED,
@@ -142,7 +135,7 @@ func recordStreamReceive(data *pb.Elements) error {
 		})
 }
 
-func recordStreamSend(data *pb.Elements) error {
+func recordStreamSend(data *fnpb.Elements) error {
 	return recordMessage(session.Kind_DATA_SENT,
 		&session.Entry{
 			Kind: session.Kind_DATA_SENT,
@@ -152,7 +145,7 @@ func recordStreamSend(data *pb.Elements) error {
 		})
 }
 
-func recordLogEntries(entries *pb.LogEntry_List) error {
+func recordLogEntries(entries *fnpb.LogEntry_List) error {
 	return recordMessage(session.Kind_LOG_ENTRIES,
 		&session.Entry{
 			Kind: session.Kind_LOG_ENTRIES,
@@ -170,7 +163,7 @@ func recordHeader() error {
 			Msg: &session.Entry_Header{
 				Header: &session.Header{
 					Version:   "0.0.1",
-					MaxMsgLen: 4000000, // TODO(wcn): get from DataManager.
+					MaxMsgLen: 4000000, // TODO(wcn): get from DataChannelManager.
 				},
 			},
 		})

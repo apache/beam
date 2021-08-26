@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.data;
 
 import java.util.concurrent.CancellationException;
@@ -33,6 +32,9 @@ public interface InboundDataClient {
    * @throws Exception if the client throws an exception while awaiting completion.
    */
   void awaitCompletion() throws InterruptedException, Exception;
+
+  /** Runs the runnable once the client has completed reading from the inbound stream. */
+  void runWhenComplete(Runnable completeRunnable);
 
   /**
    * Returns true if the client is done, either via completing successfully or by being cancelled.

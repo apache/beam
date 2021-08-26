@@ -17,30 +17,36 @@ package exec
 
 import (
 	"fmt"
-	"path"
+	"math/rand"
 	"strconv"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/stringx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 )
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
 const (
-	urnDataSource           = "urn:org.apache.beam:source:runner:0.1"
-	urnDataSink             = "urn:org.apache.beam:sink:runner:0.1"
-	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
-	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
-	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"
+	urnDataSource                          = "beam:runner:source:v1"
+	urnDataSink                            = "beam:runner:sink:v1"
+	urnPerKeyCombinePre                    = "beam:transform:combine_per_key_precombine:v1"
+	urnPerKeyCombineMerge                  = "beam:transform:combine_per_key_merge_accumulators:v1"
+	urnPerKeyCombineExtract                = "beam:transform:combine_per_key_extract_outputs:v1"
+	urnPerKeyCombineConvert                = "beam:transform:combine_per_key_convert_to_accumulators:v1"
+	urnPairWithRestriction                 = "beam:transform:sdf_pair_with_restriction:v1"
+	urnSplitAndSizeRestrictions            = "beam:transform:sdf_split_and_size_restrictions:v1"
+	urnProcessSizedElementsAndRestrictions = "beam:transform:sdf_process_sized_element_and_restrictions:v1"
 )
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
@@ -54,7 +60,7 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			continue
 		}
 		if len(transform.GetOutputs()) != 1 {
-			return nil, fmt.Errorf("expected one output from DataSource, got %v", transform.GetOutputs())
+			return nil, errors.Errorf("expected one output from DataSource, got %v", transform.GetOutputs())
 		}
 
 		port, cid, err := unmarshalPort(transform.GetSpec().GetPayload())
@@ -62,31 +68,32 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			return nil, err
 		}
 
-		u := &DataSource{UID: b.idgen.New(), Port: port}
+		u := &DataSource{UID: b.idgen.New()}
+		u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
+		if err != nil {
+			return nil, err
+		}
+		if !coder.IsW(u.Coder) {
+			return nil, errors.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
+		}
 
+		// There's only a single pair in this map, but a for loop range statement
+		// is the easiest way to extract it, so this loop will iterate only once.
 		for key, pid := range transform.GetOutputs() {
-			u.Target = Target{ID: id, Name: key}
+			u.SID = StreamID{PtransformID: id, Port: port}
+			u.Name = key
 
 			u.Out, err = b.makePCollection(pid)
 			if err != nil {
 				return nil, err
 			}
-
-			if cid == "" {
-				c, wc, err := b.makeCoderForPCollection(pid)
-				if err != nil {
-					return nil, err
-				}
-				u.Coder = coder.NewW(c, wc)
-			} else {
-				u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
-				if err != nil {
-					return nil, err
-				}
-				if !coder.IsW(u.Coder) {
-					return nil, fmt.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
-				}
-			}
+			// Elide the PCollection Node for DataSources
+			// DataSources can get byte samples directly, and can handle CoGBKs.
+			// Copying the PCollection here is fine, as the PCollection will never
+			// have used it's mutex yet.
+			u.PCol = *u.Out.(*PCollection)
+			u.Out = u.PCol.Out
+			b.units = b.units[:len(b.units)-1]
 		}
 
 		b.units = append(b.units, u)
@@ -102,8 +109,8 @@ type builder struct {
 	succ map[string][]linkID // PCollectionID -> []linkID
 
 	windowing map[string]*window.WindowingStrategy
-	nodes     map[string]Node // PCollectionID -> Node (cache)
-	links     map[linkID]Node // linkID -> Node (cache)
+	nodes     map[string]*PCollection // PCollectionID -> Node (cache)
+	links     map[linkID]Node         // linkID -> Node (cache)
 
 	units []Unit // result
 	idgen *GenID
@@ -145,7 +152,7 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 		succ: succ,
 
 		windowing: make(map[string]*window.WindowingStrategy),
-		nodes:     make(map[string]Node),
+		nodes:     make(map[string]*PCollection),
 		links:     make(map[linkID]Node),
 
 		idgen: &GenID{},
@@ -164,9 +171,9 @@ func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, e
 
 	ws, ok := b.desc.GetWindowingStrategies()[id]
 	if !ok {
-		return nil, fmt.Errorf("windowing strategy %v not found", id)
+		return nil, errors.Errorf("windowing strategy %v not found", id)
 	}
-	wfn, err := unmarshalWindowFn(ws.GetWindowFn().GetSpec())
+	wfn, err := unmarshalWindowFn(ws.GetWindowFn())
 	if err != nil {
 		return nil, err
 	}
@@ -175,13 +182,13 @@ func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, e
 	return w, nil
 }
 
-func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
+func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 	switch urn := wfn.GetUrn(); urn {
 	case graphx.URNGlobalWindowsWindowFn:
 		return window.NewGlobalWindows(), nil
 
 	case graphx.URNFixedWindowsWindowFn:
-		var payload pb.FixedWindowsPayload
+		var payload pipepb.FixedWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -192,7 +199,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewFixedWindows(size), nil
 
 	case graphx.URNSlidingWindowsWindowFn:
-		var payload pb.SlidingWindowsPayload
+		var payload pipepb.SlidingWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -207,7 +214,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewSlidingWindows(period, size), nil
 
 	case graphx.URNSessionsWindowFn:
-		var payload pb.SessionsPayload
+		var payload pipepb.SessionWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -218,7 +225,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewSessions(gap), nil
 
 	default:
-		return nil, fmt.Errorf("unsupported window type: %v", urn)
+		return nil, errors.Errorf("unsupported window type: %v", urn)
 	}
 }
 
@@ -229,7 +236,22 @@ func (b *builder) makePCollections(out []string) ([]Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		ret = append(ret, n)
+		// This is the cleanest place to do this check and filtering,
+		// since DataSinks don't know their inputs, due to the construction
+		// call stack.
+		// A Source->Sink is both uncommon and inefficent, with the Source eliding the
+		// collection anyway.
+		// TODO[BEAM-6374): Properly handle the multiplex and flatten cases.
+		// Right now we just stop datasink collection.
+		switch out := n.Out.(type) {
+		case *DataSink:
+			// We don't remove the PCollection from units here, since we
+			// want to ensure it's included in snapshots.
+			out.PCol = n
+			ret = append(ret, out)
+		default:
+			ret = append(ret, n)
+		}
 	}
 	return ret, nil
 }
@@ -237,7 +259,7 @@ func (b *builder) makePCollections(out []string) ([]Node, error) {
 func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.WindowCoder, error) {
 	col, ok := b.desc.GetPcollections()[id]
 	if !ok {
-		return nil, nil, fmt.Errorf("pcollection %v not found", id)
+		return nil, nil, errors.Errorf("pcollection %v not found", id)
 	}
 	c, err := b.coders.Coder(col.CoderId)
 	if err != nil {
@@ -253,7 +275,7 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 
 	ws, ok := b.desc.GetWindowingStrategies()[col.GetWindowingStrategyId()]
 	if !ok {
-		return nil, nil, fmt.Errorf("windowing strategy %v not found", id)
+		return nil, nil, errors.Errorf("windowing strategy %v not found", id)
 	}
 	wc, err := b.coders.WindowCoder(ws.GetWindowCoderId())
 	if err != nil {
@@ -262,7 +284,7 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 	return c, wc, nil
 }
 
-func (b *builder) makePCollection(id string) (Node, error) {
+func (b *builder) makePCollection(id string) (*PCollection, error) {
 	if n, exists := b.nodes[id]; exists {
 		return n, nil
 	}
@@ -277,8 +299,11 @@ func (b *builder) makePCollection(id string) (Node, error) {
 		u = &Discard{UID: b.idgen.New()}
 
 	case 1:
-		return b.makeLink(id, list[0])
-
+		out, err := b.makeLink(id, list[0])
+		if err != nil {
+			return nil, err
+		}
+		return b.newPCollectionNode(id, out)
 	default:
 		// Multiplex.
 
@@ -295,7 +320,16 @@ func (b *builder) makePCollection(id string) (Node, error) {
 		b.units = append(b.units, u)
 		u = &Flatten{UID: b.idgen.New(), N: count, Out: u}
 	}
+	b.units = append(b.units, u)
+	return b.newPCollectionNode(id, u)
+}
 
+func (b *builder) newPCollectionNode(id string, out Node) (*PCollection, error) {
+	ec, _, err := b.makeCoderForPCollection(id)
+	if err != nil {
+		return nil, err
+	}
+	u := &PCollection{UID: b.idgen.New(), Out: out, PColID: id, Coder: ec, Seed: rand.Int63()}
 	b.nodes[id] = u
 	b.units = append(b.units, u)
 	return u, nil
@@ -335,21 +369,31 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	var u Node
 	switch urn {
-	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
+	case graphx.URNParDo,
+		urnPerKeyCombinePre,
+		urnPerKeyCombineMerge,
+		urnPerKeyCombineExtract,
+		urnPerKeyCombineConvert,
+		urnPairWithRestriction,
+		urnSplitAndSizeRestrictions,
+		urnProcessSizedElementsAndRestrictions:
 		var data string
 		switch urn {
-		case graphx.URNParDo:
-			var pardo pb.ParDoPayload
+		case graphx.URNParDo,
+			urnPairWithRestriction,
+			urnSplitAndSizeRestrictions,
+			urnProcessSizedElementsAndRestrictions:
+			var pardo pipepb.ParDoPayload
 			if err := proto.Unmarshal(payload, &pardo); err != nil {
-				return nil, fmt.Errorf("invalid ParDo payload for %v: %v", transform, err)
+				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
 			}
-			data = string(pardo.GetDoFn().GetSpec().GetPayload())
-		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
-			var cmb pb.CombinePayload
+			data = string(pardo.GetDoFn().GetPayload())
+		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
+			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
-				return nil, fmt.Errorf("invalid CombinePayload payload for %v: %v", transform, err)
+				return nil, errors.Wrapf(err, "invalid CombinePayload payload for %v", transform)
 			}
-			data = string(cmb.GetCombineFn().GetSpec().GetPayload())
+			data = string(cmb.GetCombineFn().GetPayload())
 		default:
 			// TODO(herohde) 12/4/2017: we see DoFns directly with Dataflow. Handle that
 			// case here, for now, so that the harness can use this logic.
@@ -360,9 +404,9 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		// TODO(herohde) 1/28/2018: Once Dataflow's fully off the old way,
 		// we can simply switch on the ParDo DoFn URN directly.
 
-		var tp v1.TransformPayload
+		var tp v1pb.TransformPayload
 		if err := protox.DecodeBase64(data, &tp); err != nil {
-			return nil, fmt.Errorf("invalid transform payload for %v: %v", transform, err)
+			return nil, errors.Wrapf(err, "invalid transform payload for %v", transform)
 		}
 
 		switch tpUrn := tp.GetUrn(); tpUrn {
@@ -374,19 +418,45 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 			switch op {
 			case graph.ParDo:
-				n := &ParDo{UID: b.idgen.New(), PID: id.to, Inbound: in, Out: out}
-				n.Fn, err = graph.AsDoFn(fn)
+				dofn, err := graph.AsDoFn(fn, graph.MainUnknown)
 				if err != nil {
 					return nil, err
 				}
-				// TODO(lostluck): 2018/03/22 Look into why transform.UniqueName isn't populated at this point, and switch n.PID to that instead.
-				n.PID = path.Base(n.Fn.Name())
-				if len(in) == 1 {
+				switch urn {
+				case urnPairWithRestriction:
+					u = &PairWithRestriction{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
+				case urnSplitAndSizeRestrictions:
+					u = &SplitAndSizeRestrictions{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
+				default:
+					n := &ParDo{UID: b.idgen.New(), Fn: dofn, Inbound: in, Out: out}
+					n.PID = transform.GetUniqueName()
+
+					input := unmarshalKeyedValues(transform.GetInputs())
+					for i := 1; i < len(input); i++ {
+						// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
+						// For now, assume we don't need any information in the pardo payload.
+
+						ec, wc, err := b.makeCoderForPCollection(input[i])
+						if err != nil {
+							return nil, err
+						}
+
+						sid := StreamID{
+							Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+							PtransformID: id.to,
+						}
+						sideInputID := fmt.Sprintf("i%v", i) // SideInputID (= local id, "iN")
+						side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc))
+						n.Side = append(n.Side, side)
+					}
 					u = n
-					break
+					if urn == urnProcessSizedElementsAndRestrictions {
+						u = &ProcessSizedElementsAndRestrictions{PDo: n, TfId: id.to}
+					} else if dofn.IsSplittable() {
+						u = &SdfFallback{PDo: n}
+					}
 				}
 
-				panic("NYI: side input")
 			case graph.Combine:
 				cn := &Combine{UID: b.idgen.New(), Out: out[0]}
 				cn.Fn, err = graph.AsCombineFn(fn)
@@ -394,13 +464,36 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					return nil, err
 				}
 				cn.UsesKey = typex.IsKV(in[0].Type)
+
+				cn.PID = transform.GetUniqueName()
+
 				switch urn {
 				case urnPerKeyCombinePre:
-					u = &LiftedCombine{Combine: cn}
+					inputs := unmarshalKeyedValues(transform.GetInputs())
+					if len(inputs) != 1 {
+						return nil, errors.Errorf("unexpected sideinput to combine: got %d, want 1", len(inputs))
+					}
+					ec, wc, err := b.makeCoderForPCollection(inputs[0])
+					if err != nil {
+						return nil, err
+					}
+					if !coder.IsKV(ec) {
+						return nil, errors.Errorf("unexpected non-KV coder PCollection input to combine: %v", ec)
+					}
+					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0], WindowCoder: wc}
 				case urnPerKeyCombineMerge:
-					u = &MergeAccumulators{Combine: cn}
+					ma := &MergeAccumulators{Combine: cn}
+					if eo, ok := ma.Out.(*PCollection).Out.(*ExtractOutput); ok {
+						// Strip PCollections from between MergeAccumulators and ExtractOutputs
+						// as it's a synthetic PCollection.
+						b.units = b.units[:len(b.units)-1]
+						ma.Out = eo
+					}
+					u = ma
 				case urnPerKeyCombineExtract:
 					u = &ExtractOutput{Combine: cn}
+				case urnPerKeyCombineConvert:
+					u = &ConvertToAccumulators{Combine: cn}
 				default: // For unlifted combines
 					u = cn
 				}
@@ -408,15 +501,25 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				panic(fmt.Sprintf("Opcode should be one of ParDo or Combine, but it is: %v", op))
 			}
 
+		case graphx.URNIterableSideInputKey:
+			u = &FixedKey{UID: b.idgen.New(), Key: []byte(iterableSideInputKey), Out: out[0]}
+
 		case graphx.URNInject:
 			c, _, err := b.makeCoderForPCollection(from)
 			if err != nil {
 				return nil, err
 			}
 			if !coder.IsKV(c) {
-				return nil, fmt.Errorf("unexpected inject coder: %v", c)
+				return nil, errors.Errorf("unexpected inject coder: %v", c)
 			}
-			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(c.Components[1]), Out: out[0]}
+			valCoder := c.Components[1]
+			// JIRA BEAM-12438 - an extra LP coder can get added here, but isn't added
+			// on decode. Strip them until we get a better fix.
+			if valCoder.Kind == coder.LP {
+				// strip unexpected length prefix coder.
+				valCoder = valCoder.Components[0]
+			}
+			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(valCoder), Out: out[0]}
 
 		case graphx.URNExpand:
 			var pid string
@@ -428,25 +531,49 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				return nil, err
 			}
 			if !coder.IsCoGBK(c) {
-				return nil, fmt.Errorf("unexpected expand coder: %v", c)
+				return nil, errors.Errorf("unexpected expand coder: %v", c)
 			}
 
 			var decoders []ElementDecoder
 			for _, dc := range c.Components[1:] {
 				decoders = append(decoders, MakeElementDecoder(dc))
 			}
-			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
+			// Strip PCollections from Expand nodes, as CoGBK metrics are handled by
+			// the DataSource that preceeds them.
+			trueOut := out[0].(*PCollection).Out
+			b.units = b.units[:len(b.units)-1]
+			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: trueOut}
+
+		case graphx.URNReshuffleInput:
+			c, w, err := b.makeCoderForPCollection(from)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
+
+		case graphx.URNReshuffleOutput:
+			var pid string
+			// There's only one output PCollection, and iterating through the map
+			// is the only way to extract it.
+			for _, id := range transform.GetOutputs() {
+				pid = id
+			}
+			c, w, err := b.makeCoderForPCollection(pid)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
 
 		default:
-			return nil, fmt.Errorf("unexpected payload: %v", tp)
+			return nil, errors.Errorf("unexpected payload: %v", &tp)
 		}
 
 	case graphx.URNWindow:
-		var wp pb.WindowIntoPayload
+		var wp pipepb.WindowIntoPayload
 		if err := proto.Unmarshal(payload, &wp); err != nil {
-			return nil, fmt.Errorf("invalid WindowInto payload for %v: %v", transform, err)
+			return nil, errors.Wrapf(err, "invalid WindowInto payload for %v", transform)
 		}
-		wfn, err := unmarshalWindowFn(wp.GetWindowFn().GetSpec())
+		wfn, err := unmarshalWindowFn(wp.GetWindowFn())
 		if err != nil {
 			return nil, err
 		}
@@ -455,32 +582,25 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 	case graphx.URNFlatten:
 		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}
 
+		// Use the same flatten instance for all the inputs links to this transform.
+		for i := 0; i < len(transform.Inputs); i++ {
+			b.links[linkID{id.to, i}] = u
+		}
+
 	case urnDataSink:
 		port, cid, err := unmarshalPort(payload)
 		if err != nil {
 			return nil, err
 		}
 
-		sink := &DataSink{UID: b.idgen.New(), Port: port}
-
-		for key, pid := range transform.GetInputs() {
-			sink.Target = Target{ID: id.to, Name: key}
-
-			if cid == "" {
-				c, wc, err := b.makeCoderForPCollection(pid)
-				if err != nil {
-					return nil, err
-				}
-				sink.Coder = coder.NewW(c, wc)
-			} else {
-				sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
-				if err != nil {
-					return nil, err
-				}
-				if !coder.IsW(sink.Coder) {
-					return nil, fmt.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
-				}
-			}
+		sink := &DataSink{UID: b.idgen.New()}
+		sink.SID = StreamID{PtransformID: id.to, Port: port}
+		sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
+		if err != nil {
+			return nil, err
+		}
+		if !coder.IsW(sink.Coder) {
+			return nil, errors.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
 		}
 		u = sink
 
@@ -495,46 +615,63 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 // unmarshalKeyedValues converts a map {"i1": "b", ""i0": "a"} into an ordered list of
 // of values: {"a", "b"}. If the keys are not in the expected format, the returned
-// list does not guarantee any order.
+// list does not guarantee any order, but will respect ordered values.
 func unmarshalKeyedValues(m map[string]string) []string {
 	if len(m) == 0 {
 		return nil
+	}
+	if len(m) == 1 && stringx.Keys(m)[0] == "bogus" {
+		return nil // Ignore special bogus node for legacy Dataflow.
 	}
 
 	// (1) Compute index. If generated by the marshaller, we have
 	// a "iN" name that directly indicates the position.
 
-	index := make(map[string]int)
-	complete := true
+	ordered := make(map[int]string)
+	var unordered []string
 
 	for key := range m {
-		if i, err := strconv.Atoi(strings.TrimPrefix(key, "i")); !strings.HasPrefix(key, "i") || err != nil {
-			complete = false
-			break
-		} else {
-			index[key] = i
-		}
+		if i, err := inputIdToIndex(key); err == nil {
+			if i < len(m) {
+				ordered[i] = key
+				continue
+			} // else: out-of-range index.
+		} // else: not in "iN" form.
+
+		unordered = append(unordered, key)
 	}
 
-	// (2) Impose order, if present, on values.
-
-	if !complete {
-		// Inserted node or fallback. Assume any order is ok.
-		var ret []string
-		for key, value := range m {
-			if key == "bogus" {
-				continue // Ignore special bogus node for legacy Dataflow.
-			}
-			ret = append(ret, value)
-		}
-		return ret
-	}
+	// (2) Impose order, to the extent present, on values.
 
 	ret := make([]string, len(m))
-	for key, value := range m {
-		ret[index[key]] = value
+	k := 0
+	for i := 0; i < len(ret); i++ {
+		if key, ok := ordered[i]; ok {
+			ret[i] = m[key]
+		} else {
+			ret[i] = m[unordered[k]]
+			k++
+		}
 	}
 	return ret
+}
+
+// inputIdToIndex converts a local input ID for a transform into an index. Use
+// this to avoid relying on format details for input IDs.
+//
+// Currently, expects IDs in the format "iN" where N is the index. If the ID is
+// in an invalid form, returns an error.
+func inputIdToIndex(id string) (int, error) {
+	if !strings.HasPrefix(id, "i") {
+		return 0, errors.New("invalid input ID format")
+	}
+	return strconv.Atoi(strings.TrimPrefix(id, "i"))
+}
+
+// indexToInputId converts an index into a local input ID for a transform. Use
+// this to avoid relying on format details for input IDs.
+func indexToInputId(i int) string {
+	return "i" + strconv.Itoa(i)
 }
 
 func unmarshalPort(data []byte) (Port, string, error) {

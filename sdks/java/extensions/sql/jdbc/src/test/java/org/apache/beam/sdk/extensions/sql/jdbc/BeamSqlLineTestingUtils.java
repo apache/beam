@@ -25,6 +25,9 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Util functions for BeamSqlLine related tests. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class BeamSqlLineTestingUtils {
 
   private static final String QUERY_ARG = "-e";

@@ -17,21 +17,22 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -48,18 +49,25 @@ import org.joda.time.Instant;
  * }</pre>
  *
  * <p>Supported compression algorithms are {@link Compression#GZIP}, {@link Compression#BZIP2},
- * {@link Compression#ZIP} and {@link Compression#DEFLATE}. User-defined compression types are
- * supported by implementing a {@link DecompressingChannelFactory}.
+ * {@link Compression#ZIP}, {@link Compression#ZSTD}, {@link Compression#LZO}, {@link
+ * Compression#LZOP}, {@link Compression#SNAPPY}, and {@link Compression#DEFLATE}. User-defined
+ * compression types are supported by implementing a {@link DecompressingChannelFactory}.
  *
  * <p>By default, the compression algorithm is selected from those supported in {@link Compression}
  * based on the file name provided to the source, namely {@code ".bz2"} indicates {@link
  * Compression#BZIP2}, {@code ".gz"} indicates {@link Compression#GZIP}, {@code ".zip"} indicates
- * {@link Compression#ZIP} and {@code ".deflate"} indicates {@link Compression#DEFLATE}. If the file
- * name does not match any of the supported algorithms, it is assumed to be uncompressed data.
+ * {@link Compression#ZIP}, {@code ".zst"} indicates {@link Compression#ZSTD}, {@code
+ * ".lzo_deflate"} indicates {@link Compression#LZO}, {@code ".lzo"} indicates {@link
+ * Compression#LZOP}, {@code ".snappy"} indicted {@link Compression#SNAPPY}, and {@code ".deflate"}
+ * indicates {@link Compression#DEFLATE}. If the file name does not match any of the supported
+ * algorithms, it is assumed to be uncompressed data.
  *
  * @param <T> The type to read from the compressed file.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
@@ -87,8 +95,20 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     /** @see Compression#ZIP */
     ZIP(Compression.ZIP),
 
+    /** @see Compression#ZSTD */
+    ZSTD(Compression.ZSTD),
+
+    /** @see Compression#LZO */
+    LZO(Compression.LZO),
+
+    /** @see Compression#LZOP */
+    LZOP(Compression.LZOP),
+
     /** @see Compression#DEFLATE */
-    DEFLATE(Compression.DEFLATE);
+    DEFLATE(Compression.DEFLATE),
+
+    /** @see Compression#SNAPPY */
+    SNAPPY(Compression.SNAPPY);
 
     private final Compression canonical;
 
@@ -132,8 +152,20 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         case ZIP:
           return ZIP;
 
+        case ZSTD:
+          return ZSTD;
+
+        case LZO:
+          return LZO;
+
+        case LZOP:
+          return LZOP;
+
         case DEFLATE:
           return DEFLATE;
+
+        case SNAPPY:
+          return SNAPPY;
 
         default:
           throw new IllegalArgumentException("Unsupported compression type: " + compression);
@@ -172,7 +204,10 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    */
   private CompressedSource(
       FileBasedSource<T> sourceDelegate, DecompressingChannelFactory channelFactory) {
-    super(sourceDelegate.getFileOrPatternSpecProvider(), Long.MAX_VALUE);
+    super(
+        sourceDelegate.getFileOrPatternSpecProvider(),
+        sourceDelegate.getEmptyMatchTreatment(),
+        Long.MAX_VALUE);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
   }
@@ -311,9 +346,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     @GuardedBy("progressLock")
     private long numRecordsRead;
 
-    @Nullable // Initialized in startReading
+    // Initialized in startReading
     @GuardedBy("progressLock")
-    private CountingChannel channel;
+    private @Nullable CountingChannel channel;
 
     private DecompressingChannelFactory channelFactory;
 

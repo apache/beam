@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.collect.ImmutableList;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -25,10 +25,14 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
+import java.util.Set;
+import java.util.WeakHashMap;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +52,13 @@ import org.slf4j.LoggerFactory;
  * @param <T> the type of elements handled by this coder
  */
 public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
+
+  /*
+   * A thread safe set containing classes which we have warned about.
+   * Note that we specifically use a weak hash map to allow for classes to be unloaded.
+   */
+  private static final Set<Class<?>> MISSING_EQUALS_METHOD =
+      Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
   private static final Logger LOG = LoggerFactory.getLogger(SerializableCoder.class);
 
@@ -87,8 +98,8 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   private static <T extends Serializable> void checkEqualsMethodDefined(Class<T> clazz) {
-    boolean warn = clazz.isInterface();
-    if (!warn) {
+    boolean warn = true;
+    if (!clazz.isInterface()) {
       Method method;
       try {
         method = clazz.getMethod("equals", Object.class);
@@ -99,7 +110,10 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
       // Check if not default Object#equals implementation.
       warn = Object.class.equals(method.getDeclaringClass());
     }
-    if (warn) {
+
+    // Note that the order of these checks is important since we want the
+    // "did we add the class to the set" check to happen last.
+    if (warn && MISSING_EQUALS_METHOD.add(clazz)) {
       LOG.warn(
           "Can't verify serialized elements of type {} have well defined equals method. "
               + "This may produce incorrect results on some {}",
@@ -153,7 +167,9 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   private final Class<T> type;
 
   /** Access via {@link #getEncodedTypeDescriptor()}. */
-  @Nullable private transient TypeDescriptor<T> typeDescriptor;
+  // the field is restored lazily if it is not present due to serialization
+  @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
+  private transient @Nullable TypeDescriptor<T> typeDescriptor;
 
   protected SerializableCoder(Class<T> type, TypeDescriptor<T> typeDescriptor) {
     this.type = type;
@@ -193,7 +209,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     return !(other == null || getClass() != other.getClass())
         && type == ((SerializableCoder<?>) other).type;
   }
@@ -209,6 +225,11 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
       typeDescriptor = TypeDescriptor.of(type);
     }
     return typeDescriptor;
+  }
+
+  @Override
+  public String toString() {
+    return "SerializableCoder(" + type.getName() + ")";
   }
 
   // This coder inherits isRegisterByteSizeObserverCheap,

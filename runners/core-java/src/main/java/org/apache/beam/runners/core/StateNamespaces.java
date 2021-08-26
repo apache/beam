@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
@@ -25,6 +24,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Factory methods for creating the {@link StateNamespace StateNamespaces}. */
 public class StateNamespaces {
@@ -66,7 +67,7 @@ public class StateNamespaces {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj == this || obj instanceof GlobalNamespace;
     }
 
@@ -89,8 +90,6 @@ public class StateNamespaces {
   /** {@link StateNamespace} that is scoped to a specific window. */
   public static class WindowNamespace<W extends BoundedWindow> implements StateNamespace {
 
-    private static final String WINDOW_FORMAT = "/%s/";
-
     private Coder<W> windowCoder;
     private W window;
 
@@ -106,7 +105,8 @@ public class StateNamespaces {
     @Override
     public String stringKey() {
       try {
-        return String.format(WINDOW_FORMAT, CoderUtils.encodeToBase64(windowCoder, window));
+        // equivalent to String.format("/%s/", ...)
+        return "/" + CoderUtils.encodeToBase64(windowCoder, window) + "/";
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }
@@ -124,7 +124,7 @@ public class StateNamespaces {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }
@@ -155,8 +155,6 @@ public class StateNamespaces {
   /** {@link StateNamespace} that is scoped to a particular window and trigger index. */
   public static class WindowAndTriggerNamespace<W extends BoundedWindow> implements StateNamespace {
 
-    private static final String WINDOW_AND_TRIGGER_FORMAT = "/%s/%s/";
-
     private static final int TRIGGER_RADIX = 36;
     private Coder<W> windowCoder;
     private W window;
@@ -179,12 +177,15 @@ public class StateNamespaces {
     @Override
     public String stringKey() {
       try {
-        return String.format(
-            WINDOW_AND_TRIGGER_FORMAT,
-            CoderUtils.encodeToBase64(windowCoder, window),
+        // equivalent to String.format("/%s/%s/", ...)
+        return "/"
+            + CoderUtils.encodeToBase64(windowCoder, window)
+            +
             // Use base 36 so that can address 36 triggers in a single byte and still be human
             // readable.
-            Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase());
+            "/"
+            + Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase()
+            + "/";
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }
@@ -204,7 +205,7 @@ public class StateNamespaces {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }

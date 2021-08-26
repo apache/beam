@@ -15,19 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * A {@code ReadOnlyTableProvider} provides in-memory read only set of {@code BeamSqlTable
  * BeamSqlTables}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReadOnlyTableProvider implements TableProvider {
   private final String typeName;
   private final Map<String, BeamSqlTable> tables;

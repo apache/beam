@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -25,16 +27,19 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
+import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -48,6 +53,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -102,13 +108,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .getRows();
 
     boundedInput3 =
-        pipeline.apply(
-            "boundedInput3",
-            Create.of(rowsInTableB)
-                .withSchema(
-                    schemaInTableB,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInput3", Create.of(rowsInTableB).withRowSchema(schemaInTableB));
   }
 
   /** GROUP-BY with single aggregation function with bounded PCollection. */
@@ -137,6 +137,26 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
+  /** GROUP-BY ROLLUP with bounded PCollection. */
+  @Test
+  public void testAggregationRollupWithBounded() throws Exception {
+    runAggregationRollup(boundedInput1);
+  }
+
+  /** GROUP-BY with single aggregation function with unbounded PCollection. */
+  @Test
+  public void testAggregationRollupWithUnbounded() throws Exception {
+    runAggregationRollup(unboundedInput1);
+  }
+
+  private void runAggregationRollup(PCollection<Row> input) throws Exception {
+    String sql = "SELECT f_int2 FROM PCOLLECTION GROUP BY ROLLUP(f_int2)";
+
+    exceptions.expect(SqlConversionException.class);
+    pipeline.enableAbandonedNodeEnforcement(false);
+    input.apply(SqlTransform.query(sql));
+  }
+
   /** GROUP-BY with multiple aggregation functions with bounded PCollection. */
   @Test
   public void testAggregationFunctionsWithBounded() throws Exception {
@@ -163,6 +183,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             + "sum(f_double) as sum5, avg(f_double) as avg5, "
             + "max(f_double) as max5, min(f_double) as min5, "
             + "max(f_timestamp) as max6, min(f_timestamp) as min6, "
+            + "max(f_string) as max7, min(f_string) as min7, "
             + "var_pop(f_double) as varpop1, var_samp(f_double) as varsamp1, "
             + "var_pop(f_int) as varpop2, var_samp(f_int) as varsamp2 "
             + "FROM TABLE_A group by f_int2";
@@ -197,6 +218,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addDoubleField("min5")
             .addDateTimeField("max6")
             .addDateTimeField("min6")
+            .addStringField("max7")
+            .addStringField("min7")
             .addDoubleField("varpop1")
             .addDoubleField("varsamp1")
             .addInt32Field("varpop2")
@@ -228,8 +251,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                 2.5,
                 4.0,
                 1.0,
-                FORMAT.parseDateTime("2017-01-01 02:04:03"),
-                FORMAT.parseDateTime("2017-01-01 01:01:03"),
+                parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
+                "第四行",
+                "string_row1",
                 1.25,
                 1.666666667,
                 1,
@@ -237,6 +262,194 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .build();
 
     PAssert.that(result).containsInAnyOrder(row);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /** GROUP-BY with the any_value aggregation function. */
+  @Test
+  public void testAnyValueFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema = Schema.builder().addInt32Field("key").addInt32Field("col").build();
+
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            0, 1,
+                            0, 2,
+                            1, 3,
+                            2, 4,
+                            2, 5)
+                        .getRows()))
+            .setRowSchema(schema);
+
+    String sql = "SELECT key, any_value(col) as any_value FROM PCOLLECTION GROUP BY key";
+
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Map<Integer, List<Integer>> allowedTuples = new HashMap<>();
+    allowedTuples.put(0, Arrays.asList(1, 2));
+    allowedTuples.put(1, Arrays.asList(3));
+    allowedTuples.put(2, Arrays.asList(4, 5));
+
+    PAssert.that(result)
+        .satisfies(
+            input -> {
+              Iterator<Row> iter = input.iterator();
+              while (iter.hasNext()) {
+                Row row = iter.next();
+                List<Integer> values = allowedTuples.remove(row.getInt32("key"));
+                assertTrue(values != null);
+                assertTrue(values.contains(row.getInt32("any_value")));
+              }
+              assertTrue(allowedTuples.isEmpty());
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testBitOrFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder().addInt64Field("f_long").addInt32Field("f_int2").build();
+
+    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                0xF001L, 0,
+                0x00A1L, 0,
+                44L, 0)
+            .getRows();
+
+    String sql = "SELECT bit_or(f_long) as bitor " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    Row rowResult = Row.withSchema(resultType).addValues(61613L).build();
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowResult);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testBitAndFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder().addInt64Field("f_long").addInt32Field("f_int2").build();
+
+    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                0xF001L, 0,
+                0x00A1L, 0)
+            .getRows();
+
+    String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    Row rowResult = Row.withSchema(resultType).addValues(1L).build();
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowResult);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testBitAndFunctionWithEmptyTable() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder()
+            .addNullableField("f_long", Schema.FieldType.INT64)
+            .addNullableField("f_int2", Schema.FieldType.INT32)
+            .build();
+
+    List<Row> rowsInTableA = TestUtils.RowsBuilder.of(schemaInTableA).getRows();
+
+    String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).empty();
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testBitAndFunctionWithOnlyNullInput() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder()
+            .addNullableField("f_long", Schema.FieldType.INT64)
+            .addNullableField("f_int2", Schema.FieldType.INT32)
+            .build();
+
+    Schema resultType =
+        Schema.builder().addNullableField("finalAnswer", Schema.FieldType.INT64).build();
+
+    List<Row> rowsInTableA = TestUtils.RowsBuilder.of(schemaInTableA).addRows(null, 0).getRows();
+
+    String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    Row rowResult = Row.withSchema(resultType).addValues((Long) null).build();
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowResult);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /** When inputs contain both null and non-null values, the output should be null. */
+  @Test
+  @Ignore("Null values are ignored when mixed with non-null values. (BEAM-10379)")
+  public void testBitAndFunctionWithNullInputAndValueInput() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder()
+            .addNullableField("f_long", Schema.FieldType.INT64)
+            .addNullableField("f_int2", Schema.FieldType.INT32)
+            .build();
+
+    Schema resultType =
+        Schema.builder().addNullableField("finalAnswer", Schema.FieldType.INT64).build();
+
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA).addRows(null, 0).addRows(1L, 0).getRows();
+
+    String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    Row rowResult = Row.withSchema(resultType).addValues((Long) null).build();
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowResult);
 
     pipeline.run().waitUntilFinish();
   }
@@ -322,10 +535,57 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     runTumbleWindow(unboundedInput1);
   }
 
+  @Test
+  public void testTumbleWindowWith31DaysBounded() throws Exception {
+    runTumbleWindowFor31Days(boundedInputMonthly);
+  }
+
+  private void runTumbleWindowFor31Days(PCollection<Row> input) throws Exception {
+    String sql =
+        "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
+            + " TUMBLE_START(f_timestamp, INTERVAL '31' DAY) AS `window_start`, "
+            + " TUMBLE_END(f_timestamp, INTERVAL '31' DAY) AS `window_end` "
+            + " FROM TABLE_A"
+            + " GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '31' DAY)";
+    PCollection<Row> result =
+        PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
+            .apply("testTumbleWindow", SqlTransform.query(sql));
+
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int2")
+            .addInt64Field("size")
+            .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
+            .build();
+
+    List<Row> expectedRows =
+        TestUtils.RowsBuilder.of(resultType)
+            .addRows(
+                0,
+                1L,
+                parseTimestampWithUTCTimeZone("2016-12-08 00:00:00"),
+                parseTimestampWithUTCTimeZone("2017-01-08 00:00:00"),
+                0,
+                1L,
+                parseTimestampWithUTCTimeZone("2017-01-08 00:00:00"),
+                parseTimestampWithUTCTimeZone("2017-02-08 00:00:00"),
+                0,
+                1L,
+                parseTimestampWithUTCTimeZone("2017-02-08 00:00:00"),
+                parseTimestampWithUTCTimeZone("2017-03-11 00:00:00"))
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(expectedRows);
+
+    pipeline.run().waitUntilFinish();
+  }
+
   private void runTumbleWindow(PCollection<Row> input) throws Exception {
     String sql =
         "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
-            + " TUMBLE_START(f_timestamp, INTERVAL '1' HOUR) AS `window_start`"
+            + " TUMBLE_START(f_timestamp, INTERVAL '1' HOUR) AS `window_start`, "
+            + " TUMBLE_END(f_timestamp, INTERVAL '1' HOUR) AS `window_end` "
             + " FROM TABLE_A"
             + " GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
     PCollection<Row> result =
@@ -337,6 +597,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addInt32Field("f_int2")
             .addInt64Field("size")
             .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
             .build();
 
     List<Row> expectedRows =
@@ -344,10 +605,12 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addRows(
                 0,
                 3L,
-                FORMAT.parseDateTime("2017-01-01 01:00:00"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:00:00"),
+                parseTimestampWithoutTimeZone("2017-01-01 02:00:00"),
                 0,
                 1L,
-                FORMAT.parseDateTime("2017-01-01 02:00:00"))
+                parseTimestampWithoutTimeZone("2017-01-01 02:00:00"),
+                parseTimestampWithoutTimeZone("2017-01-01 03:00:00"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -367,22 +630,21 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PCollection<Row> input =
         pipeline.apply(
-            TestStream.create(
-                    inputSchema, SerializableFunctions.identity(), SerializableFunctions.identity())
+            TestStream.create(inputSchema)
                 .addElements(
                     Row.withSchema(inputSchema)
-                        .addValues(1, FORMAT.parseDateTime("2017-01-01 01:01:01"))
+                        .addValues(1, parseTimestampWithoutTimeZone("2017-01-01 01:01:01"))
                         .build(),
                     Row.withSchema(inputSchema)
-                        .addValues(2, FORMAT.parseDateTime("2017-01-01 01:01:01"))
+                        .addValues(2, parseTimestampWithoutTimeZone("2017-01-01 01:01:01"))
                         .build())
                 .addElements(
                     Row.withSchema(inputSchema)
-                        .addValues(3, FORMAT.parseDateTime("2017-01-01 01:01:01"))
+                        .addValues(3, parseTimestampWithoutTimeZone("2017-01-01 01:01:01"))
                         .build())
                 .addElements(
                     Row.withSchema(inputSchema)
-                        .addValues(4, FORMAT.parseDateTime("2017-01-01 01:01:01"))
+                        .addValues(4, parseTimestampWithoutTimeZone("2017-01-01 01:01:01"))
                         .build())
                 .advanceWatermarkToInfinity());
 
@@ -429,7 +691,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   private void runHopWindow(PCollection<Row> input) throws Exception {
     String sql =
         "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
-            + " HOP_START(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR) AS `window_start`"
+            + " HOP_START(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR) AS `window_start`, "
+            + " HOP_END(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR) AS `window_end` "
             + " FROM PCOLLECTION"
             + " GROUP BY f_int2, HOP(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR)";
     PCollection<Row> result = input.apply("testHopWindow", SqlTransform.query(sql));
@@ -439,6 +702,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addInt32Field("f_int2")
             .addInt64Field("size")
             .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
             .build();
 
     List<Row> expectedRows =
@@ -446,16 +710,20 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addRows(
                 0,
                 3L,
-                FORMAT.parseDateTime("2017-01-01 00:30:00"),
+                parseTimestampWithoutTimeZone("2017-01-01 00:30:00"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:30:00"),
                 0,
                 3L,
-                FORMAT.parseDateTime("2017-01-01 01:00:00"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:00:00"),
+                parseTimestampWithoutTimeZone("2017-01-01 02:00:00"),
                 0,
                 1L,
-                FORMAT.parseDateTime("2017-01-01 01:30:00"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:30:00"),
+                parseTimestampWithoutTimeZone("2017-01-01 02:30:00"),
                 0,
                 1L,
-                FORMAT.parseDateTime("2017-01-01 02:00:00"))
+                parseTimestampWithoutTimeZone("2017-01-01 02:00:00"),
+                parseTimestampWithoutTimeZone("2017-01-01 03:00:00"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -478,7 +746,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   private void runSessionWindow(PCollection<Row> input) throws Exception {
     String sql =
         "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
-            + " SESSION_START(f_timestamp, INTERVAL '5' MINUTE) AS `window_start`"
+            + " SESSION_START(f_timestamp, INTERVAL '5' MINUTE) AS `window_start`, "
+            + " SESSION_END(f_timestamp, INTERVAL '5' MINUTE) AS `window_end` "
             + " FROM TABLE_A"
             + " GROUP BY f_int2, SESSION(f_timestamp, INTERVAL '5' MINUTE)";
     PCollection<Row> result =
@@ -490,6 +759,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addInt32Field("f_int2")
             .addInt64Field("size")
             .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
             .build();
 
     List<Row> expectedRows =
@@ -497,10 +767,12 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addRows(
                 0,
                 3L,
-                FORMAT.parseDateTime("2017-01-01 01:01:03"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
                 0,
                 1L,
-                FORMAT.parseDateTime("2017-01-01 02:04:03"))
+                parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
+                parseTimestampWithoutTimeZone("2017-01-01 02:04:03"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -542,6 +814,17 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   @Test
+  public void testUnsupportedDistinct2() throws Exception {
+    exceptions.expect(UnsupportedOperationException.class);
+    exceptions.expectMessage(containsString("COUNT DISTINCT"));
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    String sql = "SELECT f_int2, COUNT(DISTINCT f_long)" + "FROM PCOLLECTION GROUP BY f_int2";
+    boundedInput1.apply("testUnsupportedDistinct", SqlTransform.query(sql));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testUnsupportedGlobalWindowWithDefaultTrigger() {
     exceptions.expect(UnsupportedOperationException.class);
 
@@ -561,7 +844,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   public void testSupportsGlobalWindowWithCustomTrigger() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
+    DateTime startTime = parseTimestampWithoutTimeZone("2017-1-1 0:0:0");
 
     Schema type =
         Schema.builder()
@@ -598,9 +881,71 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     pipeline.run();
   }
 
+  /** Query has all the input fields, so no projection is added. */
+  @Test
+  public void testSupportsAggregationWithoutProjection() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema =
+        Schema.builder().addInt32Field("f_intGroupingKey").addInt32Field("f_intValue").build();
+
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            0, 1,
+                            0, 2,
+                            1, 3,
+                            2, 4,
+                            2, 5)
+                        .getRows()))
+            .setRowSchema(schema);
+
+    String sql = "SELECT SUM(f_intValue) FROM PCOLLECTION GROUP BY f_intGroupingKey";
+
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowsWithSingleIntField("sum", Arrays.asList(3, 3, 9)));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testSupportsAggregationWithFilterWithoutProjection() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema =
+        Schema.builder().addInt32Field("f_intGroupingKey").addInt32Field("f_intValue").build();
+
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            0, 1,
+                            0, 2,
+                            1, 3,
+                            2, 4,
+                            2, 5)
+                        .getRows()))
+            .setRowSchema(schema);
+
+    String sql =
+        "SELECT SUM(f_intValue) FROM PCOLLECTION WHERE f_intValue < 5 GROUP BY f_intGroupingKey";
+
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowsWithSingleIntField("sum", Arrays.asList(3, 3, 4)));
+
+    pipeline.run();
+  }
+
   @Test
   public void testSupportsNonGlobalWindowWithCustomTrigger() {
-    DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
+    DateTime startTime = parseTimestampWithoutTimeZone("2017-1-1 0:0:0");
 
     Schema type =
         Schema.builder()
@@ -655,5 +1000,32 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         .inPipeline(pipeline)
         .withTimestampField(timestampField)
         .buildUnbounded();
+  }
+
+  @Test
+  public void testCountIfFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder().addInt64Field("f_int64").addInt64Field("f_int64_2").build();
+    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                1L, 0L,
+                3L, 0L,
+                4L, 0L)
+            .getRows();
+
+    String sql =
+        "SELECT COUNTIF(f_int64 >" + 0 + ") AS countif_no " + "FROM PCOLLECTION GROUP BY f_int64_2";
+    Row rowResult = Row.withSchema(resultType).addValues(3L).build();
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result =
+        inputRows.apply(
+            "sql", SqlTransform.query(sql).registerUdaf("COUNTIF", new CountIf.CountIfFn()));
+    PAssert.that(result).containsInAnyOrder(rowResult);
+    pipeline.run().waitUntilFinish();
   }
 }

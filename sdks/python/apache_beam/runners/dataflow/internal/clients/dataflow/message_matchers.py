@@ -14,9 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import
+# pytype: skip-file
 
-from future.utils import iteritems
 from hamcrest.core.base_matcher import BaseMatcher
 
 IGNORED = object()
@@ -24,10 +23,7 @@ IGNORED = object()
 
 class MetricStructuredNameMatcher(BaseMatcher):
   """Matches a MetricStructuredName."""
-  def __init__(self,
-               name=IGNORED,
-               origin=IGNORED,
-               context=IGNORED):
+  def __init__(self, name=IGNORED, origin=IGNORED, context=IGNORED):
     """Creates a MetricsStructuredNameMatcher.
 
     Any property not passed in to the constructor will be ignored when matching.
@@ -51,7 +47,7 @@ class MetricStructuredNameMatcher(BaseMatcher):
     if self.origin != IGNORED and item.origin != self.origin:
       return False
     if self.context != IGNORED:
-      for key, name in iteritems(self.context):
+      for key, name in self.context.items():
         if key not in item.context:
           return False
         if name != IGNORED and item.context[key] != name:
@@ -73,11 +69,8 @@ class MetricStructuredNameMatcher(BaseMatcher):
 
 class MetricUpdateMatcher(BaseMatcher):
   """Matches a metrics update protocol buffer."""
-  def __init__(self,
-               cumulative=IGNORED,
-               name=IGNORED,
-               scalar=IGNORED,
-               kind=IGNORED):
+  def __init__(
+      self, cumulative=IGNORED, name=IGNORED, scalar=IGNORED, kind=IGNORED):
     """Creates a MetricUpdateMatcher.
 
     Any property not passed in to the constructor will be ignored when matching.
@@ -104,9 +97,9 @@ class MetricUpdateMatcher(BaseMatcher):
     if self.kind != IGNORED and item.kind != self.kind:
       return False
     if self.scalar != IGNORED:
-      value_property = [p
-                        for p in item.scalar.object_value.properties
-                        if p.key == 'value']
+      value_property = [
+          p for p in item.scalar.object_value.properties if p.key == 'value'
+      ]
       int_value = value_property[0].value.integer_value
       if self.scalar != int_value:
         return False

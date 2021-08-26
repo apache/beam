@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,7 +42,7 @@ public class PubsubClientTest {
 
   private long parse(String timestamp) {
     Map<String, String> map = ImmutableMap.of("myAttribute", timestamp);
-    return PubsubClient.extractTimestamp("myAttribute", null, map);
+    return PubsubClient.extractTimestampAttribute("myAttribute", map);
   }
 
   private void roundTripRfc339(String timestamp) {
@@ -55,23 +54,16 @@ public class PubsubClientTest {
   }
 
   @Test
-  public void noTimestampAttributeReturnsPubsubPublish() {
-    final long time = 987654321L;
-    long timestamp = PubsubClient.extractTimestamp(null, String.valueOf(time), null);
-    assertEquals(time, timestamp);
-  }
-
-  @Test
   public void noTimestampAttributeAndInvalidPubsubPublishThrowsError() {
     thrown.expect(NumberFormatException.class);
-    PubsubClient.extractTimestamp(null, "not-a-date", null);
+    PubsubClient.parseTimestampAsMsSinceEpoch("not-a-date");
   }
 
   @Test
   public void timestampAttributeWithNullAttributesThrowsError() {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("PubSub message is missing a value for timestamp attribute myAttribute");
-    PubsubClient.extractTimestamp("myAttribute", null, null);
+    PubsubClient.extractTimestampAttribute("myAttribute", null);
   }
 
   @Test
@@ -79,14 +71,14 @@ public class PubsubClientTest {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("PubSub message is missing a value for timestamp attribute myAttribute");
     Map<String, String> map = ImmutableMap.of("otherLabel", "whatever");
-    PubsubClient.extractTimestamp("myAttribute", null, map);
+    PubsubClient.extractTimestampAttribute("myAttribute", map);
   }
 
   @Test
   public void timestampAttributeParsesMillisecondsSinceEpoch() {
     long time = 1446162101123L;
     Map<String, String> map = ImmutableMap.of("myAttribute", String.valueOf(time));
-    long timestamp = PubsubClient.extractTimestamp("myAttribute", null, map);
+    long timestamp = PubsubClient.extractTimestampAttribute("myAttribute", map);
     assertEquals(time, timestamp);
   }
 
@@ -174,13 +166,13 @@ public class PubsubClientTest {
   public void subscriptionPathFromNameWellFormed() {
     SubscriptionPath path = PubsubClient.subscriptionPathFromName("test", "something");
     assertEquals("projects/test/subscriptions/something", path.getPath());
-    assertEquals("/subscriptions/test/something", path.getV1Beta1Path());
+    assertEquals("/subscriptions/test/something", path.getFullPath());
   }
 
   @Test
   public void topicPathFromNameWellFormed() {
     TopicPath path = PubsubClient.topicPathFromName("test", "something");
     assertEquals("projects/test/topics/something", path.getPath());
-    assertEquals("/topics/test/something", path.getV1Beta1Path());
+    assertEquals("/topics/test/something", path.getFullPath());
   }
 }

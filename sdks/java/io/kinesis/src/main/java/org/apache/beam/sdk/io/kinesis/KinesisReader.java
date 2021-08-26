@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.util.MovingFunction;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -33,71 +32,63 @@ import org.slf4j.LoggerFactory;
  * Reads data from multiple kinesis shards in a single thread. It uses simple round robin algorithm
  * when fetching data from shards.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisReader.class);
-  /** Period of samples to determine watermark. */
-  private static final Duration SAMPLE_PERIOD = Duration.standardMinutes(1);
-
-  /** Period of updates to determine watermark. */
-  private static final Duration SAMPLE_UPDATE = Duration.standardSeconds(5);
-
-  /** Constant representing the maximum Kinesis stream retention period. */
-  static final Duration MAX_KINESIS_STREAM_RETENTION_PERIOD = Duration.standardDays(7);
-
-  /** Minimum number of unread messages required before considering updating watermark. */
-  static final int MIN_WATERMARK_MESSAGES = 10;
-
-  /**
-   * Minimum number of SAMPLE_UPDATE periods over which unread messages should be spread before
-   * considering updating watermark.
-   */
-  private static final int MIN_WATERMARK_SPREAD = 2;
 
   private final SimplifiedKinesisClient kinesis;
   private final KinesisSource source;
   private final CheckpointGenerator initialCheckpointGenerator;
+  private final WatermarkPolicyFactory watermarkPolicyFactory;
+  private final RateLimitPolicyFactory rateLimitPolicyFactory;
+  private final Duration upToDateThreshold;
+  private final Duration backlogBytesCheckThreshold;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
-  private MovingFunction minReadTimestampMsSinceEpoch;
-  private Instant lastWatermark = Instant.now().minus(MAX_KINESIS_STREAM_RETENTION_PERIOD);
   private long lastBacklogBytes;
   private Instant backlogBytesLastCheckTime = new Instant(0L);
-  private Duration upToDateThreshold;
-  private Duration backlogBytesCheckThreshold;
   private ShardReadersPool shardReadersPool;
+  private final Integer maxCapacityPerShard;
 
   KinesisReader(
       SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
-      Duration upToDateThreshold) {
+      WatermarkPolicyFactory watermarkPolicyFactory,
+      RateLimitPolicyFactory rateLimitPolicyFactory,
+      Duration upToDateThreshold,
+      Integer maxCapacityPerShard) {
     this(
         kinesis,
         initialCheckpointGenerator,
         source,
+        watermarkPolicyFactory,
+        rateLimitPolicyFactory,
         upToDateThreshold,
-        Duration.standardSeconds(30));
+        Duration.standardSeconds(30),
+        maxCapacityPerShard);
   }
 
   KinesisReader(
       SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
+      WatermarkPolicyFactory watermarkPolicyFactory,
+      RateLimitPolicyFactory rateLimitPolicyFactory,
       Duration upToDateThreshold,
-      Duration backlogBytesCheckThreshold) {
+      Duration backlogBytesCheckThreshold,
+      Integer maxCapacityPerShard) {
     this.kinesis = checkNotNull(kinesis, "kinesis");
     this.initialCheckpointGenerator =
         checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
+    this.watermarkPolicyFactory = watermarkPolicyFactory;
+    this.rateLimitPolicyFactory = rateLimitPolicyFactory;
     this.source = source;
-    this.minReadTimestampMsSinceEpoch =
-        new MovingFunction(
-            SAMPLE_PERIOD.getMillis(),
-            SAMPLE_UPDATE.getMillis(),
-            MIN_WATERMARK_SPREAD,
-            MIN_WATERMARK_MESSAGES,
-            Min.ofLongs());
     this.upToDateThreshold = upToDateThreshold;
     this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
+    this.maxCapacityPerShard = maxCapacityPerShard;
   }
 
   /** Generates initial checkpoint and instantiates iterators for shards. */
@@ -119,13 +110,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   @Override
   public boolean advance() throws IOException {
     currentRecord = shardReadersPool.nextRecord();
-    if (currentRecord.isPresent()) {
-      Instant approximateArrivalTimestamp = currentRecord.get().getApproximateArrivalTimestamp();
-      minReadTimestampMsSinceEpoch.add(
-          Instant.now().getMillis(), approximateArrivalTimestamp.getMillis());
-      return true;
-    }
-    return false;
+    return currentRecord.isPresent();
   }
 
   @Override
@@ -156,17 +141,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public Instant getWatermark() {
-    Instant now = Instant.now();
-    long readMin = minReadTimestampMsSinceEpoch.get(now.getMillis());
-    if (readMin == Long.MAX_VALUE && shardReadersPool.allShardsUpToDate()) {
-      lastWatermark = now;
-    } else if (minReadTimestampMsSinceEpoch.isSignificant()) {
-      Instant minReadTime = new Instant(readMin);
-      if (minReadTime.isAfter(lastWatermark)) {
-        lastWatermark = minReadTime;
-      }
-    }
-    return lastWatermark;
+    return shardReadersPool.getWatermark();
   }
 
   @Override
@@ -180,34 +155,68 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   /**
-   * Returns total size of all records that remain in Kinesis stream after current watermark. When
-   * currently processed record is not further behind than {@link #upToDateThreshold} then this
-   * method returns 0.
+   * Returns total size of all records that remain in Kinesis stream. The size is estimated taking
+   * into account size of the records that were added to the stream after timestamp of the most
+   * recent record returned by the reader. If no records have yet been retrieved from the reader
+   * {@link UnboundedSource.UnboundedReader#BACKLOG_UNKNOWN} is returned. When currently processed
+   * record is not further behind than {@link #upToDateThreshold} then this method returns 0.
+   *
+   * <p>The method can over-estimate size of the records for the split as it reports the backlog
+   * across all shards. This can lead to unnecessary decisions to scale up the number of workers but
+   * will never fail to scale up when this is necessary due to backlog size.
+   *
+   * @see <a href="https://issues.apache.org/jira/browse/BEAM-9439">BEAM-9439</a>
    */
   @Override
-  public long getTotalBacklogBytes() {
-    Instant watermark = getWatermark();
-    if (watermark.plus(upToDateThreshold).isAfterNow()) {
+  public long getSplitBacklogBytes() {
+    Instant latestRecordTimestamp = shardReadersPool.getLatestRecordTimestamp();
+
+    if (latestRecordTimestamp.equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+      LOG.debug("Split backlog bytes for stream {} unknown", source.getStreamName());
+      return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+    }
+
+    if (latestRecordTimestamp.plus(upToDateThreshold).isAfterNow()) {
+      LOG.debug(
+          "Split backlog bytes for stream {} with latest record timestamp {}: 0 (latest record timestamp is up-to-date with threshold of {})",
+          source.getStreamName(),
+          latestRecordTimestamp,
+          upToDateThreshold);
       return 0L;
     }
+
     if (backlogBytesLastCheckTime.plus(backlogBytesCheckThreshold).isAfterNow()) {
+      LOG.debug(
+          "Split backlog bytes for {} stream with latest record timestamp {}: {} (cached value)",
+          source.getStreamName(),
+          latestRecordTimestamp,
+          lastBacklogBytes);
       return lastBacklogBytes;
     }
+
     try {
-      lastBacklogBytes = kinesis.getBacklogBytes(source.getStreamName(), watermark);
+      lastBacklogBytes = kinesis.getBacklogBytes(source.getStreamName(), latestRecordTimestamp);
       backlogBytesLastCheckTime = Instant.now();
     } catch (TransientKinesisException e) {
-      LOG.warn("Transient exception occurred.", e);
+      LOG.warn(
+          "Transient exception occurred during backlog estimation for stream {}.",
+          source.getStreamName(),
+          e);
     }
     LOG.info(
-        "Total backlog bytes for {} stream with {} watermark: {}",
+        "Split backlog bytes for {} stream with {} latest record timestamp: {}",
         source.getStreamName(),
-        watermark,
+        latestRecordTimestamp,
         lastBacklogBytes);
     return lastBacklogBytes;
   }
 
   ShardReadersPool createShardReadersPool() throws TransientKinesisException {
-    return new ShardReadersPool(kinesis, initialCheckpointGenerator.generate(kinesis));
+    return new ShardReadersPool(
+        kinesis,
+        initialCheckpointGenerator.generate(kinesis),
+        watermarkPolicyFactory,
+        rateLimitPolicyFactory,
+        maxCapacityPerShard);
   }
 }

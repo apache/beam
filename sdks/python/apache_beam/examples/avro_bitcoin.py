@@ -24,12 +24,12 @@ python -m apache_beam.examples.bitcoin \
   --compress --fastavro --output fastavro-compressed
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import argparse
 import logging
 
-import avro
+from avro.schema import Parse
 
 import apache_beam as beam
 from apache_beam.io.avroio import ReadFromAvro
@@ -41,9 +41,10 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 class BitcoinTxnCountDoFn(beam.DoFn):
   """Count inputs and outputs per transaction"""
-
   def __init__(self):
-    super(BitcoinTxnCountDoFn, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super(BitcoinTxnCountDoFn, self).__init__()
+    beam.DoFn.__init__(self)
     self.txn_counter = Metrics.counter(self.__class__, 'txns')
     self.inputs_dist = Metrics.distribution(self.__class__, 'inputs_per_txn')
     self.outputs_dist = Metrics.distribution(self.__class__, 'outputs_per_txn')
@@ -72,20 +73,19 @@ class BitcoinTxnCountDoFn(beam.DoFn):
 
     self.txn_amts_dist.update(total)
 
-    return [
-        {
-            "transaction_id": elem["transaction_id"],
-            "timestamp": elem["timestamp"],
-            "block_id": elem["block_id"],
-            "previous_block": elem["previous_block"],
-            "num_inputs": num_inputs,
-            "num_outputs": num_outputs,
-            "sum_output": total,
-        }
-    ]
+    return [{
+        "transaction_id": elem["transaction_id"],
+        "timestamp": elem["timestamp"],
+        "block_id": elem["block_id"],
+        "previous_block": elem["previous_block"],
+        "num_inputs": num_inputs,
+        "num_outputs": num_outputs,
+        "sum_output": total,
+    }]
 
 
-SCHEMA = avro.schema.parse('''
+SCHEMA = Parse(
+    '''
   {
     "namespace": "example.avro",
     "type": "record",
@@ -107,24 +107,28 @@ def run(argv=None):
   """Test Avro IO (backed by fastavro or Apache Avro) on a simple pipeline
   that transforms bitcoin transactions"""
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://beam-avro-test/bitcoin/txns/*',
-                      help='Input file(s) to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
-  parser.add_argument('--compress',
-                      dest='compress',
-                      required=False,
-                      action='store_true',
-                      help='When set, compress the output data')
-  parser.add_argument('--fastavro',
-                      dest='use_fastavro',
-                      required=False,
-                      action='store_true',
-                      help='When set, use fastavro for Avro I/O')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://beam-avro-test/bitcoin/txns/*',
+      help='Input file(s) to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
+  parser.add_argument(
+      '--compress',
+      dest='compress',
+      required=False,
+      action='store_true',
+      help='When set, compress the output data')
+  parser.add_argument(
+      '--fastavro',
+      dest='use_fastavro',
+      required=False,
+      action='store_true',
+      help='When set, use fastavro for Avro I/O')
 
   opts, pipeline_args = parser.parse_known_args(argv)
 
@@ -153,8 +157,8 @@ def run(argv=None):
   result.wait_until_finish()
 
   # Do not query metrics when creating a template which doesn't run
-  if (not hasattr(result, 'has_job')        # direct runner
-      or result.has_job):               # not just a template creation
+  if (not hasattr(result, 'has_job')  # direct runner
+      or result.has_job):  # not just a template creation
     metrics = result.metrics().query()
 
     for counter in metrics['counters']:

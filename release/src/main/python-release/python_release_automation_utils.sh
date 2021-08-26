@@ -78,11 +78,26 @@ function get_version() {
 #   BEAM_PYTHON_SDK*
 # Arguments:
 #   $1 - SDK type: tar, wheel
+#   $2 - python interpreter version: python3.7, python3.8, ...
 #######################################
 function download_files() {
   if [[ $1 = *"wheel"* ]]; then
+    if [[ $2 == "python3.6" ]]; then
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp36-cp36m-manylinux1_x86_64.whl"
+    elif [[ $2 == "python3.7" ]]; then
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp37-cp37m-manylinux1_x86_64.whl"
+    elif [[ $2 == "python3.8" ]]; then
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp38-cp38-manylinux1_x86_64.whl"
+    elif [[ $2 == "python3.9" ]]; then
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp39-cp39-manylinux1_x86_64.whl"
+    else
+      echo "Unable to determine a Beam wheel for interpreter version $2."
+      exit 1
+    fi
+
     wget -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_WHL*" $RC_STAGING_URL
   else
+    BEAM_PYTHON_SDK_ZIP="apache-beam-$VERSION.zip"
     wget -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_ZIP*" $RC_STAGING_URL
   fi
 }
@@ -133,6 +148,30 @@ function get_asc_name() {
 
 
 #######################################
+# Create a new virtualenv and install the SDK
+# Globals:
+#   BEAM_PYTHON_SDK
+# Arguments:
+#   $1 - SDK type: tar, wheel
+#   $2 - python interpreter version: [python3.7, python3.8, ...]
+#######################################
+function install_sdk() {
+  sdk_file=$(get_sdk_name $1)
+  print_separator "Creating new virtualenv with $2 interpreter and installing the SDK from $sdk_file."
+  gsutil version -l
+  rm -rf ./temp_virtualenv_${2}
+  virtualenv temp_virtualenv_${2} -p $2
+  . temp_virtualenv_${2}/bin/activate
+  gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
+  if [[ "$gcloud_version" < "189" ]]; then
+    update_gcloud
+  fi
+  pip install google-compute-engine
+  pip install $sdk_file[gcp]
+}
+
+
+#######################################
 # Publish data to Pubsub topic for streaming wordcount examples.
 # Arguments:
 #   None
@@ -173,9 +212,11 @@ function create_pubsub() {
 #   None
 #######################################
 function cleanup_pubsub() {
-  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1
-  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2
-  gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION
+  # Suppress error and pass quietly if topic/subscription not exists. We don't want the script
+  # to be interrupted in this case.
+  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1 2> /dev/null || true
+  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2 2> /dev/null || true
+  gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION 2> /dev/null || true
 }
 
 
@@ -276,12 +317,11 @@ function verify_hourly_team_score() {
 
 # Python RC configurations
 VERSION=$(get_version)
-RC_STAGING_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
-BEAM_PYTHON_SDK_ZIP="apache-beam-$VERSION.zip"
-BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp27-cp27mu-manylinux1_x86_64.whl"
+RC_STAGING_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/python"
 
 # Cloud Configurations
 PROJECT_ID='apache-beam-testing'
+REGION_ID='us-central1'
 BUCKET_NAME='temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 TEMP_DIR='/tmp'
 DATASET='beam_postrelease_mobile_gaming'
@@ -295,3 +335,4 @@ PUBSUB_SUBSCRIPTION='wordstream-python-sub2'
 # Mobile Gaming Configurations
 DATASET='beam_postrelease_mobile_gaming'
 USERSCORE_OUTPUT_PREFIX='python-userscore_result'
+GAME_INPUT_DATA='gs://dataflow-samples/game/5000_gaming_data.csv'

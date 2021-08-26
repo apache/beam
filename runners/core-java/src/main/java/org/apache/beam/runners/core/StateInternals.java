@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.StateContexts;
@@ -39,7 +37,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
  * <p>This is a low-level API intended for use by the Beam SDK. It should not be used directly, and
  * is highly likely to change.
  */
-@Experimental(Kind.STATE)
 public interface StateInternals {
 
   /** The key for this {@link StateInternals}. */

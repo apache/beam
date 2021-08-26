@@ -19,30 +19,34 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
 /** Tests {@link ShardReadersPool}. */
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class ShardReadersPoolTest {
 
   private static final int TIMEOUT_IN_MILLIS = (int) TimeUnit.SECONDS.toMillis(10);
@@ -51,8 +55,12 @@ public class ShardReadersPoolTest {
   @Mock private ShardCheckpoint firstCheckpoint, secondCheckpoint;
   @Mock private SimplifiedKinesisClient kinesis;
   @Mock private KinesisRecord a, b, c, d;
+  @Mock private WatermarkPolicyFactory watermarkPolicyFactory;
+  @Mock private RateLimitPolicyFactory rateLimitPolicyFactory;
+  @Mock private RateLimitPolicy customRateLimitPolicy;
 
   private ShardReadersPool shardReadersPool;
+  private final Instant now = Instant.now();
 
   @Before
   public void setUp() throws TransientKinesisException {
@@ -61,16 +69,30 @@ public class ShardReadersPoolTest {
     when(c.getShardId()).thenReturn("shard2");
     when(d.getShardId()).thenReturn("shard2");
     when(firstCheckpoint.getShardId()).thenReturn("shard1");
+    when(firstCheckpoint.getStreamName()).thenReturn("testStream");
     when(secondCheckpoint.getShardId()).thenReturn("shard2");
     when(firstIterator.getShardId()).thenReturn("shard1");
+    when(firstIterator.getStreamName()).thenReturn("testStream");
     when(firstIterator.getCheckpoint()).thenReturn(firstCheckpoint);
     when(secondIterator.getShardId()).thenReturn("shard2");
     when(secondIterator.getCheckpoint()).thenReturn(secondCheckpoint);
     when(thirdIterator.getShardId()).thenReturn("shard3");
     when(fourthIterator.getShardId()).thenReturn("shard4");
+
+    WatermarkPolicy watermarkPolicy =
+        WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
+    RateLimitPolicy rateLimitPolicy = RateLimitPolicyFactory.withoutLimiter().getRateLimitPolicy();
+
     KinesisReaderCheckpoint checkpoint =
         new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
-    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint));
+    shardReadersPool =
+        Mockito.spy(
+            new ShardReadersPool(
+                kinesis, checkpoint, watermarkPolicyFactory, rateLimitPolicyFactory, 100));
+
+    when(watermarkPolicyFactory.createWatermarkPolicy()).thenReturn(watermarkPolicy);
+    when(rateLimitPolicyFactory.getRateLimitPolicy()).thenReturn(rateLimitPolicy);
+
     doReturn(firstIterator).when(shardReadersPool).createShardIterator(kinesis, firstCheckpoint);
     doReturn(secondIterator).when(shardReadersPool).createShardIterator(kinesis, secondCheckpoint);
   }
@@ -101,6 +123,7 @@ public class ShardReadersPoolTest {
       }
     }
     assertThat(fetchedRecords).containsExactlyInAnyOrder(a, b, c, d);
+    assertThat(shardReadersPool.getRecordsQueue().remainingCapacity()).isEqualTo(100 * 2);
   }
 
   @Test
@@ -148,7 +171,7 @@ public class ShardReadersPoolTest {
         .thenAnswer(
             (Answer<List<KinesisRecord>>)
                 invocation -> {
-                  Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+                  Thread.sleep(TIMEOUT_IN_MILLIS / 2);
                   return Collections.emptyList();
                 });
     shardReadersPool.start();
@@ -164,30 +187,17 @@ public class ShardReadersPoolTest {
     when(firstIterator.readNextBatch()).thenReturn(ImmutableList.of(a, b, c));
     KinesisReaderCheckpoint checkpoint =
         new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
-    ShardReadersPool shardReadersPool = new ShardReadersPool(kinesis, checkpoint, 2);
+
+    WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
+    RateLimitPolicyFactory rateLimitPolicyFactory = RateLimitPolicyFactory.withoutLimiter();
+    ShardReadersPool shardReadersPool =
+        new ShardReadersPool(
+            kinesis, checkpoint, watermarkPolicyFactory, rateLimitPolicyFactory, 2);
     shardReadersPool.start();
 
     Stopwatch stopwatch = Stopwatch.createStarted();
     shardReadersPool.stop();
     assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS)).isLessThan(TIMEOUT_IN_MILLIS);
-  }
-
-  @Test
-  public void shouldDetectThatNotAllShardsAreUpToDate() throws TransientKinesisException {
-    when(firstIterator.isUpToDate()).thenReturn(true);
-    when(secondIterator.isUpToDate()).thenReturn(false);
-    shardReadersPool.start();
-
-    assertThat(shardReadersPool.allShardsUpToDate()).isFalse();
-  }
-
-  @Test
-  public void shouldDetectThatAllShardsAreUpToDate() throws TransientKinesisException {
-    when(firstIterator.isUpToDate()).thenReturn(true);
-    when(secondIterator.isUpToDate()).thenReturn(true);
-    shardReadersPool.start();
-
-    assertThat(shardReadersPool.allShardsUpToDate()).isTrue();
   }
 
   @Test
@@ -239,7 +249,16 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldReturnAbsentOptionalWhenStartedWithNoIterators() throws Exception {
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(Collections.emptyList());
-    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint));
+    WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
+    RateLimitPolicyFactory rateLimitPolicyFactory = RateLimitPolicyFactory.withoutLimiter();
+    shardReadersPool =
+        Mockito.spy(
+            new ShardReadersPool(
+                kinesis,
+                checkpoint,
+                watermarkPolicyFactory,
+                rateLimitPolicyFactory,
+                ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD));
     doReturn(firstIterator)
         .when(shardReadersPool)
         .createShardIterator(eq(kinesis), any(ShardCheckpoint.class));
@@ -256,13 +275,81 @@ public class ShardReadersPoolTest {
     when(firstIterator.findSuccessiveShardRecordIterators()).thenReturn(emptyList);
 
     shardReadersPool.start();
-    verify(shardReadersPool).startReadingShards(ImmutableList.of(firstIterator, secondIterator));
-    verify(shardReadersPool, timeout(TIMEOUT_IN_MILLIS)).startReadingShards(emptyList);
+    verify(shardReadersPool)
+        .startReadingShards(ImmutableList.of(firstIterator, secondIterator), "testStream");
+    verify(shardReadersPool, timeout(TIMEOUT_IN_MILLIS))
+        .startReadingShards(emptyList, "testStream");
 
     KinesisReaderCheckpoint checkpointMark = shardReadersPool.getCheckpointMark();
     assertThat(checkpointMark.iterator())
         .extracting("shardId", String.class)
         .containsOnly("shard2")
         .doesNotContain("shard1");
+  }
+
+  @Test
+  public void shouldReturnTheLeastWatermarkOfAllShards() throws TransientKinesisException {
+    Instant threeMin = now.minus(Duration.standardMinutes(3));
+    Instant twoMin = now.minus(Duration.standardMinutes(2));
+
+    when(firstIterator.getShardWatermark()).thenReturn(threeMin).thenReturn(now);
+    when(secondIterator.getShardWatermark()).thenReturn(twoMin);
+
+    shardReadersPool.start();
+
+    assertThat(shardReadersPool.getWatermark()).isEqualTo(threeMin);
+    assertThat(shardReadersPool.getWatermark()).isEqualTo(twoMin);
+
+    verify(firstIterator, times(2)).getShardWatermark();
+    verify(secondIterator, times(2)).getShardWatermark();
+  }
+
+  @Test
+  public void shouldReturnTheOldestFromLatestRecordTimestampOfAllShards()
+      throws TransientKinesisException {
+    Instant threeMin = now.minus(Duration.standardMinutes(3));
+    Instant twoMin = now.minus(Duration.standardMinutes(2));
+
+    when(firstIterator.getLatestRecordTimestamp()).thenReturn(threeMin).thenReturn(now);
+    when(secondIterator.getLatestRecordTimestamp()).thenReturn(twoMin);
+
+    shardReadersPool.start();
+
+    assertThat(shardReadersPool.getLatestRecordTimestamp()).isEqualTo(threeMin);
+    assertThat(shardReadersPool.getLatestRecordTimestamp()).isEqualTo(twoMin);
+
+    verify(firstIterator, times(2)).getLatestRecordTimestamp();
+    verify(secondIterator, times(2)).getLatestRecordTimestamp();
+  }
+
+  @Test
+  public void shouldCallRateLimitPolicy()
+      throws TransientKinesisException, KinesisShardClosedException, InterruptedException {
+    KinesisClientThrottledException e = new KinesisClientThrottledException("", null);
+    when(firstIterator.readNextBatch())
+        .thenThrow(e)
+        .thenReturn(ImmutableList.of(a, b))
+        .thenReturn(Collections.emptyList());
+    when(secondIterator.readNextBatch())
+        .thenReturn(singletonList(c))
+        .thenReturn(singletonList(d))
+        .thenReturn(Collections.emptyList());
+    when(rateLimitPolicyFactory.getRateLimitPolicy()).thenReturn(customRateLimitPolicy);
+
+    shardReadersPool.start();
+    List<KinesisRecord> fetchedRecords = new ArrayList<>();
+    while (fetchedRecords.size() < 4) {
+      CustomOptional<KinesisRecord> nextRecord = shardReadersPool.nextRecord();
+      if (nextRecord.isPresent()) {
+        fetchedRecords.add(nextRecord.get());
+      }
+    }
+
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onThrottle(same(e));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onSuccess(eq(ImmutableList.of(a, b)));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onSuccess(eq(singletonList(c)));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onSuccess(eq(singletonList(d)));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS).atLeastOnce())
+        .onSuccess(eq(Collections.emptyList()));
   }
 }

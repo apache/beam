@@ -17,19 +17,21 @@
  */
 package org.apache.beam.sdk.io.range;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Verify.verify;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +67,11 @@ import org.slf4j.LoggerFactory;
  *
  * @see ByteKey
  */
-public final class ByteKeyRange implements Serializable {
+public final class ByteKeyRange
+    implements Serializable,
+        HasDefaultTracker<
+            ByteKeyRange, org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker> {
+
   private static final Logger LOG = LoggerFactory.getLogger(ByteKeyRange.class);
 
   /** The range of all keys, with empty start and end keys. */
@@ -287,7 +293,7 @@ public final class ByteKeyRange implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (o == this) {
       return true;
     }
@@ -326,7 +332,7 @@ public final class ByteKeyRange implements Serializable {
       // bit when converting to bytes.
       verify(
           padding == -1,
-          "key %s: expected length %d with exactly one byte of padding, found %d",
+          "key %s: expected length %s with exactly one byte of padding, found %s",
           ByteKey.copyFrom(array),
           size,
           -padding);
@@ -359,5 +365,10 @@ public final class ByteKeyRange implements Serializable {
         bytePaddingNeeded >= 0, "Required bytes.length {} < length {}", bytes.length, length);
     BigInteger ret = new BigInteger(1, bytes);
     return (bytePaddingNeeded == 0) ? ret : ret.shiftLeft(8 * bytePaddingNeeded);
+  }
+
+  @Override
+  public org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker newTracker() {
+    return org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker.of(this);
   }
 }

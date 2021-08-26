@@ -20,79 +20,29 @@
 // common properties that are shared among all Jenkins projects.
 // Code in this directory should conform to the Groovy style guide.
 //  http://groovy-lang.org/style-guide.html
+
+import Committers as committers
+
 class CommonJobProperties {
 
   static String checkoutDir = 'src'
-
-  static void setSCM(def context, String repositoryName, boolean allowRemotePoll = true) {
-    context.scm {
-      git {
-        remote {
-          // Double quotes here mean ${repositoryName} is interpolated.
-          github("apache/${repositoryName}")
-          // Single quotes here mean that ${ghprbPullId} is not interpolated and instead passed
-          // through to Jenkins where it refers to the environment variable.
-          refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
-        }
-        branch('${sha1}')
-        extensions {
-          cleanAfterCheckout()
-          relativeTargetDirectory(checkoutDir)
-          if (!allowRemotePoll) {
-            disableRemotePoll()
-          }
-        }
-      }
-    }
-  }
-
-  // Sets common top-level job properties for website repository jobs.
-  static void setTopLevelWebsiteJobProperties(def context,
-                                              String branch = 'asf-site',
-                                              int timeout = 100) {
-    setTopLevelJobProperties(
-            context,
-            'beam-site',
-            branch,
-            timeout)
-  }
+  final static String JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
+  final static String JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(def context,
-                                           String branch = 'master',
-                                           int timeout = 100,
-                                           boolean allowRemotePoll = true,
-                                           boolean localPerfTest = false) {
-    setTopLevelJobProperties(
-            context,
-            'beam',
-            branch,
-            timeout,
-            allowRemotePoll,
-            localPerfTest)
-  }
-
-  // Sets common top-level job properties. Accessed through one of the above
-  // methods to protect jobs from internal details of param defaults.
-  private static void setTopLevelJobProperties(def context,
-                                               String repositoryName,
-                                               String defaultBranch,
-                                               int defaultTimeout,
-                                               boolean allowRemotePoll = true,
-                                               boolean localPerfTest = false) {
-    def jenkinsExecutorLabel = 'beam'
-    if (localPerfTest) {
-      jenkinsExecutorLabel = 'beam-perf'
-    }
-
+      String defaultBranch = 'master',
+      int defaultTimeout = 100,
+      boolean allowRemotePoll = true,
+      String jenkinsExecutorLabel = 'beam',
+      boolean cleanWorkspace = true) {
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/' + repositoryName + '/')
+      githubProjectUrl('https://github.com/apache/beam/')
     }
 
     // Set JDK version.
-    context.jdk('JDK 1.8 (latest)')
+    context.jdk('jdk_1.8_latest')
 
     // Restrict this project to run only on Jenkins executors as specified
     context.label(jenkinsExecutorLabel)
@@ -103,7 +53,25 @@ class CommonJobProperties {
     }
 
     // Source code management.
-    setSCM(context, repositoryName, allowRemotePoll)
+    context.scm {
+      git {
+        remote {
+          github("apache/beam")
+          // Single quotes here mean that ${ghprbPullId} is not interpolated and instead passed
+          // through to Jenkins where it refers to the environment variable.
+          refspec('+refs/heads/*:refs/remotes/origin/* ' +
+              '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
+        }
+        branch('${sha1}')
+        extensions {
+          wipeOutWorkspace()
+          relativeTargetDirectory(checkoutDir)
+          if (!allowRemotePoll) {
+            disableRemotePoll()
+          }
+        }
+      }
+    }
 
     context.parameters {
       // This is a recommended setup if you want to run the job manually. The
@@ -121,13 +89,25 @@ class CommonJobProperties {
         abortBuild()
       }
 
-      // Set SPARK_LOCAL_IP for spark tests.
       environmentVariables {
+        // Set SPARK_LOCAL_IP for spark tests.
         env('SPARK_LOCAL_IP', '127.0.0.1')
+        // Set SETUPTOOLS_USE_DISTUTILS to workaround issue with setuptools
+        // 50.0 and Ubuntu executors (BEAM-10841)
+        env('SETUPTOOLS_USE_DISTUTILS', 'stdlib')
       }
       credentialsBinding {
+        string("CODECOV_TOKEN", "beam-codecov-token")
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
-        string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
+      }
+      timestamps()
+      colorizeOutput()
+    }
+
+    if (cleanWorkspace) {
+      context.publishers {
+        // Clean after job completes.
+        wsCleanup()
       }
     }
   }
@@ -135,17 +115,20 @@ class CommonJobProperties {
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
   static void setPullRequestBuildTrigger(context,
-                                         String commitStatusContext,
-                                         String prTriggerPhrase = '',
-                                         boolean onlyTriggerPhraseToggle = true,
-                                         List<String> triggerPathPatterns = []) {
+      String commitStatusContext,
+      String prTriggerPhrase = '',
+      boolean onlyTriggerPhraseToggle = true,
+      boolean prPermitAll = true,
+      List<String> triggerPathPatterns = [],
+      List<String> excludePathPatterns = []) {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
         useGitHubHooks()
-        orgWhitelist(['apache'])
-        allowMembersOfWhitelistedOrgsAsAdmin()
-        permitAll()
+        permitAll(prPermitAll)
+        if (!prPermitAll) {
+          userWhitelist(committers.GITHUB_USERNAMES)
+        }
         // prTriggerPhrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one. Setting this
@@ -159,6 +142,9 @@ class CommonJobProperties {
         }
         if (!triggerPathPatterns.isEmpty()) {
           includedRegions(triggerPathPatterns.join('\n'))
+        }
+        if (!excludePathPatterns.isEmpty()) {
+          excludedRegions(excludePathPatterns)
         }
 
         extensions {
@@ -182,8 +168,6 @@ class CommonJobProperties {
   // Default maxWorkers is 12 to avoid jvm oom as in [BEAM-4847].
   static void setGradleSwitches(context, maxWorkers = 12) {
     def defaultSwitches = [
-      // Gradle log verbosity enough to diagnose basic build issues
-      "--info",
       // Continue the build even if there is a failure to show as many potential failures as possible.
       '--continue',
     ]
@@ -198,27 +182,29 @@ class CommonJobProperties {
     // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (2g/4g).
     context.switches("-Dorg.gradle.jvmargs=-Xms2g")
     context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
-  }
 
-  // Sets common config for PreCommit jobs.
-  static void setPreCommit(context,
-                           String commitStatusName,
-                           String prTriggerPhrase = '') {
-    // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, commitStatusName, prTriggerPhrase, false)
+    // Disable file system watching for CI builds
+    // Builds are performed on a clean clone and files aren't modified, so
+    // there's no value in watching for changes.
+    context.switches("-Dorg.gradle.vfs.watch=false")
+
+    // Include dependency licenses when build docker images on Jenkins, see https://s.apache.org/zt68q
+    context.switches("-Pdocker-pull-licenses")
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
   // specified in the postcommit job and have the job run against their PR to run
   // tests not in the presubmit suite for additional confidence.
   static void enablePhraseTriggeringFromPullRequest(context,
-                                                    String commitStatusName,
-                                                    String prTriggerPhrase) {
+      String commitStatusName,
+      String prTriggerPhrase,
+      boolean prPermitAll = true) {
     setPullRequestBuildTrigger(
-      context,
-      commitStatusName,
-      prTriggerPhrase,
-      true)
+        context,
+        commitStatusName,
+        prTriggerPhrase,
+        true,
+        prPermitAll)
   }
 
   // Sets this as a cron job, running on a schedule.
@@ -230,9 +216,10 @@ class CommonJobProperties {
 
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
-                         String buildSchedule = '0 */6 * * *',
-                         notifyAddress = 'commits@beam.apache.org',
-                         triggerOnCommit = false) {
+      String buildSchedule = '0 */6 * * *',
+      notifyAddress = 'builds@beam.apache.org',
+      triggerOnCommit = false,
+      emailIndividuals = false) {
 
     // Set build triggers
     context.triggers {
@@ -247,59 +234,36 @@ class CommonJobProperties {
 
 
     context.publishers {
-      // Notify an email address for each failed build (defaults to commits@).
+      // Notify an email address for each failed build (defaults to builds@).
       mailer(
           notifyAddress,
           /* _do_ notify every unstable build */ false,
           /* do not email individuals */ false)
+
+      extendedEmail {
+        triggers {
+          aborted {
+            recipientList(notifyAddress)
+          }
+          if (emailIndividuals) {
+            firstFailure {
+              sendTo {
+                firstFailingBuildSuspects()
+              }
+            }
+          }
+        }
+      }
     }
   }
 
   static def mapToArgString(LinkedHashMap<String, String> inputArgs) {
     List argList = []
-    inputArgs.each({
-        // FYI: Replacement only works with double quotes.
-      key, value -> argList.add("--$key=$value")
+    inputArgs.each({ // FYI: Replacement only works with double quotes.
+      key, value ->
+      argList.add("--$key=$value")
     })
     return argList.join(' ')
-  }
-
-  // Configures the argument list for performance tests, adding the standard
-  // performance test job arguments.
-  private static def genPerformanceArgs(def argMap) {
-    LinkedHashMap<String, String> standardArgs = [
-      project: 'apache-beam-testing',
-      dpb_log_level: 'INFO',
-      bigquery_table: 'beam_performance.pkb_results',
-      k8s_get_retry_count: 36, // wait up to 6 minutes for K8s LoadBalancer
-      k8s_get_wait_interval: 10,
-      python_binary: '$WORKSPACE/.beam_env/bin/python',
-      temp_dir: '$WORKSPACE',
-      // Use source cloned by Jenkins and not clone it second time (redundantly).
-      beam_location: '$WORKSPACE/src',
-      // Publishes results with official tag, for use in dashboards.
-      official: 'true'
-    ]
-    // Note: in case of key collision, keys present in ArgMap win.
-    LinkedHashMap<String, String> joinedArgs = standardArgs.plus(argMap)
-    return mapToArgString(joinedArgs)
-  }
-
-  static def setupKubernetes(def context, def namespace, def kubeconfigLocation) {
-    context.steps {
-      shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
-      shell("cp /home/jenkins/.kube/config ${kubeconfigLocation}")
-
-      shell("kubectl --kubeconfig=${kubeconfigLocation} create namespace ${namespace}")
-      shell("kubectl --kubeconfig=${kubeconfigLocation} config set-context \$(kubectl config current-context) --namespace=${namespace}")
-    }
-  }
-
-  static def cleanupKubernetes(def context, def namespace, def kubeconfigLocation) {
-    context.steps {
-      shell("kubectl --kubeconfig=${kubeconfigLocation} delete namespace ${namespace}")
-      shell("rm ${kubeconfigLocation}")
-    }
   }
 
   // Namespace must contain lower case alphanumeric characters or '-'
@@ -309,48 +273,7 @@ class CommonJobProperties {
   }
 
   static String getKubeconfigLocationForNamespace(def namespace) {
-    return '"$WORKSPACE/' + "config-${namespace}" + '"'
-  }
-
-  // Adds the standard performance test job steps.
-  static def buildPerformanceTest(def context, def argMap) {
-    def pkbArgs = genPerformanceArgs(argMap)
-
-    // Absolute path of project root and virtualenv path of Beam and Perfkit.
-    def beam_root = makePathAbsolute(checkoutDir)
-    def perfkit_root = makePathAbsolute("PerfKitBenchmarker")
-    def beam_env = makePathAbsolute("env/.beam_env")
-    def perfkit_env = makePathAbsolute("env/.perfkit_env")
-
-    context.steps {
-        // Clean up environment.
-        shell("rm -rf ${perfkit_root}")
-        shell("rm -rf ${beam_env}")
-        shell("rm -rf ${perfkit_env}")
-
-        // create new VirtualEnv, inherit already existing packages
-        shell("virtualenv ${beam_env} --system-site-packages")
-        shell("virtualenv ${perfkit_env} --system-site-packages")
-
-        // update setuptools and pip
-        shell("${beam_env}/bin/pip install --upgrade setuptools pip grpcio-tools==1.3.5")
-        shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
-
-        // Clone appropriate perfkit branch
-        shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
-
-        // Install job requirements for Python SDK.
-        shell("${beam_env}/bin/pip install -e ${beam_root}/sdks/python/[gcp,test]")
-
-        // Build PythonSDK tar ball.
-        shell("(cd ${beam_root}/sdks/python && ${beam_env}/bin/python setup.py sdist --dist-dir=target)")
-
-        // Install Perfkit benchmark requirements.
-        shell("${perfkit_env}/bin/pip install -r ${perfkit_root}/requirements.txt")
-
-        // Launch performance test.
-        shell("${perfkit_env}/bin/python ${perfkit_root}/pkb.py ${pkbArgs}")
-    }
+    return '$WORKSPACE/' + "config-${namespace}"
   }
 
   /**
@@ -361,8 +284,24 @@ class CommonJobProperties {
    */
   static String joinPipelineOptions(Map pipelineOptions) {
     List<String> pipelineArgList = []
-    pipelineOptions.each({
-      key, value -> pipelineArgList.add("\"--$key=$value\"")
+    pipelineOptions.each({ key, value ->
+      pipelineArgList.add("\"--$key=$value\"")
+    })
+    return "[" + pipelineArgList.join(',') + "]"
+  }
+
+  /**
+   * Transforms pipeline options to a string of format like below:
+   * ["--pipelineOption=123", "--pipelineOption2=abc", ...]
+   *
+   * Use this variant when some options values contain json as string.
+   *
+   * @param pipelineOptions A map of pipeline options.
+   */
+  static String joinOptionsWithNestedJsonValues(Map pipelineOptions) {
+    List<String> pipelineArgList = []
+    pipelineOptions.each({ key, value ->
+      pipelineArgList.add("\"--$key=${value.replaceAll("\"", "\\\\\\\\\"")}\"")
     })
     return "[" + pipelineArgList.join(',') + "]"
   }

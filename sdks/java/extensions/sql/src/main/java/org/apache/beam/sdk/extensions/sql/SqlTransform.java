@@ -15,19 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -37,6 +44,10 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link SqlTransform} is the DSL interface of Beam SQL. It translates a SQL query as a {@link
@@ -59,7 +70,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * PCollection<Row> outputTableA = inputTableA.apply(
  *    SqlTransform
  *        .query(sql1)
- *        .registerUdf("MY_FUNC", MY_FUNC.class, "FUNC");
+ *        .addUdf("MY_FUNC", MY_FUNC.class, "FUNC");
  *
  * //run a JOIN with one table from TextIO, and one table from another query
  * PCollection<Row> outputTableB =
@@ -73,25 +84,91 @@ import org.apache.beam.sdk.values.TupleTag;
  *
  * p.run().waitUntilFinish();
  * }</pre>
+ *
+ * <p>A typical pipeline with Beam SQL DDL and DSL is:
+ *
+ * <pre>{@code
+ * PipelineOptions options = PipelineOptionsFactory.create();
+ * Pipeline p = Pipeline.create(options);
+ *
+ * String sql1 = "INSERT INTO pubsub_sink SELECT * FROM pubsub_source";
+ *
+ * String ddlSource = "CREATE EXTERNAL TABLE pubsub_source(" +
+ *     "attributes MAP<VARCHAR, VARCHAR>, payload ROW<name VARCHAR, size INTEGER>)" +
+ *     "TYPE pubsub LOCATION 'projects/myproject/topics/topic1'";
+ *
+ * String ddlSink = "CREATE EXTERNAL TABLE pubsub_sink(" +
+ *     "attributes MAP<VARCHAR, VARCHAR>, payload ROW<name VARCHAR, size INTEGER>)" +
+ *     "TYPE pubsub LOCATION 'projects/myproject/topics/mytopic'";
+ *
+ * p.apply(SqlTransform.query(sql1).withDdlString(ddlSource).withDdlString(ddlSink))
+ *
+ * p.run().waitUntilFinish();
+ * }</pre>
  */
 @AutoValue
 @Experimental
+@AutoValue.CopyAnnotations
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> {
   static final String PCOLLECTION_NAME = "PCOLLECTION";
 
   abstract String queryString();
 
+  abstract List<String> ddlStrings();
+
+  abstract QueryParameters queryParameters();
+
   abstract List<UdfDefinition> udfDefinitions();
 
   abstract List<UdafDefinition> udafDefinitions();
 
+  abstract boolean autoLoading();
+
+  abstract Map<String, TableProvider> tableProviderMap();
+
+  abstract @Nullable String defaultTableProvider();
+
+  abstract @Nullable String queryPlannerClassName();
+
   @Override
   public PCollection<Row> expand(PInput input) {
-    BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
+    TableProvider inputTableProvider =
+        new ReadOnlyTableProvider(PCOLLECTION_NAME, toTableMap(input));
+    InMemoryMetaStore metaTableProvider = new InMemoryMetaStore();
+    metaTableProvider.registerProvider(inputTableProvider);
+    BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(metaTableProvider);
 
-    registerFunctions(sqlEnv);
+    // TODO: validate duplicate functions.
+    registerFunctions(sqlEnvBuilder);
 
-    return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
+    // Load automatic table providers before user ones so the user ones will cause a conflict if
+    // the same names are reused.
+    if (autoLoading()) {
+      sqlEnvBuilder.autoLoadUserDefinedFunctions();
+      ServiceLoader.load(TableProvider.class).forEach(metaTableProvider::registerProvider);
+    }
+
+    tableProviderMap().forEach(sqlEnvBuilder::addSchema);
+
+    if (defaultTableProvider() != null) {
+      sqlEnvBuilder.setCurrentSchema(defaultTableProvider());
+    }
+
+    sqlEnvBuilder.setQueryPlannerClassName(
+        MoreObjects.firstNonNull(
+            queryPlannerClassName(),
+            input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getPlannerName()));
+
+    sqlEnvBuilder.setPipelineOptions(input.getPipeline().getOptions());
+
+    BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
+    ddlStrings().forEach(sqlEnv::executeDdl);
+    return BeamSqlRelUtils.toPCollection(
+        input.getPipeline(), sqlEnv.parseQuery(queryString(), queryParameters()));
   }
 
   @SuppressWarnings("unchecked")
@@ -113,11 +190,11 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return tables.build();
   }
 
-  private void registerFunctions(BeamSqlEnv sqlEnv) {
+  private void registerFunctions(BeamSqlEnvBuilder sqlEnvBuilder) {
     udfDefinitions()
-        .forEach(udf -> sqlEnv.registerUdf(udf.udfName(), udf.clazz(), udf.methodName()));
+        .forEach(udf -> sqlEnvBuilder.addUdf(udf.udfName(), udf.clazz(), udf.methodName()));
 
-    udafDefinitions().forEach(udaf -> sqlEnv.registerUdaf(udaf.udafName(), udaf.combineFn()));
+    udafDefinitions().forEach(udaf -> sqlEnvBuilder.addUdaf(udaf.udafName(), udaf.combineFn()));
   }
 
   /**
@@ -142,15 +219,47 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
    *   <li>Always, tables from the upstream {@link PCollectionTuple} are only valid in the scope of
    *       the current query call.
    * </ul>
+   *
+   * <p>Any available implementation of {@link QueryPlanner} can be used as the query planner in
+   * {@link SqlTransform}. An implementation can be specified globally for the entire pipeline with
+   * {@link BeamSqlPipelineOptions#getPlannerName()}. The global planner can be overridden
+   * per-transform with {@link #withQueryPlannerClass(Class<? extends QueryPlanner>)}.
    */
   public static SqlTransform query(String queryString) {
-    return builder()
-        .setQueryString(queryString)
-        .setUdafDefinitions(Collections.emptyList())
-        .setUdfDefinitions(Collections.emptyList())
+    return builder().setQueryString(queryString).build();
+  }
+
+  public SqlTransform withTableProvider(String name, TableProvider tableProvider) {
+    Map<String, TableProvider> map = new HashMap<>(tableProviderMap());
+    map.put(name, tableProvider);
+    return toBuilder().setTableProviderMap(ImmutableMap.copyOf(map)).build();
+  }
+
+  public SqlTransform withDefaultTableProvider(String name, TableProvider tableProvider) {
+    return withTableProvider(name, tableProvider).toBuilder().setDefaultTableProvider(name).build();
+  }
+
+  public SqlTransform withQueryPlannerClass(Class<? extends QueryPlanner> clazz) {
+    return toBuilder().setQueryPlannerClassName(clazz.getName()).build();
+  }
+
+  public SqlTransform withNamedParameters(Map<String, ?> parameters) {
+    return toBuilder().setQueryParameters(QueryParameters.ofNamed(parameters)).build();
+  }
+
+  public SqlTransform withPositionalParameters(List<?> parameters) {
+    return toBuilder().setQueryParameters(QueryParameters.ofPositional(parameters)).build();
+  }
+
+  public SqlTransform withDdlString(String ddlString) {
+    return toBuilder()
+        .setDdlStrings(ImmutableList.<String>builder().addAll(ddlStrings()).add(ddlString).build())
         .build();
   }
 
+  public SqlTransform withAutoLoading(boolean autoLoading) {
+    return toBuilder().setAutoLoading(autoLoading).build();
+  }
   /**
    * register a UDF function used in this query.
    *
@@ -192,21 +301,41 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   abstract Builder toBuilder();
 
   static Builder builder() {
-    return new AutoValue_SqlTransform.Builder();
+    return new AutoValue_SqlTransform.Builder()
+        .setQueryParameters(QueryParameters.ofNone())
+        .setDdlStrings(Collections.emptyList())
+        .setUdafDefinitions(Collections.emptyList())
+        .setUdfDefinitions(Collections.emptyList())
+        .setTableProviderMap(Collections.emptyMap())
+        .setAutoLoading(true);
   }
 
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setQueryString(String queryString);
 
+    abstract Builder setQueryParameters(QueryParameters queryParameters);
+
+    abstract Builder setDdlStrings(List<String> ddlStrings);
+
     abstract Builder setUdfDefinitions(List<UdfDefinition> udfDefinitions);
 
     abstract Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
+
+    abstract Builder setAutoLoading(boolean autoLoading);
+
+    abstract Builder setTableProviderMap(Map<String, TableProvider> tableProviderMap);
+
+    abstract Builder setDefaultTableProvider(@Nullable String defaultTableProvider);
+
+    abstract Builder setQueryPlannerClassName(@Nullable String queryPlannerClassName);
 
     abstract SqlTransform build();
   }
 
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class UdfDefinition {
     abstract String udfName();
 
@@ -220,6 +349,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class UdafDefinition {
     abstract String udafName();
 

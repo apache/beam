@@ -17,26 +17,22 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
+import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Operation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.base.Throwables;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.io.Serializable;
 import java.util.Collections;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -48,6 +44,10 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.After;
 import org.junit.Before;
@@ -68,6 +68,12 @@ public class SpannerWriteIT {
 
   /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
+    @Description("Project that hosts Spanner instance")
+    @Nullable
+    String getInstanceProjectId();
+
+    void setInstanceProjectId(String value);
+
     @Description("Instance ID to write to in Spanner")
     @Default.String("beam-test")
     String getInstanceId();
@@ -98,7 +104,10 @@ public class SpannerWriteIT {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
-    project = options.as(GcpOptions.class).getProject();
+    project = options.getInstanceProjectId();
+    if (project == null) {
+      project = options.as(GcpOptions.class).getProject();
+    }
 
     spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
 
@@ -109,7 +118,7 @@ public class SpannerWriteIT {
     // Delete database if exists.
     databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
 
-    Operation<Database, CreateDatabaseMetadata> op =
+    OperationFuture<Database, CreateDatabaseMetadata> op =
         databaseAdminClient.createDatabase(
             options.getInstanceId(),
             databaseName,
@@ -120,7 +129,7 @@ public class SpannerWriteIT {
                     + "  Key           INT64,"
                     + "  Value         STRING(MAX) NOT NULL,"
                     + ") PRIMARY KEY (Key)"));
-    op.waitFor();
+    op.get();
   }
 
   private String generateDatabaseName() {

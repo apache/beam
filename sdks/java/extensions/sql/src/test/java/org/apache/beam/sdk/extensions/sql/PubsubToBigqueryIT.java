@@ -22,20 +22,17 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
-import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -55,11 +52,8 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsert() throws Exception {
-    BeamSqlEnv sqlEnv =
-        BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
-
-    String createTableString =
-        "CREATE TABLE pubsub_topic (\n"
+    String pubsubTableString =
+        "CREATE EXTERNAL TABLE pubsub_topic (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
@@ -72,10 +66,8 @@ public class PubsubToBigqueryIT implements Serializable {
             + pubsub.topicPath()
             + "' \n"
             + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
-    sqlEnv.executeDdl(createTableString);
-
-    String createTableStatement =
-        "CREATE TABLE bq_table( \n"
+    String bqTableString =
+        "CREATE EXTERNAL TABLE bq_table( \n"
             + "   id BIGINT, \n"
             + "   name VARCHAR \n "
             + ") \n"
@@ -83,18 +75,71 @@ public class PubsubToBigqueryIT implements Serializable {
             + "LOCATION '"
             + bigQuery.tableSpec()
             + "'";
-    sqlEnv.executeDdl(createTableStatement);
-
     String insertStatement =
         "INSERT INTO bq_table \n"
             + "SELECT \n"
             + "  pubsub_topic.payload.id, \n"
             + "  pubsub_topic.payload.name \n"
             + "FROM pubsub_topic";
-
-    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
-
+    pipeline.apply(
+        SqlTransform.query(insertStatement)
+            .withDdlString(pubsubTableString)
+            .withDdlString(bqTableString));
     pipeline.run();
+
+    // Block until a subscription for this topic exists
+    pubsub.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
+
+    List<PubsubMessage> messages =
+        ImmutableList.of(
+            message(ts(1), 3, "foo"), message(ts(2), 5, "bar"), message(ts(3), 7, "baz"));
+    pubsub.publish(messages);
+
+    bigQuery
+        .assertThatAllRows(SOURCE_SCHEMA)
+        .eventually(
+            containsInAnyOrder(
+                row(SOURCE_SCHEMA, 3L, "foo"),
+                row(SOURCE_SCHEMA, 5L, "bar"),
+                row(SOURCE_SCHEMA, 7L, "baz")))
+        .pollFor(Duration.standardMinutes(5));
+  }
+
+  @Test
+  public void testSimpleInsertFlat() throws Exception {
+    String pubsubTableString =
+        "CREATE EXTERNAL TABLE pubsub_topic (\n"
+            + "event_timestamp TIMESTAMP, \n"
+            + "id INTEGER, \n"
+            + "name VARCHAR \n"
+            + ") \n"
+            + "TYPE 'pubsub' \n"
+            + "LOCATION '"
+            + pubsub.topicPath()
+            + "' \n"
+            + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
+    String bqTableString =
+        "CREATE EXTERNAL TABLE bq_table( \n"
+            + "   id BIGINT, \n"
+            + "   name VARCHAR \n "
+            + ") \n"
+            + "TYPE 'bigquery' \n"
+            + "LOCATION '"
+            + bigQuery.tableSpec()
+            + "'";
+    String insertStatement =
+        "INSERT INTO bq_table \n" + "SELECT \n" + "  id, \n" + "  name \n" + "FROM pubsub_topic";
+
+    pipeline.apply(
+        SqlTransform.query(insertStatement)
+            .withDdlString(pubsubTableString)
+            .withDdlString(bqTableString));
+    pipeline.run();
+
+    // Block until a subscription for this topic exists
+    pubsub.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
 
     List<PubsubMessage> messages =
         ImmutableList.of(

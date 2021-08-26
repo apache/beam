@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /** Interface for all metric sinks. */
-@Experimental(Experimental.Kind.METRICS)
+@Experimental(Kind.METRICS)
 public interface MetricsSink extends Serializable {
   void writeMetrics(MetricQueryResults metricQueryResults) throws Exception;
 }

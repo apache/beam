@@ -18,7 +18,7 @@
 
 """Test for the wordcount example."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import collections
 import logging
@@ -44,15 +44,14 @@ class WordCountTest(unittest.TestCase):
     temp_path = self.create_temp_file(self.SAMPLE_TEXT)
     expected_words = collections.defaultdict(int)
     for word in re.findall(r'[\w\']+', self.SAMPLE_TEXT, re.UNICODE):
-      expected_words[word.encode('utf-8')] += 1
-    wordcount.run([
-        '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path])
+      expected_words[word] += 1
+    wordcount.run(['--input=%s*' % temp_path, '--output=%s.result' % temp_path],
+                  save_main_session=False)
     # Parse result file and compare.
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
-        match = re.search(r'(\S+): ([0-9]+)', line, re.UNICODE)
+        match = re.search(r'(\S+): ([0-9]+)', line)
         if match is not None:
           results.append((match.group(1), int(match.group(2))))
     self.assertEqual(sorted(results), sorted(expected_words.items()))

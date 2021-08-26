@@ -17,16 +17,13 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
-import com.google.common.io.Files;
 import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +36,10 @@ import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,6 +58,8 @@ public class FileSystemsTest {
 
   @Test
   public void testGetLocalFileSystem() throws Exception {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10740
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     assertTrue(
         FileSystems.getFileSystemInternal(toLocalResourceId("~/home/").getScheme())
             instanceof LocalFileSystem);
@@ -196,6 +199,7 @@ public class FileSystemsTest {
   @Test(expected = IllegalArgumentException.class)
   public void testInvalidSchemaMatchNewResource() {
     assertEquals("file", FileSystems.matchNewResource("invalidschema://tmp/f1", false));
+    assertEquals("file", FileSystems.matchNewResource("c:/tmp/f1", false));
   }
 
   private List<ResourceId> toResourceIds(List<Path> paths, final boolean isDirectory) {

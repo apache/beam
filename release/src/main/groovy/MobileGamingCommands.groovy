@@ -27,7 +27,6 @@ class MobileGamingCommands {
   public static final RUNNERS = [DirectRunner: "direct-runner",
     DataflowRunner: "dataflow-runner",
     SparkRunner: "spark-runner",
-    ApexRunner: "apex-runner",
     FlinkRunner: "flink-runner"]
 
   public static final EXECUTION_TIMEOUT_IN_MINUTES = 20
@@ -66,9 +65,17 @@ class MobileGamingCommands {
     return "java-hourlyteamscore-result-${RUNNERS[runner]}.txt"
   }
 
-  public String createPipelineCommand(String exampleName, String runner, String jobName=''){
+  public String createPipelineCommand(String exampleName, String runner, String jobName='', String className=null){
+    if (className == null) {
+      className = exampleName
+    }
     return """mvn compile exec:java -q \
-      -Dexec.mainClass=org.apache.beam.examples.complete.game.${exampleName} \
+      -Dmaven.wagon.http.retryHandler.class=default \
+      -Dmaven.wagon.http.retryHandler.count=5 \
+      -Dmaven.wagon.http.pool=false \
+      -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
+      -Dhttp.keepAlive=false \
+      -Dexec.mainClass=org.apache.beam.examples.complete.game.${className} \
       -Dexec.args=\"${getArgs(exampleName, runner, jobName)}\" \
       -P${RUNNERS[runner]}"""
   }
@@ -92,6 +99,9 @@ class MobileGamingCommands {
       case "LeaderBoard":
         args = getLeaderBoardArgs(runner, jobName)
         break
+      case "LeaderBoardWithStreamingEngine":
+        args = getLeaderBoardWithStreamingEngineArgs(runner, jobName)
+        break
       case "GameStats":
         args = getGameStatsArgs(runner, jobName)
         break
@@ -108,6 +118,7 @@ class MobileGamingCommands {
     if(runner == "DataflowRunner"){
       return [input: INPUT_GAMING_DATA,
         project: testScripts.gcpProject(),
+        region: testScripts.gcpRegion(),
         output: "gs://${testScripts.gcsBucket()}/${getUserScoreOutputName(runner)}"]
     }
     return [input: INPUT_GAMING_DATA,
@@ -118,6 +129,7 @@ class MobileGamingCommands {
     if(runner == "DataflowRunner"){
       return [input: INPUT_GAMING_DATA,
         project: testScripts.gcpProject(),
+        region: testScripts.gcpRegion(),
         output: "gs://${testScripts.gcsBucket()}/${getHourlyTeamScoreOutputName(runner)}"]
     }
     return [input: INPUT_GAMING_DATA,
@@ -125,16 +137,34 @@ class MobileGamingCommands {
   }
 
   private Map getLeaderBoardArgs(String runner, String jobName){
-    return [project: testScripts.gcpProject(),
+    def args = [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
       leaderBoardTableName: "leaderboard_${runner}",
       teamWindowDuration: 5,
       jobName: jobName]
+    if (runner == "DataflowRunner") {
+      args["region"] = testScripts.gcpRegion()
+    }
+    return args
+  }
+
+  private Map getLeaderBoardWithStreamingEngineArgs(String runner, String jobName){
+    def args = [project: testScripts.gcpProject(),
+            dataset: testScripts.bqDataset(),
+            topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
+            leaderBoardTableName: "leaderboard_${runner}",
+            teamWindowDuration: 5,
+            jobName: jobName,
+            experiments: "enable_streaming_engine"]
+    if (runner == "DataflowRunner") {
+      args["region"] = testScripts.gcpRegion()
+    }
+    return args
   }
 
   private Map getGameStatsArgs(String runner, String jobName){
-    return [project: testScripts.gcpProject(),
+    def args = [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
       fixedWindowDuration: 5,
@@ -142,5 +172,9 @@ class MobileGamingCommands {
       sessionGap: 1,
       gameStatsTablePrefix: "gamestats_${runner}",
       jobName: jobName]
+    if (runner == "DataflowRunner") {
+      args["region"] = testScripts.gcpRegion()
+    }
+    return args
   }
 }

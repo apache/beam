@@ -71,16 +71,20 @@ has some examples.
 
 """
 
-
-from __future__ import absolute_import
-
 import sys
+import warnings
 
-
-if not (sys.version_info[0] == 2 and sys.version_info[1] == 7):
+if sys.version_info.major == 3:
+  if sys.version_info.minor <= 5 or sys.version_info.minor >= 9:
+    warnings.warn(
+        'This version of Apache Beam has not been sufficiently tested on '
+        'Python %s.%s. You may encounter bugs or missing features.' %
+        (sys.version_info.major, sys.version_info.minor))
+  pass
+else:
   raise RuntimeError(
-      'The Apache Beam SDK for Python is supported only on Python 2.7. '
-      'It is not supported on Python ['+ str(sys.version_info) + '].')
+      'The Apache Beam SDK for Python is only supported on Python 3. '
+      'It is not supported on Python [' + str(sys.version_info) + '].')
 
 # pylint: disable=wrong-import-position
 import apache_beam.internal.pickler
@@ -91,6 +95,9 @@ from apache_beam import typehints
 from apache_beam import version
 from apache_beam.pipeline import Pipeline
 from apache_beam.transforms import *
+from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import Row
+from apache_beam.pvalue import TaggedOutput
 # pylint: enable=wrong-import-position
 
 __version__ = version.__version__

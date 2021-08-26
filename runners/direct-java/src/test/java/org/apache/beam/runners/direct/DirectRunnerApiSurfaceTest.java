@@ -15,15 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.util.ApiSurface.containsOnlyPackages;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-import org.apache.beam.runners.direct.portable.ExecutableGraphBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -31,6 +28,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.ApiSurface;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -44,11 +42,7 @@ public class DirectRunnerApiSurfaceTest {
     @SuppressWarnings("unchecked")
     final Set<String> allowed =
         ImmutableSet.of(
-            "org.apache.beam.sdk",
-            "org.apache.beam.runners.direct",
-            "org.joda.time",
-            "javax.annotation",
-            "java.math");
+            "org.apache.beam.sdk", "org.apache.beam.runners.direct", "org.joda.time", "java.math");
 
     final Package thisPackage = getClass().getPackage();
     final ClassLoader thisClassLoader = getClass().getClassLoader();
@@ -66,12 +60,9 @@ public class DirectRunnerApiSurfaceTest {
             .pruningClass(DirectGraphs.class)
             .pruningClass(
                 WatermarkManager.class /* TODO: BEAM-4237 Consider moving to local-java */)
-            .pruningClass(ExecutableGraphBuilder.class)
-            .pruningPattern(
-                "org[.]apache[.]beam[.]runners[.]direct[.]portable.*"
-                /* TODO: BEAM-4237 reconsider package layout with the ReferenceRunner */ )
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]io.*")
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");

@@ -15,10 +15,11 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import collections
 import itertools
+import typing
 
 import apache_beam as beam
 from apache_beam import typehints
@@ -33,11 +34,9 @@ class LiftedCombinePerKey(beam.PTransform):
   def __init__(self, combine_fn, args, kwargs):
     args_to_check = itertools.chain(args, kwargs.values())
     if isinstance(combine_fn, _CurriedFn):
-      args_to_check = itertools.chain(args_to_check,
-                                      combine_fn.args,
-                                      combine_fn.kwargs.values())
-    if any(isinstance(arg, ArgumentPlaceholder)
-           for arg in args_to_check):
+      args_to_check = itertools.chain(
+          args_to_check, combine_fn.args, combine_fn.kwargs.values())
+    if any(isinstance(arg, ArgumentPlaceholder) for arg in args_to_check):
       # This isn't implemented in dataflow either...
       raise NotImplementedError('Deferred CombineFn side inputs.')
     self._combine_fn = beam.transforms.combiners.curry_combine_fn(
@@ -59,28 +58,36 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
   def __init__(self, combine_fn):
     self._combine_fn = combine_fn
 
+  def setup(self):
+    self._combine_fn.setup()
+
   def start_bundle(self):
     self._cache = collections.defaultdict(self._combine_fn.create_accumulator)
 
   def process(self, element, window=beam.DoFn.WindowParam):
     k, vi = element
-    self._cache[k, window] = self._combine_fn.add_input(self._cache[k, window],
-                                                        vi)
+    self._cache[k, window] = self._combine_fn.add_input(
+        self._cache[k, window], vi)
 
   def finish_bundle(self):
     for (k, w), va in self._cache.items():
-      yield WindowedValue((k, va), w.end, (w,))
+      # We compact the accumulator since a GBK (which necessitates encoding)
+      # will follow.
+      yield WindowedValue((k, self._combine_fn.compact(va)), w.end, (w, ))
+
+  def teardown(self):
+    self._combine_fn.teardown()
 
   def default_type_hints(self):
-    hints = self._combine_fn.get_type_hints().copy()
+    hints = self._combine_fn.get_type_hints()
     K = typehints.TypeVariable('K')
     if hints.input_types:
       args, kwargs = hints.input_types
-      args = (typehints.Tuple[K, args[0]],) + args[1:]
-      hints.set_input_types(*args, **kwargs)
+      args = (typehints.Tuple[K, args[0]], ) + args[1:]
+      hints = hints.with_input_types(*args, **kwargs)
     else:
-      hints.set_input_types(typehints.Tuple[K, typehints.Any])
-    hints.set_output_types(typehints.Tuple[K, typehints.Any])
+      hints = hints.with_input_types(typehints.Tuple[K, typing.Any])
+    hints = hints.with_output_types(typehints.Tuple[K, typing.Any])
     return hints
 
 
@@ -90,6 +97,9 @@ class FinishCombine(beam.DoFn):
   def __init__(self, combine_fn):
     self._combine_fn = combine_fn
 
+  def setup(self):
+    self._combine_fn.setup()
+
   def process(self, element):
     k, vs = element
     return [(
@@ -97,11 +107,14 @@ class FinishCombine(beam.DoFn):
         self._combine_fn.extract_output(
             self._combine_fn.merge_accumulators(vs)))]
 
+  def teardown(self):
+    self._combine_fn.teardown()
+
   def default_type_hints(self):
-    hints = self._combine_fn.get_type_hints().copy()
+    hints = self._combine_fn.get_type_hints()
     K = typehints.TypeVariable('K')
-    hints.set_input_types(typehints.Tuple[K, typehints.Any])
+    hints = hints.with_input_types(typehints.Tuple[K, typing.Any])
     if hints.output_types:
       main_output_type = hints.simple_output_type('')
-      hints.set_output_types(typehints.Tuple[K, main_output_type])
+      hints = hints.with_output_types(typehints.Tuple[K, main_output_type])
     return hints

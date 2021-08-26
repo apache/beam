@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Iterables;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** */
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PTransformReplacements {
   /**
    * Gets the singleton input of an {@link AppliedPTransform}, ignoring any additional inputs
@@ -42,9 +41,9 @@ public class PTransformReplacements {
   }
 
   private static <T> PCollection<T> getSingletonMainInput(
-      Map<TupleTag<?>, PValue> inputs, Set<TupleTag<?>> ignoredTags) {
+      Map<TupleTag<?>, PCollection<?>> inputs, Set<TupleTag<?>> ignoredTags) {
     PCollection<T> mainInput = null;
-    for (Map.Entry<TupleTag<?>, PValue> input : inputs.entrySet()) {
+    for (Map.Entry<TupleTag<?>, PCollection<?>> input : inputs.entrySet()) {
       if (!ignoredTags.contains(input.getKey())) {
         checkArgument(
             mainInput == null,
@@ -69,6 +68,6 @@ public class PTransformReplacements {
 
   public static <T> PCollection<T> getSingletonMainOutput(
       AppliedPTransform<?, PCollection<T>, ? extends PTransform<?, PCollection<T>>> transform) {
-    return ((PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values()));
+    return (PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values());
   }
 }

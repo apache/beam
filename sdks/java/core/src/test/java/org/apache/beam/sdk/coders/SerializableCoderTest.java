@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
 import java.io.ByteArrayInputStream;
@@ -31,6 +31,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -43,7 +45,10 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.hamcrest.Description;
 import org.hamcrest.Matchers;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,7 +73,7 @@ public class SerializableCoderTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -252,26 +257,72 @@ public class SerializableCoderTest implements Serializable {
 
   @Test
   public void coderWarnsForInterface() throws Exception {
-    SerializableCoder.of(TestInterface.class);
-    expectedLogs.verifyWarn(
+    String expectedLogMessage =
         "Can't verify serialized elements of type TestInterface "
-            + "have well defined equals method.");
+            + "have well defined equals method.";
+    // Create the coder multiple times ensuring that we only log once.
+    SerializableCoder.of(TestInterface.class);
+    SerializableCoder.of(TestInterface.class);
+    SerializableCoder.of(TestInterface.class);
+    expectedLogs.verifyLogRecords(
+        new TypeSafeMatcher<Iterable<LogRecord>>() {
+          @Override
+          public void describeTo(Description description) {
+            description.appendText(
+                String.format("single warn log message containing [%s]", expectedLogMessage));
+          }
+
+          @Override
+          protected boolean matchesSafely(Iterable<LogRecord> item) {
+            int count = 0;
+            for (LogRecord logRecord : item) {
+              if (logRecord.getLevel().equals(Level.WARNING)
+                  && logRecord.getMessage().contains(expectedLogMessage)) {
+                count += 1;
+              }
+            }
+            return count == 1;
+          }
+        });
   }
 
   private static class NoEquals implements Serializable {}
 
   @Test
   public void coderWarnsForNoEquals() throws Exception {
+    String expectedLogMessage =
+        "Can't verify serialized elements of type NoEquals " + "have well defined equals method.";
+    // Create the coder multiple times ensuring that we only log once.
     SerializableCoder.of(NoEquals.class);
-    expectedLogs.verifyWarn(
-        "Can't verify serialized elements of type NoEquals " + "have well defined equals method.");
+    SerializableCoder.of(NoEquals.class);
+    SerializableCoder.of(NoEquals.class);
+    expectedLogs.verifyLogRecords(
+        new TypeSafeMatcher<Iterable<LogRecord>>() {
+          @Override
+          public void describeTo(Description description) {
+            description.appendText(
+                String.format("single warn log message containing [%s]", expectedLogMessage));
+          }
+
+          @Override
+          protected boolean matchesSafely(Iterable<LogRecord> item) {
+            int count = 0;
+            for (LogRecord logRecord : item) {
+              if (logRecord.getLevel().equals(Level.WARNING)
+                  && logRecord.getMessage().contains(expectedLogMessage)) {
+                count += 1;
+              }
+            }
+            return count == 1;
+          }
+        });
   }
 
   private static class ProperEquals implements Serializable {
     private int x;
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

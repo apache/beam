@@ -17,18 +17,15 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.io.ByteSource;
-import com.google.common.io.CharSource;
-import com.google.common.io.Files;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -38,6 +35,9 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -194,7 +194,7 @@ public class ZipFilesTest {
     assertTrue(zipDir.mkdir());
     ZipFiles.zipDirectory(tmpDir, zipFile);
     File invalidDirectory = new File("/foo/bar");
-    assertTrue(!invalidDirectory.exists());
+    assertFalse(invalidDirectory.exists());
     try {
       ZipFiles.unzipFile(zipFile, invalidDirectory);
       fail("We expect the IllegalArgumentException, but it never occured");
@@ -280,7 +280,7 @@ public class ZipFilesTest {
   // This is not generally safe as it does not handle symlinks, etc. However it is safe
   // enough for these tests.
   private static void removeRecursive(Path path) throws IOException {
-    Iterable<File> files = Files.fileTreeTraverser().postOrderTraversal(path.toFile());
+    Iterable<File> files = Files.fileTraverser().depthFirstPostOrder(path.toFile());
     for (File f : files) {
       java.nio.file.Files.delete(f.toPath());
     }

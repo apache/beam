@@ -15,46 +15,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.ShardedKey;
 
 /**
- * Receives elements grouped by their (sharded) destination, and writes them out to a file. Since
- * all the elements in the {@link Iterable} are destined to the same table, they are all written to
- * the same file. Ensures that only one {@link TableRowWriter} is active per bundle.
+ * Receives elements grouped by their destination, and writes them out to a file. Since all the
+ * elements in the {@link Iterable} are destined to the same table, they are all written to the same
+ * file. Ensures that only one {@link TableRowWriter} is active per bundle.
  */
-class WriteGroupedRecordsToFiles<DestinationT>
-    extends DoFn<
-        KV<ShardedKey<DestinationT>, Iterable<TableRow>>,
-        WriteBundlesToFiles.Result<DestinationT>> {
+class WriteGroupedRecordsToFiles<DestinationT, ElementT>
+    extends DoFn<KV<DestinationT, Iterable<ElementT>>, WriteBundlesToFiles.Result<DestinationT>> {
 
   private final PCollectionView<String> tempFilePrefix;
   private final long maxFileSize;
+  private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
 
-  WriteGroupedRecordsToFiles(PCollectionView<String> tempFilePrefix, long maxFileSize) {
+  WriteGroupedRecordsToFiles(
+      PCollectionView<String> tempFilePrefix,
+      long maxFileSize,
+      RowWriterFactory<ElementT, DestinationT> rowWriterFactory) {
     this.tempFilePrefix = tempFilePrefix;
     this.maxFileSize = maxFileSize;
+    this.rowWriterFactory = rowWriterFactory;
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c) throws Exception {
+  public void processElement(
+      ProcessContext c,
+      @Element KV<DestinationT, Iterable<ElementT>> element,
+      OutputReceiver<WriteBundlesToFiles.Result<DestinationT>> o)
+      throws Exception {
+
     String tempFilePrefix = c.sideInput(this.tempFilePrefix);
-    TableRowWriter writer = new TableRowWriter(tempFilePrefix);
+
+    BigQueryRowWriter<ElementT> writer =
+        rowWriterFactory.createRowWriter(tempFilePrefix, element.getKey());
+
     try {
-      for (TableRow tableRow : c.element().getValue()) {
+      for (ElementT tableRow : element.getValue()) {
         if (writer.getByteSize() > maxFileSize) {
           writer.close();
-          writer = new TableRowWriter(tempFilePrefix);
-          TableRowWriter.Result result = writer.getResult();
-          c.output(
+          writer = rowWriterFactory.createRowWriter(tempFilePrefix, element.getKey());
+          BigQueryRowWriter.Result result = writer.getResult();
+          o.output(
               new WriteBundlesToFiles.Result<>(
-                  result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
+                  result.resourceId.toString(), result.byteSize, c.element().getKey()));
         }
         writer.write(tableRow);
       }
@@ -62,9 +70,9 @@ class WriteGroupedRecordsToFiles<DestinationT>
       writer.close();
     }
 
-    TableRowWriter.Result result = writer.getResult();
-    c.output(
+    BigQueryRowWriter.Result result = writer.getResult();
+    o.output(
         new WriteBundlesToFiles.Result<>(
-            result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
+            result.resourceId.toString(), result.byteSize, c.element().getKey()));
   }
 }

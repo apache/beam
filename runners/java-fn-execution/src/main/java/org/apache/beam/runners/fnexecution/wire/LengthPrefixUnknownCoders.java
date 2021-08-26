@@ -1,19 +1,20 @@
 /*
- * Copyright (C) 2017 Google Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.wire;
 
 import java.util.Map.Entry;
@@ -47,7 +48,7 @@ public class LengthPrefixUnknownCoders {
   public static String addLengthPrefixedCoder(
       String coderId, RunnerApi.Components.Builder components, boolean replaceWithByteArrayCoder) {
     String lengthPrefixedByteArrayCoderId = addLengthPrefixByteArrayCoder(components);
-    String urn = components.getCodersOrThrow(coderId).getSpec().getSpec().getUrn();
+    String urn = components.getCodersOrThrow(coderId).getSpec().getUrn();
 
     // We handle three cases:
     //  1) the requested coder is already a length prefix coder. In this case we just honor the
@@ -83,11 +84,7 @@ public class LengthPrefixUnknownCoders {
   private static String addWrappedWithLengthPrefixCoder(
       String coderId, RunnerApi.Components.Builder components) {
     Coder.Builder lengthPrefixed = Coder.newBuilder().addComponentCoderIds(coderId);
-    lengthPrefixed
-        .getSpecBuilder()
-        .getSpecBuilder()
-        .setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN)
-        .build();
+    lengthPrefixed.getSpecBuilder().setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN).build();
     return addCoder(lengthPrefixed.build(), components, coderId + "-length_prefix");
   }
 
@@ -95,14 +92,13 @@ public class LengthPrefixUnknownCoders {
   private static String addLengthPrefixByteArrayCoder(RunnerApi.Components.Builder components) {
     // Add byte array coder
     Coder.Builder byteArrayCoder = Coder.newBuilder();
-    byteArrayCoder.getSpecBuilder().getSpecBuilder().setUrn(ModelCoders.BYTES_CODER_URN);
+    byteArrayCoder.getSpecBuilder().setUrn(ModelCoders.BYTES_CODER_URN);
     String byteArrayCoderId = addCoder(byteArrayCoder.build(), components, "byte_array");
 
     // Wrap it into length-prefixed coder
     Coder.Builder lengthPrefixByteArrayCoder = Coder.newBuilder();
     lengthPrefixByteArrayCoder
         .addComponentCoderIds(byteArrayCoderId)
-        .getSpecBuilder()
         .getSpecBuilder()
         .setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN);
 

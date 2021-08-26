@@ -37,4 +37,77 @@ public interface BigQueryOptions
   String getTempDatasetId();
 
   void setTempDatasetId(String value);
+
+  @Description(
+      "Timeout for HTTP requests to BigQuery service in milliseconds. Set to 0 to disable.")
+  @Default.Integer(900 * 1000)
+  Integer getHTTPWriteTimeout();
+
+  void setHTTPWriteTimeout(Integer timeout);
+
+  @Description(
+      "If specified, the given number of maximum concurrent threads will be used to insert "
+          + "rows from one bundle to BigQuery service with streaming insert API.")
+  @Default.Integer(3)
+  Integer getInsertBundleParallelism();
+
+  void setInsertBundleParallelism(Integer parallelism);
+
+  @Description("The number of keys used per table when doing streaming inserts to BigQuery.")
+  @Default.Integer(50)
+  Integer getNumStreamingKeys();
+
+  void setNumStreamingKeys(Integer value);
+
+  @Description("The maximum number of rows to batch in a single streaming insert to BigQuery.")
+  @Default.Long(500)
+  Long getMaxStreamingRowsToBatch();
+
+  void setMaxStreamingRowsToBatch(Long value);
+
+  @Description("The maximum byte size of a single streaming insert to BigQuery.")
+  @Default.Long(64L * 1024L)
+  Long getMaxStreamingBatchSize();
+
+  void setMaxStreamingBatchSize(Long value);
+
+  @Description(
+      "The minimum duration in seconds between streaming API statistics logging. "
+          + "The interval might be longer than the specified value due to each bundle processing time.")
+  @Default.Integer(180)
+  Integer getBqStreamingApiLoggingFrequencySec();
+
+  void setBqStreamingApiLoggingFrequencySec(Integer value);
+
+  @Description("If set, then BigQueryIO.Write will default to using the Storage Write API.")
+  @Default.Boolean(false)
+  Boolean getUseStorageWriteApi();
+
+  void setUseStorageWriteApi(Boolean value);
+
+  @Description(
+      "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams.")
+  @Default.Integer(0)
+  Integer getNumStorageWriteApiStreams();
+
+  void setNumStorageWriteApiStreams(Integer value);
+
+  @Description(
+      "If set, then BigQueryIO.Write will default to triggering the Storage Write API writes this often.")
+  Integer getStorageWriteApiTriggeringFrequencySec();
+
+  void setStorageWriteApiTriggeringFrequencySec(Integer value);
+
+  @Description(
+      "When auto-sharding is used, the maximum duration in milliseconds the input records are"
+          + " allowed to be buffered before being written to BigQuery.")
+  @Default.Integer(0)
+  Integer getMaxBufferingDurationMilliSec();
+
+  void setMaxBufferingDurationMilliSec(Integer value);
+
+  @Description("If specified, it will override the default (GcpOptions#getProject()) project id.")
+  String getBigQueryProject();
+
+  void setBigQueryProject(String value);
 }

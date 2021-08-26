@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.data;
 
-import com.google.common.util.concurrent.SettableFuture;
 import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -27,18 +25,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
-import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,13 +50,18 @@ import org.slf4j.LoggerFactory;
  * <p>This service transmits all outgoing {@link BeamFnApi.Elements} messages to the first client
  * that connects.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements FnService, FnDataService {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDataService.class);
 
   public static GrpcDataService create(
-      ExecutorService executor, OutboundObserverFactory outboundObserverFactory) {
-    return new GrpcDataService(executor, outboundObserverFactory);
+      PipelineOptions options,
+      ExecutorService executor,
+      OutboundObserverFactory outboundObserverFactory) {
+    return new GrpcDataService(options, executor, outboundObserverFactory);
   }
 
   private final SettableFuture<BeamFnDataGrpcMultiplexer> connectedClient;
@@ -69,15 +74,29 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
    */
   private final Queue<BeamFnDataGrpcMultiplexer> additionalMultiplexers;
 
+  private final PipelineOptions options;
   private final ExecutorService executor;
   private final OutboundObserverFactory outboundObserverFactory;
 
   private GrpcDataService(
-      ExecutorService executor, OutboundObserverFactory outboundObserverFactory) {
+      PipelineOptions options,
+      ExecutorService executor,
+      OutboundObserverFactory outboundObserverFactory) {
     this.connectedClient = SettableFuture.create();
     this.additionalMultiplexers = new LinkedBlockingQueue<>();
+    this.options = options;
     this.executor = executor;
     this.outboundObserverFactory = outboundObserverFactory;
+  }
+
+  /** @deprecated This constructor is for migrating Dataflow purpose only. */
+  @Deprecated
+  public GrpcDataService() {
+    this.connectedClient = null;
+    this.additionalMultiplexers = null;
+    this.options = null;
+    this.executor = null;
+    this.outboundObserverFactory = null;
   }
 
   @Override
@@ -121,15 +140,14 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   @Override
   @SuppressWarnings("FutureReturnValueIgnored")
   public <T> InboundDataClient receive(
-      final LogicalEndpoint inputLocation,
-      Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> listener) {
+      final LogicalEndpoint inputLocation, Coder<T> coder, FnDataReceiver<T> listener) {
     LOG.debug(
-        "Registering receiver for instruction {} and target {}",
+        "Registering receiver for instruction {} and transform {}",
         inputLocation.getInstructionId(),
-        inputLocation.getTarget());
-    final BeamFnDataInboundObserver<T> observer =
-        BeamFnDataInboundObserver.forConsumer(coder, listener);
+        inputLocation.getTransformId());
+    final BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumer(
+            inputLocation, new DecodingFnDataReceiver<T>(coder, listener));
     if (connectedClient.isDone()) {
       try {
         connectedClient.get().registerConsumer(inputLocation, observer);
@@ -156,15 +174,17 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   }
 
   @Override
-  public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
-      LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder) {
+  public <T> CloseableFnDataReceiver<T> send(LogicalEndpoint outputLocation, Coder<T> coder) {
     LOG.debug(
-        "Creating sender for instruction {} and target {}",
+        "Creating sender for instruction {} and transform {}",
         outputLocation.getInstructionId(),
-        outputLocation.getTarget());
+        outputLocation.getTransformId());
     try {
       return BeamFnDataBufferingOutboundObserver.forLocation(
-          outputLocation, coder, connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());
+          options,
+          outputLocation,
+          coder,
+          connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);

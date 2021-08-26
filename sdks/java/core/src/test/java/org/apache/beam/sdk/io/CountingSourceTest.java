@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -33,6 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
@@ -91,7 +92,10 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class // This test fails if State is unsupported despite no direct usage.
+  })
   public void testBoundedSourceSplits() throws Exception {
     long numElements = 1000;
     long numSplits = 10;
@@ -213,7 +217,10 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class // This test fails if State is unsupported despite no direct usage.
+  })
   public void testUnboundedSourceSplits() throws Exception {
     long numElements = 1000;
     int numSplits = 10;

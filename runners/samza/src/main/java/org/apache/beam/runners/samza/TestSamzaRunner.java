@@ -15,8 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza;
+
+import static org.apache.samza.config.JobConfig.JOB_LOGGED_STORE_BASE_DIR;
+import static org.apache.samza.config.JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR;
 
 import java.io.File;
 import java.nio.file.Paths;
@@ -29,10 +31,10 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.commons.io.FileUtils;
-import org.apache.samza.config.JobConfig;
 
 /** Test {@link SamzaRunner}. */
 public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
+
   private final SamzaRunner delegate;
 
   public static TestSamzaRunner fromOptions(PipelineOptions options) {
@@ -52,8 +54,8 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
         // ignore
       }
 
-      config.put(JobConfig.JOB_LOGGED_STORE_BASE_DIR(), storeDir.getAbsolutePath());
-      config.put(JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR(), storeDir.getAbsolutePath());
+      config.put(JOB_LOGGED_STORE_BASE_DIR, storeDir.getAbsolutePath());
+      config.put(JOB_NON_LOGGED_STORE_BASE_DIR, storeDir.getAbsolutePath());
 
       if (samzaOptions.getConfigOverride() != null) {
         config.putAll(samzaOptions.getConfigOverride());

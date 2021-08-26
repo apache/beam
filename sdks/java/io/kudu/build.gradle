@@ -16,8 +16,17 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  classesTriggerCheckerBugs: [
+    'KuduTestUtils': 'TODO: file a bug report',
+    'KuduIOIT': 'TODO: file a bug report',
+    'KuduIO': 'TODO: file a bug report', // only crashes under Java 11
+    'KuduServiceImpl': 'TODO: file a bug report', // only crashes under Java 11
+  ],
+  automaticModuleName: 'org.apache.beam.sdk.io.kudu'
+)
+
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -32,19 +41,17 @@ test {
   }
 }
 
-def kudu_version = "1.4.0"
+def kudu_version = "1.11.1"
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow "org.apache.kudu:kudu-client:$kudu_version"
-  shadow library.java.slf4j_api
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile "org.apache.kudu:kudu-client:$kudu_version"
+  compile library.java.slf4j_api
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 

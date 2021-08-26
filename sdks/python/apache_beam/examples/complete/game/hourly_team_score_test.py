@@ -17,7 +17,7 @@
 
 """Test for the user_score example."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import unittest
@@ -42,14 +42,15 @@ class HourlyTeamScoreTest(unittest.TestCase):
 
   def test_hourly_team_score(self):
     with TestPipeline() as p:
-      result = (p
-                | beam.Create(HourlyTeamScoreTest.SAMPLE_DATA)
-                | hourly_team_score.HourlyTeamScore(
-                    start_min='2015-11-16-15-20',
-                    stop_min='2015-11-16-17-20',
-                    window_duration=60))
-      assert_that(result, equal_to([
-          ('team1', 18), ('team2', 2), ('team3', 13)]))
+      result = (
+          p
+          | beam.Create(HourlyTeamScoreTest.SAMPLE_DATA)
+          | hourly_team_score.HourlyTeamScore(
+              start_min='2015-11-16-15-20',
+              stop_min='2015-11-16-17-20',
+              window_duration=60))
+      assert_that(
+          result, equal_to([('team1', 18), ('team2', 2), ('team3', 13)]))
 
 
 if __name__ == '__main__':

@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Tracks the current value (and delta) for a {@link Gauge} metric.
@@ -33,7 +32,6 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
  * that case retrieving the underlying cell and reporting directly to it avoids a step of
  * indirection.
  */
-@Experimental(Experimental.Kind.METRICS)
 public class GaugeCell implements Gauge, MetricCell<GaugeData> {
 
   private final DirtyState dirty = new DirtyState();
@@ -45,9 +43,14 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
    * MetricsContainerImpl}, unless they need to define their own version of {@link
    * MetricsContainer}. These constructors are *only* public so runners can instantiate.
    */
-  @Internal
   public GaugeCell(MetricName name) {
     this.name = name;
+  }
+
+  @Override
+  public void reset() {
+    dirty.afterModification();
+    gaugeValue.set(GaugeData.empty());
   }
 
   /** Set the gauge to the given value. */
@@ -77,5 +80,22 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
   @Override
   public MetricName getName() {
     return name;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object object) {
+    if (object instanceof GaugeCell) {
+      GaugeCell gaugeCell = (GaugeCell) object;
+      return Objects.equals(dirty, gaugeCell.dirty)
+          && Objects.equals(gaugeValue.get(), gaugeCell.gaugeValue.get())
+          && Objects.equals(name, gaugeCell.name);
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(dirty, gaugeValue.get(), name);
   }
 }

@@ -38,6 +38,7 @@ an example:
 python juliaset_main.py \
   --job_name juliaset-$USER \
   --project YOUR-PROJECT \
+  --region GCE-REGION \
   --runner DataflowRunner \
   --setup_file ./setup.py \
   --staging_location gs://YOUR-BUCKET/juliaset/staging \
@@ -47,7 +48,7 @@ python juliaset_main.py \
 
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 

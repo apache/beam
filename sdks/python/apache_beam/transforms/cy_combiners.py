@@ -22,10 +22,9 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
-from builtins import object
+import operator
 
 from apache_beam.transforms import core
 
@@ -55,8 +54,9 @@ class AccumulatorCombineFn(core.CombineFn):
     return accumulator.extract_output()
 
   def __eq__(self, other):
-    return (isinstance(other, AccumulatorCombineFn)
-            and self._accumulator_type is other._accumulator_type)
+    return (
+        isinstance(other, AccumulatorCombineFn) and
+        self._accumulator_type is other._accumulator_type)
 
   def __hash__(self):
     return hash(self._accumulator_type)
@@ -170,6 +170,38 @@ class MeanInt64Accumulator(object):
     return self.sum // self.count if self.count else _NAN
 
 
+class DistributionInt64Accumulator(object):
+  def __init__(self):
+    self.sum = 0
+    self.count = 0
+    self.min = INT64_MAX
+    self.max = INT64_MIN
+
+  def add_input(self, element):
+    element = int(element)
+    if not INT64_MIN <= element <= INT64_MAX:
+      raise OverflowError(element)
+    self.sum += element
+    self.count += 1
+    self.min = min(self.min, element)
+    self.max = max(self.max, element)
+
+  def merge(self, accumulators):
+    for accumulator in accumulators:
+      self.sum += accumulator.sum
+      self.count += accumulator.count
+      self.min = min(self.min, accumulator.min)
+      self.max = max(self.max, accumulator.max)
+
+  def extract_output(self):
+    if not INT64_MIN <= self.sum <= INT64_MAX:
+      self.sum %= 2**64
+      if self.sum >= INT64_MAX:
+        self.sum -= 2**64
+    mean = self.sum // self.count if self.count else _NAN
+    return mean, self.sum, self.count, self.min, self.max
+
+
 class CountCombineFn(AccumulatorCombineFn):
   _accumulator_type = CountAccumulator
 
@@ -188,6 +220,10 @@ class MaxInt64Fn(AccumulatorCombineFn):
 
 class MeanInt64Fn(AccumulatorCombineFn):
   _accumulator_type = MeanInt64Accumulator
+
+
+class DistributionInt64Fn(AccumulatorCombineFn):
+  _accumulator_type = DistributionInt64Accumulator
 
 
 _POS_INF = float('inf')
@@ -331,3 +367,33 @@ class DataflowDistributionCounterFn(AccumulatorCombineFn):
   version.
   """
   _accumulator_type = DataflowDistributionCounter
+
+
+class ComparableValue(object):
+  """A way to allow comparing elements in a rich fashion."""
+
+  __slots__ = (
+      'value', '_less_than_fn', '_comparable_value', 'requires_hydration')
+
+  def __init__(self, value, less_than_fn, key_fn, _requires_hydration=False):
+    self.value = value
+    self.hydrate(less_than_fn, key_fn)
+    self.requires_hydration = _requires_hydration
+
+  def hydrate(self, less_than_fn, key_fn):
+    self._less_than_fn = less_than_fn if less_than_fn else operator.lt
+    self._comparable_value = key_fn(self.value) if key_fn else self.value
+    self.requires_hydration = False
+
+  def __lt__(self, other):
+    assert not self.requires_hydration
+    assert self._less_than_fn is other._less_than_fn
+    return self._less_than_fn(self._comparable_value, other._comparable_value)
+
+  def __repr__(self):
+    return 'ComparableValue[%s]' % str(self.value)
+
+  def __reduce__(self):
+    # Since we can't pickle the Compare and Key Fn we pass None and we signify
+    # that this object _requires_hydration.
+    return ComparableValue, (self.value, None, None, True)

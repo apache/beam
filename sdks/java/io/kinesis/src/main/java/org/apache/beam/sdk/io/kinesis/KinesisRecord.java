@@ -17,16 +17,20 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode;
+import static org.apache.commons.lang3.builder.HashCodeBuilder.reflectionHashCode;
 
 import com.amazonaws.services.kinesis.clientlibrary.types.ExtendedSequenceNumber;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.commons.lang.builder.EqualsBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** {@link UserRecord} enhanced with utility methods. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KinesisRecord {
 
   private Instant readTime;
@@ -73,11 +77,7 @@ public class KinesisRecord {
     return new ExtendedSequenceNumber(getSequenceNumber(), getSubSequenceNumber());
   }
 
-  /**
-   * *
-   *
-   * @return unique id of the record based on its position in the stream
-   */
+  /** @return The unique identifier of the record based on its position in the stream. */
   public byte[] getUniqueId() {
     return getExtendedSequenceNumber().toString().getBytes(StandardCharsets.UTF_8);
   }
@@ -99,7 +99,7 @@ public class KinesisRecord {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return EqualsBuilder.reflectionEquals(this, obj);
   }
 
@@ -112,14 +112,17 @@ public class KinesisRecord {
     return subSequenceNumber;
   }
 
+  /** @return The unique identifier of the record within its shard. */
   public String getSequenceNumber() {
     return sequenceNumber;
   }
 
+  /** @return The approximate time that the record was inserted into the stream. */
   public Instant getApproximateArrivalTimestamp() {
     return approximateArrivalTimestamp;
   }
 
+  /** @return The data blob. */
   public ByteBuffer getData() {
     return data;
   }

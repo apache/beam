@@ -17,19 +17,16 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.io.Files;
-import com.google.common.io.LineReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -39,12 +36,19 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.LineReader;
 import org.apache.commons.lang3.SystemUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -183,6 +187,51 @@ public class LocalFileSystemTest {
   }
 
   @Test
+  public void testMatchWithGlob() throws Exception {
+    String globPattern = "/A/a=[0-9][0-9][0-9]/*/*";
+    File baseFolder = temporaryFolder.newFolder("A");
+    File folder1 = new File(baseFolder, "a=100");
+    File folder2 = new File(baseFolder, "a=233");
+    File dataFolder1 = new File(folder1, "data1");
+    File dataFolder2 = new File(folder2, "data_dir");
+    File expectedFile1 = new File(dataFolder1, "file1");
+    File expectedFile2 = new File(dataFolder2, "data_file2");
+
+    createEmptyFile(expectedFile1);
+    createEmptyFile(expectedFile2);
+
+    List<String> expected =
+        ImmutableList.of(expectedFile1.getAbsolutePath(), expectedFile2.getAbsolutePath());
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath(), globPattern);
+
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchRelativeWildcardPath() throws Exception {
+    File baseFolder = temporaryFolder.newFolder("A");
+    File expectedFile1 = new File(baseFolder, "file1");
+
+    expectedFile1.createNewFile();
+
+    List<String> expected = ImmutableList.of(expectedFile1.getAbsolutePath());
+
+    // This no longer works:
+    //     System.setProperty("user.dir", temporaryFolder.getRoot().toString());
+    // There is no way to set the working directory without forking. Instead we
+    // call in to the helper method that gives just about as good test coverage.
+    List<MatchResult> matchResults =
+        localFileSystem.match(temporaryFolder.getRoot().toString(), ImmutableList.of("A/*"));
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
   public void testMatchExact() throws Exception {
     List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
     temporaryFolder.newFile("aa");
@@ -194,6 +243,25 @@ public class LocalFileSystemTest {
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchDirectory() throws Exception {
+    final Path dir = temporaryFolder.newFolder("dir").toPath();
+    final MatchResult matchResult =
+        Iterables.getOnlyElement(localFileSystem.match(Collections.singletonList(dir.toString())));
+    assertThat(
+        matchResult,
+        equalTo(
+            MatchResult.create(
+                MatchResult.Status.OK,
+                ImmutableList.of(
+                    MatchResult.Metadata.builder()
+                        .setResourceId(LocalResourceId.fromPath(dir, true))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes(dir.toFile().length())
+                        .setLastModifiedMillis(dir.toFile().lastModified())
+                        .build()))));
   }
 
   @Test
@@ -249,8 +317,11 @@ public class LocalFileSystemTest {
     }
     String directory = expectedFile.substring(0, slashIndex);
     String relative = expectedFile.substring(slashIndex + 1);
-    System.setProperty("user.dir", directory);
-    List<MatchResult> results = localFileSystem.match(ImmutableList.of(relative));
+    // This no longer works:
+    //     System.setProperty("user.dir", directory);
+    // There is no way to set the working directory without forking. Instead we
+    // call in to the helper method that gives just about as good test coverage.
+    List<MatchResult> results = localFileSystem.match(directory, ImmutableList.of(relative));
     assertThat(
         toFilenames(results), containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
@@ -337,6 +408,8 @@ public class LocalFileSystemTest {
 
   @Test
   public void testMatchWithoutParentDirectory() throws Exception {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10741
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     Path pattern =
         LocalResourceId.fromPath(temporaryFolder.getRoot().toPath(), true /* isDirectory */)
             .resolve("non_existing_dir", StandardResolveOptions.RESOLVE_DIRECTORY)
@@ -346,7 +419,9 @@ public class LocalFileSystemTest {
   }
 
   @Test
-  public void testMatchNewResource() throws Exception {
+  public void testMatchNewResource() {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10742
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     LocalResourceId fileResource =
         localFileSystem.matchNewResource("/some/test/resource/path", false /* isDirectory */);
     LocalResourceId dirResource =
@@ -363,6 +438,12 @@ public class LocalFileSystemTest {
             .resolve("path", StandardResolveOptions.RESOLVE_DIRECTORY),
         equalTo(dirResource.getCurrentDirectory()));
     assertThat(dirResource.toString(), equalTo("/some/test/resource/path/"));
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> localFileSystem.matchNewResource("/some/test/resource/path/", false));
+    assertTrue(exception.getMessage().startsWith("Expected file path but received directory path"));
   }
 
   private void createFileWithContent(Path path, String content) throws Exception {
@@ -400,5 +481,11 @@ public class LocalFileSystemTest {
             })
         .transform(metadata -> ((LocalResourceId) metadata.resourceId()).getPath().toString())
         .toList();
+  }
+
+  private static void createEmptyFile(File file) throws IOException {
+    if (!file.getParentFile().mkdirs() || !file.createNewFile()) {
+      throw new IOException("Failed creating empty file " + file.getAbsolutePath());
+    }
   }
 }

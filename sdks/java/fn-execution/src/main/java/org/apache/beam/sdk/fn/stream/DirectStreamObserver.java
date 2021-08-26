@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.stream;
 
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,14 +38,14 @@ import org.slf4j.LoggerFactory;
  */
 @ThreadSafe
 public final class DirectStreamObserver<T> implements StreamObserver<T> {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DirectStreamObserver.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
   private static final int DEFAULT_MAX_MESSAGES_BEFORE_CHECK = 100;
 
   private final Phaser phaser;
   private final CallStreamObserver<T> outboundObserver;
   private final int maxMessagesBeforeCheck;
 
-  private int numberOfMessagesBeforeReadyCheck;
+  private AtomicInteger numMessages = new AtomicInteger();
 
   public DirectStreamObserver(Phaser phaser, CallStreamObserver<T> outboundObserver) {
     this(phaser, outboundObserver, DEFAULT_MAX_MESSAGES_BEFORE_CHECK);
@@ -60,9 +60,8 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   @Override
   public void onNext(T value) {
-    numberOfMessagesBeforeReadyCheck += 1;
-    if (numberOfMessagesBeforeReadyCheck >= maxMessagesBeforeCheck) {
-      numberOfMessagesBeforeReadyCheck = 0;
+    if (maxMessagesBeforeCheck <= 1
+        || numMessages.incrementAndGet() % maxMessagesBeforeCheck == 0) {
       int waitTime = 1;
       int totalTimeWaited = 0;
       int phase = phaser.getPhase();
@@ -81,14 +80,14 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         // If the phase didn't change, this means that the installed onReady callback had not
         // been invoked.
         if (phase == phaser.getPhase()) {
-          LOGGER.info(
+          LOG.info(
               "Output channel stalled for {}s, outbound thread {}. See: "
                   + "https://issues.apache.org/jira/browse/BEAM-4280 for the history for "
                   + "this issue.",
               totalTimeWaited,
               Thread.currentThread().getName());
         } else {
-          LOGGER.debug(
+          LOG.debug(
               "Output channel stalled for {}s, outbound thread {}.",
               totalTimeWaited,
               Thread.currentThread().getName());

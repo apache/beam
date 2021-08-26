@@ -15,15 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.junit.Assert.assertEquals;
 
 import com.google.auth.Credentials;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.PublishRequest;
@@ -49,6 +45,10 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -66,9 +66,9 @@ public class PubsubGrpcClientTest {
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
   private static final SubscriptionPath SUBSCRIPTION =
       PubsubClient.subscriptionPathFromName("testProject", "testSubscription");
-  private static final long REQ_TIME = 1234L;
-  private static final long PUB_TIME = 3456L;
-  private static final long MESSAGE_TIME = 6789L;
+  private static final long REQ_TIME_MS = 1234L;
+  private static final long PUB_TIME_MS = 3456L;
+  private static final long MESSAGE_TIME_MS = 6789L;
   private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
   private static final String ID_ATTRIBUTE = "id";
   private static final String MESSAGE_ID = "testMessageId";
@@ -84,10 +84,14 @@ public class PubsubGrpcClientTest {
         String.format(
             "%s-%s", PubsubGrpcClientTest.class.getName(), ThreadLocalRandom.current().nextInt());
     inProcessChannel = InProcessChannelBuilder.forName(channelName).directExecutor().build();
+  }
+
+  protected void initializeClient(
+      @Nullable String timestampAttribute, @Nullable String idAttribute) {
     Credentials testCredentials = new TestCredential();
     client =
         new PubsubGrpcClient(
-            TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, 10, inProcessChannel, testCredentials);
+            timestampAttribute, idAttribute, 10, inProcessChannel, testCredentials);
   }
 
   @After
@@ -98,6 +102,7 @@ public class PubsubGrpcClientTest {
 
   @Test
   public void pullOneMessage() throws IOException {
+    initializeClient(null, null);
     String expectedSubscription = SUBSCRIPTION.getPath();
     final PullRequest expectedRequest =
         PullRequest.newBuilder()
@@ -107,18 +112,14 @@ public class PubsubGrpcClientTest {
             .build();
     Timestamp timestamp =
         Timestamp.newBuilder()
-            .setSeconds(PUB_TIME / 1000)
-            .setNanos((int) (PUB_TIME % 1000) * 1000)
+            .setSeconds(PUB_TIME_MS / 1000)
+            .setNanos((int) (PUB_TIME_MS % 1000) * 1000 * 1000)
             .build();
     PubsubMessage expectedPubsubMessage =
         PubsubMessage.newBuilder()
             .setMessageId(MESSAGE_ID)
             .setData(ByteString.copyFrom(DATA.getBytes(StandardCharsets.UTF_8)))
             .setPublishTime(timestamp)
-            .putAllAttributes(ATTRIBUTES)
-            .putAllAttributes(
-                ImmutableMap.of(
-                    TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME), ID_ATTRIBUTE, RECORD_ID))
             .build();
     ReceivedMessage expectedReceivedMessage =
         ReceivedMessage.newBuilder().setMessage(expectedPubsubMessage).setAckId(ACK_ID).build();
@@ -140,14 +141,73 @@ public class PubsubGrpcClientTest {
     Server server =
         InProcessServerBuilder.forName(channelName).addService(subscriberImplBase).build().start();
     try {
-      List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
-      assertEquals(1, acutalMessages.size());
-      IncomingMessage actualMessage = acutalMessages.get(0);
-      assertEquals(ACK_ID, actualMessage.ackId);
-      assertEquals(DATA, new String(actualMessage.elementBytes, StandardCharsets.UTF_8));
-      assertEquals(RECORD_ID, actualMessage.recordId);
-      assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch);
-      assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch);
+      List<IncomingMessage> actualMessages = client.pull(REQ_TIME_MS, SUBSCRIPTION, 10, true);
+      assertEquals(1, actualMessages.size());
+      IncomingMessage actualMessage = actualMessages.get(0);
+      assertEquals(ACK_ID, actualMessage.ackId());
+      assertEquals(DATA, actualMessage.message().getData().toStringUtf8());
+      assertEquals(MESSAGE_ID, actualMessage.recordId());
+      assertEquals(REQ_TIME_MS, actualMessage.requestTimeMsSinceEpoch());
+      assertEquals(PUB_TIME_MS, actualMessage.timestampMsSinceEpoch());
+      assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
+  @Test
+  public void pullOneMessageUsingAttributes() throws IOException {
+    initializeClient(TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE);
+    String expectedSubscription = SUBSCRIPTION.getPath();
+    final PullRequest expectedRequest =
+        PullRequest.newBuilder()
+            .setSubscription(expectedSubscription)
+            .setReturnImmediately(true)
+            .setMaxMessages(10)
+            .build();
+    Timestamp timestamp =
+        Timestamp.newBuilder()
+            .setSeconds(PUB_TIME_MS / 1000)
+            .setNanos((int) (PUB_TIME_MS % 1000) * 1000 * 1000)
+            .build();
+    PubsubMessage expectedPubsubMessage =
+        PubsubMessage.newBuilder()
+            .setMessageId(MESSAGE_ID)
+            .setData(ByteString.copyFrom(DATA.getBytes(StandardCharsets.UTF_8)))
+            .setPublishTime(timestamp)
+            .putAllAttributes(ATTRIBUTES)
+            .putAllAttributes(
+                ImmutableMap.of(
+                    TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME_MS), ID_ATTRIBUTE, RECORD_ID))
+            .build();
+    ReceivedMessage expectedReceivedMessage =
+        ReceivedMessage.newBuilder().setMessage(expectedPubsubMessage).setAckId(ACK_ID).build();
+    final PullResponse response =
+        PullResponse.newBuilder()
+            .addAllReceivedMessages(ImmutableList.of(expectedReceivedMessage))
+            .build();
+
+    final List<PullRequest> requestsReceived = new ArrayList<>();
+    SubscriberImplBase subscriberImplBase =
+        new SubscriberImplBase() {
+          @Override
+          public void pull(PullRequest request, StreamObserver<PullResponse> responseObserver) {
+            requestsReceived.add(request);
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+          }
+        };
+    Server server =
+        InProcessServerBuilder.forName(channelName).addService(subscriberImplBase).build().start();
+    try {
+      List<IncomingMessage> actualMessages = client.pull(REQ_TIME_MS, SUBSCRIPTION, 10, true);
+      assertEquals(1, actualMessages.size());
+      IncomingMessage actualMessage = actualMessages.get(0);
+      assertEquals(ACK_ID, actualMessage.ackId());
+      assertEquals(DATA, actualMessage.message().getData().toStringUtf8());
+      assertEquals(RECORD_ID, actualMessage.recordId());
+      assertEquals(REQ_TIME_MS, actualMessage.requestTimeMsSinceEpoch());
+      assertEquals(MESSAGE_TIME_MS, actualMessage.timestampMsSinceEpoch());
       assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));
     } finally {
       server.shutdownNow();
@@ -156,6 +216,7 @@ public class PubsubGrpcClientTest {
 
   @Test
   public void publishOneMessage() throws IOException {
+    initializeClient(TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE);
     String expectedTopic = TOPIC.getPath();
     PubsubMessage expectedPubsubMessage =
         PubsubMessage.newBuilder()
@@ -163,7 +224,7 @@ public class PubsubGrpcClientTest {
             .putAllAttributes(ATTRIBUTES)
             .putAllAttributes(
                 ImmutableMap.of(
-                    TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME), ID_ATTRIBUTE, RECORD_ID))
+                    TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME_MS), ID_ATTRIBUTE, RECORD_ID))
             .build();
     final PublishRequest expectedRequest =
         PublishRequest.newBuilder()
@@ -188,8 +249,13 @@ public class PubsubGrpcClientTest {
         InProcessServerBuilder.forName(channelName).addService(publisherImplBase).build().start();
     try {
       OutgoingMessage actualMessage =
-          new OutgoingMessage(
-              DATA.getBytes(StandardCharsets.UTF_8), ATTRIBUTES, MESSAGE_TIME, RECORD_ID);
+          OutgoingMessage.of(
+              com.google.pubsub.v1.PubsubMessage.newBuilder()
+                  .setData(ByteString.copyFromUtf8(DATA))
+                  .putAllAttributes(ATTRIBUTES)
+                  .build(),
+              MESSAGE_TIME_MS,
+              RECORD_ID);
       int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
       assertEquals(1, n);
       assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));

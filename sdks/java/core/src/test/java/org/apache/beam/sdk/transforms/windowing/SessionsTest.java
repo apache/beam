@@ -20,13 +20,12 @@ package org.apache.beam.sdk.transforms.windowing;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.testing.WindowFnTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -112,15 +112,6 @@ public class SessionsTest {
     thrown.expect(IncompatibleWindowException.class);
     Sessions.withGapDuration(new Duration(10))
         .verifyCompatibility(FixedWindows.of(new Duration(10)));
-  }
-
-  /** Validates that the output timestamp for aggregate data falls within the acceptable range. */
-  @Test
-  public void testValidOutputTimes() throws Exception {
-    for (long timestamp : Arrays.asList(200, 800, 700)) {
-      WindowFnTestUtils.validateGetOutputTimestamp(
-          Sessions.withGapDuration(Duration.millis(500)), timestamp);
-    }
   }
 
   /**

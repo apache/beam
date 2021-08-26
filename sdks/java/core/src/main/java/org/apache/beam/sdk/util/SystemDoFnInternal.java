@@ -22,6 +22,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Annotation to mark {@code DoFns} as an internal component of the Beam SDK.
@@ -29,6 +30,7 @@ import java.lang.annotation.Target;
  * <p>This is internal to the Beam SDK.
  */
 @Documented
+@Internal
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface SystemDoFnInternal {}

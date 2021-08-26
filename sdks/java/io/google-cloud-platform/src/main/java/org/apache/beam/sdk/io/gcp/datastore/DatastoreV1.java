@@ -15,12 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.datastore;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Verify.verify;
 import static com.google.datastore.v1.PropertyFilter.Operator.EQUAL;
 import static com.google.datastore.v1.PropertyOrder.Direction.DESCENDING;
 import static com.google.datastore.v1.QueryResultBatch.MoreResultsType.NOT_FINISHED;
@@ -30,17 +26,15 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeFilter;
 import static com.google.datastore.v1.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.datastore.v1.CommitRequest;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
@@ -67,13 +61,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -91,12 +84,17 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,6 +167,13 @@ import org.slf4j.LoggerFactory;
  * p.run();
  * }</pre>
  *
+ * <p>Write and delete operations will follow a gradual ramp-up by default in order to protect Cloud
+ * Datastore from potential overload. This rate limit follows a heuristic based on the expected
+ * number of workers. To optimize throughput in this initial stage, you can provide a hint to the
+ * relevant {@code PTransform} by calling {@code withHintNumWorkers}, e.g., {@code
+ * DatastoreIO.v1().deleteKey().withHintNumWorkers(numWorkers)}. While not recommended, you can also
+ * turn this off via {@code .withRampupThrottlingDisabled()}.
+ *
  * <p>{@link Entity Entities} in the {@code PCollection} to be written or deleted must have complete
  * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the {@code
  * Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than {@code projectId}
@@ -198,6 +203,9 @@ import org.slf4j.LoggerFactory;
  *
  * @see PipelineRunner
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DatastoreV1 {
 
   // A package-private constructor to prevent direct instantiation from outside of this package
@@ -209,10 +217,10 @@ public class DatastoreV1 {
    * size; it is adjusted at runtime based on the performance of previous writes (see {@link
    * DatastoreV1.WriteBatcher}).
    *
-   * <p>Testing has found that a batch of 200 entities will generally finish within the timeout even
+   * <p>Testing has found that a batch of 50 entities will generally finish within the timeout even
    * in adverse conditions.
    */
-  @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_START = 200;
+  @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_START = 50;
 
   /**
    * When choosing the number of updates in a single RPC, never exceed the maximum allowed by the
@@ -225,7 +233,7 @@ public class DatastoreV1 {
    * number of entities per request may be lower when we flush for the end of a bundle or if we hit
    * {@link DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
    */
-  @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 10;
+  @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 5;
 
   /**
    * Cloud Datastore has a limit of 10MB per RPC, so we also flush if the total size of mutations
@@ -235,7 +243,14 @@ public class DatastoreV1 {
   @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 9_000_000;
 
   /**
-   * Non-retryable errors. See https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes .
+   * Default hint for the expected number of workers in the ramp-up throttling step. This is used to
+   * approximate a global rate limit, so a mismatch can yield slightly elevated throttling.
+   * Reconfigure on the {@link Mutate} object to align with the worker count and improve throughput.
+   */
+  private static final int DEFAULT_HINT_NUM_WORKERS = 500;
+
+  /**
+   * Non-retryable errors. See https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes.
    */
   private static final Set<Code> NON_RETRYABLE_ERRORS =
       ImmutableSet.of(
@@ -280,22 +295,17 @@ public class DatastoreV1 {
      */
     static final int QUERY_BATCH_LIMIT = 500;
 
-    @Nullable
-    public abstract ValueProvider<String> getProjectId();
+    public abstract @Nullable ValueProvider<String> getProjectId();
 
-    @Nullable
-    public abstract Query getQuery();
+    public abstract @Nullable Query getQuery();
 
-    @Nullable
-    public abstract ValueProvider<String> getLiteralGqlQuery();
+    public abstract @Nullable ValueProvider<String> getLiteralGqlQuery();
 
-    @Nullable
-    public abstract ValueProvider<String> getNamespace();
+    public abstract @Nullable ValueProvider<String> getNamespace();
 
     public abstract int getNumQuerySplits();
 
-    @Nullable
-    public abstract String getLocalhost();
+    public abstract @Nullable String getLocalhost();
 
     @Override
     public abstract String toString();
@@ -369,18 +379,9 @@ public class DatastoreV1 {
       return entity.getProperties().get("timestamp").getTimestampValue().getSeconds() * 1000000;
     }
 
-    /**
-     * Get the estimated size of the data returned by the given query.
-     *
-     * <p>Cloud Datastore provides no way to get a good estimate of how large the result of a query
-     * entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind is
-     * specified in the query.
-     *
-     * <p>See https://cloud.google.com/datastore/docs/concepts/stats.
-     */
-    static long getEstimatedSizeBytes(Datastore datastore, Query query, @Nullable String namespace)
-        throws DatastoreException {
-      String ourKind = query.getKind(0).getName();
+    /** Retrieve latest table statistics for a given kind, namespace, and datastore. */
+    private static Entity getLatestTableStats(
+        String ourKind, @Nullable String namespace, Datastore datastore) throws DatastoreException {
       long latestTimestamp = queryLatestStatisticsTimestamp(datastore, namespace);
       LOG.info("Latest stats timestamp for kind {} is {}", ourKind, latestTimestamp);
 
@@ -407,7 +408,22 @@ public class DatastoreV1 {
         throw new NoSuchElementException(
             "Datastore statistics for kind " + ourKind + " unavailable");
       }
-      Entity entity = batch.getEntityResults(0).getEntity();
+      return batch.getEntityResults(0).getEntity();
+    }
+
+    /**
+     * Get the estimated size of the data returned by the given query.
+     *
+     * <p>Cloud Datastore provides no way to get a good estimate of how large the result of a query
+     * entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind is
+     * specified in the query.
+     *
+     * <p>See https://cloud.google.com/datastore/docs/concepts/stats.
+     */
+    static long getEstimatedSizeBytes(Datastore datastore, Query query, @Nullable String namespace)
+        throws DatastoreException {
+      String ourKind = query.getKind(0).getName();
+      Entity entity = getLatestTableStats(ourKind, namespace, datastore);
       return entity.getProperties().get("entity_bytes").getIntegerValue();
     }
 
@@ -539,19 +555,17 @@ public class DatastoreV1 {
      * ensure that the query is originated from trusted sources to avoid any security
      * vulnerabilities via SQL Injection.
      *
-     * <p><b><i>Experimental</i></b>: Cloud Datastore does not a provide a clean way to translate a
-     * gql query string to {@link Query}, so we end up making a query to the service for translation
-     * but this may read the actual data, although it will be a small amount. It needs more
-     * validation through production use cases before marking it as stable.
+     * <p>Cloud Datastore does not a provide a clean way to translate a gql query string to {@link
+     * Query}, so we end up making a query to the service for translation but this may read the
+     * actual data, although it will be a small amount. It needs more validation through production
+     * use cases before marking it as stable.
      */
-    @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withLiteralGqlQuery(String gqlQuery) {
       checkArgument(gqlQuery != null, "gqlQuery can not be null");
       return toBuilder().setLiteralGqlQuery(StaticValueProvider.of(gqlQuery)).build();
     }
 
     /** Same as {@link Read#withLiteralGqlQuery(String)} but with a {@link ValueProvider}. */
-    @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withLiteralGqlQuery(ValueProvider<String> gqlQuery) {
       checkArgument(gqlQuery != null, "gqlQuery can not be null");
       if (gqlQuery.isAccessible()) {
@@ -599,6 +613,23 @@ public class DatastoreV1 {
      */
     public DatastoreV1.Read withLocalhost(String localhost) {
       return toBuilder().setLocalhost(localhost).build();
+    }
+
+    /** Returns Number of entities available for reading. */
+    public long getNumEntities(
+        PipelineOptions options, String ourKind, @Nullable String namespace) {
+      try {
+        V1Options v1Options = V1Options.from(getProjectId(), getNamespace(), getLocalhost());
+        V1DatastoreFactory datastoreFactory = new V1DatastoreFactory();
+        Datastore datastore =
+            datastoreFactory.getDatastore(
+                options, v1Options.getProjectId(), v1Options.getLocalhost());
+
+        Entity entity = getLatestTableStats(ourKind, namespace, datastore);
+        return entity.getProperties().get("count").getIntegerValue();
+      } catch (Exception e) {
+        return -1;
+      }
     }
 
     @Override
@@ -667,8 +698,8 @@ public class DatastoreV1 {
     @VisibleForTesting
     static class V1Options implements HasDisplayData, Serializable {
       private final ValueProvider<String> project;
-      @Nullable private final ValueProvider<String> namespace;
-      @Nullable private final String localhost;
+      private final @Nullable ValueProvider<String> namespace;
+      private final @Nullable String localhost;
 
       private V1Options(
           ValueProvider<String> project, ValueProvider<String> namespace, String localhost) {
@@ -691,8 +722,7 @@ public class DatastoreV1 {
         return project.get();
       }
 
-      @Nullable
-      public String getNamespace() {
+      public @Nullable String getNamespace() {
         return namespace == null ? null : namespace.get();
       }
 
@@ -700,13 +730,11 @@ public class DatastoreV1 {
         return project;
       }
 
-      @Nullable
-      public ValueProvider<String> getNamespaceValueProvider() {
+      public @Nullable ValueProvider<String> getNamespaceValueProvider() {
         return namespace;
       }
 
-      @Nullable
-      public String getLocalhost() {
+      public @Nullable String getLocalhost() {
         return localhost;
       }
 
@@ -957,7 +985,7 @@ public class DatastoreV1 {
    * using {@link DatastoreV1.Write#withProjectId}.
    */
   public Write write() {
-    return new Write(null, null);
+    return new Write(null, null, true, DEFAULT_HINT_NUM_WORKERS);
   }
 
   /**
@@ -965,7 +993,7 @@ public class DatastoreV1 {
    * using {@link DeleteEntity#withProjectId}.
    */
   public DeleteEntity deleteEntity() {
-    return new DeleteEntity(null, null);
+    return new DeleteEntity(null, null, true, DEFAULT_HINT_NUM_WORKERS);
   }
 
   /**
@@ -973,7 +1001,7 @@ public class DatastoreV1 {
    * {@link DeleteKey#withProjectId}.
    */
   public DeleteKey deleteKey() {
-    return new DeleteKey(null, null);
+    return new DeleteKey(null, null, true, DEFAULT_HINT_NUM_WORKERS);
   }
 
   /**
@@ -982,12 +1010,17 @@ public class DatastoreV1 {
    * @see DatastoreIO
    */
   public static class Write extends Mutate<Entity> {
+
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
      * is {@code null} at instantiation time, an error will be thrown.
      */
-    Write(@Nullable ValueProvider<String> projectId, @Nullable String localhost) {
-      super(projectId, localhost, new UpsertFn());
+    Write(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        int hintNumWorkers) {
+      super(projectId, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
     }
 
     /** Returns a new {@link Write} that writes to the Cloud Datastore for the specified project. */
@@ -999,7 +1032,7 @@ public class DatastoreV1 {
     /** Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}. */
     public Write withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      return new Write(projectId, localhost);
+      return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1008,7 +1041,21 @@ public class DatastoreV1 {
      */
     public Write withLocalhost(String localhost) {
       checkArgument(localhost != null, "localhost can not be null");
-      return new Write(projectId, localhost);
+      return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /** Returns a new {@link Write} that does not throttle during ramp-up. */
+    public Write withRampupThrottlingDisabled() {
+      return new Write(projectId, localhost, false, hintNumWorkers);
+    }
+
+    /**
+     * Returns a new {@link Write} with a different worker count hint for ramp-up throttling. Value
+     * is ignored if ramp-up throttling is disabled.
+     */
+    public Write withHintNumWorkers(int hintNumWorkers) {
+      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
     }
   }
 
@@ -1018,12 +1065,17 @@ public class DatastoreV1 {
    * @see DatastoreIO
    */
   public static class DeleteEntity extends Mutate<Entity> {
+
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
      * is {@code null} at instantiation time, an error will be thrown.
      */
-    DeleteEntity(@Nullable ValueProvider<String> projectId, @Nullable String localhost) {
-      super(projectId, localhost, new DeleteEntityFn());
+    DeleteEntity(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        int hintNumWorkers) {
+      super(projectId, localhost, new DeleteEntityFn(), throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1038,7 +1090,7 @@ public class DatastoreV1 {
     /** Same as {@link DeleteEntity#withProjectId(String)} but with a {@link ValueProvider}. */
     public DeleteEntity withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      return new DeleteEntity(projectId, localhost);
+      return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1047,7 +1099,21 @@ public class DatastoreV1 {
      */
     public DeleteEntity withLocalhost(String localhost) {
       checkArgument(localhost != null, "localhost can not be null");
-      return new DeleteEntity(projectId, localhost);
+      return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /** Returns a new {@link DeleteEntity} that does not throttle during ramp-up. */
+    public DeleteEntity withRampupThrottlingDisabled() {
+      return new DeleteEntity(projectId, localhost, false, hintNumWorkers);
+    }
+
+    /**
+     * Returns a new {@link DeleteEntity} with a different worker count hint for ramp-up throttling.
+     * Value is ignored if ramp-up throttling is disabled.
+     */
+    public DeleteEntity withHintNumWorkers(int hintNumWorkers) {
+      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
     }
   }
 
@@ -1058,12 +1124,17 @@ public class DatastoreV1 {
    * @see DatastoreIO
    */
   public static class DeleteKey extends Mutate<Key> {
+
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
      * is {@code null} at instantiation time, an error will be thrown.
      */
-    DeleteKey(@Nullable ValueProvider<String> projectId, @Nullable String localhost) {
-      super(projectId, localhost, new DeleteKeyFn());
+    DeleteKey(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        int hintNumWorkers) {
+      super(projectId, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1081,13 +1152,27 @@ public class DatastoreV1 {
      */
     public DeleteKey withLocalhost(String localhost) {
       checkArgument(localhost != null, "localhost can not be null");
-      return new DeleteKey(projectId, localhost);
+      return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /** Same as {@link DeleteKey#withProjectId(String)} but with a {@link ValueProvider}. */
     public DeleteKey withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      return new DeleteKey(projectId, localhost);
+      return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /** Returns a new {@link DeleteKey} that does not throttle during ramp-up. */
+    public DeleteKey withRampupThrottlingDisabled() {
+      return new DeleteKey(projectId, localhost, false, hintNumWorkers);
+    }
+
+    /**
+     * Returns a new {@link DeleteKey} with a different worker count hint for ramp-up throttling.
+     * Value is ignored if ramp-up throttling is disabled.
+     */
+    public DeleteKey withHintNumWorkers(int hintNumWorkers) {
+      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
     }
   }
 
@@ -1100,10 +1185,15 @@ public class DatastoreV1 {
    * provided, as the commits are retried when failures occur.
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
+
     protected ValueProvider<String> projectId;
-    @Nullable protected String localhost;
+    protected @Nullable String localhost;
+    protected boolean throttleRampup;
+    protected int hintNumWorkers;
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
+
+    private final RampupThrottlingFn<Mutation> rampupThrottlingFn;
 
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
@@ -1112,10 +1202,15 @@ public class DatastoreV1 {
     Mutate(
         @Nullable ValueProvider<String> projectId,
         @Nullable String localhost,
-        SimpleFunction<T, Mutation> mutationFn) {
+        SimpleFunction<T, Mutation> mutationFn,
+        boolean throttleRampup,
+        int hintNumWorkers) {
       this.projectId = projectId;
       this.localhost = localhost;
+      this.throttleRampup = throttleRampup;
+      this.hintNumWorkers = hintNumWorkers;
       this.mutationFn = checkNotNull(mutationFn);
+      this.rampupThrottlingFn = new RampupThrottlingFn<>(hintNumWorkers);
     }
 
     @Override
@@ -1126,10 +1221,15 @@ public class DatastoreV1 {
       }
       checkArgument(mutationFn != null, "mutationFn can not be null");
 
-      input
-          .apply("Convert to Mutation", MapElements.via(mutationFn))
-          .apply(
-              "Write Mutation to Datastore", ParDo.of(new DatastoreWriterFn(projectId, localhost)));
+      PCollection<Mutation> intermediateOutput =
+          input.apply("Convert to Mutation", MapElements.via(mutationFn));
+      if (throttleRampup) {
+        intermediateOutput =
+            intermediateOutput.apply(
+                "Enforce ramp-up through throttling", ParDo.of(rampupThrottlingFn));
+      }
+      intermediateOutput.apply(
+          "Write Mutation to Datastore", ParDo.of(new DatastoreWriterFn(projectId, localhost)));
 
       return PDone.in(input.getPipeline());
     }
@@ -1148,6 +1248,9 @@ public class DatastoreV1 {
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId).withLabel("Output Project"))
           .include("mutationFn", mutationFn);
+      if (throttleRampup) {
+        builder.include("rampupThrottlingFn", rampupThrottlingFn);
+      }
     }
 
     public String getProjectId() {
@@ -1158,6 +1261,7 @@ public class DatastoreV1 {
   /** Determines batch sizes for commit RPCs. */
   @VisibleForTesting
   interface WriteBatcher {
+
     /** Call before using this WriteBatcher. */
     void start();
 
@@ -1182,8 +1286,9 @@ public class DatastoreV1 {
    */
   @VisibleForTesting
   static class WriteBatcherImpl implements WriteBatcher, Serializable {
+
     /** Target time per RPC for writes. */
-    static final int DATASTORE_BATCH_TARGET_LATENCY_MS = 5000;
+    static final int DATASTORE_BATCH_TARGET_LATENCY_MS = 6000;
 
     @Override
     public void start() {
@@ -1204,12 +1309,11 @@ public class DatastoreV1 {
         return DATASTORE_BATCH_UPDATE_ENTITIES_START;
       }
       long recentMeanLatency = Math.max(meanLatencyPerEntityMs.get(timeSinceEpochMillis), 1);
+      long targetBatchSize = DATASTORE_BATCH_TARGET_LATENCY_MS / recentMeanLatency;
       return (int)
           Math.max(
               DATASTORE_BATCH_UPDATE_ENTITIES_MIN,
-              Math.min(
-                  DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT,
-                  DATASTORE_BATCH_TARGET_LATENCY_MS / recentMeanLatency));
+              Math.min(DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT, targetBatchSize));
     }
 
     private transient MovingAverage meanLatencyPerEntityMs;
@@ -1230,22 +1334,27 @@ public class DatastoreV1 {
    */
   @VisibleForTesting
   static class DatastoreWriterFn extends DoFn<Mutation, Void> {
+
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
     private final ValueProvider<String> projectId;
-    @Nullable private final String localhost;
+    private final @Nullable String localhost;
     private transient Datastore datastore;
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
     private final List<Mutation> mutations = new ArrayList<>();
     private int mutationsSize = 0; // Accumulated size of protos in mutations.
     private WriteBatcher writeBatcher;
-    private transient AdaptiveThrottler throttler;
-    private final Counter throttledSeconds =
-        Metrics.counter(DatastoreWriterFn.class, "cumulativeThrottlingSeconds");
+    private transient AdaptiveThrottler adaptiveThrottler;
+    private final Counter throttlingMsecs =
+        Metrics.counter(DatastoreWriterFn.class, "throttling-msecs");
     private final Counter rpcErrors =
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
     private final Counter rpcSuccesses =
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
+    private final Counter entitiesMutated =
+        Metrics.counter(DatastoreWriterFn.class, "datastoreEntitiesMutated");
+    private final Distribution latencyMsPerMutation =
+        Metrics.distribution(DatastoreWriterFn.class, "datastoreLatencyMsPerMutation");
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
@@ -1281,9 +1390,9 @@ public class DatastoreV1 {
     public void startBundle(StartBundleContext c) {
       datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId.get(), localhost);
       writeBatcher.start();
-      if (throttler == null) {
+      if (adaptiveThrottler == null) {
         // Initialize throttler at first use, because it is not serializable.
-        throttler = new AdaptiveThrottler(120000, 10000, 1.25);
+        adaptiveThrottler = new AdaptiveThrottler(120000, 10000, 1.25);
       }
     }
 
@@ -1331,9 +1440,9 @@ public class DatastoreV1 {
         commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
         long startTime = System.currentTimeMillis(), endTime;
 
-        if (throttler.throttleRequest(startTime)) {
+        if (adaptiveThrottler.throttleRequest(startTime)) {
           LOG.info("Delaying request due to previous failures");
-          throttledSeconds.inc(WriteBatcherImpl.DATASTORE_BATCH_TARGET_LATENCY_MS / 1000);
+          throttlingMsecs.inc(WriteBatcherImpl.DATASTORE_BATCH_TARGET_LATENCY_MS);
           sleeper.sleep(WriteBatcherImpl.DATASTORE_BATCH_TARGET_LATENCY_MS);
           continue;
         }
@@ -1343,8 +1452,10 @@ public class DatastoreV1 {
           endTime = System.currentTimeMillis();
 
           writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
-          throttler.successfulRequest(startTime);
+          adaptiveThrottler.successfulRequest(startTime);
+          latencyMsPerMutation.update((endTime - startTime) / mutations.size());
           rpcSuccesses.inc();
+          entitiesMutated.inc(mutations.size());
 
           // Break if the commit threw no exception.
           break;
@@ -1355,6 +1466,7 @@ public class DatastoreV1 {
              * consideration, though. */
             endTime = System.currentTimeMillis();
             writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
+            latencyMsPerMutation.update((endTime - startTime) / mutations.size());
           }
           // Only log the code and message for potentially-transient errors. The entire exception
           // will be propagated upon the last retry.
@@ -1484,13 +1596,21 @@ public class DatastoreV1 {
     public Datastore getDatastore(
         PipelineOptions pipelineOptions, String projectId, @Nullable String localhost) {
       Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+
+      // Add Beam version to user agent header.
+      HttpRequestInitializer userAgentInitializer =
+          request -> request.getHeaders().setUserAgent(pipelineOptions.getUserAgent());
       HttpRequestInitializer initializer;
       if (credential != null) {
         initializer =
             new ChainingHttpRequestInitializer(
-                new HttpCredentialsAdapter(credential), new RetryHttpRequestInitializer());
+                new HttpCredentialsAdapter(credential),
+                new RetryHttpRequestInitializer(),
+                userAgentInitializer);
       } else {
-        initializer = new RetryHttpRequestInitializer();
+        initializer =
+            new ChainingHttpRequestInitializer(
+                new RetryHttpRequestInitializer(), userAgentInitializer);
       }
 
       DatastoreOptions.Builder builder =

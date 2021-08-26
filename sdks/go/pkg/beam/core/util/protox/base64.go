@@ -17,8 +17,8 @@ package protox
 
 import (
 	"encoding/base64"
-	"fmt"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -44,7 +44,7 @@ func EncodeBase64(msg proto.Message) (string, error) {
 func DecodeBase64(data string, ret proto.Message) error {
 	decoded, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
-		return fmt.Errorf("base64 decoding failed: %v", err)
+		return errors.Wrap(err, "base64 decoding failed")
 	}
 	return proto.Unmarshal(decoded, ret)
 }

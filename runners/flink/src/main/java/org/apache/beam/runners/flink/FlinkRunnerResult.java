@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -32,6 +31,9 @@ import org.joda.time.Duration;
  * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This has methods to query
  * to job runtime and the final values of the accumulators.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkRunnerResult implements PipelineResult {
 
   private final Map<String, Object> accumulators;
@@ -57,8 +59,9 @@ public class FlinkRunnerResult implements PipelineResult {
   }
 
   @Override
-  public State cancel() throws IOException {
-    throw new UnsupportedOperationException("FlinkRunnerResult does not support cancel.");
+  public State cancel() {
+    // We can only be called here when we are done.
+    return State.DONE;
   }
 
   @Override

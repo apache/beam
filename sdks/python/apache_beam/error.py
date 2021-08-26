@@ -17,7 +17,7 @@
 
 """Python Dataflow error classes."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 
 class BeamError(Exception):

@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.spark;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link SparkPipelineOptions} for tests. */
 public interface TestSparkPipelineOptions extends SparkPipelineOptions, TestPipelineOptions {

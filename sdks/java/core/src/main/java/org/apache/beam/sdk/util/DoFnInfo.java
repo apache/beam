@@ -20,8 +20,10 @@ package org.apache.beam.sdk.util;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -32,6 +34,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * @param <InputT> the type of the (main) input elements of the {@link DoFn}
  * @param <OutputT> the type of the (main) output elements of the {@link DoFn}
  */
+@Internal
 public class DoFnInfo<InputT, OutputT> implements Serializable {
   private final DoFn<InputT, OutputT> doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
@@ -39,6 +42,8 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   private final Coder<InputT> inputCoder;
   Map<TupleTag<?>, Coder<?>> outputCoders;
   private final TupleTag<OutputT> mainOutput;
+  private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
 
   /**
    * Creates a {@link DoFnInfo} for the given {@link DoFn}.
@@ -51,9 +56,18 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       WindowingStrategy<?, ?> windowingStrategy,
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
-      TupleTag<OutputT> mainOutput) {
+      TupleTag<OutputT> mainOutput,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     return new DoFnInfo<>(
-        doFn, windowingStrategy, sideInputViews, inputCoder, Collections.emptyMap(), mainOutput);
+        doFn,
+        windowingStrategy,
+        sideInputViews,
+        inputCoder,
+        Collections.emptyMap(),
+        mainOutput,
+        doFnSchemaInformation,
+        sideInputMapping);
   }
 
   /** Creates a {@link DoFnInfo} for the given {@link DoFn}. */
@@ -63,14 +77,30 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      TupleTag<OutputT> mainOutput) {
+      TupleTag<OutputT> mainOutput,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     return new DoFnInfo<>(
-        doFn, windowingStrategy, sideInputViews, inputCoder, outputCoders, mainOutput);
+        doFn,
+        windowingStrategy,
+        sideInputViews,
+        inputCoder,
+        outputCoders,
+        mainOutput,
+        doFnSchemaInformation,
+        sideInputMapping);
   }
 
   public DoFnInfo<InputT, OutputT> withFn(DoFn<InputT, OutputT> newFn) {
     return DoFnInfo.forFn(
-        newFn, windowingStrategy, sideInputViews, inputCoder, outputCoders, mainOutput);
+        newFn,
+        windowingStrategy,
+        sideInputViews,
+        inputCoder,
+        outputCoders,
+        mainOutput,
+        doFnSchemaInformation,
+        sideInputMapping);
   }
 
   private DoFnInfo(
@@ -79,13 +109,17 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      TupleTag<OutputT> mainOutput) {
+      TupleTag<OutputT> mainOutput,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
     this.inputCoder = inputCoder;
     this.outputCoders = outputCoders;
     this.mainOutput = mainOutput;
+    this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   /** Returns the embedded function. */
@@ -111,5 +145,13 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
 
   public TupleTag<OutputT> getMainOutput() {
     return mainOutput;
+  }
+
+  public DoFnSchemaInformation getDoFnSchemaInformation() {
+    return doFnSchemaInformation;
+  }
+
+  public Map<String, PCollectionView<?>> getSideInputMapping() {
+    return sideInputMapping;
   }
 }

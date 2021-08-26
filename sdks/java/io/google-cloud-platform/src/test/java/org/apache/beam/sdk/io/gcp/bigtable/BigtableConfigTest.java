@@ -21,10 +21,10 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigtable.config.BigtableOptions;
@@ -117,7 +117,7 @@ public class BigtableConfigTest {
 
   @Test
   public void testWithValidate() {
-    assertEquals(true, config.withValidate(true).getValidate());
+    assertTrue(config.withValidate(true).getValidate());
   }
 
   @Test
@@ -208,7 +208,7 @@ public class BigtableConfigTest {
 
     assertEquals(PROJECT_ID.get(), service.getBigtableOptions().getProjectId());
     assertEquals(INSTANCE_ID.get(), service.getBigtableOptions().getInstanceId());
-    assertEquals(true, service.getBigtableOptions().getBulkOptions().useBulkApi());
+    assertTrue(service.getBigtableOptions().getBulkOptions().useBulkApi());
   }
 
   @Test

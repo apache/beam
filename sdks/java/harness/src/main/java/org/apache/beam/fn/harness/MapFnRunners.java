@@ -15,30 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
+import org.apache.beam.fn.harness.data.BeamFnTimerClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingFunction;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
+import org.apache.beam.sdk.function.ThrowingFunction;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * Utilities to create {@code PTransformRunners} which execute simple map functions.
@@ -49,6 +52,9 @@ import org.apache.beam.sdk.util.WindowedValue;
  * <p>TODO: Add support for DoFns which are actually user supplied map/lambda functions instead of
  * using the {@link FnApiDoFnRunner} instance.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class MapFnRunners {
 
   /** Create a {@link MapFnRunners} where the map function consumes elements directly. */
@@ -102,30 +108,57 @@ public abstract class MapFnRunners {
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
+        BeamFnTimerClient beamFnTimerClient,
         String pTransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-        Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction,
-        BundleSplitListener splitListener)
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
+        Consumer<ThrowingRunnable> addResetFunction,
+        Consumer<ThrowingRunnable> tearDownFunctions,
+        Consumer<ProgressRequestCallback> addProgressRequestCallback,
+        BundleSplitListener splitListener,
+        BundleFinalizer bundleFinalizer)
         throws IOException {
 
-      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
-          (Collection)
-              pCollectionIdsToConsumers.get(getOnlyElement(pTransform.getOutputsMap().values()));
+      FnDataReceiver<WindowedValue<InputT>> consumer =
+          (FnDataReceiver)
+              pCollectionConsumerRegistry.getMultiplexingConsumer(
+                  getOnlyElement(pTransform.getOutputsMap().values()));
 
-      Mapper<InputT, OutputT> mapper =
-          mapperFactory.create(
-              pTransformId, pTransform, MultiplexingFnDataReceiver.forConsumers(consumers));
+      Mapper<InputT, OutputT> mapper = mapperFactory.create(pTransformId, pTransform, consumer);
 
-      pCollectionIdsToConsumers.put(
-          Iterables.getOnlyElement(pTransform.getInputsMap().values()),
-          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) mapper::map);
+      RehydratedComponents components =
+          RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
+      String pCollectionId = Iterables.getOnlyElement(pTransform.getInputsMap().values());
+      pCollectionConsumerRegistry.register(
+          pCollectionId,
+          pTransformId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) mapper::map,
+          getValueCoder(components, pCollections, pCollectionId));
       return mapper;
+    }
+
+    private org.apache.beam.sdk.coders.Coder<?> getValueCoder(
+        RehydratedComponents components,
+        Map<String, PCollection> pCollections,
+        String pCollectionId)
+        throws IOException {
+      if (!pCollections.containsKey(pCollectionId)) {
+        throw new IllegalArgumentException(
+            String.format("Missing PCollection for id: %s", pCollectionId));
+      }
+
+      org.apache.beam.sdk.coders.Coder<?> coder =
+          components.getCoder(pCollections.get(pCollectionId).getCoderId());
+      if (coder instanceof WindowedValueCoder) {
+        coder = ((WindowedValueCoder<InputT>) coder).getValueCoder();
+      }
+      return coder;
     }
   }
 

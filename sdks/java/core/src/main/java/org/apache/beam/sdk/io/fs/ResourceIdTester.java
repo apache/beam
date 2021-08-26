@@ -17,16 +17,19 @@
  */
 package org.apache.beam.sdk.io.fs;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.testing.EqualsTester;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -34,6 +37,9 @@ import org.apache.beam.sdk.io.FileSystems;
 
 /** A utility to test {@link ResourceId} implementations. */
 @Experimental(Kind.FILESYSTEM)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class ResourceIdTester {
   /**
    * Enforces that the {@link ResourceId} implementation of {@code baseDirectory} meets the {@link
@@ -77,29 +83,56 @@ public final class ResourceIdTester {
     allResourceIds.add(dir2);
 
     // ResourceIds in equality groups.
-    new EqualsTester()
-        .addEqualityGroup(file1)
-        .addEqualityGroup(file2, file2a)
-        .addEqualityGroup(dir1, dir1.getCurrentDirectory())
-        .addEqualityGroup(dir2, dir2a, dir2.getCurrentDirectory())
-        .addEqualityGroup(baseDirectory, file1.getCurrentDirectory(), file2.getCurrentDirectory())
-        .testEquals();
+    assertEqualityGroups(
+        Arrays.asList(
+            Arrays.asList(file1),
+            Arrays.asList(file2, file2a),
+            Arrays.asList(dir1, dir1.getCurrentDirectory()),
+            Arrays.asList(dir2, dir2a, dir2.getCurrentDirectory()),
+            Arrays.asList(
+                baseDirectory, file1.getCurrentDirectory(), file2.getCurrentDirectory())));
 
     // ResourceId toString() in equality groups.
-    new EqualsTester()
-        .addEqualityGroup(file1.toString())
-        .addEqualityGroup(file2.toString(), file2a.toString())
-        .addEqualityGroup(dir1.toString(), dir1.getCurrentDirectory().toString())
-        .addEqualityGroup(dir2.toString(), dir2a.toString(), dir2.getCurrentDirectory().toString())
-        .addEqualityGroup(
-            baseDirectory.toString(),
-            file1.getCurrentDirectory().toString(),
-            file2.getCurrentDirectory().toString())
-        .testEquals();
+    assertEqualityGroups(
+        Arrays.asList(
+            Arrays.asList(file1.toString()),
+            Arrays.asList(file2.toString(), file2a.toString()),
+            Arrays.asList(dir1.toString(), dir1.getCurrentDirectory().toString()),
+            Arrays.asList(dir2.toString(), dir2a.toString(), dir2.getCurrentDirectory().toString()),
+            Arrays.asList(
+                baseDirectory.toString(),
+                file1.getCurrentDirectory().toString(),
+                file2.getCurrentDirectory().toString())));
 
     // TODO: test resolving strings that need to be escaped.
     //   Possible spec: https://tools.ietf.org/html/rfc3986#section-2
     //   May need options to be filesystem-independent, e.g., if filesystems ban certain chars.
+  }
+
+  /**
+   * Asserts that all elements in each group are equal to each other but not equal to any other
+   * element in another group.
+   */
+  private static <T> void assertEqualityGroups(List<List<T>> equalityGroups) {
+    for (int i = 0; i < equalityGroups.size(); ++i) {
+      List<T> current = equalityGroups.get(i);
+      for (int j = 0; j < current.size(); ++j) {
+        for (int k = 0; k < current.size(); ++k) {
+          assertEquals(
+              "Value at " + j + " should equal value at " + k + " in equality group " + i,
+              current.get(j),
+              current.get(k));
+        }
+      }
+      for (int j = 0; j < equalityGroups.size(); ++j) {
+        if (i == j) {
+          continue;
+        }
+        assertTrue(
+            current + " should not match any in " + equalityGroups.get(j),
+            Collections.disjoint(current, equalityGroups.get(j)));
+      }
+    }
   }
 
   private static void validateFailureResolvingIds(ResourceId baseDirectory) {
@@ -112,9 +145,9 @@ public final class ResourceIdTester {
 
     ResourceId file = baseDirectory.resolve("file", RESOLVE_FILE);
     try {
-      baseDirectory.resolve("file2", RESOLVE_FILE);
+      file.resolve("file2", RESOLVE_FILE);
       fail(String.format("Should not be able to resolve against file resource %s", file));
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalStateException e) {
       // expected
     }
   }

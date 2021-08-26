@@ -63,10 +63,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 // Concept #2: Defining your own configuration options. Pipeline options can
@@ -101,6 +101,14 @@ var (
 // output any number of elements. It operates on a PCollection of type string and
 // returns a PCollection of type string. Also, using named function transforms allows
 // for easy reuse, modular testing, and an improved monitoring experience.
+//
+// DoFns must be registered with Beam in order to be executed in ParDos. This is
+// done automatically by the starcgen code generator, or it can be done manually
+// by calling beam.RegisterFunction in an init() call.
+func init() {
+	beam.RegisterFunction(extractFn)
+	beam.RegisterFunction(formatFn)
+}
 
 var (
 	wordRE      = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
@@ -156,7 +164,7 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 func main() {
 	// If beamx or Go flags are used, flags must be parsed first.
 	flag.Parse()
-	// beam.Init() is an initialization hook that must called on startup. On
+	// beam.Init() is an initialization hook that must be called on startup. On
 	// distributed runners, it is used to intercept control.
 	beam.Init()
 

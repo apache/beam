@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.io.range;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.lessThan;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.Arrays;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -159,8 +159,7 @@ public class ByteKeyTest {
   /** Tests {@link ByteKey#getBytes}. */
   @Test
   public void testGetBytes() {
-    assertTrue("[] equal after getBytes", Arrays.equals(new byte[] {}, ByteKey.EMPTY.getBytes()));
-    assertTrue(
-        "[00] equal after getBytes", Arrays.equals(new byte[] {0x00}, ByteKey.of(0x00).getBytes()));
+    assertArrayEquals("[] equal after getBytes", new byte[] {}, ByteKey.EMPTY.getBytes());
+    assertArrayEquals("[00] equal after getBytes", new byte[] {0x00}, ByteKey.of(0x00).getBytes());
   }
 }

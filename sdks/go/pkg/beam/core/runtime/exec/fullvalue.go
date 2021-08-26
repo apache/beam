@@ -20,8 +20,8 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // TODO(herohde) 1/29/2018: using FullValue for nested KVs is somewhat of a hack
@@ -30,40 +30,43 @@ import (
 // FullValue represents the full runtime value for a data element, incl. the
 // implicit context. The result of a GBK or CoGBK is not a single FullValue.
 // The consumer is responsible for converting the values to the correct type.
+// To represent a nested KV with FullValues, assign a *FullValue to Elm/Elm2.
 type FullValue struct {
 	Elm  interface{} // Element or KV key.
 	Elm2 interface{} // KV value, if not invalid
 
 	Timestamp typex.EventTime
 	Windows   []typex.Window
+	Pane      typex.PaneInfo
 }
 
-func (v FullValue) String() string {
+func (v *FullValue) String() string {
 	if v.Elm2 == nil {
-		return fmt.Sprintf("%v [@%v:%v]", v.Elm, v.Timestamp, v.Windows)
+		return fmt.Sprintf("%v [@%v:%v:%v]", v.Elm, v.Timestamp, v.Windows, v.Pane)
 	}
-	return fmt.Sprintf("KV<%v,%v> [@%v:%v]", v.Elm, v.Elm2, v.Timestamp, v.Windows)
+	return fmt.Sprintf("KV<%v,%v> [@%v:%v:%v]", v.Elm, v.Elm2, v.Timestamp, v.Windows, v.Pane)
 }
 
 // Stream is a FullValue reader. It returns io.EOF when complete, but can be
 // prematurely closed.
 type Stream interface {
 	io.Closer
-	Read() (FullValue, error)
+	Read() (*FullValue, error)
 }
 
-// ReStream is Stream factory.
+// ReStream is re-iterable stream, i.e., a Stream factory.
 type ReStream interface {
-	Open() Stream
+	Open() (Stream, error)
 }
 
-// FixedReStream is a simple in-memory ReSteam.
+// FixedReStream is a simple in-memory ReStream.
 type FixedReStream struct {
 	Buf []FullValue
 }
 
-func (n *FixedReStream) Open() Stream {
-	return &FixedStream{Buf: n.Buf}
+// Open returns the a Stream from the start of the in-memory ReStream.
+func (n *FixedReStream) Open() (Stream, error) {
+	return &FixedStream{Buf: n.Buf}, nil
 }
 
 // FixedStream is a simple in-memory Stream from a fixed array.
@@ -72,18 +75,20 @@ type FixedStream struct {
 	next int
 }
 
+// Close releases the buffer, closing the stream.
 func (s *FixedStream) Close() error {
 	s.Buf = nil
 	return nil
 }
 
-func (s *FixedStream) Read() (FullValue, error) {
+// Read produces the next value in the stream.
+func (s *FixedStream) Read() (*FullValue, error) {
 	if s.Buf == nil || s.next == len(s.Buf) {
-		return FullValue{}, io.EOF
+		return nil, io.EOF
 	}
 	ret := s.Buf[s.next]
 	s.next++
-	return ret, nil
+	return &ret, nil
 }
 
 // TODO(herohde) 1/19/2018: type-specialize list and other conversions?
@@ -92,41 +97,82 @@ func (s *FixedStream) Read() (FullValue, error) {
 // to drop the universal type and convert Aggregate types.
 func Convert(v interface{}, to reflect.Type) interface{} {
 	from := reflect.TypeOf(v)
+	return ConvertFn(from, to)(v)
+}
 
+// ConvertFn returns a function that converts type of the runtime value to the desired one. It is needed
+// to drop the universal type and convert Aggregate types.
+func ConvertFn(from, to reflect.Type) func(interface{}) interface{} {
 	switch {
 	case from == to:
-		return v
+		return identity
 
 	case typex.IsUniversal(from):
-		// We need to drop T to obtain the underlying type of the value.
-		return reflectx.UnderlyingType(reflect.ValueOf(v)).Interface()
-		// TODO(herohde) 1/19/2018: reflect.ValueOf(v).Convert(to).Interface() instead?
+		return universal
 
 	case typex.IsList(from) && typex.IsList(to):
-		// Convert []A to []B.
+		fromE := from.Elem()
+		toE := to.Elem()
+		cvtFn := ConvertFn(fromE, toE)
+		return func(v interface{}) interface{} {
+			// Convert []A to []B.
+			value := reflect.ValueOf(v)
 
-		value := reflect.ValueOf(v)
-
-		ret := reflect.New(to).Elem()
-		for i := 0; i < value.Len(); i++ {
-			ret = reflect.Append(ret, reflect.ValueOf(Convert(value.Index(i).Interface(), to.Elem())))
+			ret := reflect.New(to).Elem()
+			for i := 0; i < value.Len(); i++ {
+				ret = reflect.Append(ret, reflect.ValueOf(cvtFn(value.Index(i).Interface())))
+			}
+			return ret.Interface()
 		}
-		return ret.Interface()
+
+	case typex.IsList(from) && typex.IsUniversal(from.Elem()) && typex.IsUniversal(to):
+		fromE := from.Elem()
+		return func(v interface{}) interface{} {
+			// Convert []typex.T to the underlying type []T.
+
+			value := reflect.ValueOf(v)
+			// We don't know the underlying element type of a nil/empty universal-typed slice.
+			// So the best we could do is to return it as is.
+			if value.Len() == 0 {
+				return v
+			}
+
+			toE := reflectx.UnderlyingType(value.Index(0)).Type()
+			cvtFn := ConvertFn(fromE, toE)
+			ret := reflect.New(reflect.SliceOf(toE)).Elem()
+			for i := 0; i < value.Len(); i++ {
+				ret = reflect.Append(ret, reflect.ValueOf(cvtFn(value.Index(i).Interface())))
+			}
+			return ret.Interface()
+		}
 
 	default:
-		switch {
-		// Perform conservative type conversions.
-		case from == reflectx.ByteSlice && to == reflectx.String:
-			return string(v.([]byte))
-
-		default:
-			return v
-		}
+		// Arguably this should be:
+		//   reflect.ValueOf(v).Convert(to).Interface()
+		// but this isn't desirable as it would add avoidable overhead to
+		// functions where it applies. A user will have better performance
+		// by explicitly doing the type conversion in their code, which
+		// the error will indicate. Slow Magic vs Fast & Explicit.
+		return identity
 	}
 }
 
-// ReadAll read the full stream and returns the result. It always closes the stream.
-func ReadAll(s Stream) ([]FullValue, error) {
+// identity is the identity function.
+func identity(v interface{}) interface{} {
+	return v
+}
+
+// universal drops the universal type and re-interfaces it to the actual one.
+func universal(v interface{}) interface{} {
+	return reflectx.UnderlyingType(reflect.ValueOf(v)).Interface()
+}
+
+// ReadAll read a full restream and returns the result.
+func ReadAll(rs ReStream) ([]FullValue, error) {
+	s, err := rs.Open()
+	if err != nil {
+		return nil, err
+	}
 	defer s.Close()
 
 	var ret []FullValue
@@ -138,6 +184,6 @@ func ReadAll(s Stream) ([]FullValue, error) {
 			}
 			return nil, err
 		}
-		ret = append(ret, elm)
+		ret = append(ret, *elm)
 	}
 }

@@ -18,13 +18,11 @@
 package org.apache.beam.sdk.util;
 
 import static org.apache.beam.sdk.util.BufferedElementCountingOutputStream.BUFFER_POOL;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -36,18 +34,28 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 /** Tests for {@link BufferedElementCountingOutputStream}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class BufferedElementCountingOutputStreamTest {
   @Rule public final ExpectedException expectedException = ExpectedException.none();
   private static final int BUFFER_SIZE = 8;
+
+  @Parameterized.Parameters
+  public static Iterable<Object[]> data() {
+    return ImmutableList.<Object[]>builder().add(new Object[] {0L}).add(new Object[] {-1L}).build();
+  }
+
+  @Parameterized.Parameter(0)
+  public long terminatorValue;
 
   @Test
   public void testEmptyValues() throws Exception {
@@ -219,6 +227,8 @@ public class BufferedElementCountingOutputStreamTest {
       }
     } while (count > 0);
 
+    assertEquals(terminatorValue, count);
+
     if (expectedValues.isEmpty()) {
       assertTrue(values.isEmpty());
     } else {
@@ -229,7 +239,7 @@ public class BufferedElementCountingOutputStreamTest {
   private BufferedElementCountingOutputStream createAndWriteValues(
       List<byte[]> values, OutputStream output) throws Exception {
     BufferedElementCountingOutputStream os =
-        new BufferedElementCountingOutputStream(output, BUFFER_SIZE);
+        new BufferedElementCountingOutputStream(output, BUFFER_SIZE, terminatorValue);
 
     for (byte[] value : values) {
       os.markElementStart();

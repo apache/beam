@@ -1,105 +1,90 @@
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+
 # Apache Beam website
 
-_**The website source code is currently being migrated from 
-https://github.com/apache/beam-site, but is not yet ready. Please 
-continue to contribute changes at 
-[apache/beam-site](https://github.com/apache/beam-site) according to 
-the [website contribution guide](https://beam.apache.org/contribute/#contributing-to-the-website). 
-You can track migration progress via 
-[[BEAM-4493]](https://issues.apache.org/jira/browse/BEAM-4493).**_
+These are the main sources of the website for Apache Beam, hosted at
+https://beam.apache.org/.
 
-This is the website for [Apache Beam](https://beam.apache.org/), hosted at:
+## About
 
-    https://beam.apache.org/
+The Beam website is built using [Hugo](https://gohugo.io/) and the Hugo theme [Docsy](https://www.docsy.dev/). For additional formatting capabilities, this website uses [Twitter Bootstrap](https://getbootstrap.com/).
 
-## About this site
+Documentation generated from source code, such as Javadoc and Pydoc, is stored
+separately on the [beam-site
+repository](https://github.com/apache/beam-site/tree/release-docs).
 
-The Beam website is built using [Jekyll](http://jekyllrb.com/). Additionally,
-for additional formatting capabilities, this website uses
-[Twitter Bootstrap](http://getbootstrap.com/).
+## Getting started
 
-### Repository Structure
+Website development requires Docker installed if you wish to preview changes and
+run website tests.
 
-This repository contains:
+The Docsy theme required for the site to work properly is included as a git submodule. This means that after you already cloned the repository, you need to update submodules at `<ROOT_DIRECTORY>`.
 
-1. `src/`: the source of the site, including markdown files containing the bulk of the content
-1. `content/`: html generated from the markdown (which is what is actually hosted on the website)
+`$ git submodule update --init --recursive`
 
-## Development Workflow
+The following command is used to build and serve the website locally. Note: you should run the command at `<ROOT_DIRECTORY>`.
 
-### Setup
+`$ ./gradlew :website:serveWebsite`
 
-You need Ruby version >= 2.2.0 to build the project.
+Any changes made locally will trigger a rebuild of the website.
 
-Install [Ruby Gems](https://rubygems.org/pages/download), a package management framework for Ruby.
+Websites tests may be run using this command:
 
-Install [Bundler](http://bundler.io/v1.3/rationale.html), which  we use to specify dependencies and ensure
-a consistent environment for building the website, even across multiple developers on different machines:
+`$ ./gradlew :website:testWebsite`
 
-    $ gem install bundler
+For a more detailed description, please refer to the [contribution guide](CONTRIBUTE.md).
 
-Use Bundler to download the versions of each dependency specified in the website's `Gemfile.lock`,
-including [Jekyll](https://jekyllrb.com/):
+## Deployment
 
-    $ bundle install --deployment
+After a PR is merged, a background Jenkins job will automatically generate and
+push [website
+content](https://github.com/apache/beam/tree/asf-site/website/generated-content)
+to the asf-site branch. This content is later picked up and pushed to
+https://beam.apache.org/.
 
-This will install a number of gems in a local `./vendor` directory.
+## Contribution guide
 
-### Active development
+If you'd like to contribute to the Apache Beam website, read our [contribution guide](CONTRIBUTE.md) where you can find detailed instructions on how to work with the website.
 
-Launch Jekyll via Bundler in order to guarantee that the appropriate versions of the dependencies are used:
+## Additional resources
 
-    $ bundle exec jekyll serve
+If you're developing the site, you should know a little bit about Hugo and Docsy. The following external resources will help you get up and running:
 
-Jekyll will start a webserver on port `4000`. As you make changes to the
-content, Jekyll will rebuild it automatically. This is helpful if you want to see
-how your changes will render in realtime.
+- [Directory Structure](https://gohugo.io/getting-started/directory-structure/)
+- [Adding Content](https://www.docsy.dev/docs/adding-content/content/)
+- [Shortcodes](https://gohugo.io/content-management/shortcodes/)
+- [Introduction to Hugo Templating](https://gohugo.io/templates/introduction/)
+- [Partial Templates](https://gohugo.io/templates/partials/)
 
-In addition, check for dead links and the like by running the tests via:
+## Troubleshooting
 
-    $ bundle exec rake test
+### Hugo server does not reload static files
 
-Running Jekyll may cause the `content/` directory to be generated.
-Merging autogenerated content can get tricky, so regenerating content is
-responsibility of the committer doing the final merge of your PR, and
-your PR should not contain changes to that directory.
+The Hugo dev server waits for changes in site content, static files, configuration, and other resources. On change, the server rebuilds and reloads the site in your browser. If you're making changes to static files, and those changes are detected by the server but don't appear in the browser, you may have a caching issue.
 
-Before sending the PR for review, please run:
+You can tell that the server has detected a change by looking at the output. For example, if you make a change to **website/www/site/static/js/section-nav.js**, you should see something like:
 
-    $ git checkout -- content
+```
+Change of Static files detected, rebuilding site.
+2021-07-16 15:25:29.730 +0000
+Syncing js/section-nav.js to /
+```
 
-## Additional Information
-
-### Writing blog posts
-
-Blog posts are created in the `_posts` directory.
-
-If this is your first post, make sure to add yourself to `_data\authors.yml`.
-
-While you a working on your post before the publishing time listed in its header,
-add `--future` when running Jekyll in order to view your draft on your local copy of
-the site.
-
-### Adding Jekyll plugins
-
-If you modify the site to use additional Jekyll plugins, add them in `Gemfile`
-and then run `bundle update`, which will regenerate the complete `Gemfile.lock`.
-Make sure that the updated `Gemfile.lock` is included in your pull request. For more information,
-see the Bundler [documentation](http://bundler.io/v1.3/rationale.html).
-
-## Apache License
-
-Except as otherwise noted this software is licensed under the
-[Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+If the change does not appear in the browser, even after a hard refresh, try disabling the cache. For example, to disable the cache in Chrome, open dev tools, select the Network tab, and check the box labeled "Disable cache".

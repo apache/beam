@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Charsets.UTF_8;
 import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets.UTF_8;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 
-import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
@@ -59,8 +60,11 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -69,6 +73,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FileBasedSink}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class FileBasedSinkTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -141,6 +148,20 @@ public class FileBasedSinkTest {
     }
   }
 
+  /** Test whether WriteOperation can create a unique temporary directory. */
+  @Test
+  public void testTemporaryDirectoryUniqueness() {
+    List<SimpleSink.SimpleWriteOperation<Void>> writeOps = Lists.newArrayListWithCapacity(1000);
+    for (int i = 0; i < 1000; i++) {
+      writeOps.add(buildWriteOperation());
+    }
+    Set<String> tempDirectorySet = Sets.newHashSetWithExpectedSize(1000);
+    for (SimpleSink.SimpleWriteOperation<Void> op : writeOps) {
+      tempDirectorySet.add(op.getTempDirectory().toString());
+    }
+    assertEquals(1000, tempDirectorySet.size());
+  }
+
   /** Removes temporary files when temporary and output directories differ. */
   @Test
   public void testRemoveWithTempFilename() throws Exception {
@@ -150,6 +171,8 @@ public class FileBasedSinkTest {
   /** Finalize copies temporary files to output files and removes any temporary files. */
   @Test
   public void testFinalize() throws Exception {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10743
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     List<File> files = generateTemporaryFilesForFinalize(3);
     runFinalize(buildWriteOperation(), files);
   }
@@ -157,6 +180,8 @@ public class FileBasedSinkTest {
   /** Finalize can be called repeatedly. */
   @Test
   public void testFinalizeMultipleCalls() throws Exception {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10744
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     List<File> files = generateTemporaryFilesForFinalize(3);
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
     runFinalize(writeOp, files);
@@ -166,6 +191,8 @@ public class FileBasedSinkTest {
   /** Finalize can be called when some temporary files do not exist and output files exist. */
   @Test
   public void testFinalizeWithIntermediateState() throws Exception {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10745
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
     List<File> files = generateTemporaryFilesForFinalize(3);
     runFinalize(writeOp, files);

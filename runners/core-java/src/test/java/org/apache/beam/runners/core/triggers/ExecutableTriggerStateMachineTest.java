@@ -86,10 +86,19 @@ public class ExecutableTriggerStateMachineTest {
     }
 
     @Override
+    public void prefetchOnElement(PrefetchContext c) {}
+
+    @Override
     public void onElement(OnElementContext c) throws Exception {}
 
     @Override
+    public void prefetchOnMerge(MergingPrefetchContext c) {}
+
+    @Override
     public void onMerge(OnMergeContext c) throws Exception {}
+
+    @Override
+    public void prefetchShouldFire(PrefetchContext c) {}
 
     @Override
     public void clear(TriggerContext c) throws Exception {}

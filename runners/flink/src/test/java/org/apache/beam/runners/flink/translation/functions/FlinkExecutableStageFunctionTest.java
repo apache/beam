@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -24,49 +25,72 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.runners.core.construction.Timer;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
+import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link FlinkExecutableStageFunction}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class FlinkExecutableStageFunctionTest {
+
+  @Parameterized.Parameters
+  public static Object[] data() {
+    return new Object[] {true, false};
+  }
+
+  @Parameterized.Parameter public boolean isStateful;
+
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock private RuntimeContext runtimeContext;
   @Mock private DistributedCache distributedCache;
   @Mock private Collector<RawUnionValue> collector;
-  @Mock private FlinkExecutableStageContext stageContext;
+  @Mock private ExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private StateRequestHandler stateRequestHandler;
+  @Mock private ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
   // tests in general ignore the executable stage itself and mock around it.
@@ -75,18 +99,43 @@ public class FlinkExecutableStageFunctionTest {
           .setInput("input")
           .setComponents(
               Components.newBuilder()
+                  .putTransforms(
+                      "transform",
+                      RunnerApi.PTransform.newBuilder()
+                          .putInputs("bla", "input")
+                          .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(PAR_DO_TRANSFORM_URN))
+                          .build())
                   .putPcollections("input", PCollection.getDefaultInstance())
                   .build())
+          .addUserStates(
+              ExecutableStagePayload.UserStateId.newBuilder().setTransformId("transform").build())
           .build();
   private final JobInfo jobInfo =
       JobInfo.create("job-id", "job-name", "retrieval-token", Struct.getDefaultInstance());
 
   @Before
-  public void setUpMocks() {
+  public void setUpMocks() throws Exception {
     MockitoAnnotations.initMocks(this);
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
-    when(stageContext.getStateRequestHandler(any(), any())).thenReturn(stateRequestHandler);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
+    RemoteBundle remoteBundle = Mockito.mock(RemoteBundle.class);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class),
+            any(BundleFinalizationHandler.class),
+            any(BundleCheckpointHandler.class)))
+        .thenReturn(remoteBundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(TimerReceiverFactory.class),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class)))
+        .thenReturn(remoteBundle);
+    ImmutableMap input =
+        ImmutableMap.builder().put("input", Mockito.mock(FnDataReceiver.class)).build();
+    when(remoteBundle.getInputReceivers()).thenReturn(input);
+    when(processBundleDescriptor.getTimerSpecs()).thenReturn(Collections.emptyMap());
   }
 
   @Test
@@ -96,25 +145,21 @@ public class FlinkExecutableStageFunctionTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class),
+            any(BundleFinalizationHandler.class),
+            any(BundleCheckpointHandler.class)))
+        .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
-    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("pCollectionId", receiver));
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
 
     Exception expected = new Exception();
     doThrow(expected).when(bundle).close();
     thrown.expect(is(expected));
-    function.mapPartition(Collections.emptyList(), collector);
-  }
-
-  @Test
-  public void checksForRuntimeContextChanges() throws Exception {
-    FlinkExecutableStageFunction<Integer> function = getFunction(Collections.emptyMap());
-    function.open(new Configuration());
-    // Change runtime context.
-    function.setRuntimeContext(Mockito.mock(RuntimeContext.class));
-    thrown.expect(Matchers.instanceOf(IllegalStateException.class));
     function.mapPartition(Collections.emptyList(), collector);
   }
 
@@ -125,11 +170,17 @@ public class FlinkExecutableStageFunctionTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class),
+            any(BundleFinalizationHandler.class),
+            any(BundleCheckpointHandler.class)))
+        .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
-    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("pCollectionId", receiver));
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
 
     WindowedValue<Integer> one = WindowedValue.valueInGlobalWindow(1);
     WindowedValue<Integer> two = WindowedValue.valueInGlobalWindow(2);
@@ -156,11 +207,17 @@ public class FlinkExecutableStageFunctionTest {
     // We use a real StageBundleFactory here in order to exercise the output receiver factory.
     StageBundleFactory stageBundleFactory =
         new StageBundleFactory() {
+
+          private boolean once;
+
           @Override
           public RemoteBundle getBundle(
               OutputReceiverFactory receiverFactory,
+              TimerReceiverFactory timerReceiverFactory,
               StateRequestHandler stateRequestHandler,
-              BundleProgressHandler progressHandler) {
+              BundleProgressHandler progressHandler,
+              BundleFinalizationHandler finalizationHandler,
+              BundleCheckpointHandler checkpointHandler) {
             return new RemoteBundle() {
               @Override
               public String getId() {
@@ -168,22 +225,52 @@ public class FlinkExecutableStageFunctionTest {
               }
 
               @Override
-              public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+              public Map<String, FnDataReceiver> getInputReceivers() {
                 return ImmutableMap.of(
-                    "pCollectionId",
+                    "input",
                     input -> {
                       /* Ignore input*/
                     });
               }
 
               @Override
+              public Map<KV<String, String>, FnDataReceiver<Timer>> getTimerReceivers() {
+                return Collections.emptyMap();
+              }
+
+              @Override
+              public void requestProgress() {
+                throw new UnsupportedOperationException();
+              }
+
+              @Override
+              public void split(double fractionOfRemainder) {
+                throw new UnsupportedOperationException();
+              }
+
+              @Override
               public void close() throws Exception {
+                if (once) {
+                  return;
+                }
                 // Emit all values to the runner when the bundle is closed.
                 receiverFactory.create("one").accept(three);
                 receiverFactory.create("two").accept(four);
                 receiverFactory.create("three").accept(five);
+                once = true;
               }
             };
+          }
+
+          @Override
+          public ProcessBundleDescriptors.ExecutableProcessBundleDescriptor
+              getProcessBundleDescriptor() {
+            return processBundleDescriptor;
+          }
+
+          @Override
+          public InstructionRequestHandler getInstructionRequestHandler() {
+            return null;
           }
 
           @Override
@@ -195,7 +282,11 @@ public class FlinkExecutableStageFunctionTest {
     FlinkExecutableStageFunction<Integer> function = getFunction(outputTagMap);
     function.open(new Configuration());
 
-    function.mapPartition(Collections.emptyList(), collector);
+    if (isStateful) {
+      function.reduce(Collections.emptyList(), collector);
+    } else {
+      function.mapPartition(Collections.emptyList(), collector);
+    }
     // Ensure that the tagged values sent to the collector have the correct union tags as specified
     // in the output map.
     verify(collector).collect(new RawUnionValue(1, three));
@@ -209,8 +300,24 @@ public class FlinkExecutableStageFunctionTest {
     FlinkExecutableStageFunction<Integer> function = getFunction(Collections.emptyMap());
     function.open(new Configuration());
     function.close();
+    verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verifyNoMoreInteractions(stageBundleFactory);
+  }
+
+  @Test
+  public void testAccumulatorRegistrationOnOperatorClose() throws Exception {
+    FlinkExecutableStageFunction<Integer> function = getFunction(Collections.emptyMap());
+    function.open(new Configuration());
+
+    String metricContainerFieldName = "metricContainer";
+    FlinkMetricContainer monitoredContainer =
+        Mockito.spy(
+            (FlinkMetricContainer) Whitebox.getInternalState(function, metricContainerFieldName));
+    Whitebox.setInternalState(function, metricContainerFieldName, monitoredContainer);
+
+    function.close();
+    Mockito.verify(monitoredContainer).registerMetricsForPipelineResult();
   }
 
   /**
@@ -219,12 +326,21 @@ public class FlinkExecutableStageFunctionTest {
    * behavior of the stage context itself is unchanged.
    */
   private FlinkExecutableStageFunction<Integer> getFunction(Map<String, Integer> outputMap) {
-    FlinkExecutableStageContext.Factory contextFactory =
-        Mockito.mock(FlinkExecutableStageContext.Factory.class);
+    FlinkExecutableStageContextFactory contextFactory =
+        Mockito.mock(FlinkExecutableStageContextFactory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
     FlinkExecutableStageFunction<Integer> function =
-        new FlinkExecutableStageFunction<Integer>(stagePayload, jobInfo, outputMap, contextFactory);
+        new FlinkExecutableStageFunction<>(
+            "step",
+            PipelineOptionsFactory.create(),
+            stagePayload,
+            jobInfo,
+            outputMap,
+            contextFactory,
+            null,
+            null);
     function.setRuntimeContext(runtimeContext);
+    Whitebox.setInternalState(function, "stateRequestHandler", stateRequestHandler);
     return function;
   }
 }

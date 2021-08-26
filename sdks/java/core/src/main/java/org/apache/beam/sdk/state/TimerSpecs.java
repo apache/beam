@@ -29,6 +29,10 @@ public class TimerSpecs {
     return new AutoValue_TimerSpecs_SimpleTimerSpec(timeDomain);
   }
 
+  public static TimerSpec timerMap(TimeDomain timeDomain) {
+    return new AutoValue_TimerSpecs_SimpleTimerSpec(timeDomain);
+  }
+
   /** A straightforward POJO {@link TimerSpec}. Package-level access for AutoValue. */
   @AutoValue
   abstract static class SimpleTimerSpec implements TimerSpec {

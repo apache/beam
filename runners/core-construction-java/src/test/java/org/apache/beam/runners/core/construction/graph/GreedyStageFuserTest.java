@@ -15,18 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -36,14 +34,15 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
@@ -104,6 +103,10 @@ public class GreedyStageFuserTest {
                 .putTransforms(
                     "read",
                     PTransform.newBuilder()
+                        .setSpec(
+                            FunctionSpec.newBuilder()
+                                .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                                .build())
                         .putInputs("input", "impulse.out")
                         .putOutputs("output", "read.out")
                         .build())
@@ -119,10 +122,10 @@ public class GreedyStageFuserTest {
                                 .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                                 .setPayload(
                                     ParDoPayload.newBuilder()
-                                        .setDoFn(
-                                            SdkFunctionSpec.newBuilder().setEnvironmentId("go"))
+                                        .setDoFn(FunctionSpec.newBuilder())
                                         .build()
                                         .toByteString()))
+                        .setEnvironmentId("go")
                         .build())
                 .putPcollections("go.out", PCollection.newBuilder().setUniqueName("go.out").build())
                 .putTransforms(
@@ -135,14 +138,14 @@ public class GreedyStageFuserTest {
                                 .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
                                 .setPayload(
                                     WindowIntoPayload.newBuilder()
-                                        .setWindowFn(
-                                            SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                                        .setWindowFn(FunctionSpec.newBuilder())
                                         .build()
                                         .toByteString()))
+                        .setEnvironmentId("py")
                         .build())
                 .putPcollections("py.out", PCollection.newBuilder().setUniqueName("py.out").build())
-                .putEnvironments("go", Environment.newBuilder().setUrl("go").build())
-                .putEnvironments("py", Environment.newBuilder().setUrl("py").build())
+                .putEnvironments("go", Environments.createDockerEnvironment("go"))
+                .putEnvironments("py", Environments.createDockerEnvironment("py"))
                 .build());
     Set<PTransformNode> differentEnvironments =
         p.getPerElementConsumers(
@@ -201,9 +204,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PTransform windowTransform =
         PTransform.newBuilder()
@@ -214,9 +218,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
                     .setPayload(
                         WindowIntoPayload.newBuilder()
-                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setWindowFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     QueryablePipeline p =
@@ -229,7 +234,7 @@ public class GreedyStageFuserTest {
                 .putTransforms("window", windowTransform)
                 .putPcollections(
                     "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-                .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+                .putEnvironments("common", Environments.createDockerEnvironment("common"))
                 .build());
 
     ExecutableStage subgraph =
@@ -258,9 +263,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PTransform statefulTransform =
         PTransform.newBuilder()
@@ -271,10 +277,11 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .putStateSpecs("state", StateSpec.getDefaultInstance())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     QueryablePipeline p =
@@ -287,7 +294,7 @@ public class GreedyStageFuserTest {
                 .putTransforms("stateful", statefulTransform)
                 .putPcollections(
                     "stateful.out", PCollection.newBuilder().setUniqueName("stateful.out").build())
-                .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+                .putEnvironments("common", Environments.createDockerEnvironment("common"))
                 .build());
 
     ExecutableStage subgraph =
@@ -317,9 +324,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PTransform timerTransform =
         PTransform.newBuilder()
@@ -330,10 +338,11 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
-                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .setDoFn(FunctionSpec.newBuilder())
+                            .putTimerFamilySpecs("timer", TimerFamilySpec.getDefaultInstance())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     QueryablePipeline p =
@@ -346,7 +355,7 @@ public class GreedyStageFuserTest {
                 .putTransforms("timer", timerTransform)
                 .putPcollections(
                     "timer.out", PCollection.newBuilder().setUniqueName("timer.out").build())
-                .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+                .putEnvironments("common", Environments.createDockerEnvironment("common"))
                 .build());
 
     ExecutableStage subgraph =
@@ -378,9 +387,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PTransform parDoTransform =
         PTransform.newBuilder()
@@ -391,9 +401,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PTransform flattenTransform =
         PTransform.newBuilder()
@@ -411,9 +422,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
                     .setPayload(
                         WindowIntoPayload.newBuilder()
-                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setWindowFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     QueryablePipeline p =
@@ -432,7 +444,7 @@ public class GreedyStageFuserTest {
                 .putTransforms("window", windowTransform)
                 .putPcollections(
                     "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-                .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+                .putEnvironments("common", Environments.createDockerEnvironment("common"))
                 .build());
 
     ExecutableStage subgraph =
@@ -460,9 +472,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PTransform otherEnvRead =
         PTransform.newBuilder()
@@ -473,9 +486,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("rare"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("rare")
             .build();
     PTransform flattenTransform =
         PTransform.newBuilder()
@@ -493,9 +507,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
                     .setPayload(
                         WindowIntoPayload.newBuilder()
-                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setWindowFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     Components components =
@@ -512,8 +527,8 @@ public class GreedyStageFuserTest {
             .putTransforms("window", windowTransform)
             .putPcollections(
                 "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-            .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
-            .putEnvironments("rare", Environment.newBuilder().setUrl("rare").build())
+            .putEnvironments("common", Environments.createDockerEnvironment("common"))
+            .putEnvironments("rare", Environments.createDockerEnvironment("rare"))
             .build();
     QueryablePipeline p = QueryablePipeline.forPrimitivesIn(components);
 
@@ -557,10 +572,11 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString())
                     .build())
+            .setEnvironmentId("py")
             .build();
     PTransform goRead =
         PTransform.newBuilder()
@@ -571,10 +587,11 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("go"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString())
                     .build())
+            .setEnvironmentId("go")
             .build();
 
     PTransform pyParDo =
@@ -586,10 +603,11 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString())
                     .build())
+            .setEnvironmentId("py")
             .build();
     PTransform goWindow =
         PTransform.newBuilder()
@@ -600,10 +618,11 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
                     .setPayload(
                         WindowIntoPayload.newBuilder()
-                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("go"))
+                            .setWindowFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString())
                     .build())
+            .setEnvironmentId("go")
             .build();
 
     PCollection flattenPc = PCollection.newBuilder().setUniqueName("flatten.out").build();
@@ -634,8 +653,8 @@ public class GreedyStageFuserTest {
             .putTransforms("goWindow", goWindow)
             .putPcollections(
                 "goWindow.out", PCollection.newBuilder().setUniqueName("goWindow.out").build())
-            .putEnvironments("go", Environment.newBuilder().setUrl("go").build())
-            .putEnvironments("py", Environment.newBuilder().setUrl("py").build())
+            .putEnvironments("go", Environments.createDockerEnvironment("go"))
+            .putEnvironments("py", Environments.createDockerEnvironment("py"))
             .build();
     QueryablePipeline p = QueryablePipeline.forPrimitivesIn(components);
 
@@ -668,7 +687,7 @@ public class GreedyStageFuserTest {
     // Fuses into
     // (impulse.out) -> parDo -> (parDo.out)
     // (parDo.out) -> window -> window.out
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform parDoTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -678,9 +697,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     PCollection parDoOutput = PCollection.newBuilder().setUniqueName("parDo.out").build();
@@ -700,14 +720,14 @@ public class GreedyStageFuserTest {
                                 .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
                                 .setPayload(
                                     WindowIntoPayload.newBuilder()
-                                        .setWindowFn(
-                                            SdkFunctionSpec.newBuilder().setEnvironmentId("rare"))
+                                        .setWindowFn(FunctionSpec.newBuilder())
                                         .build()
                                         .toByteString()))
+                        .setEnvironmentId("rare")
                         .build())
                 .putPcollections(
                     "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-                .putEnvironments("rare", Environment.newBuilder().setUrl("rare").build())
+                .putEnvironments("rare", Environments.createDockerEnvironment("rare"))
                 .putEnvironments("common", env)
                 .build());
 
@@ -735,7 +755,7 @@ public class GreedyStageFuserTest {
     // The window can't be fused into the stage, which forces the PCollection to be materialized.
     // ParDo in this case _could_ be fused into the stage, but is not for simplicity of
     // implementation
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform readTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -745,9 +765,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     QueryablePipeline p =
         QueryablePipeline.forPrimitivesIn(
@@ -766,10 +787,10 @@ public class GreedyStageFuserTest {
                                 .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                                 .setPayload(
                                     ParDoPayload.newBuilder()
-                                        .setDoFn(
-                                            SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                                        .setDoFn(FunctionSpec.newBuilder())
                                         .build()
                                         .toByteString()))
+                        .setEnvironmentId("common")
                         .build())
                 .putPcollections(
                     "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
@@ -783,14 +804,14 @@ public class GreedyStageFuserTest {
                                 .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
                                 .setPayload(
                                     WindowIntoPayload.newBuilder()
-                                        .setWindowFn(
-                                            SdkFunctionSpec.newBuilder().setEnvironmentId("rare"))
+                                        .setWindowFn(FunctionSpec.newBuilder())
                                         .build()
                                         .toByteString()))
+                        .setEnvironmentId("rare")
                         .build())
                 .putPcollections(
                     "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-                .putEnvironments("rare", Environment.newBuilder().setUrl("rare").build())
+                .putEnvironments("rare", Environments.createDockerEnvironment("rare"))
                 .putEnvironments("common", env)
                 .build());
 
@@ -814,7 +835,7 @@ public class GreedyStageFuserTest {
     // parDo doesn't have a per-element consumer from side_read.out, so it can't root a stage
     // which consumes from that materialized collection. Nodes with side inputs must root a stage,
     // but do not restrict fusion of consumers.
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform readTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -824,9 +845,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     QueryablePipeline p =
@@ -839,6 +861,9 @@ public class GreedyStageFuserTest {
                 .putTransforms(
                     "side_read",
                     PTransform.newBuilder()
+                        .setSpec(
+                            FunctionSpec.newBuilder()
+                                .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN))
                         .putInputs("input", "impulse.out")
                         .putOutputs("output", "side_read.out")
                         .build())
@@ -856,11 +881,11 @@ public class GreedyStageFuserTest {
                                 .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                                 .setPayload(
                                     ParDoPayload.newBuilder()
-                                        .setDoFn(
-                                            SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                                        .setDoFn(FunctionSpec.newBuilder())
                                         .putSideInputs("side_input", SideInput.getDefaultInstance())
                                         .build()
                                         .toByteString()))
+                        .setEnvironmentId("common")
                         .build())
                 .putPcollections(
                     "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
@@ -874,10 +899,10 @@ public class GreedyStageFuserTest {
                                 .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
                                 .setPayload(
                                     WindowIntoPayload.newBuilder()
-                                        .setWindowFn(
-                                            SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                                        .setWindowFn(FunctionSpec.newBuilder())
                                         .build()
                                         .toByteString()))
+                        .setEnvironmentId("common")
                         .build())
                 .putPcollections(
                     "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
@@ -894,7 +919,7 @@ public class GreedyStageFuserTest {
 
   @Test
   public void sideInputIncludedInStage() {
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform readTransform =
         PTransform.newBuilder()
             .setUniqueName("read")
@@ -905,9 +930,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     PTransform parDoTransform =
@@ -921,10 +947,11 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .putSideInputs("side_input", SideInput.getDefaultInstance())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PCollection sideInputPCollection =
         PCollection.newBuilder().setUniqueName("side_read.out").build();
@@ -939,6 +966,9 @@ public class GreedyStageFuserTest {
                     "side_read",
                     PTransform.newBuilder()
                         .setUniqueName("side_read")
+                        .setSpec(
+                            FunctionSpec.newBuilder()
+                                .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN))
                         .putInputs("input", "impulse.out")
                         .putOutputs("output", "side_read.out")
                         .build())
@@ -969,7 +999,7 @@ public class GreedyStageFuserTest {
     // impulse -- ParDo(createSide)
     //         \_ ParDo(processMain) with side input from createSide
     // The ExecutableStage executing createSide must have an output.
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform impulse =
         PTransform.newBuilder()
             .setUniqueName("impulse")
@@ -986,9 +1016,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PTransform processMain =
         PTransform.newBuilder()
@@ -1000,10 +1031,11 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .putSideInputs("side", SideInput.getDefaultInstance())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     PCollection sidePC = PCollection.newBuilder().setUniqueName("sidePC").build();
@@ -1031,7 +1063,7 @@ public class GreedyStageFuserTest {
 
   @Test
   public void userStateIncludedInStage() {
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform readTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -1041,9 +1073,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PTransform parDoTransform =
         PTransform.newBuilder()
@@ -1054,10 +1087,11 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .putStateSpecs("state_spec", StateSpec.getDefaultInstance())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PCollection userStateMainInputPCollection =
         PCollection.newBuilder().setUniqueName("read.out").build();
@@ -1104,7 +1138,7 @@ public class GreedyStageFuserTest {
     // Fuses to
     // (impulse.out) -> read -> (read.out)
     // GBK is the responsibility of the runner, so it is not included in a stage.
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform readTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -1114,9 +1148,10 @@ public class GreedyStageFuserTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     QueryablePipeline p =
@@ -1155,9 +1190,7 @@ public class GreedyStageFuserTest {
       protected boolean matchesSafely(ExecutableStage executableStage) {
         // NOTE: Transform names must be unique, so it's fine to throw here if this does not hold.
         Set<String> stageTransforms =
-            executableStage
-                .getTransforms()
-                .stream()
+            executableStage.getTransforms().stream()
                 .map(PTransformNode::getId)
                 .collect(Collectors.toSet());
         return stageTransforms.containsAll(expectedTransforms)

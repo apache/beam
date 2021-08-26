@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
@@ -24,19 +23,23 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import java.util.List;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Unit tests for {@link SchemaRegistry}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SchemaRegistryTest {
   static final Schema EMPTY_SCHEMA = Schema.builder().build();
   static final Schema STRING_SCHEMA = Schema.builder().addStringField("string").build();
@@ -98,7 +101,8 @@ public class SchemaRegistryTest {
     tryGetters(registry);
   }
 
-  static final class Provider implements SchemaProvider {
+  /** A test SchemaProvider. */
+  public static final class Provider implements SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptors.strings())) {
@@ -175,7 +179,8 @@ public class SchemaRegistryTest {
   @DefaultSchema(TestDefaultSchemaProvider.class)
   static class TestDefaultSchemaClass {}
 
-  static final class TestDefaultSchemaProvider implements SchemaProvider {
+  /** A test schema provider. */
+  public static final class TestDefaultSchemaProvider implements SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestDefaultSchemaClass.class))) {
@@ -222,5 +227,25 @@ public class SchemaRegistryTest {
     registry.registerJavaBean(SimpleBean.class);
     Schema schema = registry.getSchema(SimpleBean.class);
     assertTrue(SIMPLE_BEAN_SCHEMA.equivalent(schema));
+  }
+
+  @Test
+  public void testGetSchemaCoder() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    registry.registerJavaBean(SimpleBean.class);
+
+    Schema schema = registry.getSchema(SimpleBean.class);
+    SerializableFunction<SimpleBean, Row> toRowFunction =
+        registry.getToRowFunction(SimpleBean.class);
+    SerializableFunction<Row, SimpleBean> fromRowFunction =
+        registry.getFromRowFunction(SimpleBean.class);
+    SchemaCoder schemaCoder = registry.getSchemaCoder(SimpleBean.class);
+
+    assertTrue(schema.equivalent(schemaCoder.getSchema()));
+    assertTrue(toRowFunction.equals(schemaCoder.getToRowFunction()));
+    assertTrue(fromRowFunction.equals(schemaCoder.getFromRowFunction()));
+
+    thrown.expect(NoSuchSchemaException.class);
+    registry.getSchemaCoder(Double.class);
   }
 }

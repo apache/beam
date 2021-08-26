@@ -20,8 +20,11 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** A test of {@link SpannerSchema}. */
+@RunWith(JUnit4.class)
 public class SpannerSchemaTest {
 
   @Test
@@ -31,10 +34,11 @@ public class SpannerSchemaTest {
             .addColumn("test", "pk", "STRING(48)")
             .addKeyPart("test", "pk", false)
             .addColumn("test", "maxKey", "STRING(MAX)")
+            .addColumn("test", "numericVal", "NUMERIC")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(2, schema.getColumns("test").size());
+    assertEquals(3, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
   }
 

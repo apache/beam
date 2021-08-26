@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg width="1158px" height="207px" viewBox="0 0 1158 207" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>A pipeline with a transform that outputs multiple PCollections.</title>
+    <g id="design-your-pipeline-additional-outputs" transform="translate(0.000000, 1.000000)">
+        <g id="Branch" transform="translate(676.000000, 32.000000)" stroke="#3062A8" stroke-width="2"  fill="#FFFFFF">
+            <polyline id="Directed-edge" points="0 72 8.75 72 8.75 0 20 0"></polyline>
+            <polyline id="Directed-edge" transform="translate(10.000000, 108.000000) scale(1, -1) translate(-10.000000, -108.000000) " points="0 144 8.75 144 8.75 72 20 72"></polyline>
+        </g>
+        <g id="PCollection" transform="translate(696.000000, 143.000000)">
+            <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
+            <text id="‘B’-names" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+                <tspan x="23.3242188" y="22">‘B’ </tspan>
+                <tspan x="7.359375" y="41">names</tspan>
+            </text>
+        </g>
+        <g id="PCollection" transform="translate(696.000000, 0.000000)">
+            <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
+            <text id="‘A’-names" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+                <tspan x="23.0859375" y="22">‘A’ </tspan>
+                <tspan x="7.359375" y="41">names</tspan>
+            </text>
+        </g>
+        <g id="PTransform" transform="translate(482.000000, 40.000000)">
+            <rect id="PTransform-symbol" fill="#3062A8" x="0" y="0" width="194" height="124"></rect>
+            <text id="ParDo" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+                <tspan x="64" y="70">ParDo</tspan>
+            </text>
+        </g>
+        <g id="Directed-edge" transform="translate(353.000000, 102.500000)">
+            <path d="M11,-8.5 L11,11.5" id="Line" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(11.000000, 1.500000) rotate(-90.000000) translate(-11.000000, -1.500000) "></path>
+            <path id="Line" d="M115,2.5 L83,2.5 L83,0.5 L115,0.5 L115,-5.5 L129,1.5 L115,8.5 L115,2.5 Z" fill="#757575" fill-rule="nonzero"></path>
+        </g>
+        <g id="PCollection" transform="translate(374.000000, 73.000000)">
+            <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
+            <text id="Table-rows" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+                <tspan x="11.2070312" y="28">Table </tspan>
+                <tspan x="13.59375" y="47">rows</tspan>
+            </text>
+        </g>
+        <g id="PTransform" transform="translate(160.000000, 42.000000)">
+            <rect id="PTransform-symbol" fill="#3062A8" x="0" y="0" width="194" height="124"></rect>
+            <text id="Read-database-of-nam" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+                <tspan x="33" y="42">Read </tspan>
+                <tspan x="33" y="70">database of </tspan>
+                <tspan x="33" y="98">names</tspan>
+            </text>
+        </g>
+        <path id="Directed-edge" d="M146,103.5 L113,103.5 L113,101.5 L146,101.5 L146,95.5 L160,102.5 L146,109.5 L146,103.5 Z" fill="#E0E0E0" fill-rule="nonzero"></path>
+        <g id="Database" transform="translate(0.000000, 51.000000)">
+            <g id="Database-symbol" transform="translate(0.000000, 0.000000)">
+                <ellipse id="Oval" fill="#E0E0E0" cx="56.5" cy="83.2631579" rx="56.5" ry="17.8421053"></ellipse>
+                <rect id="Rectangle" fill="#E0E0E0" x="0" y="17.8421053" width="113" height="65.4210526"></rect>
+                <ellipse id="Oval" fill="#EFEFEF" cx="56.5" cy="17.8421053" rx="56.5" ry="17.8421053"></ellipse>
+            </g>
+            <text id="Database-table" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#414141">
+                <tspan x="17" y="61">Database </tspan>
+                <tspan x="17" y="82">table</tspan>
+            </text>
+        </g>
+        <g id="Legend" transform="translate(0.000000, 183.000000)">
+            <text id="PCollection" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+                <tspan x="155" y="17">PCollection</tspan>
+            </text>
+            <circle id="PCollection-symbol" stroke="#757575"  fill="#FFFFFF" stroke-width="2" cx="140.5" cy="10.5" r="7.5"></circle>
+            <text id="PTransform" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+                <tspan x="22" y="17">PTransform</tspan>
+            </text>
+            <rect id="PTransform-symbol" fill="#3062A8" x="0" y="3" width="15" height="15"></rect>
+        </g>
+    </g>
+</svg>

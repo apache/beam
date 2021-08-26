@@ -30,9 +30,11 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
+import org.apache.beam.sdk.transforms.Partition.PartitionWithSideInputsFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -59,6 +61,39 @@ public class PartitionTest implements Serializable {
     public int partitionFor(Integer elem, int numPartitions) {
       return elem;
     }
+  }
+
+  static class IdentitySideViewFn implements PartitionWithSideInputsFn<Integer> {
+    @Override
+    public int partitionFor(Integer elem, int numPartitions, Contextful.Fn.Context c) {
+      return elem;
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testPartitionWithSideInputs() {
+
+    PCollectionView<Integer> gradesView =
+        pipeline.apply("grades", Create.of(50)).apply(View.asSingleton());
+
+    Create.Values<Integer> studentsPercentage = Create.of(5, 45, 90, 29, 55, 65);
+    PCollectionList<Integer> studentsGrades =
+        pipeline
+            .apply(studentsPercentage)
+            .apply(
+                Partition.of(
+                    2,
+                    ((elem, numPartitions, ct) -> {
+                      Integer grades = ct.sideInput(gradesView);
+                      return elem < grades ? 0 : 1;
+                    }),
+                    Requirements.requiresSideInputs(gradesView)));
+
+    assertTrue(studentsGrades.size() == 2);
+    PAssert.that(studentsGrades.get(0)).containsInAnyOrder(5, 29, 45);
+    PAssert.that(studentsGrades.get(1)).containsInAnyOrder(55, 65, 90);
+    pipeline.run();
   }
 
   @Test
@@ -141,6 +176,15 @@ public class PartitionTest implements Serializable {
 
     assertThat(displayData, hasDisplayItem("numPartitions", 123));
     assertThat(displayData, hasDisplayItem("partitionFn", IdentityFn.class));
+  }
+
+  @Test
+  public void testDisplayDataOfSideViewFunction() {
+    Partition<?> partition = Partition.of(123, new IdentitySideViewFn(), Requirements.empty());
+    DisplayData displayData = DisplayData.from(partition);
+
+    assertThat(displayData, hasDisplayItem("numPartitions", 123));
+    assertThat(displayData, hasDisplayItem("partitionFn", IdentitySideViewFn.class));
   }
 
   @Test

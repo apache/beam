@@ -17,24 +17,48 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Lists;
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
-import org.apache.beam.sdk.schemas.DefaultSchema;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
-import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesSchema;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -44,6 +68,7 @@ import org.junit.runners.JUnit4;
 
 /** Test {@link Schema} support. */
 @RunWith(JUnit4.class)
+@Category(UsesSchema.class)
 public class ParDoSchemaTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -59,7 +84,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testSimpleSchemaPipeline() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -73,6 +98,7 @@ public class ParDoSchemaTest implements Serializable {
                 Create.of(pojoList)
                     .withSchema(
                         schema,
+                        TypeDescriptor.of(MyPojo.class),
                         o ->
                             Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
                         r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field"))))
@@ -89,7 +115,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testReadAndWrite() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -106,6 +132,7 @@ public class ParDoSchemaTest implements Serializable {
                 Create.of(pojoList)
                     .withSchema(
                         schema1,
+                        TypeDescriptor.of(MyPojo.class),
                         o ->
                             Row.withSchema(schema1)
                                 .addValues(o.stringField, o.integerField)
@@ -125,6 +152,7 @@ public class ParDoSchemaTest implements Serializable {
                     }))
             .setSchema(
                 schema2,
+                TypeDescriptor.of(MyPojo.class),
                 o -> Row.withSchema(schema2).addValues(o.stringField, o.integerField).build(),
                 r -> new MyPojo(r.getString("string2_field"), r.getInt32("integer2_field")))
             .apply(
@@ -141,7 +169,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testReadAndWriteMultiOutput() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -164,6 +192,7 @@ public class ParDoSchemaTest implements Serializable {
                 Create.of(pojoList)
                     .withSchema(
                         schema1,
+                        TypeDescriptor.of(MyPojo.class),
                         o ->
                             Row.withSchema(schema1)
                                 .addValues(o.stringField, o.integerField)
@@ -192,12 +221,14 @@ public class ParDoSchemaTest implements Serializable {
         .get(firstOutput)
         .setSchema(
             schema2,
+            TypeDescriptor.of(MyPojo.class),
             o -> Row.withSchema(schema2).addValues(o.stringField, o.integerField).build(),
             r -> new MyPojo(r.getString("string2_field"), r.getInt32("integer2_field")));
     tuple
         .get(secondOutput)
         .setSchema(
             schema3,
+            TypeDescriptor.of(MyPojo.class),
             o -> Row.withSchema(schema3).addValues(o.stringField, o.integerField).build(),
             r -> new MyPojo(r.getString("string3_field"), r.getInt32("integer3_field")));
 
@@ -235,7 +266,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testReadAndWriteWithSchemaRegistry() {
     Schema schema =
         Schema.builder().addStringField("string_field").addInt32Field("integer_field").build();
@@ -280,7 +311,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testFieldAccessSchemaPipeline() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -294,6 +325,7 @@ public class ParDoSchemaTest implements Serializable {
                 Create.of(pojoList)
                     .withSchema(
                         schema,
+                        TypeDescriptor.of(MyPojo.class),
                         o ->
                             Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
                         r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field"))))
@@ -314,7 +346,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(NeedsRunner.class)
   public void testNoSchema() {
     thrown.expect(IllegalArgumentException.class);
     pipeline
@@ -325,10 +357,11 @@ public class ParDoSchemaTest implements Serializable {
                   @ProcessElement
                   public void process(@Element Row row) {}
                 }));
+    pipeline.run();
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(NeedsRunner.class)
   public void testUnmatchedSchema() {
     List<MyPojo> pojoList =
         Lists.newArrayList(new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
@@ -342,6 +375,7 @@ public class ParDoSchemaTest implements Serializable {
             Create.of(pojoList)
                 .withSchema(
                     schema,
+                    TypeDescriptor.of(MyPojo.class),
                     o -> Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
                     r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field"))))
         .apply(
@@ -353,38 +387,36 @@ public class ParDoSchemaTest implements Serializable {
                   @ProcessElement
                   public void process(@FieldAccess("a") Row row) {}
                 }));
+    pipeline.run();
   }
 
-  /** Test POJO. */
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class InferredPojo {
-    public String stringField;
-    public Integer integerField;
+  /** POJO used for testing. */
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class Inferred {
+    abstract String getStringField();
 
-    public InferredPojo(String stringField, Integer integerField) {
-      this.stringField = stringField;
-      this.integerField = integerField;
-    }
-
-    public InferredPojo() {}
+    abstract Integer getIntegerField();
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testInferredSchemaPipeline() {
-    List<InferredPojo> pojoList =
+    List<Inferred> pojoList =
         Lists.newArrayList(
-            new InferredPojo("a", 1), new InferredPojo("b", 2), new InferredPojo("c", 3));
+            new AutoValue_ParDoSchemaTest_Inferred("a", 1),
+            new AutoValue_ParDoSchemaTest_Inferred("b", 2),
+            new AutoValue_ParDoSchemaTest_Inferred("c", 3));
 
     PCollection<String> output =
         pipeline
             .apply(Create.of(pojoList))
             .apply(
                 ParDo.of(
-                    new DoFn<InferredPojo, String>() {
+                    new DoFn<Inferred, String>() {
                       @ProcessElement
                       public void process(@Element Row row, OutputReceiver<String> r) {
-                        r.output(row.getString(0) + ":" + row.getInt32(1));
+                        r.output(row.getString("stringField") + ":" + row.getInt32("integerField"));
                       }
                     }));
     PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
@@ -392,15 +424,484 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSchema.class})
+  @Category(ValidatesRunner.class)
   public void testSchemasPassedThrough() {
-    List<InferredPojo> pojoList =
+    List<Inferred> pojoList =
         Lists.newArrayList(
-            new InferredPojo("a", 1), new InferredPojo("b", 2), new InferredPojo("c", 3));
+            new AutoValue_ParDoSchemaTest_Inferred("a", 1),
+            new AutoValue_ParDoSchemaTest_Inferred("b", 2),
+            new AutoValue_ParDoSchemaTest_Inferred("c", 3));
 
-    PCollection<InferredPojo> out = pipeline.apply(Create.of(pojoList)).apply(Filter.by(e -> true));
+    PCollection<Inferred> out = pipeline.apply(Create.of(pojoList)).apply(Filter.by(e -> true));
     assertTrue(out.hasSchema());
 
+    pipeline.run();
+  }
+
+  /** Pojo used for testing. */
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class Inferred2 {
+    abstract Integer getIntegerField();
+
+    abstract String getStringField();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testSchemaConversionPipeline() {
+    List<Inferred> pojoList =
+        Lists.newArrayList(
+            new AutoValue_ParDoSchemaTest_Inferred("a", 1),
+            new AutoValue_ParDoSchemaTest_Inferred("b", 2),
+            new AutoValue_ParDoSchemaTest_Inferred("c", 3));
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(pojoList))
+            .apply(
+                ParDo.of(
+                    new DoFn<Inferred, String>() {
+                      @ProcessElement
+                      public void process(@Element Inferred2 pojo, OutputReceiver<String> r) {
+                        r.output(pojo.getStringField() + ":" + pojo.getIntegerField());
+                      }
+                    }));
+    PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
+    pipeline.run();
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class Nested {
+    abstract int getField1();
+
+    abstract Inferred getInner();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testNestedSchema() {
+    List<Nested> pojoList =
+        Lists.newArrayList(
+            new AutoValue_ParDoSchemaTest_Nested(1, new AutoValue_ParDoSchemaTest_Inferred("a", 1)),
+            new AutoValue_ParDoSchemaTest_Nested(2, new AutoValue_ParDoSchemaTest_Inferred("b", 2)),
+            new AutoValue_ParDoSchemaTest_Nested(
+                3, new AutoValue_ParDoSchemaTest_Inferred("c", 3)));
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(pojoList))
+            .apply(WithKeys.of("foo"))
+            .apply(Reshuffle.of())
+            .apply(Values.create())
+            .apply(
+                ParDo.of(
+                    new DoFn<Nested, String>() {
+                      @ProcessElement
+                      public void process(@Element Nested nested, OutputReceiver<String> r) {
+                        r.output(
+                            nested.getInner().getStringField()
+                                + ":"
+                                + nested.getInner().getIntegerField());
+                      }
+                    }));
+    PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
+    pipeline.run();
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class ForExtraction {
+    abstract Integer getIntegerField();
+
+    abstract String getStringField();
+
+    abstract List<Integer> getInts();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testSchemaFieldSelectionUnboxing() {
+    List<ForExtraction> pojoList =
+        Lists.newArrayList(
+            new AutoValue_ParDoSchemaTest_ForExtraction(1, "a", Lists.newArrayList(1, 2)),
+            new AutoValue_ParDoSchemaTest_ForExtraction(2, "b", Lists.newArrayList(2, 3)),
+            new AutoValue_ParDoSchemaTest_ForExtraction(3, "c", Lists.newArrayList(3, 4)));
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(pojoList))
+            .apply(
+                ParDo.of(
+                    new DoFn<ForExtraction, String>() {
+                      // Read the list twice as two equivalent types to ensure that Beam properly
+                      // converts.
+                      @ProcessElement
+                      public void process(
+                          @FieldAccess("stringField") String stringField,
+                          @FieldAccess("integerField") Integer integerField,
+                          @FieldAccess("ints") Integer[] intArray,
+                          @FieldAccess("ints") List<Integer> intList,
+                          OutputReceiver<String> r) {
+
+                        r.output(
+                            stringField
+                                + ":"
+                                + integerField
+                                + ":"
+                                + Arrays.toString(intArray)
+                                + ":"
+                                + intList.toString());
+                      }
+                    }));
+    PAssert.that(output)
+        .containsInAnyOrder("a:1:[1, 2]:[1, 2]", "b:2:[2, 3]:[2, 3]", "c:3:[3, 4]:[3, 4]");
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testSchemaFieldDescriptorSelectionUnboxing() {
+    List<ForExtraction> pojoList =
+        Lists.newArrayList(
+            new AutoValue_ParDoSchemaTest_ForExtraction(1, "a", Lists.newArrayList(1, 2)),
+            new AutoValue_ParDoSchemaTest_ForExtraction(2, "b", Lists.newArrayList(2, 3)),
+            new AutoValue_ParDoSchemaTest_ForExtraction(3, "c", Lists.newArrayList(3, 4)));
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(pojoList))
+            .apply(
+                ParDo.of(
+                    new DoFn<ForExtraction, String>() {
+                      @FieldAccess("stringSelector")
+                      final FieldAccessDescriptor stringSelector =
+                          FieldAccessDescriptor.withFieldNames("stringField");
+
+                      @FieldAccess("intSelector")
+                      final FieldAccessDescriptor intSelector =
+                          FieldAccessDescriptor.withFieldNames("integerField");
+
+                      @FieldAccess("intsSelector")
+                      final FieldAccessDescriptor intsSelector =
+                          FieldAccessDescriptor.withFieldNames("ints");
+
+                      @ProcessElement
+                      public void process(
+                          @FieldAccess("stringSelector") String stringField,
+                          @FieldAccess("intSelector") int integerField,
+                          @FieldAccess("intsSelector") int[] intArray,
+                          OutputReceiver<String> r) {
+                        r.output(
+                            stringField + ":" + integerField + ":" + Arrays.toString(intArray));
+                      }
+                    }));
+    PAssert.that(output).containsInAnyOrder("a:1:[1, 2]", "b:2:[2, 3]", "c:3:[3, 4]");
+    pipeline.run();
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class NestedForExtraction {
+    abstract ForExtraction getInner();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testSchemaFieldSelectionNested() {
+    List<ForExtraction> pojoList =
+        Lists.newArrayList(
+            new AutoValue_ParDoSchemaTest_ForExtraction(1, "a", Lists.newArrayList(1, 2)),
+            new AutoValue_ParDoSchemaTest_ForExtraction(2, "b", Lists.newArrayList(2, 3)),
+            new AutoValue_ParDoSchemaTest_ForExtraction(3, "c", Lists.newArrayList(3, 4)));
+    List<NestedForExtraction> outerList =
+        pojoList.stream()
+            .map(AutoValue_ParDoSchemaTest_NestedForExtraction::new)
+            .collect(Collectors.toList());
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(outerList))
+            .apply(
+                ParDo.of(
+                    new DoFn<NestedForExtraction, String>() {
+
+                      @ProcessElement
+                      public void process(
+                          @FieldAccess("inner.*") ForExtraction extracted,
+                          @FieldAccess("inner") ForExtraction extracted1,
+                          @FieldAccess("inner.stringField") String stringField,
+                          @FieldAccess("inner.integerField") int integerField,
+                          @FieldAccess("inner.ints") List<Integer> intArray,
+                          OutputReceiver<String> r) {
+                        assertEquals(extracted, extracted1);
+                        assertEquals(stringField, extracted.getStringField());
+                        assertEquals(integerField, (int) extracted.getIntegerField());
+                        assertEquals(intArray, extracted.getInts());
+                        r.output(
+                            extracted.getStringField()
+                                + ":"
+                                + extracted.getIntegerField()
+                                + ":"
+                                + extracted.getInts().toString());
+                      }
+                    }));
+    PAssert.that(output).containsInAnyOrder("a:1:[1, 2]", "b:2:[2, 3]", "c:3:[3, 4]");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesStatefulParDo.class})
+  public void testRowBagState() {
+    final String stateId = "foo";
+
+    Schema type =
+        Stream.of(Schema.Field.of("f_string", FieldType.STRING)).collect(Schema.toSchema());
+    Schema outputType = Schema.of(Field.of("values", FieldType.array(FieldType.row(type))));
+
+    DoFn<KV<String, Row>, Row> fn =
+        new DoFn<KV<String, Row>, Row>() {
+
+          @StateId(stateId)
+          private final StateSpec<BagState<Row>> bufferState = StateSpecs.rowBag(type);
+
+          @ProcessElement
+          public void processElement(
+              @Element KV<String, Row> element,
+              @StateId(stateId) BagState<Row> state,
+              OutputReceiver<Row> o) {
+            state.add(element.getValue());
+            Iterable<Row> currentValue = state.read();
+            if (Iterables.size(currentValue) >= 4) {
+              List<Row> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted, Comparator.comparing(r -> r.getString(0)));
+              o.output(Row.withSchema(outputType).addArray(sorted).build());
+            }
+          }
+        };
+
+    PCollection<Row> output =
+        pipeline
+            .apply(
+                Create.of(
+                    KV.of("hello", Row.withSchema(type).addValue("a").build()),
+                    KV.of("hello", Row.withSchema(type).addValue("b").build()),
+                    KV.of("hello", Row.withSchema(type).addValue("c").build()),
+                    KV.of("hello", Row.withSchema(type).addValue("d").build())))
+            .apply(ParDo.of(fn))
+            .setRowSchema(outputType);
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Row.withSchema(outputType)
+                .addArray(
+                    Lists.newArrayList(
+                        Row.withSchema(type).addValue("a").build(),
+                        Row.withSchema(type).addValue("b").build(),
+                        Row.withSchema(type).addValue("c").build(),
+                        Row.withSchema(type).addValue("d").build()))
+                .build());
+
+    pipeline.run();
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class TestStateSchemaValue {
+    abstract String getName();
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class TestStateSchemaValues {
+    abstract List<TestStateSchemaValue> getValues();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesStatefulParDo.class})
+  public void tesBagStateSchemaInference() throws NoSuchSchemaException {
+    final String stateId = "foo";
+
+    DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues> fn =
+        new DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues>() {
+
+          // This should infer the schema.
+          @StateId(stateId)
+          private final StateSpec<BagState<TestStateSchemaValue>> bufferState = StateSpecs.bag();
+
+          @ProcessElement
+          public void processElement(
+              @Element KV<String, TestStateSchemaValue> element,
+              @StateId(stateId) BagState<TestStateSchemaValue> state,
+              OutputReceiver<TestStateSchemaValues> o) {
+            state.add(element.getValue());
+            Iterable<TestStateSchemaValue> currentValue = state.read();
+            if (Iterables.size(currentValue) >= 4) {
+              List<TestStateSchemaValue> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted, Comparator.comparing(TestStateSchemaValue::getName));
+              o.output(new AutoValue_ParDoSchemaTest_TestStateSchemaValues(sorted));
+            }
+          }
+        };
+
+    PCollection<TestStateSchemaValue> input =
+        pipeline.apply(
+            Create.of(
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("a"),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("b"),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("c"),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("d")));
+
+    PCollection<TestStateSchemaValues> output =
+        input.apply(WithKeys.of("hello")).apply(ParDo.of(fn));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            new AutoValue_ParDoSchemaTest_TestStateSchemaValues(
+                Lists.newArrayList(
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("a"),
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("b"),
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("c"),
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("d"))));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesStatefulParDo.class})
+  public void testSetStateSchemaInference() throws NoSuchSchemaException {
+    final String stateId = "foo";
+
+    DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues> fn =
+        new DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues>() {
+
+          // This should infer the schema.
+          @StateId(stateId)
+          private final StateSpec<SetState<TestStateSchemaValue>> bufferState = StateSpecs.set();
+
+          @ProcessElement
+          public void processElement(
+              @Element KV<String, TestStateSchemaValue> element,
+              @StateId(stateId) SetState<TestStateSchemaValue> state,
+              OutputReceiver<TestStateSchemaValues> o) {
+            state.add(element.getValue());
+            Iterable<TestStateSchemaValue> currentValue = state.read();
+            if (Iterables.size(currentValue) >= 4) {
+              List<TestStateSchemaValue> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted, Comparator.comparing(TestStateSchemaValue::getName));
+              o.output(new AutoValue_ParDoSchemaTest_TestStateSchemaValues(sorted));
+            }
+          }
+        };
+
+    PCollection<TestStateSchemaValue> input =
+        pipeline.apply(
+            Create.of(
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("a"),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("b"),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("c"),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("d")));
+
+    PCollection<TestStateSchemaValues> output =
+        input.apply(WithKeys.of("hello")).apply(ParDo.of(fn));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            new AutoValue_ParDoSchemaTest_TestStateSchemaValues(
+                Lists.newArrayList(
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("a"),
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("b"),
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("c"),
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("d"))));
+
+    pipeline.run();
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class TestStateSchemaValue2 {
+    abstract Integer getInteger();
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class TestStateSchemaMapEntry {
+    abstract TestStateSchemaValue getKey();
+
+    abstract TestStateSchemaValue2 getValue();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
+  public void testMapStateSchemaInference() throws NoSuchSchemaException {
+    final String stateId = "foo";
+    final String countStateId = "count";
+
+    DoFn<KV<String, TestStateSchemaMapEntry>, TestStateSchemaMapEntry> fn =
+        new DoFn<KV<String, TestStateSchemaMapEntry>, TestStateSchemaMapEntry>() {
+
+          @StateId(stateId)
+          private final StateSpec<MapState<TestStateSchemaValue, TestStateSchemaValue2>> mapState =
+              StateSpecs.map();
+
+          @StateId(countStateId)
+          private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+              StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              @Element KV<String, TestStateSchemaMapEntry> element,
+              @StateId(stateId) MapState<TestStateSchemaValue, TestStateSchemaValue2> state,
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+              OutputReceiver<TestStateSchemaMapEntry> o) {
+            TestStateSchemaMapEntry value = element.getValue();
+            state.put(value.getKey(), value.getValue());
+            count.add(1);
+            if (count.read() >= 4) {
+              Iterable<Map.Entry<TestStateSchemaValue, TestStateSchemaValue2>> iterate =
+                  state.entries().read();
+              for (Map.Entry<TestStateSchemaValue, TestStateSchemaValue2> entry : iterate) {
+                o.output(
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaMapEntry(
+                        entry.getKey(), entry.getValue()));
+              }
+            }
+          }
+        };
+
+    PCollection<TestStateSchemaMapEntry> input =
+        pipeline.apply(
+            Create.of(
+                new AutoValue_ParDoSchemaTest_TestStateSchemaMapEntry(
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("a"),
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue2(1)),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaMapEntry(
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("b"),
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue2(2)),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaMapEntry(
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("c"),
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue2(3)),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaMapEntry(
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue("d"),
+                    new AutoValue_ParDoSchemaTest_TestStateSchemaValue2(4))));
+
+    PCollection<TestStateSchemaMapEntry> output =
+        input.apply(WithKeys.of("hello")).apply(ParDo.of(fn));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            new AutoValue_ParDoSchemaTest_TestStateSchemaMapEntry(
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("a"),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue2(1)),
+            new AutoValue_ParDoSchemaTest_TestStateSchemaMapEntry(
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("b"),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue2(2)),
+            new AutoValue_ParDoSchemaTest_TestStateSchemaMapEntry(
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("c"),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue2(3)),
+            new AutoValue_ParDoSchemaTest_TestStateSchemaMapEntry(
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue("d"),
+                new AutoValue_ParDoSchemaTest_TestStateSchemaValue2(4)));
     pipeline.run();
   }
 }

@@ -1,0 +1,66 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+# A Cron Job that makes a full InfluxDB backup every day and sends it to
+# GCS bucket.
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  labels:
+    app: beammetrics
+  name: influxdb-autobackup
+spec:
+  schedule: "@daily"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          # Using "initContainers" ensures that "create_backups" completes
+          # before "copy-to-gcs-bucket" begins.
+          initContainers:
+            - name: create-backup
+              image: influxdb:1.8.0
+              args:
+                - influxd
+                - backup
+                - -portable
+                - -host
+                - influxdb-rpc:8088
+                - /backup
+              volumeMounts:
+                - mountPath: /backup
+                  name: shared-data
+            - name: copy-to-gsc-bucket
+              image: gcr.io/apache-beam-testing/gsutil
+              command: ['sh', '-c', 'tar czf influxdb-backup.tar.gz /backup
+                        && gsutil cp influxdb-backup.tar.gz
+                        gs://apache-beam-testing-metrics/']
+              volumeMounts:
+                - mountPath: /backup
+                  name: shared-data
+                  readOnly: true
+          containers:
+            - name: job-done
+              image: busybox
+              command: ['sh', '-c' ,
+                        'echo "create-backup and copy-to-gsc-bucket completed"']
+          restartPolicy: Never
+          volumes:
+            - name: shared-data
+              emptyDir: {}

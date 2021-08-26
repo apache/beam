@@ -18,7 +18,7 @@
 package org.apache.beam.runners.fnexecution.state;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -31,8 +31,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,6 +43,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link org.apache.beam.runners.fnexecution.state.GrpcStateService}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class GrpcStateServiceTest {
   private static final long TIMEOUT_MS = 30 * 1000;
 
@@ -75,7 +78,7 @@ public class GrpcStateServiceTest {
 
     // send state request
     BeamFnApi.StateRequest request =
-        BeamFnApi.StateRequest.newBuilder().setInstructionReference(bundleInstructionId).build();
+        BeamFnApi.StateRequest.newBuilder().setInstructionId(bundleInstructionId).build();
     requestObserver.onNext(request);
 
     // assert behavior
@@ -92,7 +95,7 @@ public class GrpcStateServiceTest {
         BeamFnApi.StateResponse.newBuilder()
             .setGet(BeamFnApi.StateGetResponse.newBuilder().setData(expectedResponseData));
     StateRequestHandler dummyHandler =
-        (request) -> {
+        request -> {
           CompletableFuture<BeamFnApi.StateResponse.Builder> response = new CompletableFuture<>();
           response.complete(expectedBuilder);
           return response;
@@ -113,7 +116,7 @@ public class GrpcStateServiceTest {
 
     // send state request
     BeamFnApi.StateRequest request =
-        BeamFnApi.StateRequest.newBuilder().setInstructionReference(bundleInstructionId).build();
+        BeamFnApi.StateRequest.newBuilder().setInstructionId(bundleInstructionId).build();
     requestObserver.onNext(request);
 
     // wait for response

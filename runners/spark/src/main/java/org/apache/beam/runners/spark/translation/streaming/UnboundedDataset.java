@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation.streaming;
 
 import java.util.ArrayList;
@@ -49,11 +48,11 @@ public class UnboundedDataset<T> implements Dataset {
     this.streamSources.addAll(streamSources);
   }
 
-  JavaDStream<WindowedValue<T>> getDStream() {
+  public JavaDStream<WindowedValue<T>> getDStream() {
     return dStream;
   }
 
-  List<Integer> getStreamSources() {
+  public List<Integer> getStreamSources() {
     return streamSources;
   }
 

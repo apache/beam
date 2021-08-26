@@ -15,18 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
+import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTINGS;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasValue;
-import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -35,13 +34,14 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,7 +51,8 @@ import org.junit.runners.JUnit4;
 public class ExecutableStageTest {
   @Test
   public void testRoundTripToFromTransform() throws Exception {
-    Environment env = Environment.newBuilder().setUrl("foo").build();
+    Environment env =
+        org.apache.beam.runners.core.construction.Environments.createDockerEnvironment("foo");
     PTransform pt =
         PTransform.newBuilder()
             .putInputs("input", "input.out")
@@ -64,12 +65,13 @@ public class ExecutableStageTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .putSideInputs("side_input", SideInput.getDefaultInstance())
                             .putStateSpecs("user_state", StateSpec.getDefaultInstance())
-                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .putTimerFamilySpecs("timer", TimerFamilySpec.getDefaultInstance())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("foo")
             .build();
     PCollection input = PCollection.newBuilder().setUniqueName("input.out").build();
     PCollection sideInput = PCollection.newBuilder().setUniqueName("sideInput.in").build();
@@ -93,8 +95,7 @@ public class ExecutableStageTest {
     UserStateReference userStateRef =
         UserStateReference.of(
             transformNode, "user_state", PipelineNode.pCollection("input.out", input));
-    TimerReference timerRef =
-        TimerReference.of(transformNode, "timer", PipelineNode.pCollection("timer.out", timer));
+    TimerReference timerRef = TimerReference.of(transformNode, "timer");
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.of(
             components,
@@ -104,7 +105,8 @@ public class ExecutableStageTest {
             Collections.singleton(userStateRef),
             Collections.singleton(timerRef),
             Collections.singleton(PipelineNode.pTransform("pt", pt)),
-            Collections.singleton(PipelineNode.pCollection("output.out", output)));
+            Collections.singleton(PipelineNode.pCollection("output.out", output)),
+            DEFAULT_WIRE_CODER_SETTINGS);
 
     PTransform stagePTransform = stage.toPTransform("foo");
     assertThat(stagePTransform.getOutputsMap(), hasValue("output.out"));
@@ -130,9 +132,10 @@ public class ExecutableStageTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PTransform windowTransform =
         PTransform.newBuilder()
@@ -143,9 +146,10 @@ public class ExecutableStageTest {
                     .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
                     .setPayload(
                         WindowIntoPayload.newBuilder()
-                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setWindowFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     Components components =
@@ -166,7 +170,7 @@ public class ExecutableStageTest {
             .putTransforms("window", windowTransform)
             .putPcollections(
                 "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-            .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+            .putEnvironments("common", Environments.createDockerEnvironment("common"))
             .build();
     QueryablePipeline p = QueryablePipeline.forPrimitivesIn(components);
 

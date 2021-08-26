@@ -16,17 +16,18 @@
 package pipelinex
 
 import (
-	"reflect"
 	"testing"
 
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestShallowClonePTransform(t *testing.T) {
-	tests := []*pb.PTransform{
+	tests := []*pipepb.PTransform{
 		{},
 		{UniqueName: "a"},
-		{Spec: &pb.FunctionSpec{Urn: "foo"}},
+		{Spec: &pipepb.FunctionSpec{Urn: "foo"}},
 		{Subtransforms: []string{"a", "b"}},
 		{Inputs: map[string]string{"a": "b"}},
 		{Outputs: map[string]string{"a": "b"}},
@@ -34,7 +35,7 @@ func TestShallowClonePTransform(t *testing.T) {
 
 	for _, test := range tests {
 		actual := ShallowClonePTransform(test)
-		if !reflect.DeepEqual(actual, test) {
+		if !cmp.Equal(actual, test, cmp.Comparer(proto.Equal)) {
 			t.Errorf("ShallowClonePCollection(%v) = %v, want id", test, actual)
 		}
 	}

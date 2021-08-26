@@ -15,167 +15,112 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.extensions.metrics;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Collections;
+import com.sun.net.httpserver.HttpServer;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.GaugeResult;
-import org.apache.beam.sdk.metrics.MetricName;
+import java.util.concurrent.CountDownLatch;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.joda.time.Instant;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /** Test class for MetricsHttpSink. */
 public class MetricsHttpSinkTest {
+  private static int port;
+  private static List<String> messages = new ArrayList<>();
+  private static HttpServer httpServer;
+  private static CountDownLatch countDownLatch;
+
+  @BeforeClass
+  public static void beforeClass() throws IOException {
+    // get free local port
+    ServerSocket serverSocket = new ServerSocket(0);
+    port = serverSocket.getLocalPort();
+    serverSocket.close();
+    httpServer = HttpServer.create(new InetSocketAddress(port), 0);
+    httpServer
+        .createContext("/")
+        .setHandler(
+            httpExchange -> {
+              try (final BufferedReader in =
+                  new BufferedReader(
+                      new InputStreamReader(
+                          httpExchange.getRequestBody(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = in.readLine()) != null) {
+                  messages.add(line);
+                }
+              }
+              httpExchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0L);
+              httpExchange.close();
+              countDownLatch.countDown();
+            });
+    httpServer.start();
+  }
+
+  @Before
+  public void before() {
+    messages.clear();
+  }
 
   @Test
-  public void testSerializerWithCommittedSupported() throws Exception {
+  public void testWriteMetricsWithCommittedSupported() throws Exception {
     MetricQueryResults metricQueryResults = new CustomMetricQueryResults(true);
-    MetricsHttpSink metricsHttpSink = new MetricsHttpSink(PipelineOptionsFactory.create());
-    String serializeMetrics = metricsHttpSink.serializeMetrics(metricQueryResults);
-    assertEquals(
-        "Error in serialization",
+    MetricsOptions pipelineOptions = PipelineOptionsFactory.create().as(MetricsOptions.class);
+    pipelineOptions.setMetricsHttpSinkUrl(String.format("http://localhost:%s", port));
+    MetricsHttpSink metricsHttpSink = new MetricsHttpSink(pipelineOptions);
+    countDownLatch = new CountDownLatch(1);
+    metricsHttpSink.writeMetrics(metricQueryResults);
+    countDownLatch.await();
+    String expected =
         "{\"counters\":[{\"attempted\":20,\"committed\":10,\"name\":{\"name\":\"n1\","
             + "\"namespace\":\"ns1\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
             + "{\"count\":4,\"max\":9,\"mean\":6.25,\"min\":3,\"sum\":25},\"committed\":"
             + "{\"count\":2,\"max\":8,\"mean\":5.0,\"min\":5,\"sum\":10},\"name\":{\"name\":\"n2\","
             + "\"namespace\":\"ns1\"},\"step\":\"s2\"}],\"gauges\":[{\"attempted\":{\"timestamp\":"
-            + "\"1970-01-01T00:00:00.000Z\",\"value\":120},\"committed\":{\"timestamp\":"
-            + "\"1970-01-01T00:00:00.000Z\",\"value\":100},\"name\":{\"name\":\"n3\",\"namespace\":"
-            + "\"ns1\"},\"step\":\"s3\"}]}",
-        serializeMetrics);
+            + "\"1970-01-05T00:04:22.800Z\",\"value\":120},\"committed\":{\"timestamp\":"
+            + "\"1970-01-05T00:04:22.800Z\",\"value\":100},\"name\":{\"name\":\"n3\",\"namespace\":"
+            + "\"ns1\"},\"step\":\"s3\"}]}";
+    assertEquals("Wrong number of messages sent to HTTP server", 1, messages.size());
+    assertEquals("Wrong messages sent to HTTP server", expected, messages.get(0));
   }
 
   @Test
-  public void testSerializerWithCommittedUnSupported() throws Exception {
+  public void testWriteMetricsWithCommittedUnSupported() throws Exception {
     MetricQueryResults metricQueryResults = new CustomMetricQueryResults(false);
-    MetricsHttpSink metricsHttpSink = new MetricsHttpSink(PipelineOptionsFactory.create());
-    String serializeMetrics = metricsHttpSink.serializeMetrics(metricQueryResults);
-    assertEquals(
-        "Error in serialization",
+    MetricsOptions pipelineOptions = PipelineOptionsFactory.create().as(MetricsOptions.class);
+    pipelineOptions.setMetricsHttpSinkUrl(String.format("http://localhost:%s", port));
+    MetricsHttpSink metricsHttpSink = new MetricsHttpSink(pipelineOptions);
+    countDownLatch = new CountDownLatch(1);
+    metricsHttpSink.writeMetrics(metricQueryResults);
+    countDownLatch.await();
+    String expected =
         "{\"counters\":[{\"attempted\":20,\"name\":{\"name\":\"n1\","
             + "\"namespace\":\"ns1\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
             + "{\"count\":4,\"max\":9,\"mean\":6.25,\"min\":3,\"sum\":25},\"name\":{\"name\":\"n2\""
             + ",\"namespace\":\"ns1\"},\"step\":\"s2\"}],\"gauges\":[{\"attempted\":{\"timestamp\":"
-            + "\"1970-01-01T00:00:00.000Z\",\"value\":120},\"name\":{\"name\":\"n3\",\"namespace\":"
-            + "\"ns1\"},\"step\":\"s3\"}]}",
-        serializeMetrics);
+            + "\"1970-01-05T00:04:22.800Z\",\"value\":120},\"name\":{\"name\":\"n3\",\"namespace\":"
+            + "\"ns1\"},\"step\":\"s3\"}]}";
+    assertEquals("Wrong number of messages sent to HTTP server", 1, messages.size());
+    assertEquals("Wrong messages sent to HTTP server", expected, messages.get(0));
   }
 
-  private static class CustomMetricQueryResults implements MetricQueryResults {
-
-    private final boolean isCommittedSupported;
-
-    private CustomMetricQueryResults(boolean isCommittedSupported) {
-      this.isCommittedSupported = isCommittedSupported;
-    }
-
-    @Override
-    public List<MetricResult<Long>> getCounters() {
-      return Collections.singletonList(
-          new MetricResult<Long>() {
-
-            @Override
-            public MetricName getName() {
-              return MetricName.named("ns1", "n1");
-            }
-
-            @Override
-            public String getStep() {
-              return "s1";
-            }
-
-            @Override
-            public Long getCommitted() {
-              if (!isCommittedSupported) {
-                // This is what getCommitted code is like for AccumulatedMetricResult on runners
-                // that do not support committed metrics
-                throw new UnsupportedOperationException(
-                    "This runner does not currently support committed"
-                        + " metrics results. Please use 'attempted' instead.");
-              }
-              return 10L;
-            }
-
-            @Override
-            public Long getAttempted() {
-              return 20L;
-            }
-          });
-    }
-
-    @Override
-    public List<MetricResult<DistributionResult>> getDistributions() {
-      return Collections.singletonList(
-          new MetricResult<DistributionResult>() {
-
-            @Override
-            public MetricName getName() {
-              return MetricName.named("ns1", "n2");
-            }
-
-            @Override
-            public String getStep() {
-              return "s2";
-            }
-
-            @Override
-            public DistributionResult getCommitted() {
-              if (!isCommittedSupported) {
-                // This is what getCommitted code is like for AccumulatedMetricResult on runners
-                // that do not support committed metrics
-                throw new UnsupportedOperationException(
-                    "This runner does not currently support committed"
-                        + " metrics results. Please use 'attempted' instead.");
-              }
-              return DistributionResult.create(10L, 2L, 5L, 8L);
-            }
-
-            @Override
-            public DistributionResult getAttempted() {
-              return DistributionResult.create(25L, 4L, 3L, 9L);
-            }
-          });
-    }
-
-    @Override
-    public List<MetricResult<GaugeResult>> getGauges() {
-      return Collections.singletonList(
-          new MetricResult<GaugeResult>() {
-
-            @Override
-            public MetricName getName() {
-              return MetricName.named("ns1", "n3");
-            }
-
-            @Override
-            public String getStep() {
-              return "s3";
-            }
-
-            @Override
-            public GaugeResult getCommitted() {
-              if (!isCommittedSupported) {
-                // This is what getCommitted code is like for AccumulatedMetricResult on runners
-                // that do not support committed metrics
-                throw new UnsupportedOperationException(
-                    "This runner does not currently support committed"
-                        + " metrics results. Please use 'attempted' instead.");
-              }
-              return GaugeResult.create(100L, new Instant(0L));
-            }
-
-            @Override
-            public GaugeResult getAttempted() {
-              return GaugeResult.create(120L, new Instant(0L));
-            }
-          });
-    }
+  @AfterClass
+  public static void after() {
+    httpServer.stop(0);
   }
 }

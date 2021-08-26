@@ -20,4 +20,8 @@
  * Provides an API for reading from and writing to <a
  * href="https://developers.google.com/spanner/">Google Cloud Spanner</a>.
  */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.gcp.spanner;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

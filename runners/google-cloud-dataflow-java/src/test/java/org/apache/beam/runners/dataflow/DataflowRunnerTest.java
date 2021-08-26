@@ -18,37 +18,46 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageForJob;
-import static org.hamcrest.Matchers.both;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files.getFileExtension;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyListOf;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -57,10 +66,9 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auto.service.AutoService;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -71,15 +79,22 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.options.DefaultGcpRegionFactory;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -87,7 +102,10 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
@@ -95,6 +113,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -111,23 +130,33 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
@@ -136,12 +165,16 @@ import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
  * Tests for the {@link DataflowRunner}.
@@ -163,6 +196,7 @@ public class DataflowRunnerTest implements Serializable {
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   @Rule public transient ExpectedLogs expectedLogs = ExpectedLogs.none(DataflowRunner.class);
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   private transient Dataflow.Projects.Locations.Jobs mockJobs;
   private transient GcsUtil mockGcsUtil;
@@ -180,7 +214,58 @@ public class DataflowRunnerTest implements Serializable {
 
   @Before
   public void setUp() throws IOException {
-    this.mockGcsUtil = mock(GcsUtil.class);
+    mockGcsUtil = buildMockGcsUtil();
+    mockJobs = mock(Dataflow.Projects.Locations.Jobs.class);
+  }
+
+  private Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
+    options.setStableUniqueNames(CheckEnabled.ERROR);
+    options.setRunner(DataflowRunner.class);
+    Pipeline p = Pipeline.create(options);
+
+    p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
+        .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
+
+    // Enable the FileSystems API to know about gs:// URIs in this test.
+    FileSystems.setDefaultPipelineOptions(options);
+
+    return p;
+  }
+
+  private static Dataflow buildMockDataflow(Dataflow.Projects.Locations.Jobs mockJobs)
+      throws IOException {
+    Dataflow mockDataflowClient = mock(Dataflow.class);
+    Dataflow.Projects mockProjects = mock(Dataflow.Projects.class);
+    Dataflow.Projects.Locations mockLocations = mock(Dataflow.Projects.Locations.class);
+    Dataflow.Projects.Locations.Jobs.Create mockRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Create.class);
+    Dataflow.Projects.Locations.Jobs.List mockList =
+        mock(Dataflow.Projects.Locations.Jobs.List.class);
+
+    when(mockDataflowClient.projects()).thenReturn(mockProjects);
+    when(mockProjects.locations()).thenReturn(mockLocations);
+    when(mockLocations.jobs()).thenReturn(mockJobs);
+    when(mockJobs.create(eq(PROJECT_ID), eq(REGION_ID), isA(Job.class))).thenReturn(mockRequest);
+    when(mockJobs.list(eq(PROJECT_ID), eq(REGION_ID))).thenReturn(mockList);
+    when(mockList.setPageToken(any())).thenReturn(mockList);
+    when(mockList.execute())
+        .thenReturn(
+            new ListJobsResponse()
+                .setJobs(
+                    Arrays.asList(
+                        new Job()
+                            .setName("oldjobname")
+                            .setId("oldJobId")
+                            .setCurrentState("JOB_STATE_RUNNING"))));
+
+    Job resultJob = new Job();
+    resultJob.setId("newid");
+    when(mockRequest.execute()).thenReturn(resultJob);
+    return mockDataflowClient;
+  }
+
+  private static GcsUtil buildMockGcsUtil() throws IOException {
+    GcsUtil mockGcsUtil = mock(GcsUtil.class);
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .then(
@@ -231,65 +316,6 @@ public class DataflowRunnerTest implements Serializable {
     // The dataflow pipeline attempts to output to this location.
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri("gs://bucket/object"))).thenReturn(true);
 
-    mockJobs = mock(Dataflow.Projects.Locations.Jobs.class);
-  }
-
-  private Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
-    options.setStableUniqueNames(CheckEnabled.ERROR);
-    options.setRunner(DataflowRunner.class);
-    Pipeline p = Pipeline.create(options);
-
-    p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
-        .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
-
-    // Enable the FileSystems API to know about gs:// URIs in this test.
-    FileSystems.setDefaultPipelineOptions(options);
-
-    return p;
-  }
-
-  private Dataflow buildMockDataflow() throws IOException {
-    Dataflow mockDataflowClient = mock(Dataflow.class);
-    Dataflow.Projects mockProjects = mock(Dataflow.Projects.class);
-    Dataflow.Projects.Locations mockLocations = mock(Dataflow.Projects.Locations.class);
-    Dataflow.Projects.Locations.Jobs.Create mockRequest =
-        mock(Dataflow.Projects.Locations.Jobs.Create.class);
-    Dataflow.Projects.Locations.Jobs.List mockList =
-        mock(Dataflow.Projects.Locations.Jobs.List.class);
-
-    when(mockDataflowClient.projects()).thenReturn(mockProjects);
-    when(mockProjects.locations()).thenReturn(mockLocations);
-    when(mockLocations.jobs()).thenReturn(mockJobs);
-    when(mockJobs.create(eq(PROJECT_ID), eq(REGION_ID), isA(Job.class))).thenReturn(mockRequest);
-    when(mockJobs.list(eq(PROJECT_ID), eq(REGION_ID))).thenReturn(mockList);
-    when(mockList.setPageToken(anyString())).thenReturn(mockList);
-    when(mockList.execute())
-        .thenReturn(
-            new ListJobsResponse()
-                .setJobs(
-                    Arrays.asList(
-                        new Job()
-                            .setName("oldjobname")
-                            .setId("oldJobId")
-                            .setCurrentState("JOB_STATE_RUNNING"))));
-
-    Job resultJob = new Job();
-    resultJob.setId("newid");
-    when(mockRequest.execute()).thenReturn(resultJob);
-    return mockDataflowClient;
-  }
-
-  private GcsUtil buildMockGcsUtil() throws IOException {
-    GcsUtil mockGcsUtil = mock(GcsUtil.class);
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
-        .then(
-            invocation ->
-                FileChannel.open(
-                    Files.createTempFile("channel-", ".tmp"),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.DELETE_ON_CLOSE));
-    when(mockGcsUtil.expand(any(GcsPath.class)))
-        .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
     return mockGcsUtil;
   }
 
@@ -301,7 +327,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setRegion(REGION_ID);
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new ArrayList<>());
-    options.setDataflowClient(buildMockDataflow());
+    options.setDataflowClient(buildMockDataflow(mockJobs));
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
@@ -316,19 +342,15 @@ public class DataflowRunnerTest implements Serializable {
     String[] args =
         new String[] {
           "--runner=DataflowRunner",
+          "--region=some-region-1",
           "--tempLocation=/tmp/not/a/gs/path",
           "--project=test-project",
           "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
         };
 
-    try {
-      Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
-      fail();
-    } catch (RuntimeException e) {
-      assertThat(
-          Throwables.getStackTraceAsString(e),
-          containsString("DataflowRunner requires gcpTempLocation"));
-    }
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("DataflowRunner requires gcpTempLocation");
+    Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
   }
 
   @Test
@@ -336,20 +358,16 @@ public class DataflowRunnerTest implements Serializable {
     String[] args =
         new String[] {
           "--runner=DataflowRunner",
+          "--region=some-region-1",
           "--tempLocation=gs://does/not/exist",
           "--project=test-project",
           "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
         };
 
-    try {
-      Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
-      fail();
-    } catch (RuntimeException e) {
-      assertThat(
-          Throwables.getStackTraceAsString(e),
-          both(containsString("gs://does/not/exist"))
-              .and(containsString("does not exist or is not writeable")));
-    }
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("gcpTempLocation");
+    thrown.expectCause(hasProperty("message", containsString("gs://does/not/exist")));
+    Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
   }
 
   @Test
@@ -357,6 +375,7 @@ public class DataflowRunnerTest implements Serializable {
     String[] args =
         new String[] {
           "--runner=DataflowRunner",
+          "--region=some-region-1",
           "--tempLocation=/tmp/testing",
           "--project=test-project",
           "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
@@ -429,10 +448,65 @@ public class DataflowRunnerTest implements Serializable {
         optionsMap,
         hasEntry(
             "numberOfWorkerHarnessThreads", (Object) options.getNumberOfWorkerHarnessThreads()));
+    assertThat(optionsMap, hasEntry("region", (Object) options.getRegion()));
+  }
+
+  /**
+   * Test that the region is set in the generated JSON pipeline options even when a default value is
+   * grabbed from the environment.
+   */
+  @RunWith(PowerMockRunner.class)
+  @PrepareForTest(DefaultGcpRegionFactory.class)
+  public static class DefaultRegionTest {
+    @Test
+    public void testDefaultRegionSet() throws Exception {
+      mockStatic(DefaultGcpRegionFactory.class);
+      PowerMockito.when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(REGION_ID);
+      Dataflow.Projects.Locations.Jobs mockJobs = mock(Dataflow.Projects.Locations.Jobs.class);
+
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      options.setRunner(DataflowRunner.class);
+      options.setProject(PROJECT_ID);
+      options.setTempLocation(VALID_TEMP_BUCKET);
+      // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
+      options.setFilesToStage(new ArrayList<>());
+      options.setDataflowClient(buildMockDataflow(mockJobs));
+      options.setGcsUtil(buildMockGcsUtil());
+      options.setGcpCredential(new TestCredential());
+
+      Pipeline p = Pipeline.create(options);
+      p.run();
+
+      ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+      Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+      Map<String, Object> sdkPipelineOptions =
+          jobCaptor.getValue().getEnvironment().getSdkPipelineOptions();
+
+      assertThat(sdkPipelineOptions, hasKey("options"));
+      Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
+      assertThat(optionsMap, hasEntry("region", (Object) options.getRegion()));
+    }
+  }
+
+  @Test
+  public void testSettingFlexRS() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setFlexRSGoal(DataflowPipelineOptions.FlexResourceSchedulingGoal.COST_OPTIMIZED);
+
+    Pipeline p = Pipeline.create(options);
+    p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+
+    assertEquals(
+        "FLEXRS_COST_OPTIMIZED",
+        jobCaptor.getValue().getEnvironment().getFlexResourceSchedulingGoal());
   }
 
   /** PipelineOptions used to test auto registration of Jackson modules. */
   public interface JacksonIncompatibleOptions extends PipelineOptions {
+
     JacksonIncompatible getJacksonIncompatible();
 
     void setJacksonIncompatible(JacksonIncompatible value);
@@ -441,6 +515,7 @@ public class DataflowRunnerTest implements Serializable {
   /** A Jackson {@link Module} to test auto-registration of modules. */
   @AutoService(Module.class)
   public static class RegisteredTestModule extends SimpleModule {
+
     public RegisteredTestModule() {
       super("RegisteredTestModule");
       setMixInAnnotation(JacksonIncompatible.class, JacksonIncompatibleMixin.class);
@@ -449,6 +524,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** A class which Jackson does not know how to serialize/deserialize. */
   public static class JacksonIncompatible {
+
     private final String value;
 
     public JacksonIncompatible(String value) {
@@ -507,6 +583,106 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testZoneAndWorkerRegionMutuallyExclusive() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    options.setZone("us-east1-b");
+    options.setWorkerRegion("us-east1");
+    assertThrows(
+        IllegalArgumentException.class, () -> DataflowRunner.validateWorkerSettings(options));
+  }
+
+  @Test
+  public void testZoneAndWorkerZoneMutuallyExclusive() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    options.setZone("us-east1-b");
+    options.setWorkerZone("us-east1-c");
+    assertThrows(
+        IllegalArgumentException.class, () -> DataflowRunner.validateWorkerSettings(options));
+  }
+
+  @Test
+  public void testExperimentRegionAndWorkerRegionMutuallyExclusive() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    ExperimentalOptions.addExperiment(dataflowOptions, "worker_region=us-west1");
+    options.setWorkerRegion("us-east1");
+    assertThrows(
+        IllegalArgumentException.class, () -> DataflowRunner.validateWorkerSettings(options));
+  }
+
+  @Test
+  public void testExperimentRegionAndWorkerZoneMutuallyExclusive() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    ExperimentalOptions.addExperiment(dataflowOptions, "worker_region=us-west1");
+    options.setWorkerZone("us-east1-b");
+    assertThrows(
+        IllegalArgumentException.class, () -> DataflowRunner.validateWorkerSettings(options));
+  }
+
+  @Test
+  public void testWorkerRegionAndWorkerZoneMutuallyExclusive() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    options.setWorkerRegion("us-east1");
+    options.setWorkerZone("us-east1-b");
+    assertThrows(
+        IllegalArgumentException.class, () -> DataflowRunner.validateWorkerSettings(options));
+  }
+
+  @Test
+  public void testZoneAliasWorkerZone() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    options.setZone("us-east1-b");
+    DataflowRunner.validateWorkerSettings(options);
+    assertNull(options.getZone());
+    assertEquals("us-east1-b", options.getWorkerZone());
+  }
+
+  @Test
+  public void testAliasForLegacyWorkerHarnessContainerImage() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    String testImage = "image.url:worker";
+    options.setWorkerHarnessContainerImage(testImage);
+    DataflowRunner.validateWorkerSettings(options);
+    assertEquals(testImage, options.getWorkerHarnessContainerImage());
+    assertEquals(testImage, options.getSdkContainerImage());
+  }
+
+  @Test
+  public void testAliasForSdkContainerImage() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    String testImage = "image.url:sdk";
+    options.setSdkContainerImage("image.url:sdk");
+    DataflowRunner.validateWorkerSettings(options);
+    assertEquals(testImage, options.getWorkerHarnessContainerImage());
+    assertEquals(testImage, options.getSdkContainerImage());
+  }
+
+  @Test
+  public void testRegionRequiredForServiceRunner() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRegion(null);
+    options.setDataflowEndpoint("https://dataflow.googleapis.com");
+    assertThrows(IllegalArgumentException.class, () -> DataflowRunner.fromOptions(options));
+  }
+
+  @Test
+  public void testRegionOptionalForNonServiceRunner() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRegion(null);
+    options.setDataflowEndpoint("http://localhost:20281");
+    DataflowRunner.fromOptions(options);
+  }
+
+  @Test
   public void testRun() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     Pipeline p = buildDataflowPipeline(options);
@@ -520,6 +696,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
+
     ValueProvider<String> getInput();
 
     void setInput(ValueProvider<String> value);
@@ -544,7 +721,7 @@ public class DataflowRunnerTest implements Serializable {
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
     p.apply(TextIO.read().from(options.getInput()));
-    DataflowRunner.fromOptions(dataflowOptions).replaceTransforms(p);
+    DataflowRunner.fromOptions(dataflowOptions).replaceV1Transforms(p);
     final AtomicBoolean unconsumedSeenAsInput = new AtomicBoolean();
     p.traverseTopologically(
         new PipelineVisitor.Defaults() {
@@ -600,6 +777,24 @@ public class DataflowRunnerTest implements Serializable {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
+  }
+
+  @Test
+  public void testUploadGraph() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(Arrays.asList("upload_graph"));
+    Pipeline p = buildDataflowPipeline(options);
+    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+    assertValidJob(jobCaptor.getValue());
+    assertTrue(jobCaptor.getValue().getSteps().isEmpty());
+    assertTrue(
+        jobCaptor
+            .getValue()
+            .getStepsLocation()
+            .startsWith("gs://valid-bucket/temp/staging/dataflow_graph"));
   }
 
   @Test
@@ -661,9 +856,9 @@ public class DataflowRunnerTest implements Serializable {
     final String cloudDataflowDataset = "somedataset";
 
     // Create some temporary files.
-    File temp1 = File.createTempFile("DataflowRunnerTest", "txt");
+    File temp1 = File.createTempFile("DataflowRunnerTest-", ".txt");
     temp1.deleteOnExit();
-    File temp2 = File.createTempFile("DataflowRunnerTest2", "txt");
+    File temp2 = File.createTempFile("DataflowRunnerTest2-", ".txt");
     temp2.deleteOnExit();
 
     String overridePackageName = "alias.txt";
@@ -683,7 +878,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setProject(PROJECT_ID);
     options.setRegion(REGION_ID);
     options.setJobName("job");
-    options.setDataflowClient(buildMockDataflow());
+    options.setDataflowClient(buildMockDataflow(mockJobs));
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
@@ -709,7 +904,7 @@ public class DataflowRunnerTest implements Serializable {
     assertEquals(2, workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().size());
     DataflowPackage workflowPackage1 =
         workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().get(0);
-    assertThat(workflowPackage1.getName(), startsWith(temp1.getName()));
+    assertThat(workflowPackage1.getName(), endsWith(getFileExtension(temp1.getAbsolutePath())));
     DataflowPackage workflowPackage2 =
         workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().get(1);
     assertEquals(overridePackageName, workflowPackage2.getName());
@@ -726,12 +921,55 @@ public class DataflowRunnerTest implements Serializable {
         workflowJob.getEnvironment().getUserAgent().get("version"));
   }
 
+  /**
+   * Tests that {@link DataflowRunner} throws an appropriate exception when an explicitly specified
+   * file to stage does not exist locally.
+   */
+  @Test(expected = RuntimeException.class)
+  public void testRunWithMissingFiles() throws IOException {
+    final String cloudDataflowDataset = "somedataset";
+
+    File temp = new File("/this/is/not/a/path/that/will/exist");
+
+    String overridePackageName = "alias.txt";
+
+    when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
+        .thenReturn(
+            ImmutableList.of(
+                GcsUtil.StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
+
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setFilesToStage(ImmutableList.of(overridePackageName + "=" + temp.getAbsolutePath()));
+    options.setStagingLocation(VALID_STAGING_BUCKET);
+    options.setTempLocation(VALID_TEMP_BUCKET);
+    options.setTempDatasetId(cloudDataflowDataset);
+    options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
+    options.setJobName("job");
+    options.setDataflowClient(buildMockDataflow(mockJobs));
+    options.setGcsUtil(mockGcsUtil);
+    options.setGcpCredential(new TestCredential());
+
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+        .then(
+            invocation ->
+                FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE));
+
+    Pipeline p = buildDataflowPipeline(options);
+
+    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+  }
+
   @Test
   public void runWithDefaultFilesToStage() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setFilesToStage(null);
     DataflowRunner.fromOptions(options);
-    assertTrue(!options.getFilesToStage().isEmpty());
+    assertFalse(options.getFilesToStage().isEmpty());
   }
 
   @Test
@@ -740,6 +978,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
     options.setGcpCredential(new TestCredential());
     options.setGcsUtil(mockGcsUtil);
     options.setRunner(DataflowRunner.class);
@@ -859,10 +1098,9 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testNoProjectFails() {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+  public void testNoProjectFails() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
 
-    options.setRunner(DataflowRunner.class);
     // Explicitly set to null to prevent the default instance factory from reading credentials
     // from a user's environment, causing this test to fail.
     options.setProject(null);
@@ -876,38 +1114,24 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testProjectId() throws IOException {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowRunner.class);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setProject("foo-12345");
-
-    options.setGcpTempLocation(VALID_TEMP_BUCKET);
-    options.setGcsUtil(mockGcsUtil);
-    options.setGcpCredential(new TestCredential());
 
     DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testProjectPrefix() throws IOException {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowRunner.class);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setProject("google.com:some-project-12345");
-
-    options.setGcpTempLocation(VALID_TEMP_BUCKET);
-    options.setGcsUtil(mockGcsUtil);
-    options.setGcpCredential(new TestCredential());
 
     DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testProjectNumber() throws IOException {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowRunner.class);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setProject("12345");
-
-    options.setGcpTempLocation(VALID_TEMP_BUCKET);
-    options.setGcsUtil(mockGcsUtil);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Project ID");
@@ -918,12 +1142,8 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testProjectDescription() throws IOException {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowRunner.class);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setProject("some project");
-
-    options.setGcpTempLocation(VALID_TEMP_BUCKET);
-    options.setGcsUtil(mockGcsUtil);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Project ID");
@@ -934,14 +1154,7 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testInvalidNumberOfWorkerHarnessThreads() throws IOException {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    FileSystems.setDefaultPipelineOptions(options);
-    options.setRunner(DataflowRunner.class);
-    options.setProject("foo-12345");
-
-    options.setGcpTempLocation(VALID_TEMP_BUCKET);
-    options.setGcsUtil(mockGcsUtil);
-
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.as(DataflowPipelineDebugOptions.class).setNumberOfWorkerHarnessThreads(-1);
 
     thrown.expect(IllegalArgumentException.class);
@@ -956,6 +1169,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject("foo-project");
+    options.setRegion(REGION_ID);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
@@ -970,6 +1184,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setRunner(DataflowRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo-project");
+    options.setRegion(REGION_ID);
     options.setGcpTempLocation(VALID_TEMP_BUCKET);
     options.setGcsUtil(mockGcsUtil);
 
@@ -982,6 +1197,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setRunner(DataflowRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo-project");
+    options.setRegion(REGION_ID);
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setGcsUtil(mockGcsUtil);
 
@@ -1074,6 +1290,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** A fake PTransform for testing. */
   public static class TestTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
+
     public boolean translated = false;
 
     @Override
@@ -1095,8 +1312,15 @@ public class DataflowRunnerTest implements Serializable {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(containsString("no translator registered"));
+    SdkComponents sdkComponents = SdkComponents.create(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     DataflowPipelineTranslator.fromOptions(options)
-        .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
+        .translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList());
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
@@ -1127,8 +1351,75 @@ public class DataflowRunnerTest implements Serializable {
           stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform1));
         });
 
-    translator.translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
+    SdkComponents sdkComponents = SdkComponents.create(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    translator.translate(
+        p,
+        pipelineProto,
+        sdkComponents,
+        DataflowRunner.fromOptions(options),
+        Collections.emptyList());
     assertTrue(transform.translated);
+  }
+
+  @Test
+  public void testSdkHarnessConfiguration() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+    Pipeline p = Pipeline.create(options);
+
+    p.apply(Create.of(Arrays.asList(1, 2, 3)));
+
+    String defaultSdkContainerImage = DataflowRunner.getContainerImageForJob(options);
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.Environment defaultEnvironmentForDataflow =
+        Environments.createDockerEnvironment(defaultSdkContainerImage);
+    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow.toBuilder().build());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
+            .getJob();
+
+    DataflowRunner.configureSdkHarnessContainerImages(options, pipelineProto, job);
+    List<SdkHarnessContainerImage> sdks =
+        job.getEnvironment().getWorkerPools().get(0).getSdkHarnessContainerImages();
+
+    Map<String, String> expectedEnvIdsAndContainerImages =
+        pipelineProto.getComponents().getEnvironmentsMap().entrySet().stream()
+            .filter(
+                x ->
+                    BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)
+                        .equals(x.getValue().getUrn()))
+            .collect(
+                Collectors.toMap(
+                    x -> x.getKey(),
+                    x -> {
+                      RunnerApi.DockerPayload payload;
+                      try {
+                        payload = RunnerApi.DockerPayload.parseFrom(x.getValue().getPayload());
+                      } catch (InvalidProtocolBufferException e) {
+                        throw new RuntimeException(e);
+                      }
+                      return payload.getContainerImage();
+                    }));
+
+    assertEquals(1, expectedEnvIdsAndContainerImages.size());
+    assertEquals(1, sdks.size());
+    assertEquals(
+        expectedEnvIdsAndContainerImages,
+        sdks.stream()
+            .collect(
+                Collectors.toMap(
+                    SdkHarnessContainerImage::getEnvironmentId,
+                    SdkHarnessContainerImage::getContainerImage)));
   }
 
   private void verifyMapStateUnsupported(PipelineOptions options) throws Exception {
@@ -1150,16 +1441,12 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testMapStateUnsupportedInBatch() throws Exception {
+  public void testMapStateUnsupportedStreamingEngine() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(false);
-    verifyMapStateUnsupported(options);
-  }
+    ExperimentalOptions.addExperiment(
+        options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
 
-  @Test
-  public void testMapStateUnsupportedInStreaming() throws Exception {
-    PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
     verifyMapStateUnsupported(options);
   }
 
@@ -1182,22 +1469,17 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testSetStateUnsupportedInBatch() throws Exception {
+  public void testSetStateUnsupportedStreamingEngine() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(false);
-    Pipeline.create(options);
-    verifySetStateUnsupported(options);
-  }
-
-  @Test
-  public void testSetStateUnsupportedInStreaming() throws Exception {
-    PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
+    ExperimentalOptions.addExperiment(
+        options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
     verifySetStateUnsupported(options);
   }
 
   /** Records all the composite transforms visited within the Pipeline. */
   private static class CompositeTransformRecorder extends PipelineVisitor.Defaults {
+
     private List<PTransform<?, ?>> transforms = new ArrayList<>();
 
     @Override
@@ -1242,6 +1524,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setJobName("TestJobName");
     options.setProject("test-project");
+    options.setRegion(REGION_ID);
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
@@ -1261,6 +1544,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setProject("test-project");
+    options.setRegion(REGION_ID);
     options.setRunner(DataflowRunner.class);
     options.setTemplateLocation(existingFile.getPath());
     options.setTempLocation(tmpFolder.getRoot().getPath());
@@ -1268,6 +1552,34 @@ public class DataflowRunnerTest implements Serializable {
 
     p.run();
     expectedLogs.verifyInfo("Template successfully created");
+  }
+
+  /**
+   * Tests that the {@link DataflowRunner} with {@code --templateLocation} returns normally when the
+   * runner is successfully run with upload_graph experiment turned on. The result template should
+   * not contain raw steps and stepsLocation file should be set.
+   */
+  @Test
+  public void testTemplateRunnerWithUploadGraph() throws Exception {
+    File existingFile = tmpFolder.newFile();
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setExperiments(Arrays.asList("upload_graph"));
+    options.setJobName("TestJobName");
+    options.setGcpCredential(new TestCredential());
+    options.setPathValidatorClass(NoopPathValidator.class);
+    options.setProject("test-project");
+    options.setRegion(REGION_ID);
+    options.setRunner(DataflowRunner.class);
+    options.setTemplateLocation(existingFile.getPath());
+    options.setTempLocation(tmpFolder.getRoot().getPath());
+    Pipeline p = Pipeline.create(options);
+    p.apply(Create.of(ImmutableList.of(1)));
+    p.run();
+    expectedLogs.verifyInfo("Template successfully created");
+    ObjectMapper objectMapper = new ObjectMapper();
+    JsonNode node = objectMapper.readTree(existingFile);
+    assertEquals(0, node.get("steps").size());
+    assertNotNull(node.get("stepsLocation"));
   }
 
   /**
@@ -1281,6 +1593,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setRunner(DataflowRunner.class);
     options.setTemplateLocation("//bad/path");
     options.setProject("test-project");
+    options.setRegion(REGION_ID);
     options.setTempLocation(tmpFolder.getRoot().getPath());
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
@@ -1292,24 +1605,60 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testWorkerHarnessContainerImage() {
+  public void testGetContainerImageForJobFromOption() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
 
-    // default image set
-    options.setWorkerHarnessContainerImage("some-container");
-    assertThat(getContainerImageForJob(options), equalTo("some-container"));
+    String[] testCases = {
+      "some-container",
 
-    // batch, legacy
-    options.setWorkerHarnessContainerImage("gcr.io/IMAGE/foo");
-    options.setExperiments(null);
-    options.setStreaming(false);
-    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java-batch/foo"));
-    // streaming, legacy
-    options.setStreaming(true);
-    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java-streaming/foo"));
-    // streaming, fnapi
-    options.setExperiments(ImmutableList.of("experiment1", "beam_fn_api"));
-    assertThat(getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
+      // It is important that empty string is preserved, as
+      // dataflowWorkerJar relies on being passed an empty value vs
+      // not providing the container image option at all.
+      "",
+    };
+
+    for (String testCase : testCases) {
+      // When image option is set, should use that exact image.
+      options.setSdkContainerImage(testCase);
+      assertThat(getContainerImageForJob(options), equalTo(testCase));
+    }
+  }
+
+  @Test
+  public void testGetContainerImageForJobFromOptionWithPlaceholder() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setSdkContainerImage("gcr.io/IMAGE/foo");
+
+    for (Environments.JavaVersion javaVersion : Environments.JavaVersion.values()) {
+      System.setProperty("java.specification.version", javaVersion.specification());
+      // batch legacy
+      options.setExperiments(null);
+      options.setStreaming(false);
+      assertThat(
+          getContainerImageForJob(options),
+          equalTo(String.format("gcr.io/beam-%s-batch/foo", javaVersion.legacyName())));
+
+      // streaming, legacy
+      options.setExperiments(null);
+      options.setStreaming(true);
+      assertThat(
+          getContainerImageForJob(options),
+          equalTo(String.format("gcr.io/beam-%s-streaming/foo", javaVersion.legacyName())));
+
+      // batch, FnAPI
+      options.setExperiments(ImmutableList.of("beam_fn_api"));
+      options.setStreaming(false);
+      assertThat(
+          getContainerImageForJob(options),
+          equalTo(String.format("gcr.io/beam_%s_sdk/foo", javaVersion.name())));
+
+      // streaming, FnAPI
+      options.setExperiments(ImmutableList.of("beam_fn_api"));
+      options.setStreaming(true);
+      assertThat(
+          getContainerImageForJob(options),
+          equalTo(String.format("gcr.io/beam_%s_sdk/foo", javaVersion.name())));
+    }
   }
 
   @Test
@@ -1359,6 +1708,236 @@ public class DataflowRunnerTest implements Serializable {
     verifyMergingStatefulParDoRejected(options);
   }
 
+  private void verifyGroupIntoBatchesOverrideCount(
+      Pipeline p, Boolean withShardedKey, Boolean expectOverriden) {
+    final int batchSize = 2;
+    List<KV<String, Integer>> testValues =
+        Arrays.asList(KV.of("A", 1), KV.of("B", 0), KV.of("A", 2), KV.of("A", 4), KV.of("A", 8));
+    PCollection<KV<String, Integer>> input = p.apply("CreateValuesCount", Create.of(testValues));
+    PCollection<KV<String, Iterable<Integer>>> output;
+    if (withShardedKey) {
+      output =
+          input
+              .apply(
+                  "GroupIntoBatchesCount",
+                  GroupIntoBatches.<String, Integer>ofSize(batchSize).withShardedKey())
+              .apply(
+                  "StripShardIdCount",
+                  MapElements.via(
+                      new SimpleFunction<
+                          KV<ShardedKey<String>, Iterable<Integer>>,
+                          KV<String, Iterable<Integer>>>() {
+                        @Override
+                        public KV<String, Iterable<Integer>> apply(
+                            KV<ShardedKey<String>, Iterable<Integer>> input) {
+                          return KV.of(input.getKey().getKey(), input.getValue());
+                        }
+                      }));
+    } else {
+      output = input.apply("GroupIntoBatchesCount", GroupIntoBatches.ofSize(batchSize));
+    }
+    PAssert.thatMultimap(output)
+        .satisfies(
+            i -> {
+              assertEquals(2, i.size());
+              assertThat(i.keySet(), containsInAnyOrder("A", "B"));
+              Map<String, Integer> sums = new HashMap<>();
+              for (Map.Entry<String, Iterable<Iterable<Integer>>> entry : i.entrySet()) {
+                for (Iterable<Integer> batch : entry.getValue()) {
+                  assertThat(Iterables.size(batch), lessThanOrEqualTo(batchSize));
+                  for (Integer value : batch) {
+                    sums.put(entry.getKey(), value + sums.getOrDefault(entry.getKey(), 0));
+                  }
+                }
+              }
+              assertEquals(15, (int) sums.get("A"));
+              assertEquals(0, (int) sums.get("B"));
+              return null;
+            });
+    p.run();
+
+    AtomicBoolean sawGroupIntoBatchesOverride = new AtomicBoolean(false);
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.StreamingGroupIntoBatchesWithShardedKey) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform() instanceof GroupIntoBatchesOverride.BatchGroupIntoBatches) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.BatchGroupIntoBatchesWithShardedKey) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+    if (expectOverriden) {
+      assertTrue(sawGroupIntoBatchesOverride.get());
+    } else {
+      assertFalse(sawGroupIntoBatchesOverride.get());
+    }
+  }
+
+  private void verifyGroupIntoBatchesOverrideBytes(
+      Pipeline p, Boolean withShardedKey, Boolean expectOverriden) {
+    final long batchSizeBytes = 2;
+    List<KV<String, String>> testValues =
+        Arrays.asList(
+            KV.of("A", "a"),
+            KV.of("A", "ab"),
+            KV.of("A", "abc"),
+            KV.of("A", "abcd"),
+            KV.of("A", "abcde"));
+    PCollection<KV<String, String>> input = p.apply("CreateValuesBytes", Create.of(testValues));
+    PCollection<KV<String, Iterable<String>>> output;
+    if (withShardedKey) {
+      output =
+          input
+              .apply(
+                  "GroupIntoBatchesBytes",
+                  GroupIntoBatches.<String, String>ofByteSize(batchSizeBytes).withShardedKey())
+              .apply(
+                  "StripShardIdBytes",
+                  MapElements.via(
+                      new SimpleFunction<
+                          KV<ShardedKey<String>, Iterable<String>>,
+                          KV<String, Iterable<String>>>() {
+                        @Override
+                        public KV<String, Iterable<String>> apply(
+                            KV<ShardedKey<String>, Iterable<String>> input) {
+                          return KV.of(input.getKey().getKey(), input.getValue());
+                        }
+                      }));
+    } else {
+      output = input.apply("GroupIntoBatchesBytes", GroupIntoBatches.ofByteSize(batchSizeBytes));
+    }
+    PAssert.thatMultimap(output)
+        .satisfies(
+            i -> {
+              assertEquals(1, i.size());
+              assertThat(i.keySet(), containsInAnyOrder("A"));
+              Iterable<Iterable<String>> batches = i.get("A");
+              assertEquals(5, Iterables.size(batches));
+              return null;
+            });
+    p.run();
+
+    AtomicBoolean sawGroupIntoBatchesOverride = new AtomicBoolean(false);
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.StreamingGroupIntoBatchesWithShardedKey) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform() instanceof GroupIntoBatchesOverride.BatchGroupIntoBatches) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.BatchGroupIntoBatchesWithShardedKey) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+    if (expectOverriden) {
+      assertTrue(sawGroupIntoBatchesOverride.get());
+    } else {
+      assertFalse(sawGroupIntoBatchesOverride.get());
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testBatchGroupIntoBatchesOverrideCount() {
+    // Ignore this test for streaming pipelines.
+    assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
+    verifyGroupIntoBatchesOverrideCount(pipeline, false, true);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testBatchGroupIntoBatchesOverrideBytes() {
+    // Ignore this test for streaming pipelines.
+    assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
+    verifyGroupIntoBatchesOverrideBytes(pipeline, false, true);
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyOverrideCount() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideCount(p, true, true);
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyOverrideBytes() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideBytes(p, true, true);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesOverrideCount() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideCount(p, false, false);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesOverrideBytes() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideBytes(p, false, false);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyOverrideCount() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    dataflowOptions.setExperiments(experiments);
+    dataflowOptions.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideCount(p, true, true);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyOverrideBytes() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    dataflowOptions.setExperiments(experiments);
+    dataflowOptions.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideBytes(p, true, true);
+  }
+
   private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
     TestPipeline p = TestPipeline.fromOptions(options);
 
@@ -1368,7 +1947,13 @@ public class DataflowRunnerTest implements Serializable {
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
-            AppliedPTransform.of("writefiles", objs.expand(), Collections.emptyMap(), original, p);
+            AppliedPTransform.of(
+                "writefiles",
+                PValues.expandInput(objs),
+                Collections.emptyMap(),
+                original,
+                ResourceHints.create(),
+                p);
 
     WriteFiles<Object, Void, Object> replacement =
         (WriteFiles<Object, Void, Object>)
@@ -1378,8 +1963,8 @@ public class DataflowRunnerTest implements Serializable {
 
     WriteFilesResult<Void> originalResult = objs.apply(original);
     WriteFilesResult<Void> replacementResult = objs.apply(replacement);
-    Map<PValue, ReplacementOutput> res =
-        factory.mapOutputs(originalResult.expand(), replacementResult);
+    Map<PCollection<?>, ReplacementOutput> res =
+        factory.mapOutputs(PValues.expandOutput(originalResult), replacementResult);
     assertEquals(1, res.size());
     assertEquals(
         originalResult.getPerDestinationOutputFilenames(),
@@ -1387,6 +1972,7 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   private static class TestSink extends FileBasedSink<Object, Void, Object> {
+
     @Override
     public void validate(PipelineOptions options) {}
 
@@ -1405,9 +1991,8 @@ public class DataflowRunnerTest implements Serializable {
                   throw new UnsupportedOperationException("should not be called");
                 }
 
-                @Nullable
                 @Override
-                public ResourceId unwindowedFilename(
+                public @Nullable ResourceId unwindowedFilename(
                     int shardNumber, int numShards, OutputFileHints outputFileHints) {
                   throw new UnsupportedOperationException("should not be called");
                 }

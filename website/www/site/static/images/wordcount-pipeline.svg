@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg width="1158px" height="441px" viewBox="0 0 1158 441" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>The MinimalWordCount pipeline graph.</title>
+	<g id="wordcount-pipeline" transform="translate(1.000000, 0.000000)">
+	    <g id="Legend" transform="translate(0.000000, 387.000000)">
+	        <text id="PCollection" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+	            <tspan x="22" y="52">PCollection</tspan>
+	        </text>
+	        <circle id="PCollection-symbol" fill="#FFFFFF" stroke="#757575" stroke-width="2" cx="7.5" cy="45.5" r="7.5"></circle>
+	        <text id="Aggregation" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+	            <tspan x="162" y="17">Aggregating PTransform</tspan>
+	        </text>
+	        <path d="M143.364341,4 L154,11.4782609 L143.364341,19 L133,11.5217391 L143.364341,4 Z" id="Aggregation-PTransform-symbol" fill="#3062A8"></path>
+	        <text id="PTransform" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+	            <tspan x="22" y="17">PTransform</tspan>
+	        </text>
+	        <rect id="PTransform-symbol" fill="#3062A8" x="0" y="3" width="15" height="15"></rect>
+	    </g>
+       <g id="Document" transform="translate(566.000000, 256.000000)">
+            <path d="M0,0 L0,81.1880544 C5.73926173,85.0626848 15.1689615,87 28.2890992,87 C56.5,87 57.2032971,71.8576229 84.878475,71.8576229 C90.6940962,71.8576229 100.067938,74.9677667 113,81.1880544 L113,0 L0,0 Z" id="Document-symbol" fill="#E0E0E0"></path>
+            <text id="Output-text-file" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#414141">
+                <tspan x="26" y="34">Output </tspan>
+                <tspan x="26" y="55">text file</tspan>
+            </text>
+        </g>
+        <path id="Directed-edge" d="M552,303 L520,303 L520,301 L552,301 L552,295 L566,302 L552,309 L552,303 Z" fill="#E0E0E0" fill-rule="nonzero"></path>
+        <g id="PTransform" transform="translate(326.000000, 238.000000)">
+            <rect id="PTransform-symbol" fill="#3062A8" x="0" y="0" width="194" height="124"></rect>
+            <text id="Write-to-text-file" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+                <tspan x="55" y="56">Write to </tspan>
+                <tspan x="55" y="84">text file</tspan>
+            </text>
+        </g>
+        <g id="Directed-edge" transform="translate(193.500000, 300.500000)">
+            <path d="M11,-8.5 L11,11.5" id="Line" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(11.000000, 1.500000) rotate(-90.000000) translate(-11.000000, -1.500000) "></path>
+            <path id="Line" d="M118.5,2.5 L86.5,2.5 L86.5,0.5 L118.5,0.5 L118.5,-5.5 L132.5,1.5 L118.5,8.5 L118.5,2.5 Z" fill="#757575" fill-rule="nonzero"></path>
+        </g>
+        <g id="PCollection" transform="translate(214.500000, 269.000000)">
+            <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="32.5" cy="32.5" r="32.5"></circle>
+            <text id="Word-counts" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+                <tspan x="14.1210938" y="27">Word </tspan>
+                <tspan x="8.6875" y="46">counts</tspan>
+            </text>
+        </g>
+        <g id="PTransform" transform="translate(0.000000, 238.000000)">
+            <rect id="PTransform-symbol" fill="#3062A8" x="0" y="0" width="194" height="124"></rect>
+            <text id="Format-word-counts" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+                <tspan x="34" y="56">Format </tspan>
+                <tspan x="34" y="84">word counts</tspan>
+            </text>
+        </g>
+        <g id="Directed-edge" transform="translate(95.500000, 91.500000)">
+            <path id="Line" d="M-0.5,132.5 L-0.5,120.941369 L1019.45139,120.941369 L1019.50057,34.4994312 L1021.50057,34.5005691 L1021.45025,122.941369 L1.5,122.941369 L1.5,132.5 L7.5,132.5 L0.5,146.5 L-6.5,132.5 L-0.5,132.5 Z" fill="#757575" fill-rule="nonzero"></path>
+            <path d="M978.5,-9 L978.5,11" id="Line" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(978.500000, 1.000000) rotate(-90.000000) translate(-978.500000, -1.000000) "></path>
+        </g>
+        <g id="PCollection" transform="translate(1082.000000, 59.000000)">
+            <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="34" cy="34" r="34"></circle>
+            <text id="Word-counts" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+                <tspan x="15.6210938" y="28">Word </tspan>
+                <tspan x="10.1875" y="47">counts</tspan>
+            </text>
+        </g>
+        <g id="PTransform" transform="translate(804.000000, 0.750000)">
+            <polygon id="Aggregation-PTransform-symbol" fill="#3062A8" points="128.813953 0 261 91.7333333 128.813953 184 0 92.2666667"></polygon>
+            <text id="Count-frequency-of-e" font-family="Roboto-Regular, Roboto" font-size="23" font-weight="normal" fill="#FFFFFF">
+                <tspan x="100.014893" y="68.25">Count </tspan>
+                <tspan x="66.3515625" y="95.25">frequency of </tspan>
+                <tspan x="77.3742676" y="122.25">each word</tspan>
+            </text>
+        </g>
+        <g id="Directed-edge" transform="translate(675.500000, 91.500000)">
+            <path d="M11,-8.5 L11,11.5" id="Line" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(11.000000, 1.500000) rotate(-90.000000) translate(-11.000000, -1.500000) "></path>
+            <path id="Line" d="M115,2.5 L83,2.5 L83,0.5 L115,0.5 L115,-5.5 L129,1.5 L115,8.5 L115,2.5 Z" fill="#757575" fill-rule="nonzero"></path>
+        </g>
+        <g id="PCollection" transform="translate(696.500000, 62.000000)">
+            <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
+            <text id="Words" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+                <tspan x="8.49609375" y="37">Words</tspan>
+            </text>
+        </g>
+        <g id="PTransform" transform="translate(482.000000, 31.000000)">
+            <path d="M0,0 L194,0 L194,124 L0,124 L0,0 Z" id="PTransform-symbol" fill="#3062A8"></path>
+            <text id="ParDo-(tokenize)" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+                <tspan x="41" y="54">ParDo </tspan>
+                <tspan x="41" y="82">(tokenize)</tspan>
+            </text>
+        </g>
+        <g id="Directed-edge" transform="translate(353.000000, 91.500000)">
+            <path id="Line" d="M115,2.5 L83,2.5 L83,0.5 L115,0.5 L115,-5.5 L129,1.5 L115,8.5 L115,2.5 Z" fill="#757575" fill-rule="nonzero"></path>
+            <path d="M11,-8.5 L11,11.5" id="Line" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(11.000000, 1.500000) rotate(-90.000000) translate(-11.000000, -1.500000) "></path>
+        </g>
+        <g id="PCollection" transform="translate(374.000000, 62.000000)">
+            <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
+            <text id="Text-lines" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+                <tspan x="15.4101562" y="27">Text </tspan>
+                <tspan x="14.3398438" y="46">lines</tspan>
+            </text>
+        </g>
+        <g id="PTransform" transform="translate(160.000000, 31.000000)">
+            <rect id="PTransform-symbol" fill="#3062A8" x="0" y="0" width="194" height="124"></rect>
+            <text id="Read-from-text-file" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+                <tspan x="41" y="55">Read from </tspan>
+                <tspan x="41" y="83">text file</tspan>
+            </text>
+        </g>
+        <path id="Directed-edge" d="M145,94 L113,94 L113,92 L145,92 L145,86 L159,93 L145,100 L145,94 Z" fill="#E0E0E0" fill-rule="nonzero"></path>
+        <g id="Document" transform="translate(0.000000, 49.000000)">
+            <path d="M0,0 L0,81.1880544 C5.73926173,85.0626848 15.1689615,87 28.2890992,87 C56.5,87 57.2032971,71.8576229 84.878475,71.8576229 C90.6940962,71.8576229 100.067938,74.9677667 113,81.1880544 L113,0 L0,0 Z" id="Document-symbol" fill="#E0E0E0"></path>
+            <text id="Input-text-file" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#414141">
+                <tspan x="26" y="34">Input </tspan>
+                <tspan x="26" y="55">text file</tspan>
+            </text>
+        </g>
+	</g>
+</svg>

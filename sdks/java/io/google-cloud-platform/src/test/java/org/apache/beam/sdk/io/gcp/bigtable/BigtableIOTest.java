@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Verify.verifyNotNull;
+import static org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
@@ -28,6 +26,10 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verifyNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
@@ -36,7 +38,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -52,33 +54,30 @@ import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
@@ -87,20 +86,37 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipeline.PipelineRunMissingException;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
-import org.hamcrest.collection.IsIterableContainingInOrder;
+import org.hamcrest.collection.IsIterableContainingInAnyOrder;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -114,6 +130,27 @@ public class BigtableIOTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(BigtableIO.class);
+
+  /** Read Options for testing. */
+  public interface ReadOptions extends GcpOptions {
+    @Description("The project that contains the table to export.")
+    ValueProvider<String> getBigtableProject();
+
+    @SuppressWarnings("unused")
+    void setBigtableProject(ValueProvider<String> projectId);
+
+    @Description("The Bigtable instance id that contains the table to export.")
+    ValueProvider<String> getBigtableInstanceId();
+
+    @SuppressWarnings("unused")
+    void setBigtableInstanceId(ValueProvider<String> instanceId);
+
+    @Description("The Bigtable table id to export.")
+    ValueProvider<String> getBigtableTableId();
+
+    @SuppressWarnings("unused")
+    void setBigtableTableId(ValueProvider<String> tableId);
+  }
 
   static final ValueProvider<String> NOT_ACCESSIBLE_VALUE =
       new ValueProvider<String>() {
@@ -145,6 +182,9 @@ public class BigtableIOTest {
 
   private static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
       PORT_CONFIGURATOR = input -> input.setPort(1234);
+
+  private static final ValueProvider<List<ByteKeyRange>> ALL_KEY_RANGE =
+      StaticValueProvider.of(Collections.singletonList(ByteKeyRange.ALL_KEYS));
 
   @Before
   public void setup() throws Exception {
@@ -224,6 +264,39 @@ public class BigtableIOTest {
   }
 
   @Test
+  public void testReadWithRuntimeParametersValidationFailed() {
+    ReadOptions options = PipelineOptionsFactory.fromArgs().withValidation().as(ReadOptions.class);
+
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withProjectId(options.getBigtableProject())
+            .withInstanceId(options.getBigtableInstanceId())
+            .withTableId(options.getBigtableTableId());
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("tableId was not supplied");
+
+    p.apply(read);
+  }
+
+  @Test
+  public void testReadWithRuntimeParametersValidationDisabled() {
+    ReadOptions options = PipelineOptionsFactory.fromArgs().withValidation().as(ReadOptions.class);
+
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withoutValidation()
+            .withProjectId(options.getBigtableProject())
+            .withInstanceId(options.getBigtableInstanceId())
+            .withTableId(options.getBigtableTableId());
+
+    // Not running a pipeline therefore this is expected.
+    thrown.expect(PipelineRunMissingException.class);
+
+    p.apply(read);
+  }
+
+  @Test
   public void testWriteBuildsCorrectly() {
     BigtableIO.Write write =
         BigtableIO.write()
@@ -240,11 +313,12 @@ public class BigtableIOTest {
 
   @Test
   public void testWriteValidationFailsMissingInstanceId() {
-    BigtableIO.Write write =
+    BigtableIO.WriteWithResults write =
         BigtableIO.write()
             .withTableId("table")
             .withProjectId("project")
-            .withBigtableOptions(new BigtableOptions.Builder().build());
+            .withBigtableOptions(new BigtableOptions.Builder().build())
+            .withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -253,11 +327,12 @@ public class BigtableIOTest {
 
   @Test
   public void testWriteValidationFailsMissingProjectId() {
-    BigtableIO.Write write =
+    BigtableIO.WriteWithResults write =
         BigtableIO.write()
             .withTableId("table")
             .withInstanceId("instance")
-            .withBigtableOptions(new BigtableOptions.Builder().build());
+            .withBigtableOptions(new BigtableOptions.Builder().build())
+            .withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -266,10 +341,11 @@ public class BigtableIOTest {
 
   @Test
   public void testWriteValidationFailsMissingInstanceIdAndProjectId() {
-    BigtableIO.Write write =
+    BigtableIO.WriteWithResults write =
         BigtableIO.write()
             .withTableId("table")
-            .withBigtableOptions(new BigtableOptions.Builder().build());
+            .withBigtableOptions(new BigtableOptions.Builder().build())
+            .withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -278,7 +354,7 @@ public class BigtableIOTest {
 
   @Test
   public void testWriteValidationFailsMissingOptionsAndInstanceAndProject() {
-    BigtableIO.Write write = BigtableIO.write().withTableId("table");
+    BigtableIO.WriteWithResults write = BigtableIO.write().withTableId("table").withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -440,7 +516,8 @@ public class BigtableIOTest {
   }
 
   private void runReadTest(BigtableIO.Read read, List<Row> expected) {
-    PCollection<Row> rows = p.apply(read.getTableId() + "_" + read.getKeyRanges(), read);
+    PCollection<Row> rows =
+        p.apply(read.getTableId() + "_" + read.getBigtableReadOptions().getKeyRanges(), read);
     PAssert.that(rows).containsInAnyOrder(expected);
     p.run();
   }
@@ -490,6 +567,28 @@ public class BigtableIOTest {
     assertThat(suffixRows, hasItems(middleRows.toArray(new Row[] {})));
   }
 
+  /** Tests reading key ranges specified through a ValueProvider. */
+  @Test
+  public void testReadingWithRuntimeParameterizedKeyRange() throws Exception {
+    final String table = "TEST-KEY-RANGE-TABLE";
+    final int numRows = 1001;
+    List<Row> testRows = makeTableData(table, numRows);
+    ByteKey startKey = ByteKey.copyFrom("key000000100".getBytes(StandardCharsets.UTF_8));
+    ByteKey endKey = ByteKey.copyFrom("key000000300".getBytes(StandardCharsets.UTF_8));
+
+    service.setupSampleRowKeys(table, numRows / 10, "key000000100".length());
+
+    final ByteKeyRange middleRange = ByteKeyRange.of(startKey, endKey);
+    List<Row> middleRows = filterToRange(testRows, middleRange);
+    runReadTest(
+        defaultRead
+            .withTableId(table)
+            .withKeyRanges(StaticValueProvider.of(Collections.singletonList(middleRange))),
+        middleRows);
+
+    assertThat(middleRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
+  }
+
   /** Tests reading three key ranges with one read. */
   @Test
   public void testReadingWithKeyRanges() throws Exception {
@@ -525,8 +624,7 @@ public class BigtableIOTest {
     String regex = ".*17.*";
     final KeyMatchesRegex keyPredicate = new KeyMatchesRegex(regex);
     Iterable<Row> filteredRows =
-        testRows
-            .stream()
+        testRows.stream()
             .filter(
                 input -> {
                   verifyNotNull(input, "input");
@@ -542,6 +640,31 @@ public class BigtableIOTest {
         defaultRead.withTableId(table).withRowFilter(filter), Lists.newArrayList(filteredRows));
   }
 
+  /** Tests reading rows using a filter provided through ValueProvider. */
+  @Test
+  public void testReadingWithRuntimeParameterizedFilter() throws Exception {
+    final String table = "TEST-FILTER-TABLE";
+    final int numRows = 1001;
+    List<Row> testRows = makeTableData(table, numRows);
+    String regex = ".*17.*";
+    final KeyMatchesRegex keyPredicate = new KeyMatchesRegex(regex);
+    Iterable<Row> filteredRows =
+        testRows.stream()
+            .filter(
+                input -> {
+                  verifyNotNull(input, "input");
+                  return keyPredicate.apply(input.getKey());
+                })
+            .collect(Collectors.toList());
+
+    RowFilter filter =
+        RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(regex)).build();
+    service.setupSampleRowKeys(table, 5, 10L);
+
+    runReadTest(
+        defaultRead.withTableId(table).withRowFilter(StaticValueProvider.of(filter)),
+        Lists.newArrayList(filteredRows));
+  }
   /** Tests dynamic work rebalancing exhaustively. */
   @Test
   public void testReadingSplitAtFractionExhaustive() throws Exception {
@@ -554,9 +677,11 @@ public class BigtableIOTest {
 
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null,
-            Arrays.asList(service.getTableRange(table)),
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder()
+                .setKeyRanges(
+                    StaticValueProvider.of(Collections.singletonList(service.getTableRange(table))))
+                .build(),
             null);
     assertSplitAtFractionExhaustive(source, null);
   }
@@ -573,9 +698,11 @@ public class BigtableIOTest {
 
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null,
-            Arrays.asList(service.getTableRange(table)),
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder()
+                .setKeyRanges(
+                    StaticValueProvider.of(Collections.singletonList(service.getTableRange(table))))
+                .build(),
             null);
     // With 0 items read, all split requests will fail.
     assertSplitAtFractionFails(source, 0, 0.1, null /* options */);
@@ -607,9 +734,8 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null /*filter*/,
-            Arrays.asList(ByteKeyRange.ALL_KEYS),
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
             null /*size*/);
     List<BigtableSource> splits =
         source.split(numRows * bytesPerRow / numSamples, null /* options */);
@@ -654,7 +780,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    //Construct few non contiguous key ranges [..1][1..2][3..4][4..5][6..7][8..9]
+    // Construct few non contiguous key ranges [..1][1..2][3..4][4..5][6..7][8..9]
     List<ByteKeyRange> keyRanges =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
@@ -664,7 +790,7 @@ public class BigtableIOTest {
             ByteKeyRange.of(createByteKey(6), createByteKey(7)),
             ByteKeyRange.of(createByteKey(8), createByteKey(9)));
 
-    //Expected ranges after split and reduction by maxSplitCount is [..2][3..5][6..7][8..9]
+    // Expected ranges after split and reduction by maxSplitCount is [..2][3..5][6..7][8..9]
     List<ByteKeyRange> expectedKeyRangesAfterReducedSplits =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(2)),
@@ -675,19 +801,18 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null /*filter*/,
-            keyRanges,
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
             null /*size*/);
 
-    List<BigtableSource> splits =
-        source.split(numRows * bytesPerRow / numSamples, null /* options */);
-
-    assertThat(splits, hasSize(keyRanges.size()));
+    List<BigtableSource> splits = new ArrayList<>();
+    for (ByteKeyRange range : keyRanges) {
+      splits.add(source.withSingleRange(range));
+    }
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
-    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<>();
 
     for (BigtableSource splitSource : reducedSplits) {
       actualRangesAfterSplit.addAll(splitSource.getRanges());
@@ -697,7 +822,8 @@ public class BigtableIOTest {
 
     assertThat(
         actualRangesAfterSplit,
-        IsIterableContainingInOrder.contains(expectedKeyRangesAfterReducedSplits.toArray()));
+        IsIterableContainingInAnyOrder.containsInAnyOrder(
+            expectedKeyRangesAfterReducedSplits.toArray()));
   }
 
   /** Tests reduce split with all non adjacent ranges. */
@@ -713,7 +839,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    //Construct non contiguous key ranges [..1][2..3][4..5][6..7][8..9]
+    // Construct non contiguous key ranges [..1][2..3][4..5][6..7][8..9]
     List<ByteKeyRange> keyRanges =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
@@ -725,19 +851,18 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null /*filter*/,
-            keyRanges,
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
             null /*size*/);
 
-    List<BigtableSource> splits =
-        source.split(numRows * bytesPerRow / numSamples, null /* options */);
-
-    assertThat(splits, hasSize(keyRanges.size()));
+    List<BigtableSource> splits = new ArrayList<>();
+    for (ByteKeyRange range : keyRanges) {
+      splits.add(source.withSingleRange(range));
+    }
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
-    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<>();
 
     for (BigtableSource splitSource : reducedSplits) {
       actualRangesAfterSplit.addAll(splitSource.getRanges());
@@ -745,8 +870,10 @@ public class BigtableIOTest {
 
     assertAllSourcesHaveSingleRanges(reducedSplits);
 
-    //The expected split source ranges are exactly same as original
-    assertThat(actualRangesAfterSplit, IsIterableContainingInOrder.contains(keyRanges.toArray()));
+    // The expected split source ranges are exactly same as original
+    assertThat(
+        actualRangesAfterSplit,
+        IsIterableContainingInAnyOrder.containsInAnyOrder(keyRanges.toArray()));
   }
 
   /** Tests reduce Splits with all adjacent ranges. */
@@ -765,18 +892,28 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null /*filter*/,
-            Arrays.asList(ByteKeyRange.ALL_KEYS),
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
             null /*size*/);
+    List<BigtableSource> splits = new ArrayList<>();
+    List<ByteKeyRange> keyRanges =
+        Arrays.asList(
+            ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
+            ByteKeyRange.of(createByteKey(1), createByteKey(2)),
+            ByteKeyRange.of(createByteKey(2), createByteKey(3)),
+            ByteKeyRange.of(createByteKey(3), createByteKey(4)),
+            ByteKeyRange.of(createByteKey(4), createByteKey(5)),
+            ByteKeyRange.of(createByteKey(5), createByteKey(6)),
+            ByteKeyRange.of(createByteKey(6), createByteKey(7)),
+            ByteKeyRange.of(createByteKey(7), createByteKey(8)),
+            ByteKeyRange.of(createByteKey(8), createByteKey(9)),
+            ByteKeyRange.of(createByteKey(9), ByteKey.EMPTY));
+    for (ByteKeyRange range : keyRanges) {
+      splits.add(source.withSingleRange(range));
+    }
 
-    List<BigtableSource> splits =
-        source.split(numRows * bytesPerRow / numSamples, null /* options */);
-
-    assertThat(splits, hasSize(numSamples));
-
-    //Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
-    //expected reduced Split source ranges are [..4][4..8][8..]
+    // Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
+    // expected reduced Split source ranges are [..4][4..8][8..]
     List<ByteKeyRange> expectedKeyRangesAfterReducedSplits =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(4)),
@@ -785,7 +922,7 @@ public class BigtableIOTest {
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
-    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<>();
 
     for (BigtableSource splitSource : reducedSplits) {
       actualRangesAfterSplit.addAll(splitSource.getRanges());
@@ -793,7 +930,8 @@ public class BigtableIOTest {
 
     assertThat(
         actualRangesAfterSplit,
-        IsIterableContainingInOrder.contains(expectedKeyRangesAfterReducedSplits.toArray()));
+        IsIterableContainingInAnyOrder.containsInAnyOrder(
+            expectedKeyRangesAfterReducedSplits.toArray()));
     assertAllSourcesHaveSingleAdjacentRanges(reducedSplits);
     assertSourcesEqualReferenceSource(source, reducedSplits, null /* options */);
   }
@@ -825,15 +963,16 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null /*filter*/,
-            keyRanges,
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
             null /*size*/);
     BigtableSource referenceSource =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null /*filter*/,
-            ImmutableList.of(service.getTableRange(table)),
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder()
+                .setKeyRanges(
+                    StaticValueProvider.of(Collections.singletonList(service.getTableRange(table))))
+                .build(),
             null /*size*/);
     List<BigtableSource> splits = // 10,000
         source.split(numRows * bytesPerRow / numSamples, null /* options */);
@@ -859,9 +998,8 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null /*filter*/,
-            Arrays.asList(ByteKeyRange.ALL_KEYS),
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
             null /*size*/);
     List<BigtableSource> splits = source.split(numRows * bytesPerRow / numSplits, null);
 
@@ -902,15 +1040,16 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null /*filter*/,
-            keyRanges,
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
             null /*size*/);
     BigtableSource referenceSource =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null /*filter*/,
-            ImmutableList.of(service.getTableRange(table)),
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder()
+                .setKeyRanges(
+                    StaticValueProvider.of(ImmutableList.of(service.getTableRange(table))))
+                .build(),
             null /*size*/);
     List<BigtableSource> splits = source.split(numRows * bytesPerRow / numSplits, null);
 
@@ -937,9 +1076,11 @@ public class BigtableIOTest {
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*17.*")).build();
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            filter,
-            Arrays.asList(ByteKeyRange.ALL_KEYS),
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder()
+                .setRowFilter(StaticValueProvider.of(filter))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
             null /*size*/);
     List<BigtableSource> splits = source.split(numRows * bytesPerRow / numSplits, null);
 
@@ -970,38 +1111,44 @@ public class BigtableIOTest {
 
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
 
-    assertThat(displayData, hasDisplayItem("keyRange 0", keyRange.toString()));
+    assertThat(
+        displayData, hasDisplayItem("keyRanges", "[ByteKeyRange{startKey=[], endKey=[abcd]}]"));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
     assertThat(displayData, hasDisplayItem("bigtableOptions"));
   }
 
   @Test
-  public void testReadingPrimitiveDisplayData() throws IOException, InterruptedException {
-    final String table = "fooTable";
-    service.createTable(table);
-
-    RowFilter rowFilter =
-        RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8("foo.*")).build();
-
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+  public void testReadingDisplayDataFromRuntimeParameters() {
+    ReadOptions options = PipelineOptionsFactory.fromArgs().withValidation().as(ReadOptions.class);
     BigtableIO.Read read =
         BigtableIO.read()
             .withBigtableOptions(BIGTABLE_OPTIONS)
-            .withTableId(table)
-            .withRowFilter(rowFilter)
-            .withBigtableService(service);
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
+            .withProjectId(options.getBigtableProject())
+            .withInstanceId(options.getBigtableInstanceId())
+            .withTableId(options.getBigtableTableId());
+    DisplayData displayData = DisplayData.from(read);
     assertThat(
-        "BigtableIO.Read should include the table id in its primitive display data",
         displayData,
-        Matchers.hasItem(hasDisplayItem("tableId")));
+        hasDisplayItem(
+            allOf(
+                hasKey("projectId"),
+                hasLabel("Bigtable Project Id"),
+                hasValue("RuntimeValueProvider{propertyName=bigtableProject, default=null}"))));
     assertThat(
-        "BigtableIO.Read should include the row filter, if it exists, in its primitive "
-            + "display data",
         displayData,
-        Matchers.hasItem(hasDisplayItem("rowFilter")));
+        hasDisplayItem(
+            allOf(
+                hasKey("instanceId"),
+                hasLabel("Bigtable Instance Id"),
+                hasValue("RuntimeValueProvider{propertyName=bigtableInstanceId, default=null}"))));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("tableId"),
+                hasLabel("Bigtable Table Id"),
+                hasValue("RuntimeValueProvider{propertyName=bigtableTableId, default=null}"))));
   }
 
   @Test
@@ -1052,6 +1199,125 @@ public class BigtableIOTest {
     Map<ByteString, ByteString> rows = service.getTable(table);
     assertEquals(1, rows.size());
     assertEquals(ByteString.copyFromUtf8(value), rows.get(ByteString.copyFromUtf8(key)));
+  }
+
+  /** Tests that at least one result is emitted per element written in the global window. */
+  @Test
+  public void testWritingEmitsResultsWhenDoneInGlobalWindow() throws Exception {
+    final String table = "table";
+    final String key = "key";
+    final String value = "value";
+
+    service.createTable(table);
+
+    PCollection<BigtableWriteResult> results =
+        p.apply("single row", Create.of(makeWrite(key, value)).withCoder(bigtableCoder))
+            .apply("write", defaultWrite.withTableId(table).withWriteResults());
+    PAssert.that(results)
+        .inWindow(GlobalWindow.INSTANCE)
+        .containsInAnyOrder(BigtableWriteResult.create(1));
+
+    p.run();
+  }
+
+  /**
+   * Tests that the outputs of the Bigtable writer are correctly windowed, and can be used in a
+   * Wait.on transform as the trigger.
+   */
+  @Test
+  public void testWritingAndWaitingOnResults() throws Exception {
+    final String table = "table";
+    final String key = "key";
+    final String value = "value";
+
+    service.createTable(table);
+
+    Instant elementTimestamp = Instant.parse("2019-06-10T00:00:00");
+    Duration windowDuration = Duration.standardMinutes(1);
+
+    TestStream<KV<ByteString, Iterable<Mutation>>> writeInputs =
+        TestStream.create(bigtableCoder)
+            .advanceWatermarkTo(elementTimestamp)
+            .addElements(makeWrite(key, value))
+            .advanceWatermarkToInfinity();
+
+    TestStream<String> testInputs =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(elementTimestamp)
+            .addElements("done")
+            .advanceWatermarkToInfinity();
+
+    PCollection<BigtableWriteResult> writes =
+        p.apply("rows", writeInputs)
+            .apply(
+                "window rows",
+                Window.<KV<ByteString, Iterable<Mutation>>>into(FixedWindows.of(windowDuration))
+                    .withAllowedLateness(Duration.ZERO))
+            .apply("write", defaultWrite.withTableId(table).withWriteResults());
+
+    PCollection<String> inputs =
+        p.apply("inputs", testInputs)
+            .apply("window inputs", Window.into(FixedWindows.of(windowDuration)))
+            .apply("wait", Wait.on(writes));
+
+    BoundedWindow expectedWindow = new IntervalWindow(elementTimestamp, windowDuration);
+
+    PAssert.that(inputs).inWindow(expectedWindow).containsInAnyOrder("done");
+
+    p.run();
+  }
+
+  /**
+   * A DoFn used to generate N outputs, where N is the input. Used to generate bundles of >= 1
+   * element.
+   */
+  private static class WriteGeneratorDoFn
+      extends DoFn<Integer, KV<ByteString, Iterable<Mutation>>> {
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      for (int i = 0; i < ctx.element(); i++) {
+        ctx.output(makeWrite("key", "value"));
+      }
+    }
+  }
+
+  /** Tests that at least one result is emitted per element written in each window. */
+  @Test
+  public void testWritingEmitsResultsWhenDoneInFixedWindow() throws Exception {
+    final String table = "table";
+    final String key = "key";
+    final String value = "value";
+
+    service.createTable(table);
+
+    Instant elementTimestamp = Instant.parse("2019-06-10T00:00:00");
+    Duration windowDuration = Duration.standardMinutes(1);
+
+    TestStream<Integer> input =
+        TestStream.create(VarIntCoder.of())
+            .advanceWatermarkTo(elementTimestamp)
+            .addElements(1)
+            .advanceWatermarkTo(elementTimestamp.plus(windowDuration))
+            .addElements(2)
+            .advanceWatermarkToInfinity();
+
+    BoundedWindow expectedFirstWindow = new IntervalWindow(elementTimestamp, windowDuration);
+    BoundedWindow expectedSecondWindow =
+        new IntervalWindow(elementTimestamp.plus(windowDuration), windowDuration);
+
+    PCollection<BigtableWriteResult> results =
+        p.apply("rows", input)
+            .apply("window", Window.into(FixedWindows.of(windowDuration)))
+            .apply("expand", ParDo.of(new WriteGeneratorDoFn()))
+            .apply("write", defaultWrite.withTableId(table).withWriteResults());
+    PAssert.that(results)
+        .inWindow(expectedFirstWindow)
+        .containsInAnyOrder(BigtableWriteResult.create(1));
+    PAssert.that(results)
+        .inWindow(expectedSecondWindow)
+        .containsInAnyOrder(BigtableWriteResult.create(2));
+
+    p.run();
   }
 
   /** Tests that when writing to a non-existent table, the write fails. */
@@ -1120,9 +1386,8 @@ public class BigtableIOTest {
 
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(ValueProvider.StaticValueProvider.of(table)),
-            null,
-            Arrays.asList(ByteKeyRange.ALL_KEYS),
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
             null);
 
     BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
@@ -1183,7 +1448,7 @@ public class BigtableIOTest {
     BigtableIO.Write write = BigtableIO.write().withBigtableOptions(optionsBuilder.build());
 
     BigtableOptions options = write.getBigtableOptions();
-    assertEquals(true, options.getBulkOptions().useBulkApi());
+    assertTrue(options.getBulkOptions().useBulkApi());
     assertEquals(maxInflightRpcs, options.getBulkOptions().getMaxInflightRpcs());
     assertEquals(initialBackoffMillis, options.getRetryOptions().getInitialBackoffMillis());
 
@@ -1234,8 +1499,7 @@ public class BigtableIOTest {
       return null;
     }
 
-    @Nullable
-    public SortedMap<ByteString, ByteString> getTable(String tableId) {
+    public @Nullable SortedMap<ByteString, ByteString> getTable(String tableId) {
       return tables.get(tableId);
     }
 

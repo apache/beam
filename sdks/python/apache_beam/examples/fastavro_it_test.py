@@ -24,10 +24,11 @@ verifies they have the same elements.
 Usage:
 
   DataFlowRunner:
-    python setup.py nosetests --tests apache_beam.examples.fastavro_it_test \
+    pytest apache_beam/examples/fastavro_it_test.py \
         --test-pipeline-options="
           --runner=TestDataflowRunner
           --project=...
+          --region=...
           --staging_location=gs://...
           --temp_location=gs://...
           --output=gs://...
@@ -35,22 +36,23 @@ Usage:
         "
 
   DirectRunner:
-    python setup.py nosetests --tests apache_beam.examples.fastavro_it_test \
+    pytest apache_beam/examples/fastavro_it_test.py \
       --test-pipeline-options="
         --output=/tmp
         --records=5000
       "
 """
 
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
+import json
 import logging
 import unittest
 import uuid
 
-import avro
-from nose.plugins.attrib import attr
+import pytest
+from avro.schema import Parse
+from fastavro import parse_schema
 
 from apache_beam.io.avroio import ReadAllFromAvro
 from apache_beam.io.avroio import WriteToAvro
@@ -78,7 +80,7 @@ def record(i):
 
 class FastavroIT(unittest.TestCase):
 
-  SCHEMA = avro.schema.parse('''
+  SCHEMA_STRING = '''
     {"namespace": "example.avro",
      "type": "record",
      "name": "User",
@@ -89,17 +91,14 @@ class FastavroIT(unittest.TestCase):
          {"name": "color", "type": ["string", "null"]}
      ]
     }
-    ''')
+    '''
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.uuid = str(uuid.uuid4())
-    self.output = '/'.join([
-        self.test_pipeline.get_option('output'),
-        self.uuid
-    ])
+    self.output = '/'.join([self.test_pipeline.get_option('output'), self.uuid])
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_avro_it(self):
     num_records = self.test_pipeline.get_option('records')
     num_records = int(num_records) if num_records else 1000000
@@ -127,13 +126,11 @@ class FastavroIT(unittest.TestCase):
     fastavro_output = '/'.join([self.output, 'fastavro'])
     avro_output = '/'.join([self.output, 'avro'])
 
-    self.addCleanup(delete_files, [self.output + '*'])
-
     # pylint: disable=expression-not-assigned
     records_pcoll \
     | 'write_fastavro' >> WriteToAvro(
         fastavro_output,
-        self.SCHEMA,
+        parse_schema(json.loads(self.SCHEMA_STRING)),
         use_fastavro=True
     )
 
@@ -141,7 +138,7 @@ class FastavroIT(unittest.TestCase):
     records_pcoll \
     | 'write_avro' >> WriteToAvro(
         avro_output,
-        self.SCHEMA,
+        Parse(self.SCHEMA_STRING),
         use_fastavro=False
     )
 
@@ -149,42 +146,42 @@ class FastavroIT(unittest.TestCase):
     result.wait_until_finish()
     assert result.state == PipelineState.DONE
 
-    fastavro_read_pipeline = TestPipeline(is_integration_test=True)
+    with TestPipeline(is_integration_test=True) as fastavro_read_pipeline:
 
-    fastavro_records = \
-        fastavro_read_pipeline \
-        | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
-        | 'read-fastavro' >> ReadAllFromAvro(use_fastavro=True) \
-        | Map(lambda rec: (rec['number'], rec))
+      fastavro_records = \
+          fastavro_read_pipeline \
+          | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
+          | 'read-fastavro' >> ReadAllFromAvro(use_fastavro=True) \
+          | Map(lambda rec: (rec['number'], rec))
 
-    avro_records = \
-        fastavro_read_pipeline \
-        | 'create-avro' >> Create(['%s*' % avro_output]) \
-        | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
-        | Map(lambda rec: (rec['number'], rec))
+      avro_records = \
+          fastavro_read_pipeline \
+          | 'create-avro' >> Create(['%s*' % avro_output]) \
+          | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
+          | Map(lambda rec: (rec['number'], rec))
 
-    def check(elem):
-      v = elem[1]
+      def check(elem):
+        v = elem[1]
 
-      def assertEqual(l, r):
-        if l != r:
-          raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
+        def assertEqual(l, r):
+          if l != r:
+            raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
 
-      assertEqual(v.keys(), ['avro', 'fastavro'])
-      avro_values = v['avro']
-      fastavro_values = v['fastavro']
-      assertEqual(avro_values, fastavro_values)
-      assertEqual(len(avro_values), 1)
+        assertEqual(sorted(v.keys()), ['avro', 'fastavro'])
+        avro_values = v['avro']
+        fastavro_values = v['fastavro']
+        assertEqual(avro_values, fastavro_values)
+        assertEqual(len(avro_values), 1)
 
-    # pylint: disable=expression-not-assigned
-    {
-        'avro': avro_records,
-        'fastavro': fastavro_records
-    } \
-    | CoGroupByKey() \
-    | Map(check)
+      # pylint: disable=expression-not-assigned
+      {
+          'avro': avro_records,
+          'fastavro': fastavro_records
+      } \
+      | CoGroupByKey() \
+      | Map(check)
 
-    fastavro_read_pipeline.run().wait_until_finish()
+      self.addCleanup(delete_files, [self.output])
     assert result.state == PipelineState.DONE
 
 

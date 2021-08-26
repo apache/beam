@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.util.Collections;
@@ -29,6 +28,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link UnsupportedOverrideFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class UnsupportedOverrideFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 

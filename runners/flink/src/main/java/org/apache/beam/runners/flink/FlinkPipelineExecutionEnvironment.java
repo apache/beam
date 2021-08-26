@@ -17,12 +17,17 @@
  */
 package org.apache.beam.runners.flink;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The class that instantiates and manages the execution of a given job. Depending on if the job is
@@ -32,7 +37,13 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * FlinkStreamingPipelineTranslator}) to transform the Beam job into a Flink one, and executes the
  * (translated) job.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class FlinkPipelineExecutionEnvironment {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(FlinkPipelineExecutionEnvironment.class);
 
   private final FlinkPipelineOptions options;
 
@@ -69,25 +80,30 @@ class FlinkPipelineExecutionEnvironment {
    * org.apache.flink.api.java.DataSet} or {@link
    * org.apache.flink.streaming.api.datastream.DataStream} one.
    */
-  public void translate(FlinkRunner flinkRunner, Pipeline pipeline) {
+  public void translate(Pipeline pipeline) {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
-    PipelineTranslationOptimizer optimizer =
-        new PipelineTranslationOptimizer(TranslationMode.BATCH, options);
+    final boolean hasUnboundedOutput =
+        PipelineTranslationModeOptimizer.hasUnboundedOutput(pipeline);
+    if (hasUnboundedOutput) {
+      LOG.info("Found unbounded PCollection. Switching to streaming execution.");
+      options.setStreaming(true);
+    }
 
-    optimizer.translate(pipeline);
-    TranslationMode translationMode = optimizer.getTranslationMode();
-
-    pipeline.replaceAll(
-        FlinkTransformOverrides.getDefaultOverrides(translationMode == TranslationMode.STREAMING));
+    // Staged files need to be set before initializing the execution environments
+    prepareFilesToStageForRemoteClusterExecution(options);
 
     FlinkPipelineTranslator translator;
-    if (translationMode == TranslationMode.STREAMING) {
+    if (options.isStreaming()) {
       this.flinkStreamEnv =
           FlinkExecutionEnvironments.createStreamExecutionEnvironment(
               options, options.getFilesToStage());
-      translator = new FlinkStreamingPipelineTranslator(flinkRunner, flinkStreamEnv, options);
+      if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
+        LOG.warn(
+            "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
+      }
+      translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
       this.flinkBatchEnv =
           FlinkExecutionEnvironments.createBatchExecutionEnvironment(
@@ -95,7 +111,22 @@ class FlinkPipelineExecutionEnvironment {
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
 
+    // Transform replacements need to receive the finalized PipelineOptions
+    // including execution mode (batch/streaming) and parallelism.
+    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options));
+
     translator.translate(pipeline);
+  }
+
+  /**
+   * Local configurations work in the same JVM and have no problems with improperly formatted files
+   * on classpath (eg. directories with .class files or empty directories). Prepare files for
+   * staging only when using remote cluster (passing the master address explicitly).
+   */
+  private static void prepareFilesToStageForRemoteClusterExecution(FlinkPipelineOptions options) {
+    if (!options.getFlinkMaster().matches("\\[auto\\]|\\[collection\\]|\\[local\\]")) {
+      PipelineResources.prepareFilesForStaging(options);
+    }
   }
 
   /** Launches the program execution. */
@@ -109,5 +140,25 @@ class FlinkPipelineExecutionEnvironment {
     } else {
       throw new IllegalStateException("The Pipeline has not yet been translated.");
     }
+  }
+
+  /**
+   * Retrieves the generated JobGraph which can be submitted against the cluster. For testing
+   * purposes.
+   */
+  @VisibleForTesting
+  JobGraph getJobGraph(Pipeline p) {
+    translate(p);
+    return flinkStreamEnv.getStreamGraph().getJobGraph();
+  }
+
+  @VisibleForTesting
+  ExecutionEnvironment getBatchExecutionEnvironment() {
+    return flinkBatchEnv;
+  }
+
+  @VisibleForTesting
+  StreamExecutionEnvironment getStreamExecutionEnvironment() {
+    return flinkStreamEnv;
   }
 }

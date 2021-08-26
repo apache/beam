@@ -100,6 +100,9 @@
                 <!-- release-plugin temp files -->
                 <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?pom\.xml\.releaseBackup]</exclude>
                 <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?release\.properties]</exclude>
+
+                <!-- code review related -->
+                <exclude>**/OWNERS</exclude>
             </excludes>
         </fileSet>
         <!-- license, readme, etc. calculated at build time -->

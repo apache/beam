@@ -16,9 +16,8 @@
 package beam
 
 import (
-	"fmt"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Flatten is a PTransform that takes either multiple PCollections of type 'A'
@@ -37,15 +36,15 @@ func Flatten(s Scope, cols ...PCollection) PCollection {
 // not be flattened.
 func TryFlatten(s Scope, cols ...PCollection) (PCollection, error) {
 	if !s.IsValid() {
-		return PCollection{}, fmt.Errorf("invalid scope")
+		return PCollection{}, errors.New("invalid scope")
 	}
 	for i, in := range cols {
 		if !in.IsValid() {
-			return PCollection{}, fmt.Errorf("invalid pcollection to flatten: index %v", i)
+			return PCollection{}, errors.Errorf("invalid pcollection to flatten: index %v", i)
 		}
 	}
 	if len(cols) == 0 {
-		return PCollection{}, fmt.Errorf("no input pcollections")
+		return PCollection{}, errors.New("no input pcollections")
 	}
 	if len(cols) == 1 {
 		return cols[0], nil // no-op

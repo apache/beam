@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -23,7 +22,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 /** A factory that can create output receivers during an executable stage. */
 public interface OutputReceiverFactory {
   /**
-   * Get a new {@link RemoteOutputReceiver} for an output PCollection.
+   * Get a new {@link FnDataReceiver} for an output PCollection.
    *
    * <p>This call should only be invoked once per PCollection id per factory.
    */

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -28,6 +27,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PCollectionTuple} is an immutable tuple of heterogeneously-typed {@link PCollection
@@ -69,6 +70,9 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * Map<TupleTag<?>, PCollection<?>> allPcs = pcs.getAll();
  * }</pre>
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class PCollectionTuple implements PInput, POutput {
   /**
    * Returns an empty {@link PCollectionTuple} that is part of the given {@link Pipeline}.
@@ -90,6 +94,73 @@ public class PCollectionTuple implements PInput, POutput {
   public static <T> PCollectionTuple of(TupleTag<T> tag, PCollection<T> pc) {
     return empty(pc.getPipeline()).and(tag, pc);
   }
+
+  /**
+   * A version of {@link #of(TupleTag, PCollection)} that takes in a String instead of a {@link
+   * TupleTag}.
+   *
+   * <p>This method is simpler for cases when a typed tuple-tag is not needed to extract a
+   * PCollection, for example when using schema transforms.
+   */
+  public static <T> PCollectionTuple of(String tag, PCollection<T> pc) {
+    return of(new TupleTag<>(tag), pc);
+  }
+
+  /**
+   * A version of {@link #of(String, PCollection)} that takes in two PCollections of the same type.
+   */
+  public static <T> PCollectionTuple of(
+      String tag1, PCollection<T> pc1, String tag2, PCollection<T> pc2) {
+    return of(tag1, pc1).and(tag2, pc2);
+  }
+
+  /**
+   * A version of {@link #of(String, PCollection)} that takes in three PCollections of the same
+   * type.
+   */
+  public static <T> PCollectionTuple of(
+      String tag1,
+      PCollection<T> pc1,
+      String tag2,
+      PCollection<T> pc2,
+      String tag3,
+      PCollection<T> pc3) {
+    return of(tag1, pc1, tag2, pc2).and(tag3, pc3);
+  }
+
+  /**
+   * A version of {@link #of(String, PCollection)} that takes in four PCollections of the same type.
+   */
+  public static <T> PCollectionTuple of(
+      String tag1,
+      PCollection<T> pc1,
+      String tag2,
+      PCollection<T> pc2,
+      String tag3,
+      PCollection<T> pc3,
+      String tag4,
+      PCollection<T> pc4) {
+    return of(tag1, pc1, tag2, pc2, tag3, pc3).and(tag4, pc4);
+  }
+
+  /**
+   * A version of {@link #of(String, PCollection)} that takes in five PCollections of the same type.
+   */
+  public static <T> PCollectionTuple of(
+      String tag1,
+      PCollection<T> pc1,
+      String tag2,
+      PCollection<T> pc2,
+      String tag3,
+      PCollection<T> pc3,
+      String tag4,
+      PCollection<T> pc4,
+      String tag5,
+      PCollection<T> pc5) {
+    return of(tag1, pc1, tag2, pc2, tag3, pc3, tag4, pc4).and(tag5, pc5);
+  }
+
+  // To create a PCollectionTuple with more than five inputs, use the and() builder method.
 
   /**
    * Returns a new {@link PCollectionTuple} that has each {@link PCollection} and {@link TupleTag}
@@ -116,11 +187,29 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
+   * A version of {@link #and(TupleTag, PCollection)} that takes in a String instead of a TupleTag.
+   *
+   * <p>This method is simpler for cases when a typed tuple-tag is not needed to extract a
+   * PCollection, for example when using schema transforms.
+   */
+  public <T> PCollectionTuple and(String tag, PCollection<T> pc) {
+    return and(new TupleTag<>(tag), pc);
+  }
+
+  /**
    * Returns whether this {@link PCollectionTuple} contains a {@link PCollection} with the given
    * tag.
    */
   public <T> boolean has(TupleTag<T> tag) {
     return pcollectionMap.containsKey(tag);
+  }
+
+  /**
+   * Returns whether this {@link PCollectionTuple} contains a {@link PCollection} with the given
+   * tag.
+   */
+  public <T> boolean has(String tag) {
+    return has(new TupleTag<>(tag));
   }
 
   /**
@@ -135,6 +224,15 @@ public class PCollectionTuple implements PInput, POutput {
       throw new IllegalArgumentException("TupleTag not found in this PCollectionTuple tuple");
     }
     return pcollection;
+  }
+
+  /**
+   * Returns the {@link PCollection} associated with the given tag in this {@link PCollectionTuple}.
+   * Throws {@link IllegalArgumentException} if there is no such {@link PCollection}, i.e., {@code
+   * !has(tag)}.
+   */
+  public <T> PCollection<T> get(String tag) {
+    return get(new TupleTag<>(tag));
   }
 
   /**
@@ -212,8 +310,8 @@ public class PCollectionTuple implements PInput, POutput {
       @SuppressWarnings("unchecked")
       PCollection outputCollection =
           PCollection.createPrimitiveOutputInternal(
-                  pipeline, windowingStrategy, isBounded, coders.get(outputTag))
-              .setTypeDescriptor((TypeDescriptor) outputTag.getTypeDescriptor());
+                  pipeline, windowingStrategy, isBounded, (Coder) coders.get(outputTag))
+              .setTypeDescriptor(outputTag.getTypeDescriptor());
 
       pcollectionMap.put(outputTag, outputCollection);
     }
@@ -247,7 +345,7 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof PCollectionTuple)) {
       return false;
     }

@@ -15,20 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTINGS;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.ArrayDeque;
 import java.util.LinkedHashSet;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Supplier;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +46,9 @@ import org.slf4j.LoggerFactory;
  * <p>A {@link PCollectionNode} with consumers that execute in an environment other than a stage is
  * materialized, and its consumers execute in independent stages.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GreedyStageFuser {
   // TODO: Provide a way to merge in a compatible subgraph (e.g. one where all of the siblings
   // consume a PCollection materialized by this subgraph and can be fused into it).
@@ -138,7 +142,8 @@ public class GreedyStageFuser {
         userStates,
         timers,
         fusedTransforms.build(),
-        materializedPCollections);
+        materializedPCollections,
+        DEFAULT_WIRE_CODER_SETTINGS);
   }
 
   private static Environment getStageEnvironment(
@@ -170,9 +175,10 @@ public class GreedyStageFuser {
       PCollectionNode candidate,
       Environment environment,
       Set<PCollectionNode> fusedPCollections) {
-    for (PTransformNode node : pipeline.getPerElementConsumers(candidate)) {
-      if (!(GreedyPCollectionFusers.canFuse(
-          node, environment, candidate, fusedPCollections, pipeline))) {
+    for (PTransformNode consumer : pipeline.getPerElementConsumers(candidate)) {
+      if (anyInputsSideInputs(consumer, pipeline)
+          || !(GreedyPCollectionFusers.canFuse(
+              consumer, environment, candidate, fusedPCollections, pipeline))) {
         // Some of the consumers can't be fused into this subgraph, so the PCollection has to be
         // materialized.
         // TODO: Potentially, some of the consumers can be fused back into this stage later
@@ -191,5 +197,17 @@ public class GreedyStageFuser {
   private enum PCollectionFusibility {
     MATERIALIZE,
     FUSE,
+  }
+
+  private static boolean anyInputsSideInputs(PTransformNode consumer, QueryablePipeline pipeline) {
+    for (String inputPCollectionId : consumer.getTransform().getInputsMap().values()) {
+      RunnerApi.PCollection pCollection =
+          pipeline.getComponents().getPcollectionsMap().get(inputPCollectionId);
+      PCollectionNode pCollectionNode = PipelineNode.pCollection(inputPCollectionId, pCollection);
+      if (!pipeline.getSingletonConsumers(pCollectionNode).isEmpty()) {
+        return true;
+      }
+    }
+    return false;
   }
 }

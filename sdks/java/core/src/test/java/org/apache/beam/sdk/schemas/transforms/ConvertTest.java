@@ -15,30 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.transforms;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
-import org.apache.beam.sdk.schemas.DefaultSchema;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for the {@link Convert} class. */
+@RunWith(JUnit4.class)
+@Category(UsesSchema.class)
 public class ConvertTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -55,7 +63,7 @@ public class ConvertTest {
             "second", new POJO1Nested());
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -85,7 +93,7 @@ public class ConvertTest {
     public long yard2 = 43;
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -116,6 +124,7 @@ public class ConvertTest {
 
   private static final Row EXPECTED_ROW1_NESTED =
       Row.withSchema(EXPECTED_SCHEMA1_NESTED).addValues("yard2", 43L).build();
+
   private static final Row EXPECTED_ROW1 =
       Row.withSchema(EXPECTED_SCHEMA1)
           .addValue("field1")
@@ -124,6 +133,9 @@ public class ConvertTest {
           .addArray(ImmutableList.of(EXPECTED_ROW1_NESTED, EXPECTED_ROW1_NESTED))
           .addValue(ImmutableMap.of("first", EXPECTED_ROW1_NESTED, "second", EXPECTED_ROW1_NESTED))
           .build();
+
+  private static final GenericRecord EXPECTED_GENERICRECORD1 =
+      AvroUtils.toGenericRecord(EXPECTED_ROW1, AvroUtils.toAvroSchema(EXPECTED_SCHEMA1));
 
   /** Test outer POJO. Different but equivalent schema. * */
   @DefaultSchema(JavaFieldSchema.class)
@@ -138,7 +150,7 @@ public class ConvertTest {
     public String field1 = "field1";
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -168,7 +180,7 @@ public class ConvertTest {
     public String yard1 = "yard2";
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -198,12 +210,7 @@ public class ConvertTest {
   public void testFromRows() {
     PCollection<POJO1> pojos =
         pipeline
-            .apply(
-                Create.of(EXPECTED_ROW1)
-                    .withSchema(
-                        EXPECTED_SCHEMA1,
-                        SerializableFunctions.identity(),
-                        SerializableFunctions.identity()))
+            .apply(Create.of(EXPECTED_ROW1).withRowSchema(EXPECTED_SCHEMA1))
             .apply(Convert.fromRows(POJO1.class));
     PAssert.that(pojos).containsInAnyOrder(new POJO1());
     pipeline.run();
@@ -215,6 +222,39 @@ public class ConvertTest {
     PCollection<POJO2> pojos =
         pipeline.apply(Create.of(new POJO1())).apply(Convert.to(POJO2.class));
     PAssert.that(pojos).containsInAnyOrder(new POJO2());
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFromRowsUnboxingRow() {
+    PCollection<POJO1Nested> pojos =
+        pipeline
+            .apply(Create.of(new POJO1()))
+            .apply(Select.fieldNames("field3"))
+            .apply(Convert.to(TypeDescriptor.of(POJO1Nested.class)));
+    PAssert.that(pojos).containsInAnyOrder(new POJO1Nested());
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFromRowsUnboxingPrimitive() {
+    PCollection<Long> longs =
+        pipeline
+            .apply(Create.of(new POJO1()))
+            .apply(Select.fieldNames("field2"))
+            .apply(Convert.to(TypeDescriptors.longs()));
+    PAssert.that(longs).containsInAnyOrder((Long) EXPECTED_ROW1.getValue("field2"));
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testToGenericRecords() {
+    PCollection<GenericRecord> records =
+        pipeline.apply(Create.of(new POJO1())).apply(Convert.to(GenericRecord.class));
+    PAssert.that(records).containsInAnyOrder(EXPECTED_GENERICRECORD1);
     pipeline.run();
   }
 }

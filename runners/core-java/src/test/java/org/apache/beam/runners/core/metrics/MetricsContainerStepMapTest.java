@@ -15,22 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asMetricResults;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -38,6 +42,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -120,7 +125,7 @@ public class MetricsContainerStepMapTest {
         false);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
 
-    MetricQueryResults allres = metricResults.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults allres = metricResults.allMetrics();
 
     assertIterableSize(allres.getCounters(), 2);
     assertIterableSize(allres.getDistributions(), 2);
@@ -171,6 +176,54 @@ public class MetricsContainerStepMapTest {
     thrown.expectMessage("This runner does not currently support committed metrics results.");
 
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.empty(), true);
+  }
+
+  @Test
+  public void testUserMetricDroppedOnUnbounded() {
+    MetricsContainerStepMap testObject = new MetricsContainerStepMap();
+    CounterCell c1 = testObject.getUnboundContainer().getCounter(MetricName.named("ns", "name1"));
+    c1.inc(5);
+
+    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+    assertThat(testObject.getMonitoringInfos(), containsInAnyOrder(expected.toArray()));
+  }
+
+  @Test
+  public void testUpdateAllUpdatesUnboundedAndBoundedContainers() {
+    MetricsContainerStepMap baseMetricContainerRegistry = new MetricsContainerStepMap();
+
+    CounterCell c1 =
+        baseMetricContainerRegistry.getContainer(STEP1).getCounter(MetricName.named("ns", "name1"));
+    CounterCell c2 =
+        baseMetricContainerRegistry
+            .getUnboundContainer()
+            .getCounter(MonitoringInfoTestUtil.testElementCountName());
+
+    c1.inc(7);
+    c2.inc(14);
+
+    MetricsContainerStepMap testObject = new MetricsContainerStepMap();
+    testObject.updateAll(baseMetricContainerRegistry);
+
+    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+    builder
+        .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name1");
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, STEP1);
+    builder.setInt64SumValue(7);
+    expected.add(builder.build());
+
+    expected.add(MonitoringInfoTestUtil.testElementCountMonitoringInfo(14));
+
+    ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
+
+    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+      actual.add(mi);
+    }
+    assertThat(actual, containsInAnyOrder(expected.toArray()));
   }
 
   @Test
@@ -244,6 +297,79 @@ public class MetricsContainerStepMapTest {
     assertIterableSize(allres.getCounters(), 2);
     assertIterableSize(allres.getDistributions(), 2);
     assertIterableSize(allres.getGauges(), 2);
+  }
+
+  @Test
+  public void testEquals() {
+    MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
+    MetricsContainerStepMap equal = new MetricsContainerStepMap();
+    Assert.assertEquals(metricsContainerStepMap, equal);
+    Assert.assertEquals(metricsContainerStepMap.hashCode(), equal.hashCode());
+  }
+
+  @Test
+  public void testNotEquals() {
+    MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
+
+    Assert.assertNotEquals(metricsContainerStepMap, new Object());
+
+    MetricsContainerStepMap differentMetricsContainers = new MetricsContainerStepMap();
+    differentMetricsContainers.getContainer("stepName");
+    Assert.assertNotEquals(metricsContainerStepMap, differentMetricsContainers);
+    Assert.assertNotEquals(
+        metricsContainerStepMap.hashCode(), differentMetricsContainers.hashCode());
+
+    MetricsContainerStepMap differentUnboundedContainer = new MetricsContainerStepMap();
+    differentUnboundedContainer
+        .getContainer(null)
+        .getCounter(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerStepMap, differentUnboundedContainer);
+    Assert.assertNotEquals(
+        metricsContainerStepMap.hashCode(), differentUnboundedContainer.hashCode());
+  }
+
+  @Test
+  public void testReset() {
+    MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
+    attemptedMetrics.update(STEP1, metricsContainer);
+    attemptedMetrics.update(STEP2, metricsContainer);
+    attemptedMetrics.update(STEP2, metricsContainer);
+
+    MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
+    MetricQueryResults allres = metricResults.allMetrics();
+    assertCounter(COUNTER_NAME, allres, STEP1, VALUE, false);
+    assertDistribution(
+        DISTRIBUTION_NAME,
+        allres,
+        STEP1,
+        DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
+        false);
+    assertGauge(GAUGE_NAME, allres, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
+
+    assertCounter(COUNTER_NAME, allres, STEP2, VALUE * 2, false);
+    assertDistribution(
+        DISTRIBUTION_NAME,
+        allres,
+        STEP2,
+        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
+        false);
+    assertGauge(GAUGE_NAME, allres, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
+
+    attemptedMetrics.reset();
+    metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
+    allres = metricResults.allMetrics();
+
+    // Check that the metrics container for STEP1 is reset
+    assertCounter(COUNTER_NAME, allres, STEP1, 0L, false);
+    assertDistribution(
+        DISTRIBUTION_NAME, allres, STEP1, DistributionResult.IDENTITY_ELEMENT, false);
+    assertGauge(GAUGE_NAME, allres, STEP1, GaugeResult.empty(), false);
+
+    // Check that the metrics container for STEP2 is reset
+    assertCounter(COUNTER_NAME, allres, STEP2, 0L, false);
+    assertDistribution(
+        DISTRIBUTION_NAME, allres, STEP2, DistributionResult.IDENTITY_ELEMENT, false);
+    assertGauge(GAUGE_NAME, allres, STEP2, GaugeResult.empty(), false);
   }
 
   private <T> void assertIterableSize(Iterable<T> iterable, int size) {

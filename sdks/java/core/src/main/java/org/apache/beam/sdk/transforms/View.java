@@ -17,21 +17,28 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews.TypeDescriptorSupplier;
+import org.apache.beam.sdk.values.PCollectionViews.ValueOrMetadata;
+import org.apache.beam.sdk.values.PCollectionViews.ValueOrMetadataCoder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Transforms for creating {@link PCollectionView PCollectionViews} from {@link PCollection
@@ -43,7 +50,7 @@ import org.apache.beam.sdk.values.PCollectionViews;
  * ViewT}. The transforms here represent ways of converting the {@code ElemT} values in a window
  * into a {@code ViewT} for that window.
  *
- * <p>When a {@link ParDo} tranform is processing a main input element in a window {@code w} and a
+ * <p>When a {@link ParDo} transform is processing a main input element in a window {@code w} and a
  * {@link PCollectionView} is read via {@link DoFn.ProcessContext#sideInput}, the value of the view
  * for {@code w} is returned.
  *
@@ -82,7 +89,7 @@ import org.apache.beam.sdk.values.PCollectionViews;
  *
  * <pre>{@code
  * PCollectionView<Map<K, Iterable<V>> output =
- *     somePCollection.apply(View.<K, Iterable<V>>asMap());
+ *     somePCollection.apply(View.<K, Iterable<V>>asMultimap());
  * }</pre>
  *
  * <p>To iterate over an entire window of a {@link PCollection} via side input, use {@link
@@ -109,20 +116,24 @@ import org.apache.beam.sdk.values.PCollectionViews;
  *
  * PCollection<PageVisit> pageVisits = urlVisits
  *     .apply(ParDo.withSideInputs(urlToPageView)
- *         .of(new DoFn<UrlVisit, PageVisit>() {
- *             {@literal @}Override
+ *         .of(new DoFn<UrlVisit, PageVisit>() }{
+ *            {@code @Override
  *             void processElement(ProcessContext context) {
- *               UrlVisit urlVisit = context.element();
- *               Map<URL, Page> urlToPage = context.sideInput(urlToPageView);
- *               Page page = urlToPage.get(urlVisit.getUrl());
- *               c.output(new PageVisit(page, urlVisit.getVisitData()));
+ *                 UrlVisit urlVisit = context.element();
+ *                 Map<URL, Page> urlToPage = context.sideInput(urlToPageView);
+ *                 Page page = urlToPage.get(urlVisit.getUrl());
+ *                 c.output(new PageVisit(page, urlVisit.getVisitData()));
  *             }
- *         }));
- * }</pre>
+ *         }}));
+ * </pre>
  *
  * <p>See {@link ParDo.SingleOutput#withSideInputs} for details on how to access this variable
  * inside a {@link ParDo} over another {@link PCollection}.
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class View {
 
   // Do not instantiate
@@ -156,7 +167,10 @@ public class View {
    * PCollectionView} mapping each window to a {@link List} containing all of the elements in the
    * window.
    *
-   * <p>Unlike with {@link #asIterable}, the resulting list is required to fit in memory.
+   * <p>This view should only be used if random access and/or size of the PCollection is required.
+   * {@link #asIterable()} will perform significantly better for sequential access.
+   *
+   * <p>Some runners may require that the view fits in memory.
    */
   public static <T> AsList<T> asList() {
     return new AsList<>();
@@ -167,9 +181,7 @@ public class View {
    * produces a {@link PCollectionView} mapping each window to an {@link Iterable} of the values in
    * that window.
    *
-   * <p>The values of the {@link Iterable} for a window are not required to fit in memory, but they
-   * may also not be effectively cached. If it is known that every window fits in memory, and
-   * stronger caching is desired, use {@link #asList}.
+   * <p>Some runners may require that the view fits in memory.
    */
   public static <T> AsIterable<T> asIterable() {
     return new AsIterable<>();
@@ -190,7 +202,7 @@ public class View {
    *     .apply(View.<K, OutputT>asMap());
    * }</pre>
    *
-   * <p>Currently, the resulting map is required to fit into memory.
+   * <p>Some runners may require that the view fits in memory.
    */
   public static <K, V> AsMap<K, V> asMap() {
     return new AsMap<>();
@@ -207,6 +219,8 @@ public class View {
    * PCollection<KV<K, V>> input = ... // maybe more than one occurrence of a some keys
    * PCollectionView<Map<K, Iterable<V>>> output = input.apply(View.<K, V>asMultimap());
    * }</pre>
+   *
+   * <p>Some runners may require that the view fits in memory.
    */
   public static <K, V> AsMultimap<K, V> asMultimap() {
     return new AsMultimap<>();
@@ -231,13 +245,68 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      PCollection<KV<Void, T>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<>());
+      /**
+       * The materialized format uses {@link Materializations#MULTIMAP_MATERIALIZATION_URN multimap}
+       * access pattern where the key is a position and the index of the value in the iterable is a
+       * sub-position. All keys are {@code long}s and all sub-positions are also considered {@code
+       * long}s. A mapping from {@code [0, size)} to {@code (position, sub-position)} is used to
+       * provide an ordering over all values in the {@link PCollection} per {@link BoundedWindow
+       * window}. A total ordering is done by taking {@code (position, sub-position)} and ordering
+       * first by {@code position} and then by {@code sub-position} where the smallest value in such
+       * an ordering represents the index 0, and the next smallest 1, and so forth. The {@link
+       * Long#MIN_VALUE} key is used to store all known {@link OffsetRange ranges} allowing us to
+       * compute such an ordering.
+       */
+      Coder<T> inputCoder = input.getCoder();
+      PCollection<KV<Long, ValueOrMetadata<T, OffsetRange>>> materializationInput =
+          input
+              .apply("IndexElements", ParDo.of(new ToListViewDoFn<>()))
+              .setCoder(
+                  KvCoder.of(
+                      BigEndianLongCoder.of(),
+                      ValueOrMetadataCoder.create(inputCoder, OffsetRange.Coder.of())));
       PCollectionView<List<T>> view =
           PCollectionViews.listView(
-              materializationInput, materializationInput.getWindowingStrategy());
+              materializationInput,
+              (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
+    }
+  }
+
+  /**
+   * Provides an index to value mapping using a random starting index and also provides an offset
+   * range for each window seen. We use random offset ranges to minimize the chance that two ranges
+   * overlap increasing the odds that each "key" represents a single index.
+   */
+  @Internal
+  public static class ToListViewDoFn<T> extends DoFn<T, KV<Long, ValueOrMetadata<T, OffsetRange>>> {
+    private Map<BoundedWindow, OffsetRange> windowsToOffsets = new HashMap<>();
+
+    private OffsetRange generateRange(BoundedWindow window) {
+      long offset =
+          ThreadLocalRandom.current()
+              .nextLong(Long.MIN_VALUE + 1, Long.MAX_VALUE - Integer.MAX_VALUE);
+      return new OffsetRange(offset, offset);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
+      OffsetRange range = windowsToOffsets.computeIfAbsent(window, this::generateRange);
+      c.output(KV.of(range.getTo(), ValueOrMetadata.create(c.element())));
+      windowsToOffsets.put(window, new OffsetRange(range.getFrom(), range.getTo() + 1));
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) {
+      for (Map.Entry<BoundedWindow, OffsetRange> entry : windowsToOffsets.entrySet()) {
+        c.output(
+            KV.of(Long.MIN_VALUE, ValueOrMetadata.createMetadata(entry.getValue())),
+            entry.getKey().maxTimestamp(),
+            entry.getKey());
+      }
+      windowsToOffsets.clear();
     }
   }
 
@@ -261,12 +330,19 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      PCollection<KV<Void, T>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<>());
+      Coder<T> inputCoder = input.getCoder();
+      // HACK to work around https://issues.apache.org/jira/browse/BEAM-12228:
+      // There are bugs in "composite" vs "primitive" transform distinction
+      // in TransformHierachy. This noop transform works around them and should be zero
+      // cost.
+      PCollection<T> materializationInput =
+          input.apply(MapElements.via(new SimpleFunction<T, T>(x -> x) {}));
       PCollectionView<Iterable<T>> view =
           PCollectionViews.iterableView(
-              materializationInput, materializationInput.getWindowingStrategy());
-      materializationInput.apply(CreatePCollectionView.of(view));
+              materializationInput,
+              (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
+      input.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -280,7 +356,7 @@ public class View {
    */
   @Internal
   public static class AsSingleton<T> extends PTransform<PCollection<T>, PCollectionView<T>> {
-    @Nullable private final T defaultValue;
+    private final @Nullable T defaultValue;
     private final boolean hasDefault;
 
     private AsSingleton() {
@@ -327,8 +403,8 @@ public class View {
 
   private static class SingletonCombineFn<T> extends Combine.BinaryCombineFn<T> {
     private final boolean hasDefault;
-    @Nullable private final Coder<T> valueCoder;
-    @Nullable private final byte[] defaultValue;
+    private final @Nullable Coder<T> valueCoder;
+    private final byte @Nullable [] defaultValue;
 
     private SingletonCombineFn(boolean hasDefault, Coder<T> coder, T defaultValue) {
       this.hasDefault = hasDefault;
@@ -402,12 +478,22 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      PCollection<KV<Void, KV<K, V>>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<>());
+      KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
+      Coder<K> keyCoder = kvCoder.getKeyCoder();
+      Coder<V> valueCoder = kvCoder.getValueCoder();
+      // HACK to work around https://issues.apache.org/jira/browse/BEAM-12228:
+      // There are bugs in "composite" vs "primitive" transform distinction
+      // in TransformHierachy. This noop transform works around them and should be zero
+      // cost.
+      PCollection<KV<K, V>> materializationInput =
+          input.apply(MapElements.via(new SimpleFunction<KV<K, V>, KV<K, V>>(x -> x) {}));
       PCollectionView<Map<K, Iterable<V>>> view =
           PCollectionViews.multimapView(
-              materializationInput, materializationInput.getWindowingStrategy());
-      materializationInput.apply(CreatePCollectionView.of(view));
+              materializationInput,
+              (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
+              (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
+      input.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -438,12 +524,19 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      PCollection<KV<Void, KV<K, V>>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<>());
+      KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
+      Coder<K> keyCoder = kvCoder.getKeyCoder();
+      Coder<V> valueCoder = kvCoder.getValueCoder();
+
+      PCollection<KV<K, V>> materializationInput =
+          input.apply(MapElements.via(new SimpleFunction<KV<K, V>, KV<K, V>>(x -> x) {}));
       PCollectionView<Map<K, V>> view =
           PCollectionViews.mapView(
-              materializationInput, materializationInput.getWindowingStrategy());
-      materializationInput.apply(CreatePCollectionView.of(view));
+              materializationInput,
+              (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
+              (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
+      input.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -452,34 +545,11 @@ public class View {
   // Internal details below
 
   /**
-   * A {@link PTransform} which converts all values into {@link KV}s with {@link Void} keys.
-   *
-   * <p>TODO: Replace this materialization with specializations that optimize the various SDK
-   * requested views.
-   */
-  @Internal
-  static class VoidKeyToMultimapMaterialization<T>
-      extends PTransform<PCollection<T>, PCollection<KV<Void, T>>> {
-
-    private static class VoidKeyToMultimapMaterializationDoFn<T> extends DoFn<T, KV<Void, T>> {
-      @ProcessElement
-      public void processElement(@Element T element, OutputReceiver<KV<Void, T>> r) {
-        r.output(KV.of((Void) null, element));
-      }
-    }
-
-    @Override
-    public PCollection<KV<Void, T>> expand(PCollection<T> input) {
-      PCollection output = input.apply(ParDo.of(new VoidKeyToMultimapMaterializationDoFn<>()));
-      output.setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
-      return output;
-    }
-  }
-
-  /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * <p>Creates a primitive {@link PCollectionView}.
+   * <p>Placeholder transform for runners to have a hook to materialize a {@link PCollection} as a
+   * side input. The metadata included in the {@link PCollectionView} is how the {@link PCollection}
+   * will be read as a side input.
    *
    * @param <ElemT> The type of the elements of the input PCollection
    * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input

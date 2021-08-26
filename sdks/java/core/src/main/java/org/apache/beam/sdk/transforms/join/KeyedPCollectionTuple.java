@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -33,6 +31,8 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An immutable tuple of keyed {@link PCollection PCollections} with key type K. ({@link PCollection
@@ -53,6 +53,16 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
+   * A version of {@link #of(TupleTag, PCollection)} that takes in a string instead of a TupleTag.
+   *
+   * <p>This method is simpler for cases when a typed tuple-tag is not needed to extract a
+   * PCollection, for example when using schema transforms.
+   */
+  public static <K, InputT> KeyedPCollectionTuple<K> of(String tag, PCollection<KV<K, InputT>> pc) {
+    return of(new TupleTag<>(tag), pc);
+  }
+
+  /**
    * Returns a new {@code KeyedPCollectionTuple<K>} that is the same as this, appended with the
    * given PCollection.
    */
@@ -65,6 +75,16 @@ public class KeyedPCollectionTuple<K> implements PInput {
     List<TaggedKeyedPCollection<K, ?>> newKeyedCollections = copyAddLast(keyedCollections, wrapper);
     return new KeyedPCollectionTuple<>(
         getPipeline(), newKeyedCollections, schema.getTupleTagList().and(tag), myKeyCoder);
+  }
+
+  /**
+   * A version of {@link #and(String, PCollection)} that takes in a string instead of a TupleTag.
+   *
+   * <p>This method is simpler for cases when a typed tuple-tag is not needed to extract a
+   * PCollection, for example when using schema transforms.
+   */
+  public <V> KeyedPCollectionTuple<K> and(String tag, PCollection<KV<K, V>> pc) {
+    return and(new TupleTag<>(tag), pc);
   }
 
   public boolean isEmpty() {
@@ -174,7 +194,7 @@ public class KeyedPCollectionTuple<K> implements PInput {
   /** We use a List to properly track the order in which collections are added. */
   private final List<TaggedKeyedPCollection<K, ?>> keyedCollections;
 
-  @Nullable private Coder<K> keyCoder;
+  private @Nullable Coder<K> keyCoder;
 
   private final CoGbkResultSchema schema;
 

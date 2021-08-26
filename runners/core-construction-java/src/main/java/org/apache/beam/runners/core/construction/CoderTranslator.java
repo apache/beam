@@ -15,12 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
@@ -30,7 +28,6 @@ import org.apache.beam.sdk.coders.Coder;
  * the capability to encode an additional payload, which is not currently supported. This exists as
  * a temporary measure.
  */
-@Experimental(Kind.CORE_RUNNERS_ONLY)
 public interface CoderTranslator<T extends Coder<?>> {
   /** Extract all component {@link Coder coders} within a coder. */
   List<? extends Coder<?>> getComponents(T from);
@@ -45,6 +42,9 @@ public interface CoderTranslator<T extends Coder<?>> {
     return new byte[0];
   }
 
-  /** Create a {@link Coder} from its component {@link Coder coders}. */
-  T fromComponents(List<Coder<?>> components, byte[] payload);
+  /**
+   * Create a {@link Coder} from its component {@link Coder coders} using the specified translation
+   * context.
+   */
+  T fromComponents(List<Coder<?>> components, byte[] payload, TranslationContext context);
 }

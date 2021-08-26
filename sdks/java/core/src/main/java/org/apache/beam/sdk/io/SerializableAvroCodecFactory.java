@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.avro.file.DataFileConstants.BZIP2_CODEC;
 import static org.apache.avro.file.DataFileConstants.DEFLATE_CODEC;
 import static org.apache.avro.file.DataFileConstants.NULL_CODEC;
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.avro.file.DataFileConstants.XZ_CODEC;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -34,13 +33,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.avro.file.CodecFactory;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A wrapper that allows {@link org.apache.avro.file.CodecFactory}s to be serialized using Java's
  * standard serialization mechanisms.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SerializableAvroCodecFactory implements Externalizable {
   private static final long serialVersionUID = 7445324844109564303L;
   private static final List<String> noOptAvroCodecs =

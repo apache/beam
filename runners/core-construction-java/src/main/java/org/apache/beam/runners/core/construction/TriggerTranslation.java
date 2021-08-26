@@ -17,14 +17,11 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.AfterAll;
 import org.apache.beam.sdk.transforms.windowing.AfterEach;
@@ -44,11 +41,16 @@ import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampTransform;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** Utilities for working with {@link TriggerTranslation Triggers}. */
-@Experimental(Experimental.Kind.TRIGGER)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TriggerTranslation implements Serializable {
 
   @VisibleForTesting static final ProtoConverter CONVERTER = new ProtoConverter();
@@ -129,10 +131,9 @@ public class TriggerTranslation implements Serializable {
           return RunnerApi.TimeDomain.Enum.EVENT_TIME;
         case PROCESSING_TIME:
           return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
-        case SYNCHRONIZED_PROCESSING_TIME:
-          return RunnerApi.TimeDomain.Enum.SYNCHRONIZED_PROCESSING_TIME;
         default:
-          throw new IllegalArgumentException(String.format("Unknown time domain: %s", timeDomain));
+          throw new IllegalArgumentException(
+              String.format("Unknown or unsupported time domain: %s", timeDomain));
       }
     }
 

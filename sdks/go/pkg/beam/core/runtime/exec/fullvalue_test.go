@@ -17,9 +17,13 @@ package exec
 
 import (
 	"reflect"
+	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 )
 
 func makeInput(vs ...interface{}) []MainInput {
@@ -37,6 +41,16 @@ func makeValues(vs ...interface{}) []FullValue {
 			Windows:   window.SingleGlobalWindow,
 			Timestamp: mtime.ZeroTimestamp,
 			Elm:       v,
+		})
+	}
+	return ret
+}
+
+func makeValuesNoWindowOrTime(vs ...interface{}) []FullValue {
+	var ret []FullValue
+	for _, v := range vs {
+		ret = append(ret, FullValue{
+			Elm: v,
 		})
 	}
 	return ret
@@ -147,4 +161,70 @@ func equal(a, b FullValue) bool {
 		}
 	}
 	return true
+}
+
+type testStruct struct {
+	a int
+}
+
+func (*testStruct) M() {}
+
+// Conversion tests.
+func TestConvert(t *testing.T) {
+	tests := []struct {
+		name    string
+		to      reflect.Type
+		v, want interface{}
+	}{
+		{
+			name: "int_to_int",
+			to:   reflectx.Int,
+			v:    typex.T(42),
+			want: int(42),
+		},
+		{
+			name: "typexT_to_int",
+			to:   reflectx.Int,
+			v:    typex.T(42),
+			want: int(42),
+		},
+		{
+			name: "[]typexT_to_[]int",
+			to:   reflect.TypeOf([]int{}),
+			v:    []typex.T{1, 2, 3},
+			want: []int{1, 2, 3},
+		},
+		{
+			name: "[]typexT_to_typexX",
+			to:   typex.XType,
+			v:    []typex.T{1, 2, 3},
+			want: []int{1, 2, 3},
+		},
+		{
+			name: "empty_[]typexT_to_typexX",
+			to:   typex.XType,
+			v:    []typex.T{},
+			want: []typex.T{},
+		},
+		{
+			name: "nil_[]typexT_to_typexX",
+			to:   typex.XType,
+			v:    []typex.T(nil),
+			want: []typex.T(nil),
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			if got := Convert(test.v, test.to); !reflect.DeepEqual(got, test.want) {
+				t.Errorf("Convert(%v,%v) = %v,  want %v", test.v, test.to, got, test.want)
+			}
+		})
+		t.Run("Fn_"+test.name, func(t *testing.T) {
+			fn := ConvertFn(reflect.TypeOf(test.v), test.to)
+			if got := fn(test.v); !reflect.DeepEqual(got, test.want) {
+				t.Errorf("ConvertFn(%T, %v)(%v) = %v,  want %v", test.v, test.to, test.v, got, test.want)
+			}
+		})
+	}
 }

@@ -20,15 +20,18 @@ package org.apache.beam.fn.harness.state;
 import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.stream.DataStreams;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
 /**
  * An implementation of a multimap side input that utilizes the Beam Fn State API to fetch values.
  *
  * <p>TODO: Support block level caching and prefetch.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MultimapSideInput<K, V> implements MultimapView<K, V> {
 
   private final BeamFnStateClient beamFnStateClient;
@@ -57,6 +60,21 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
   }
 
   @Override
+  public Iterable<K> get() {
+    StateRequest.Builder requestBuilder = StateRequest.newBuilder();
+    requestBuilder
+        .setInstructionId(instructionId)
+        .getStateKeyBuilder()
+        .getMultimapKeysSideInputBuilder()
+        .setTransformId(ptransformId)
+        .setSideInputId(sideInputId)
+        .setWindow(encodedWindow);
+
+    return StateFetchingIterators.readAllAndDecodeStartingFrom(
+        beamFnStateClient, requestBuilder.build(), keyCoder);
+  }
+
+  @Override
   public Iterable<V> get(K k) {
     ByteString.Output output = ByteString.newOutput();
     try {
@@ -67,18 +85,15 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
     }
     StateRequest.Builder requestBuilder = StateRequest.newBuilder();
     requestBuilder
-        .setInstructionReference(instructionId)
+        .setInstructionId(instructionId)
         .getStateKeyBuilder()
         .getMultimapSideInputBuilder()
-        .setPtransformId(ptransformId)
+        .setTransformId(ptransformId)
         .setSideInputId(sideInputId)
         .setWindow(encodedWindow)
         .setKey(output.toByteString());
 
-    return new LazyCachingIteratorToIterable<>(
-        new DataStreams.DataStreamDecoder(
-            valueCoder,
-            DataStreams.inbound(
-                StateFetchingIterators.forFirstChunk(beamFnStateClient, requestBuilder.build()))));
+    return StateFetchingIterators.readAllAndDecodeStartingFrom(
+        beamFnStateClient, requestBuilder.build(), valueCoder);
   }
 }

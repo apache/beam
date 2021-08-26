@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestCountingSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
@@ -101,7 +102,8 @@ public class BoundedSourceRestoreTest {
     boolean readFirstBatchOfElements = false;
     try {
       testHarness.open();
-      sourceOperator.run(
+      StreamSources.run(
+          sourceOperator,
           checkpointLock,
           new TestStreamStatusMaintainer(),
           new PartialCollector<>(emittedElements, firstBatchSize));
@@ -146,7 +148,8 @@ public class BoundedSourceRestoreTest {
     boolean readSecondBatchOfElements = false;
     try {
       restoredTestHarness.open();
-      restoredSourceOperator.run(
+      StreamSources.run(
+          restoredSourceOperator,
           checkpointLock,
           new TestStreamStatusMaintainer(),
           new PartialCollector<>(emittedElements, secondBatchSize));

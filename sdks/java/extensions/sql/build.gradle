@@ -1,5 +1,3 @@
-import groovy.json.JsonOutput
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,31 +16,21 @@ import groovy.json.JsonOutput
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(
-  // javacc generated code produces lint warnings
-  disableLintWarnings: ['dep-ann'],
-  testShadowJar: true,
-  shadowClosure: DEFAULT_SHADOW_CLOSURE << {
-    dependencies {
-      include(dependency(library.java.protobuf_java))
-      include(dependency(library.java.protobuf_java_util))
-      include(dependency("org.apache.calcite:.*"))
-      include(dependency("org.apache.calcite.avatica:.*"))
-      include(dependency("org.codehaus.janino:.*"))
-    }
-    relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-    relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
+import groovy.json.JsonOutput
+import java.util.stream.Collectors
 
-  // Looking up the compiler factory in Calcite depends on having a properties
-  // file in the right location. We package one that is shading compatible
-  // in src/main/resources. Note that if this shaded path changes, that
-  // files name and contents need to be updated as well. TODO, swap to use
-  // getJavaRelocatedPath once the Maven build is no longer also shading this
-  // module.
-  relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
-})
-apply plugin: 'ca.coglinc.javacc'
+plugins {
+  id 'org.apache.beam.module'
+  id 'ca.coglinc.javacc'
+}
+applyJavaNature(
+  generatedClassPatterns: [
+    /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
+  ],
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
+  // javacc generated code produces lint warnings
+  disableLintWarnings: ['dep-ann', 'rawtypes'],
+)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
@@ -55,39 +43,71 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.16.0"
-def avatica_version = "1.11.0"
+def hadoopVersions = [
+    "285": "2.8.5",
+    "292": "2.9.2",
+    "2101": "2.10.1",
+    "321": "3.2.1",
+]
+
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
-  fmppTask "org.freemarker:freemarker:2.3.25-incubating"
-  fmppTemplates "org.apache.calcite:calcite-core:$calcite_version"
-  compile library.java.guava
-  compile "org.apache.calcite:calcite-core:$calcite_version"
-  compile "org.apache.calcite:calcite-linq4j:$calcite_version"
-  compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
-  shadow library.java.slf4j_api
-  shadow library.java.commons_csv
-  shadow library.java.commons_lang3
-  shadow library.java.jackson_databind
-  shadow library.java.joda_time
-  shadow "com.alibaba:fastjson:1.2.12"
-  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
-  provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  fmppTask "org.freemarker:freemarker:2.3.31"
+  fmppTemplates library.java.vendored_calcite_1_20_0
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:extensions:join-library")
+  permitUnusedDeclared project(":sdks:java:extensions:join-library") // BEAM-11761
+  compile project(":sdks:java:extensions:sql:udf")
+  compile project(path: ":runners:direct-java", configuration: "shadow")
+  compile library.java.commons_codec
+  compile library.java.commons_csv
+  compile library.java.jackson_databind
+  compile library.java.joda_time
+  compile library.java.vendored_calcite_1_20_0
+  compile "com.alibaba:fastjson:1.2.69"
+  compile "org.codehaus.janino:janino:3.0.11"
+  compile "org.codehaus.janino:commons-compiler:3.0.11"
+  compile library.java.jackson_core
+  compile library.java.mongo_java_driver
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.vendored_guava_26_0_jre
+  provided project(":sdks:java:io:kafka")
+  provided project(":sdks:java:io:google-cloud-platform")
+  compile project(":sdks:java:io:mongodb")
+  compile library.java.avro
+  provided project(":sdks:java:io:parquet")
+  provided library.java.jackson_dataformat_xml
+  provided library.java.hadoop_client
   provided library.java.kafka_clients
-  shadowTest library.java.slf4j_jdk14
-  shadowTest library.java.junit
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.mockito_core
-  shadowTest library.java.quickcheck_core
+  testCompile library.java.vendored_calcite_1_20_0
+  testCompile library.java.vendored_guava_26_0_jre
+  testCompile library.java.junit
+  testCompile library.java.quickcheck_core
+  testCompile library.java.testcontainers_kafka
+  testCompile library.java.google_cloud_bigtable_emulator
+  testCompile project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:io:thrift", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntime")
+  testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
+  testRuntimeClasspath library.java.slf4j_jdk14
+  hadoopVersions.each {kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
+  }
 }
 
-// Copy Caclcite templates and our own template into the build directory
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-client:$kv.value"
+    }
+  }
+}
+
+// Copy Calcite templates and our own template into the build directory
 // so we have one location for the FMPP task to parse.
 task copyFmppTemplatesFromSrc(type: Copy) {
   from "src/main/codegen"
@@ -96,11 +116,19 @@ task copyFmppTemplatesFromSrc(type: Copy) {
 task copyFmppTemplatesFromCalciteCore(type: Copy) {
   dependsOn configurations.fmppTemplates
   File calciteCoreJar = files(configurations.fmppTemplates.files).filter {
-    it.name.startsWith("calcite-core")
+    it.name.startsWith("beam-vendor-calcite")
   }.singleFile
   from zipTree(calciteCoreJar)
   include "**/Parser.jj"
   into "${project.buildDir}/templates-fmpp"
+  filter{
+    line ->
+      line.replace('import org.apache.calcite.', 'import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.')
+  }
+  filter{
+    line ->
+      line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.')
+  }
 }
 
 // Generate the FMPP sources from the FMPP templates.
@@ -123,7 +151,7 @@ compileJavacc {
   dependsOn generateFmppSources
   inputDirectory = file(generateFmppJavaccRoot)
   outputDirectory = file(generatedJavaccPackageDir)
-  arguments = [grammar_encoding: "UTF-8", static: "false", lookahead: "2"]
+  arguments = [static: "false", lookahead: "2"]
 }
 
 // Help IntelliJ find the fmpp bits
@@ -154,7 +182,6 @@ task runPojoExample(type: JavaExec) {
 }
 
 task integrationTest(type: Test) {
-  group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
@@ -169,9 +196,13 @@ task integrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
+
   maxParallelForks 4
-  classpath = project(":beam-sdks-java-extensions-sql").sourceSets.test.runtimeClasspath
-  testClassesDirs = files(project(":beam-sdks-java-extensions-sql").sourceSets.test.output.classesDirs)
+  classpath = project(":sdks:java:extensions:sql")
+          .sourceSets
+          .test
+          .runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
 
@@ -179,4 +210,38 @@ task postCommit {
   group = "Verification"
   description = "Various integration tests"
   dependsOn integrationTest
+}
+
+task emptyJar(type: Jar) {
+  archiveBaseName = "${project.archivesBaseName}-empty-jar"
+  from fileTree(dir: getTemporaryDir().createNewFile().toString())
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs SQL tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each { kv ->
+  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+    description = "Runs SQL tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+    dependsOn emptyJar
+    // Pass jars used by Java UDF tests via system properties.
+    evaluationDependsOn(":sdks:java:extensions:sql:udf-test-provider") // Needed to resolve jarPath.
+    systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
+    systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archivePath
+  }
+}
+
+test {
+  dependsOn emptyJar
+  // Pass jars used by Java UDF tests via system properties.
+  evaluationDependsOn(":sdks:java:extensions:sql:udf-test-provider") // Needed to resolve jarPath.
+  systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
+  systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archivePath
 }

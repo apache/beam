@@ -15,40 +15,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.runtime;
 
-import static com.google.common.base.Preconditions.checkState;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.primitives.Ints;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.ref.SoftReference;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.construction.graph.UserStateReference;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
+import org.apache.beam.runners.samza.transforms.UpdatingCombineFn;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
@@ -60,42 +66,120 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.apache.samza.config.Config;
+import org.apache.samza.context.TaskContext;
+import org.apache.samza.serializers.Serde;
+import org.apache.samza.serializers.SerdeFactory;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
 import org.apache.samza.storage.kv.KeyValueStore;
-import org.apache.samza.task.TaskContext;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
 
 /** {@link StateInternals} that uses Samza local {@link KeyValueStore} to manage state. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SamzaStoreStateInternals<K> implements StateInternals {
-  private static final String BEAM_STORE = "beamStore";
+  static final String BEAM_STORE = "beamStore";
 
-  private static ThreadLocal<SoftReference<ByteArrayOutputStream>> threadLocalBaos =
+  private static final ThreadLocal<SoftReference<ByteArrayOutputStream>> threadLocalBaos =
       new ThreadLocal<>();
 
   // the stores include both beamStore for system states as well as stores for user state
-  private final Map<String, KeyValueStore<byte[], byte[]>> stores;
+  private final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores;
   private final K key;
   private final byte[] keyBytes;
   private final int batchGetSize;
+  private final String stageId;
 
   private SamzaStoreStateInternals(
-      Map<String, KeyValueStore<byte[], byte[]>> stores,
+      Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores,
       @Nullable K key,
-      @Nullable byte[] keyBytes,
+      byte @Nullable [] keyBytes,
+      String stageId,
       int batchGetSize) {
     this.stores = stores;
     this.key = key;
     this.keyBytes = keyBytes;
     this.batchGetSize = batchGetSize;
+    this.stageId = stageId;
   }
 
-  public static Map<String, KeyValueStore<byte[], byte[]>> getBeamStore(TaskContext context) {
-    @SuppressWarnings("unchecked")
-    final KeyValueStore<byte[], byte[]> beamStore =
-        (KeyValueStore<byte[], byte[]>) context.getStore(SamzaStoreStateInternals.BEAM_STORE);
-    return Collections.singletonMap(BEAM_STORE, beamStore);
+  @SuppressWarnings("unchecked")
+  static KeyValueStore<ByteArray, StateValue<?>> getBeamStore(TaskContext context) {
+    return (KeyValueStore<ByteArray, StateValue<?>>)
+        context.getStore(SamzaStoreStateInternals.BEAM_STORE);
+  }
+
+  /**
+   * Creates non keyed state internal factory to persist states in {@link
+   * SamzaStoreStateInternals#BEAM_STORE}.
+   */
+  static <K> Factory<K> createNonKeyedStateInternalsFactory(
+      String id, TaskContext context, SamzaPipelineOptions pipelineOptions) {
+    return createStateInternalsFactory(id, null, context, pipelineOptions, Collections.emptySet());
+  }
+
+  static <K> Factory<K> createStateInternalsFactory(
+      String id,
+      Coder<K> keyCoder,
+      TaskContext context,
+      SamzaPipelineOptions pipelineOptions,
+      DoFnSignature signature) {
+
+    return createStateInternalsFactory(
+        id, keyCoder, context, pipelineOptions, signature.stateDeclarations().keySet());
+  }
+
+  static <K> Factory<K> createStateInternalsFactory(
+      String id,
+      Coder<K> keyCoder,
+      TaskContext context,
+      SamzaPipelineOptions pipelineOptions,
+      ExecutableStage executableStage) {
+
+    Set<String> stateIds =
+        executableStage.getUserStates().stream()
+            .map(UserStateReference::localName)
+            .collect(Collectors.toSet());
+
+    return createStateInternalsFactory(id, keyCoder, context, pipelineOptions, stateIds);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <K> Factory<K> createStateInternalsFactory(
+      String id,
+      @Nullable Coder<K> keyCoder,
+      TaskContext context,
+      SamzaPipelineOptions pipelineOptions,
+      Collection<String> stateIds) {
+    final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
+    final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores = new HashMap<>();
+    stores.put(BEAM_STORE, getBeamStore(context));
+
+    final Coder<K> stateKeyCoder;
+    if (keyCoder != null) {
+      stateIds.forEach(
+          stateId ->
+              stores.put(
+                  stateId, (KeyValueStore<ByteArray, StateValue<?>>) context.getStore(stateId)));
+      stateKeyCoder = keyCoder;
+    } else {
+      stateKeyCoder = (Coder<K>) VoidCoder.of();
+    }
+    return new Factory<>(Objects.toString(id), stores, stateKeyCoder, batchGetSize);
   }
 
   @Override
@@ -134,6 +218,13 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
               Coder<KeyT> mapKeyCoder,
               Coder<ValueT> mapValueCoder) {
             return new SamzaMapStateImpl<>(namespace, address, mapKeyCoder, mapValueCoder);
+          }
+
+          @Override
+          public <T> OrderedListState<T> bindOrderedList(
+              StateTag<OrderedListState<T>> spec, Coder<T> elemCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", OrderedListState.class.getSimpleName()));
           }
 
           @Override
@@ -179,13 +270,13 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   /** Factory class to create {@link SamzaStoreStateInternals}. */
   public static class Factory<K> implements StateInternalsFactory<K> {
     private final String stageId;
-    private final Map<String, KeyValueStore<byte[], byte[]>> stores;
+    private final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores;
     private final Coder<K> keyCoder;
     private final int batchGetSize;
 
     public Factory(
         String stageId,
-        Map<String, KeyValueStore<byte[], byte[]>> stores,
+        Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores,
         Coder<K> keyCoder,
         int batchGetSize) {
       this.stageId = stageId;
@@ -200,7 +291,6 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       final DataOutputStream dos = new DataOutputStream(baos);
 
       try {
-        dos.writeUTF(stageId);
         if (key != null) {
           keyCoder.encode(key, baos);
         }
@@ -213,7 +303,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
         throw new RuntimeException("Cannot encode key for state store", e);
       }
 
-      return new SamzaStoreStateInternals<>(stores, key, baos.toByteArray(), batchGetSize);
+      return new SamzaStoreStateInternals<>(stores, key, baos.toByteArray(), stageId, batchGetSize);
     }
   }
 
@@ -223,33 +313,28 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   }
 
   private abstract class AbstractSamzaState<T> {
-    private final Coder<T> coder;
-    private final byte[] encodedStoreKey;
-    private final String namespace;
-    protected final KeyValueStore<byte[], byte[]> store;
+    private final StateNamespace namespace;
+    private final String addressId;
+    private final boolean isBeamStore;
+    private final String stageId;
+    private final byte[] keyBytes;
+    private byte[] encodedStoreKey;
+    protected final Coder<T> coder;
+    protected final KeyValueStore<ByteArray, StateValue<T>> store;
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     protected AbstractSamzaState(
         StateNamespace namespace, StateTag<? extends State> address, Coder<T> coder) {
       this.coder = coder;
-      this.namespace = namespace.stringKey();
-
-      final KeyValueStore<byte[], byte[]> userStore = stores.get(address.getId());
-      this.store = userStore != null ? userStore : stores.get(BEAM_STORE);
-
-      final ByteArrayOutputStream baos = getThreadLocalBaos();
-      try (DataOutputStream dos = new DataOutputStream(baos)) {
-        dos.write(keyBytes);
-        dos.writeUTF(namespace.stringKey());
-
-        if (userStore == null) {
-          // for system state, we need to differentiate based on the address
-          dos.writeUTF(address.getId());
-        }
-      } catch (IOException e) {
-        throw new RuntimeException(
-            "Could not encode full address for state: " + address.getId(), e);
-      }
-      this.encodedStoreKey = baos.toByteArray();
+      this.namespace = namespace;
+      this.addressId = address.getId();
+      this.isBeamStore = !stores.containsKey(address.getId());
+      this.store =
+          isBeamStore
+              ? (KeyValueStore) stores.get(BEAM_STORE)
+              : (KeyValueStore) stores.get(address.getId());
+      this.stageId = SamzaStoreStateInternals.this.stageId;
+      this.keyBytes = SamzaStoreStateInternals.this.keyBytes;
     }
 
     protected void clearInternal() {
@@ -257,12 +342,12 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     protected void writeInternal(T value) {
-      store.put(getEncodedStoreKey(), encodeValue(value));
+      store.put(getEncodedStoreKey(), StateValue.of(value, coder));
     }
 
     protected T readInternal() {
-      final byte[] valueBytes = store.get(getEncodedStoreKey());
-      return decodeValue(valueBytes);
+      final StateValue<T> stateValue = store.get(getEncodedStoreKey());
+      return decodeValue(stateValue);
     }
 
     protected ReadableState<Boolean> isEmptyInternal() {
@@ -279,33 +364,36 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       };
     }
 
-    protected byte[] getEncodedStoreKey() {
+    protected ByteArray getEncodedStoreKey() {
+      return ByteArray.of(getEncodedStoreKeyBytes());
+    }
+
+    protected byte[] getEncodedStoreKeyBytes() {
+      if (encodedStoreKey == null) {
+        final ByteArrayOutputStream baos = getThreadLocalBaos();
+        try (DataOutputStream dos = new DataOutputStream(baos)) {
+          dos.write(keyBytes);
+          dos.writeUTF(namespace.stringKey());
+
+          if (isBeamStore) {
+            // for system state, we need to differentiate based on the following:
+            dos.writeUTF(stageId);
+            dos.writeUTF(addressId);
+          }
+        } catch (IOException e) {
+          throw new RuntimeException("Could not encode full address for state: " + addressId, e);
+        }
+        this.encodedStoreKey = baos.toByteArray();
+      }
       return encodedStoreKey;
     }
 
-    protected byte[] encodeValue(T value) {
-      final ByteArrayOutputStream baos = getThreadLocalBaos();
-      try {
-        coder.encode(value, baos);
-      } catch (IOException e) {
-        throw new RuntimeException("Could not encode state value: " + value, e);
-      }
-      return baos.toByteArray();
-    }
-
-    protected T decodeValue(byte[] valueBytes) {
-      if (valueBytes != null) {
-        try {
-          return coder.decode(new ByteArrayInputStream(valueBytes));
-        } catch (IOException e) {
-          throw new RuntimeException("Could not decode state", e);
-        }
-      }
-      return null;
+    protected T decodeValue(StateValue<T> stateValue) {
+      return stateValue == null ? null : stateValue.getValue(coder);
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -315,13 +403,20 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
       @SuppressWarnings("unchecked")
       final AbstractSamzaState<?> that = (AbstractSamzaState<?>) o;
-      return Arrays.equals(encodedStoreKey, that.encodedStoreKey);
+      if (isBeamStore || that.isBeamStore) {
+        if (!isBeamStore || !that.isBeamStore || !stageId.equals(that.stageId)) {
+          return false;
+        }
+      }
+      return Arrays.equals(keyBytes, that.keyBytes)
+          && addressId.equals(that.addressId)
+          && this.namespace.equals(that.namespace);
     }
 
     @Override
     public int hashCode() {
       int result = namespace.hashCode();
-      result = 31 * result + Arrays.hashCode(encodedStoreKey);
+      result = 31 * result + Arrays.hashCode(getEncodedStoreKeyBytes());
       return result;
     }
   }
@@ -364,9 +459,9 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     public void add(T value) {
       synchronized (store) {
         final int size = getSize();
-        final byte[] encodedKey = encodeKey(size);
-        store.put(encodedKey, encodeValue(value));
-        store.put(getEncodedStoreKey(), Ints.toByteArray(size + 1));
+        final ByteArray encodedKey = encodeKey(size);
+        store.put(encodedKey, StateValue.of(value, coder));
+        store.put(getEncodedStoreKey(), StateValue.of(Ints.toByteArray(size + 1)));
       }
     }
 
@@ -387,7 +482,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
         }
 
         final List<T> values = new ArrayList<>(size);
-        final List<byte[]> keys = new ArrayList<>(size);
+        final List<ByteArray> keys = new ArrayList<>(size);
         int start = 0;
         while (start < size) {
           final int end = Math.min(size, start + batchGetSize);
@@ -413,7 +508,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       synchronized (store) {
         final int size = getSize();
         if (size != 0) {
-          final List<byte[]> keys = new ArrayList<>(size);
+          final List<ByteArray> keys = new ArrayList<>(size);
           for (int i = 0; i < size; i++) {
             keys.add(encodeKey(i));
           }
@@ -424,16 +519,18 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     private int getSize() {
-      final byte[] sizeBytes = store.get(getEncodedStoreKey());
-      return sizeBytes == null ? 0 : Ints.fromByteArray(sizeBytes);
+      final StateValue stateSize = store.get(getEncodedStoreKey());
+      return (stateSize == null || stateSize.valueBytes == null)
+          ? 0
+          : Ints.fromByteArray(stateSize.valueBytes);
     }
 
-    private byte[] encodeKey(int size) {
+    private ByteArray encodeKey(int size) {
       final ByteArrayOutputStream baos = getThreadLocalBaos();
       try (DataOutputStream dos = new DataOutputStream(baos)) {
-        dos.write(getEncodedStoreKey());
+        dos.write(getEncodedStoreKeyBytes());
         dos.writeInt(size);
-        return baos.toByteArray();
+        return ByteArray.of(baos.toByteArray());
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -454,8 +551,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    @Nullable
-    public ReadableState<Boolean> addIfAbsent(T t) {
+    public @Nullable ReadableState<Boolean> addIfAbsent(T t) {
       return mapState.putIfAbsent(t, true);
     }
 
@@ -536,12 +632,12 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   private class SamzaMapStateImpl<KeyT, ValueT> extends AbstractSamzaState<ValueT>
       implements SamzaMapState<KeyT, ValueT>, KeyValueIteratorState {
 
-    private static final int MAX_KEY_SIZE = 100000; //100K bytes
     private final Coder<KeyT> keyCoder;
-    private final byte[] maxKey;
     private final int storeKeySize;
-    private final List<KeyValueIterator<byte[], byte[]>> openIterators =
+    private final List<KeyValueIterator<ByteArray, StateValue<ValueT>>> openIterators =
         Collections.synchronizedList(new ArrayList<>());
+
+    private int maxKeySize;
 
     protected SamzaMapStateImpl(
         StateNamespace namespace,
@@ -551,37 +647,25 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       super(namespace, address, valueCoder);
 
       this.keyCoder = keyCoder;
-      this.maxKey = new byte[MAX_KEY_SIZE];
-      this.storeKeySize = getEncodedStoreKey().length;
-
-      final byte[] encodedKey = getEncodedStoreKey();
-      checkState(
-          encodedKey.length < MAX_KEY_SIZE,
-          "Encoded key size %s is longer than the max key size (100 KB) supported",
-          encodedKey.length);
-
-      Arrays.fill(maxKey, (byte) 0xff);
-      System.arraycopy(encodedKey, 0, maxKey, 0, encodedKey.length);
+      this.storeKeySize = getEncodedStoreKeyBytes().length;
+      // initial max key size is around 100k, so we can restore timer keys
+      this.maxKeySize = this.storeKeySize + 100_000;
     }
 
     @Override
     public void put(KeyT key, ValueT value) {
-      final byte[] encodedKey = encodeKey(key);
-      checkState(
-          encodedKey.length < MAX_KEY_SIZE,
-          "Encoded key size %s is longer than the max key size (100 KB) supported",
-          encodedKey.length);
-
-      store.put(encodedKey, encodeValue(value));
+      final ByteArray encodedKey = encodeKey(key);
+      maxKeySize = Math.max(maxKeySize, encodedKey.getValue().length);
+      store.put(encodedKey, StateValue.of(value, coder));
     }
 
     @Override
-    @Nullable
-    public ReadableState<ValueT> putIfAbsent(KeyT key, ValueT value) {
-      final byte[] encodedKey = encodeKey(key);
+    public @Nullable ReadableState<ValueT> computeIfAbsent(
+        KeyT key, Function<? super KeyT, ? extends ValueT> mappingFunction) {
+      final ByteArray encodedKey = encodeKey(key);
       final ValueT current = decodeValue(store.get(encodedKey));
       if (current == null) {
-        put(key, value);
+        put(key, mappingFunction.apply(key));
       }
 
       return current == null ? null : ReadableStates.immediate(current);
@@ -594,8 +678,24 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
     @Override
     public ReadableState<ValueT> get(KeyT key) {
-      ValueT value = decodeValue(store.get(encodeKey(key)));
-      return ReadableStates.immediate(value);
+      return getOrDefault(key, null);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<ValueT> getOrDefault(
+        KeyT key, @Nullable ValueT defaultValue) {
+      return new ReadableState<ValueT>() {
+        @Override
+        public @Nullable ValueT read() {
+          ValueT value = decodeValue(store.get(encodeKey(key)));
+          return value != null ? value : defaultValue;
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<ValueT> readLater() {
+          return this;
+        }
+      };
     }
 
     @Override
@@ -647,8 +747,29 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Boolean>
+        isEmpty() {
+      ReadableState<Iterable<KeyT>> keys = this.keys();
+      return new ReadableState<Boolean>() {
+        @Override
+        public @Nullable Boolean read() {
+          return Iterables.isEmpty(keys.read());
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
+          keys.readLater();
+          return this;
+        }
+      };
+    }
+
+    @Override
     public ReadableState<Iterator<Map.Entry<KeyT, ValueT>>> readIterator() {
-      final KeyValueIterator<byte[], byte[]> kvIter = store.range(getEncodedStoreKey(), maxKey);
+      final ByteArray maxKey = createMaxKey();
+      final KeyValueIterator<ByteArray, StateValue<ValueT>> kvIter =
+          store.range(getEncodedStoreKey(), maxKey);
       openIterators.add(kvIter);
 
       return new ReadableState<Iterator<Map.Entry<KeyT, ValueT>>>() {
@@ -668,7 +789,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
             @Override
             public Map.Entry<KeyT, ValueT> next() {
-              Entry<byte[], byte[]> entry = kvIter.next();
+              Entry<ByteArray, StateValue<ValueT>> entry = kvIter.next();
               return new AbstractMap.SimpleEntry<>(
                   decodeKey(entry.getKey()), decodeValue(entry.getValue()));
             }
@@ -687,15 +808,19 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
      * properly, we need to load the content into memory.
      */
     private <OutputT> Iterable<OutputT> createIterable(
-        SerializableFunction<org.apache.samza.storage.kv.Entry<byte[], byte[]>, OutputT> fn) {
-      final KeyValueIterator<byte[], byte[]> kvIter = store.range(getEncodedStoreKey(), maxKey);
-      final List<Entry<byte[], byte[]>> iterable = ImmutableList.copyOf(kvIter);
+        SerializableFunction<
+                org.apache.samza.storage.kv.Entry<ByteArray, StateValue<ValueT>>, OutputT>
+            fn) {
+      final ByteArray maxKey = createMaxKey();
+      final KeyValueIterator<ByteArray, StateValue<ValueT>> kvIter =
+          store.range(getEncodedStoreKey(), maxKey);
+      final List<Entry<ByteArray, StateValue<ValueT>>> iterable = ImmutableList.copyOf(kvIter);
       kvIter.close();
 
       return new Iterable<OutputT>() {
         @Override
         public Iterator<OutputT> iterator() {
-          final Iterator<Entry<byte[], byte[]>> iter = iterable.iterator();
+          final Iterator<Entry<ByteArray, StateValue<ValueT>>> iter = iterable.iterator();
 
           return new Iterator<OutputT>() {
             @Override
@@ -714,31 +839,43 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
     @Override
     public void clear() {
-      final KeyValueIterator<byte[], byte[]> kvIter = store.range(getEncodedStoreKey(), maxKey);
+      final ByteArray maxKey = createMaxKey();
+      final KeyValueIterator<ByteArray, StateValue<ValueT>> kvIter =
+          store.range(getEncodedStoreKey(), maxKey);
       while (kvIter.hasNext()) {
         store.delete(kvIter.next().getKey());
       }
       kvIter.close();
     }
 
-    private byte[] encodeKey(KeyT key) {
+    private ByteArray encodeKey(KeyT key) {
       try {
         final ByteArrayOutputStream baos = getThreadLocalBaos();
-        baos.write(getEncodedStoreKey());
+        baos.write(getEncodedStoreKeyBytes());
         keyCoder.encode(key, baos);
-        return baos.toByteArray();
+        return ByteArray.of(baos.toByteArray());
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
 
-    private KeyT decodeKey(byte[] keyBytes) {
+    private KeyT decodeKey(ByteArray keyBytes) {
       try {
-        final byte[] realKey = Arrays.copyOfRange(keyBytes, storeKeySize, keyBytes.length);
+        final byte[] realKey =
+            Arrays.copyOfRange(keyBytes.value, storeKeySize, keyBytes.value.length);
         return keyCoder.decode(new ByteArrayInputStream(realKey));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+    }
+
+    private ByteArray createMaxKey() {
+      byte[] maxKey = new byte[maxKeySize];
+      Arrays.fill(maxKey, (byte) 0xff);
+
+      final byte[] encodedKey = getEncodedStoreKeyBytes();
+      System.arraycopy(encodedKey, 0, maxKey, 0, encodedKey.length);
+      return ByteArray.of(maxKey);
     }
 
     @Override
@@ -806,7 +943,14 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     @Override
     @Nonnull
     public OutT read() {
-      return combineFn.extractOutput(getAccum());
+      AccumT accum = getAccum();
+      OutT output = combineFn.extractOutput(accum);
+      if (combineFn instanceof UpdatingCombineFn) {
+        AccumT updatedAccum =
+            ((UpdatingCombineFn<InT, AccumT, OutT>) combineFn).updateAfterFiring(accum);
+        writeInternal(updatedAccum);
+      }
+      return output;
     }
   }
 
@@ -826,7 +970,10 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       final Instant currentValue = readInternal();
       final Instant combinedValue =
           currentValue == null ? value : timestampCombiner.combine(currentValue, value);
-      writeInternal(combinedValue);
+
+      if (!combinedValue.equals(currentValue)) {
+        writeInternal(combinedValue);
+      }
     }
 
     @Override
@@ -852,6 +999,138 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     @Override
     public void clear() {
       clearInternal();
+    }
+  }
+
+  /** Wrapper of byte[] so it can used as key in the KeyValueStore for caching. */
+  public static class ByteArray implements Serializable, Comparable<ByteArray> {
+
+    private final byte[] value;
+
+    public static ByteArray of(byte[] value) {
+      return new ByteArray(value);
+    }
+
+    private ByteArray(byte[] value) {
+      this.value = value;
+    }
+
+    public byte[] getValue() {
+      return value;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ByteArray byteArray = (ByteArray) o;
+      return Arrays.equals(value, byteArray.value);
+    }
+
+    @Override
+    public int hashCode() {
+      return value != null ? Arrays.hashCode(value) : 0;
+    }
+
+    @Override
+    public int compareTo(ByteArray other) {
+      return UnsignedBytes.lexicographicalComparator().compare(value, other.value);
+    }
+  }
+
+  /** Factory class to provide {@link ByteArraySerde}. */
+  public static class ByteArraySerdeFactory implements SerdeFactory<ByteArray> {
+
+    @Override
+    public Serde<ByteArray> getSerde(String name, Config config) {
+      return new ByteArraySerde();
+    }
+
+    /** Serde for {@link ByteArray}. */
+    public static class ByteArraySerde implements Serde<ByteArray> {
+
+      @Override
+      public byte[] toBytes(ByteArray byteArray) {
+        return byteArray.value;
+      }
+
+      @Override
+      public ByteArray fromBytes(byte[] bytes) {
+        return ByteArray.of(bytes);
+      }
+    }
+  }
+
+  /**
+   * Wrapper for state value so that unencoded value can be read directly from the cache of
+   * KeyValueStore.
+   */
+  public static class StateValue<T> implements Serializable {
+    private T value;
+    private Coder<T> valueCoder;
+    private byte[] valueBytes;
+
+    private StateValue(T value, Coder<T> valueCoder, byte[] valueBytes) {
+      this.value = value;
+      this.valueCoder = valueCoder;
+      this.valueBytes = valueBytes;
+    }
+
+    public static <T> StateValue<T> of(T value, Coder<T> valueCoder) {
+      return new StateValue<>(value, valueCoder, null);
+    }
+
+    public static <T> StateValue<T> of(byte[] valueBytes) {
+      return new StateValue<>(null, null, valueBytes);
+    }
+
+    public T getValue(Coder<T> coder) {
+      if (value == null && valueBytes != null) {
+        if (valueCoder == null) {
+          valueCoder = coder;
+        }
+        try {
+          value = valueCoder.decode(new ByteArrayInputStream(valueBytes));
+        } catch (IOException e) {
+          throw new RuntimeException("Could not decode state", e);
+        }
+      }
+      return value;
+    }
+
+    public byte[] getValueBytes() {
+      if (valueBytes == null && value != null) {
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+          valueCoder.encode(value, baos);
+        } catch (IOException e) {
+          throw new RuntimeException("Could not encode state value: " + value, e);
+        }
+        valueBytes = baos.toByteArray();
+      }
+      return valueBytes;
+    }
+  }
+
+  /** Factory class to provide {@link StateValueSerdeFactory.StateValueSerde}. */
+  public static class StateValueSerdeFactory implements SerdeFactory<StateValue<?>> {
+    @Override
+    public Serde<StateValue<?>> getSerde(String name, Config config) {
+      return new StateValueSerde();
+    }
+
+    /** Serde for {@link StateValue}. */
+    public static class StateValueSerde implements Serde<StateValue<?>> {
+      @Override
+      public StateValue<?> fromBytes(byte[] bytes) {
+        return StateValue.of(bytes);
+      }
+
+      @Override
+      public byte[] toBytes(StateValue<?> stateValue) {
+        return stateValue == null ? null : stateValue.getValueBytes();
+      }
     }
   }
 }

@@ -15,39 +15,91 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.auto.value.AutoValue;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.BooleanCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Partitions temporary files based on number of files and file sizes. Output key is a pair of
  * tablespec and the list of files corresponding to each partition of that table.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class WritePartition<DestinationT>
     extends DoFn<
         Iterable<WriteBundlesToFiles.Result<DestinationT>>,
-        KV<ShardedKey<DestinationT>, List<String>>> {
+        KV<ShardedKey<DestinationT>, WritePartition.Result>> {
+  @AutoValue
+  abstract static class Result {
+    public abstract List<String> getFilenames();
+
+    abstract Boolean isFirstPane();
+  }
+
+  static class ResultCoder extends AtomicCoder<Result> {
+    private static final Coder<List<String>> FILENAMES_CODER = ListCoder.of(StringUtf8Coder.of());
+    private static final Coder<Boolean> FIRST_PANE_CODER = BooleanCoder.of();
+    static final ResultCoder INSTANCE = new ResultCoder();
+
+    @Override
+    public void encode(Result value, OutputStream outStream) throws IOException {
+      FILENAMES_CODER.encode(value.getFilenames(), outStream);
+      FIRST_PANE_CODER.encode(value.isFirstPane(), outStream);
+    }
+
+    @Override
+    public Result decode(InputStream inStream) throws IOException {
+      return new AutoValue_WritePartition_Result(
+          FILENAMES_CODER.decode(inStream), FIRST_PANE_CODER.decode(inStream));
+    }
+  }
+
   private final boolean singletonTable;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final PCollectionView<String> tempFilePrefix;
-  @Nullable private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
-  private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag;
+  private final int maxNumFiles;
+  private final long maxSizeBytes;
+  private final RowWriterFactory<?, DestinationT> rowWriterFactory;
+
+  private @Nullable TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>>
+      multiPartitionsTag;
+  private TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>> singlePartitionTag;
 
   private static class PartitionData {
     private int numFiles = 0;
     private long byteSize = 0;
     private List<String> filenames = Lists.newArrayList();
+    private final int maxNumFiles;
+    private final long maxSizeBytes;
+
+    private PartitionData(int maxNumFiles, long maxSizeBytes) {
+      this.maxNumFiles = maxNumFiles;
+      this.maxSizeBytes = maxSizeBytes;
+    }
+
+    static PartitionData withMaximums(int maxNumFiles, long maxSizeBytes) {
+      return new PartitionData(maxNumFiles, maxSizeBytes);
+    }
 
     int getNumFiles() {
       return numFiles;
@@ -76,17 +128,23 @@ class WritePartition<DestinationT>
     // Check to see whether we can add to this partition without exceeding the maximum partition
     // size.
     boolean canAccept(int numFiles, long numBytes) {
-      return this.numFiles + numFiles <= BatchLoads.MAX_NUM_FILES
-          && this.byteSize + numBytes <= BatchLoads.MAX_SIZE_BYTES;
+      if (filenames.isEmpty()) {
+        return true;
+      }
+      return this.numFiles + numFiles <= maxNumFiles && this.byteSize + numBytes <= maxSizeBytes;
     }
   }
 
   private static class DestinationData {
     private List<PartitionData> partitions = Lists.newArrayList();
 
-    DestinationData() {
+    private DestinationData() {}
+
+    private static DestinationData create(int maxNumFiles, long maxSizeBytes) {
+      DestinationData destinationData = new DestinationData();
       // Always start out with a single empty partition.
-      partitions.add(new PartitionData());
+      destinationData.partitions.add(new PartitionData(maxNumFiles, maxSizeBytes));
+      return destinationData;
     }
 
     List<PartitionData> getPartitions() {
@@ -106,45 +164,52 @@ class WritePartition<DestinationT>
       boolean singletonTable,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       PCollectionView<String> tempFilePrefix,
-      TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag,
-      TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag) {
+      int maxNumFiles,
+      long maxSizeBytes,
+      TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>> multiPartitionsTag,
+      TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>> singlePartitionTag,
+      RowWriterFactory<?, DestinationT> rowWriterFactory) {
     this.singletonTable = singletonTable;
     this.dynamicDestinations = dynamicDestinations;
     this.tempFilePrefix = tempFilePrefix;
+    this.maxNumFiles = maxNumFiles;
+    this.maxSizeBytes = maxSizeBytes;
     this.multiPartitionsTag = multiPartitionsTag;
     this.singlePartitionTag = singlePartitionTag;
+    this.rowWriterFactory = rowWriterFactory;
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
     List<WriteBundlesToFiles.Result<DestinationT>> results = Lists.newArrayList(c.element());
-
     // If there are no elements to write _and_ the user specified a constant output table, then
     // generate an empty table of that name.
     if (results.isEmpty() && singletonTable) {
       String tempFilePrefix = c.sideInput(this.tempFilePrefix);
-      TableRowWriter writer = new TableRowWriter(tempFilePrefix);
-      writer.close();
-      TableRowWriter.Result writerResult = writer.getResult();
       // Return a null destination in this case - the constant DynamicDestinations class will
       // resolve it to the singleton output table.
+      DestinationT destination = dynamicDestinations.getDestination(null);
+
+      BigQueryRowWriter<?> writer = rowWriterFactory.createRowWriter(tempFilePrefix, destination);
+      writer.close();
+      BigQueryRowWriter.Result writerResult = writer.getResult();
+
       results.add(
-          new Result<>(
-              writerResult.resourceId.toString(),
-              writerResult.byteSize,
-              dynamicDestinations.getDestination(null)));
+          new WriteBundlesToFiles.Result<>(
+              writerResult.resourceId.toString(), writerResult.byteSize, destination));
     }
 
     Map<DestinationT, DestinationData> currentResults = Maps.newHashMap();
     for (WriteBundlesToFiles.Result<DestinationT> fileResult : results) {
       DestinationT destination = fileResult.destination;
       DestinationData destinationData =
-          currentResults.computeIfAbsent(destination, k -> new DestinationData());
+          currentResults.computeIfAbsent(
+              destination, k -> DestinationData.create(maxNumFiles, maxSizeBytes));
 
       PartitionData latestPartition = destinationData.getLatestPartition();
       if (!latestPartition.canAccept(1, fileResult.fileByteSize)) {
         // Too much data, roll over to a new partition.
-        latestPartition = new PartitionData();
+        latestPartition = PartitionData.withMaximums(maxNumFiles, maxSizeBytes);
         destinationData.addPartition(latestPartition);
       }
       latestPartition.addFilename(fileResult.filename);
@@ -160,11 +225,16 @@ class WritePartition<DestinationT>
       // In the fast-path case where we only output one table, the transform loads it directly
       // to the final table. In this case, we output on a special TupleTag so the enclosing
       // transform knows to skip the rename step.
-      TupleTag<KV<ShardedKey<DestinationT>, List<String>>> outputTag =
+      TupleTag<KV<ShardedKey<DestinationT>, WritePartition.Result>> outputTag =
           (destinationData.getPartitions().size() == 1) ? singlePartitionTag : multiPartitionsTag;
       for (int i = 0; i < destinationData.getPartitions().size(); ++i) {
         PartitionData partitionData = destinationData.getPartitions().get(i);
-        c.output(outputTag, KV.of(ShardedKey.of(destination, i + 1), partitionData.getFilenames()));
+        c.output(
+            outputTag,
+            KV.of(
+                ShardedKey.of(destination, i + 1),
+                new AutoValue_WritePartition_Result(
+                    partitionData.getFilenames(), c.pane().isFirst())));
       }
     }
   }

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -36,6 +36,9 @@ import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
  *
  * <p>Used by {@link ProtoCoder}, but in a separate file for testing and isolation.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ProtobufUtil {
   /**
    * Returns the {@link Descriptor} for the given Protocol Buffers {@link Message}.

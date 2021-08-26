@@ -15,20 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import com.google.common.collect.ImmutableList;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** {@link CoderTranslator} implementations for known coder types. */
 class CoderTranslators {
@@ -80,12 +89,12 @@ class CoderTranslators {
     return new SimpleStructuredCoderTranslator<Timer.Coder<?>>() {
       @Override
       public List<? extends Coder<?>> getComponents(Timer.Coder<?> from) {
-        return from.getCoderArguments();
+        return from.getComponents();
       }
 
       @Override
       public Timer.Coder<?> fromComponents(List<Coder<?>> components) {
-        return Timer.Coder.of(components.get(0));
+        return Timer.Coder.of(components.get(0), (Coder<BoundedWindow>) components.get(1));
       }
     };
   }
@@ -119,10 +128,87 @@ class CoderTranslators {
     };
   }
 
+  static CoderTranslator<WindowedValue.ParamWindowedValueCoder<?>> paramWindowedValue() {
+    return new CoderTranslator<WindowedValue.ParamWindowedValueCoder<?>>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(WindowedValue.ParamWindowedValueCoder<?> from) {
+        return ImmutableList.of(from.getValueCoder(), from.getWindowCoder());
+      }
+
+      @Override
+      public byte[] getPayload(WindowedValue.ParamWindowedValueCoder<?> from) {
+        return WindowedValue.ParamWindowedValueCoder.getPayload(from);
+      }
+
+      @Override
+      public WindowedValue.ParamWindowedValueCoder<?> fromComponents(
+          List<Coder<?>> components, byte[] payload, TranslationContext context) {
+        return WindowedValue.ParamWindowedValueCoder.fromComponents(components, payload);
+      }
+    };
+  }
+
+  static CoderTranslator<RowCoder> row() {
+    return new CoderTranslator<RowCoder>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(RowCoder from) {
+        return ImmutableList.of();
+      }
+
+      @Override
+      public byte[] getPayload(RowCoder from) {
+        return SchemaTranslation.schemaToProto(from.getSchema(), true).toByteArray();
+      }
+
+      @Override
+      public RowCoder fromComponents(
+          List<Coder<?>> components, byte[] payload, TranslationContext context) {
+        checkArgument(
+            components.isEmpty(), "Expected empty component list, but received: " + components);
+        Schema schema;
+        try {
+          schema = SchemaTranslation.schemaFromProto(SchemaApi.Schema.parseFrom(payload));
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
+        }
+        return RowCoder.of(schema);
+      }
+    };
+  }
+
+  static CoderTranslator<ShardedKey.Coder<?>> shardedKey() {
+    return new SimpleStructuredCoderTranslator<ShardedKey.Coder<?>>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(ShardedKey.Coder<?> from) {
+        return Collections.singletonList(from.getKeyCoder());
+      }
+
+      @Override
+      public ShardedKey.Coder<?> fromComponents(List<Coder<?>> components) {
+        return ShardedKey.Coder.of(components.get(0));
+      }
+    };
+  }
+
+  static CoderTranslator<TimestampPrefixingWindowCoder<?>> timestampPrefixingWindow() {
+    return new SimpleStructuredCoderTranslator<TimestampPrefixingWindowCoder<?>>() {
+      @Override
+      protected TimestampPrefixingWindowCoder<?> fromComponents(List<Coder<?>> components) {
+        return TimestampPrefixingWindowCoder.of((Coder<? extends BoundedWindow>) components.get(0));
+      }
+
+      @Override
+      public List<? extends Coder<?>> getComponents(TimestampPrefixingWindowCoder<?> from) {
+        return from.getComponents();
+      }
+    };
+  }
+
   public abstract static class SimpleStructuredCoderTranslator<T extends Coder<?>>
       implements CoderTranslator<T> {
     @Override
-    public final T fromComponents(List<Coder<?>> components, byte[] payload) {
+    public final T fromComponents(
+        List<Coder<?>> components, byte[] payload, TranslationContext context) {
       return fromComponents(components);
     }
 

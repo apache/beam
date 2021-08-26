@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,30 +18,53 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins {
+  id 'org.apache.beam.module'
+}
+
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.aws',
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
-def aws_java_sdk_version = "1.11.319"
-
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version"
-  shadow "com.amazonaws:aws-java-sdk-s3:$aws_java_sdk_version"
-  shadow library.java.jackson_core
-  shadow library.java.jackson_annotations
-  shadow library.java.jackson_databind
-  shadow library.java.slf4j_api
-  runtime 'commons-codec:commons-codec:1.9'
-  runtime "org.apache.httpcomponents:httpclient:4.5.6"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  shadowTest library.java.guava_testlib
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.mockito_core
-  shadowTest library.java.junit
-  shadowTest library.java.slf4j_jdk14
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.aws_java_sdk_cloudwatch
+  compile library.java.aws_java_sdk_core
+  compile library.java.aws_java_sdk_dynamodb
+  compile library.java.aws_java_sdk_s3
+  compile library.java.aws_java_sdk_sns
+  compile library.java.aws_java_sdk_sqs
+  compile library.java.aws_java_sdk_sts
+  compile library.java.jackson_core
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.http_core
+  runtime library.java.commons_codec
+  runtime "org.apache.httpcomponents:httpclient:4.5.12"
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile "io.findify:s3mock_2.12:0.2.6"
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.mockito_core
+  testCompile library.java.junit
+  testCompile library.java.testcontainers_localstack
+  testCompile "org.assertj:assertj-core:3.11.1"
+  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
+}
+
+test {
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+      '--awsRegion=us-west-2',
+      '--awsCredentialsProvider={"@type" : "AWSStaticCredentialsProvider", "awsAccessKeyId" : "key_id_value","awsSecretKey" : "secret_value"}'
+  ])
 }

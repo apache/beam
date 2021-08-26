@@ -17,9 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -29,12 +30,8 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -46,6 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
@@ -64,6 +62,10 @@ import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOption
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -87,9 +89,15 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.compress.utils.Sets;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Rule;
@@ -278,6 +286,98 @@ public class WriteFilesTest {
         WriteFiles.to(makeSimpleSink()).withNumShards(20));
   }
 
+  /**
+   * Test that WriteFiles with a configured sharding function distributes elements according to
+   * assigned key. Test use simple sharding which co-locate same elements into same shard.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testCustomShardingFunctionWrite() throws IOException {
+    runShardedWrite(
+        Arrays.asList("1", "2", "3", "1", "2", "3"),
+        IDENTITY_MAP,
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink())
+            .withNumShards(4)
+            .withShardingFunction(new TestShardingFunction()),
+        new BiFunction<Integer, List<String>, Void>() {
+          @Override
+          public Void apply(Integer shardNumber, List<String> shardContent) {
+            // Function creates only shards 1,2,3 but WriteFiles will ensure shard 0 with empty
+            // content will be created as well
+            if (shardNumber == 0) {
+              assertTrue(shardContent.isEmpty());
+            } else {
+              assertEquals(
+                  Lists.newArrayList(shardNumber.toString(), shardNumber.toString()), shardContent);
+            }
+            return null;
+          }
+        },
+        false);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
+  public void testWithRunnerDeterminedShardingUnbounded() throws IOException {
+    runShardedWrite(
+        Arrays.asList("one", "two", "three", "four", "five", "six"),
+        Window.into(FixedWindows.of(Duration.standardSeconds(10))),
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withRunnerDeterminedSharding(),
+        null,
+        true);
+  }
+
+  @Test
+  @Category({
+    NeedsRunner.class,
+    UsesUnboundedPCollections.class,
+    UsesTestStream.class,
+    UsesTestStreamWithProcessingTime.class
+  })
+  public void testWithRunnerDeterminedShardingTestStream() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    Instant startInstant = new Instant(0L);
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            // Initialize watermark for timer to be triggered correctly.
+            .advanceWatermarkTo(startInstant)
+            // Add 10 elements in the first window.
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            // Add 10 more elements in the first window.
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            // Add the remaining relements in the second window.
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkToInfinity();
+
+    // Flag to validate that the pipeline options are passed to the Sink
+    WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
+    options.setTestFlag("test_value");
+    Pipeline p = TestPipeline.create(options);
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withRunnerDeterminedSharding();
+    p.apply(testStream)
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    p.run();
+
+    checkFileContents(
+        getBaseOutputFilename(), elements, Optional.absent(), !write.getWindowedWrites(), null);
+  }
+
   /** Test a WriteFiles transform with an empty PCollection. */
   @Test
   @Category(NeedsRunner.class)
@@ -332,12 +432,26 @@ public class WriteFilesTest {
     }
     runWrite(
         inputs,
-        Window.into(FixedWindows.of(Duration.millis(2))),
+        Window.into(FixedWindows.of(Duration.millis(1))),
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink()).withMaxNumWritersPerBundle(2).withWindowedWrites());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteNoSpilling() throws IOException {
+    List<String> inputs = Lists.newArrayList();
+    for (int i = 0; i < 100; ++i) {
+      inputs.add("mambo_number_" + i);
+    }
+    runWrite(
+        inputs,
+        Window.into(FixedWindows.of(Duration.millis(1))),
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink())
             .withMaxNumWritersPerBundle(2)
             .withWindowedWrites()
-            .withNumShards(1));
+            .withNoSpilling());
   }
 
   @Test
@@ -403,15 +517,16 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testUnboundedWritesNeedSharding() {
+  public void testUnboundedWritesWithMergingWindowNeedSharding() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "When applying WriteFiles to an unbounded PCollection, "
+        "When applying WriteFiles to an unbounded PCollection with merging windows, "
             + "must specify number of output shards explicitly");
 
     SimpleSink<Void> sink = makeSimpleSink();
     p.apply(Create.of("foo"))
         .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(Window.into(Sessions.withGapDuration(Duration.millis(100))))
         .apply(WriteFiles.to(sink).withWindowedWrites());
     p.run();
   }
@@ -455,7 +570,7 @@ public class WriteFilesTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
   public void testDynamicDestinationsUnbounded() throws Exception {
     testDynamicDestinationsHelper(false, false);
   }
@@ -656,6 +771,20 @@ public class WriteFilesTest {
   }
 
   /**
+   * Same as {@link #runShardedWrite(List, PTransform, String, WriteFiles, BiFunction, boolean)} but
+   * without shard content check. This means content will be checked only globally, that shards
+   * together contains written input and not content per shard
+   */
+  private void runShardedWrite(
+      List<String> inputs,
+      PTransform<PCollection<String>, PCollection<String>> transform,
+      String baseName,
+      WriteFiles<String, ?, String> write)
+      throws IOException {
+    runShardedWrite(inputs, transform, baseName, write, null, false);
+  }
+
+  /**
    * Performs a WriteFiles transform with the desired number of shards. Verifies the WriteFiles
    * transform calls the appropriate methods on a test sink in the correct order, as well as
    * verifies that the elements of a PCollection are written to the sink. If numConfiguredShards is
@@ -665,7 +794,9 @@ public class WriteFilesTest {
       List<String> inputs,
       PTransform<PCollection<String>, PCollection<String>> transform,
       String baseName,
-      WriteFiles<String, ?, String> write)
+      WriteFiles<String, ?, String> write,
+      BiFunction<Integer, List<String>, Void> shardContentChecker,
+      boolean isUnbounded)
       throws IOException {
     // Flag to validate that the pipeline options are passed to the Sink
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
@@ -678,6 +809,7 @@ public class WriteFilesTest {
       timestamps.add(i + 1);
     }
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
+        .setIsBoundedInternal(isUnbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
         .apply(transform)
         .apply(write)
         .getPerDestinationOutputFilenames()
@@ -688,7 +820,7 @@ public class WriteFilesTest {
         (write.getNumShardsProvider() != null && !write.getWindowedWrites())
             ? Optional.of(write.getNumShardsProvider().get())
             : Optional.absent();
-    checkFileContents(baseName, inputs, numShards, !write.getWindowedWrites());
+    checkFileContents(baseName, inputs, numShards, !write.getWindowedWrites(), shardContentChecker);
   }
 
   static void checkFileContents(
@@ -696,6 +828,16 @@ public class WriteFilesTest {
       List<String> inputs,
       Optional<Integer> numExpectedShards,
       boolean expectRemovedTempDirectory)
+      throws IOException {
+    checkFileContents(baseName, inputs, numExpectedShards, expectRemovedTempDirectory, null);
+  }
+
+  static void checkFileContents(
+      String baseName,
+      List<String> inputs,
+      Optional<Integer> numExpectedShards,
+      boolean expectRemovedTempDirectory,
+      BiFunction<Integer, List<String>, Void> shardContentChecker)
       throws IOException {
     List<File> outputFiles = Lists.newArrayList();
     final String pattern = baseName + "*";
@@ -705,9 +847,9 @@ public class WriteFilesTest {
       outputFiles.add(new File(meta.resourceId().toString()));
     }
     assertFalse("Should have produced at least 1 output file", outputFiles.isEmpty());
+    Pattern shardPattern = Pattern.compile("(\\d{4})-of-\\d{4}");
     if (numExpectedShards.isPresent()) {
       assertEquals(numExpectedShards.get().intValue(), outputFiles.size());
-      Pattern shardPattern = Pattern.compile("\\d{4}-of-\\d{4}");
 
       Set<String> expectedShards = Sets.newHashSet();
       DecimalFormat df = new DecimalFormat("0000");
@@ -727,6 +869,7 @@ public class WriteFilesTest {
 
     List<String> actual = Lists.newArrayList();
     for (File outputFile : outputFiles) {
+      List<String> actualShard = Lists.newArrayList();
       try (BufferedReader reader = Files.newBufferedReader(outputFile.toPath(), Charsets.UTF_8)) {
         for (; ; ) {
           String line = reader.readLine();
@@ -734,10 +877,17 @@ public class WriteFilesTest {
             break;
           }
           if (!line.equals(SimpleWriter.HEADER) && !line.equals(SimpleWriter.FOOTER)) {
-            actual.add(line);
+            actualShard.add(line);
           }
         }
       }
+      if (shardContentChecker != null) {
+        Matcher matcher = shardPattern.matcher(outputFile.getName());
+        matcher.find();
+        int shardNumber = Integer.parseInt(matcher.group(1));
+        shardContentChecker.apply(shardNumber, actualShard);
+      }
+      actual.addAll(actualShard);
     }
     assertThat(actual, containsInAnyOrder(inputs.toArray()));
     if (expectRemovedTempDirectory) {
@@ -775,6 +925,15 @@ public class WriteFilesTest {
           .apply(Top.largest(1))
           .apply(Flatten.iterables())
           .apply(View.asSingleton());
+    }
+  }
+
+  private static class TestShardingFunction implements ShardingFunction<String, Void> {
+    @Override
+    public ShardedKey<Integer> assignShardKey(Void destination, String element, int shardCount)
+        throws Exception {
+      int shard = Integer.parseInt(element);
+      return ShardedKey.of(0, shard);
     }
   }
 }

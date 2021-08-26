@@ -14,7 +14,7 @@ When Cython is available, unit tests will test on cythonized module,
 otherwise, test on pure python module
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import unittest
 
@@ -29,7 +29,7 @@ class DataflowDistributionAccumulatorTest(unittest.TestCase):
   def test_calculate_bucket_index_with_input_0(self):
     counter = DataflowDistributionCounter()
     index = counter.calculate_bucket_index(0)
-    self.assertEquals(index, 0)
+    self.assertEqual(index, 0)
 
   def test_calculate_bucket_index_within_max_long(self):
     counter = DataflowDistributionCounter()
@@ -39,7 +39,7 @@ class DataflowDistributionAccumulatorTest(unittest.TestCase):
       for multiplier in [1, 2, 5]:
         value = multiplier * power_of_ten
         actual_bucket = counter.calculate_bucket_index(value - 1)
-        self.assertEquals(actual_bucket, bucket - 1)
+        self.assertEqual(actual_bucket, bucket - 1)
         bucket += 1
       power_of_ten *= 10
 
@@ -55,28 +55,28 @@ class DataflowDistributionAccumulatorTest(unittest.TestCase):
       counter.add_input(element)
     histogram = Mock(firstBucketOffset=None, bucketCounts=None)
     counter.translate_to_histogram(histogram)
-    self.assertEquals(counter.sum, expected_sum)
-    self.assertEquals(counter.count, expected_count)
-    self.assertEquals(counter.min, expected_min)
-    self.assertEquals(counter.max, expected_max)
-    self.assertEquals(histogram.firstBucketOffset, expected_first_bucket_index)
-    self.assertEquals(histogram.bucketCounts, expected_buckets)
+    self.assertEqual(counter.sum, expected_sum)
+    self.assertEqual(counter.count, expected_count)
+    self.assertEqual(counter.min, expected_min)
+    self.assertEqual(counter.max, expected_max)
+    self.assertEqual(histogram.firstBucketOffset, expected_first_bucket_index)
+    self.assertEqual(histogram.bucketCounts, expected_buckets)
 
   def test_translate_to_histogram_with_input_0(self):
     counter = DataflowDistributionCounter()
     counter.add_input(0)
     histogram = Mock(firstBucketOffset=None, bucketCounts=None)
     counter.translate_to_histogram(histogram)
-    self.assertEquals(histogram.firstBucketOffset, 0)
-    self.assertEquals(histogram.bucketCounts, [1])
+    self.assertEqual(histogram.firstBucketOffset, 0)
+    self.assertEqual(histogram.bucketCounts, [1])
 
   def test_translate_to_histogram_with_max_input(self):
     counter = DataflowDistributionCounter()
     counter.add_input(INT64_MAX)
     histogram = Mock(firstBucketOffset=None, bucketCounts=None)
     counter.translate_to_histogram(histogram)
-    self.assertEquals(histogram.firstBucketOffset, 57)
-    self.assertEquals(histogram.bucketCounts, [1])
+    self.assertEqual(histogram.firstBucketOffset, 57)
+    self.assertEqual(histogram.bucketCounts, [1])
 
 
 if __name__ == '__main__':

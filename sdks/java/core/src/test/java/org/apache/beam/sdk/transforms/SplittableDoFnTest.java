@@ -17,18 +17,23 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkState;
+import static java.lang.Thread.sleep;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Ordering;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -38,7 +43,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesBoundedSplittableParDo;
+import org.apache.beam.sdk.testing.UsesBundleFinalizer;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
@@ -46,6 +53,8 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
@@ -59,9 +68,11 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -69,14 +80,18 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for <a href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn} behavior.
+ * Tests for <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} behavior.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SplittableDoFnTest implements Serializable {
 
   static class PairStringWithIndexToLengthBase extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
-    public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
+    public ProcessContinuation process(
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
           tracker.tryClaim(i);
           ++i, ++numIterations) {
@@ -89,13 +104,12 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(String element) {
+    public OffsetRange getInitialRange(@Element String element) {
       return new OffsetRange(0, element.length());
     }
 
     @SplitRestriction
-    public void splitRange(
-        String element, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+    public void splitRange(@Restriction OffsetRange range, OutputReceiver<OffsetRange> receiver) {
       receiver.output(new OffsetRange(range.getFrom(), (range.getFrom() + range.getTo()) / 2));
       receiver.output(new OffsetRange((range.getFrom() + range.getTo()) / 2, range.getTo()));
     }
@@ -234,7 +248,8 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public ProcessContinuation processElement(
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
       for (int i = trueStart, numIterations = 1;
@@ -251,7 +266,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(String element) {
+    public OffsetRange getInitialRange() {
       return new OffsetRange(0, MAX_INDEX);
     }
   }
@@ -309,14 +324,14 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void process(ProcessContext c, OffsetRangeTracker tracker) {
+    public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
       String side = c.sideInput(sideInput);
       c.output(side + ":" + c.element());
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(Integer value) {
+    public OffsetRange getInitialRestriction() {
       return new OffsetRange(0, 1);
     }
   }
@@ -343,7 +358,7 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesSideInputs.class})
   public void testSideInputBounded() {
     testSideInput(IsBounded.BOUNDED);
   }
@@ -441,7 +456,8 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public ProcessContinuation processElement(
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
       for (int i = trueStart, numIterations = 1;
@@ -458,7 +474,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(Integer element) {
+    public OffsetRange getInitialRange() {
       return new OffsetRange(0, MAX_INDEX);
     }
   }
@@ -563,14 +579,14 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void process(ProcessContext c, OffsetRangeTracker tracker) {
+    public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
       c.output("main:" + c.element());
       c.output(additionalOutput, "additional:" + c.element());
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(Integer value) {
+    public OffsetRange getInitialRestriction() {
       return new OffsetRange(0, 1);
     }
   }
@@ -626,7 +642,8 @@ public class SplittableDoFnTest implements Serializable {
     p.run();
   }
 
-  @Test
+  @Test(timeout = 15000L)
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-6354")
   @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesTestStream.class})
   public void testLateData() {
 
@@ -678,14 +695,14 @@ public class SplittableDoFnTest implements Serializable {
     private transient State state;
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(String value) {
+    public OffsetRange getInitialRestriction() {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       return new OffsetRange(0, 1);
     }
 
     @SplitRestriction
     public void splitRestriction(
-        String value, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+        @Restriction OffsetRange range, OutputReceiver<OffsetRange> receiver) {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       receiver.output(range);
     }
@@ -703,7 +720,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       assertEquals(State.INSIDE_BUNDLE, state);
       assertTrue(tracker.tryClaim(0L));
       c.output(c.element());
@@ -756,6 +773,8 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testBoundedness() {
+    // use TestPipeline.create() because we assert without p.run();
+    Pipeline p = TestPipeline.create();
     PCollection<String> foo = p.apply(Create.of("foo"));
     {
       PCollection<String> res =
@@ -763,12 +782,12 @@ public class SplittableDoFnTest implements Serializable {
               ParDo.of(
                   new DoFn<String, String>() {
                     @ProcessElement
-                    public void process(@Element String element, OffsetRangeTracker tracker) {
+                    public void process(RestrictionTracker<OffsetRange, Long> tracker) {
                       // Doesn't matter
                     }
 
                     @GetInitialRestriction
-                    public OffsetRange getInitialRestriction(String element) {
+                    public OffsetRange getInitialRestriction() {
                       return new OffsetRange(0, 1);
                     }
                   }));
@@ -781,17 +800,94 @@ public class SplittableDoFnTest implements Serializable {
                   new DoFn<String, String>() {
                     @ProcessElement
                     public ProcessContinuation process(
-                        @Element String element, OffsetRangeTracker tracker) {
+                        RestrictionTracker<OffsetRange, Long> tracker) {
                       return stop();
                     }
 
                     @GetInitialRestriction
-                    public OffsetRange getInitialRestriction(String element) {
+                    public OffsetRange getInitialRestriction() {
                       return new OffsetRange(0, 1);
                     }
                   }));
       assertEquals(PCollection.IsBounded.UNBOUNDED, res.isBounded());
     }
+  }
+
+  /**
+   * While the finalization callback hasn't been invoked, this DoFn will keep requesting
+   * finalization, wait one second and then checkpoint upto MAX_ATTEMPTS amount of times. Once the
+   * callback has been invoked, the DoFn will output the element and stop.
+   */
+  public static class BundleFinalizingSplittableDoFn extends DoFn<String, String> {
+    private static final long MAX_ATTEMPTS = 3000;
+    // We use the UUID to uniquely identify this DoFn in case this test is run with
+    // other tests in the same JVM.
+    private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new HashMap();
+    private final UUID uuid = UUID.randomUUID();
+
+    @NewTracker
+    public RestrictionTracker<OffsetRange, Long> newTracker(@Restriction OffsetRange restriction) {
+      // Use a modified OffsetRangeTracker with only support for checkpointing.
+      return new OffsetRangeTracker(restriction) {
+        @Override
+        public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
+          return super.trySplit(0);
+        }
+      };
+    }
+
+    @ProcessElement
+    public ProcessContinuation process(
+        @Element String element,
+        OutputReceiver<String> receiver,
+        RestrictionTracker<OffsetRange, Long> tracker,
+        BundleFinalizer bundleFinalizer)
+        throws InterruptedException {
+      if (WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).get()) {
+        tracker.tryClaim(tracker.currentRestriction().getFrom() + 1);
+        receiver.output(element);
+        // Claim beyond the end now that we know we have been finalized.
+        tracker.tryClaim(Long.MAX_VALUE);
+        return stop();
+      }
+      if (tracker.tryClaim(tracker.currentRestriction().getFrom() + 1)) {
+        bundleFinalizer.afterBundleCommit(
+            Instant.now().plus(Duration.standardSeconds(MAX_ATTEMPTS)),
+            () -> WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).set(true));
+        // We sleep here instead of setting a resume time since the resume time doesn't need to
+        // be honored.
+        sleep(100L);
+        return resume();
+      }
+      return stop();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction() {
+      return new OffsetRange(0, MAX_ATTEMPTS);
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesBundleFinalizer.class})
+  public void testBundleFinalizationOccursOnBoundedSplittableDoFn() throws Exception {
+    @BoundedPerElement
+    class BoundedBundleFinalizingSplittableDoFn extends BundleFinalizingSplittableDoFn {}
+    PCollection<String> foo = p.apply(Create.of("foo"));
+    PCollection<String> res = foo.apply(ParDo.of(new BoundedBundleFinalizingSplittableDoFn()));
+    PAssert.that(res).containsInAnyOrder("foo");
+    p.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class, UsesBundleFinalizer.class})
+  public void testBundleFinalizationOccursOnUnboundedSplittableDoFn() throws Exception {
+    @UnboundedPerElement
+    class UnboundedBundleFinalizingSplittableDoFn extends BundleFinalizingSplittableDoFn {}
+    PCollection<String> foo = p.apply(Create.of("foo"));
+    PCollection<String> res = foo.apply(ParDo.of(new UnboundedBundleFinalizingSplittableDoFn()));
+    PAssert.that(res).containsInAnyOrder("foo");
+    p.run();
   }
 
   // TODO (https://issues.apache.org/jira/browse/BEAM-988): Test that Splittable DoFn

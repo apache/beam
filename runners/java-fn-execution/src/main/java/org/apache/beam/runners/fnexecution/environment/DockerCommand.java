@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableList;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -33,10 +33,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A docker command wrapper. Simplifies communications with the Docker daemon. */
+// Suppressing here due to https://github.com/spotbugs/spotbugs/issues/724
+@SuppressFBWarnings(
+    value = "OS_OPEN_STREAM",
+    justification = "BufferedReader wraps stream we don't own and should not close")
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class DockerCommand {
   private static final Logger LOG = LoggerFactory.getLogger(DockerCommand.class);
 
@@ -77,7 +85,11 @@ class DockerCommand {
       runShortCommand(
           ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build());
     } catch (IOException | TimeoutException | InterruptedException e) {
-      LOG.warn(String.format("Unable to pull docker image %s", imageTag), e);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Unable to pull docker image {}", imageTag, e);
+      } else {
+        LOG.warn("Unable to pull docker image {}, cause: {}", imageTag, e.getMessage());
+      }
     }
     // TODO: Validate args?
     return runShortCommand(
@@ -89,6 +101,40 @@ class DockerCommand {
             .add(imageTag)
             .addAll(args)
             .build());
+  }
+
+  /**
+   * Check if the given container state is running.
+   *
+   * @param containerId Id of the container to check
+   */
+  public boolean isContainerRunning(String containerId)
+      throws IOException, TimeoutException, InterruptedException {
+    checkArgument(!containerId.isEmpty(), "Docker containerId required");
+    // TODO: Validate args?
+    return runShortCommand(
+            ImmutableList.<String>builder()
+                .add(dockerExecutable)
+                .add("inspect")
+                .add("-f")
+                .add("{{.State.Running}}")
+                .add(containerId)
+                .build())
+        .equalsIgnoreCase("true");
+  }
+
+  /**
+   * Returns logs for the container specified by {@code containerId}.
+   *
+   * @throws IOException if an IOException occurs or if the given container id does not exist
+   */
+  public String getContainerLogs(String containerId)
+      throws IOException, TimeoutException, InterruptedException {
+    checkArgument(containerId != null);
+    checkArgument(
+        CONTAINER_ID_PATTERN.matcher(containerId).matches(),
+        "Container ID must be a 64-character hexadecimal string");
+    return runShortCommand(Arrays.asList(dockerExecutable, "logs", containerId), true, "\n");
   }
 
   /**
@@ -105,10 +151,41 @@ class DockerCommand {
     runShortCommand(Arrays.asList(dockerExecutable, "kill", containerId));
   }
 
-  /** Run the given command invocation and return stdout as a String. */
+  /**
+   * Removes docker container with container id.
+   *
+   * @throws IOException if an IOException occurs, or if the given container id either does not
+   *     exist or is still running
+   */
+  public void removeContainer(String containerId)
+      throws IOException, TimeoutException, InterruptedException {
+    checkArgument(containerId != null);
+    checkArgument(
+        CONTAINER_ID_PATTERN.matcher(containerId).matches(),
+        "Container ID must be a 64-character hexadecimal string");
+    runShortCommand(Arrays.asList(dockerExecutable, "rm", containerId));
+  }
+
   private String runShortCommand(List<String> invocation)
       throws IOException, TimeoutException, InterruptedException {
+    return runShortCommand(invocation, false, "");
+  }
+
+  /**
+   * Runs a command, blocks until {@link DockerCommand#commandTimeout} has elapsed, then returns the
+   * command's output.
+   *
+   * @param invocation command and arguments to be run
+   * @param redirectErrorStream if true, include the process's stderr in the return value
+   * @param delimiter used for separating output lines
+   * @return stdout of the command, including stderr if {@code redirectErrorStream} is true
+   * @throws TimeoutException if command has not finished by {@link DockerCommand#commandTimeout}
+   */
+  private String runShortCommand(
+      List<String> invocation, boolean redirectErrorStream, CharSequence delimiter)
+      throws IOException, TimeoutException, InterruptedException {
     ProcessBuilder pb = new ProcessBuilder(invocation);
+    pb.redirectErrorStream(redirectErrorStream);
     Process process = pb.start();
     // TODO: Consider supplying executor service here.
     CompletableFuture<String> resultString =
@@ -118,17 +195,26 @@ class DockerCommand {
               BufferedReader reader =
                   new BufferedReader(
                       new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
-              return reader.lines().collect(Collectors.joining());
+              return reader.lines().collect(Collectors.joining(delimiter));
             });
-    // NOTE: We only consume the error string in the case of an error.
-    CompletableFuture<String> errorFuture =
-        CompletableFuture.supplyAsync(
-            () -> {
-              BufferedReader reader =
-                  new BufferedReader(
-                      new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8));
-              return reader.lines().collect(Collectors.joining());
-            });
+    CompletableFuture<String> errorFuture;
+    String errorStringName;
+    if (redirectErrorStream) {
+      // The standard output and standard error are combined into one stream.
+      errorStringName = "stdout and stderr";
+      errorFuture = resultString;
+    } else {
+      // The error stream is separate, and we only consume it in the case of an error.
+      errorStringName = "stderr";
+      errorFuture =
+          CompletableFuture.supplyAsync(
+              () -> {
+                BufferedReader reader =
+                    new BufferedReader(
+                        new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8));
+                return reader.lines().collect(Collectors.joining(delimiter));
+              });
+    }
     // TODO: Retry on interrupt?
     boolean processDone = process.waitFor(commandTimeout.toMillis(), TimeUnit.MILLISECONDS);
     if (!processDone) {
@@ -144,12 +230,16 @@ class DockerCommand {
       try {
         errorString = errorFuture.get(commandTimeout.toMillis(), TimeUnit.MILLISECONDS);
       } catch (Exception stderrEx) {
-        errorString = String.format("Error capturing stderr: %s", stderrEx.getMessage());
+        errorString =
+            String.format("Error capturing %s: %s", errorStringName, stderrEx.getMessage());
       }
       throw new IOException(
           String.format(
-              "Received exit code %d for command '%s'. stderr: %s",
-              exitCode, invocation.stream().collect(Collectors.joining(" ")), errorString));
+              "Received exit code %d for command '%s'. %s: %s",
+              exitCode,
+              invocation.stream().collect(Collectors.joining(" ")),
+              errorStringName,
+              errorString));
     }
     try {
       // TODO: Consider a stricter timeout.

@@ -27,8 +27,25 @@ import (
 
 	"sync/atomic"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
+
+func init() {
+	flag.Var(&SdkHarnessContainerImageOverrides,
+		"sdk_harness_container_image_override",
+		"Overrides for SDK harness container images. Could be for the "+
+			"local SDK or for a remote SDK that pipeline has to support due "+
+			"to a cross-language transform. Each entry consists of two values "+
+			"separated by a comma where first value gives a regex to "+
+			"identify the container image to override and the second value "+
+			"gives the replacement container image. Multiple entries can be "+
+			"specified by using this flag multiple times. A container will "+
+			"have no more than 1 override applied to it. If multiple "+
+			"overrides match a container image it is arbitrary which "+
+			"will be applied.")
+}
 
 var (
 	// Endpoint is the job service endpoint.
@@ -37,8 +54,23 @@ var (
 	// JobName is the name of the job.
 	JobName = flag.String("job_name", "", "Job name (optional).")
 
-	// ContainerImage is the location of the SDK harness container image.
-	ContainerImage = flag.String("container_image", "", "Container image")
+	// EnvironmentType is the environment type to run the user code.
+	EnvironmentType = flag.String("environment_type", "DOCKER",
+		"Environment Type. Possible options are DOCKER, and LOOPBACK.")
+
+	// EnvironmentConfig is the environment configuration for running the user code.
+	EnvironmentConfig = flag.String("environment_config",
+		"",
+		"Set environment configuration for running the user code.\n"+
+			"For DOCKER: Url for the docker image.\n"+
+			"For PROCESS: json of the form {\"os\": \"<OS>\", "+
+			"\"arch\": \"<ARCHITECTURE>\", \"command\": \"<process to execute>\", "+
+			"\"env\":{\"<Environment variables 1>\": \"<ENV_VAL>\"} }. "+
+			"All fields in the json are optional except command.")
+
+	// SdkHarnessContainerImageOverrides contains patterns for overriding
+	// container image names in a pipeline.
+	SdkHarnessContainerImageOverrides stringSlice
 
 	// WorkerBinary is the location of the compiled worker binary. If not
 	// specified, the binary is produced via go build.
@@ -49,13 +81,24 @@ var (
 
 	// Async determines whether to wait for job completion.
 	Async = flag.Bool("async", false, "Do not wait for job completion.")
+
+	// Strict mode applies additional validation to user pipelines before
+	// executing them and fails early if the pipelines don't pass.
+	Strict = flag.Bool("beam_strict", false, "Apply additional validation to pipelines.")
+
+	// Flag to retain docker containers created by the runner. If false, then
+	// containers are deleted once the job ends, even if it failed.
+	RetainDockerContainers = flag.Bool("retain_docker_containers", false, "Retain Docker containers created by the runner.")
+
+	// Flag to set the degree of parallelism. If not set, the configured Flink default is used, or 1 if none can be found.
+	Parallelism = flag.Int("parallelism", -1, "The degree of parallelism to be used when distributing operations onto Flink workers.")
 )
 
 // GetEndpoint returns the endpoint, if non empty and exits otherwise. Runners
 // such as Dataflow set a reasonable default. Convenience function.
 func GetEndpoint() (string, error) {
 	if *Endpoint == "" {
-		return "", fmt.Errorf("no job service endpoint specified. Use --endpoint=<endpoint>")
+		return "", errors.New("no job service endpoint specified. Use --endpoint=<endpoint>")
 	}
 	return *Endpoint, nil
 }
@@ -72,15 +115,49 @@ func GetJobName() string {
 	return *JobName
 }
 
-// GetContainerImage returns the specified SDK harness container image or,
+// GetEnvironmentUrn returns the specified EnvironmentUrn used to run the SDK Harness,
+// if not present, returns the docker environment urn "beam:env:docker:v1".
+// Convenience function.
+func GetEnvironmentUrn(ctx context.Context) string {
+	switch env := strings.ToLower(*EnvironmentType); env {
+	case "process":
+		return "beam:env:process:v1"
+	case "loopback", "external":
+		return "beam:env:external:v1"
+	case "docker":
+		return "beam:env:docker:v1"
+	default:
+		log.Infof(ctx, "No environment type specified. Using default environment: '%v'", *EnvironmentType)
+		return "beam:env:docker:v1"
+	}
+}
+
+// IsLoopback returns whether the EnvironmentType is loopback.
+func IsLoopback() bool {
+	return strings.ToLower(*EnvironmentType) == "loopback"
+}
+
+// GetEnvironmentConfig returns the specified configuration for specified SDK Harness,
 // if not present, the default development container for the current user.
 // Convenience function.
-func GetContainerImage(ctx context.Context) string {
-	if *ContainerImage == "" {
-		*ContainerImage = os.ExpandEnv("$USER-docker-apache.bintray.io/beam/go:latest")
-		log.Infof(ctx, "No container image specified. Using dev image: '%v'", *ContainerImage)
+func GetEnvironmentConfig(ctx context.Context) string {
+	if *EnvironmentConfig == "" {
+		*EnvironmentConfig = os.ExpandEnv("apache/beam_go_sdk:" + core.SdkVersion)
+		log.Infof(ctx, "No environment config specified. Using default config: '%v'", *EnvironmentConfig)
 	}
-	return *ContainerImage
+	return *EnvironmentConfig
+}
+
+// GetSdkImageOverrides gets the specified overrides as a map where each key is
+// a regular expression pattern to match, and each value is the string to
+// replace matching containers with.
+func GetSdkImageOverrides() map[string]string {
+	ret := make(map[string]string)
+	for _, pattern := range SdkHarnessContainerImageOverrides {
+		splits := strings.SplitN(pattern, ",", 2)
+		ret[splits[0]] = splits[1]
+	}
+	return ret
 }
 
 // GetExperiments returns the experiments.

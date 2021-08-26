@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,6 +30,9 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -59,7 +60,7 @@ public class DelegateCoderTest implements Serializable {
             }
 
             @Override
-            public boolean equals(Object o) {
+            public boolean equals(@Nullable Object o) {
               return o != null && this.getClass() == o.getClass();
             }
 
@@ -75,7 +76,7 @@ public class DelegateCoderTest implements Serializable {
             }
 
             @Override
-            public boolean equals(Object o) {
+            public boolean equals(@Nullable Object o) {
               return o != null && this.getClass() == o.getClass();
             }
 

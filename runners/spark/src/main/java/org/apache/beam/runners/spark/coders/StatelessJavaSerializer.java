@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.coders;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -44,13 +43,17 @@ import java.io.ObjectStreamClass;
  * https://issues.apache.org/jira/browse/GROOVY-1627
  * https://github.com/spring-projects/spring-loaded/issues/107
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class StatelessJavaSerializer extends Serializer {
 
   // Since Kryo uses reflection to sequentially look for constructor signatures, starting
   // with this particular signature spares exploring further ones, which involves
   // NoSuchMethodException(s) being thrown as part of the exploration process and may slow
   // things down, see Kryo#newSerializer(), see https://goo.gl/Jn425G
-  public StatelessJavaSerializer(final Kryo ignore1, final Class<?> ignore2) {}
+  private StatelessJavaSerializer(final Kryo ignore1, final Class<?> ignore2) {}
 
   public StatelessJavaSerializer() {
     this(null, null);

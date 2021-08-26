@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -32,7 +29,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -42,11 +38,17 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Utilities to insert synthetic {@link PCollectionNode PCollections} for {@link PCollection
  * PCollections} which are produced by multiple independently executable stages.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class OutputDeduplicator {
 
   /**
@@ -294,13 +296,10 @@ class OutputDeduplicator {
             .toBuilder()
             .clearTransforms()
             .putAllTransforms(
-                updatedTransforms
-                    .stream()
+                updatedTransforms.stream()
                     .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform)))
             .putAllPcollections(
-                originalToPartial
-                    .values()
-                    .stream()
+                originalToPartial.values().stream()
                     .collect(
                         Collectors.toMap(PCollectionNode::getId, PCollectionNode::getPCollection)))
             .build();
@@ -312,7 +311,8 @@ class OutputDeduplicator {
         stage.getUserStates(),
         stage.getTimers(),
         updatedTransforms,
-        updatedOutputs);
+        updatedOutputs,
+        stage.getWireCoderSettings());
   }
 
   /**
@@ -329,6 +329,7 @@ class OutputDeduplicator {
             output.getKey(), originalToPartial.get(output.getValue()).getId());
       }
     }
+    updatedTransformBuilder.setEnvironmentId(transform.getEnvironmentId());
     return updatedTransformBuilder.build();
   }
 
@@ -342,10 +343,8 @@ class OutputDeduplicator {
       return new AutoValue_OutputDeduplicator_StageOrTransform(null, transform);
     }
 
-    @Nullable
-    abstract ExecutableStage getStage();
+    abstract @Nullable ExecutableStage getStage();
 
-    @Nullable
-    abstract PTransformNode getTransform();
+    abstract @Nullable PTransformNode getTransform();
   }
 }

@@ -16,10 +16,9 @@
 package beam
 
 import (
-	"fmt"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // PCollection is an immutable collection of values of type 'A', which must be
@@ -50,7 +49,6 @@ func (p PCollection) IsValid() bool {
 }
 
 // TODO(herohde) 5/30/2017: add name for PCollections? Java supports it.
-// TODO(herohde) 5/30/2017: add windowing strategy and documentation.
 
 // Type returns the full type 'A' of the elements. 'A' must be a concrete
 // type, such as int or KV<int,string>.
@@ -76,7 +74,7 @@ func (p PCollection) SetCoder(c Coder) error {
 	}
 
 	if !typex.IsEqual(p.n.Type(), c.coder.T) {
-		return fmt.Errorf("coder type %v must be identical to node type %v", c.coder.T, p.n)
+		return errors.Errorf("coder type %v must be identical to node type %v", c.coder.T, p.n)
 	}
 	p.n.Coder = c.coder
 	return nil

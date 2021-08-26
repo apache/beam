@@ -16,77 +16,93 @@
 # limitations under the License.
 ###############################################################################
 
-FROM python:2-stretch
+ARG py_version
+FROM python:"${py_version}"-buster
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
+
+ARG pull_licenses
 
 # Install native bindings required for dependencies.
 RUN apt-get update && \
     apt-get install -y \
-       # These packages are needed for "pip install python-snappy" below.
+       # Required by python-snappy
        libsnappy-dev \
-       # This package is needed for "pip install pyyaml" below to have c bindings.
+       # Required by pyyaml (for c bindings)
        libyaml-dev \
+       # This is used to speed up the re-installation of the sdk.
+       ccache \
        && \
     rm -rf /var/lib/apt/lists/*
 
-# Install packages required by the Python SDK.
-#
-# These packages should be kept in sync with the dependencies at
-# sdks/python/setup.py.  If not installed, sdk harness will install these at
-# runtime, but we would like to avoid doing this so that we do not depend on
-# PyPI at runtime whenever possible.
-#
-# Also install cython, numpy, pandas and scipy as well as their dependencies.
-# These are standard Python packages, likely to be used by python SDK customers,
-# and their dependencies.
-#
+####
+# Install required packages for Beam Python SDK and common dependencies used by users.
+####
+
+# SDK dependencies not listed in base_image_requirements.txt will be installed
+# when we install SDK with pip below.
+COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 RUN \
-    # These are packages needed by the Python SDK.
-    pip install "avro == 1.8.2" && \
-    pip install "crcmod == 1.7" && \
-    pip install "dill == 0.2.6" && \
-    pip install "grpcio == 1.3.0" && \
-    pip install "hdfs == 2.1.0" && \
-    pip install "httplib2 == 0.9.2" && \
-    pip install "mock == 2.0.0" && \
-    pip install "oauth2client == 3.0.0" && \
-    pip install "protobuf == 3.3.0" && \
-    pip install "pytz == 2018.4" && \
-    pip install "pyyaml == 3.12" && \
-    pip install "pyvcf == 0.6.8" && \
-    pip install "six == 1.10.0" && \
-    pip install "typing == 3.6.1" && \
-    pip install "futures == 3.1.1" && \
-    pip install "future == 0.16.0" && \
-    # Setup packages
-    pip install "nose == 1.3.7" && \
-    # GCP extra features
-    pip install "google-apitools == 0.5.11" && \
-    pip install "proto-google-cloud-datastore-v1 == 0.90.4" && \
-    pip install "googledatastore == 7.0.1" && \
-    pip install "google-cloud-pubsub == 0.26.0" && \
-    pip install "proto-google-cloud-pubsub-v1 == 0.15.4" && \
-    pip install "google-cloud-bigquery == 0.25.0" && \
-    # Optional packages
-    pip install "cython == 0.28.1" && \
-    pip install "guppy == 0.1.10" && \
-    pip install "python-snappy == 0.5.3" && \
-    # These are additional packages likely to be used by customers.
-    pip install "numpy == 1.13.3" --no-binary=:all: && \
-    pip install "pandas == 0.18.1" && \
-    pip install "scipy == 1.0.0" && \
-    pip install "protobuf == 3.3.0" && \
-    pip install "tensorflow == 1.4.0" && \
-    pip install "protorpc == 0.11.1" && \
-    pip install "python-gflags == 3.0.6" && \
+    pip install -r /tmp/base_image_requirements.txt && \
+    # Check that the fast implementation of protobuf is used.
+    python -c "from google.protobuf.internal import api_implementation; assert api_implementation._default_implementation_type == 'cpp'; print ('Verified fast protobuf used.')" && \
     # Remove pip cache.
     rm -rf /root/.cache/pip && \
-    # Check that the fast implementation of protobuf is used.
-    python -c "from google.protobuf.internal import api_implementation; assert api_implementation._default_implementation_type == 'cpp'; print 'Verified fast protobuf used.'"
+    rm -rf /tmp/base_image_requirements.txt
 
+# Install Google Cloud SDK.
+ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
+ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
+RUN mkdir -p /usr/local/gcloud && \
+    cd /usr/local/gcloud && \
+    curl -s -O https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz && \
+    tar -xf google-cloud-sdk.tar.gz && \
+    /usr/local/gcloud/google-cloud-sdk/install.sh && \
+    rm google-cloud-sdk.tar.gz
+
+# Configure ccache prior to installing Beam SDK.
+RUN ln -s /usr/bin/ccache /usr/local/bin/gcc
+# These parameters are needed as pip compiles artifacts in random temporary directories.
+RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=false
+
+####
+# Install Apache Beam SDK
+####
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-RUN pip install /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
+RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
 
-ADD target/linux_amd64/boot /opt/apache/beam/
+COPY target/license_scripts /tmp/license_scripts/
 
+# Add golang licenses. Because the go-license directory may be empty if
+# pull_licenses is false, and COPY fails if there are no files,
+# copy an extra LICENSE file then remove it.
+COPY target/LICENSE target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
+RUN rm /opt/apache/beam/third_party_licenses/golang/LICENSE
+
+COPY target/license_scripts /tmp/license_scripts/
+RUN if [ "$pull_licenses" = "true" ] ; then \
+    pip install 'pip-licenses<3.0.0;python_version>="3.5"' && \
+    pip install 'pip-licenses==1.18.0;python_version<="2.7"' && \
+    python /tmp/license_scripts/pull_licenses_py.py && \
+    pip uninstall -y pip-licenses && \
+    # Remove pip cache.
+    rm -rf /root/.cache/pip ; \
+   else \
+    # Remove above golang license and dir if pull licenses false
+    rm -rf /opt/apache/beam/third_party_licenses ; \
+   fi
+
+# Remove license scripts
+RUN rm -rf /tmp/license_scripts
+
+# Log complete list of what exact packages and versions are installed.
+RUN pip freeze --all
+# Make sure there are no conflicting dependencies.
+RUN pip check
+
+
+COPY target/LICENSE /opt/apache/beam/
+COPY target/LICENSE.python /opt/apache/beam/
+COPY target/NOTICE /opt/apache/beam/
+
+ADD target/launcher/linux_amd64/boot /opt/apache/beam/
 ENTRYPOINT ["/opt/apache/beam/boot"]

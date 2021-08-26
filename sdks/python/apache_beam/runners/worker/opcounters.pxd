@@ -56,12 +56,15 @@ cdef class OperationCounters(object):
   cdef public Counter mean_byte_counter
   cdef public coder_impl
   cdef public SumAccumulator active_accumulator
+  cdef public object current_size
   cdef public libc.stdint.int64_t _sample_counter
   cdef public libc.stdint.int64_t _next_sample
+  cdef public object output_type_constraints
 
   cpdef update_from(self, windowed_value)
   cdef inline do_sample(self, windowed_value)
   cpdef update_collect(self)
+  cpdef type_check(self, value)
 
   cdef libc.stdint.int64_t _compute_next_sample(self, libc.stdint.int64_t i)
   cdef inline bint _should_sample(self)

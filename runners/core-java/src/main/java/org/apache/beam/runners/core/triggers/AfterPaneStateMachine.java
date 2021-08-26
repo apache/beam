@@ -18,20 +18,17 @@
 package org.apache.beam.runners.core.triggers;
 
 import java.util.Objects;
-import org.apache.beam.runners.core.MergingStateAccessor;
-import org.apache.beam.runners.core.StateAccessor;
 import org.apache.beam.runners.core.StateMerging;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.transforms.Sum;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link TriggerStateMachine}s that fire based on properties of the elements in the current pane.
  */
-@Experimental(Experimental.Kind.TRIGGER)
 public class AfterPaneStateMachine extends TriggerStateMachine {
 
   private static final StateTag<CombiningState<Long, long[], Long>> ELEMENTS_IN_PANE_TAG =
@@ -56,14 +53,21 @@ public class AfterPaneStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {
+    // This is not directly read by onElement since we are using a combiner.
+    // However if a read is performed for another reason we might as well
+    // read also so that the state can be compacted.
+    c.state().access(ELEMENTS_IN_PANE_TAG).readLater();
+  }
+
+  @Override
   public void onElement(OnElementContext c) throws Exception {
     c.state().access(ELEMENTS_IN_PANE_TAG).add(1L);
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateAccessor<?, ?> state) {
-    super.prefetchOnMerge(state);
-    StateMerging.prefetchCombiningValues(state, ELEMENTS_IN_PANE_TAG);
+  public void prefetchOnMerge(MergingPrefetchContext context) {
+    StateMerging.prefetchCombiningValues(context.state(), ELEMENTS_IN_PANE_TAG);
   }
 
   @Override
@@ -81,8 +85,8 @@ public class AfterPaneStateMachine extends TriggerStateMachine {
   }
 
   @Override
-  public void prefetchShouldFire(StateAccessor<?> state) {
-    state.access(ELEMENTS_IN_PANE_TAG).readLater();
+  public void prefetchShouldFire(PrefetchContext context) {
+    context.state().access(ELEMENTS_IN_PANE_TAG).readLater();
   }
 
   @Override
@@ -107,7 +111,7 @@ public class AfterPaneStateMachine extends TriggerStateMachine {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) {
       return true;
     }

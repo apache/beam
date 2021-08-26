@@ -22,9 +22,11 @@ import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark.AfterWatermarkEarlyAndLate;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark.FromEndOfWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
+import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -64,14 +66,14 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * PCollection<KV<String, Iterable<Doc>>> urlToDocs =
  *     urlDocPairs.apply(GroupByKey.<String, Doc>create());
  * PCollection<R> results =
- *     urlToDocs.apply(ParDo.of(new DoFn<KV<String, Iterable<Doc>>, R>() {
- *      {@literal @}ProcessElement
+ *     urlToDocs.apply(ParDo.of(new DoFn<KV<String, Iterable<Doc>>, R>() }{
+ *      {@code @ProcessElement
  *       public void processElement(ProcessContext c) {
  *         String url = c.element().getKey();
  *         Iterable<Doc> docsWithThatUrl = c.element().getValue();
  *         ... process all docs having that url ...
- *       }}));
- * }</pre>
+ *       }}}));
+ * </pre>
  *
  * <p>{@code GroupByKey} is a key primitive in data-parallel processing, since it is the main way to
  * efficiently bring associated data together into one location. It is also a key determiner of the
@@ -151,32 +153,57 @@ public class GroupByKey<K, V>
         && windowingStrategy.getTrigger() instanceof DefaultTrigger
         && input.isBounded() != IsBounded.BOUNDED) {
       throw new IllegalStateException(
-          "GroupByKey cannot be applied to non-bounded PCollection in "
-              + "the GlobalWindow without a trigger. Use a Window.into or Window.triggering transform "
-              + "prior to GroupByKey.");
+          "GroupByKey cannot be applied to non-bounded PCollection in the GlobalWindow without a"
+              + " trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
     }
 
-    // Validate the window merge function.
-    if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
-      String cause = ((InvalidWindows<?>) windowingStrategy.getWindowFn()).getCause();
-      throw new IllegalStateException(
-          "GroupByKey must have a valid Window merge function.  " + "Invalid because: " + cause);
+    // Validate that the trigger does not finish before garbage collection time
+    if (!triggerIsSafe(windowingStrategy)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Unsafe trigger '%s' may lose data, did you mean to wrap it in"
+                  + "`Repeatedly.forever(...)`?%nSee "
+                  + "https://s.apache.org/finishing-triggers-drop-data "
+                  + "for details.",
+              windowingStrategy.getTrigger()));
     }
   }
 
-  public WindowingStrategy<?, ?> updateWindowingStrategy(WindowingStrategy<?, ?> inputStrategy) {
-    WindowFn<?, ?> inputWindowFn = inputStrategy.getWindowFn();
-    if (!inputWindowFn.isNonMerging()) {
-      // Prevent merging windows again, without explicit user
-      // involvement, e.g., by Window.into() or Window.remerge().
-      inputWindowFn =
-          new InvalidWindows<>(
-              "WindowFn has already been consumed by previous GroupByKey", inputWindowFn);
+  // Note that Never trigger finishes *at* GC time so it is OK, and
+  // AfterWatermark.fromEndOfWindow() finishes at end-of-window time so it is
+  // OK if there is no allowed lateness.
+  private static boolean triggerIsSafe(WindowingStrategy<?, ?> windowingStrategy) {
+    if (!windowingStrategy.getTrigger().mayFinish()) {
+      return true;
     }
 
-    // We also switch to the continuation trigger associated with the current trigger.
+    if (windowingStrategy.getTrigger() instanceof NeverTrigger) {
+      return true;
+    }
+
+    if (windowingStrategy.getTrigger() instanceof FromEndOfWindow
+        && windowingStrategy.getAllowedLateness().getMillis() == 0) {
+      return true;
+    }
+
+    if (windowingStrategy.getTrigger() instanceof AfterWatermarkEarlyAndLate
+        && windowingStrategy.getAllowedLateness().getMillis() == 0) {
+      return true;
+    }
+
+    if (windowingStrategy.getTrigger() instanceof AfterWatermarkEarlyAndLate
+        && ((AfterWatermarkEarlyAndLate) windowingStrategy.getTrigger()).getLateTrigger() != null) {
+      return true;
+    }
+
+    return false;
+  }
+
+  public WindowingStrategy<?, ?> updateWindowingStrategy(WindowingStrategy<?, ?> inputStrategy) {
+    // If the WindowFn was merging, set the bit to indicate it is already merged.
+    // Switch to the continuation trigger associated with the current trigger.
     return inputStrategy
-        .withWindowFn(inputWindowFn)
+        .withAlreadyMerged(!inputStrategy.getWindowFn().isNonMerging())
         .withTrigger(inputStrategy.getTrigger().getContinuationTrigger());
   }
 

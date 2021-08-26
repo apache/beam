@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -31,6 +31,9 @@ import org.apache.beam.sdk.values.PCollectionView;
  * This transforms turns a side input into a singleton PCollection that can be used as the main
  * input for another transform.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReifyAsIterable<T> extends PTransform<PCollection<T>, PCollection<Iterable<T>>> {
   @Override
   public PCollection<Iterable<T>> expand(PCollection<T> input) {
@@ -46,6 +49,7 @@ public class ReifyAsIterable<T> extends PTransform<PCollection<T>, PCollection<I
                         c.output(c.sideInput(view));
                       }
                     })
-                .withSideInputs(view));
+                .withSideInputs(view))
+        .setCoder(IterableCoder.of(input.getCoder()));
   }
 }

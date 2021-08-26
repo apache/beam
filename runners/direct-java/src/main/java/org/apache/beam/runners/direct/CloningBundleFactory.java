@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.local.StructuralKey;
@@ -25,12 +24,16 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.joda.time.Instant;
 
 /**
  * A {@link BundleFactory} where a created {@link UncommittedBundle} clones all elements added to it
  * using the coder of the {@link PCollection}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class CloningBundleFactory implements BundleFactory {
   private static final CloningBundleFactory INSTANCE = new CloningBundleFactory();
 
@@ -92,6 +95,14 @@ class CloningBundleFactory implements BundleFactory {
     @Override
     public CommittedBundle<T> commit(Instant synchronizedProcessingTime) {
       return underlying.commit(synchronizedProcessingTime);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("Data", underlying.toString())
+          .add("Coder", coder.toString())
+          .toString();
     }
   }
 }

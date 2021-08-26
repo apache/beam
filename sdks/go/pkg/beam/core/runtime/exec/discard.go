@@ -32,11 +32,11 @@ func (d *Discard) Up(ctx context.Context) error {
 	return nil
 }
 
-func (d *Discard) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (d *Discard) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return nil
 }
 
-func (d *Discard) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
+func (d *Discard) ProcessElement(ctx context.Context, value *FullValue, values ...ReStream) error {
 	return nil
 }
 

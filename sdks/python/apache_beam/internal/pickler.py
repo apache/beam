@@ -28,17 +28,36 @@ The pickler module should be used to pickle functions and modules; for values,
 the coders.*PickleCoder classes should be used instead.
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import base64
+import bz2
 import logging
 import sys
+import threading
 import traceback
 import types
 import zlib
+from typing import Any
+from typing import Dict
+from typing import Tuple
 
 import dill
 
+settings = {'dill_byref': None}
+
+
+class _NoOpContextManager(object):
+  def __enter__(self):
+    pass
+
+  def __exit__(self, *unused_exc_info):
+    pass
+
+
+# Pickling, especially unpickling, causes broken module imports on Python 3
+# if executed concurrently, see: BEAM-8651, http://bugs.python.org/issue38884.
+_pickle_lock = threading.RLock()
 # Dill 0.28.0 renamed dill.dill to dill._dill:
 # https://github.com/uqfoundation/dill/commit/f0972ecc7a41d0b8acada6042d557068cac69baa
 # TODO: Remove this once Beam depends on dill >= 0.2.8
@@ -54,9 +73,10 @@ if not getattr(dill, '_dill', None):
 
 def _is_nested_class(cls):
   """Returns true if argument is a class object that appears to be nested."""
-  return (isinstance(cls, type)
-          and cls.__module__ != '__builtin__'
-          and cls.__name__ not in sys.modules[cls.__module__].__dict__)
+  return (
+      isinstance(cls, type) and cls.__module__ is not None and
+      cls.__module__ != 'builtins' and
+      cls.__name__ not in sys.modules[cls.__module__].__dict__)
 
 
 def _find_containing_class(nested_class):
@@ -91,7 +111,6 @@ def _nested_type_wrapper(fun):
   For nested class object only it will save the containing class object so
   the nested structure is recreated during unpickle.
   """
-
   def wrapper(pickler, obj):
     # When the nested class is defined in the __main__ module we do not have to
     # do anything special because the pickler itself will save the constituent
@@ -100,16 +119,18 @@ def _nested_type_wrapper(fun):
     if _is_nested_class(obj) and obj.__module__ != '__main__':
       containing_class_and_name = _find_containing_class(obj)
       if containing_class_and_name is not None:
-        return pickler.save_reduce(
-            getattr, containing_class_and_name, obj=obj)
+        return pickler.save_reduce(getattr, containing_class_and_name, obj=obj)
     try:
       return fun(pickler, obj)
     except dill.dill.PicklingError:
       # pylint: disable=protected-access
       return pickler.save_reduce(
           dill.dill._create_type,
-          (type(obj), obj.__name__, obj.__bases__,
-           dill.dill._dict_from_dictproxy(obj.__dict__)),
+          (
+              type(obj),
+              obj.__name__,
+              obj.__bases__,
+              dill.dill._dict_from_dictproxy(obj.__dict__)),
           obj=obj)
       # pylint: enable=protected-access
 
@@ -135,7 +156,6 @@ def _reject_generators(unused_pickler, unused_obj):
 
 dill.dill.Pickler.dispatch[types.GeneratorType] = _reject_generators
 
-
 # This if guards against dill not being full initialized when generating docs.
 if 'save_module' in dir(dill.dill):
 
@@ -149,23 +169,35 @@ if 'save_module' in dir(dill.dill):
     else:
       dill.dill.log.info('M2: %s' % obj)
       # pylint: disable=protected-access
-      pickler.save_reduce(dill.dill._import_module, (obj.__name__,), obj=obj)
+      pickler.save_reduce(dill.dill._import_module, (obj.__name__, ), obj=obj)
       # pylint: enable=protected-access
       dill.dill.log.info('# M2')
 
   # Pickle module dictionaries (commonly found in lambda's globals)
   # by referencing their module.
   old_save_module_dict = dill.dill.save_module_dict
-  known_module_dicts = {}
+  known_module_dicts = {
+  }  # type: Dict[int, Tuple[types.ModuleType, Dict[str, Any]]]
 
   @dill.dill.register(dict)
   def new_save_module_dict(pickler, obj):
     obj_id = id(obj)
     if not known_module_dicts or '__file__' in obj or '__package__' in obj:
       if obj_id not in known_module_dicts:
-        for m in sys.modules.values():
+        # Trigger loading of lazily loaded modules (such as pytest vendored
+        # modules).
+        # This pass over sys.modules needs to iterate on a copy of sys.modules
+        # since lazy loading modifies the dictionary, hence the use of list().
+        for m in list(sys.modules.values()):
           try:
-            if m and m.__name__ != '__main__':
+            _ = m.__dict__
+          except AttributeError:
+            pass
+
+        for m in list(sys.modules.values()):
+          try:
+            if (m and m.__name__ != '__main__' and
+                isinstance(m, dill.dill.ModuleType)):
               d = m.__dict__
               known_module_dicts[id(d)] = m, d
           except AttributeError:
@@ -182,6 +214,7 @@ if 'save_module' in dir(dill.dill):
         return old_save_module_dict(pickler, obj)
     else:
       return old_save_module_dict(pickler, obj)
+
   dill.dill.save_module_dict = new_save_module_dict
 
   def _nest_dill_logging():
@@ -194,7 +227,9 @@ if 'save_module' in dir(dill.dill):
     def new_log_info(msg, *args, **kwargs):
       old_log_info(
           ('1 2 3 4 5 6 7 8 9 0 ' * 10)[:len(traceback.extract_stack())] + msg,
-          *args, **kwargs)
+          *args,
+          **kwargs)
+
     dill.dill.log.info = new_log_info
 
 
@@ -202,50 +237,60 @@ if 'save_module' in dir(dill.dill):
 logging.getLogger('dill').setLevel(logging.WARN)
 
 
-# TODO(ccy): Currently, there are still instances of pickler.dumps() and
-# pickler.loads() being used for data, which results in an unnecessary base64
-# encoding.  This should be cleaned up.
-def dumps(o, enable_trace=True):
+def dumps(o, enable_trace=True, use_zlib=False):
+  # type: (...) -> bytes
+
   """For internal use only; no backwards-compatibility guarantees."""
+  with _pickle_lock:
+    try:
+      s = dill.dumps(o, byref=settings['dill_byref'])
+    except Exception:  # pylint: disable=broad-except
+      if enable_trace:
+        dill.dill._trace(True)  # pylint: disable=protected-access
+        s = dill.dumps(o, byref=settings['dill_byref'])
+      else:
+        raise
+    finally:
+      dill.dill._trace(False)  # pylint: disable=protected-access
 
-  try:
-    s = dill.dumps(o)
-  except Exception:      # pylint: disable=broad-except
-    if enable_trace:
-      dill.dill._trace(True)  # pylint: disable=protected-access
-      s = dill.dumps(o)
-    else:
-      raise
-  finally:
-    dill.dill._trace(False)  # pylint: disable=protected-access
-
-  # Compress as compactly as possible to decrease peak memory usage (of multiple
-  # in-memory copies) and free up some possibly large and no-longer-needed
-  # memory.
-  c = zlib.compress(s, 9)
-  del s
+  # Compress as compactly as possible (compresslevel=9) to decrease peak memory
+  # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
+  # limits.
+  # WARNING: Be cautious about compressor change since it can lead to pipeline
+  # representation change, and can break streaming job update compatibility on
+  # runners such as Dataflow.
+  if use_zlib:
+    c = zlib.compress(s, 9)
+  else:
+    c = bz2.compress(s, compresslevel=9)
+  del s  # Free up some possibly large and no-longer-needed memory.
 
   return base64.b64encode(c)
 
 
-def loads(encoded, enable_trace=True):
+def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
 
   c = base64.b64decode(encoded)
 
-  s = zlib.decompress(c)
+  if use_zlib:
+    s = zlib.decompress(c)
+  else:
+    s = bz2.decompress(c)
+
   del c  # Free up some possibly large and no-longer-needed memory.
 
-  try:
-    return dill.loads(s)
-  except Exception:          # pylint: disable=broad-except
-    if enable_trace:
-      dill.dill._trace(True)   # pylint: disable=protected-access
+  with _pickle_lock:
+    try:
       return dill.loads(s)
-    else:
-      raise
-  finally:
-    dill.dill._trace(False)  # pylint: disable=protected-access
+    except Exception:  # pylint: disable=broad-except
+      if enable_trace:
+        dill.dill._trace(True)  # pylint: disable=protected-access
+        return dill.loads(s)
+      else:
+        raise
+    finally:
+      dill.dill._trace(False)  # pylint: disable=protected-access
 
 
 def dump_session(file_path):
@@ -257,10 +302,12 @@ def dump_session(file_path):
   create and load the dump twice to have consistent results in the worker and
   the running session. Check: https://github.com/uqfoundation/dill/issues/195
   """
-  dill.dump_session(file_path)
-  dill.load_session(file_path)
-  return dill.dump_session(file_path)
+  with _pickle_lock:
+    dill.dump_session(file_path)
+    dill.load_session(file_path)
+    return dill.dump_session(file_path)
 
 
 def load_session(file_path):
-  return dill.load_session(file_path)
+  with _pickle_lock:
+    return dill.load_session(file_path)

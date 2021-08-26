@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
@@ -42,6 +43,24 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
 
   protected ListCoder(Coder<T> elemCoder) {
     super(elemCoder, "List");
+  }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return getElemCoder().consistentWithEquals();
+  }
+
+  @Override
+  public Object structuralValue(List<T> values) {
+    if (consistentWithEquals()) {
+      return values;
+    } else {
+      List<Object> ret = new ArrayList<>(values.size());
+      for (T value : values) {
+        ret.add(getElemCoder().structuralValue(value));
+      }
+      return ret;
+    }
   }
 
   /**

@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.runners;
 
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.PipelineResult;
@@ -33,6 +33,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesCommittedMetrics;
+import org.apache.beam.sdk.testing.UsesCounterMetrics;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -40,6 +43,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -48,6 +52,9 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link PipelineRunner}. */
 @RunWith(JUnit4.class)
 public class PipelineRunnerTest {
+
+  @Rule public final transient TestPipeline p = TestPipeline.create();
+
   @Test
   public void testInstantiation() {
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -74,12 +81,12 @@ public class PipelineRunnerTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class})
   public void testRunPTransform() {
     final String namespace = PipelineRunnerTest.class.getName();
     final Counter counter = Metrics.counter(namespace, "count");
     final PipelineResult result =
-        PipelineRunner.create()
+        PipelineRunner.fromOptions(p.getOptions())
             .run(
                 new PTransform<PBegin, POutput>() {
                   @Override

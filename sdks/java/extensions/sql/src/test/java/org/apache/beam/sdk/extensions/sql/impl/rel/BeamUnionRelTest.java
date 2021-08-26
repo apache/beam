@@ -15,16 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,11 +40,11 @@ public class BeamUnionRelTest extends BaseRelTest {
   public static void prepare() {
     registerTable(
         "ORDER_DETAILS",
-        MockedBoundedTable.of(
+        TestBoundedTable.of(
                 Schema.FieldType.INT64, "order_id",
                 Schema.FieldType.INT32, "site_id",
-                Schema.FieldType.DOUBLE, "price")
-            .addRows(1L, 1, 1.0, 2L, 2, 2.0));
+                Schema.FieldType.DECIMAL, "price")
+            .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0)));
   }
 
   @Test
@@ -60,8 +63,8 @@ public class BeamUnionRelTest extends BaseRelTest {
             TestUtils.RowsBuilder.of(
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.DOUBLE, "price")
-                .addRows(1L, 1, 1.0, 2L, 2, 2.0)
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0))
                 .getRows());
     pipeline.run();
   }
@@ -82,9 +85,71 @@ public class BeamUnionRelTest extends BaseRelTest {
             TestUtils.RowsBuilder.of(
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.DOUBLE, "price")
-                .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0, 2L, 2, 2.0)
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(
+                    1L,
+                    1,
+                    new BigDecimal(1.0),
+                    1L,
+                    1,
+                    new BigDecimal(1.0),
+                    2L,
+                    2,
+                    new BigDecimal(2.0),
+                    2L,
+                    2,
+                    new BigDecimal(2.0))
                 .getRows());
     pipeline.run();
+  }
+
+  @Test
+  public void testNodeStatsEstimation() {
+    String sql =
+        "SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + " UNION SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS ";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamUnionRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+
+    Assert.assertFalse(estimate.isUnknown());
+    Assert.assertEquals(0d, estimate.getRate(), 0.01);
+
+    Assert.assertEquals(2., estimate.getRowCount(), 0.01);
+    Assert.assertEquals(2., estimate.getWindow(), 0.01);
+  }
+
+  @Test
+  public void testNodeStatsEstimationUnionAll() {
+    String sql =
+        "SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + " UNION ALL SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS ";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamUnionRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+
+    Assert.assertFalse(estimate.isUnknown());
+    Assert.assertEquals(0d, estimate.getRate(), 0.01);
+
+    Assert.assertEquals(4., estimate.getRowCount(), 0.01);
+    Assert.assertEquals(4., estimate.getWindow(), 0.01);
   }
 }

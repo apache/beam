@@ -22,14 +22,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStatsMetadata;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.plan.volcano.RelSubset;
-import org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** Utilities for {@code BeamRelNode}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class BeamSqlRelUtils {
 
   public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {
@@ -43,8 +49,7 @@ public class BeamSqlRelUtils {
       return PCollectionList.empty(pipeline);
     } else {
       return PCollectionList.of(
-          inputRels
-              .stream()
+          inputRels.stream()
               .map(input -> BeamSqlRelUtils.toPCollection(pipeline, (BeamRelNode) input, cache))
               .collect(Collectors.toList()));
     }
@@ -76,5 +81,21 @@ public class BeamSqlRelUtils {
       input = ((RelSubset) input).getBest();
     }
     return (BeamRelNode) input;
+  }
+
+  public static RelNode getInput(RelNode input) {
+    RelNode result = input;
+    if (input instanceof RelSubset) {
+      // go with known best input
+      result = ((RelSubset) input).getBest();
+      result = result == null ? ((RelSubset) input).getOriginal() : result;
+    }
+
+    return result;
+  }
+
+  public static NodeStats getNodeStats(RelNode input, RelMetadataQuery mq) {
+    input = getInput(input);
+    return input.metadata(NodeStatsMetadata.class, mq).getNodeStats();
   }
 }

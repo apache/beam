@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.utils;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables;
 
 /** Contain helpers to assert {@link Row}s. */
 public class RowAsserts {
@@ -56,6 +55,17 @@ public class RowAsserts {
       Row row = Iterables.getOnlyElement(input);
       assertNotNull(row);
       assertEquals(expected, row.getDouble(0), delta);
+      return null;
+    };
+  }
+
+  public static SerializableFunction<Iterable<Row>, Void> matchesScalar(
+      float expected, float delta) {
+
+    return input -> {
+      Row row = Iterables.getOnlyElement(input);
+      assertNotNull(row);
+      assertEquals(expected, row.getFloat(0), delta);
       return null;
     };
   }

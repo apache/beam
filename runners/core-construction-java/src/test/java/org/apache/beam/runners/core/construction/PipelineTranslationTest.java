@@ -15,14 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 
-import com.google.common.base.Equivalence;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -31,10 +29,13 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -43,9 +44,15 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -55,6 +62,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -64,6 +73,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PipelineTranslation}. */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class PipelineTranslationTest {
   @Parameter(0)
   public Pipeline pipeline;
@@ -98,7 +110,7 @@ public class PipelineTranslationTest {
             Window.<Long>into(FixedWindows.of(Duration.standardMinutes(7)))
                 .triggering(
                     AfterWatermark.pastEndOfWindow()
-                        .withEarlyFirings(AfterPane.elementCountAtLeast(19)))
+                        .withLateFirings(AfterPane.elementCountAtLeast(19)))
                 .accumulatingFiredPanes()
                 .withAllowedLateness(Duration.standardMinutes(3L)));
     final WindowingStrategy<?, ?> windowedStrategy = windowed.getWindowingStrategy();
@@ -110,20 +122,36 @@ public class PipelineTranslationTest {
 
   @Test
   public void testProtoDirectly() {
-    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
-    pipeline.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto));
+    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    pipeline.traverseTopologically(
+        new PipelineProtoVerificationVisitor(pipelineProto, pipeline.getCoderRegistry(), false));
+  }
+
+  @Test
+  public void testProtoDirectlyWithViewTransform() {
+    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, true);
+    pipeline.traverseTopologically(
+        new PipelineProtoVerificationVisitor(pipelineProto, pipeline.getCoderRegistry(), true));
   }
 
   private static class PipelineProtoVerificationVisitor extends PipelineVisitor.Defaults {
 
     private final RunnerApi.Pipeline pipelineProto;
+    private final CoderRegistry coderRegistry;
+    private boolean useDeprecatedViewTransforms;
     Set<Node> transforms;
     Set<PCollection<?>> pcollections;
-    Set<Equivalence.Wrapper<? extends Coder<?>>> coders;
+    Set<Coder<?>> coders;
     Set<WindowingStrategy<?, ?>> windowingStrategies;
+    int missingViewTransforms = 0;
 
-    public PipelineProtoVerificationVisitor(RunnerApi.Pipeline pipelineProto) {
+    public PipelineProtoVerificationVisitor(
+        RunnerApi.Pipeline pipelineProto,
+        CoderRegistry coderRegistry,
+        boolean useDeprecatedViewTransforms) {
       this.pipelineProto = pipelineProto;
+      this.coderRegistry = coderRegistry;
+      this.useDeprecatedViewTransforms = useDeprecatedViewTransforms;
       transforms = new HashSet<>();
       pcollections = new HashSet<>();
       coders = new HashSet<>();
@@ -136,11 +164,11 @@ public class PipelineTranslationTest {
         assertThat(
             "Unexpected number of PTransforms",
             pipelineProto.getComponents().getTransformsCount(),
-            equalTo(transforms.size()));
+            equalTo(transforms.size() - missingViewTransforms));
         assertThat(
             "Unexpected number of PCollections",
             pipelineProto.getComponents().getPcollectionsCount(),
-            equalTo(pcollections.size()));
+            equalTo(pcollections.size() - missingViewTransforms));
         assertThat(
             "Unexpected number of Coders",
             pipelineProto.getComponents().getCodersCount(),
@@ -167,6 +195,33 @@ public class PipelineTranslationTest {
     @Override
     public void visitPrimitiveTransform(Node node) {
       transforms.add(node);
+      if (!useDeprecatedViewTransforms
+          && PTransformTranslation.CREATE_VIEW_TRANSFORM_URN.equals(
+              PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
+        missingViewTransforms += 1;
+      }
+      if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
+        final DoFn<?, ?> doFn;
+        if (node.getTransform() instanceof ParDo.SingleOutput) {
+          doFn = ((ParDo.SingleOutput) node.getTransform()).getFn();
+        } else if (node.getTransform() instanceof ParDo.MultiOutput) {
+          doFn = ((ParDo.MultiOutput) node.getTransform()).getFn();
+        } else {
+          throw new IllegalStateException(
+              "Unexpected type of ParDo " + node.getTransform().getClass());
+        }
+        final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+        final String restrictionCoderId;
+        if (signature.processElement().isSplittable()) {
+          DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(doFn);
+          final Coder<?> restrictionAndWatermarkStateCoder =
+              KvCoder.of(
+                  doFnInvoker.invokeGetRestrictionCoder(coderRegistry),
+                  doFnInvoker.invokeGetWatermarkEstimatorStateCoder(coderRegistry));
+          addCoders(restrictionAndWatermarkStateCoder);
+        }
+      }
     }
 
     @Override
@@ -181,7 +236,7 @@ public class PipelineTranslationTest {
     }
 
     private void addCoders(Coder<?> coder) {
-      coders.add(Equivalence.identity().wrap(coder));
+      coders.add(coder);
       if (CoderTranslation.KNOWN_CODER_URNS.containsKey(coder.getClass())) {
         for (Coder<?> component : ((StructuredCoder<?>) coder).getComponents()) {
           addCoders(component);
@@ -199,7 +254,9 @@ public class PipelineTranslationTest {
             .orElseThrow(() -> new IOException("Transform does not contain an AccumulatorCoder"));
     Components components = sdkComponents.toComponents();
     return CoderTranslation.fromProto(
-        components.getCodersOrThrow(id), RehydratedComponents.forComponents(components));
+        components.getCodersOrThrow(id),
+        RehydratedComponents.forComponents(components),
+        TranslationContext.DEFAULT);
   }
 
   private static Optional<CombinePayload> getCombinePayload(
@@ -214,5 +271,72 @@ public class PipelineTranslationTest {
     } else {
       return Optional.empty();
     }
+  }
+
+  // Static, out-of-line for serialization.
+  private static class DoFnRequiringStableInput extends DoFn<Integer, String> {
+    @RequiresStableInput
+    @ProcessElement
+    public void process(ProcessContext c) {
+      // actually never executed and no effect on translation
+    }
+  }
+
+  @Test
+  public void testRequirements() {
+    Pipeline pipeline = Pipeline.create();
+    pipeline.apply(Create.of(1, 2, 3)).apply(ParDo.of(new DoFnRequiringStableInput()));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    assertThat(
+        pipelineProto.getRequirementsList(), hasItem(ParDoTranslation.REQUIRES_STABLE_INPUT_URN));
+  }
+
+  private RunnerApi.PTransform getLeafTransform(RunnerApi.Pipeline pipelineProto, String prefix) {
+    for (RunnerApi.PTransform transform :
+        pipelineProto.getComponents().getTransformsMap().values()) {
+      if (transform.getUniqueName().startsWith(prefix) && transform.getSubtransformsCount() == 0) {
+        return transform;
+      }
+    }
+    throw new java.lang.IllegalArgumentException(prefix);
+  }
+
+  private static class IdentityDoFn<T> extends DoFn<T, T> {
+    @ProcessElement
+    public void processElement(@Element T input, OutputReceiver<T> out) {
+      out.output(input);
+    }
+  }
+
+  @Test
+  public void testResourceHints() {
+    Pipeline pipeline = Pipeline.create();
+    PCollection<byte[]> root = pipeline.apply(Impulse.create());
+    ParDo.SingleOutput<byte[], byte[]> transform = ParDo.of(new IdentityDoFn<byte[]>());
+    root.apply("Big", transform.setResourceHints(ResourceHints.create().withMinRam("640KB")));
+    root.apply("Small", transform.setResourceHints(ResourceHints.create().withMinRam(1)));
+    root.apply(
+        "AnotherBig", transform.setResourceHints(ResourceHints.create().withMinRam("640KB")));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Big").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.hasEntry(
+            "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("640000")));
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Small").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.hasEntry(
+            "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("1")));
+    // Ensure we re-use environments.
+    assertThat(
+        getLeafTransform(pipelineProto, "Big").getEnvironmentId(),
+        equalTo(getLeafTransform(pipelineProto, "AnotherBig").getEnvironmentId()));
   }
 }

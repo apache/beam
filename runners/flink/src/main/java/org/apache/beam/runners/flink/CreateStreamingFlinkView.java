@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,10 +32,13 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Flink streaming overrides for various view (side input) transforms. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class CreateStreamingFlinkView<ElemT, ViewT>
     extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
   private final PCollectionView<ViewT> view;
@@ -135,14 +137,19 @@ class CreateStreamingFlinkView<ElemT, ViewT>
 
   public static class Factory<ElemT, ViewT>
       implements PTransformOverrideFactory<
-          PCollection<ElemT>, PCollection<ElemT>,
+          PCollection<ElemT>,
+          PCollection<ElemT>,
           PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
-    public Factory() {}
+
+    static final Factory INSTANCE = new Factory();
+
+    private Factory() {}
 
     @Override
     public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>> getReplacementTransform(
         AppliedPTransform<
-                PCollection<ElemT>, PCollection<ElemT>,
+                PCollection<ElemT>,
+                PCollection<ElemT>,
                 PTransform<PCollection<ElemT>, PCollection<ElemT>>>
             transform) {
       PCollection<ElemT> collection =
@@ -158,8 +165,8 @@ class CreateStreamingFlinkView<ElemT, ViewT>
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<ElemT> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<ElemT> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }

@@ -18,27 +18,20 @@
 package org.apache.beam.runners.dataflow.transforms;
 
 import com.google.api.services.dataflow.Dataflow;
-import java.util.Arrays;
-import java.util.List;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.Sessions;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,27 +61,11 @@ public class DataflowGroupByKeyTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject("someproject");
+    options.setRegion("some-region1");
     options.setGcpTempLocation("gs://staging");
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setDataflowClient(dataflow);
     return Pipeline.create(options);
-  }
-
-  @Test
-  public void testInvalidWindowsService() {
-    Pipeline p = createTestServiceRunner();
-
-    List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
-
-    PCollection<KV<String, Integer>> input =
-        p.apply(
-                Create.of(ungroupedPairs)
-                    .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-            .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))));
-
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("GroupByKey must have a valid Window merge function");
-    input.apply("GroupByKey", GroupByKey.create()).apply("GroupByKeyAgain", GroupByKey.create());
   }
 
   @Test

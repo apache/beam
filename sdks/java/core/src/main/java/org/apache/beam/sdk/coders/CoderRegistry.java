@@ -17,17 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSetMultimap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.SetMultimap;
-import com.google.common.collect.Sets;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -43,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
 import org.apache.beam.sdk.io.FileIO;
@@ -60,6 +50,17 @@ import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSetMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +89,9 @@ import org.slf4j.LoggerFactory;
  * <p>Note that if multiple {@link CoderProvider coder providers} can provide a {@link Coder} for a
  * given type, the precedence order above defines which {@link CoderProvider} is chosen.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CoderRegistry {
 
   private static final Logger LOG = LoggerFactory.getLogger(CoderRegistry.class);
@@ -103,8 +107,7 @@ public class CoderRegistry {
           Boolean.class, CoderProviders.fromStaticMethods(Boolean.class, BooleanCoder.class));
       builder.put(Byte.class, CoderProviders.fromStaticMethods(Byte.class, ByteCoder.class));
       builder.put(BitSet.class, CoderProviders.fromStaticMethods(BitSet.class, BitSetCoder.class));
-      builder.put(
-          FloatCoder.class, CoderProviders.fromStaticMethods(Float.class, FloatCoder.class));
+      builder.put(Float.class, CoderProviders.fromStaticMethods(Float.class, FloatCoder.class));
       builder.put(Double.class, CoderProviders.fromStaticMethods(Double.class, DoubleCoder.class));
       builder.put(
           Instant.class, CoderProviders.fromStaticMethods(Instant.class, InstantCoder.class));
@@ -322,8 +325,7 @@ public class CoderRegistry {
     if (paramCoderOrNull != null) {
       return paramCoderOrNull;
     } else {
-      throw new CannotProvideCoderException(
-          "Cannot infer coder for type parameter " + param.getName());
+      throw new CannotProvideCoderException("Cannot infer coder for type parameter " + param);
     }
   }
 
@@ -544,7 +546,7 @@ public class CoderRegistry {
     // compatible.
     if ((codedType instanceof ParameterizedType) && !isNullOrEmpty(coder.getCoderArguments())) {
       ParameterizedType parameterizedSupertype =
-          ((ParameterizedType) candidateOkDescriptor.getSupertype(codedClass).getType());
+          (ParameterizedType) candidateOkDescriptor.getSupertype(codedClass).getType();
       Type[] typeArguments = parameterizedSupertype.getActualTypeArguments();
       List<? extends Coder<?>> typeArgumentCoders = coder.getCoderArguments();
       if (typeArguments.length < typeArgumentCoders.size()) {
@@ -599,6 +601,10 @@ public class CoderRegistry {
       throws CannotProvideCoderException {
     Type type = typeDescriptor.getType();
     Coder<?> coder;
+    if (typeDescriptor.equals(TypeDescriptors.rows())) {
+      throw new CannotProvideCoderException(
+          "Cannot provide a coder for a Beam Row. Please provide a schema instead using PCollection.setRowSchema.");
+    }
     if (typeCoderBindings.containsKey(type)) {
       Set<Coder<?>> coders = typeCoderBindings.get(type);
       if (coders.size() == 1) {

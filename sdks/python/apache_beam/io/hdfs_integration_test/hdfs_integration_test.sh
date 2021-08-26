@@ -19,6 +19,14 @@
 #
 # Requires docker, docker-compose to be installed.
 
+# Usage check.
+if [[ $# != 1 ]]; then
+  printf "Usage: \n$> ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh <python_version>"
+  printf "\n\tpython_version: [required] Python version used for container build and run tests."
+  printf " Use 'python:3.8' for Python3.8."
+  exit 1
+fi
+
 set -e -u -x
 
 # Setup context directory.
@@ -34,9 +42,30 @@ cp -r ${ROOT_DIR}/model ${CONTEXT_DIR}/
 # Use a unique name to allow concurrent runs on the same machine.
 PROJECT_NAME=$(echo hdfs_IT-${BUILD_TAG:-non-jenkins})
 
+if [ -z "${BUILD_TAG:-}" ]; then
+  COLOR_OPT=""
+else
+  COLOR_OPT="--no-ansi"
+fi
+COMPOSE_OPT="-p ${PROJECT_NAME} ${COLOR_OPT}"
+
 cd ${CONTEXT_DIR}
-# Clean up leftover unused networks. BEAM-4051
+# Clean up leftover unused networks from previous runs. BEAM-4051
+# This might mess with leftover containers that still reference pruned networks,
+# so --force-recreate is passed to 'docker up' below.
+# https://github.com/docker/compose/issues/5745#issuecomment-370031631
 docker network prune --force
-time docker-compose -p ${PROJECT_NAME} build
-time docker-compose -p ${PROJECT_NAME} up --exit-code-from test \
-    --abort-on-container-exit
+
+# BEAM-7405: Create and point to an empty config file to work around "gcloud"
+# appearing in ~/.docker/config.json but not being installed.
+export DOCKER_CONFIG=.
+echo '{}' > config.json
+
+function finally {
+  time docker-compose ${COMPOSE_OPT} down
+}
+trap finally EXIT
+
+time docker-compose ${COMPOSE_OPT} build --build-arg BASE_IMAGE=$1
+time docker-compose ${COMPOSE_OPT} up --exit-code-from test \
+    --abort-on-container-exit --force-recreate

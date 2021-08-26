@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.xml;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.Serializable;
 import java.nio.charset.Charset;
@@ -30,17 +29,16 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.Assert;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -128,7 +126,9 @@ public class XmlIOTest {
         PCollection<Bird> readBack =
             readPipeline.apply(
                 XmlIO.<Bird>read()
-                    .from(new File(tmpFolder.getRoot(), "birds").getAbsolutePath() + "*")
+                    .from(
+                        readPipeline.newProvider(
+                            new File(tmpFolder.getRoot(), "birds").getAbsolutePath() + "*"))
                     .withRecordClass(Bird.class)
                     .withRootElement("birds")
                     .withRecordElement("bird")
@@ -142,7 +142,6 @@ public class XmlIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteThenReadLarger() {
     List<Bird> birds = Lists.newArrayList();
     for (int i = 0; i < 100; ++i) {
@@ -184,11 +183,11 @@ public class XmlIOTest {
                 .withMinBundleSize(1234)
                 .withRecordClass(Integer.class));
 
-    Assert.assertThat(displayData, hasDisplayItem("filePattern", "foo.xml"));
-    Assert.assertThat(displayData, hasDisplayItem("rootElement", "bird"));
-    Assert.assertThat(displayData, hasDisplayItem("recordElement", "cat"));
-    Assert.assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
-    Assert.assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
+    assertThat(displayData, hasDisplayItem("filePattern", "foo.xml"));
+    assertThat(displayData, hasDisplayItem("rootElement", "bird"));
+    assertThat(displayData, hasDisplayItem("recordElement", "cat"));
+    assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
+    assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
   }
 
   @Test
@@ -234,7 +233,7 @@ public class XmlIOTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

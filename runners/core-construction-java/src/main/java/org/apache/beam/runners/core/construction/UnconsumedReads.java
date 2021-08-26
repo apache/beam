@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.util.HashSet;
@@ -34,6 +33,9 @@ import org.apache.beam.sdk.values.PValue;
  * Utilities for ensuring that all {@link Read} {@link PTransform PTransforms} are consumed by some
  * {@link PTransform}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UnconsumedReads {
   public static void ensureAllReadsConsumed(Pipeline pipeline) {
     final Set<PCollection<?>> unconsumed = new HashSet<>();

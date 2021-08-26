@@ -15,28 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.Serializable;
 import java.util.Objects;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Encapsulates a BigQuery table destination. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TableDestination implements Serializable {
   private static final long serialVersionUID = 1L;
   private final String tableSpec;
-  @Nullable private final String tableDescription;
-  @Nullable private final String jsonTimePartitioning;
+  private final @Nullable String tableDescription;
+  private final @Nullable String jsonTimePartitioning;
+  private final @Nullable String jsonClustering;
 
   public TableDestination(String tableSpec, @Nullable String tableDescription) {
-    this(tableSpec, tableDescription, (String) null);
+    this(tableSpec, tableDescription, (String) null, (String) null);
   }
 
   public TableDestination(TableReference tableReference, @Nullable String tableDescription) {
-    this(tableReference, tableDescription, (String) null);
+    this(tableReference, tableDescription, (String) null, (String) null);
   }
 
   public TableDestination(
@@ -46,7 +50,8 @@ public class TableDestination implements Serializable {
     this(
         BigQueryHelpers.toTableSpec(tableReference),
         tableDescription,
-        timePartitioning != null ? BigQueryHelpers.toJsonString(timePartitioning) : null);
+        timePartitioning != null ? BigQueryHelpers.toJsonString(timePartitioning) : null,
+        (String) null);
   }
 
   public TableDestination(
@@ -54,29 +59,77 @@ public class TableDestination implements Serializable {
     this(
         tableSpec,
         tableDescription,
-        timePartitioning != null ? BigQueryHelpers.toJsonString(timePartitioning) : null);
+        timePartitioning != null ? BigQueryHelpers.toJsonString(timePartitioning) : null,
+        (String) null);
+  }
+
+  public TableDestination(
+      String tableSpec,
+      @Nullable String tableDescription,
+      TimePartitioning timePartitioning,
+      Clustering clustering) {
+    this(
+        tableSpec,
+        tableDescription,
+        timePartitioning != null ? BigQueryHelpers.toJsonString(timePartitioning) : null,
+        clustering != null ? BigQueryHelpers.toJsonString(clustering) : null);
+  }
+
+  public TableDestination(
+      String tableSpec, @Nullable String tableDescription, @Nullable String jsonTimePartitioning) {
+    this(tableSpec, tableDescription, jsonTimePartitioning, (String) null);
   }
 
   public TableDestination(
       TableReference tableReference,
       @Nullable String tableDescription,
       @Nullable String jsonTimePartitioning) {
-    this(BigQueryHelpers.toTableSpec(tableReference), tableDescription, jsonTimePartitioning);
+    this(
+        BigQueryHelpers.toTableSpec(tableReference),
+        tableDescription,
+        jsonTimePartitioning,
+        (String) null);
   }
 
   public TableDestination(
-      String tableSpec, @Nullable String tableDescription, @Nullable String jsonTimePartitioning) {
+      TableReference tableReference,
+      @Nullable String tableDescription,
+      @Nullable String jsonTimePartitioning,
+      @Nullable String jsonClustering) {
+    this(
+        BigQueryHelpers.toTableSpec(tableReference),
+        tableDescription,
+        jsonTimePartitioning,
+        jsonClustering);
+  }
+
+  public TableDestination(
+      String tableSpec,
+      @Nullable String tableDescription,
+      @Nullable String jsonTimePartitioning,
+      @Nullable String jsonClustering) {
     this.tableSpec = tableSpec;
     this.tableDescription = tableDescription;
     this.jsonTimePartitioning = jsonTimePartitioning;
+    this.jsonClustering = jsonClustering;
   }
 
   public TableDestination withTableReference(TableReference tableReference) {
-    return new TableDestination(tableReference, tableDescription, jsonTimePartitioning);
+    return new TableDestination(
+        tableReference, tableDescription, jsonTimePartitioning, jsonClustering);
   }
 
+  /** Return the tablespec in [project:].dataset.tableid format. */
   public String getTableSpec() {
     return tableSpec;
+  }
+
+  /** Return the tablespec in projects/[project]/datasets/[dataset]/tables/[table] format. */
+  public String getTableUrn() {
+    TableReference table = getTableReference();
+    return String.format(
+        "projects/%s/datasets/%s/tables/%s",
+        table.getProjectId(), table.getDatasetId(), table.getTableId());
   }
 
   public TableReference getTableReference() {
@@ -95,8 +148,19 @@ public class TableDestination implements Serializable {
     }
   }
 
-  @Nullable
-  public String getTableDescription() {
+  public String getJsonClustering() {
+    return jsonClustering;
+  }
+
+  public Clustering getClustering() {
+    if (jsonClustering == null) {
+      return null;
+    } else {
+      return BigQueryHelpers.fromJsonString(jsonClustering, Clustering.class);
+    }
+  }
+
+  public @Nullable String getTableDescription() {
     return tableDescription;
   }
 
@@ -110,7 +174,7 @@ public class TableDestination implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof TableDestination)) {
       return false;
     }

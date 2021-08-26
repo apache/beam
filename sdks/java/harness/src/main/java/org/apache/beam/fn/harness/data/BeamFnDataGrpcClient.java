@@ -15,12 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.data;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
@@ -36,10 +32,9 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +45,6 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamFnDataGrpcClient implements BeamFnDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
-  private static final String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
 
   private final ConcurrentMap<Endpoints.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer> cache;
   private final Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
@@ -73,22 +67,19 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    * <p>The provided coder is used to decode elements on the inbound stream. The decoded elements
    * are passed to the provided consumer. Any failure during decoding or processing of the element
    * will complete the returned future exceptionally. On successful termination of the stream
-   * (signaled by an empty data block), the returned future is completed successfully.
+   * (signaled by an empty data block with isLast set to true), the returned future is completed
+   * successfully.
    */
   @Override
-  public <T> InboundDataClient receive(
+  public InboundDataClient receive(
       ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint inputLocation,
-      Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> consumer) {
-    LOG.debug(
-        "Registering consumer for instruction {} and target {}",
-        inputLocation.getInstructionId(),
-        inputLocation.getTarget());
+      FnDataReceiver<ByteString> consumer) {
+    LOG.debug("Registering consumer for {}", inputLocation);
 
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
-    BeamFnDataInboundObserver<T> inboundObserver =
-        BeamFnDataInboundObserver.forConsumer(coder, consumer);
+    BeamFnDataInboundObserver inboundObserver =
+        BeamFnDataInboundObserver.forConsumer(inputLocation, consumer);
     client.registerConsumer(inputLocation, inboundObserver);
     return inboundObserver;
   }
@@ -104,36 +95,15 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    * <p>The returned closeable consumer is not thread safe.
    */
   @Override
-  public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
+  public <T> CloseableFnDataReceiver<T> send(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
-      Coder<WindowedValue<T>> coder) {
+      Coder<T> coder) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
 
-    LOG.debug(
-        "Creating output consumer for instruction {} and target {}",
-        outputLocation.getInstructionId(),
-        outputLocation.getTarget());
-    Optional<Integer> bufferLimit = getBufferLimit(options);
-    if (bufferLimit.isPresent()) {
-      return BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(
-          bufferLimit.get(), outputLocation, coder, client.getOutboundObserver());
-    } else {
-      return BeamFnDataBufferingOutboundObserver.forLocation(
-          outputLocation, coder, client.getOutboundObserver());
-    }
-  }
-
-  /** Returns the {@code beam_fn_api_data_buffer_limit=<int>} experiment value if set. */
-  private static Optional<Integer> getBufferLimit(PipelineOptions options) {
-    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
-    for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {
-      if (experiment.startsWith(BEAM_FN_API_DATA_BUFFER_LIMIT)) {
-        return Optional.of(
-            Integer.parseInt(experiment.substring(BEAM_FN_API_DATA_BUFFER_LIMIT.length())));
-      }
-    }
-    return Optional.empty();
+    LOG.debug("Creating output consumer for {}", outputLocation);
+    return BeamFnDataBufferingOutboundObserver.forLocation(
+        options, outputLocation, coder, client.getOutboundObserver());
   }
 
   private BeamFnDataGrpcMultiplexer getClientFor(

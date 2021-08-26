@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -29,26 +28,38 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** The result of a {@link BigQueryIO.Write} transform. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class WriteResult implements POutput {
   private final Pipeline pipeline;
   private final TupleTag<TableRow> failedInsertsTag;
   private final PCollection<TableRow> failedInserts;
   private final TupleTag<BigQueryInsertError> failedInsertsWithErrTag;
   private final PCollection<BigQueryInsertError> failedInsertsWithErr;
+  private final PCollection<TableRow> successfulInserts;
 
   /** Creates a {@link WriteResult} in the given {@link Pipeline}. */
   static WriteResult in(
-      Pipeline pipeline, TupleTag<TableRow> failedInsertsTag, PCollection<TableRow> failedInserts) {
-    return new WriteResult(pipeline, failedInsertsTag, failedInserts, null, null);
+      Pipeline pipeline,
+      TupleTag<TableRow> failedInsertsTag,
+      PCollection<TableRow> failedInserts,
+      @Nullable PCollection<TableRow> successfulInserts) {
+    return new WriteResult(
+        pipeline, failedInsertsTag, failedInserts, null, null, successfulInserts);
   }
 
   static WriteResult withExtendedErrors(
       Pipeline pipeline,
       TupleTag<BigQueryInsertError> failedInsertsTag,
-      PCollection<BigQueryInsertError> failedInserts) {
-    return new WriteResult(pipeline, null, null, failedInsertsTag, failedInserts);
+      PCollection<BigQueryInsertError> failedInserts,
+      PCollection<TableRow> successfulInserts) {
+    return new WriteResult(
+        pipeline, null, null, failedInsertsTag, failedInserts, successfulInserts);
   }
 
   @Override
@@ -65,12 +76,14 @@ public final class WriteResult implements POutput {
       TupleTag<TableRow> failedInsertsTag,
       PCollection<TableRow> failedInserts,
       TupleTag<BigQueryInsertError> failedInsertsWithErrTag,
-      PCollection<BigQueryInsertError> failedInsertsWithErr) {
+      PCollection<BigQueryInsertError> failedInsertsWithErr,
+      PCollection<TableRow> successfulInserts) {
     this.pipeline = pipeline;
     this.failedInsertsTag = failedInsertsTag;
     this.failedInserts = failedInserts;
     this.failedInsertsWithErrTag = failedInsertsWithErrTag;
     this.failedInsertsWithErr = failedInsertsWithErr;
+    this.successfulInserts = successfulInserts;
   }
 
   /**
@@ -86,6 +99,14 @@ public final class WriteResult implements POutput {
         "Cannot use getFailedInserts as this WriteResult uses extended errors"
             + " information. Use getFailedInsertsWithErr instead");
     return failedInserts;
+  }
+
+  /** Returns a {@link PCollection} containing the {@link TableRow}s that were written to BQ. */
+  public PCollection<TableRow> getSuccessfulInserts() {
+    checkArgument(
+        successfulInserts != null,
+        "Retrieving successful inserts is only supported for streaming inserts.");
+    return successfulInserts;
   }
 
   /**

@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
@@ -31,21 +30,23 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
  * Runs a {@link SplittableParDoViaKeyedWorkItems.ProcessFn} by constructing the appropriate
  * contexts and passing them in.
  */
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ProcessFnRunner<InputT, OutputT, RestrictionT>
     implements PushbackSideInputDoFnRunner<
-        KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
-  private final DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> underlying;
+        KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
+  private final DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> underlying;
   private final Collection<PCollectionView<?>> views;
   private final ReadyCheckingSideInputReader sideInputReader;
 
   public ProcessFnRunner(
-      DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> underlying,
+      DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> underlying,
       Collection<PCollectionView<?>> views,
       ReadyCheckingSideInputReader sideInputReader) {
     this.underlying = underlying;
@@ -54,7 +55,7 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> getFn() {
+  public DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> getFn() {
     return underlying.getFn();
   }
 
@@ -64,9 +65,9 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public Iterable<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>>
+  public Iterable<WindowedValue<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>>
       processElementInReadyWindows(
-          WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>> windowedKWI) {
+          WindowedValue<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> windowedKWI) {
     checkTrivialOuterWindows(windowedKWI);
     BoundedWindow window = getUnderlyingWindow(windowedKWI.getValue());
     if (!isReady(window)) {
@@ -82,13 +83,19 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+  public <KeyT> void onTimer(
+      String timerId,
+      String timerFamilyId,
+      KeyT key,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
     throw new UnsupportedOperationException("User timers unsupported in ProcessFn");
   }
 
   private static <T> void checkTrivialOuterWindows(
-      WindowedValue<KeyedWorkItem<String, T>> windowedKWI) {
+      WindowedValue<KeyedWorkItem<byte[], T>> windowedKWI) {
     // In practice it will be in 0 or 1 windows (ValueInEmptyWindows or ValueInGlobalWindow)
     Collection<? extends BoundedWindow> outerWindows = windowedKWI.getWindows();
     if (!outerWindows.isEmpty()) {
@@ -104,7 +111,7 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
     }
   }
 
-  private static <T> BoundedWindow getUnderlyingWindow(KeyedWorkItem<String, T> kwi) {
+  private static <T> BoundedWindow getUnderlyingWindow(KeyedWorkItem<byte[], T> kwi) {
     if (Iterables.isEmpty(kwi.elementsIterable())) {
       // ProcessFn sets only a single timer.
       TimerData timer = Iterables.getOnlyElement(kwi.timersIterable());

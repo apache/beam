@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.testing;
+
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Category tag for validation tests which utilize {@link org.apache.beam.sdk.metrics.Distribution}.
  * Tests tagged with {@link UsesDistributionMetrics} should be run for runners which support
  * distributions.
  */
+@Internal
 public class UsesDistributionMetrics {}

@@ -15,21 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -55,6 +52,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -110,7 +108,7 @@ public class PCollectionTranslationTest {
   public void testEncodeDecodeCycle() throws Exception {
     // Encode
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.PCollection protoCollection =
         PCollectionTranslation.toProto(testCollection, sdkComponents);
     RehydratedComponents protoComponents =
@@ -125,14 +123,18 @@ public class PCollectionTranslationTest {
     assertThat(decodedCollection.getCoder(), equalTo(testCollection.getCoder()));
     assertThat(
         decodedCollection.getWindowingStrategy(),
-        equalTo(testCollection.getWindowingStrategy().fixDefaults()));
+        equalTo(
+            testCollection
+                .getWindowingStrategy()
+                .withEnvironmentId(sdkComponents.getOnlyEnvironmentId())
+                .fixDefaults()));
     assertThat(decodedCollection.isBounded(), equalTo(testCollection.isBounded()));
   }
 
   @Test
   public void testEncodeDecodeFields() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.PCollection protoCollection =
         PCollectionTranslation.toProto(testCollection, sdkComponents);
     RehydratedComponents protoComponents =
@@ -143,7 +145,13 @@ public class PCollectionTranslationTest {
     IsBounded decodedIsBounded = PCollectionTranslation.isBounded(protoCollection);
 
     assertThat(decodedCoder, equalTo(testCollection.getCoder()));
-    assertThat(decodedStrategy, equalTo(testCollection.getWindowingStrategy().fixDefaults()));
+    assertThat(
+        decodedStrategy,
+        equalTo(
+            testCollection
+                .getWindowingStrategy()
+                .withEnvironmentId(sdkComponents.getOnlyEnvironmentId())
+                .fixDefaults()));
     assertThat(decodedIsBounded, equalTo(testCollection.isBounded()));
   }
 

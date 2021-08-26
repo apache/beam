@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.io.fs;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An identifier which represents a file-like resource.
@@ -74,10 +74,10 @@ public interface ResourceId extends Serializable {
    * <ul>
    *   <li>{@code resourceId.resolve("..", StandardResolveOptions.RESOLVE_DIRECTORY)} returns the
    *       parent directory of this {@code ResourceId}.
-   *   <li>{@code resourceId.resolve("{@literal *}", StandardResolveOptions.RESOLVE_FILE)} returns a
-   *       {@code ResourceId} which matches all files in this {@code ResourceId}.
-   *   <li>{@code resourceId.resolve("{@literal *}", StandardResolveOptions.RESOLVE_DIRECTORY)}
-   *       returns a {@code ResourceId} which matches all directories in this {@code ResourceId}.
+   *   <li>{@code resourceId.resolve("*", StandardResolveOptions.RESOLVE_FILE)} returns a {@code
+   *       ResourceId} which matches all files in this {@code ResourceId}.
+   *   <li>{@code resourceId.resolve("*", StandardResolveOptions.RESOLVE_DIRECTORY)} returns a
+   *       {@code ResourceId} which matches all directories in this {@code ResourceId}.
    * </ul>
    *
    * @throws IllegalStateException if this {@link ResourceId} is not a directory.

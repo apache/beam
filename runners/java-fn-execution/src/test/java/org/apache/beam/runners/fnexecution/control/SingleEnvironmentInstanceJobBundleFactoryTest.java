@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -27,8 +26,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,19 +33,22 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
-import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.InProcessServerFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -69,6 +69,8 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
   private GrpcFnServer<GrpcStateService> stateServer;
   private JobBundleFactory factory;
 
+  private static final String GENERATED_ID = "staticId";
+
   @Before
   public void setup() throws Exception {
     MockitoAnnotations.initMocks(this);
@@ -78,13 +80,14 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+            GrpcDataService.create(
+                PipelineOptionsFactory.create(), executor, OutboundObserverFactory.serverDirect()),
             serverFactory);
     stateServer = GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
     factory =
         SingleEnvironmentInstanceJobBundleFactory.create(
-            environmentFactory, dataServer, stateServer);
+            environmentFactory, dataServer, stateServer, () -> GENERATED_ID);
   }
 
   @After
@@ -98,18 +101,17 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
   @Test
   public void closeShutsDownEnvironments() throws Exception {
     Pipeline p = Pipeline.create();
+    ExperimentalOptions.addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
     p.apply("Create", Create.of(1, 2, 3));
-    p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 
     ExecutableStage stage =
-        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p))
-            .getFusedStages()
-            .stream()
+        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p)).getFusedStages().stream()
             .findFirst()
             .get();
     RemoteEnvironment remoteEnv = mock(RemoteEnvironment.class);
     when(remoteEnv.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);
-    when(environmentFactory.createEnvironment(stage.getEnvironment())).thenReturn(remoteEnv);
+    when(environmentFactory.createEnvironment(stage.getEnvironment(), GENERATED_ID))
+        .thenReturn(remoteEnv);
 
     factory.forStage(stage);
     factory.close();
@@ -119,34 +121,32 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
   @Test
   public void closeShutsDownEnvironmentsWhenSomeFail() throws Exception {
     Pipeline p = Pipeline.create();
+    ExperimentalOptions.addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
     p.apply("Create", Create.of(1, 2, 3));
-    p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 
     ExecutableStage firstEnvStage =
-        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p))
-            .getFusedStages()
-            .stream()
+        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p)).getFusedStages().stream()
             .findFirst()
             .get();
     ExecutableStagePayload basePayload =
         ExecutableStagePayload.parseFrom(firstEnvStage.toPTransform("foo").getSpec().getPayload());
 
-    Environment secondEnv = Environment.newBuilder().setUrl("second_env").build();
+    Environment secondEnv = Environments.createDockerEnvironment("second_env");
     ExecutableStage secondEnvStage =
         ExecutableStage.fromPayload(basePayload.toBuilder().setEnvironment(secondEnv).build());
 
-    Environment thirdEnv = Environment.newBuilder().setUrl("third_env").build();
+    Environment thirdEnv = Environments.createDockerEnvironment("third_env");
     ExecutableStage thirdEnvStage =
         ExecutableStage.fromPayload(basePayload.toBuilder().setEnvironment(thirdEnv).build());
 
     RemoteEnvironment firstRemoteEnv = mock(RemoteEnvironment.class, "First Remote Env");
     RemoteEnvironment secondRemoteEnv = mock(RemoteEnvironment.class, "Second Remote Env");
     RemoteEnvironment thirdRemoteEnv = mock(RemoteEnvironment.class, "Third Remote Env");
-    when(environmentFactory.createEnvironment(firstEnvStage.getEnvironment()))
+    when(environmentFactory.createEnvironment(firstEnvStage.getEnvironment(), GENERATED_ID))
         .thenReturn(firstRemoteEnv);
-    when(environmentFactory.createEnvironment(secondEnvStage.getEnvironment()))
+    when(environmentFactory.createEnvironment(secondEnvStage.getEnvironment(), GENERATED_ID))
         .thenReturn(secondRemoteEnv);
-    when(environmentFactory.createEnvironment(thirdEnvStage.getEnvironment()))
+    when(environmentFactory.createEnvironment(thirdEnvStage.getEnvironment(), GENERATED_ID))
         .thenReturn(thirdRemoteEnv);
     when(firstRemoteEnv.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);
     when(secondRemoteEnv.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);

@@ -20,23 +20,26 @@
 This module is experimental. No backwards-compatibility guarantees.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pytype: skip-file
 
-import collections
-import copy
 import logging
 
 import apache_beam as beam
 from apache_beam import runners
-from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.direct import direct_runner
-from apache_beam.runners.interactive import cache_manager as cache
-from apache_beam.runners.interactive import display_manager
+from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive import pipeline_instrument as inst
+from apache_beam.runners.interactive import background_caching_job
+from apache_beam.runners.interactive.display import pipeline_graph
+from apache_beam.runners.interactive.options import capture_control
+from apache_beam.runners.interactive.utils import to_element_list
+from apache_beam.testing.test_stream_service import TestStreamServiceController
 
 # size of PCollection samples cached.
 SAMPLE_SIZE = 8
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class InteractiveRunner(runners.PipelineRunner):
@@ -44,394 +47,214 @@ class InteractiveRunner(runners.PipelineRunner):
 
   Allows interactively building and running Beam Python pipelines.
   """
+  def __init__(
+      self,
+      underlying_runner=None,
+      render_option=None,
+      skip_display=True,
+      force_compute=True,
+      blocking=True):
+    """Constructor of InteractiveRunner.
 
-  def __init__(self, underlying_runner=direct_runner.BundleBasedDirectRunner()):
-    # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
-    # once interactive_runner works with FnAPI mode
-    self._underlying_runner = underlying_runner
-    self._cache_manager = cache.LocalFileCacheManager()
+    Args:
+      underlying_runner: (runner.PipelineRunner)
+      render_option: (str) this parameter decides how the pipeline graph is
+          rendered. See display.pipeline_graph_renderer for available options.
+      skip_display: (bool) whether to skip display operations when running the
+          pipeline. Useful if running large pipelines when display is not
+          needed.
+      force_compute: (bool) whether sequential pipeline runs can use cached data
+          of PCollections computed from the previous runs including show API
+          invocation from interactive_beam module. If True, always run the whole
+          pipeline and compute data for PCollections forcefully. If False, use
+          available data and run minimum pipeline fragment to only compute data
+          not available.
+      blocking: (bool) whether the pipeline run should be blocking or not.
+    """
+    self._underlying_runner = (
+        underlying_runner or direct_runner.DirectRunner())
+    self._render_option = render_option
     self._in_session = False
+    self._skip_display = skip_display
+    self._force_compute = force_compute
+    self._blocking = blocking
+
+  def is_fnapi_compatible(self):
+    # TODO(BEAM-8436): return self._underlying_runner.is_fnapi_compatible()
+    return False
+
+  def set_render_option(self, render_option):
+    """Sets the rendering option.
+
+    Args:
+      render_option: (str) this parameter decides how the pipeline graph is
+          rendered. See display.pipeline_graph_renderer for available options.
+    """
+    self._render_option = render_option
 
   def start_session(self):
+    """Start the session that keeps back-end managers and workers alive.
+    """
     if self._in_session:
       return
 
     enter = getattr(self._underlying_runner, '__enter__', None)
     if enter is not None:
-      logging.info('Starting session.')
+      _LOGGER.info('Starting session.')
       self._in_session = True
       enter()
     else:
-      logging.error('Keep alive not supported.')
+      _LOGGER.error('Keep alive not supported.')
 
   def end_session(self):
+    """End the session that keeps backend managers and workers alive.
+    """
     if not self._in_session:
       return
 
     exit = getattr(self._underlying_runner, '__exit__', None)
     if exit is not None:
       self._in_session = False
-      logging.info('Ending session.')
+      _LOGGER.info('Ending session.')
       exit(None, None, None)
 
-  def cleanup(self):
-    self._cache_manager.cleanup()
-
-  def apply(self, transform, pvalueish):
+  def apply(self, transform, pvalueish, options):
     # TODO(qinyeli, BEAM-646): Remove runner interception of apply.
-    return self._underlying_runner.apply(transform, pvalueish)
+    return self._underlying_runner.apply(transform, pvalueish, options)
 
-  def run_pipeline(self, pipeline):
-    if not hasattr(self, '_desired_cache_labels'):
-      self._desired_cache_labels = set()
+  def run_pipeline(self, pipeline, options):
+    if not ie.current_env().options.enable_recording_replay:
+      capture_control.evict_captured_data()
+    if self._force_compute:
+      ie.current_env().evict_computed_pcollections()
 
-    # Invoke a round trip through the runner API. This makes sure the Pipeline
-    # proto is stable.
-    pipeline = beam.pipeline.Pipeline.from_runner_api(
-        pipeline.to_runner_api(),
-        pipeline.runner,
-        pipeline._options)
+    # Make sure that sources without a user reference are still cached.
+    inst.watch_sources(pipeline)
 
-    # Snapshot the pipeline in a portable proto before mutating it.
-    pipeline_proto, original_context = pipeline.to_runner_api(
-        return_context=True)
-    pcolls_to_pcoll_id = self._pcolls_to_pcoll_id(pipeline, original_context)
+    user_pipeline = ie.current_env().user_pipeline(pipeline)
+    pipeline_instrument = inst.build_pipeline_instrument(pipeline, options)
 
-    # TODO(qinyeli): Refactor the rest of this function into
-    # def manipulate_pipeline(pipeline_proto) -> pipeline_proto_to_run:
+    # The user_pipeline analyzed might be None if the pipeline given has nothing
+    # to be cached and tracing back to the user defined pipeline is impossible.
+    # When it's None, there is no need to cache including the background
+    # caching job and no result to track since no background caching job is
+    # started at all.
+    if user_pipeline:
+      # Should use the underlying runner and run asynchronously.
+      background_caching_job.attempt_to_run_background_caching_job(
+          self._underlying_runner, user_pipeline, options)
+      if (background_caching_job.has_source_to_cache(user_pipeline) and
+          not background_caching_job.is_a_test_stream_service_running(
+              user_pipeline)):
+        streaming_cache_manager = ie.current_env().get_cache_manager(
+            user_pipeline)
 
-    # Make a copy of the original pipeline to avoid accidental manipulation
-    pipeline, context = beam.pipeline.Pipeline.from_runner_api(
-        pipeline_proto,
+        # Only make the server if it doesn't exist already.
+        if (streaming_cache_manager and
+            not ie.current_env().get_test_stream_service_controller(
+                user_pipeline)):
+
+          def exception_handler(e):
+            _LOGGER.error(str(e))
+            return True
+
+          test_stream_service = TestStreamServiceController(
+              streaming_cache_manager, exception_handler=exception_handler)
+          test_stream_service.start()
+          ie.current_env().set_test_stream_service_controller(
+              user_pipeline, test_stream_service)
+
+    pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
+        pipeline_instrument.instrumented_pipeline_proto(),
         self._underlying_runner,
-        pipeline._options,  # pylint: disable=protected-access
-        return_context=True)
-    pipeline_info = PipelineInfo(pipeline_proto.components)
+        options)
 
-    caches_used = set()
+    if ie.current_env().get_test_stream_service_controller(user_pipeline):
+      endpoint = ie.current_env().get_test_stream_service_controller(
+          user_pipeline).endpoint
 
-    def _producing_transforms(pcoll_id, leaf=False):
-      """Returns PTransforms (and their names) that produces the given PColl."""
-      if pcoll_id in _producing_transforms.analyzed_pcoll_ids:
-        return
-      else:
-        _producing_transforms.analyzed_pcoll_ids.add(pcoll_id)
+      # TODO: make the StreamingCacheManager and TestStreamServiceController
+      # constructed when the InteractiveEnvironment is imported.
+      class TestStreamVisitor(PipelineVisitor):
+        def visit_transform(self, transform_node):
+          from apache_beam.testing.test_stream import TestStream
+          if (isinstance(transform_node.transform, TestStream) and
+              not transform_node.transform._events):
+            transform_node.transform._endpoint = endpoint
 
-      derivation = pipeline_info.derivation(pcoll_id)
-      if self._cache_manager.exists('full', derivation.cache_label()):
-        # If the PCollection is cached, yield ReadCache PTransform that reads
-        # the PCollection and all its sub PTransforms.
-        if not leaf:
-          caches_used.add(pcoll_id)
+      pipeline_to_execute.visit(TestStreamVisitor())
 
-          cache_label = pipeline_info.derivation(pcoll_id).cache_label()
-          dummy_pcoll = pipeline | 'Load%s' % cache_label >> cache.ReadCache(
-              self._cache_manager, cache_label)
+    if not self._skip_display:
+      a_pipeline_graph = pipeline_graph.PipelineGraph(
+          pipeline_instrument.original_pipeline_proto,
+          render_option=self._render_option)
+      a_pipeline_graph.display_graph()
 
-          # Find the top level ReadCache composite PTransform.
-          read_cache = dummy_pcoll.producer
-          while read_cache.parent.parent:
-            read_cache = read_cache.parent
+    main_job_result = PipelineResult(
+        pipeline_to_execute.run(), pipeline_instrument)
+    # In addition to this pipeline result setting, redundant result setting from
+    # outer scopes are also recommended since the user_pipeline might not be
+    # available from within this scope.
+    if user_pipeline:
+      ie.current_env().set_pipeline_result(user_pipeline, main_job_result)
 
-          def _include_subtransforms(transform):
-            """Depth-first yield the PTransform itself and its sub PTransforms.
-            """
-            yield transform
-            for subtransform in transform.parts:
-              for yielded in _include_subtransforms(subtransform):
-                yield yielded
+    if self._blocking:
+      main_job_result.wait_until_finish()
 
-          for transform in _include_subtransforms(read_cache):
-            transform_proto = transform.to_runner_api(context)
-            if dummy_pcoll in transform.outputs.values():
-              transform_proto.outputs['None'] = pcoll_id
-            yield context.transforms.get_id(transform), transform_proto
+    if main_job_result.state is beam.runners.runner.PipelineState.DONE:
+      # pylint: disable=dict-values-not-iterating
+      ie.current_env().mark_pcollection_computed(
+          pipeline_instrument.cached_pcolls)
 
-      else:
-        transform_id, _ = pipeline_info.producer(pcoll_id)
-        transform_proto = pipeline_proto.components.transforms[transform_id]
-        for input_id in transform_proto.inputs.values():
-          for transform in _producing_transforms(input_id):
-            yield transform
-        yield transform_id, transform_proto
-
-    desired_pcollections = self._desired_pcollections(pipeline_info)
-
-    # TODO(qinyeli): Preserve composite structure.
-    required_transforms = collections.OrderedDict()
-    _producing_transforms.analyzed_pcoll_ids = set()
-    for pcoll_id in desired_pcollections:
-      # TODO(qinyeli): Collections consumed by no-output transforms.
-      required_transforms.update(_producing_transforms(pcoll_id, True))
-
-    referenced_pcollections = self._referenced_pcollections(
-        pipeline_proto, required_transforms)
-
-    required_transforms['_root'] = beam_runner_api_pb2.PTransform(
-        subtransforms=required_transforms.keys())
-
-    pipeline_to_execute = copy.deepcopy(pipeline_proto)
-    pipeline_to_execute.root_transform_ids[:] = ['_root']
-    set_proto_map(pipeline_to_execute.components.transforms,
-                  required_transforms)
-    set_proto_map(pipeline_to_execute.components.pcollections,
-                  referenced_pcollections)
-    set_proto_map(pipeline_to_execute.components.coders,
-                  context.to_runner_api().coders)
-
-    pipeline_slice, context = beam.pipeline.Pipeline.from_runner_api(
-        pipeline_to_execute,
-        self._underlying_runner,
-        pipeline._options,  # pylint: disable=protected-access
-        return_context=True)
-
-    # TODO(qinyeli): cache only top-level pcollections.
-    for pcoll_id in pipeline_info.all_pcollections():
-      if pcoll_id not in referenced_pcollections:
-        continue
-      cache_label = pipeline_info.derivation(pcoll_id).cache_label()
-      pcoll = context.pcollections.get_by_id(pcoll_id)
-
-      if pcoll_id in desired_pcollections:
-        # pylint: disable=expression-not-assigned
-        pcoll | 'CacheFull%s' % cache_label >> cache.WriteCache(
-            self._cache_manager, cache_label)
-
-      if pcoll_id in referenced_pcollections:
-        # pylint: disable=expression-not-assigned
-        pcoll | 'CacheSample%s' % cache_label >> cache.WriteCache(
-            self._cache_manager, cache_label, sample=True,
-            sample_size=SAMPLE_SIZE)
-
-    display = display_manager.DisplayManager(
-        pipeline_info=pipeline_info,
-        pipeline_proto=pipeline_proto,
-        caches_used=caches_used,
-        cache_manager=self._cache_manager,
-        referenced_pcollections=referenced_pcollections,
-        required_transforms=required_transforms)
-    display.start_periodic_update()
-    result = pipeline_slice.run()
-    result.wait_until_finish()
-    display.stop_periodic_update()
-
-    return PipelineResult(result, self, pipeline_info, self._cache_manager,
-                          pcolls_to_pcoll_id)
-
-  def _pcolls_to_pcoll_id(self, pipeline, original_context):
-    """Returns a dict mapping PCollections string to PCollection IDs.
-
-    Using a PipelineVisitor to iterate over every node in the pipeline,
-    records the mapping from PCollections to PCollections IDs. This mapping
-    will be used to query cached PCollections.
-
-    Args:
-      pipeline: (pipeline.Pipeline)
-      original_context: (pipeline_context.PipelineContext)
-
-    Returns:
-      (dict from str to str) a dict mapping str(pcoll) to pcoll_id.
-    """
-    pcolls_to_pcoll_id = {}
-
-    from apache_beam.pipeline import PipelineVisitor  # pylint: disable=import-error
-
-    class PCollVisitor(PipelineVisitor):  # pylint: disable=used-before-assignment
-      """"A visitor that records input and output values to be replaced.
-
-      Input and output values that should be updated are recorded in maps
-      input_replacements and output_replacements respectively.
-
-      We cannot update input and output values while visiting since that
-      results in validation errors.
-      """
-
-      def enter_composite_transform(self, transform_node):
-        self.visit_transform(transform_node)
-
-      def visit_transform(self, transform_node):
-        for pcoll in transform_node.outputs.values():
-          pcolls_to_pcoll_id[str(pcoll)] = original_context.pcollections.get_id(
-              pcoll)
-
-    pipeline.visit(PCollVisitor())
-    return pcolls_to_pcoll_id
-
-  def _desired_pcollections(self, pipeline_info):
-    """Returns IDs of desired PCollections.
-
-    Args:
-      pipeline_info: (PipelineInfo)
-
-    Returns:
-      A set of PCollections IDs of either leaf PCollections or PCollections
-      referenced by the user. These PCollections should be cached at the end
-      of pipeline execution.
-    """
-    desired_pcollections = set(pipeline_info.leaf_pcollections())
-    for pcoll_id in pipeline_info.all_pcollections():
-      cache_label = pipeline_info.derivation(pcoll_id).cache_label()
-
-      if cache_label in self._desired_cache_labels:
-        desired_pcollections.add(pcoll_id)
-    return desired_pcollections
-
-  def _referenced_pcollections(self, pipeline_proto, required_transforms):
-    """Returns referenced PCollections.
-
-    Args:
-      pipeline_proto: (Pipeline proto)
-      required_transforms: (dict from str to PTransform proto) Mapping from
-          transform ID to transform proto.
-
-    Returns:
-      (dict from str to PCollection proto) A dict mapping PCollections IDs to
-      PCollections referenced during execution. They might be intermediate
-      results, and not referenced the user directly. These PCollections should
-      be cached with sampling at the end of pipeline execution.
-    """
-    referenced_pcollections = {}
-    for transform_proto in required_transforms.values():
-      for pcoll_id in transform_proto.inputs.values():
-        referenced_pcollections[
-            pcoll_id] = pipeline_proto.components.pcollections[pcoll_id]
-      for pcoll_id in transform_proto.outputs.values():
-        referenced_pcollections[
-            pcoll_id] = pipeline_proto.components.pcollections[pcoll_id]
-    return referenced_pcollections
-
-
-class PipelineInfo(object):
-  """Provides access to pipeline metadata."""
-
-  def __init__(self, proto):
-    self._proto = proto
-    self._producers = {}
-    self._consumers = collections.defaultdict(list)
-    for transform_id, transform_proto in self._proto.transforms.items():
-      if transform_proto.subtransforms:
-        continue
-      for tag, pcoll_id in transform_proto.outputs.items():
-        self._producers[pcoll_id] = transform_id, tag
-      for pcoll_id in transform_proto.inputs.values():
-        self._consumers[pcoll_id].append(transform_id)
-    self._derivations = {}
-
-  def all_pcollections(self):
-    return self._proto.pcollections.keys()
-
-  def leaf_pcollections(self):
-    for pcoll_id in self._proto.pcollections:
-      if not self._consumers[pcoll_id]:
-        yield pcoll_id
-
-  def producer(self, pcoll_id):
-    return self._producers[pcoll_id]
-
-  def derivation(self, pcoll_id):
-    """Returns the Derivation corresponding to the PCollection."""
-    if pcoll_id not in self._derivations:
-      transform_id, output_tag = self._producers[pcoll_id]
-      transform_proto = self._proto.transforms[transform_id]
-      self._derivations[pcoll_id] = Derivation({
-          input_tag: self.derivation(input_id)
-          for input_tag, input_id in transform_proto.inputs.items()
-      }, transform_proto, output_tag)
-    return self._derivations[pcoll_id]
-
-
-class Derivation(object):
-  """Records derivation info of a PCollection. Helper for PipelineInfo."""
-
-  def __init__(self, inputs, transform_proto, output_tag):
-    """Constructor of Derivation.
-
-    Args:
-      inputs: (Dict[str, str]) a dict that contains input PCollections to the
-        producing PTransform of the output PCollection. Maps local names to IDs.
-      transform_proto: (Transform proto) the producing PTransform of the output
-        PCollection.
-      output_tag: (str) local name of the output PCollection; this is the
-        PCollection in analysis.
-    """
-    self._inputs = inputs
-    self._transform_info = {
-        # TODO(qinyeli): remove name field when collision is resolved.
-        'name': transform_proto.unique_name,
-        'urn': transform_proto.spec.urn,
-        'payload': transform_proto.spec.payload.decode('latin1')
-    }
-    self._output_tag = output_tag
-    self._hash = None
-
-  def __eq__(self, other):
-    if isinstance(other, Derivation):
-      # pylint: disable=protected-access
-      return (self._inputs == other._inputs and
-              self._transform_info == other._transform_info)
-
-  def __hash__(self):
-    if self._hash is None:
-      self._hash = (hash(tuple(sorted(self._transform_info.items())))
-                    + sum(hash(tag) * hash(input)
-                          for tag, input in self._inputs.items())
-                    + hash(self._output_tag))
-    return self._hash
-
-  def cache_label(self):
-    # TODO(qinyeli): Collision resistance?
-    return 'Pcoll-%x' % abs(hash(self))
-
-  def json(self):
-    return {
-        'inputs': self._inputs,
-        'transform': self._transform_info,
-        'output_tag': self._output_tag
-    }
-
-  def __repr__(self):
-    return str(self.json())
-
-
-# TODO(qinyeli) move to proto_utils
-def set_proto_map(proto_map, new_value):
-  proto_map.clear()
-  for key, value in new_value.items():
-    proto_map[key].CopyFrom(value)
+    return main_job_result
 
 
 class PipelineResult(beam.runners.runner.PipelineResult):
   """Provides access to information about a pipeline."""
+  def __init__(self, underlying_result, pipeline_instrument):
+    """Constructor of PipelineResult.
 
-  def __init__(self, underlying_result, runner, pipeline_info, cache_manager,
-               pcolls_to_pcoll_id):
+    Args:
+      underlying_result: (PipelineResult) the result returned by the underlying
+          runner running the pipeline.
+      pipeline_instrument: (PipelineInstrument) pipeline instrument describing
+          the pipeline being executed with interactivity applied and related
+          metadata including where the interactivity-backing cache lies.
+    """
     super(PipelineResult, self).__init__(underlying_result.state)
-    self._runner = runner
-    self._pipeline_info = pipeline_info
-    self._cache_manager = cache_manager
-    self._pcolls_to_pcoll_id = pcolls_to_pcoll_id
+    self._underlying_result = underlying_result
+    self._pipeline_instrument = pipeline_instrument
 
-  def _cache_label(self, pcoll):
-    pcoll_id = self._pcolls_to_pcoll_id[str(pcoll)]
-    return self._pipeline_info.derivation(pcoll_id).cache_label()
+  @property
+  def state(self):
+    return self._underlying_result.state
 
   def wait_until_finish(self):
-    # PipelineResult is not constructed until pipeline execution is finished.
-    return
+    self._underlying_result.wait_until_finish()
 
-  def get(self, pcoll):
-    cache_label = self._cache_label(pcoll)
-    if self._cache_manager.exists('full', cache_label):
-      pcoll_list, _ = self._cache_manager.read('full', cache_label)
-      return pcoll_list
+  def get(self, pcoll, include_window_info=False):
+    """Materializes the PCollection into a list.
+
+    If include_window_info is True, then returns the elements as
+    WindowedValues. Otherwise, return the element as itself.
+    """
+    return list(self.read(pcoll, include_window_info))
+
+  def read(self, pcoll, include_window_info=False):
+    """Reads the PCollection one element at a time from cache.
+
+    If include_window_info is True, then returns the elements as
+    WindowedValues. Otherwise, return the element as itself.
+    """
+    key = self._pipeline_instrument.cache_key(pcoll)
+    cache_manager = ie.current_env().get_cache_manager(
+        self._pipeline_instrument.user_pipeline)
+    if cache_manager.exists('full', key):
+      coder = cache_manager.load_pcoder('full', key)
+      reader, _ = cache_manager.read('full', key)
+      return to_element_list(reader, coder, include_window_info)
     else:
-      self._runner._desired_cache_labels.add(cache_label)  # pylint: disable=protected-access
       raise ValueError('PCollection not available, please run the pipeline.')
 
-  def sample(self, pcoll):
-    cache_label = self._cache_label(pcoll)
-    if self._cache_manager.exists('sample', cache_label):
-      return self._cache_manager.read('sample', cache_label)
-    else:
-      self._runner._desired_cache_labels.add(cache_label)  # pylint: disable=protected-access
-      raise ValueError('PCollection not available, please run the pipeline.')
+  def cancel(self):
+    self._underlying_result.cancel()

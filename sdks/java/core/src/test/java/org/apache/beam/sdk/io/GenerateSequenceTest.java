@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -170,6 +170,25 @@ public class GenerateSequenceTest {
 
     assertThat(displayData, hasDisplayItem("maxReadTime", maxReadTime));
     assertThat(displayData, hasDisplayItem("timestampFn", timestampFn.getClass()));
+  }
+
+  @Test
+  public void testBuildExternal() {
+    GenerateSequence.External.ExternalConfiguration externalConfig =
+        new AutoValue_GenerateSequence.External.ExternalConfiguration();
+    externalConfig.setStart(42L);
+    externalConfig.setStop(43L);
+    externalConfig.setElementsPerPeriod(1L);
+    externalConfig.setMaxReadTime(2L);
+    externalConfig.setPeriod(3L);
+
+    AutoValue_GenerateSequence.Builder builder = new AutoValue_GenerateSequence.Builder();
+    GenerateSequence object = builder.buildExternal(externalConfig);
+    assertThat(object.getFrom(), is(42L));
+    assertThat(object.getTo(), is(43L));
+    assertThat(object.getElementsPerPeriod(), is(1L));
+    assertThat(object.getMaxReadTime(), is(Duration.millis(2L)));
+    assertThat(object.getPeriod(), is(Duration.millis(3L)));
   }
 
   /**

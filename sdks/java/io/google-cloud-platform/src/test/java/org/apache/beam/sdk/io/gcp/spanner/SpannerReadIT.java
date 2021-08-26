@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Operation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Struct;
@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -61,6 +62,12 @@ public class SpannerReadIT {
 
   /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
+    @Description("Project that hosts Spanner instance")
+    @Nullable
+    String getInstanceProjectId();
+
+    void setInstanceProjectId(String value);
+
     @Description("Instance ID to write to in Spanner")
     @Default.String("beam-test")
     String getInstanceId();
@@ -91,7 +98,10 @@ public class SpannerReadIT {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
-    project = options.as(GcpOptions.class).getProject();
+    project = options.getInstanceProjectId();
+    if (project == null) {
+      project = options.as(GcpOptions.class).getProject();
+    }
 
     spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
 
@@ -102,7 +112,7 @@ public class SpannerReadIT {
     // Delete database if exists.
     databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
 
-    Operation<Database, CreateDatabaseMetadata> op =
+    OperationFuture<Database, CreateDatabaseMetadata> op =
         databaseAdminClient.createDatabase(
             options.getInstanceId(),
             databaseName,
@@ -113,7 +123,7 @@ public class SpannerReadIT {
                     + "  Key           INT64,"
                     + "  Value         STRING(MAX),"
                     + ") PRIMARY KEY (Key)"));
-    op.waitFor();
+    op.get();
     makeTestData();
   }
 

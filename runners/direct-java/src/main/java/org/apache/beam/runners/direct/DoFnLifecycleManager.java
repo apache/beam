@@ -15,23 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
 
 /**
  * Manages {@link DoFn} setup, teardown, and serialization.
@@ -42,18 +42,18 @@ import org.apache.beam.sdk.util.SerializableUtils;
  * clearing all cached {@link DoFn DoFns}.
  */
 class DoFnLifecycleManager {
-  public static DoFnLifecycleManager of(DoFn<?, ?> original) {
-    return new DoFnLifecycleManager(original);
+  public static DoFnLifecycleManager of(DoFn<?, ?> original, PipelineOptions options) {
+    return new DoFnLifecycleManager(original, options);
   }
 
   private final LoadingCache<Thread, DoFn<?, ?>> outstanding;
   private final ConcurrentMap<Thread, Exception> thrownOnTeardown;
 
-  private DoFnLifecycleManager(DoFn<?, ?> original) {
+  private DoFnLifecycleManager(DoFn<?, ?> original, PipelineOptions options) {
     this.outstanding =
         CacheBuilder.newBuilder()
             .removalListener(new TeardownRemovedFnListener())
-            .build(new DeserializingCacheLoader(original));
+            .build(new DeserializingCacheLoader(original, options));
     thrownOnTeardown = new ConcurrentHashMap<>();
   }
 
@@ -91,9 +91,11 @@ class DoFnLifecycleManager {
 
   private static class DeserializingCacheLoader extends CacheLoader<Thread, DoFn<?, ?>> {
     private final byte[] original;
+    private final PipelineOptions options;
 
-    public DeserializingCacheLoader(DoFn<?, ?> original) {
+    public DeserializingCacheLoader(DoFn<?, ?> original, PipelineOptions options) {
       this.original = SerializableUtils.serializeToByteArray(original);
+      this.options = options;
     }
 
     @Override
@@ -102,7 +104,7 @@ class DoFnLifecycleManager {
           (DoFn<?, ?>)
               SerializableUtils.deserializeFromByteArray(
                   original, "DoFn Copy in thread " + key.getName());
-      DoFnInvokers.invokerFor(fn).invokeSetup();
+      DoFnInvokers.tryInvokeSetupFor(fn, options);
       return fn;
     }
   }

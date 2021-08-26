@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,8 +32,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
-import javax.annotation.Nullable;
 import org.apache.avro.AvroRuntimeException;
+import org.apache.avro.Conversion;
+import org.apache.avro.LogicalType;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -54,10 +54,18 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.ClassUtils;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 /**
  * A {@link Coder} using Avro binary format.
@@ -80,17 +88,16 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <pre>{@code
  * PCollection<MyCustomElement> records =
  *     input.apply(...)
- *          .setCoder(AvroCoder.of(MyCustomElement.class);
+ *          .setCoder(AvroCoder.of(MyCustomElement.class));
  * }</pre>
  *
  * <p>or annotate the element class using {@code @DefaultCoder}.
  *
- * <pre><code>
- * {@literal @}DefaultCoder(AvroCoder.class)
+ * <pre>{@code @DefaultCoder(AvroCoder.class)
  * public class MyCustomElement {
- *   ...
+ *     ...
  * }
- * </code></pre>
+ * }</pre>
  *
  * <p>The implementation attempts to determine if the Avro encoding of the given type will satisfy
  * the criteria of {@link Coder#verifyDeterministic} by inspecting both the type and the Schema
@@ -99,6 +106,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of elements handled by this coder
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroCoder<T> extends CustomCoder<T> {
 
   /**
@@ -118,27 +128,47 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> clazz) {
-    return new AvroCoder<>(clazz, new ReflectData(clazz.getClassLoader()).getSchema(clazz));
+    return of(clazz, false);
   }
 
   /**
-   * Returns an {@code AvroCoder} instance for the Avro schema. The implicit type is GenericRecord.
+   * Returns an {@code AvroGenericCoder} instance for the Avro schema. The implicit type is
+   * GenericRecord.
    */
-  public static AvroCoder<GenericRecord> of(Schema schema) {
-    return new AvroCoder<>(GenericRecord.class, schema);
+  public static AvroGenericCoder of(Schema schema) {
+    return AvroGenericCoder.of(schema);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the given class using Avro's Reflection API for
+   * encoding and decoding.
+   *
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(Class<T> type, boolean useReflectApi) {
+    return of(type, new ReflectData(type.getClassLoader()).getSchema(type), useReflectApi);
   }
 
   /**
    * Returns an {@code AvroCoder} instance for the provided element type using the provided Avro
    * schema.
    *
-   * <p>If the type argument is GenericRecord, the schema may be arbitrary. Otherwise, the schema
-   * must correspond to the type provided.
+   * <p>The schema must correspond to the type provided.
    *
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> type, Schema schema) {
-    return new AvroCoder<>(type, schema);
+    return of(type, schema, false);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the given class and schema using Avro's Reflection
+   * API for encoding and decoding.
+   *
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(Class<T> type, Schema schema, boolean useReflectApi) {
+    return new AvroCoder<>(type, schema, useReflectApi);
   }
 
   /**
@@ -207,6 +237,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * serialization and hence is able to encode the {@link Schema} object directly.
    */
   private static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
+    // writeReplace makes this object serializable. This is a limitation of FindBugs as discussed
+    // here:
+    // http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
+    @SuppressFBWarnings("SE_BAD_FIELD")
     private final Schema schema;
 
     private SerializableSchemaSupplier(Schema schema) {
@@ -238,7 +272,9 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
     @Override
     public ReflectData get() {
-      return new ReflectData(clazz.getClassLoader());
+      ReflectData reflectData = new ReflectData(clazz.getClassLoader());
+      reflectData.addLogicalTypeConversion(new JodaTimestampConversion());
+      return reflectData;
     }
   }
 
@@ -254,6 +290,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private final Supplier<ReflectData> reflectData;
 
   protected AvroCoder(Class<T> type, Schema schema) {
+    this(type, schema, false);
+  }
+
+  protected AvroCoder(Class<T> type, Schema schema, boolean useReflectApi) {
     this.type = type;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
     typeDescriptor = TypeDescriptor.of(type);
@@ -273,10 +313,13 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
           @Override
           public DatumReader<T> initialValue() {
-            return myCoder.getType().equals(GenericRecord.class)
-                ? new GenericDatumReader<>(myCoder.getSchema())
-                : new ReflectDatumReader<>(
-                    myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
+            if (myCoder.getType().equals(GenericRecord.class)) {
+              return new GenericDatumReader<>(myCoder.getSchema());
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflectApi) {
+              return new SpecificDatumReader<>(myCoder.getType());
+            }
+            return new ReflectDatumReader<>(
+                myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
           }
         };
 
@@ -286,9 +329,12 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
           @Override
           public DatumWriter<T> initialValue() {
-            return myCoder.getType().equals(GenericRecord.class)
-                ? new GenericDatumWriter<>(myCoder.getSchema())
-                : new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
+            if (myCoder.getType().equals(GenericRecord.class)) {
+              return new GenericDatumWriter<>(myCoder.getSchema());
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflectApi) {
+              return new SpecificDatumWriter<>(myCoder.getType());
+            }
+            return new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
           }
         };
   }
@@ -485,7 +531,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
     private void checkString(String context, TypeDescriptor<?> type) {
       // For types that are encoded as strings, we need to make sure they're in an approved
-      // whitelist. For other types that are annotated @Stringable, Avro will just use the
+      // list. For other types that are annotated @Stringable, Avro will just use the
       // #toString() methods, which has no guarantees of determinism.
       if (!DETERMINISTIC_STRINGABLE_CLASSES.contains(type.getRawType())) {
         reportError(context, "%s may not have deterministic #toString()", type);
@@ -697,7 +743,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (other == this) {
       return true;
     }
@@ -712,5 +758,36 @@ public class AvroCoder<T> extends CustomCoder<T> {
   @Override
   public int hashCode() {
     return Objects.hash(schemaSupplier.get(), typeDescriptor);
+  }
+
+  /**
+   * Conversion for DateTime.
+   *
+   * <p>This is a copy from Avro 1.8's TimestampConversion, which is renamed in Avro 1.9. Defining
+   * own copy gives flexibility for Beam Java SDK to work with Avro 1.8 and 1.9 at runtime.
+   *
+   * @see <a href="https://issues.apache.org/jira/browse/BEAM-9144">BEAM-9144: Beam's own Avro
+   *     TimeConversion class in beam-sdk-java-core</a>
+   */
+  public static class JodaTimestampConversion extends Conversion<DateTime> {
+    @Override
+    public Class<DateTime> getConvertedType() {
+      return DateTime.class;
+    }
+
+    @Override
+    public String getLogicalTypeName() {
+      return "timestamp-millis";
+    }
+
+    @Override
+    public DateTime fromLong(Long millisFromEpoch, Schema schema, LogicalType type) {
+      return new DateTime(millisFromEpoch, DateTimeZone.UTC);
+    }
+
+    @Override
+    public Long toLong(DateTime timestamp, Schema schema, LogicalType type) {
+      return timestamp.getMillis();
+    }
   }
 }

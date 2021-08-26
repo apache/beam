@@ -35,9 +35,15 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
 
     // Run the wordcount example with the Dataflow runner
     t.run """mvn compile exec:java -q \
+      -Dmaven.wagon.http.retryHandler.class=default \
+      -Dmaven.wagon.http.retryHandler.count=5 \
+      -Dmaven.wagon.http.pool=false \
+      -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
+      -Dhttp.keepAlive=false \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
       -Dexec.args="--runner=DataflowRunner \
                    --project=${t.gcpProject()} \
+                   --region=${t.gcpRegion()} \
                    --gcpTempLocation=gs://${t.gcsBucket()}/tmp \
                    --output=gs://${t.gcsBucket()}/counts \
                    --inputFile=gs://apache-beam-samples/shakespeare/*" \

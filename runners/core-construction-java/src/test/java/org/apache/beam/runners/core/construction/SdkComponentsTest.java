@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -38,7 +40,9 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Before;
@@ -69,7 +73,10 @@ public class SdkComponentsTest {
     String id = components.registerCoder(coder);
     assertThat(components.registerCoder(coder), equalTo(id));
     assertThat(id, not(isEmptyOrNullString()));
-    VarLongCoder otherCoder = VarLongCoder.of();
+    Coder<?> equalCoder =
+        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
+    assertThat(components.registerCoder(equalCoder), equalTo(id));
+    Coder<?> otherCoder = VarLongCoder.of();
     assertThat(components.registerCoder(otherCoder), not(equalTo(id)));
 
     components.toComponents().getCodersOrThrow(id);
@@ -77,29 +84,38 @@ public class SdkComponentsTest {
   }
 
   @Test
-  public void registerCoderEqualsNotSame() throws IOException {
-    Coder<?> coder =
-        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
-    Coder<?> otherCoder =
-        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
-    assertThat(coder, equalTo(otherCoder));
-    String id = components.registerCoder(coder);
-    String otherId = components.registerCoder(otherCoder);
-    assertThat(otherId, not(equalTo(id)));
-
-    components.toComponents().getCodersOrThrow(id);
-    components.toComponents().getCodersOrThrow(otherId);
-  }
-
-  @Test
   public void registerTransformNoChildren() throws IOException {
     Create.Values<Integer> create = Create.of(1, 2, 3);
     PCollection<Integer> pt = pipeline.apply(create);
-    String userName = "my_transform/my_nesting";
+    String userName = "my_transform-my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.of(userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+        AppliedPTransform.of(
+            userName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            ResourceHints.create(),
+            pipeline);
     String componentName = components.registerPTransform(transform, Collections.emptyList());
     assertThat(componentName, equalTo(userName));
+    assertThat(components.getExistingPTransformId(transform), equalTo(componentName));
+  }
+
+  @Test
+  public void registerTransformIdFormat() throws IOException {
+    Create.Values<Integer> create = Create.of(1, 2, 3);
+    PCollection<Integer> pt = pipeline.apply(create);
+    String malformedUserName = "my/tRAnsform 1(nesting)";
+    AppliedPTransform<?, ?, ?> transform =
+        AppliedPTransform.of(
+            malformedUserName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            ResourceHints.create(),
+            pipeline);
+    String componentName = components.registerPTransform(transform, Collections.emptyList());
+    assertThat(componentName, matchesPattern("^[A-Za-z0-9-_]+"));
     assertThat(components.getExistingPTransformId(transform), equalTo(componentName));
   }
 
@@ -112,10 +128,21 @@ public class SdkComponentsTest {
     String userName = "my_transform";
     String childUserName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.of(userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+        AppliedPTransform.of(
+            userName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            ResourceHints.create(),
+            pipeline);
     AppliedPTransform<?, ?, ?> childTransform =
         AppliedPTransform.of(
-            childUserName, pipeline.begin().expand(), pt.expand(), createChild, pipeline);
+            childUserName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            createChild,
+            ResourceHints.create(),
+            pipeline);
 
     String childId = components.registerPTransform(childTransform, Collections.emptyList());
     String parentId =
@@ -130,7 +157,13 @@ public class SdkComponentsTest {
     Create.Values<Integer> create = Create.of(1, 2, 3);
     PCollection<Integer> pt = pipeline.apply(create);
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.of("", pipeline.begin().expand(), pt.expand(), create, pipeline);
+        AppliedPTransform.of(
+            "",
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            ResourceHints.create(),
+            pipeline);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(transform.toString());
@@ -143,7 +176,13 @@ public class SdkComponentsTest {
     PCollection<Integer> pt = pipeline.apply(create);
     String userName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.of(userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+        AppliedPTransform.of(
+            userName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            ResourceHints.create(),
+            pipeline);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("child nodes may not be null");
     components.registerPTransform(transform, null);
@@ -159,10 +198,21 @@ public class SdkComponentsTest {
     String userName = "my_transform";
     String childUserName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.of(userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+        AppliedPTransform.of(
+            userName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            ResourceHints.create(),
+            pipeline);
     AppliedPTransform<?, ?, ?> childTransform =
         AppliedPTransform.of(
-            childUserName, pipeline.begin().expand(), pt.expand(), createChild, pipeline);
+            childUserName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            createChild,
+            ResourceHints.create(),
+            pipeline);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(childTransform.toString());
@@ -211,5 +261,41 @@ public class SdkComponentsTest {
         components.registerWindowingStrategy(
             WindowingStrategy.globalDefault().withMode(AccumulationMode.ACCUMULATING_FIRED_PANES));
     assertThat(name, equalTo(duplicateName));
+  }
+
+  @Test
+  public void testEnvironmentForHintDeduplicatonLogic() {
+    assertEquals(
+        components.getEnvironmentIdFor(ResourceHints.create()),
+        components.getEnvironmentIdFor(ResourceHints.create()));
+
+    assertEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(1000)),
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(1000)));
+
+    assertEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(1000)),
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(2000).withMinRam("1KB")));
+
+    assertNotEquals(
+        components.getEnvironmentIdFor(ResourceHints.create()),
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam("1GiB")));
+
+    assertNotEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam("10GiB")),
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam("10GB")));
+
+    assertEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
+        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")));
+
+    assertNotEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
+        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("tpu")));
+
+    assertNotEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
+        components.getEnvironmentIdFor(
+            ResourceHints.create().withAccelerator("gpu").withMinRam(10)));
   }
 }

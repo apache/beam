@@ -14,36 +14,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Google Cloud Storage client.
 
 This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import errno
 import io
 import logging
 import multiprocessing
-import os
 import re
 import threading
 import time
 import traceback
-from builtins import object
+from itertools import islice
 
-import httplib2
-
+from apache_beam.internal.http_client import get_new_http
+from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import PipeStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
+from apache_beam.io.gcp import resource_identifiers
+from apache_beam.metrics import monitoring_infos
 from apache_beam.utils import retry
 
 __all__ = ['GcsIO']
 
+_LOGGER = logging.getLogger(__name__)
 
 # Issue a friendlier error message if the storage library is not available.
 # TODO(silviuc): Remove this guard when storage is available everywhere.
@@ -76,17 +79,12 @@ except ImportError:
 # +---------------+------------+-------------+-------------+-------------+
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
-# This is the number of seconds the library will wait for GCS operations to
-# complete.
-DEFAULT_HTTP_TIMEOUT_SECONDS = 60
-
 # This is the number of seconds the library will wait for a partial-file read
 # operation from GCS to complete before retrying.
 DEFAULT_READ_SEGMENT_TIMEOUT_SECONDS = 60
 
 # This is the size of chunks used when writing to GCS.
 WRITE_CHUNK_SIZE = 8 * 1024 * 1024
-
 
 # Maximum number of operations permitted in GcsIO.copy_batch() and
 # GcsIO.delete_batch().
@@ -104,50 +102,44 @@ MAX_BATCH_OPERATION_SIZE = 100
 GCS_BATCH_ENDPOINT = 'https://www.googleapis.com/batch/storage/v1'
 
 
-def proxy_info_from_environment_var(proxy_env_var):
-  """Reads proxy info from the environment and converts to httplib2.ProxyInfo.
-
-  Args:
-    proxy_env_var: environment variable string to read, http_proxy or
-       https_proxy (in lower case).
-       Example: http://myproxy.domain.com:8080
-
-  Returns:
-    httplib2.ProxyInfo constructed from the environment string.
-  """
-  proxy_url = os.environ.get(proxy_env_var)
-  if not proxy_url:
-    return None
-  proxy_protocol = proxy_env_var.lower().split('_')[0]
-  if not re.match('^https?://', proxy_url, flags=re.IGNORECASE):
-    logging.warn("proxy_info_from_url requires a protocol, which is always "
-                 "http or https.")
-    proxy_url = proxy_protocol + '://' + proxy_url
-  return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
-
-
-def get_new_http():
-  """Creates and returns a new httplib2.Http instance.
-
-  Returns:
-    An initialized httplib2.Http instance.
-  """
-  proxy_info = None
-  for proxy_env_var in ['http_proxy', 'https_proxy']:
-    if os.environ.get(proxy_env_var):
-      proxy_info = proxy_info_from_environment_var(proxy_env_var)
-      break
-  # Use a non-infinite SSL timeout to avoid hangs during network flakiness.
-  return httplib2.Http(proxy_info=proxy_info,
-                       timeout=DEFAULT_HTTP_TIMEOUT_SECONDS)
-
-
-def parse_gcs_path(gcs_path):
+def parse_gcs_path(gcs_path, object_optional=False):
   """Return the bucket and object names of the given gs:// path."""
-  match = re.match('^gs://([^/]+)/(.+)$', gcs_path)
-  if match is None:
-    raise ValueError('GCS path must be in the form gs://<bucket>/<object>.')
+  match = re.match('^gs://([^/]+)/(.*)$', gcs_path)
+  if match is None or (match.group(2) == '' and not object_optional):
+    raise ValueError(
+        'GCS path must be in the form gs://<bucket>/<object>. '
+        f'Encountered {gcs_path!r}')
   return match.group(1), match.group(2)
+
+
+def default_gcs_bucket_name(project, region):
+  from hashlib import md5
+  return 'dataflow-staging-%s-%s' % (
+      region, md5(project.encode('utf8')).hexdigest())
+
+
+def get_or_create_default_gcs_bucket(options):
+  """Create a default GCS bucket for this project."""
+  if getattr(options, 'dataflow_kms_key', None):
+    _LOGGER.warning(
+        'Cannot create a default bucket when --dataflow_kms_key is set.')
+    return None
+
+  project = getattr(options, 'project', None)
+  region = getattr(options, 'region', None)
+  if not project or not region:
+    return None
+
+  bucket_name = default_gcs_bucket_name(project, region)
+  bucket = GcsIO().get_bucket(bucket_name)
+  if bucket:
+    return bucket
+  else:
+    _LOGGER.warning(
+        'Creating default GCS bucket for project %s: gs://%s',
+        project,
+        bucket_name)
+    return GcsIO().create_bucket(bucket_name, project, location=region)
 
 
 class GcsIOError(IOError, retry.PermanentException):
@@ -157,39 +149,62 @@ class GcsIOError(IOError, retry.PermanentException):
 
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
-
-  def __new__(cls, storage_client=None):
-    if storage_client:
-      # This path is only used for testing.
-      return super(GcsIO, cls).__new__(cls)
-    else:
-      # Create a single storage client for each thread.  We would like to avoid
-      # creating more than one storage client for each thread, since each
-      # initialization requires the relatively expensive step of initializing
-      # credentaials.
-      local_state = threading.local()
-      if getattr(local_state, 'gcsio_instance', None) is None:
-        credentials = auth.get_service_credentials()
-        storage_client = storage.StorageV1(
-            credentials=credentials,
-            get_credentials=False,
-            http=get_new_http())
-        local_state.gcsio_instance = super(GcsIO, cls).__new__(cls)
-        local_state.gcsio_instance.client = storage_client
-      return local_state.gcsio_instance
-
   def __init__(self, storage_client=None):
-    # We must do this check on storage_client because the client attribute may
-    # have already been set in __new__ for the singleton case when
-    # storage_client is None.
-    if storage_client is not None:
-      self.client = storage_client
+    if storage_client is None:
+      storage_client = storage.StorageV1(
+          credentials=auth.get_service_credentials(),
+          get_credentials=False,
+          http=get_new_http(),
+          response_encoding='utf8')
+    self.client = storage_client
+    self._rewrite_cb = None
+    self.bucket_to_project_number = {}
 
-  def open(self,
-           filename,
-           mode='r',
-           read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
-           mime_type='application/octet-stream'):
+  def get_project_number(self, bucket):
+    if bucket not in self.bucket_to_project_number:
+      bucket_metadata = self.get_bucket(bucket_name=bucket)
+      self.bucket_to_project_number[bucket] = bucket_metadata.projectNumber
+
+    return self.bucket_to_project_number[bucket]
+
+  def _set_rewrite_response_callback(self, callback):
+    """For testing purposes only. No backward compatibility guarantees.
+
+    Args:
+      callback: A function that receives ``storage.RewriteResponse``.
+    """
+    self._rewrite_cb = callback
+
+  def get_bucket(self, bucket_name):
+    """Returns an object bucket from its name, or None if it does not exist."""
+    try:
+      request = storage.StorageBucketsGetRequest(bucket=bucket_name)
+      return self.client.buckets.Get(request)
+    except HttpError:
+      return None
+
+  def create_bucket(self, bucket_name, project, kms_key=None, location=None):
+    """Create and return a GCS bucket in a specific project."""
+    encryption = None
+    if kms_key:
+      encryption = storage.Bucket.EncryptionValue(kms_key)
+
+    request = storage.StorageBucketsInsertRequest(
+        bucket=storage.Bucket(
+            name=bucket_name, location=location, encryption=encryption),
+        project=project,
+    )
+    try:
+      return self.client.buckets.Insert(request)
+    except HttpError:
+      return None
+
+  def open(
+      self,
+      filename,
+      mode='r',
+      read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
+      mime_type='application/octet-stream'):
     """Open a GCS file path for reading or writing.
 
     Args:
@@ -202,17 +217,26 @@ class GcsIO(object):
       GCS file object.
 
     Raises:
-      ~exceptions.ValueError: Invalid open file mode.
+      ValueError: Invalid open file mode.
     """
     if mode == 'r' or mode == 'rb':
-      downloader = GcsDownloader(self.client, filename,
-                                 buffer_size=read_buffer_size)
-      return io.BufferedReader(DownloaderStream(downloader, mode=mode),
-                               buffer_size=read_buffer_size)
+      downloader = GcsDownloader(
+          self.client,
+          filename,
+          buffer_size=read_buffer_size,
+          get_project_number=self.get_project_number)
+      return io.BufferedReader(
+          DownloaderStream(
+              downloader, read_buffer_size=read_buffer_size, mode=mode),
+          buffer_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
-      uploader = GcsUploader(self.client, filename, mime_type)
-      return io.BufferedWriter(UploaderStream(uploader, mode=mode),
-                               buffer_size=128 * 1024)
+      uploader = GcsUploader(
+          self.client,
+          filename,
+          mime_type,
+          get_project_number=self.get_project_number)
+      return io.BufferedWriter(
+          UploaderStream(uploader, mode=mode), buffer_size=128 * 1024)
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
@@ -250,54 +274,100 @@ class GcsIO(object):
     """
     if not paths:
       return []
-    batch_request = BatchApiRequest(
-        batch_url=GCS_BATCH_ENDPOINT,
-        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
-    for path in paths:
-      bucket, object_path = parse_gcs_path(path)
-      request = storage.StorageObjectsDeleteRequest(
-          bucket=bucket, object=object_path)
-      batch_request.Add(self.client.objects, 'Delete', request)
-    api_calls = batch_request.Execute(self.client._http) # pylint: disable=protected-access
+
+    paths = iter(paths)
     result_statuses = []
-    for i, api_call in enumerate(api_calls):
-      path = paths[i]
-      exception = None
-      if api_call.is_error:
-        exception = api_call.exception
-        # Return success when the file doesn't exist anymore for idempotency.
-        if isinstance(exception, HttpError) and exception.status_code == 404:
-          exception = None
-      result_statuses.append((path, exception))
+    while True:
+      paths_chunk = list(islice(paths, MAX_BATCH_OPERATION_SIZE))
+      if not paths_chunk:
+        return result_statuses
+      batch_request = BatchApiRequest(
+          batch_url=GCS_BATCH_ENDPOINT,
+          retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES,
+          response_encoding='utf-8')
+      for path in paths_chunk:
+        bucket, object_path = parse_gcs_path(path)
+        request = storage.StorageObjectsDeleteRequest(
+            bucket=bucket, object=object_path)
+        batch_request.Add(self.client.objects, 'Delete', request)
+      api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+      for i, api_call in enumerate(api_calls):
+        path = paths_chunk[i]
+        exception = None
+        if api_call.is_error:
+          exception = api_call.exception
+          # Return success when the file doesn't exist anymore for idempotency.
+          if isinstance(exception, HttpError) and exception.status_code == 404:
+            exception = None
+        result_statuses.append((path, exception))
     return result_statuses
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def copy(self, src, dest):
+  def copy(
+      self,
+      src,
+      dest,
+      dest_kms_key_name=None,
+      max_bytes_rewritten_per_call=None):
     """Copies the given GCS object from src to dest.
 
     Args:
       src: GCS file path pattern in the form gs://<bucket>/<name>.
       dest: GCS file path pattern in the form gs://<bucket>/<name>.
+      dest_kms_key_name: Experimental. No backwards compatibility guarantees.
+        Encrypt dest with this Cloud KMS key. If None, will use dest bucket
+        encryption defaults.
+      max_bytes_rewritten_per_call: Experimental. No backwards compatibility
+        guarantees. Each rewrite API call will return after these many bytes.
+        Used for testing.
+
+    Raises:
+      TimeoutError: on timeout.
     """
     src_bucket, src_path = parse_gcs_path(src)
     dest_bucket, dest_path = parse_gcs_path(dest)
-    request = storage.StorageObjectsCopyRequest(
+    request = storage.StorageObjectsRewriteRequest(
         sourceBucket=src_bucket,
         sourceObject=src_path,
         destinationBucket=dest_bucket,
-        destinationObject=dest_path)
-    self.client.objects.Copy(request)
+        destinationObject=dest_path,
+        destinationKmsKeyName=dest_kms_key_name,
+        maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
+    response = self.client.objects.Rewrite(request)
+    while not response.done:
+      _LOGGER.debug(
+          'Rewrite progress: %d of %d bytes, %s to %s',
+          response.totalBytesRewritten,
+          response.objectSize,
+          src,
+          dest)
+      request.rewriteToken = response.rewriteToken
+      response = self.client.objects.Rewrite(request)
+      if self._rewrite_cb is not None:
+        self._rewrite_cb(response)
+
+    _LOGGER.debug('Rewrite done: %s to %s', src, dest)
 
   # We intentionally do not decorate this method with a retry, as retrying is
   # handled in BatchApiRequest.Execute().
-  def copy_batch(self, src_dest_pairs):
+  def copy_batch(
+      self,
+      src_dest_pairs,
+      dest_kms_key_name=None,
+      max_bytes_rewritten_per_call=None):
     """Copies the given GCS object from src to dest.
 
     Args:
       src_dest_pairs: list of (src, dest) tuples of gs://<bucket>/<name> files
                       paths to copy from src to dest, not to exceed
                       MAX_BATCH_OPERATION_SIZE in length.
+      dest_kms_key_name: Experimental. No backwards compatibility guarantees.
+        Encrypt dest with this Cloud KMS key. If None, will use dest bucket
+        encryption defaults.
+      max_bytes_rewritten_per_call: Experimental. No backwards compatibility
+        guarantees. Each rewrite call will return after these many bytes. Used
+        primarily for testing.
 
     Returns: List of tuples of (src, dest, exception) in the same order as the
              src_dest_pairs argument, where exception is None if the operation
@@ -305,31 +375,55 @@ class GcsIO(object):
     """
     if not src_dest_pairs:
       return []
-    batch_request = BatchApiRequest(
-        batch_url=GCS_BATCH_ENDPOINT,
-        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
-    for src, dest in src_dest_pairs:
-      src_bucket, src_path = parse_gcs_path(src)
-      dest_bucket, dest_path = parse_gcs_path(dest)
-      request = storage.StorageObjectsCopyRequest(
+    pair_to_request = {}
+    for pair in src_dest_pairs:
+      src_bucket, src_path = parse_gcs_path(pair[0])
+      dest_bucket, dest_path = parse_gcs_path(pair[1])
+      request = storage.StorageObjectsRewriteRequest(
           sourceBucket=src_bucket,
           sourceObject=src_path,
           destinationBucket=dest_bucket,
-          destinationObject=dest_path)
-      batch_request.Add(self.client.objects, 'Copy', request)
-    api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
-    result_statuses = []
-    for i, api_call in enumerate(api_calls):
-      src, dest = src_dest_pairs[i]
-      exception = None
-      if api_call.is_error:
-        exception = api_call.exception
-        # Translate 404 to the appropriate not found exception.
-        if isinstance(exception, HttpError) and exception.status_code == 404:
-          exception = (
-              GcsIOError(errno.ENOENT, 'Source file not found: %s' % src))
-      result_statuses.append((src, dest, exception))
-    return result_statuses
+          destinationObject=dest_path,
+          destinationKmsKeyName=dest_kms_key_name,
+          maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
+      pair_to_request[pair] = request
+    pair_to_status = {}
+    while True:
+      pairs_in_batch = list(set(src_dest_pairs) - set(pair_to_status))
+      if not pairs_in_batch:
+        break
+      batch_request = BatchApiRequest(
+          batch_url=GCS_BATCH_ENDPOINT,
+          retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES,
+          response_encoding='utf-8')
+      for pair in pairs_in_batch:
+        batch_request.Add(self.client.objects, 'Rewrite', pair_to_request[pair])
+      api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+      for pair, api_call in zip(pairs_in_batch, api_calls):
+        src, dest = pair
+        response = api_call.response
+        if self._rewrite_cb is not None:
+          self._rewrite_cb(response)
+        if api_call.is_error:
+          exception = api_call.exception
+          # Translate 404 to the appropriate not found exception.
+          if isinstance(exception, HttpError) and exception.status_code == 404:
+            exception = (
+                GcsIOError(errno.ENOENT, 'Source file not found: %s' % src))
+          pair_to_status[pair] = exception
+        elif not response.done:
+          _LOGGER.debug(
+              'Rewrite progress: %d of %d bytes, %s to %s',
+              response.totalBytesRewritten,
+              response.objectSize,
+              src,
+              dest)
+          pair_to_request[pair].rewriteToken = response.rewriteToken
+        else:
+          _LOGGER.debug('Rewrite done: %s to %s', src, dest)
+          pair_to_status[pair] = None
+
+    return [(pair[0], pair[1], pair_to_status[pair]) for pair in src_dest_pairs]
 
   # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations
@@ -412,21 +506,55 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def kms_key(self, path):
+    """Returns the KMS key of a single GCS object.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single GCS object.
+
+    Returns: KMS key name of the GCS object as a string, or None if it doesn't
+      have one.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(
+        bucket=bucket, object=object_path)
+    return self.client.objects.Get(request).kmsKeyName
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def last_updated(self, path):
+    """Returns the last updated epoch time of a single GCS object.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single GCS object.
+
+    Returns: last updated time of the GCS object in second.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(
+        bucket=bucket, object=object_path)
+    datetime = self.client.objects.Get(request).updated
+    return (
+        time.mktime(datetime.timetuple()) - time.timezone +
+        datetime.microsecond / 1000000.0)
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def list_prefix(self, path):
     """Lists files matching the prefix.
 
     Args:
-      path: GCS file path pattern in the form gs://<bucket>/<name>.
+      path: GCS file path pattern in the form gs://<bucket>/[name].
 
     Returns:
       Dictionary of file name -> size.
     """
-    bucket, prefix = parse_gcs_path(path)
+    bucket, prefix = parse_gcs_path(path, object_optional=True)
     request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
     file_sizes = {}
     counter = 0
     start_time = time.time()
-    logging.info("Starting the size estimation of the input")
+    _LOGGER.info("Starting the size estimation of the input")
     while True:
       response = self.client.objects.List(request)
       for item in response.items:
@@ -434,34 +562,55 @@ class GcsIO(object):
         file_sizes[file_name] = item.size
         counter += 1
         if counter % 10000 == 0:
-          logging.info("Finished computing size of: %s files", len(file_sizes))
+          _LOGGER.info("Finished computing size of: %s files", len(file_sizes))
       if response.nextPageToken:
         request.pageToken = response.nextPageToken
       else:
         break
-    logging.info("Finished listing %s files in %s seconds.",
-                 counter, time.time() - start_time)
+    _LOGGER.info(
+        "Finished listing %s files in %s seconds.",
+        counter,
+        time.time() - start_time)
     return file_sizes
 
 
 class GcsDownloader(Downloader):
-  def __init__(self, client, path, buffer_size):
+  def __init__(self, client, path, buffer_size, get_project_number):
     self._client = client
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
     self._buffer_size = buffer_size
+    self._get_project_number = get_project_number
+
+    project_number = self._get_project_number(self._bucket)
+
+    # Create a request count metric
+    resource = resource_identifiers.GoogleCloudStorageBucket(self._bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.get',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: str(project_number)
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
 
     # Get object state.
-    self._get_request = (storage.StorageObjectsGetRequest(
-        bucket=self._bucket, object=self._name))
+    self._get_request = (
+        storage.StorageObjectsGetRequest(
+            bucket=self._bucket, object=self._name))
     try:
       metadata = self._get_object_metadata(self._get_request)
+      service_call_metric.call('ok')
     except HttpError as http_error:
+      service_call_metric.call(http_error)
       if http_error.status_code == 404:
         raise IOError(errno.ENOENT, 'Not found: %s' % self._path)
       else:
-        logging.error('HTTP error while requesting file %s: %s', self._path,
-                      http_error)
+        _LOGGER.error(
+            'HTTP error while requesting file %s: %s', self._path, http_error)
         raise
     self._size = metadata.size
 
@@ -471,8 +620,16 @@ class GcsDownloader(Downloader):
     # Initialize read buffer state.
     self._download_stream = io.BytesIO()
     self._downloader = transfer.Download(
-        self._download_stream, auto_transfer=False, chunksize=self._buffer_size)
-    self._client.objects.Get(self._get_request, download=self._downloader)
+        self._download_stream,
+        auto_transfer=False,
+        chunksize=self._buffer_size,
+        num_retries=20)
+
+    try:
+      self._client.objects.Get(self._get_request, download=self._downloader)
+      service_call_metric.call('ok')
+    except HttpError as e:
+      service_call_metric.call(e)
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -491,11 +648,12 @@ class GcsDownloader(Downloader):
 
 
 class GcsUploader(Uploader):
-  def __init__(self, client, path, mime_type):
+  def __init__(self, client, path, mime_type, get_project_number):
     self._client = client
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
     self._mime_type = mime_type
+    self._get_project_number = get_project_number
 
     # Set up communication with child thread.
     parent_conn, child_conn = multiprocessing.Pipe()
@@ -503,8 +661,9 @@ class GcsUploader(Uploader):
     self._conn = parent_conn
 
     # Set up uploader.
-    self._insert_request = (storage.StorageObjectsInsertRequest(
-        bucket=self._bucket, name=self._name))
+    self._insert_request = (
+        storage.StorageObjectsInsertRequest(
+            bucket=self._bucket, name=self._name))
     self._upload = transfer.Upload(
         PipeStream(self._child_conn),
         self._mime_type,
@@ -528,11 +687,30 @@ class GcsUploader(Uploader):
     #
     # The uploader by default transfers data in chunks of 1024 * 1024 bytes at
     # a time, buffering writes until that size is reached.
+
+    project_number = self._get_project_number(self._bucket)
+
+    # Create a request count metric
+    resource = resource_identifiers.GoogleCloudStorageBucket(self._bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.insert',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: str(project_number)
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
     try:
       self._client.objects.Insert(self._insert_request, upload=self._upload)
+      service_call_metric.call('ok')
     except Exception as e:  # pylint: disable=broad-except
-      logging.error('Error in _start_upload while inserting file %s: %s',
-                    self._path, traceback.format_exc())
+      service_call_metric.call(e)
+      _LOGGER.error(
+          'Error in _start_upload while inserting file %s: %s',
+          self._path,
+          traceback.format_exc())
       self._upload_thread.last_error = e
     finally:
       self._child_conn.close()
@@ -542,7 +720,7 @@ class GcsUploader(Uploader):
       self._conn.send_bytes(data.tobytes())
     except EOFError:
       if self._upload_thread.last_error is not None:
-        raise self._upload_thread.last_error # pylint: disable=raising-bad-type
+        raise self._upload_thread.last_error  # pylint: disable=raising-bad-type
       raise
 
   def finish(self):

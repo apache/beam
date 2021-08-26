@@ -15,16 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.testing;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.junit.experimental.categories.Category;
 
 /** A utility class for querying annotations. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class Annotations {
 
   /** Annotation predicates. */

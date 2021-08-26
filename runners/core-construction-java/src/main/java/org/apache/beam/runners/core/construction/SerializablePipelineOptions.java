@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -23,9 +22,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Holds a {@link PipelineOptions} in JSON serialized form and calls {@link
@@ -42,6 +43,12 @@ public class SerializablePipelineOptions implements Serializable {
   public SerializablePipelineOptions(PipelineOptions options) {
     this.serializedPipelineOptions = serializeToJson(options);
     this.options = options;
+    FileSystems.setDefaultPipelineOptions(options);
+  }
+
+  public SerializablePipelineOptions(String json) {
+    this.serializedPipelineOptions = json;
+    this.options = deserializeFromJson(json);
     FileSystems.setDefaultPipelineOptions(options);
   }
 
@@ -70,5 +77,29 @@ public class SerializablePipelineOptions implements Serializable {
     } catch (IOException e) {
       throw new IllegalArgumentException("Failed to deserialize PipelineOptions", e);
     }
+  }
+
+  @Override
+  public String toString() {
+    return serializedPipelineOptions;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SerializablePipelineOptions that = (SerializablePipelineOptions) o;
+    return serializedPipelineOptions.equals(that.serializedPipelineOptions);
+    // do not assert on this.options.equals(that.options) because PipelineOptions is a interface
+    // and its equal compares references.
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(serializedPipelineOptions, options);
   }
 }

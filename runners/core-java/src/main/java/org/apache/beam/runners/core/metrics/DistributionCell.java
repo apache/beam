@@ -15,16 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Tracks the current value (and delta) for a Distribution metric.
@@ -34,7 +32,6 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
  * context). In that case retrieving the underlying cell and reporting directly to it avoids a step
  * of indirection.
  */
-@Experimental(Kind.METRICS)
 public class DistributionCell implements Distribution, MetricCell<DistributionData> {
 
   private final DirtyState dirty = new DirtyState();
@@ -47,15 +44,25 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
    * MetricsContainerImpl}, unless they need to define their own version of {@link
    * MetricsContainer}. These constructors are *only* public so runners can instantiate.
    */
-  @Internal
   public DistributionCell(MetricName name) {
     this.name = name;
+  }
+
+  @Override
+  public void reset() {
+    dirty.afterModification();
+    value.set(DistributionData.EMPTY);
   }
 
   /** Increment the distribution by the given amount. */
   @Override
   public void update(long n) {
     update(DistributionData.singleton(n));
+  }
+
+  @Override
+  public void update(long sum, long count, long min, long max) {
+    update(DistributionData.create(sum, count, min, max));
   }
 
   void update(DistributionData data) {
@@ -79,5 +86,22 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
   @Override
   public MetricName getName() {
     return name;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object object) {
+    if (object instanceof DistributionCell) {
+      DistributionCell distributionCell = (DistributionCell) object;
+      return Objects.equals(dirty, distributionCell.dirty)
+          && Objects.equals(value.get(), distributionCell.value.get())
+          && Objects.equals(name, distributionCell.name);
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(dirty, value.get(), name);
   }
 }

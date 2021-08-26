@@ -26,7 +26,8 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import javax.annotation.Nullable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import sqlline.SqlLine;
 import sqlline.SqlLine.Status;
 
@@ -40,7 +41,7 @@ public class BeamSqlLine {
   }
 
   private static String[] checkConnectionArgs(String[] args) {
-    List<String> argsList = new ArrayList<String>(Arrays.asList(args));
+    List<String> argsList = new ArrayList<>(Arrays.asList(args));
 
     if (!argsList.contains("-nn")) {
       argsList.add("-nn");
@@ -55,9 +56,11 @@ public class BeamSqlLine {
     return argsList.toArray(new String[argsList.size()]);
   }
 
+  /** Nullable InputStream is being handled inside sqlLine.begin. */
+  @SuppressWarnings("argument.type.incompatible")
   static Status runSqlLine(
       String[] args,
-      InputStream inputStream,
+      @Nullable InputStream inputStream,
       @Nullable OutputStream outputStream,
       @Nullable OutputStream errorStream)
       throws IOException {
@@ -65,11 +68,11 @@ public class BeamSqlLine {
     SqlLine sqlLine = new SqlLine();
 
     if (outputStream != null) {
-      sqlLine.setOutputStream(new PrintStream(outputStream));
+      sqlLine.setOutputStream(new PrintStream(outputStream, false, Charsets.UTF_8.name()));
     }
 
     if (errorStream != null) {
-      sqlLine.setErrorStream(new PrintStream(errorStream));
+      sqlLine.setErrorStream(new PrintStream(errorStream, false, Charsets.UTF_8.name()));
     }
 
     return sqlLine.begin(modifiedArgs, inputStream, true);

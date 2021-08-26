@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
 import java.math.BigDecimal;
@@ -26,9 +25,11 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.extensions.sql.impl.utils.BigDecimalConverter;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.runtime.SqlFunctions;
 
 /**
  * {@link Combine.CombineFn} for <em>Variance</em> on {@link Number} types.
@@ -64,6 +65,9 @@ import org.apache.calcite.runtime.SqlFunctions;
  * samples.
  */
 @Internal
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceAccumulator, T> {
 
   static final MathContext MATH_CTX = new MathContext(10, RoundingMode.HALF_UP);
@@ -74,10 +78,18 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   private boolean isSample; // flag to determine return value should be Variance Pop or Sample
   private SerializableFunction<BigDecimal, T> decimalConverter;
 
+  public static <V extends Number> VarianceFn newPopulation(Schema.TypeName typeName) {
+    return newPopulation(BigDecimalConverter.forSqlType(typeName));
+  }
+
   public static <V extends Number> VarianceFn newPopulation(
       SerializableFunction<BigDecimal, V> decimalConverter) {
 
     return new VarianceFn<>(POP, decimalConverter);
+  }
+
+  public static <V extends Number> VarianceFn newSample(Schema.TypeName typeName) {
+    return newSample(BigDecimalConverter.forSqlType(typeName));
   }
 
   public static <V extends Number> VarianceFn newSample(

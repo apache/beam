@@ -18,14 +18,13 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.MoreObjects;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -37,15 +36,17 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Random;
+import java.util.stream.Collectors;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Decoder;
 import org.apache.avro.reflect.AvroDefault;
-import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -61,6 +62,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -141,7 +144,7 @@ public class AvroSourceTest {
   @Test
   public void testReadWithDifferentCodecs() throws Exception {
     // Test reading files generated using all codecs.
-    String codecs[] = {
+    String[] codecs = {
       DataFileConstants.NULL_CODEC,
       DataFileConstants.BZIP2_CODEC,
       DataFileConstants.DEFLATE_CODEC,
@@ -535,6 +538,48 @@ public class AvroSourceTest {
     assertThat(actual, containsInAnyOrder(expected.toArray()));
   }
 
+  @Test
+  public void testDatumReaderFactoryWithGenericRecord() throws Exception {
+    List<Bird> inputBirds = createRandomRecords(100);
+
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            inputBirds,
+            SyncBehavior.SYNC_DEFAULT,
+            0,
+            AvroCoder.of(Bird.class),
+            DataFileConstants.NULL_CODEC);
+
+    AvroSource.DatumReaderFactory<GenericRecord> factory =
+        (writer, reader) ->
+            new GenericDatumReader<GenericRecord>(writer, reader) {
+              @Override
+              protected Object readString(Object old, Decoder in) throws IOException {
+                return super.readString(old, in) + "_custom";
+              }
+            };
+
+    AvroSource<Bird> source =
+        AvroSource.from(filename)
+            .withParseFn(
+                input ->
+                    new Bird(
+                        (long) input.get("number"),
+                        input.get("species").toString(),
+                        input.get("quality").toString(),
+                        (long) input.get("quantity")),
+                AvroCoder.of(Bird.class))
+            .withDatumReaderFactory(factory);
+    List<Bird> actual = SourceTestUtils.readFromSource(source, null);
+    List<Bird> expected =
+        inputBirds.stream()
+            .map(b -> new Bird(b.number, b.species + "_custom", b.quality + "_custom", b.quantity))
+            .collect(Collectors.toList());
+
+    assertThat(actual, containsInAnyOrder(expected.toArray()));
+  }
+
   private void assertEqualsWithGeneric(List<Bird> expected, List<GenericRecord> actual) {
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
@@ -722,7 +767,7 @@ public class AvroSourceTest {
   @Test
   public void testReadMetadataWithCodecs() throws Exception {
     // Test reading files generated using all codecs.
-    String codecs[] = {
+    String[] codecs = {
       DataFileConstants.NULL_CODEC,
       DataFileConstants.BZIP2_CODEC,
       DataFileConstants.DEFLATE_CODEC,
@@ -756,6 +801,25 @@ public class AvroSourceTest {
     assertEquals(4, schema.getFields().size());
   }
 
+  @Test
+  public void testCreateFromMetadata() throws Exception {
+    List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
+    String codec = DataFileConstants.NULL_CODEC;
+    String filename =
+        generateTestFile(
+            codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
+    Metadata fileMeta = FileSystems.matchSingleFileSpec(filename);
+
+    AvroSource<GenericRecord> source = AvroSource.from(fileMeta);
+    AvroSource<Bird> sourceWithSchema = source.withSchema(Bird.class);
+    AvroSource<Bird> sourceWithSchemaWithMinBundleSize = sourceWithSchema.withMinBundleSize(1234);
+
+    assertEquals(FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE, source.getMode());
+    assertEquals(FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE, sourceWithSchema.getMode());
+    assertEquals(
+        FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE, sourceWithSchemaWithMinBundleSize.getMode());
+  }
+
   /**
    * Class that will encode to a fixed size: 16 bytes.
    *
@@ -783,7 +847,7 @@ public class AvroSourceTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (o instanceof FixedRecord) {
         FixedRecord other = (FixedRecord) o;
         return this.asInt() == other.asInt();
@@ -839,7 +903,7 @@ public class AvroSourceTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj instanceof Bird) {
         Bird other = (Bird) obj;
         return Objects.equals(species, other.species)
@@ -869,7 +933,7 @@ public class AvroSourceTest {
     String quality;
     long quantity;
 
-    @Nullable String habitat;
+    @org.apache.avro.reflect.Nullable String habitat;
 
     @AvroDefault("\"MAXIMUM OVERDRIVE\"")
     String fancinessLevel;
@@ -904,7 +968,7 @@ public class AvroSourceTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj instanceof FancyBird) {
         FancyBird other = (FancyBird) obj;
         return Objects.equals(species, other.species)

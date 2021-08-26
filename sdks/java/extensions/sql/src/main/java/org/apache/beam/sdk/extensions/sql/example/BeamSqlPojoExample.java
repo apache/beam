@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.example;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.example.model.Customer;
@@ -38,7 +37,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>Run the example from the Beam source root with
  *
  * <pre>
- *   ./gradlew :beam-sdks-java-extensions-sql:runPojoExample
+ *   ./gradlew :sdks:java:extensions:sql:runPojoExample
  * </pre>
  *
  * <p>The above command executes the example locally using direct runner. Running the pipeline in
@@ -54,7 +53,8 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class BeamSqlPojoExample {
   public static void main(String[] args) {
-    Pipeline pipeline = createPipeline(args);
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+    Pipeline pipeline = Pipeline.create(options);
 
     // First step is to get PCollections of source objects.
     // In this example we create them directly in memory using Create.of().
@@ -105,16 +105,11 @@ class BeamSqlPojoExample {
     return MapElements.via(
         new SimpleFunction<Row, Void>() {
           @Override
-          public @Nullable Void apply(Row input) {
+          public Void apply(Row input) {
             System.out.println(input.getValues() + suffix);
             return null;
           }
         });
-  }
-
-  private static Pipeline createPipeline(String[] args) {
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-    return Pipeline.create(options);
   }
 
   private static PCollection<Customer> loadCustomers(Pipeline pipeline) {

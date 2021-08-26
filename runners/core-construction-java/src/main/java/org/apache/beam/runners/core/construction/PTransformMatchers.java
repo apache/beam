@@ -19,16 +19,15 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
 
-import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
@@ -39,6 +38,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the
@@ -47,8 +48,11 @@ import org.apache.beam.sdk.values.PValue;
  * <p>Once {@link PTransform PTransforms} have URNs, this will be removed and replaced with a
  * UrnPTransformMatcher.
  */
-@Experimental(Kind.CORE_RUNNERS_ONLY)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class PTransformMatchers {
+
   private PTransformMatchers() {}
 
   /**
@@ -60,6 +64,7 @@ public class PTransformMatchers {
   }
 
   private static class EqualUrnPTransformMatcher implements PTransformMatcher {
+
     private final String urn;
 
     private EqualUrnPTransformMatcher(String urn) {
@@ -75,6 +80,23 @@ public class PTransformMatchers {
     public String toString() {
       return MoreObjects.toStringHelper(this).add("urn", urn).toString();
     }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      EqualUrnPTransformMatcher that = (EqualUrnPTransformMatcher) o;
+      return urn.equals(that.urn);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(urn);
+    }
   }
 
   /**
@@ -86,6 +108,7 @@ public class PTransformMatchers {
   }
 
   private static class EqualClassPTransformMatcher implements PTransformMatcher {
+
     private final Class<? extends PTransform> clazz;
 
     private EqualClassPTransformMatcher(Class<? extends PTransform> clazz) {
@@ -455,6 +478,29 @@ public class PTransformMatchers {
       @Override
       public String toString() {
         return MoreObjects.toStringHelper("FlattenWithDuplicateInputsMatcher").toString();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} which matches {@link GroupIntoBatches} transform that allows
+   * shardable states.
+   */
+  public static PTransformMatcher groupWithShardableStates() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        return application.getTransform().getClass().equals(GroupIntoBatches.WithShardedKey.class);
+      }
+
+      @Override
+      public boolean matchesDuringValidation(AppliedPTransform<?, ?, ?> application) {
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("groupWithShardableStatesMatcher").toString();
       }
     };
   }

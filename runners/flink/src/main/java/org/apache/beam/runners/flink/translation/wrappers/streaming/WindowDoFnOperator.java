@@ -30,11 +30,13 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -42,9 +44,11 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.operators.InternalTimer;
 
 /** Flink operator for executing window {@link DoFn DoFns}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
 
@@ -67,7 +71,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         null,
         stepName,
         windowedInputCoder,
-        null,
         Collections.emptyMap(),
         mainOutputTag,
         additionalOutputTags,
@@ -77,14 +80,16 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         sideInputs,
         options,
         keyCoder,
-        keySelector);
+        keySelector,
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
 
     this.systemReduceFn = systemReduceFn;
   }
 
   @Override
   protected DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> createWrappingDoFnRunner(
-      DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> wrappedRunner) {
+      DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> wrappedRunner, StepContext stepContext) {
     // When the doFn is this, we know it came from WindowDoFnOperator and
     //   InputT = KeyedWorkItem<K, V>
     //   OutputT = KV<K, V>
@@ -121,11 +126,11 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   }
 
   @Override
-  public void fireTimer(InternalTimer<?, TimerData> timer) {
+  protected void fireTimer(TimerData timer) {
+    timerInternals.onFiredOrDeletedTimer(timer);
     doFnRunner.processElement(
         WindowedValue.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(
-                (K) keyedStateInternals.getKey(),
-                Collections.singletonList(timer.getNamespace()))));
+                (K) keyedStateInternals.getKey(), Collections.singletonList(timer))));
   }
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io;
 
 import static org.apache.avro.file.DataFileConstants.BZIP2_CODEC;
@@ -45,7 +44,7 @@ public class SerializableAvroCodecFactoryTest {
       SerializableAvroCodecFactory codecFactory =
           new SerializableAvroCodecFactory(CodecFactory.fromString(codec));
 
-      assertEquals((CodecFactory.fromString(codec).toString()), codecFactory.getCodec().toString());
+      assertEquals(CodecFactory.fromString(codec).toString(), codecFactory.getCodec().toString());
     }
   }
 

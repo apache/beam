@@ -18,8 +18,13 @@
 package org.apache.beam.sdk.io;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeFalse;
 
+import java.io.IOException;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.commons.lang3.SystemUtils;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -27,6 +32,12 @@ import org.junit.runners.JUnit4;
 /** Tests of {@link DefaultFilenamePolicy}. */
 @RunWith(JUnit4.class)
 public class DefaultFilenamePolicyTest {
+
+  @Before
+  public void setup() {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10738
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
+  }
 
   private static String constructName(
       String baseFilename,
@@ -130,5 +141,59 @@ public class DefaultFilenamePolicyTest {
         "/path/to/out-2/1.part-1-of-2-sWindow1-winsWindow1-ppaneL.txt",
         constructName(
             "/path/to/out", "-N/S.part-S-of-N-W-winW-pP", ".txt", 1, 2, "paneL", "sWindow1"));
+  }
+
+  @Test
+  public void testParamsCoder() throws IOException {
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/file1", false)),
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/file1", false))));
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/file2", false))
+            .withSuffix(".json"),
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/file2", false))
+                .withSuffix(".json")));
+
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/dir1/", true)),
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/dir1/", true))));
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/dir2/", true))
+            .withSuffix(".json"),
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/dir2/", true))
+                .withSuffix(".json")));
+
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/dir3", true)),
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/dir3", true))));
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/dir4", true))
+            .withSuffix(".json"),
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/dir4", true))
+                .withSuffix(".json")));
   }
 }

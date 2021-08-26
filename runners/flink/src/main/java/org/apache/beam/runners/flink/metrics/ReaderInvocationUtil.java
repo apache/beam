@@ -40,7 +40,7 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
       String stepName, PipelineOptions options, FlinkMetricContainer container) {
     FlinkPipelineOptions flinkPipelineOptions = options.as(FlinkPipelineOptions.class);
     this.stepName = stepName;
-    enableMetrics = flinkPipelineOptions.getEnableMetrics();
+    this.enableMetrics = !flinkPipelineOptions.getDisableMetrics();
     this.container = container;
   }
 
@@ -49,7 +49,7 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
       try (Closeable ignored =
           MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
         boolean result = reader.start();
-        container.updateMetrics();
+        container.updateMetrics(stepName);
         return result;
       }
     } else {
@@ -62,7 +62,7 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
       try (Closeable ignored =
           MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
         boolean result = reader.advance();
-        container.updateMetrics();
+        container.updateMetrics(stepName);
         return result;
       }
     } else {

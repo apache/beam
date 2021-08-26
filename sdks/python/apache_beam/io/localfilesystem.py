@@ -14,13 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Local File system implementation for accessing files on disk."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
+import io
 import os
 import shutil
-from builtins import zip
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -71,7 +73,7 @@ class LocalFileSystem(FileSystem):
       path: string path of the directory structure that should be created
 
     Raises:
-      IOError if leaf directory already exists.
+      IOError: if leaf directory already exists.
     """
     try:
       os.makedirs(path)
@@ -106,14 +108,18 @@ class LocalFileSystem(FileSystem):
       Generator of ``FileMetadata`` objects.
 
     Raises:
-      ``BeamIOError`` if listing fails, but not if no files were found.
+      ``BeamIOError``: if listing fails, but not if no files were found.
     """
     if not self.exists(dir_or_prefix):
       return
 
+    def list_files(root):
+      for dirpath, _, files in os.walk(root):
+        for filename in files:
+          yield self.join(dirpath, filename)
+
     try:
-      for f in os.listdir(dir_or_prefix):
-        f = self.join(dir_or_prefix, f)
+      for f in list_files(dir_or_prefix):
         try:
           yield FileMetadata(f, os.path.getsize(f))
         except OSError:
@@ -122,19 +128,28 @@ class LocalFileSystem(FileSystem):
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
-  def _path_open(self, path, mode, mime_type='application/octet-stream',
-                 compression_type=CompressionTypes.AUTO):
+  def _path_open(
+      self,
+      path,
+      mode,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     """Helper functions to open a file in the provided mode.
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
-    raw_file = open(path, mode)
+    raw_file = io.open(path, mode)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     else:
       return CompressedFile(raw_file, compression_type=compression_type)
 
-  def create(self, path, mime_type='application/octet-stream',
-             compression_type=CompressionTypes.AUTO):
+  def create(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
+
     """Returns a write channel for the given file path.
 
     Args:
@@ -144,13 +159,16 @@ class LocalFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
-    parent = os.path.dirname(path)
-    if not os.path.exists(parent):
-      os.makedirs(parent)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     return self._path_open(path, 'wb', mime_type, compression_type)
 
-  def open(self, path, mime_type='application/octet-stream',
-           compression_type=CompressionTypes.AUTO):
+  def open(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
+
     """Returns a read channel for the given file path.
 
     Args:
@@ -170,10 +188,11 @@ class LocalFileSystem(FileSystem):
       destination_file_names: list of destination of the new object
 
     Raises:
-      ``BeamIOError`` if any of the copy operations fail
+      ``BeamIOError``: if any of the copy operations fail
     """
-    err_msg = ("source_file_names and destination_file_names should "
-               "be equal in length")
+    err_msg = (
+        "source_file_names and destination_file_names should "
+        "be equal in length")
     assert len(source_file_names) == len(destination_file_names), err_msg
 
     def _copy_path(source, destination):
@@ -188,10 +207,6 @@ class LocalFileSystem(FileSystem):
         if os.path.isdir(source):
           shutil.copytree(source, destination)
         else:
-          parent = os.path.dirname(destination)
-          if not os.path.exists(parent):
-            os.makedirs(parent)
-
           shutil.copy2(source, destination)
       except OSError as err:
         raise IOError(err)
@@ -215,19 +230,16 @@ class LocalFileSystem(FileSystem):
       destination_file_names: List of destination_file_names for the files
 
     Raises:
-      ``BeamIOError`` if any of the rename operations fail
+      ``BeamIOError``: if any of the rename operations fail
     """
-    err_msg = ("source_file_names and destination_file_names should "
-               "be equal in length")
+    err_msg = (
+        "source_file_names and destination_file_names should "
+        "be equal in length")
     assert len(source_file_names) == len(destination_file_names), err_msg
 
     def _rename_file(source, destination):
       """Rename a single file object"""
       try:
-        parent = os.path.dirname(destination)
-        if not os.path.exists(parent):
-          os.makedirs(parent)
-
         os.rename(source, destination)
       except OSError as err:
         raise IOError(err)
@@ -261,12 +273,27 @@ class LocalFileSystem(FileSystem):
     Returns: int size of path according to the FileSystem.
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     try:
       return os.path.getsize(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Size operation failed", {path: e})
+
+  def last_updated(self, path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+
+    Args:
+      path: string path of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError``: if path doesn't exist.
+    """
+    if not self.exists(path):
+      raise BeamIOError('Path does not exist: %s' % path)
+    return os.path.getmtime(path)
 
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
@@ -278,7 +305,7 @@ class LocalFileSystem(FileSystem):
     Returns: string containing file size.
 
     Raises:
-      ``BeamIOError`` if path isn't a file or doesn't exist.
+      ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     if not self.exists(path):
       raise BeamIOError('Path does not exist: %s' % path)
@@ -292,7 +319,7 @@ class LocalFileSystem(FileSystem):
       paths: list of paths that give the file objects to be deleted
 
     Raises:
-      ``BeamIOError`` if any of the delete operations fail
+      ``BeamIOError``: if any of the delete operations fail
     """
     def _delete_path(path):
       """Recursively delete the file or directory at the provided path.
@@ -306,11 +333,22 @@ class LocalFileSystem(FileSystem):
         raise IOError(err)
 
     exceptions = {}
-    for path in paths:
+
+    def try_delete(path):
       try:
         _delete_path(path)
       except Exception as e:  # pylint: disable=broad-except
         exceptions[path] = e
+
+    for match_result in self.match(paths):
+      metadata_list = match_result.metadata_list
+
+      if not metadata_list:
+        exceptions[match_result.pattern] = \
+          IOError('No files found to delete under: %s' % match_result.pattern)
+
+      for metadata in match_result.metadata_list:
+        try_delete(metadata.path)
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)

@@ -28,14 +28,16 @@ import org.apache.beam.sdk.values.PCollection;
 /** Provides an implementation of {@link GBKIntoKeyedWorkItems} for the Direct Runner. */
 class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
     extends SingleInputOutputOverrideFactory<
-        PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>,
+        PCollection<KV<KeyT, InputT>>,
+        PCollection<KeyedWorkItem<KeyT, InputT>>,
         GBKIntoKeyedWorkItems<KeyT, InputT>> {
   @Override
   public PTransformReplacement<
           PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>,
+                  PCollection<KV<KeyT, InputT>>,
+                  PCollection<KeyedWorkItem<KeyT, InputT>>,
                   GBKIntoKeyedWorkItems<KeyT, InputT>>
               transform) {
     return PTransformReplacement.of(

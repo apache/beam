@@ -16,15 +16,15 @@
 package artifact
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"sync"
 	"testing"
 	"time"
 
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -42,8 +42,8 @@ func startServer(t *testing.T) *grpc.ClientConn {
 	real := &server{m: make(map[string]*manifest)}
 
 	gs := grpc.NewServer()
-	pb.RegisterArtifactStagingServiceServer(gs, real)
-	pb.RegisterArtifactRetrievalServiceServer(gs, real)
+	jobpb.RegisterLegacyArtifactStagingServiceServer(gs, real)
+	jobpb.RegisterLegacyArtifactRetrievalServiceServer(gs, real)
 	go gs.Serve(listener)
 
 	t.Logf("server listening on %v", endpoint)
@@ -56,35 +56,38 @@ func startServer(t *testing.T) *grpc.ClientConn {
 }
 
 type data struct {
-	md     *pb.ArtifactMetadata
+	md     *jobpb.ArtifactMetadata
 	chunks [][]byte
 }
 
 type manifest struct {
-	md *pb.Manifest
+	md *jobpb.Manifest
 	m  map[string]*data // key -> data
 	mu sync.Mutex
 }
 
 // server is a in-memory staging and retrieval artifact server for testing.
 type server struct {
+	jobpb.UnimplementedLegacyArtifactStagingServiceServer
+	jobpb.UnimplementedLegacyArtifactRetrievalServiceServer
+
 	m  map[string]*manifest // token -> manifest
 	mu sync.Mutex
 }
 
-func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) error {
+func (s *server) PutArtifact(ps jobpb.LegacyArtifactStagingService_PutArtifactServer) error {
 	// Read header
 
 	header, err := ps.Recv()
 	if err != nil {
-		return fmt.Errorf("failed to receive header: %v", err)
+		return errors.Wrap(err, "failed to receive header")
 	}
 	if header.GetMetadata() == nil {
-		return fmt.Errorf("expected header as first message: %v", header)
+		return errors.Errorf("expected header as first message: %v", header)
 	}
 	key := header.GetMetadata().GetMetadata().Name
 	if header.GetMetadata().GetStagingSessionToken() == "" {
-		return fmt.Errorf("missing staging session token")
+		return errors.New("missing staging session token")
 	}
 	token := header.GetMetadata().GetStagingSessionToken()
 
@@ -101,10 +104,10 @@ func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) err
 		}
 
 		if msg.GetData() == nil {
-			return fmt.Errorf("expected data: %v", msg)
+			return errors.Errorf("expected data: %v", msg)
 		}
 		if len(msg.GetData().GetData()) == 0 {
-			return fmt.Errorf("expected non-empty data: %v", msg)
+			return errors.Errorf("expected non-empty data: %v", msg)
 		}
 		chunks = append(chunks, msg.GetData().GetData())
 	}
@@ -118,13 +121,13 @@ func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) err
 	m.m[key] = &data{chunks: chunks}
 	m.mu.Unlock()
 
-	return ps.SendAndClose(&pb.PutArtifactResponse{})
+	return ps.SendAndClose(&jobpb.PutArtifactResponse{})
 }
 
-func (s *server) CommitManifest(ctx context.Context, req *pb.CommitManifestRequest) (*pb.CommitManifestResponse, error) {
+func (s *server) CommitManifest(ctx context.Context, req *jobpb.CommitManifestRequest) (*jobpb.CommitManifestResponse, error) {
 	token := req.GetStagingSessionToken()
 	if token == "" {
-		return nil, fmt.Errorf("missing staging session token")
+		return nil, errors.New("missing staging session token")
 	}
 
 	m := s.getManifest(token, true)
@@ -136,7 +139,7 @@ func (s *server) CommitManifest(ctx context.Context, req *pb.CommitManifestReque
 	artifacts := req.GetManifest().GetArtifact()
 	for _, md := range artifacts {
 		if _, ok := m.m[md.Name]; !ok {
-			return nil, fmt.Errorf("artifact %v not staged", md.Name)
+			return nil, errors.Errorf("artifact %v not staged", md.Name)
 		}
 	}
 
@@ -147,34 +150,34 @@ func (s *server) CommitManifest(ctx context.Context, req *pb.CommitManifestReque
 	}
 	m.md = req.GetManifest()
 
-	return &pb.CommitManifestResponse{RetrievalToken: token}, nil
+	return &jobpb.CommitManifestResponse{RetrievalToken: token}, nil
 }
 
-func (s *server) GetManifest(ctx context.Context, req *pb.GetManifestRequest) (*pb.GetManifestResponse, error) {
+func (s *server) GetManifest(ctx context.Context, req *jobpb.GetManifestRequest) (*jobpb.GetManifestResponse, error) {
 	token := req.GetRetrievalToken()
 	if token == "" {
-		return nil, fmt.Errorf("missing retrieval token")
+		return nil, errors.New("missing retrieval token")
 	}
 
 	m := s.getManifest(token, false)
 	if m == nil || m.md == nil {
-		return nil, fmt.Errorf("manifest for %v not found", token)
+		return nil, errors.Errorf("manifest for %v not found", token)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return &pb.GetManifestResponse{Manifest: m.md}, nil
+	return &jobpb.GetManifestResponse{Manifest: m.md}, nil
 }
 
-func (s *server) GetArtifact(req *pb.GetArtifactRequest, stream pb.ArtifactRetrievalService_GetArtifactServer) error {
+func (s *server) GetArtifact(req *jobpb.LegacyGetArtifactRequest, stream jobpb.LegacyArtifactRetrievalService_GetArtifactServer) error {
 	token := req.GetRetrievalToken()
 	if token == "" {
-		return fmt.Errorf("missing retrieval token")
+		return errors.New("missing retrieval token")
 	}
 
 	m := s.getManifest(token, false)
 	if m == nil || m.md == nil {
-		return fmt.Errorf("manifest for %v not found", token)
+		return errors.Errorf("manifest for %v not found", token)
 	}
 
 	// Validate artifact and grab chunks so that we can stream them without
@@ -184,7 +187,7 @@ func (s *server) GetArtifact(req *pb.GetArtifactRequest, stream pb.ArtifactRetri
 	elm, ok := m.m[req.GetName()]
 	if !ok || elm.md == nil {
 		m.mu.Unlock()
-		return fmt.Errorf("manifest for %v does not contain artifact %v", token, req.GetName())
+		return errors.Errorf("manifest for %v does not contain artifact %v", token, req.GetName())
 	}
 	chunks := elm.chunks
 	m.mu.Unlock()
@@ -192,7 +195,7 @@ func (s *server) GetArtifact(req *pb.GetArtifactRequest, stream pb.ArtifactRetri
 	// Send chunks exactly as we received them.
 
 	for _, chunk := range chunks {
-		if err := stream.Send(&pb.ArtifactChunk{Data: chunk}); err != nil {
+		if err := stream.Send(&jobpb.ArtifactChunk{Data: chunk}); err != nil {
 			return err
 		}
 	}

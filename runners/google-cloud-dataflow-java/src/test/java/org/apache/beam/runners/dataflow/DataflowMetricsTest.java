@@ -37,9 +37,6 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
-import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.math.BigDecimal;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -50,6 +47,9 @@ import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -59,6 +59,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DataflowMetrics}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class DataflowMetricsTest {
   private static final String PROJECT_ID = "some-project";
   private static final String JOB_ID = "1234";
@@ -105,7 +108,7 @@ public class DataflowMetricsTest {
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     assertThat(ImmutableList.copyOf(result.getCounters()), is(empty()));
     assertThat(ImmutableList.copyOf(result.getDistributions()), is(empty()));
   }
@@ -129,9 +132,9 @@ public class DataflowMetricsTest {
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     verify(dataflowClient, times(0)).getJobMetrics(JOB_ID);
-    dataflowMetrics.queryMetrics(null);
+    dataflowMetrics.allMetrics();
     verify(dataflowClient, times(1)).getJobMetrics(JOB_ID);
-    dataflowMetrics.queryMetrics(null);
+    dataflowMetrics.allMetrics();
     verify(dataflowClient, times(1)).getJobMetrics(JOB_ID);
   }
 
@@ -140,7 +143,7 @@ public class DataflowMetricsTest {
     MetricStructuredName structuredName = new MetricStructuredName();
     structuredName.setName(name);
     structuredName.setOrigin("user");
-    ImmutableMap.Builder contextBuilder = new ImmutableMap.Builder<String, String>();
+    ImmutableMap.Builder contextBuilder = new ImmutableMap.Builder<>();
     contextBuilder.put("step", step).put("namespace", namespace);
     if (tentative) {
       contextBuilder.put("tentative", "true");
@@ -207,7 +210,7 @@ public class DataflowMetricsTest {
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     assertThat(
         result.getCounters(),
         containsInAnyOrder(
@@ -245,7 +248,7 @@ public class DataflowMetricsTest {
             makeCounterMetricUpdate("otherCounter[MIN]", "otherNamespace", "s2", 0L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     assertThat(
         result.getCounters(),
         containsInAnyOrder(
@@ -283,7 +286,7 @@ public class DataflowMetricsTest {
                 "distributionName", "distributionNamespace", "s2", 18L, 2L, 2L, 16L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     assertThat(
         result.getDistributions(),
         contains(
@@ -329,7 +332,7 @@ public class DataflowMetricsTest {
                 "distributionName", "distributionNamespace", "s2", 18L, 2L, 2L, 16L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     try {
       result.getDistributions().iterator().next().getCommitted();
       fail("Expected UnsupportedOperationException");
@@ -388,7 +391,7 @@ public class DataflowMetricsTest {
             makeCounterMetricUpdate("lostName", "otherNamespace", "s5", 1200L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     assertThat(
         result.getCounters(),
         containsInAnyOrder(
@@ -438,7 +441,7 @@ public class DataflowMetricsTest {
             makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1233L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
     try {
       result.getCounters().iterator().next().getCommitted();
       fail("Expected UnsupportedOperationException");

@@ -42,6 +42,9 @@ public interface StateBinder {
       Coder<KeyT> mapKeyCoder,
       Coder<ValueT> mapValueCoder);
 
+  <T> OrderedListState<T> bindOrderedList(
+      String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder);
+
   <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombining(
       String id,
       StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,

@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Graph represents an in-progress deferred execution graph and is easily
@@ -87,7 +88,7 @@ func (g *Graph) Build() ([]*MultiEdge, []*Node, error) {
 	for _, n := range g.nodes {
 		nodes[n] = true
 		if n.Coder == nil {
-			return nil, nil, fmt.Errorf("node %v in graph has undefined coder", n.id)
+			return nil, nil, errors.Errorf("node %v in graph has undefined coder", n.id)
 		}
 	}
 	// Build a map of all nodes that are reachable by g.edges.
@@ -102,12 +103,12 @@ func (g *Graph) Build() ([]*MultiEdge, []*Node, error) {
 	}
 	for n := range nodes {
 		if _, ok := reachable[n]; !ok {
-			return nil, nil, fmt.Errorf("node %v in graph is unconnected", n.id)
+			return nil, nil, errors.Errorf("node %v in graph is unconnected", n.id)
 		}
 	}
 	for n, e := range reachable {
 		if _, ok := nodes[n]; !ok {
-			return nil, nil, fmt.Errorf("node %v is reachable by edge %v, but it's not in same graph", n.id, e.id)
+			return nil, nil, errors.Errorf("node %v is reachable by edge %v, but it's not in same graph", n.id, e.id)
 		}
 	}
 	return g.edges, g.nodes, nil

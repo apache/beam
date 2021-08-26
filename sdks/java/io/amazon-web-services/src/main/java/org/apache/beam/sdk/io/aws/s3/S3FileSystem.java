@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
@@ -43,22 +42,13 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -70,15 +60,36 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * {@link FileSystem} implementation for storage systems that use the S3 protocol.
+ *
+ * @see S3FileSystemSchemeRegistrar
+ */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class S3FileSystem extends FileSystem<S3ResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3FileSystem.class);
@@ -94,58 +105,40 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       ImmutableSet.of("gzip");
 
   // Non-final for testing.
-  private AmazonS3 amazonS3;
-  private final S3Options options;
+  private Supplier<AmazonS3> amazonS3;
+  private final S3FileSystemConfiguration config;
   private final ListeningExecutorService executorService;
 
-  S3FileSystem(S3Options options) {
-    this.options = checkNotNull(options, "options");
-    if (Strings.isNullOrEmpty(options.getAwsRegion())) {
-      LOG.info(
-          "The AWS S3 Beam extension was included in this build, but the awsRegion flag "
-              + "was not specified. If you don't plan to use S3, then ignore this message.");
-    }
-    this.amazonS3 = buildAmazonS3Client(options);
+  S3FileSystem(S3FileSystemConfiguration config) {
+    this.config = checkNotNull(config, "config");
+    // The Supplier is to make sure we don't call .build() unless we are actually using S3.
+    amazonS3 = Suppliers.memoize(config.getS3ClientBuilder()::build);
 
-    checkNotNull(options.getS3StorageClass(), "storageClass");
-    checkArgument(options.getS3ThreadPoolSize() > 0, "threadPoolSize");
+    checkNotNull(config.getS3StorageClass(), "storageClass");
+    checkArgument(config.getS3ThreadPoolSize() > 0, "threadPoolSize");
     executorService =
         MoreExecutors.listeningDecorator(
             Executors.newFixedThreadPool(
-                options.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
+                config.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
   }
 
-  private static AmazonS3 buildAmazonS3Client(S3Options options) {
-    AmazonS3ClientBuilder builder =
-        AmazonS3ClientBuilder.standard().withCredentials(options.getAwsCredentialsProvider());
-
-    if (options.getClientConfiguration() != null) {
-      builder = builder.withClientConfiguration(options.getClientConfiguration());
-    }
-
-    if (Strings.isNullOrEmpty(options.getAwsServiceEndpoint())) {
-      builder = builder.withRegion(options.getAwsRegion());
-    } else {
-      builder =
-          builder.withEndpointConfiguration(
-              new EndpointConfiguration(options.getAwsServiceEndpoint(), options.getAwsRegion()));
-    }
-    return builder.build();
+  S3FileSystem(S3Options options) {
+    this(S3FileSystemConfiguration.fromS3Options(options).build());
   }
 
   @Override
   protected String getScheme() {
-    return S3ResourceId.SCHEME;
+    return config.getScheme();
   }
 
   @VisibleForTesting
   void setAmazonS3Client(AmazonS3 amazonS3) {
-    this.amazonS3 = amazonS3;
+    this.amazonS3 = Suppliers.ofInstance(amazonS3);
   }
 
   @VisibleForTesting
   AmazonS3 getAmazonS3Client() {
-    return this.amazonS3;
+    return this.amazonS3.get();
   }
 
   @Override
@@ -172,15 +165,23 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     ImmutableList.Builder<MatchResult> matchResults = ImmutableList.builder();
     for (Boolean isGlob : isGlobBooleans) {
       if (isGlob) {
-        checkState(globMatches.hasNext(), "Expect globMatches has next.");
+        checkState(
+            globMatches.hasNext(),
+            "Internal error encountered in S3Filesystem: expected more elements in globMatches.");
         matchResults.add(globMatches.next());
       } else {
-        checkState(nonGlobMatches.hasNext(), "Expect nonGlobMatches has next.");
+        checkState(
+            nonGlobMatches.hasNext(),
+            "Internal error encountered in S3Filesystem: expected more elements in nonGlobMatches.");
         matchResults.add(nonGlobMatches.next());
       }
     }
-    checkState(!globMatches.hasNext(), "Expect no more elements in globMatches.");
-    checkState(!nonGlobMatches.hasNext(), "Expect no more elements in nonGlobMatches.");
+    checkState(
+        !globMatches.hasNext(),
+        "Internal error encountered in S3Filesystem: expected no more elements in globMatches.");
+    checkState(
+        !nonGlobMatches.hasNext(),
+        "Internal error encountered in S3Filesystem: expected no more elements in nonGlobMatches.");
 
     return matchResults.build();
   }
@@ -226,9 +227,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             exception = pathWithEncoding.getException();
             break;
           } else {
+            // TODO(BEAM-11821): Support file checksum in this method.
             metadatas.add(
                 createBeamMetadata(
-                    pathWithEncoding.getPath(), pathWithEncoding.getContentEncoding()));
+                    pathWithEncoding.getPath(), pathWithEncoding.getContentEncoding(), null));
           }
         }
 
@@ -252,11 +254,9 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
     abstract S3ResourceId getGlobPath();
 
-    @Nullable
-    abstract List<S3ResourceId> getExpandedPaths();
+    abstract @Nullable List<S3ResourceId> getExpandedPaths();
 
-    @Nullable
-    abstract IOException getException();
+    abstract @Nullable IOException getException();
 
     static ExpandedGlob create(S3ResourceId globPath, List<S3ResourceId> expandedPaths) {
       checkNotNull(globPath, "globPath");
@@ -276,11 +276,9 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
     abstract S3ResourceId getPath();
 
-    @Nullable
-    abstract String getContentEncoding();
+    abstract @Nullable String getContentEncoding();
 
-    @Nullable
-    abstract IOException getException();
+    abstract @Nullable IOException getException();
 
     static PathWithEncoding create(S3ResourceId path, String contentEncoding) {
       checkNotNull(path, "path");
@@ -320,7 +318,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
               .withContinuationToken(continuationToken);
       ListObjectsV2Result result;
       try {
-        result = amazonS3.listObjectsV2(request);
+        result = amazonS3.get().listObjectsV2(request);
       } catch (AmazonClientException e) {
         return ExpandedGlob.create(glob, new IOException(e));
       }
@@ -330,8 +328,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         // Filter against regex.
         if (wildcardRegexp.matcher(objectSummary.getKey()).matches()) {
           S3ResourceId expandedPath =
-              S3ResourceId.fromComponents(objectSummary.getBucketName(), objectSummary.getKey())
-                  .withSize(objectSummary.getSize());
+              S3ResourceId.fromComponents(
+                      glob.getScheme(), objectSummary.getBucketName(), objectSummary.getKey())
+                  .withSize(objectSummary.getSize())
+                  .withLastModified(objectSummary.getLastModified());
           LOG.debug("Expanded S3 object path {}", expandedPath);
           expandedPaths.add(expandedPath);
         }
@@ -366,8 +366,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   private ObjectMetadata getObjectMetadata(S3ResourceId s3ResourceId) throws AmazonClientException {
     GetObjectMetadataRequest request =
         new GetObjectMetadataRequest(s3ResourceId.getBucket(), s3ResourceId.getKey());
-    request.setSSECustomerKey(options.getSSECustomerKey());
-    return amazonS3.getObjectMetadata(request);
+    request.setSSECustomerKey(config.getSSECustomerKey());
+    return amazonS3.get().getObjectMetadata(request);
   }
 
   @VisibleForTesting
@@ -386,93 +386,39 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         MatchResult.Status.OK,
         ImmutableList.of(
             createBeamMetadata(
-                path.withSize(s3Metadata.getContentLength()),
-                Strings.nullToEmpty(s3Metadata.getContentEncoding()))));
+                path.withSize(s3Metadata.getContentLength())
+                    .withLastModified(s3Metadata.getLastModified()),
+                Strings.nullToEmpty(s3Metadata.getContentEncoding()),
+                s3Metadata.getETag())));
   }
 
   private static MatchResult.Metadata createBeamMetadata(
-      S3ResourceId path, String contentEncoding) {
-    checkArgument(path.getSize().isPresent(), "path has size");
+      S3ResourceId path, String contentEncoding, String eTag) {
+    checkArgument(path.getSize().isPresent(), "The resource id should have a size.");
     checkNotNull(contentEncoding, "contentEncoding");
     boolean isReadSeekEfficient = !NON_READ_SEEK_EFFICIENT_ENCODINGS.contains(contentEncoding);
-    return MatchResult.Metadata.builder()
-        .setIsReadSeekEfficient(isReadSeekEfficient)
-        .setResourceId(path)
-        .setSizeBytes(path.getSize().get())
-        .build();
-  }
 
-  /**
-   * Expands glob expressions to regular expressions.
-   *
-   * @param globExp the glob expression to expand
-   * @return a string with the regular expression this glob expands to
-   */
-  @VisibleForTesting
-  static String wildcardToRegexp(String globExp) {
-    StringBuilder dst = new StringBuilder();
-    char[] src = globExp.replace("**/*", "**").toCharArray();
-    int i = 0;
-    while (i < src.length) {
-      char c = src[i++];
-      switch (c) {
-        case '*':
-          // One char lookahead for **
-          if (i < src.length && src[i] == '*') {
-            dst.append(".*");
-            ++i;
-          } else {
-            dst.append("[^/]*");
-          }
-          break;
-        case '?':
-          dst.append("[^/]");
-          break;
-        case '.':
-        case '+':
-        case '{':
-        case '}':
-        case '(':
-        case ')':
-        case '|':
-        case '^':
-        case '$':
-          // These need to be escaped in regular expressions
-          dst.append('\\').append(c);
-          break;
-        case '\\':
-          i = doubleSlashes(dst, src, i);
-          break;
-        default:
-          dst.append(c);
-          break;
-      }
+    MatchResult.Metadata.Builder ret =
+        MatchResult.Metadata.builder()
+            .setIsReadSeekEfficient(isReadSeekEfficient)
+            .setResourceId(path)
+            .setSizeBytes(path.getSize().get())
+            .setLastModifiedMillis(path.getLastModified().transform(Date::getTime).or(0L));
+    if (eTag != null) {
+      ret.setChecksum(eTag);
     }
-    return dst.toString();
-  }
-
-  private static int doubleSlashes(StringBuilder dst, char[] src, int i) {
-    // Emit the next character without special interpretation
-    dst.append("\\\\");
-    if ((i - 1) != src.length) {
-      dst.append(src[i]);
-      i++;
-    } else {
-      // A backslash at the very end is treated like an escaped backslash
-      dst.append('\\');
-    }
-    return i;
+    return ret.build();
   }
 
   @Override
   protected WritableByteChannel create(S3ResourceId resourceId, CreateOptions createOptions)
       throws IOException {
-    return new S3WritableByteChannel(amazonS3, resourceId, createOptions.mimeType(), options);
+    return new S3WritableByteChannel(amazonS3.get(), resourceId, createOptions.mimeType(), config);
   }
 
   @Override
   protected ReadableByteChannel open(S3ResourceId resourceId) throws IOException {
-    return new S3ReadableSeekableByteChannel(amazonS3, resourceId, options);
+    return new S3ReadableSeekableByteChannel(amazonS3.get(), resourceId, config);
   }
 
   @Override
@@ -525,10 +471,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             destinationPath.getBucket(),
             destinationPath.getKey());
     copyObjectRequest.setNewObjectMetadata(sourceObjectMetadata);
-    copyObjectRequest.setStorageClass(options.getS3StorageClass());
-    copyObjectRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
-    copyObjectRequest.setDestinationSSECustomerKey(options.getSSECustomerKey());
-    return amazonS3.copyObject(copyObjectRequest);
+    copyObjectRequest.setStorageClass(config.getS3StorageClass());
+    copyObjectRequest.setSourceSSECustomerKey(config.getSSECustomerKey());
+    copyObjectRequest.setDestinationSSECustomerKey(config.getSSECustomerKey());
+    return amazonS3.get().copyObject(copyObjectRequest);
   }
 
   @VisibleForTesting
@@ -537,12 +483,12 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       throws AmazonClientException {
     InitiateMultipartUploadRequest initiateUploadRequest =
         new InitiateMultipartUploadRequest(destinationPath.getBucket(), destinationPath.getKey())
-            .withStorageClass(options.getS3StorageClass())
+            .withStorageClass(config.getS3StorageClass())
             .withObjectMetadata(sourceObjectMetadata);
-    initiateUploadRequest.setSSECustomerKey(options.getSSECustomerKey());
+    initiateUploadRequest.setSSECustomerKey(config.getSSECustomerKey());
 
     InitiateMultipartUploadResult initiateUploadResult =
-        amazonS3.initiateMultipartUpload(initiateUploadRequest);
+        amazonS3.get().initiateMultipartUpload(initiateUploadRequest);
     final String uploadId = initiateUploadResult.getUploadId();
 
     List<PartETag> eTags = new ArrayList<>();
@@ -559,14 +505,14 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
               .withDestinationKey(destinationPath.getKey())
               .withUploadId(uploadId)
               .withPartNumber(1);
-      copyPartRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
-      copyPartRequest.setDestinationSSECustomerKey(options.getSSECustomerKey());
+      copyPartRequest.setSourceSSECustomerKey(config.getSSECustomerKey());
+      copyPartRequest.setDestinationSSECustomerKey(config.getSSECustomerKey());
 
-      CopyPartResult copyPartResult = amazonS3.copyPart(copyPartRequest);
+      CopyPartResult copyPartResult = amazonS3.get().copyPart(copyPartRequest);
       eTags.add(copyPartResult.getPartETag());
     } else {
       long bytePosition = 0;
-      Integer uploadBufferSizeBytes = options.getS3UploadBufferSizeBytes();
+      Integer uploadBufferSizeBytes = config.getS3UploadBufferSizeBytes();
       // Amazon parts are 1-indexed, not zero-indexed.
       for (int partNumber = 1; bytePosition < objectSize; partNumber++) {
         final CopyPartRequest copyPartRequest =
@@ -579,10 +525,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
                 .withPartNumber(partNumber)
                 .withFirstByte(bytePosition)
                 .withLastByte(Math.min(objectSize - 1, bytePosition + uploadBufferSizeBytes - 1));
-        copyPartRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
-        copyPartRequest.setDestinationSSECustomerKey(options.getSSECustomerKey());
+        copyPartRequest.setSourceSSECustomerKey(config.getSSECustomerKey());
+        copyPartRequest.setDestinationSSECustomerKey(config.getSSECustomerKey());
 
-        CopyPartResult copyPartResult = amazonS3.copyPart(copyPartRequest);
+        CopyPartResult copyPartResult = amazonS3.get().copyPart(copyPartRequest);
         eTags.add(copyPartResult.getPartETag());
 
         bytePosition += uploadBufferSizeBytes;
@@ -595,13 +541,18 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             .withKey(destinationPath.getKey())
             .withUploadId(uploadId)
             .withPartETags(eTags);
-    return amazonS3.completeMultipartUpload(completeUploadRequest);
+    return amazonS3.get().completeMultipartUpload(completeUploadRequest);
   }
 
   @Override
   protected void rename(
-      List<S3ResourceId> sourceResourceIds, List<S3ResourceId> destinationResourceIds)
+      List<S3ResourceId> sourceResourceIds,
+      List<S3ResourceId> destinationResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
+    if (moveOptions.length > 0) {
+      throw new UnsupportedOperationException("Support for move options is not yet implemented.");
+    }
     copy(sourceResourceIds, destinationResourceIds);
     delete(sourceResourceIds);
   }
@@ -609,8 +560,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @Override
   protected void delete(Collection<S3ResourceId> resourceIds) throws IOException {
     List<S3ResourceId> nonDirectoryPaths =
-        resourceIds
-            .stream()
+        resourceIds.stream()
             .filter(s3ResourceId -> !s3ResourceId.isDirectory())
             .collect(Collectors.toList());
     Multimap<String, String> keysByBucket = ArrayListMultimap.create();
@@ -643,7 +593,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         keys.stream().map(KeyVersion::new).collect(Collectors.toList());
     DeleteObjectsRequest request = new DeleteObjectsRequest(bucket).withKeys(deleteKeyVersions);
     try {
-      amazonS3.deleteObjects(request);
+      amazonS3.get().deleteObjects(request);
     } catch (AmazonClientException e) {
       throw new IOException(e);
     }
@@ -681,7 +631,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     } catch (ExecutionException e) {
       if (e.getCause() != null) {
         if (e.getCause() instanceof IOException) {
-          throw ((IOException) e.getCause());
+          throw (IOException) e.getCause();
         }
         throw new IOException(e.getCause());
       }

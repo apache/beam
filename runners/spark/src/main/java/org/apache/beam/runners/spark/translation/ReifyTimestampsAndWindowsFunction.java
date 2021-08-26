@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.sdk.util.WindowedValue;
@@ -28,20 +27,12 @@ import org.apache.spark.api.java.function.Function;
  * background representation of the {@link PCollection}.
  */
 public class ReifyTimestampsAndWindowsFunction<K, V>
-    implements Function<WindowedValue<KV<K, V>>, WindowedValue<KV<K, WindowedValue<V>>>> {
+    implements Function<WindowedValue<KV<K, V>>, KV<K, WindowedValue<V>>> {
   @Override
-  public WindowedValue<KV<K, WindowedValue<V>>> call(WindowedValue<KV<K, V>> elem)
-      throws Exception {
-    return WindowedValue.of(
-        KV.of(
-            elem.getValue().getKey(),
-            WindowedValue.of(
-                elem.getValue().getValue(),
-                elem.getTimestamp(),
-                elem.getWindows(),
-                elem.getPane())),
-        elem.getTimestamp(),
-        elem.getWindows(),
-        elem.getPane());
+  public KV<K, WindowedValue<V>> call(WindowedValue<KV<K, V>> elem) throws Exception {
+    return KV.of(
+        elem.getValue().getKey(),
+        WindowedValue.of(
+            elem.getValue().getValue(), elem.getTimestamp(), elem.getWindows(), elem.getPane()));
   }
 }

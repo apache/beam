@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.common;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Pipeline options for all file based IOITs. */
 public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
@@ -35,4 +36,28 @@ public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
   String getCompressionType();
 
   void setCompressionType(String compressionType);
+
+  @Description("Number of files this test will create during the write phase.")
+  @Nullable
+  Integer getNumberOfShards();
+
+  void setNumberOfShards(@Nullable Integer value);
+
+  @Description("Option to report GCS performance metrics")
+  @Default.Boolean(false)
+  boolean getReportGcsPerformanceMetrics();
+
+  void setReportGcsPerformanceMetrics(boolean performanceMetrics);
+
+  @Validation.Required
+  @Description(
+      "Precomputed hashcode to assert IO test pipeline content identity after writing and reading back the dataset")
+  String getExpectedHash();
+
+  void setExpectedHash(String hash);
+
+  @Description("Size of data saved on the target filesystem (bytes)")
+  Integer getDatasetSize();
+
+  void setDatasetSize(Integer size);
 }

@@ -22,32 +22,30 @@ import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle',
-  'Run Dataflow ValidatesRunner', 'Google Cloud Dataflow Runner ValidatesRunner Tests', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow',
+    'Run Dataflow ValidatesRunner', 'Google Cloud Dataflow Runner ValidatesRunner Tests (streaming/batch auto)', this) {
 
-  description('Runs the ValidatesRunner suite on the Dataflow runner.')
-  previousNames('beam_PostCommit_Java_ValidatesRunner_Dataflow')
-  previousNames('beam_PostCommit_Java_RunnableOnService_Dataflow')
+      description('Runs the ValidatesRunner suite on the Dataflow runner.')
 
-  // Set common parameters. Sets a 3 hour timeout.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 300)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 420)
+      previousNames(/beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle/)
 
-  // Publish all test results to Jenkins
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+      // Publish all test results to Jenkins
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+      }
 
-  // Gradle goals for this job.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-runners-google-cloud-dataflow-java:validatesRunner')
-      // Increase parallel worker threads above processor limit since most time is
-      // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
-      // because each one launches a Dataflow job with about 3 mins of overhead.
-      // 3 x num_cores strikes a good balance between maxing out parallelism without
-      // overloading the machines.
-      commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+      // Gradle goals for this job.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:google-cloud-dataflow-java:validatesRunner')
+          // Increase parallel worker threads above processor limit since most time is
+          // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
+          // because each one launches a Dataflow job with about 3 mins of overhead.
+          // 3 x num_cores strikes a good balance between maxing out parallelism without
+          // overloading the machines.
+          commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+        }
+      }
     }
-  }
-}

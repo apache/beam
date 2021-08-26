@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -31,6 +31,9 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.Window.OnTimeBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -42,12 +45,21 @@ import org.joda.time.Duration;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this {@code
  *     WindowingStrategy}
  */
+@Internal
 public class WindowingStrategy<T, W extends BoundedWindow> implements Serializable {
 
-  /** The accumulation modes that can be used with windowing. */
+  /**
+   * The accumulation modes that can be used with windowing.
+   *
+   * <p>Experimental {@link AccumulationMode.RETRACTING_FIRED_PANES} for enabling retractions in
+   * pipelines. There is no backwards-compatibility guarantees.
+   */
   public enum AccumulationMode {
     DISCARDING_FIRED_PANES,
-    ACCUMULATING_FIRED_PANES
+    ACCUMULATING_FIRED_PANES,
+    // RETRACTING_FIRED_PANES is experimental. There is no backwards-compatibility guarantees.
+    @Experimental
+    RETRACTING_FIRED_PANES,
   }
 
   private static final Duration DEFAULT_ALLOWED_LATENESS = Duration.ZERO;
@@ -60,6 +72,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   private final ClosingBehavior closingBehavior;
   private final OnTimeBehavior onTimeBehavior;
   private final TimestampCombiner timestampCombiner;
+  private final String environmentId;
+  private final boolean alreadyMerged;
   private final boolean triggerSpecified;
   private final boolean modeSpecified;
   private final boolean allowedLatenessSpecified;
@@ -76,7 +90,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
       TimestampCombiner timestampCombiner,
       boolean timestampCombinerSpecified,
       ClosingBehavior closingBehavior,
-      OnTimeBehavior onTimeBehavior) {
+      OnTimeBehavior onTimeBehavior,
+      String environmentId,
+      boolean alreadyMerged) {
     this.windowFn = windowFn;
     this.trigger = trigger;
     this.triggerSpecified = triggerSpecified;
@@ -88,6 +104,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     this.onTimeBehavior = onTimeBehavior;
     this.timestampCombiner = timestampCombiner;
     this.timestampCombinerSpecified = timestampCombinerSpecified;
+    this.environmentId = environmentId;
+    this.alreadyMerged = alreadyMerged;
   }
 
   /** Return a fully specified, default windowing strategy. */
@@ -107,7 +125,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         TimestampCombiner.END_OF_WINDOW,
         false,
         ClosingBehavior.FIRE_IF_NON_EMPTY,
-        OnTimeBehavior.FIRE_ALWAYS);
+        OnTimeBehavior.FIRE_ALWAYS,
+        "",
+        false);
   }
 
   public WindowFn<T, W> getWindowFn() {
@@ -138,6 +158,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return modeSpecified;
   }
 
+  public boolean isAlreadyMerged() {
+    return alreadyMerged;
+  }
+
+  public boolean needsMerge() {
+    return !getWindowFn().isNonMerging() && !isAlreadyMerged();
+  }
+
   public ClosingBehavior getClosingBehavior() {
     return closingBehavior;
   }
@@ -152,6 +180,10 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   public boolean isTimestampCombinerSpecified() {
     return timestampCombinerSpecified;
+  }
+
+  public String getEnvironmentId() {
+    return environmentId;
   }
 
   /**
@@ -170,7 +202,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombiner,
         timestampCombinerSpecified,
         closingBehavior,
-        onTimeBehavior);
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
   }
 
   /**
@@ -189,7 +223,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombiner,
         timestampCombinerSpecified,
         closingBehavior,
-        onTimeBehavior);
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
   }
 
   /**
@@ -211,7 +247,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombiner,
         timestampCombinerSpecified,
         closingBehavior,
-        onTimeBehavior);
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
   }
 
   /**
@@ -230,7 +268,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombiner,
         timestampCombinerSpecified,
         closingBehavior,
-        onTimeBehavior);
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
   }
 
   public WindowingStrategy<T, W> withClosingBehavior(ClosingBehavior closingBehavior) {
@@ -245,7 +285,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombiner,
         timestampCombinerSpecified,
         closingBehavior,
-        onTimeBehavior);
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
   }
 
   public WindowingStrategy<T, W> withOnTimeBehavior(OnTimeBehavior onTimeBehavior) {
@@ -260,10 +302,12 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombiner,
         timestampCombinerSpecified,
         closingBehavior,
-        onTimeBehavior);
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
   }
 
-  @Experimental(Experimental.Kind.OUTPUT_TIME)
+  @Experimental(Kind.OUTPUT_TIME)
   public WindowingStrategy<T, W> withTimestampCombiner(TimestampCombiner timestampCombiner) {
 
     return new WindowingStrategy<>(
@@ -277,7 +321,43 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombiner,
         true,
         closingBehavior,
-        onTimeBehavior);
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
+  }
+
+  public WindowingStrategy<T, W> withEnvironmentId(String environmentId) {
+    return new WindowingStrategy<>(
+        windowFn,
+        trigger,
+        triggerSpecified,
+        mode,
+        modeSpecified,
+        allowedLateness,
+        allowedLatenessSpecified,
+        timestampCombiner,
+        timestampCombinerSpecified,
+        closingBehavior,
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
+  }
+
+  public WindowingStrategy<T, W> withAlreadyMerged(boolean alreadyMerged) {
+    return new WindowingStrategy<>(
+        windowFn,
+        trigger,
+        triggerSpecified,
+        mode,
+        modeSpecified,
+        allowedLateness,
+        allowedLatenessSpecified,
+        timestampCombiner,
+        timestampCombinerSpecified,
+        closingBehavior,
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
   }
 
   @Override
@@ -288,11 +368,13 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         .add("trigger", trigger)
         .add("accumulationMode", mode)
         .add("timestampCombiner", timestampCombiner)
+        .add("environmentId", environmentId)
+        .add("alreadyMerged", alreadyMerged)
         .toString();
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (!(object instanceof WindowingStrategy)) {
       return false;
     }
@@ -300,13 +382,15 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return isAllowedLatenessSpecified() == other.isAllowedLatenessSpecified()
         && isModeSpecified() == other.isModeSpecified()
         && isTimestampCombinerSpecified() == other.isTimestampCombinerSpecified()
+        && isAlreadyMerged() == other.isAlreadyMerged()
         && getMode().equals(other.getMode())
         && getAllowedLateness().equals(other.getAllowedLateness())
         && getClosingBehavior().equals(other.getClosingBehavior())
         && getOnTimeBehavior().equals(other.getOnTimeBehavior())
         && getTrigger().equals(other.getTrigger())
         && getTimestampCombiner().equals(other.getTimestampCombiner())
-        && getWindowFn().equals(other.getWindowFn());
+        && getWindowFn().equals(other.getWindowFn())
+        && getEnvironmentId().equals(other.getEnvironmentId());
   }
 
   @Override
@@ -320,7 +404,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         closingBehavior,
         trigger,
         timestampCombiner,
-        windowFn);
+        windowFn,
+        environmentId,
+        alreadyMerged);
   }
 
   /**
@@ -340,6 +426,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombiner,
         true,
         closingBehavior,
-        onTimeBehavior);
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
   }
 }

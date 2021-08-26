@@ -18,9 +18,8 @@ package grpcx
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -34,10 +33,10 @@ func ReadWorkerID(ctx context.Context) (string, error) {
 	}
 	id, ok := md[idKey]
 	if !ok || len(id) < 1 {
-		return "", fmt.Errorf("failed to find worker id in metadata %v", md)
+		return "", errors.Errorf("failed to find worker id in metadata %v", md)
 	}
 	if len(id) > 1 {
-		return "", fmt.Errorf("multiple worker ids in metadata: %v", id)
+		return "", errors.Errorf("multiple worker ids in metadata: %v", id)
 	}
 	return id[0], nil
 }

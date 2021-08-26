@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.data;
 
 import com.google.auto.value.AutoValue;
@@ -28,11 +27,11 @@ import org.apache.beam.sdk.coders.Coder;
  */
 @AutoValue
 public abstract class RemoteInputDestination<T> {
-  public static <T> RemoteInputDestination<T> of(Coder<T> coder, BeamFnApi.Target target) {
-    return new AutoValue_RemoteInputDestination<>(coder, target);
+  public static <T> RemoteInputDestination<T> of(Coder<T> coder, String ptransformId) {
+    return new AutoValue_RemoteInputDestination<>(coder, ptransformId);
   }
 
   public abstract Coder<T> getCoder();
 
-  public abstract BeamFnApi.Target getTarget();
+  public abstract String getPTransformId();
 }

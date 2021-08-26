@@ -15,16 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.runtime;
 
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
- * Actual message type used in Samza {@link org.apache.samza.operators.StreamGraph}. It contains
- * either an element of main inputs or the collection results from a view (used as side input).
+ * Actual message type used in Samza {@link org.apache.samza.application.StreamApplication}. It
+ * contains either an element of main inputs or the collection results from a view (used as side
+ * input).
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class OpMessage<T> {
   /**
    * Type of the element(s) in the message.
@@ -103,7 +107,7 @@ public class OpMessage<T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

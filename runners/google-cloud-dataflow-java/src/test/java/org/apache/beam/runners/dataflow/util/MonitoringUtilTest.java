@@ -104,13 +104,13 @@ public class MonitoringUtilTest {
   }
 
   @Test
-  public void testToStateWithNullReturnsUnknown() {
-    assertEquals(State.UNKNOWN, MonitoringUtil.toState(null));
+  public void testToStateWithNullReturnsUnrecognized() {
+    assertEquals(State.UNRECOGNIZED, MonitoringUtil.toState(null));
   }
 
   @Test
   public void testToStateWithOtherValueReturnsUnknown() {
-    assertEquals(State.UNKNOWN, MonitoringUtil.toState("FOO_BAR_BAZ"));
+    assertEquals(State.UNRECOGNIZED, MonitoringUtil.toState("FOO_BAR_BAZ"));
   }
 
   @Test

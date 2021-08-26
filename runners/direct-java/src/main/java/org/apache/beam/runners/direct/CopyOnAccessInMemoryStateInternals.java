@@ -17,17 +17,16 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
-import javax.annotation.Nullable;
+import java.util.Optional;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryBag;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryCombiningState;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryMap;
+import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryOrderedList;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemorySet;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryState;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryStateBinder;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
@@ -53,6 +53,8 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -60,6 +62,10 @@ import org.joda.time.Instant;
  * of {@link InMemoryState}. Whenever state that exists in the underlying {@link StateTable} is
  * accessed, an independent copy will be created within this table.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
   private final CopyOnAccessInMemoryStateTable table;
 
@@ -162,9 +168,9 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
     private Optional<Instant> earliestWatermarkHold;
 
     public CopyOnAccessInMemoryStateTable(StateTable underlying) {
-      this.underlying = Optional.fromNullable(underlying);
+      this.underlying = Optional.ofNullable(underlying);
       binderFactory = new CopyOnBindBinderFactory(this.underlying);
-      earliestWatermarkHold = Optional.absent();
+      earliestWatermarkHold = Optional.empty();
     }
 
     /**
@@ -193,7 +199,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
       earliestWatermarkHold = Optional.of(earliestHold);
       clearEmpty();
       binderFactory = new InMemoryStateBinderFactory();
-      underlying = Optional.absent();
+      underlying = Optional.empty();
     }
 
     /**
@@ -351,6 +357,20 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
           }
 
           @Override
+          public <T> OrderedListState<T> bindOrderedList(
+              StateTag<OrderedListState<T>> address, Coder<T> elemCoder) {
+            if (containedInUnderlying(namespace, address)) {
+              @SuppressWarnings("unchecked")
+              InMemoryState<? extends OrderedListState<T>> existingState =
+                  (InMemoryState<? extends OrderedListState<T>>)
+                      underlying.get().get(namespace, address, c);
+              return existingState.copy();
+            } else {
+              return new InMemoryOrderedList<>(elemCoder);
+            }
+          }
+
+          @Override
           public <InputT, AccumT, OutputT>
               CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
                   StateTag<CombiningState<InputT, AccumT, OutputT>> address,
@@ -435,6 +455,12 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
               StateTag<MapState<KeyT, ValueT>> address,
               Coder<KeyT> mapKeyCoder,
               Coder<ValueT> mapValueCoder) {
+            return underlying.get(namespace, address, c);
+          }
+
+          @Override
+          public <T> OrderedListState<T> bindOrderedList(
+              StateTag<OrderedListState<T>> address, Coder<T> elemCoder) {
             return underlying.get(namespace, address, c);
           }
 

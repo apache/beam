@@ -53,15 +53,26 @@ public class PropertyNames {
   public static final String PUBSUB_TOPIC_OVERRIDE = "pubsub_topic_runtime_override";
   public static final String SCALAR_FIELD_NAME = "value";
   public static final String SERIALIZED_FN = "serialized_fn";
+  public static final String SERIALIZED_TEST_STREAM = "serialized_test_stream";
   public static final String SORT_VALUES = "sort_values";
   public static final String TUPLE_TAGS = "tuple_tags";
   public static final String USE_INDEXED_FORMAT = "use_indexed_format";
   public static final String USER_FN = "user_fn";
   public static final String USER_NAME = "user_name";
   public static final String USES_KEYED_STATE = "uses_keyed_state";
+  public static final String ALLOWS_SHARDABLE_STATE = "allows_shardable_state";
   public static final String VALUE = "value";
   public static final String WINDOWING_STRATEGY = "windowing_strategy";
   public static final String DISPLAY_DATA = "display_data";
-  public static final String RESTRICTION_CODER = "restriction_coder";
+  public static final String RESOURCE_HINTS = "resource_hints";
+  public static final String PRESERVES_KEYS = "preserves_keys";
+  /**
+   * @deprecated Uses the incorrect terminology. {@link #RESTRICTION_ENCODING}. Should be removed
+   *     once non FnAPI SplittableDoFn expansion for Dataflow is removed.
+   */
+  @Deprecated public static final String RESTRICTION_CODER = "restriction_coder";
+
   public static final String IMPULSE_ELEMENT = "impulse_element";
+  public static final String PIPELINE_PROTO_CODER_ID = "pipeline_proto_coder_id";
+  public static final String RESTRICTION_ENCODING = "restriction_encoding";
 }

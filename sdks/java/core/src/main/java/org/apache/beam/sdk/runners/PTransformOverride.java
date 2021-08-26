@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.runners;
 
 import com.google.auto.value.AutoValue;
@@ -30,6 +29,9 @@ import org.apache.beam.sdk.transforms.PTransform;
  */
 @Internal
 @AutoValue
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class PTransformOverride {
   public static PTransformOverride of(
       PTransformMatcher matcher, PTransformOverrideFactory factory) {

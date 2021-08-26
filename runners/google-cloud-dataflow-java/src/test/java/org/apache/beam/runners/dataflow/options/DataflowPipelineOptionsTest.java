@@ -21,20 +21,25 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.powermock.api.mockito.PowerMockito.when;
 
-import com.google.common.base.Splitter;
+import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests for {@link DataflowPipelineOptions}. */
 @RunWith(JUnit4.class)
@@ -157,6 +162,16 @@ public class DataflowPipelineOptionsTest {
   }
 
   @Test
+  public void testDefaultFlexRSGoal() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    assertEquals(
+        DataflowPipelineOptions.FlexResourceSchedulingGoal.UNSPECIFIED, options.getFlexRSGoal());
+    options.setFlexRSGoal(DataflowPipelineOptions.FlexResourceSchedulingGoal.COST_OPTIMIZED);
+    assertEquals(
+        DataflowPipelineOptions.FlexResourceSchedulingGoal.COST_OPTIMIZED, options.getFlexRSGoal());
+  }
+
+  @Test
   public void testDefaultNoneGcsTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setTempLocation("file://temp_location");
@@ -188,5 +203,45 @@ public class DataflowPipelineOptionsTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Error constructing default value for stagingLocation");
     options.getStagingLocation();
+  }
+
+  @RunWith(PowerMockRunner.class)
+  @PrepareForTest(DefaultGcpRegionFactory.class)
+  public static class DefaultGcpRegionFactoryTest {
+    @Test
+    public void testDefaultGcpRegionUnset() throws IOException, InterruptedException {
+      mockStatic(DefaultGcpRegionFactory.class);
+      when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
+      when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenReturn("");
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      assertEquals("", options.getRegion());
+    }
+
+    @Test
+    public void testDefaultGcpRegionUnsetIgnoresGcloudException()
+        throws IOException, InterruptedException {
+      mockStatic(DefaultGcpRegionFactory.class);
+      when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
+      when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenThrow(new IOException());
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      assertEquals("", options.getRegion());
+    }
+
+    @Test
+    public void testDefaultGcpRegionFromEnvironment() {
+      mockStatic(DefaultGcpRegionFactory.class);
+      when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn("us-west1");
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      assertEquals("us-west1", options.getRegion());
+    }
+
+    @Test
+    public void testDefaultGcpRegionFromGcloud() throws IOException, InterruptedException {
+      mockStatic(DefaultGcpRegionFactory.class);
+      when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
+      when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenReturn("us-west1");
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      assertEquals("us-west1", options.getRegion());
+    }
   }
 }

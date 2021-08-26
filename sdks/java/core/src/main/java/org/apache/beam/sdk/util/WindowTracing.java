@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Logging for window operations. Generally only feasible to enable on hand-picked pipelines. */
+@Internal
 public final class WindowTracing {
   private static final Logger LOG = LoggerFactory.getLogger(WindowTracing.class);
 

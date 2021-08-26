@@ -16,24 +16,26 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.fn',
+)
 
 description = "Apache Beam :: SDKs :: Java :: Fn Execution"
 ext.summary = """Contains code shared across the Beam Java SDK Harness and Java Runners to execute using
 the Beam Portability Framework."""
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.vendored_grpc_1_36_0
+  compile library.java.vendored_guava_26_0_jre
+  compile library.java.slf4j_api
+  compile library.java.joda_time
   provided library.java.junit
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
+  testCompile library.java.commons_lang3
+  testRuntimeOnly library.java.slf4j_jdk14
 }

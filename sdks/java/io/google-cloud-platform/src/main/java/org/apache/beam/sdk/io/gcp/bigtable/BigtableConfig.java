@@ -15,39 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Configuration for a Cloud Bigtable client. */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 abstract class BigtableConfig implements Serializable {
 
   /** Returns the project id being written to. */
-  @Nullable
-  abstract ValueProvider<String> getProjectId();
+  abstract @Nullable ValueProvider<String> getProjectId();
 
   /** Returns the instance id being written to. */
-  @Nullable
-  abstract ValueProvider<String> getInstanceId();
+  abstract @Nullable ValueProvider<String> getInstanceId();
 
   /** Returns the table being read from. */
-  @Nullable
-  abstract ValueProvider<String> getTableId();
+  abstract @Nullable ValueProvider<String> getTableId();
 
   /**
    * Returns the Google Cloud Bigtable instance being written to, and other parameters.
@@ -55,20 +54,20 @@ abstract class BigtableConfig implements Serializable {
    * @deprecated will be replaced by bigtable options configurator.
    */
   @Deprecated
-  @Nullable
-  abstract BigtableOptions getBigtableOptions();
+  abstract @Nullable BigtableOptions getBigtableOptions();
 
   /** Configurator of the effective Bigtable Options. */
-  @Nullable
-  abstract SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
+  abstract @Nullable SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
       getBigtableOptionsConfigurator();
 
   /** Weather validate that table exists before writing. */
   abstract boolean getValidate();
 
   /** {@link BigtableService} used only for testing. */
-  @Nullable
-  abstract BigtableService getBigtableService();
+  abstract @Nullable BigtableService getBigtableService();
+
+  /** Bigtable emulator. Used only for testing. */
+  abstract @Nullable String getEmulatorHost();
 
   abstract Builder toBuilder();
 
@@ -95,6 +94,8 @@ abstract class BigtableConfig implements Serializable {
         SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> optionsConfigurator);
 
     abstract Builder setBigtableService(BigtableService bigtableService);
+
+    abstract Builder setEmulatorHost(String emulatorHost);
 
     abstract BigtableConfig build();
   }
@@ -135,6 +136,12 @@ abstract class BigtableConfig implements Serializable {
   BigtableConfig withBigtableService(BigtableService bigtableService) {
     checkArgument(bigtableService != null, "bigtableService can not be null");
     return toBuilder().setBigtableService(bigtableService).build();
+  }
+
+  @VisibleForTesting
+  BigtableConfig withEmulator(String emulatorHost) {
+    checkArgument(emulatorHost != null, "emulatorHost can not be null");
+    return toBuilder().setEmulatorHost(emulatorHost).build();
   }
 
   void validate() {
@@ -199,9 +206,6 @@ abstract class BigtableConfig implements Serializable {
           CredentialOptions.credential(pipelineOptions.as(GcpOptions.class).getGcpCredential()));
     }
 
-    // Default option that should be forced
-    bigtableOptions.setUseCachedDataPool(true);
-
     return new BigtableServiceImpl(bigtableOptions.build());
   }
 
@@ -221,12 +225,20 @@ abstract class BigtableConfig implements Serializable {
       effectiveOptions = getBigtableOptionsConfigurator().apply(effectiveOptions);
     }
 
+    // Default option that should be forced in most cases
+    effectiveOptions.setUseCachedDataPool(true);
+
     if (getInstanceId() != null) {
       effectiveOptions.setInstanceId(getInstanceId().get());
     }
 
     if (getProjectId() != null) {
       effectiveOptions.setProjectId(getProjectId().get());
+    }
+
+    if (getEmulatorHost() != null) {
+      effectiveOptions.enableEmulator(getEmulatorHost());
+      effectiveOptions.setUseCachedDataPool(false);
     }
 
     return effectiveOptions;

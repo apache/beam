@@ -20,10 +20,12 @@ package org.apache.beam.sdk.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,22 +53,35 @@ public class MetricsEnvironment {
   private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
-  private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD = new ThreadLocal<>();
+  private static final ThreadLocal<@Nullable MetricsContainerHolder> CONTAINER_FOR_THREAD =
+      ThreadLocal.withInitial(MetricsContainerHolder::new);
+
+  private static final AtomicReference<@Nullable MetricsContainer> PROCESS_WIDE_METRICS_CONTAINER =
+      new AtomicReference<>();
 
   /**
    * Set the {@link MetricsContainer} for the current thread.
    *
    * @return The previous container for the current thread.
    */
-  @Nullable
-  public static MetricsContainer setCurrentContainer(@Nullable MetricsContainer container) {
-    MetricsContainer previous = CONTAINER_FOR_THREAD.get();
-    if (container == null) {
-      CONTAINER_FOR_THREAD.remove();
-    } else {
-      CONTAINER_FOR_THREAD.set(container);
-    }
+  public static @Nullable MetricsContainer setCurrentContainer(
+      @Nullable MetricsContainer container) {
+    @SuppressWarnings("nullness") // Non-null due to withInitialValue
+    @NonNull
+    MetricsContainerHolder holder = CONTAINER_FOR_THREAD.get();
+    @Nullable MetricsContainer previous = holder.container;
+    holder.container = container;
     return previous;
+  }
+
+  /**
+   * Set the {@link MetricsContainer} for the current process.
+   *
+   * @return The previous container for the current process.
+   */
+  public static @Nullable MetricsContainer setProcessWideContainer(
+      @Nullable MetricsContainer container) {
+    return PROCESS_WIDE_METRICS_CONTAINER.getAndSet(container);
   }
 
   /** Called by the run to indicate whether metrics reporting is supported. */
@@ -90,16 +105,20 @@ public class MetricsEnvironment {
   }
 
   private static class ScopedContainer implements Closeable {
+    private final MetricsContainerHolder holder;
+    private final @Nullable MetricsContainer oldContainer;
 
-    @Nullable private final MetricsContainer oldContainer;
-
+    @SuppressWarnings("nullness") // Non-null due to withInitialValue
     private ScopedContainer(MetricsContainer newContainer) {
-      this.oldContainer = setCurrentContainer(newContainer);
+      // It is safe to cache the thread-local holder because it never changes for the thread.
+      holder = CONTAINER_FOR_THREAD.get();
+      this.oldContainer = holder.container;
+      holder.container = newContainer;
     }
 
     @Override
     public void close() throws IOException {
-      setCurrentContainer(oldContainer);
+      holder.container = oldContainer;
     }
   }
 
@@ -110,11 +129,11 @@ public class MetricsEnvironment {
    * is not a work-execution thread. The first time this happens in a given thread it will log a
    * diagnostic message.
    */
-  @Nullable
-  public static MetricsContainer getCurrentContainer() {
-    MetricsContainer container = CONTAINER_FOR_THREAD.get();
+  public static @Nullable MetricsContainer getCurrentContainer() {
+    @SuppressWarnings("nullness") // Non-null due to withInitialValue
+    MetricsContainer container = CONTAINER_FOR_THREAD.get().container;
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
-      if (METRICS_SUPPORTED.get()) {
+      if (isMetricsSupported()) {
         LOG.error(
             "Unable to update metrics on the current thread. "
                 + "Most likely caused by using metrics outside the managed work-execution thread.");
@@ -123,5 +142,14 @@ public class MetricsEnvironment {
       }
     }
     return container;
+  }
+
+  /** Return the {@link MetricsContainer} for the current process. */
+  public static @Nullable MetricsContainer getProcessWideContainer() {
+    return PROCESS_WIDE_METRICS_CONTAINER.get();
+  }
+
+  private static class MetricsContainerHolder {
+    public @Nullable MetricsContainer container = null;
   }
 }

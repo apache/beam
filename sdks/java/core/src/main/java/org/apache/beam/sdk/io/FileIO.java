@@ -17,16 +17,12 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
@@ -38,8 +34,8 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Collection;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -76,6 +72,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -135,9 +136,15 @@ import org.slf4j.LoggerFactory;
  *     .apply(FileIO.readMatches().withCompression(GZIP))
  *     .apply(MapElements
  *         // uses imports from TypeDescriptors
- *         .into(KVs(strings(), strings()))
- *         .via((ReadableFile f) -> KV.of(
- *             f.getMetadata().resourceId().toString(), f.readFullyAsUTF8String())));
+ *         .into(kvs(strings(), strings()))
+ *         .via((ReadableFile f) -> {
+ *           try {
+ *             return KV.of(
+ *                 f.getMetadata().resourceId().toString(), f.readFullyAsUTF8String());
+ *           } catch (IOException ex) {
+ *             throw new RuntimeException("Failed to read the file", ex);
+ *           }
+ *         }));
  * }</pre>
  *
  * <h2>Writing files</h2>
@@ -237,7 +244,7 @@ import org.slf4j.LoggerFactory;
  * type to the sink's <i>output type</i>.
  *
  * <p>However, when using dynamic destinations, in many such cases the destination needs to be
- * extract from the original type, so such a conversion is not possible. For example, one might
+ * extracted from the original type, so such a conversion is not possible. For example, one might
  * write events of a custom class {@code Event} to a text sink, using the event's "type" as a
  * destination. In that case, specify an <i>output function</i> in {@link Write#via(Contextful,
  * Contextful)} or {@link Write#via(Contextful, Sink)}.
@@ -245,7 +252,7 @@ import org.slf4j.LoggerFactory;
  * <h3>Example: Writing CSV files</h3>
  *
  * <pre>{@code
- * class CSVSink implements FileSink<List<String>> {
+ * class CSVSink implements FileIO.Sink<List<String>> {
  *   private String header;
  *   private PrintWriter writer;
  *
@@ -262,7 +269,7 @@ import org.slf4j.LoggerFactory;
  *     writer.println(Joiner.on(",").join(element));
  *   }
  *
- *   public void finish() throws IOException {
+ *   public void flush() throws IOException {
  *     writer.flush();
  *   }
  * }
@@ -270,13 +277,13 @@ import org.slf4j.LoggerFactory;
  * PCollection<BankTransaction> transactions = ...;
  * // Convert transactions to strings before writing them to the CSV sink.
  * transactions.apply(MapElements
- *         .into(lists(strings()))
+ *         .into(TypeDescriptors.lists(TypeDescriptors.strings()))
  *         .via(tx -> Arrays.asList(tx.getUser(), tx.getAmount())))
  *     .apply(FileIO.<List<String>>write()
- *         .via(new CSVSink(Arrays.asList("user", "amount"))
+ *         .via(new CSVSink(Arrays.asList("user", "amount")))
  *         .to(".../path/to/")
  *         .withPrefix("transactions")
- *         .withSuffix(".csv")
+ *         .withSuffix(".csv"));
  * }</pre>
  *
  * <h3>Example: Writing CSV files to different directories and with different headers</h3>
@@ -301,6 +308,9 @@ import org.slf4j.LoggerFactory;
  *     .withNaming(type -> defaultNaming(type + "-transactions", ".csv"));
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FileIO {
   private static final Logger LOG = LoggerFactory.getLogger(FileIO.class);
 
@@ -360,6 +370,7 @@ public class FileIO {
         .setDynamic(false)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setNoSpilling(false)
         .build();
   }
 
@@ -372,6 +383,7 @@ public class FileIO {
         .setDynamic(true)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setNoSpilling(false)
         .build();
   }
 
@@ -412,7 +424,7 @@ public class FileIO {
           getMetadata().isReadSeekEfficient(),
           "The file %s is not seekable",
           metadata.resourceId());
-      return ((SeekableByteChannel) open());
+      return (SeekableByteChannel) open();
     }
 
     /** Returns the full contents of the file as bytes. */
@@ -433,7 +445,7 @@ public class FileIO {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -463,13 +475,11 @@ public class FileIO {
           .build();
     }
 
-    abstract EmptyMatchTreatment getEmptyMatchTreatment();
+    public abstract EmptyMatchTreatment getEmptyMatchTreatment();
 
-    @Nullable
-    abstract Duration getWatchInterval();
+    public abstract @Nullable Duration getWatchInterval();
 
-    @Nullable
-    abstract TerminationCondition<String, ?> getWatchTerminationCondition();
+    abstract @Nullable TerminationCondition<String, ?> getWatchTerminationCondition();
 
     abstract Builder toBuilder();
 
@@ -513,8 +523,8 @@ public class FileIO {
   /** Implementation of {@link #match}. */
   @AutoValue
   public abstract static class Match extends PTransform<PBegin, PCollection<MatchResult.Metadata>> {
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract MatchConfiguration getConfiguration();
 
@@ -552,9 +562,9 @@ public class FileIO {
     /**
      * See {@link MatchConfiguration#continuously}. The returned {@link PCollection} is unbounded.
      *
-     * <p>This works only in runners supporting {@link Experimental.Kind#SPLITTABLE_DO_FN}.
+     * <p>This works only in runners supporting splittable {@link
+     * org.apache.beam.sdk.transforms.DoFn}.
      */
-    @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
     public Match continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withConfiguration(getConfiguration().continuously(pollInterval, terminationCondition));
@@ -565,6 +575,15 @@ public class FileIO {
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
           .apply("Via MatchAll", matchAll().withConfiguration(getConfiguration()));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(
+              DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
+          .include("configuration", getConfiguration());
     }
   }
 
@@ -594,7 +613,6 @@ public class FileIO {
     }
 
     /** Like {@link Match#continuously}. */
-    @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
     public MatchAll continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withConfiguration(getConfiguration().continuously(pollInterval, terminationCondition));
@@ -621,6 +639,12 @@ public class FileIO {
                 .apply(Values.create());
       }
       return res.apply(Reshuffle.viaRandomKey());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.include("configuration", getConfiguration());
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {
@@ -665,7 +689,8 @@ public class FileIO {
   @AutoValue
   public abstract static class ReadMatches
       extends PTransform<PCollection<MatchResult.Metadata>, PCollection<ReadableFile>> {
-    enum DirectoryTreatment {
+    /** Enum to control how directories are handled. */
+    public enum DirectoryTreatment {
       SKIP,
       PROHIBIT
     }
@@ -711,6 +736,55 @@ public class FileIO {
       builder.add(DisplayData.item("directoryTreatment", getDirectoryTreatment().toString()));
     }
 
+    /**
+     * @return True if metadata is a directory and directory Treatment is SKIP.
+     * @throws java.lang.IllegalArgumentException if metadata is a directory and directoryTreatment
+     *     is Prohibited.
+     * @throws java.lang.UnsupportedOperationException if metadata is a directory and
+     *     directoryTreatment is not SKIP or PROHIBIT.
+     */
+    static boolean shouldSkipDirectory(
+        MatchResult.Metadata metadata, DirectoryTreatment directoryTreatment) {
+      if (metadata.resourceId().isDirectory()) {
+        switch (directoryTreatment) {
+          case SKIP:
+            return true;
+          case PROHIBIT:
+            throw new IllegalArgumentException(
+                "Trying to read " + metadata.resourceId() + " which is a directory");
+
+          default:
+            throw new UnsupportedOperationException(
+                "Unknown DirectoryTreatment: " + directoryTreatment);
+        }
+      }
+
+      return false;
+    }
+
+    /**
+     * Converts metadata to readableFile. Make sure {@link
+     * #shouldSkipDirectory(org.apache.beam.sdk.io.fs.MatchResult.Metadata,
+     * org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment)} returns false before using.
+     */
+    static ReadableFile matchToReadableFile(
+        MatchResult.Metadata metadata, Compression compression) {
+
+      compression =
+          (compression == Compression.AUTO)
+              ? Compression.detect(metadata.resourceId().getFilename())
+              : compression;
+      return new ReadableFile(
+          MatchResult.Metadata.builder()
+              .setResourceId(metadata.resourceId())
+              .setSizeBytes(metadata.sizeBytes())
+              .setLastModifiedMillis(metadata.lastModifiedMillis())
+              .setIsReadSeekEfficient(
+                  metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED)
+              .build(),
+          compression);
+    }
+
     private static class ToReadableFileFn extends DoFn<MatchResult.Metadata, ReadableFile> {
       private final ReadMatches spec;
 
@@ -720,35 +794,11 @@ public class FileIO {
 
       @ProcessElement
       public void process(ProcessContext c) {
-        MatchResult.Metadata metadata = c.element();
-        if (metadata.resourceId().isDirectory()) {
-          switch (spec.getDirectoryTreatment()) {
-            case SKIP:
-              return;
-
-            case PROHIBIT:
-              throw new IllegalArgumentException(
-                  "Trying to read " + metadata.resourceId() + " which is a directory");
-
-            default:
-              throw new UnsupportedOperationException(
-                  "Unknown DirectoryTreatment: " + spec.getDirectoryTreatment());
-          }
+        if (shouldSkipDirectory(c.element(), spec.getDirectoryTreatment())) {
+          return;
         }
-
-        Compression compression =
-            (spec.getCompression() == Compression.AUTO)
-                ? Compression.detect(metadata.resourceId().getFilename())
-                : spec.getCompression();
-        c.output(
-            new ReadableFile(
-                MatchResult.Metadata.builder()
-                    .setResourceId(metadata.resourceId())
-                    .setSizeBytes(metadata.sizeBytes())
-                    .setIsReadSeekEfficient(
-                        metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED)
-                    .build(),
-                compression));
+        ReadableFile r = matchToReadableFile(c.element(), spec.getCompression());
+        c.output(r);
       }
     }
   }
@@ -776,7 +826,7 @@ public class FileIO {
 
   /** Implementation of {@link #write} and {@link #writeDynamic}. */
   @AutoValue
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   public abstract static class Write<DestinationT, UserT>
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
     /** A policy for generating names for shard files. */
@@ -797,6 +847,11 @@ public class FileIO {
       return defaultNaming(StaticValueProvider.of(prefix), StaticValueProvider.of(suffix));
     }
 
+    /**
+     * Defines a default {@link FileNaming} which will use the prefix and suffix supplied to create
+     * a name based on the window, pane, number of shards, shard index, and compression. Removes
+     * window when in the {@link GlobalWindow} and pane info when it is the only firing of the pane.
+     */
     public static FileNaming defaultNaming(
         final ValueProvider<String> prefix, final ValueProvider<String> suffix) {
       return (window, pane, numShards, shardIndex, compression) -> {
@@ -850,48 +905,37 @@ public class FileIO {
 
     abstract boolean getDynamic();
 
-    @Nullable
-    abstract Contextful<Fn<DestinationT, Sink<?>>> getSinkFn();
+    abstract @Nullable Contextful<Fn<DestinationT, Sink<?>>> getSinkFn();
 
-    @Nullable
-    abstract Contextful<Fn<UserT, ?>> getOutputFn();
+    abstract @Nullable Contextful<Fn<UserT, ?>> getOutputFn();
 
-    @Nullable
-    abstract Contextful<Fn<UserT, DestinationT>> getDestinationFn();
+    abstract @Nullable Contextful<Fn<UserT, DestinationT>> getDestinationFn();
 
-    @Nullable
-    abstract ValueProvider<String> getOutputDirectory();
+    abstract @Nullable ValueProvider<String> getOutputDirectory();
 
-    @Nullable
-    abstract ValueProvider<String> getFilenamePrefix();
+    abstract @Nullable ValueProvider<String> getFilenamePrefix();
 
-    @Nullable
-    abstract ValueProvider<String> getFilenameSuffix();
+    abstract @Nullable ValueProvider<String> getFilenameSuffix();
 
-    @Nullable
-    abstract FileNaming getConstantFileNaming();
+    abstract @Nullable FileNaming getConstantFileNaming();
 
-    @Nullable
-    abstract Contextful<Fn<DestinationT, FileNaming>> getFileNamingFn();
+    abstract @Nullable Contextful<Fn<DestinationT, FileNaming>> getFileNamingFn();
 
-    @Nullable
-    abstract DestinationT getEmptyWindowDestination();
+    abstract @Nullable DestinationT getEmptyWindowDestination();
 
-    @Nullable
-    abstract Coder<DestinationT> getDestinationCoder();
+    abstract @Nullable Coder<DestinationT> getDestinationCoder();
 
-    @Nullable
-    abstract ValueProvider<String> getTempDirectory();
+    abstract @Nullable ValueProvider<String> getTempDirectory();
 
     abstract Compression getCompression();
 
-    @Nullable
-    abstract ValueProvider<Integer> getNumShards();
+    abstract @Nullable ValueProvider<Integer> getNumShards();
 
-    @Nullable
-    abstract PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding();
+    abstract @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding();
 
     abstract boolean getIgnoreWindowing();
+
+    abstract boolean getNoSpilling();
 
     abstract Builder<DestinationT, UserT> toBuilder();
 
@@ -936,6 +980,8 @@ public class FileIO {
           PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding);
 
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
+
+      abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1158,6 +1204,11 @@ public class FileIO {
       return toBuilder().setIgnoreWindowing(true).build();
     }
 
+    /** See {@link WriteFiles#withNoSpilling()}. */
+    public Write<DestinationT, UserT> withNoSpilling() {
+      return toBuilder().setNoSpilling(true).build();
+    }
+
     @VisibleForTesting
     Contextful<Fn<DestinationT, FileNaming>> resolveFileNamingFn() {
       if (getDynamic()) {
@@ -1242,6 +1293,7 @@ public class FileIO {
       resolvedSpec.setNumShards(getNumShards());
       resolvedSpec.setSharding(getSharding());
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
+      resolvedSpec.setNoSpilling(getNoSpilling());
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
       WriteFiles<UserT, DestinationT, ?> writeFiles =
@@ -1256,6 +1308,9 @@ public class FileIO {
       }
       if (!getIgnoreWindowing()) {
         writeFiles = writeFiles.withWindowedWrites();
+      }
+      if (getNoSpilling()) {
+        writeFiles = writeFiles.withNoSpilling();
       }
       return input.apply(writeFiles);
     }
@@ -1302,7 +1357,7 @@ public class FileIO {
           @Override
           public Writer<DestinationT, OutputT> createWriter() throws Exception {
             return new Writer<DestinationT, OutputT>(this, "") {
-              @Nullable private Sink<OutputT> sink;
+              private @Nullable Sink<OutputT> sink;
 
               @Override
               protected void prepareWrite(WritableByteChannel channel) throws Exception {
@@ -1339,7 +1394,7 @@ public class FileIO {
       private static class DynamicDestinationsAdapter<UserT, DestinationT, OutputT>
           extends DynamicDestinations<UserT, DestinationT, OutputT> {
         private final Write<DestinationT, UserT> spec;
-        @Nullable private transient Fn.Context context;
+        private transient Fn.@Nullable Context context;
 
         private DynamicDestinationsAdapter(Write<DestinationT, UserT> spec) {
           this.spec = spec;
@@ -1406,9 +1461,8 @@ public class FileIO {
                   false /* isDirectory */);
             }
 
-            @Nullable
             @Override
-            public ResourceId unwindowedFilename(
+            public @Nullable ResourceId unwindowedFilename(
                 int shardNumber, int numShards, OutputFileHints outputFileHints) {
               return FileSystems.matchNewResource(
                   namingFn.getFilename(
@@ -1427,9 +1481,8 @@ public class FileIO {
           return Lists.newArrayList(spec.getAllSideInputs());
         }
 
-        @Nullable
         @Override
-        public Coder<DestinationT> getDestinationCoder() {
+        public @Nullable Coder<DestinationT> getDestinationCoder() {
           return spec.getDestinationCoder();
         }
       }

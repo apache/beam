@@ -15,18 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.coders.BeamSparkRunnerRegistrator;
+import org.apache.beam.runners.spark.coders.SparkRunnerKryoRegistrator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** The Spark context factory. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class SparkContextFactory {
   private static final Logger LOG = LoggerFactory.getLogger(SparkContextFactory.class);
 
@@ -95,7 +97,7 @@ public final class SparkContextFactory {
 
       conf.setAppName(contextOptions.getAppName());
       // register immutable collections serializers because the SDK uses them.
-      conf.set("spark.kryo.registrator", BeamSparkRunnerRegistrator.class.getName());
+      conf.set("spark.kryo.registrator", SparkRunnerKryoRegistrator.class.getName());
       return new JavaSparkContext(conf);
     }
   }

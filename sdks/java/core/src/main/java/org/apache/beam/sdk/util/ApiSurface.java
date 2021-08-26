@@ -19,22 +19,6 @@ package org.apache.beam.sdk.util;
 
 import static org.hamcrest.Matchers.anyOf;
 
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
-import com.google.common.collect.Ordering;
-import com.google.common.collect.Sets;
-import com.google.common.reflect.Invokable;
-import com.google.common.reflect.Parameter;
-import com.google.common.reflect.TypeToken;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -51,6 +35,24 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.ClassPath;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Invokable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Parameter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
@@ -83,7 +85,11 @@ import org.slf4j.LoggerFactory;
  * {@link #pruningPrefix} to halt the traversal so it does not uselessly catalog references that are
  * not interesting.
  */
-@SuppressWarnings("rawtypes")
+@Internal
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ApiSurface {
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
 
@@ -200,7 +206,7 @@ public class ApiSurface {
 
         if (!messages.isEmpty()) {
           mismatchDescription.appendText(
-              "The following white-listed scopes did not have matching classes on the API surface:"
+              "The following allowed scopes did not have matching classes on the API surface:"
                   + "\n\t"
                   + Joiner.on("\n\t").join(messages));
         }
@@ -244,7 +250,10 @@ public class ApiSurface {
         return messages.isEmpty();
       }
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
+      })
       private boolean classIsAllowed(
           final Class<?> clazz, final Set<Matcher<Class<?>>> allowedClasses) {
         // Safe cast inexpressible in Java without rawtypes
@@ -513,6 +522,7 @@ public class ApiSurface {
   private boolean pruned(Class<?> clazz) {
     return clazz.isPrimitive()
         || clazz.isArray()
+        || clazz.getCanonicalName().equals("jdk.internal.HotSpotIntrinsicCandidate")
         || getPrunedPattern().matcher(clazz.getName()).matches();
   }
 

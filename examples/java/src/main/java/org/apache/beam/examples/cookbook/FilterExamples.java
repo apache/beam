@@ -198,7 +198,7 @@ public class FilterExamples {
    *
    * <p>Inherits standard configuration options.
    */
-  private interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
     @Description("Table to read from, specified as " + "<project_id>:<dataset_id>.<table_id>")
     @Default.String(WEATHER_SAMPLES_TABLE)
     String getInput();
@@ -228,8 +228,7 @@ public class FilterExamples {
     fields.add(new TableFieldSchema().setName("month").setType("INTEGER"));
     fields.add(new TableFieldSchema().setName("day").setType("INTEGER"));
     fields.add(new TableFieldSchema().setName("mean_temp").setType("FLOAT"));
-    TableSchema schema = new TableSchema().setFields(fields);
-    return schema;
+    return new TableSchema().setFields(fields);
   }
 
   public static void main(String[] args) throws Exception {

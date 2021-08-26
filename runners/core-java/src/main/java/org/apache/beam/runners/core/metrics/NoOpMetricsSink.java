@@ -18,8 +18,8 @@
 package org.apache.beam.runners.core.metrics;
 
 import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
-import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * This is the default metrics sink that does nothing. When it is set, MetricsPusher does not start
@@ -27,7 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public class NoOpMetricsSink implements MetricsSink {
 
-  public NoOpMetricsSink(PipelineOptions pipelineOptions) {}
+  public NoOpMetricsSink(MetricsOptions pipelineOptions) {}
 
   @Override
   public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {}

@@ -17,23 +17,27 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer.CoderTypeSerializerConfigSnapshot;
+import java.io.Serializable;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.junit.Test;
 
 /** Tests {@link CoderTypeSerializer}. */
-public class CoderTypeSerializerTest {
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
+public class CoderTypeSerializerTest implements Serializable {
 
   @Test
   public void shouldWriteAndReadSnapshotForAnonymousClassCoder() throws Exception {
@@ -41,11 +45,10 @@ public class CoderTypeSerializerTest {
         new AtomicCoder<String>() {
 
           @Override
-          public void encode(String value, OutputStream outStream)
-              throws CoderException, IOException {}
+          public void encode(String value, OutputStream outStream) {}
 
           @Override
-          public String decode(InputStream inStream) throws CoderException, IOException {
+          public String decode(InputStream inStream) {
             return "";
           }
         };
@@ -60,15 +63,18 @@ public class CoderTypeSerializerTest {
   }
 
   private void testWriteAndReadConfigSnapshot(Coder<String> coder) throws IOException {
-    CoderTypeSerializer<String> serializer = new CoderTypeSerializer<>(coder);
+    CoderTypeSerializer<String> serializer =
+        new CoderTypeSerializer<>(
+            coder, new SerializablePipelineOptions(PipelineOptionsFactory.create()));
 
-    TypeSerializerConfigSnapshot writtenSnapshot = serializer.snapshotConfiguration();
+    TypeSerializerSnapshot writtenSnapshot = serializer.snapshotConfiguration();
     ComparatorTestBase.TestOutputView outView = new ComparatorTestBase.TestOutputView();
-    writtenSnapshot.write(outView);
+    writtenSnapshot.writeSnapshot(outView);
 
-    TypeSerializerConfigSnapshot readSnapshot = new CoderTypeSerializerConfigSnapshot<>();
-    readSnapshot.read(outView.getInputView());
+    TypeSerializerSnapshot readSnapshot = new CoderTypeSerializer.LegacySnapshot();
+    readSnapshot.readSnapshot(
+        writtenSnapshot.getCurrentVersion(), outView.getInputView(), getClass().getClassLoader());
 
-    assertThat(readSnapshot, is(writtenSnapshot));
+    assertThat(readSnapshot.restoreSerializer(), is(serializer));
   }
 }

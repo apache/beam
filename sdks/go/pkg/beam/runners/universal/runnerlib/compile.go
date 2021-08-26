@@ -29,15 +29,13 @@ import (
 
 	"sync/atomic"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // IsWorkerCompatibleBinary returns the path to itself and true if running
 // a linux-amd64 binary that can directly be used as a worker binary.
 func IsWorkerCompatibleBinary() (string, bool) {
-	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
-		return os.Args[0], true
-	}
 	return "", false
 }
 
@@ -63,26 +61,37 @@ func BuildTempWorkerBinary(ctx context.Context) (string, error) {
 //   /usr/local/go/src/runtime/asm_amd64.s (skip: 4 or 5)
 func BuildWorkerBinary(ctx context.Context, filename string) error {
 	program := ""
+	var isTest bool
 	for i := 3; ; i++ {
 		_, file, _, ok := runtime.Caller(i)
 		if !ok || !strings.HasSuffix(file, ".go") || strings.HasSuffix(file, "runtime/proc.go") {
+			break
+		} else if strings.HasSuffix(file, "testing/testing.go") {
+			isTest = true
 			break
 		}
 		program = file
 	}
 	if !strings.HasSuffix(program, ".go") {
-		return fmt.Errorf("could not detect user main")
+		return errors.New("could not detect user main")
 	}
 
 	log.Infof(ctx, "Cross-compiling %v as %v", program, filename)
 
 	// Cross-compile given go program. Not awesome.
-	build := []string{"go", "build", "-o", filename, program}
+	var build []string
+	if isTest {
+		program = program[:strings.LastIndex(program, "/")+1]
+		program = program + "."
+		build = []string{"go", "test", "-c", "-o", filename, program}
+	} else {
+		build = []string{"go", "build", "-o", filename, program}
+	}
 
 	cmd := exec.Command(build[0], build[1:]...)
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to cross-compile %v: %v\n%v", program, err, out)
+		return errors.Errorf("failed to cross-compile %v: %v\n%v", program, err, string(out))
 	}
 	return nil
 }

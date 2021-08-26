@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import
+# pytype: skip-file
 
 import unittest
 
@@ -35,20 +35,17 @@ except ImportError:
 
 @unittest.skipIf(base_api is None, 'GCP dependencies are not installed')
 class TestMatchers(unittest.TestCase):
-
   def test_structured_name_matcher_basic(self):
     metric_name = dataflow.MetricStructuredName()
     metric_name.name = 'metric1'
     metric_name.origin = 'origin2'
 
     matcher = message_matchers.MetricStructuredNameMatcher(
-        name='metric1',
-        origin='origin2')
+        name='metric1', origin='origin2')
     hc.assert_that(metric_name, hc.is_(matcher))
     with self.assertRaises(AssertionError):
       matcher = message_matchers.MetricStructuredNameMatcher(
-          name='metric1',
-          origin='origin1')
+          name='metric1', origin='origin1')
       hc.assert_that(metric_name, hc.is_(matcher))
 
   def test_metric_update_basic(self):
@@ -62,12 +59,9 @@ class TestMatchers(unittest.TestCase):
     metric_update.scalar = to_json_value(1, with_type=True)
 
     name_matcher = message_matchers.MetricStructuredNameMatcher(
-        name='metric1',
-        origin='origin1')
+        name='metric1', origin='origin1')
     matcher = message_matchers.MetricUpdateMatcher(
-        name=name_matcher,
-        kind='sum',
-        scalar=1)
+        name=name_matcher, kind='sum', scalar=1)
 
     hc.assert_that(metric_update, hc.is_(matcher))
 

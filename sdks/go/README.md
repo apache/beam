@@ -17,11 +17,10 @@
     under the License.
 -->
 
-# Go SDK (experimental)
+# Go SDK
 
-The Go SDK is currently an experimental feature of Apache Beam and
-not suitable for production use. It is based on the following initial 
-[design](https://s.apache.org/beam-go-sdk-design-rfc).
+The Apache Beam Go SDK is the Beam Model implemented in the [Go Programming Language](https://go.dev/).
+It is based on the following initial [design](https://s.apache.org/beam-go-sdk-design-rfc).
 
 ## How to run the examples
 
@@ -30,8 +29,9 @@ most examples), follow the setup
 [here](https://beam.apache.org/documentation/runners/dataflow/). You can
 verify that it works by running the corresponding Java example.
 
-The examples are normal Go programs and are most easily run directly. They
-are parameterized by Go flags. For example, to run wordcount do:
+The examples are normal Go programs and are most easily run directly.
+They are parameterized by Go flags.
+For example, to run wordcount on the Go direct runner do:
 
 ```
 $ pwd
@@ -71,7 +71,7 @@ The debugging output is currently quite verbose and likely to change. The output
 file in this case:
 
 ```
-$ head /tmp/result.txt 
+$ head /tmp/result.txt
 while: 2
 darkling: 1
 rail'd: 1
@@ -84,10 +84,56 @@ sentence: 1
 purse: 6
 ```
 
+To run wordcount on dataflow runner do:
+
+```
+$  go run wordcount.go --runner=dataflow --project=<YOUR_GCP_PROJECT> --region=<YOUR_GCP_REGION> --staging_location=<YOUR_GCS_LOCATION>/staging --worker_harness_container_image=<YOUR_SDK_HARNESS_IMAGE_LOCATION> --output=<YOUR_GCS_LOCATION>/output
+```
+
+The output is a GCS file in this case:
+
+```
+$ gsutil cat <YOUR_GCS_LOCATION>/output* | head
+Blanket: 1
+blot: 1
+Kneeling: 3
+cautions: 1
+appears: 4
+Deserved: 1
+nettles: 1
+OSWALD: 53
+sport: 3
+Crown'd: 1
+```
+
+
 See [BUILD.md](./BUILD.md) for how to build Go code in general. See
-[CONTAINERS.md](../CONTAINERS.md) for how to build and push the Go
-SDK harness container image.
+[container documentation](https://beam.apache.org/documentation/runtime/environments/#building-container-images) for how to build and push the Go SDK harness container image.
 
 ## Issues
 
-Please use the `sdk-go` component for any bugs or feature requests.
+Please use the [`sdk-go`](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20sdk-go%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) component for any bugs or feature requests.
+
+## Contributing to the Go SDK
+
+### New to developing Go?
+https://tour.golang.org : The Go Tour gives you the basics of the language, interactively no installation required.
+
+https://github.com/campoy/go-tooling-workshop is a great start on learning good (optional) development tools for Go.
+
+### Developing Go Beam SDK on Github
+
+The Go SDK uses Go Modules for dependency management so it's as simple as cloning
+the repo, making necessary changes and running tests.
+
+Executing all unit tests for the SDK is possible from the `<beam root>\sdks\go` directory and running `go test ./...`.
+
+To test your change as Jenkins would execute it from a PR, from the
+beam root directory, run:
+ * `./gradlew :sdks:go:goTest` executes the unit tests.
+ * `./gradlew :sdks:go:test:ulrValidatesRunner` validates the SDK against the Portable Python runner.
+ * `./gradlew :sdks:go:test:flinkValidatesRunner` validates the SDK against the Flink runner.
+
+Follow the [contribution guide](https://beam.apache.org/contribute/contribution-guide/#code) to create branches, and submit pull requests as normal.
+
+

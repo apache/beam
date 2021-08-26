@@ -15,13 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 
 /** A registrar of {@link Coder} URNs to the associated {@link CoderTranslator}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface CoderTranslatorRegistrar {
   /**
    * Returns a mapping of coder classes to the URN representing that coder.

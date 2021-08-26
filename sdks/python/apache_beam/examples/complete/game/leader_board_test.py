@@ -17,13 +17,14 @@
 
 """Test for the leader_board example."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import unittest
 
 import apache_beam as beam
 from apache_beam.examples.complete.game import leader_board
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -52,14 +53,15 @@ class LeaderBoardTest(unittest.TestCase):
       result = (
           self.create_data(p)
           | leader_board.CalculateTeamScores(
-              team_window_duration=60,
-              allowed_lateness=120))
-      assert_that(result, equal_to([
-          ('team1', 14), ('team1', 18), ('team1', 18), ('team2', 2),
-          ('team3', 13)]))
+              team_window_duration=60, allowed_lateness=120))
+      assert_that(
+          result,
+          equal_to([('team1', 14), ('team1', 18), ('team1', 18), ('team2', 2),
+                    ('team3', 13)]))
 
   def test_leader_board_users(self):
-    with TestPipeline() as p:
+    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    with TestPipeline(options=test_options) as p:
       result = (
           self.create_data(p)
           | leader_board.CalculateUserScores(allowed_lateness=120))

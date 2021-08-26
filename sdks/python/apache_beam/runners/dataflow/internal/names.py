@@ -20,16 +20,10 @@
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
-from __future__ import absolute_import
+# pytype: skip-file
 
-# TODO (altay): Move shared names to a common location.
-# Standard file names used for staging files.
-from builtins import object
-
-PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
-DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
-STAGED_PIPELINE_FILENAME = "pipeline.pb"
-STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
+# Referenced by Dataflow legacy worker.
+from apache_beam.runners.internal.names import PICKLED_MAIN_SESSION_FILE  # pylint: disable=unused-import
 
 # String constants related to sources framework
 SOURCE_FORMAT = 'custom_source'
@@ -42,26 +36,19 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20180709'
+BEAM_CONTAINER_VERSION = 'beam-master-20210809'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20180619'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20210809'
 
-# Package names for different distributions
-GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
-BEAM_PACKAGE_NAME = 'apache-beam'
-
-# SDK identifiers for different distributions
-GOOGLE_SDK_NAME = 'Google Cloud Dataflow SDK for Python'
-BEAM_SDK_NAME = 'Apache Beam SDK for Python'
-
-DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
+DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 
 
 class TransformNames(object):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Transform strings as they are expected in the CloudWorkflow protos."""
+  Transform strings as they are expected in the CloudWorkflow protos.
+  """
   COLLECTION_TO_SINGLETON = 'CollectionToSingleton'
   COMBINE = 'CombineValues'
   CREATE_PCOLLECTION = 'CreateCollection'
@@ -75,16 +62,20 @@ class TransformNames(object):
 class PropertyNames(object):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Property strings as they are expected in the CloudWorkflow protos."""
+  Property strings as they are expected in the CloudWorkflow protos.
+  """
+  # If uses_keyed_state, whether the state can be sharded.
+  ALLOWS_SHARDABLE_STATE = 'allows_shardable_state'
   BIGQUERY_CREATE_DISPOSITION = 'create_disposition'
   BIGQUERY_DATASET = 'dataset'
-  BIGQUERY_QUERY = 'bigquery_query'
-  BIGQUERY_USE_LEGACY_SQL = 'bigquery_use_legacy_sql'
-  BIGQUERY_FLATTEN_RESULTS = 'bigquery_flatten_results'
   BIGQUERY_EXPORT_FORMAT = 'bigquery_export_format'
-  BIGQUERY_TABLE = 'table'
+  BIGQUERY_FLATTEN_RESULTS = 'bigquery_flatten_results'
+  BIGQUERY_KMS_KEY = 'bigquery_kms_key'
   BIGQUERY_PROJECT = 'project'
+  BIGQUERY_QUERY = 'bigquery_query'
   BIGQUERY_SCHEMA = 'schema'
+  BIGQUERY_TABLE = 'table'
+  BIGQUERY_USE_LEGACY_SQL = 'bigquery_use_legacy_sql'
   BIGQUERY_WRITE_DISPOSITION = 'write_disposition'
   DISPLAY_DATA = 'display_data'
   ELEMENT = 'element'
@@ -95,6 +86,7 @@ class PropertyNames(object):
   FILE_NAME_SUFFIX = 'filename_suffix'
   FORMAT = 'format'
   INPUTS = 'inputs'
+  IMPULSE_ELEMENT = 'impulse_element'
   NON_PARALLEL_INPUTS = 'non_parallel_inputs'
   NUM_SHARDS = 'num_shards'
   OUT = 'out'
@@ -102,17 +94,26 @@ class PropertyNames(object):
   OUTPUT_INFO = 'output_info'
   OUTPUT_NAME = 'output_name'
   PARALLEL_INPUT = 'parallel_input'
+  PIPELINE_PROTO_TRANSFORM_ID = 'pipeline_proto_transform_id'
+  # If the input element is a key/value pair, then the output element(s) all
+  # have the same key as the input.
+  PRESERVES_KEYS = 'preserves_keys'
   PUBSUB_ID_LABEL = 'pubsub_id_label'
   PUBSUB_SERIALIZED_ATTRIBUTES_FN = 'pubsub_serialized_attributes_fn'
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
   PUBSUB_TIMESTAMP_ATTRIBUTE = 'pubsub_timestamp_label'
   PUBSUB_TOPIC = 'pubsub_topic'
+  RESOURCE_HINTS = 'resource_hints'
+  RESTRICTION_ENCODING = 'restriction_encoding'
   SERIALIZED_FN = 'serialized_fn'
   SHARD_NAME_TEMPLATE = 'shard_template'
   SOURCE_STEP_INPUT = 'custom_source_step_input'
+  SERIALIZED_TEST_STREAM = 'serialized_test_stream'
   STEP_NAME = 'step_name'
+  USE_INDEXED_FORMAT = 'use_indexed_format'
   USER_FN = 'user_fn'
   USER_NAME = 'user_name'
+  USES_KEYED_STATE = 'uses_keyed_state'
   VALIDATE_SINK = 'validate_sink'
   VALIDATE_SOURCE = 'validate_source'
   VALUE = 'value'

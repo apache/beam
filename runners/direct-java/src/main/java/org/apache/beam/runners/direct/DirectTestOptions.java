@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -31,7 +30,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * <p>Currently, the only use is to disable user-friendly overrides that prevent fully testing
  * certain composite transforms.
  */
-@Internal
 @Hidden
 public interface DirectTestOptions extends PipelineOptions, ApplicationNameOptions {
   @Default.Boolean(true)

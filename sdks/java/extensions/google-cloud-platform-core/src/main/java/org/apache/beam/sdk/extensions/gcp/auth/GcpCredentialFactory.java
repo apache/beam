@@ -28,6 +28,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * Construct an oauth credential to be used by the SDK and the SDK workers. Returns a GCP
  * credential.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GcpCredentialFactory implements CredentialFactory {
   /**
    * The scope cloud-platform provides access to all Cloud Platform resources. cloud-platform isn't
@@ -43,6 +46,8 @@ public class GcpCredentialFactory implements CredentialFactory {
           "https://www.googleapis.com/auth/devstorage.full_control",
           "https://www.googleapis.com/auth/userinfo.email",
           "https://www.googleapis.com/auth/datastore",
+          "https://www.googleapis.com/auth/bigquery",
+          "https://www.googleapis.com/auth/bigquery.insertdata",
           "https://www.googleapis.com/auth/pubsub");
 
   private static final GcpCredentialFactory INSTANCE = new GcpCredentialFactory();

@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.test;
 
-import com.google.common.util.concurrent.ForwardingExecutorService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ForwardingExecutorService;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -30,6 +29,9 @@ import org.junit.runners.model.Statement;
  * A {@link TestRule} that validates that all submitted tasks finished and were completed. This
  * allows for testing that tasks have exercised the appropriate shutdown logic.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestExecutors {
   public static TestExecutorService from(final ExecutorService staticExecutorService) {
     return from(() -> staticExecutorService);

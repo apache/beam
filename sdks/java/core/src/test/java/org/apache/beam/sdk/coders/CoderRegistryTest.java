@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -77,6 +77,10 @@ public class CoderRegistryTest {
   public void testSimpleDefaultCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     assertEquals(StringUtf8Coder.of(), registry.getCoder(String.class));
+    assertEquals(VarIntCoder.of(), registry.getCoder(Integer.class));
+    assertEquals(VarLongCoder.of(), registry.getCoder(Long.class));
+    assertEquals(FloatCoder.of(), registry.getCoder(Float.class));
+    assertEquals(DoubleCoder.of(), registry.getCoder(Double.class));
   }
 
   @Test

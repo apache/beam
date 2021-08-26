@@ -15,25 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.data;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A logical endpoint is a pair of an instruction ID corresponding to the {@link
- * BeamFnApi.ProcessBundleRequest} and the {@link BeamFnApi.Target} within the processing graph.
- * This enables the same Data Service or Data Client to be re-used across multiple bundles.
+ * BeamFnApi.ProcessBundleRequest} and the transform within the processing graph. This enables the
+ * same Data Service or Data Client to be re-used across multiple bundles.
  */
 @AutoValue
 public abstract class LogicalEndpoint {
 
   public abstract String getInstructionId();
 
-  public abstract BeamFnApi.Target getTarget();
+  public abstract String getTransformId();
 
-  public static LogicalEndpoint of(String instructionId, BeamFnApi.Target target) {
-    return new AutoValue_LogicalEndpoint(instructionId, target);
+  public abstract @Nullable String getTimerFamilyId();
+
+  public boolean isTimer() {
+    return getTimerFamilyId() != null;
+  }
+
+  public static LogicalEndpoint data(String instructionId, String transformId) {
+    return new AutoValue_LogicalEndpoint(instructionId, transformId, null);
+  }
+
+  public static LogicalEndpoint timer(
+      String instructionId, String transformId, String timerFamilyId) {
+    if (timerFamilyId == null) {
+      throw new NullPointerException("timerFamilyId");
+    }
+    return new AutoValue_LogicalEndpoint(instructionId, transformId, timerFamilyId);
   }
 }

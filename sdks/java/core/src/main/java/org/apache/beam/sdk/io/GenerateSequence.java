@@ -17,15 +17,22 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
+import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -63,26 +70,29 @@ import org.joda.time.Instant;
  * will be present in the resulting {@link PCollection}.
  */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Long>> {
   abstract long getFrom();
 
   abstract long getTo();
 
-  @Nullable
-  abstract SerializableFunction<Long, Instant> getTimestampFn();
+  abstract @Nullable SerializableFunction<Long, Instant> getTimestampFn();
 
   abstract long getElementsPerPeriod();
 
-  @Nullable
-  abstract Duration getPeriod();
+  abstract @Nullable Duration getPeriod();
 
-  @Nullable
-  abstract Duration getMaxReadTime();
+  abstract @Nullable Duration getMaxReadTime();
 
   abstract Builder toBuilder();
 
   @AutoValue.Builder
-  abstract static class Builder {
+  @Experimental
+  abstract static class Builder
+      implements ExternalTransformBuilder<
+          External.ExternalConfiguration, PBegin, PCollection<Long>> {
     abstract Builder setFrom(long from);
 
     abstract Builder setTo(long to);
@@ -96,6 +106,70 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     abstract Builder setMaxReadTime(Duration maxReadTime);
 
     abstract GenerateSequence build();
+
+    @Override
+    public GenerateSequence buildExternal(External.ExternalConfiguration config) {
+      Preconditions.checkNotNull(config.start, "Parameters 'from' must not be null.");
+      setFrom(config.start);
+      setTo(-1);
+      setElementsPerPeriod(0);
+      if (config.stop != null) {
+        setTo(config.stop);
+      }
+      if (config.period != null) {
+        setPeriod(Duration.millis(config.period));
+      }
+      if (config.maxReadTime != null) {
+        setMaxReadTime(Duration.millis(config.maxReadTime));
+      }
+      if (config.elementsPerPeriod != null) {
+        setElementsPerPeriod(config.elementsPerPeriod);
+      }
+      return build();
+    }
+  }
+
+  /** Exposes GenerateSequence as an external transform for cross-language usage. */
+  @Experimental
+  @AutoService(ExternalTransformRegistrar.class)
+  public static class External implements ExternalTransformRegistrar {
+
+    public static final String URN = "beam:external:java:generate_sequence:v1";
+
+    @Override
+    public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+      return ImmutableMap.of(URN, AutoValue_GenerateSequence.Builder.class);
+    }
+
+    /** Parameters class to expose the transform to an external SDK. */
+    @Experimental
+    public static class ExternalConfiguration {
+      private Long start;
+      private @Nullable Long stop;
+      private @Nullable Long period;
+      private @Nullable Long maxReadTime;
+      private @Nullable Long elementsPerPeriod;
+
+      public void setStart(Long start) {
+        this.start = start;
+      }
+
+      public void setStop(@Nullable Long stop) {
+        this.stop = stop;
+      }
+
+      public void setPeriod(@Nullable Long period) {
+        this.period = period;
+      }
+
+      public void setMaxReadTime(@Nullable Long maxReadTime) {
+        this.maxReadTime = maxReadTime;
+      }
+
+      public void setElementsPerPeriod(@Nullable Long elementsPerPeriod) {
+        this.elementsPerPeriod = elementsPerPeriod;
+      }
+    }
   }
 
   /** Specifies the minimum number to generate (inclusive). */

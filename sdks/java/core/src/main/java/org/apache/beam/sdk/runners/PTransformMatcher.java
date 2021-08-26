@@ -14,7 +14,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 package org.apache.beam.sdk.runners;
 
@@ -35,7 +34,7 @@ public interface PTransformMatcher {
 
   /**
    * An {@link AppliedPTransform} matched by a {@link PTransformMatcher} will be replaced during
-   * pipeline surgery, and is often expected to be gone the new pipeline. For the {@link
+   * pipeline surgery, and is often expected to be gone in the new pipeline. For the {@link
    * AppliedPTransform} that is expected to remain in the pipeline after surgery, the corresponding
    * {@link PTransformMatcher} should override this method, such that it will not be matched during
    * the validation.

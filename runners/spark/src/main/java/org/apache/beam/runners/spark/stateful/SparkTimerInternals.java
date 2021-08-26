@@ -17,26 +17,29 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** An implementation of {@link TimerInternals} for the SparkRunner. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SparkTimerInternals implements TimerInternals {
   private final Instant highWatermark;
   private final Instant synchronizedProcessingTime;
@@ -100,7 +103,7 @@ public class SparkTimerInternals implements TimerInternals {
         : forStreamFromSources(Lists.newArrayList(watermarks.keySet()), watermarks);
   }
 
-  Collection<TimerData> getTimers() {
+  public Collection<TimerData> getTimers() {
     return timers;
   }
 
@@ -117,7 +120,7 @@ public class SparkTimerInternals implements TimerInternals {
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Deleting a timer by ID is not yet supported.");
   }
 
@@ -131,9 +134,8 @@ public class SparkTimerInternals implements TimerInternals {
     return Instant.now();
   }
 
-  @Nullable
   @Override
-  public Instant currentSynchronizedProcessingTime() {
+  public @Nullable Instant currentSynchronizedProcessingTime() {
     return synchronizedProcessingTime;
   }
 
@@ -147,30 +149,34 @@ public class SparkTimerInternals implements TimerInternals {
     inputWatermark = highWatermark;
   }
 
-  @Nullable
   @Override
-  public Instant currentOutputWatermarkTime() {
+  public @Nullable Instant currentOutputWatermarkTime() {
     return null;
   }
 
   @Override
   public void setTimer(
-      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
+      StateNamespace namespace,
+      String timerId,
+      String timerFamilyId,
+      Instant target,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Setting a timer by ID not yet supported.");
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
     throw new UnsupportedOperationException("Deleting a timer by ID is not yet supported.");
   }
 
   public static Collection<byte[]> serializeTimers(
-      Collection<TimerData> timers, TimerDataCoder timerDataCoder) {
+      Collection<TimerData> timers, TimerDataCoderV2 timerDataCoder) {
     return CoderHelpers.toByteArrays(timers, timerDataCoder);
   }
 
   public static Iterator<TimerData> deserializeTimers(
-      Collection<byte[]> serTimers, TimerDataCoder timerDataCoder) {
+      Collection<byte[]> serTimers, TimerDataCoderV2 timerDataCoder) {
     return CoderHelpers.fromByteArrays(serTimers, timerDataCoder).iterator();
   }
 

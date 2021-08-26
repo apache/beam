@@ -15,15 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.util;
 
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMap.Builder;
-import com.google.common.collect.ImmutableSet;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.FooterCoder;
@@ -48,21 +42,30 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV2;
+import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV3;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap.Builder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * The {@link CoderCloudObjectTranslatorRegistrar} containing the default collection of {@link
  * Coder} {@link CloudObjectTranslator Cloud Object Translators}.
  */
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class DefaultCoderCloudObjectTranslatorRegistrar
     implements CoderCloudObjectTranslatorRegistrar {
   private static final List<CloudObjectTranslator<? extends Coder>> DEFAULT_TRANSLATORS =
       ImmutableList.of(
           CloudObjectTranslators.globalWindow(),
           CloudObjectTranslators.intervalWindow(),
+          CloudObjectTranslators.customWindow(),
           CloudObjectTranslators.bytes(),
           CloudObjectTranslators.varInt(),
           CloudObjectTranslators.lengthPrefix(),
@@ -71,6 +74,8 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           CloudObjectTranslators.windowedValue(),
           new AvroCoderCloudObjectTranslator(),
           new SerializableCoderCloudObjectTranslator(),
+          new SchemaCoderCloudObjectTranslator(),
+          new RowCoderCloudObjectTranslator(),
           CloudObjectTranslators.iterableLike(CollectionCoder.class),
           CloudObjectTranslators.iterableLike(ListCoder.class),
           CloudObjectTranslators.iterableLike(SetCoder.class),
@@ -99,8 +104,8 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           KeyPrefixCoder.class,
           RandomAccessDataCoder.class,
           StringUtf8Coder.class,
-          TableDestinationCoder.class,
           TableDestinationCoderV2.class,
+          TableDestinationCoderV3.class,
           TableRowJsonCoder.class,
           TextualIntegerCoder.class,
           VarIntCoder.class,

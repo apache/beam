@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertFalse;
@@ -23,10 +22,10 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -57,6 +56,32 @@ public class InsertRetryPolicyTest {
     assertFalse(
         policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalidQuery"))));
     assertFalse(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "notImplemented"))));
+  }
+
+  static class RetryAllExceptInvalidQuery extends InsertRetryPolicy {
+    @Override
+    public boolean shouldRetry(Context context) {
+      if (context.getInsertErrors().getErrors() != null) {
+        for (ErrorProto error : context.getInsertErrors().getErrors()) {
+          if (error.getReason() != null && error.getReason().equals("invalidQuery")) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+  }
+
+  @Test
+  public void testCustomRetryPolicy() {
+    InsertRetryPolicy policy = new RetryAllExceptInvalidQuery();
+    assertTrue(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "unavailable"))));
+    assertTrue(policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalid"))));
+    assertFalse(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalidQuery"))));
+    assertTrue(
         policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "notImplemented"))));
   }
 

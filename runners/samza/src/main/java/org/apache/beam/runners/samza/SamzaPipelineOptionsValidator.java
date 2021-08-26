@@ -15,21 +15,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.samza.config.JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE;
 
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.samza.config.JobConfig;
+import org.apache.samza.config.MapConfig;
 
 /** Validates that the {@link SamzaPipelineOptions} conforms to all the criteria. */
 public class SamzaPipelineOptionsValidator {
-  public static SamzaPipelineOptions validate(PipelineOptions opts) {
-    final SamzaPipelineOptions samzaOptions =
-        PipelineOptionsValidator.validate(SamzaPipelineOptions.class, opts);
+  public static void validate(SamzaPipelineOptions opts) {
+    checkArgument(opts.getMaxSourceParallelism() >= 1);
+    validateBundlingRelatedOptions(opts);
+  }
 
-    checkArgument(samzaOptions.getMaxSourceParallelism() >= 1);
-    return samzaOptions;
+  /*
+   * Perform some bundling related validation for pipeline option.
+   * Visible for testing.
+   */
+  static void validateBundlingRelatedOptions(SamzaPipelineOptions pipelineOptions) {
+    if (pipelineOptions.getMaxBundleSize() > 1) {
+      final Map<String, String> configs =
+          pipelineOptions.getConfigOverride() == null
+              ? new HashMap<>()
+              : pipelineOptions.getConfigOverride();
+      final JobConfig jobConfig = new JobConfig(new MapConfig(configs));
+
+      // TODO: once Samza supports a better thread pool modle, e.g. thread
+      // per-task/key-range, this can be supported.
+      checkArgument(
+          jobConfig.getThreadPoolSize() <= 1,
+          JOB_CONTAINER_THREAD_POOL_SIZE
+              + " cannot be configured to"
+              + " greater than 1 for max bundle size: "
+              + pipelineOptions.getMaxBundleSize());
+    }
   }
 }

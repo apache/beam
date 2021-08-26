@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The interface to objects that provide side inputs. Particular implementations may read a side

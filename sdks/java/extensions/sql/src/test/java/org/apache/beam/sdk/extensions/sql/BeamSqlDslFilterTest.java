@@ -21,7 +21,9 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -125,6 +127,26 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
 
     boundedInput1.apply(SqlTransform.query(sql));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testFilterBytes() {
+    String sql = "SELECT c_bytes FROM PCOLLECTION WHERE c_bytes = x'ff'";
+
+    Schema schema = Schema.builder().addByteArrayField("c_bytes").build();
+    PCollection<Row> input =
+        pipeline.apply(
+            Create.of(
+                    Row.withSchema(schema).addValue(new byte[] {-1}).build(),
+                    Row.withSchema(schema).addValue(new byte[] {127}).build())
+                .withRowSchema(schema));
+
+    PCollection<Row> result = input.apply(SqlTransform.query(sql));
+
+    PAssert.that(result)
+        .containsInAnyOrder(Row.withSchema(schema).addValue(new byte[] {-1}).build());
 
     pipeline.run().waitUntilFinish();
   }

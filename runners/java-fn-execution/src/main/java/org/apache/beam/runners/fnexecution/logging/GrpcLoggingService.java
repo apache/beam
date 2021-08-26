@@ -15,25 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.logging;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogControl;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
-import org.apache.beam.runners.fnexecution.FnService;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.fn.server.FnService;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An implementation of the Beam Fn Logging Service over gRPC. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GrpcLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
     implements FnService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(GrpcLoggingService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcLoggingService.class);
 
   public static GrpcLoggingService forWriter(LogWriter writer) {
     return new GrpcLoggingService(writer);
@@ -51,7 +53,7 @@ public class GrpcLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
   public void close() throws Exception {
     Set<InboundObserver> remainingClients = ImmutableSet.copyOf(connectedClients.keySet());
     if (!remainingClients.isEmpty()) {
-      LOGGER.info(
+      LOG.info(
           "{} Beam Fn Logging clients still connected during shutdown.", remainingClients.size());
 
       // Signal server shutting down to all remaining connected clients.
@@ -67,7 +69,7 @@ public class GrpcLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
   @Override
   public StreamObserver<BeamFnApi.LogEntry.List> logging(
       StreamObserver<BeamFnApi.LogControl> outboundObserver) {
-    LOGGER.info("Beam Fn Logging client connected.");
+    LOG.info("Beam Fn Logging client connected.");
     InboundObserver inboundObserver = new InboundObserver();
     connectedClients.put(inboundObserver, outboundObserver);
     return inboundObserver;
@@ -79,7 +81,7 @@ public class GrpcLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
         outboundObserver.onCompleted();
       } catch (RuntimeException ignored) {
         // Completing outbound observer failed, ignoring failure and continuing
-        LOGGER.warn("Beam Fn Logging client failed to be complete.", ignored);
+        LOG.warn("Beam Fn Logging client failed to be complete.", ignored);
       }
     }
   }
@@ -99,7 +101,7 @@ public class GrpcLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
 
     @Override
     public void onError(Throwable t) {
-      LOGGER.warn("Logging client failed unexpectedly.", t);
+      LOG.warn("Logging client failed unexpectedly.", t);
       // We remove these from the connected clients map to prevent a race between
       // the close method and this InboundObserver calling a terminal method on the
       // StreamObserver. If we removed it, then we are responsible for the terminal call.
@@ -108,7 +110,7 @@ public class GrpcLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
 
     @Override
     public void onCompleted() {
-      LOGGER.info("Logging client hanged up.");
+      LOG.info("Logging client hanged up.");
       // We remove these from the connected clients map to prevent a race between
       // the close method and this InboundObserver calling a terminal method on the
       // StreamObserver. If we removed it, then we are responsible for the terminal call.

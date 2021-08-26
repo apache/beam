@@ -19,11 +19,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func sumFn(n int, a int, b []int, c func(*int) bool, d func() func(*int) bool, e func(int)) int {
@@ -60,18 +60,18 @@ func TestParDo(t *testing.T) {
 	cN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
 	dN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
 
-	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN, aN, bN, cN, dN}, nil)
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN, aN, bN, cN, dN}, nil, nil)
 	if err != nil {
 		t.Fatalf("invalid pardo: %v", err)
 	}
 
 	out := &CaptureNode{UID: 1}
 	sum := &CaptureNode{UID: 2}
-	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out, sum}, Side: []ReStream{
-		&FixedReStream{Buf: makeValues(1)},       // a
-		&FixedReStream{Buf: makeValues(2, 3, 4)}, // b
-		&FixedReStream{Buf: makeValues(5, 6)},    // c
-		&FixedReStream{Buf: makeValues(7, 8, 9)}, // d
+	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out, sum}, Side: []SideInputAdapter{
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(1)}},       // a
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(2, 3, 4)}}, // b
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(5, 6)}},    // c
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(7, 8, 9)}}, // d
 	}}
 	n := &FixedRoot{UID: 4, Elements: makeInput(10, 20, 30), Out: pardo}
 
@@ -80,7 +80,7 @@ func TestParDo(t *testing.T) {
 		t.Fatalf("failed to construct plan: %v", err)
 	}
 
-	if err := p.Execute(context.Background(), "1", nil); err != nil {
+	if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}
 	if err := p.Down(context.Background()); err != nil {
@@ -113,7 +113,7 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 
 	g := graph.New()
 	nN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
-	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil)
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil, nil)
 	if err != nil {
 		b.Fatalf("invalid pardo: %v", err)
 	}
@@ -131,7 +131,7 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 		b.Fatalf("failed to construct plan: %v", err)
 	}
 	go func() {
-		if err := p.Execute(context.Background(), "1", nil); err != nil {
+		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
 			b.Fatalf("execute failed: %v", err)
 		}
 		if err := p.Down(context.Background()); err != nil {

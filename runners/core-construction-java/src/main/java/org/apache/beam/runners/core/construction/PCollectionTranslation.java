@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.io.IOException;
@@ -36,7 +35,6 @@ public class PCollectionTranslation {
     String coderId = components.registerCoder(pCollection.getCoder());
     String windowingStrategyId =
         components.registerWindowingStrategy(pCollection.getWindowingStrategy());
-    // TODO: Display Data
 
     return RunnerApi.PCollection.newBuilder()
         .setUniqueName(pCollection.getName())

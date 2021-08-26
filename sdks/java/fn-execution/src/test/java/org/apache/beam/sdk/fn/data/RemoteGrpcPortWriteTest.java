@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.data;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.model.pipeline.v1.Endpoints.OAuth2ClientCredentialsGrant;
+import org.apache.beam.model.pipeline.v1.Endpoints.AuthenticationSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -40,8 +39,7 @@ public class RemoteGrpcPortWriteTest {
             .setApiServiceDescriptor(
                 ApiServiceDescriptor.newBuilder()
                     .setUrl("foo")
-                    .setOauth2ClientCredentialsGrant(
-                        OAuth2ClientCredentialsGrant.getDefaultInstance())
+                    .setAuthentication(AuthenticationSpec.getDefaultInstance())
                     .build())
             .build();
 
@@ -56,8 +54,7 @@ public class RemoteGrpcPortWriteTest {
             .setApiServiceDescriptor(
                 ApiServiceDescriptor.newBuilder()
                     .setUrl("foo")
-                    .setOauth2ClientCredentialsGrant(
-                        OAuth2ClientCredentialsGrant.getDefaultInstance())
+                    .setAuthentication(AuthenticationSpec.getDefaultInstance())
                     .build())
             .build();
 

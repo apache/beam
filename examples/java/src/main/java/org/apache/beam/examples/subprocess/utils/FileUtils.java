@@ -20,7 +20,6 @@ package org.apache.beam.examples.subprocess.utils;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -37,6 +36,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for dealing with movement of files from object stores and workers. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FileUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileUtils.class);
@@ -47,7 +49,7 @@ public class FileUtils {
   }
 
   public static String toStringParams(ProcessBuilder builder) {
-    return (String.join(",", builder.command()));
+    return String.join(",", builder.command());
   }
 
   public static String copyFileFromWorkerToGCS(
@@ -157,8 +159,6 @@ public class FileUtils {
 
     try (BufferedReader br = Files.newBufferedReader(Paths.get(path.toString()), UTF_8)) {
       return br.readLine();
-    } catch (FileNotFoundException e) {
-      LOG.error("Error reading the first line of file", e);
     } catch (IOException e) {
       LOG.error("Error reading the first line of file", e);
     }

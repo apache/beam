@@ -16,8 +16,7 @@
 package protox
 
 import (
-	"fmt"
-
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/golang/protobuf/proto"
 	protobuf "github.com/golang/protobuf/ptypes/any"
 	protobufw "github.com/golang/protobuf/ptypes/wrappers"
@@ -30,7 +29,7 @@ const (
 // Unpack decodes a proto.
 func Unpack(data *protobuf.Any, url string, ret proto.Message) error {
 	if data.TypeUrl != url {
-		return fmt.Errorf("Bad type: %v, want %v", data.TypeUrl, url)
+		return errors.Errorf("bad type: %v, want %v", data.TypeUrl, url)
 	}
 	return proto.Unmarshal(data.Value, ret)
 }
@@ -75,12 +74,12 @@ func PackBase64Proto(in proto.Message) (*protobuf.Any, error) {
 // UnpackBytes removes the BytesValue wrapper.
 func UnpackBytes(data *protobuf.Any) ([]byte, error) {
 	if data.TypeUrl != bytesValueTypeURL {
-		return nil, fmt.Errorf("Bad type: %v, want %v", data.TypeUrl, bytesValueTypeURL)
+		return nil, errors.Errorf("bad type: %v, want %v", data.TypeUrl, bytesValueTypeURL)
 	}
 
 	var buf protobufw.BytesValue
 	if err := proto.Unmarshal(data.Value, &buf); err != nil {
-		return nil, fmt.Errorf("BytesValue unmarshal failed: %v", err)
+		return nil, errors.Wrap(err, "BytesValue unmarshal failed")
 	}
 	return buf.Value, nil
 }

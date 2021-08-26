@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.util;
 
 /** Known kinds of {@link CloudObject}. */
 class CloudObjectKinds {
   static final String KIND_GLOBAL_WINDOW = "kind:global_window";
   static final String KIND_INTERVAL_WINDOW = "kind:interval_window";
+  static final String KIND_CUSTOM_WINDOW = "kind:custom_window";
   static final String KIND_LENGTH_PREFIX = "kind:length_prefix";
   static final String KIND_PAIR = "kind:pair";
   static final String KIND_STREAM = "kind:stream";

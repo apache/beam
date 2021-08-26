@@ -18,8 +18,16 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins {
+  id 'java'
+  id 'org.apache.beam.module'
+  id 'com.github.johnrengelman.shadow'
+}
+
+applyJavaNature(
+  exportJavadoc: false,
+  automaticModuleName: 'org.apache.beam.examples',
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -32,7 +40,6 @@ artifact includes all Apache Beam Java SDK examples."""
  * Some runners are run from separate projects, see the preCommit task below
  * for details.
  */
-// TODO: Add apexRunner - https://issues.apache.org/jira/browse/BEAM-3583
 def preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
 for (String runner : preCommitRunners) {
   configurations.create(runner + "PreCommit")
@@ -45,44 +52,68 @@ configurations.sparkRunnerPreCommit {
 }
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-  shadow library.java.google_api_client
-  shadow library.java.google_api_services_bigquery
-  shadow library.java.google_http_client
-  shadow library.java.bigdataoss_util
-  shadow library.java.google_auth_library_oauth2_http
-  shadow library.java.google_auth_library_credentials
-  shadow library.java.avro
-  shadow library.java.google_api_services_pubsub
-  shadow library.java.datastore_v1_proto_client
-  shadow library.java.datastore_v1_protos
-  shadow library.java.joda_time
-  shadow library.java.slf4j_api
-  shadow library.java.slf4j_jdk14
-  runtime project(path: ":beam-runners-direct-java", configuration: "shadow")
-  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
+  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  compile library.java.vendored_guava_26_0_jre
+  compile library.java.kafka_clients
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  compile project(":sdks:java:io:google-cloud-platform")
+  compile project(":sdks:java:io:kafka")
+  compile project(":sdks:java:extensions:ml")
+  compile library.java.avro
+  compile library.java.bigdataoss_util
+  compile library.java.google_api_client
+  compile library.java.google_api_services_bigquery
+  compile library.java.google_api_services_pubsub
+  compile library.java.google_auth_library_credentials
+  compile library.java.google_auth_library_oauth2_http
+  compile library.java.google_cloud_datastore_v1_proto_client
+  compile library.java.google_code_gson
+  compile library.java.google_http_client
+  compile library.java.google_oauth_client
+  compile library.java.jackson_databind
+  compile library.java.joda_time
+  compile library.java.protobuf_java
+  compile library.java.proto_google_cloud_bigtable_v2
+  compile library.java.proto_google_cloud_datastore_v1
+  compile library.java.slf4j_api
+  provided library.java.commons_io
+  provided library.java.commons_csv
+  runtime project(path: ":runners:direct-java", configuration: "shadow")
+  compile library.java.vendored_grpc_1_36_0
+  compile library.java.vendored_guava_26_0_jre
+  compile "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
+  compile ("io.confluent:kafka-avro-serializer:5.3.2") {
+    // It depends on "spotbugs-annotations:3.1.9" which clashes with current
+    // "spotbugs-annotations:3.1.12" used in Beam. Not required.
+    exclude group: "org.apache.zookeeper", module: "zookeeper"
+  }
+  compile "org.apache.commons:commons-lang3:3.9"
+  compile "org.apache.httpcomponents:httpclient:4.5.13"
+  compile "org.apache.httpcomponents:httpcore:4.4.13"
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(":sdks:java:io:google-cloud-platform")
+  testCompile project(":sdks:java:extensions:ml")
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.testcontainers_kafka
+  testCompile library.java.testcontainers_gcloud
 
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
   for (String runner : preCommitRunners) {
-    delegate.add(runner + "PreCommit", project(path: ":beam-examples-java", configuration: "shadow"))
-    delegate.add(runner + "PreCommit", project(path: ":beam-examples-java", configuration: "shadowTest"))
+    delegate.add(runner + "PreCommit", project(":examples:java"))
+    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntime"))
   }
-  // https://issues.apache.org/jira/browse/BEAM-3583
-  // apexRunnerPreCommit project(path: ":beam-runners-apex", configuration: "shadow")
-  directRunnerPreCommit project(path: ":beam-runners-direct-java", configuration: "shadow")
-  flinkRunnerPreCommit project(path: ":beam-runners-flink_2.11", configuration: "shadow")
+  directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
+  flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
   // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
   // before 4.1.8.Final defined by Apache Beam
   sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"
-  sparkRunnerPreCommit project(path: ":beam-runners-spark", configuration: "shadow")
-  sparkRunnerPreCommit project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+  sparkRunnerPreCommit project(":runners:spark:2")
+  sparkRunnerPreCommit project(":sdks:java:io:hadoop-file-system")
   sparkRunnerPreCommit library.java.spark_streaming
   sparkRunnerPreCommit library.java.spark_core
 }
@@ -92,7 +123,6 @@ dependencies {
  * of integration tests for WordCount and WindowedWordCount.
  */
 def preCommitRunnerClass = [
-  apexRunner: "org.apache.beam.runners.apex.TestApexRunner",
   directRunner: "org.apache.beam.runners.direct.DirectRunner",
   flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
   sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
@@ -123,7 +153,20 @@ task preCommit() {
   for (String runner : preCommitRunners) {
     dependsOn runner + "PreCommit"
   }
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommit"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples-streaming:preCommit"
 }
 
+task execute (type:JavaExec) {
+  main = System.getProperty("mainClass")
+  classpath = sourceSets.main.runtimeClasspath
+  systemProperties System.getProperties()
+  args System.getProperty("exec.args", "").split()
+}
+
+// Run this task to validate the Java environment setup for contributors
+task wordCount(type:JavaExec) {
+  description "Run the Java word count example"
+  main = "org.apache.beam.examples.WordCount"
+  classpath = sourceSets.main.runtimeClasspath
+  systemProperties = System.getProperties()
+  args = ["--output=/tmp/ouput.txt"]
+}

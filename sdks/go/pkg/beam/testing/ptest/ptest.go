@@ -18,9 +18,14 @@ package ptest
 
 import (
 	"context"
+	"flag"
+	"os"
+	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+
+	// ptest uses the direct runner to execute pipelines by default.
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 )
 
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
@@ -53,8 +58,94 @@ func CreateList2(a, b interface{}) (*beam.Pipeline, beam.Scope, beam.PCollection
 	return p, s, beam.CreateList(s, a), beam.CreateList(s, b)
 }
 
+// Runner is a flag that sets which runner pipelines under test will use.
+//
+// The test file must have a TestMain that calls Main or MainWithDefault
+// to function.
+var (
+	Runner        = flag.String("runner", "", "Pipeline runner.")
+	defaultRunner = "direct"
+)
+
+func DefaultRunner() string {
+	return defaultRunner
+}
+
 // Run runs a pipeline for testing. The semantics of the pipeline is expected
 // to be verified through passert.
 func Run(p *beam.Pipeline) error {
-	return direct.Execute(context.Background(), p)
+	if *Runner == "" {
+		*Runner = defaultRunner
+	}
+	_, err := beam.Run(context.Background(), *Runner, p)
+	return err
+}
+
+// RunWithMetrics runs a pipeline for testing with that returns metrics.Results
+// in the form of Pipeline Result
+func RunWithMetrics(p *beam.Pipeline) (beam.PipelineResult, error) {
+	if *Runner == "" {
+		*Runner = defaultRunner
+	}
+	return beam.Run(context.Background(), *Runner, p)
+}
+
+// RunAndValidate runs a pipeline for testing and validates the result, failing
+// the test if the pipeline fails.
+func RunAndValidate(t *testing.T, p *beam.Pipeline) beam.PipelineResult {
+	pr, err := RunWithMetrics(p)
+	if err != nil {
+		t.Fatalf("Failed to execute job: %v", err)
+	}
+	return pr
+}
+
+// Main is an implementation of testing's TestMain to permit testing
+// pipelines on runners other than the direct runner.
+//
+// To enable this behavior, _ import the desired runner, and set the flag
+// accordingly. For example:
+//
+//	import _ "github.com/apache/beam/sdks/v2/go/pkg/runners/flink"
+//
+//	func TestMain(m *testing.M) {
+//		ptest.Main(m)
+//	}
+//
+func Main(m *testing.M) {
+	MainWithDefault(m, "direct")
+}
+
+// MainWithDefault is an implementation of testing's TestMain to permit testing
+// pipelines on runners other than the direct runner, while setting the default
+// runner to use.
+func MainWithDefault(m *testing.M, runner string) {
+	defaultRunner = runner
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	beam.Init()
+	os.Exit(m.Run())
+}
+
+// MainRet is equivelant to Main, but returns an exit code to pass to os.Exit().
+//
+// Example:
+//
+//	func TestMain(m *testing.M) {
+//		os.Exit(ptest.Main(m))
+//	}
+func MainRet(m *testing.M) int {
+	return MainRetWithDefault(m, "direct")
+}
+
+// MainRetWithDefault is equivelant to MainWithDefault but returns an exit code
+// to pass to os.Exit().
+func MainRetWithDefault(m *testing.M, runner string) int {
+	defaultRunner = runner
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	beam.Init()
+	return m.Run()
 }

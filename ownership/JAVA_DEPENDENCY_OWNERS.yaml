@@ -47,12 +47,12 @@ deps:
   com.amazonaws:amazon-kinesis-client:
     group: com.amazonaws
     artifact: amazon-kinesis-client
-    owners:
+    owners: aromanenko-dev
 
   com.amazonaws:amazon-kinesis-producer:
     group: com.amazonaws
     artifact: amazon-kinesis-producer
-    owners:
+    owners: aromanenko-dev
 
   com.amazonaws:aws-java-sdk-cloudwatch:
     group: com.amazonaws
@@ -62,11 +62,6 @@ deps:
   com.amazonaws:aws-java-sdk-core:
     group: com.amazonaws
     artifact: aws-java-sdk-core
-    owners:
-
-  com.amazonaws:aws-java-sdk-kinesis:
-    group: com.amazonaws
-    artifact: aws-java-sdk-kinesis
     owners:
 
   com.amazonaws:aws-java-sdk-kinesis:
@@ -92,7 +87,7 @@ deps:
   com.commercehub.gradle.plugin:gradle-avro-plugin:
     group: com.commercehub.gradle.plugin
     artifact: gradle-avro-plugin
-    owners: swegner,
+    owners:
 
   com.datastax.cassandra:cassandra-driver-core:
     group: com.datastax.cassandra
@@ -247,12 +242,12 @@ deps:
   com.google.auto.service:auto-service:
     group: com.google.auto.service
     artifact: auto-service
-    owners: swegner,
+    owners:
 
   com.google.auto.value:auto-value:
     group: com.google.auto.value
     artifact: auto-value
-    owners: swegner,
+    owners:
 
   com.google.cloud:google-cloud-core:
     group: com.google.cloud
@@ -262,11 +257,6 @@ deps:
   com.google.cloud:google-cloud-core-grpc:
     group: com.google.cloud
     artifact: google-cloud-core-grpc
-    owners:
-
-  com.google.cloud:google-cloud-spanner:
-    group: com.google.cloud
-    artifact: google-cloud-spanner
     owners:
 
   com.google.cloud:google-cloud-spanner:
@@ -297,7 +287,7 @@ deps:
   com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:
     group: com.google.cloud.dataflow
     artifact: google-cloud-dataflow-java-proto-library-all
-    owners: swegner,
+    owners:
 
   com.google.cloud.datastore:datastore-v1-proto-client:
     group: com.google.cloud.datastore
@@ -312,17 +302,17 @@ deps:
   com.google.code.findbugs:findbugs-annotations:
     group: com.google.code.findbugs
     artifact: findbugs-annotations
-    owners: swegner,
+    owners:
 
   com.google.code.findbugs:jsr305:
     group: com.google.code.findbugs
     artifact: jsr305
-    owners: swegner,
+    owners:
 
   com.google.errorprone:error_prone_annotations:
     group: com.google.errorprone
     artifact: error_prone_annotations
-    owners: swegner,
+    owners:
 
   com.google.guava:guava:
     group: com.google.guava
@@ -367,7 +357,7 @@ deps:
   com.google.protobuf:protobuf-gradle-plugin:
     group: com.google.protobuf
     artifact: protobuf-gradle-plugin
-    owners: swegner, pabloem
+    owners: pabloem
 
   com.google.protobuf:protobuf-java:
     group: com.google.protobuf
@@ -387,7 +377,7 @@ deps:
   com.gradle:build-scan-plugin:
     group: com.gradle
     artifact: build-scan-plugin
-    owners: swegner,
+    owners:
 
   com.pholser:junit-quickcheck-core:
     group: com.pholser
@@ -457,7 +447,7 @@ deps:
   io.dropwizard.metrics:metrics-core:
     group: io.dropwizard.metrics
     artifact: metrics-core
-    owners: swegner,
+    owners:
 
   io.grpc:grpc-all:
     group: io.grpc
@@ -514,9 +504,14 @@ deps:
     artifact: netty-transport-native-epoll
     owners: chamikara
 
-  io.spring.gradle:propdeps-plugin:
-    group: io.spring.gradle
-    artifact: propdeps-plugin
+  io.opencensus:opencensus-api:
+    group: io.opencensus
+    artifact: opencensus-api
+    owners:
+
+  io.opencensus:opencensus-contrib-grpc-metrics:
+    group: io.opencensus
+    artifact: opencensus-contrib-grpc-metrics
     owners:
 
   io.spring.gradle:propdeps-plugin:
@@ -542,7 +537,7 @@ deps:
   net.bytebuddy:byte-buddy:
     group: net.bytebuddy
     artifact: byte-buddy
-    owners: swegner
+    owners:
 
   net.java.dev.javacc:javacc:
     group: net.java.dev.javacc
@@ -562,7 +557,7 @@ deps:
   net.ltgt.gradle:gradle-errorprone-plugin:
     group: net.ltgt.gradle
     artifact: gradle-errorprone-plugin
-    owners: swegner,
+    owners:
 
   net.researchgate:gradle-release:
     group: net.researchgate
@@ -602,21 +597,6 @@ deps:
   org.apache.activemq.tooling:activemq-junit:
     group: org.apache.activemq.tooling
     artifact: activemq-junit
-    owners:
-
-  org.apache.apex:apex-common:
-    group: org.apache.apex
-    artifact: apex-common
-    owners:
-
-  org.apache.apex:apex-engine:
-    group: org.apache.apex
-    artifact: apex-engine
-    owners:
-
-  org.apache.apex:malhar-library:
-    group: org.apache.apex
-    artifact: malhar-library
     owners:
 
   org.apache.avro:avro:
@@ -712,16 +692,6 @@ deps:
   org.apache.flink:flink-test-utils_2.11:
     group: org.apache.flink
     artifact: flink-test-utils_2.11
-    owners:
-
-  org.apache.gearpump:gearpump-core_2.11:
-    group: org.apache.gearpump
-    artifact: gearpump-core_2.11
-    owners:
-
-  org.apache.gearpump:gearpump-streaming_2.11:
-    group: org.apache.gearpump
-    artifact: gearpump-streaming_2.11
     owners:
 
   org.apache.hadoop:hadoop-client:
@@ -829,15 +799,20 @@ deps:
     artifact: kafka-clients
     owners:
 
+  org.apache.kudu:kudu-client:
+    group: org.apache.kudu
+    artifact: kudu-client
+    owners:
+
   org.apache.logging.log4j:log4j-api:
     group: org.apache.logging.log4j
     artifact: log4j-api
-    owners: swegner,
+    owners:
 
   org.apache.logging.log4j:log4j-core:
     group: org.apache.logging.log4j
     artifact: log4j-core
-    owners: swegner,
+    owners:
 
   org.apache.parquet:parquet-avro:
     group: org.apache.parquet
@@ -862,7 +837,7 @@ deps:
   org.apache.rat:apache-rat-tasks:
     group: org.apache.rat
     artifact: apache-rat-tasks
-    owners: swegner,
+    owners:
 
   org.apache.solr:solr-core:
     group: org.apache.solr
@@ -912,7 +887,7 @@ deps:
   org.assertj:assertj-core:
     group: org.assertj
     artifact: assertj-core
-    owners: swegner,
+    owners:
 
   org.codehaus.groovy:groovy-all:
     group: org.codehaus.groovy
@@ -994,6 +969,11 @@ deps:
     artifact: postgresql
     owners: timrobertson100
 
+  org.powermock:powermock-mockito-release-full:
+    group: org.powermock
+    artifact: powermock-mockito-release-full
+    owners: boyuanzz
+
   org.scala-lang:scala-library:
     group: org.scala-lang
     artifact: scala-library
@@ -1007,12 +987,12 @@ deps:
   org.slf4j:slf4j-jdk14:
     group: org.slf4j
     artifact: slf4j-jdk14
-    owners: swegner,
+    owners:
 
   org.slf4j:slf4j-simple:
     group: org.slf4j
     artifact: slf4j-simple
-    owners: swegner,
+    owners:
 
   org.slf4j:slf4j-log4j12:
     group: org.slf4j

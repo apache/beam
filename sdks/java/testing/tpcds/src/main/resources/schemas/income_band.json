@@ -1,0 +1,5 @@
+{"schema": [
+  {"name":"ib_income_band_sk","type":"identifier"},
+  {"name":"ib_lower_bound","type":"integer"},
+  {"name":"ib_upper_bound","type":"integer"}
+]}

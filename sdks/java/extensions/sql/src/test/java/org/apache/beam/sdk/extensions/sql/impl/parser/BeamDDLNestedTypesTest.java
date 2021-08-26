@@ -32,7 +32,7 @@ import org.apache.beam.sdk.extensions.sql.utils.QuickCheckGenerators.AnyFieldTyp
 import org.apache.beam.sdk.extensions.sql.utils.QuickCheckGenerators.PrimitiveTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParseException;
 import org.junit.runner.RunWith;
 
 /**
@@ -71,7 +71,7 @@ public class BeamDDLNestedTypesTest {
 
   private Table executeCreateTableWith(String fieldType) throws SqlParseException {
     String createTable =
-        "create table tablename ( "
+        "CREATE EXTERNAL TABLE tablename ( "
             + "fieldName "
             + fieldType
             + " ) "
@@ -119,10 +119,7 @@ public class BeamDDLNestedTypesTest {
 
   private String unparseRow(FieldType fieldType) {
     return "ROW<"
-        + fieldType
-            .getRowSchema()
-            .getFields()
-            .stream()
+        + fieldType.getRowSchema().getFields().stream()
             .map(field -> field.getName() + " " + unparse(field.getType()))
             .collect(joining(","))
         + ">";

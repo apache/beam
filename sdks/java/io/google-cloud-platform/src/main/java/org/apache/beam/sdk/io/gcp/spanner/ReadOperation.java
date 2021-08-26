@@ -24,10 +24,13 @@ import com.google.cloud.spanner.Statement;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Encapsulates a spanner read operation. */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class ReadOperation implements Serializable {
 
   public static ReadOperation create() {
@@ -37,23 +40,17 @@ public abstract class ReadOperation implements Serializable {
         .build();
   }
 
-  @Nullable
-  public abstract Statement getQuery();
+  public abstract @Nullable Statement getQuery();
 
-  @Nullable
-  public abstract String getTable();
+  public abstract @Nullable String getTable();
 
-  @Nullable
-  public abstract String getIndex();
+  public abstract @Nullable String getIndex();
 
-  @Nullable
-  public abstract List<String> getColumns();
+  public abstract @Nullable List<String> getColumns();
 
-  @Nullable
-  public abstract KeySet getKeySet();
+  public abstract @Nullable KeySet getKeySet();
 
-  @Nullable
-  abstract PartitionOptions getPartitionOptions();
+  abstract @Nullable PartitionOptions getPartitionOptions();
 
   @AutoValue.Builder
   abstract static class Builder {

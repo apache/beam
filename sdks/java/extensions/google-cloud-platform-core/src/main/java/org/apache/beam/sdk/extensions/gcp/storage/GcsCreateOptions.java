@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.extensions.gcp.storage;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
-import javax.annotation.Nullable;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An abstract class that contains common configuration options for creating resources. */
 @AutoValue
@@ -28,11 +28,10 @@ public abstract class GcsCreateOptions extends CreateOptions {
 
   /**
    * The buffer size (in bytes) to use when uploading files to GCS. Please see the documentation for
-   * {@link AbstractGoogleAsyncWriteChannel#setUploadBufferSize} for more information on the
-   * restrictions and performance implications of this value.
+   * {@link AsyncWriteChannelOptions#getUploadChunkSize} for more information on the restrictions
+   * and performance implications of this value.
    */
-  @Nullable
-  public abstract Integer gcsUploadBufferSizeBytes();
+  public abstract @Nullable Integer gcsUploadBufferSizeBytes();
 
   // TODO: Add other GCS options when needed.
 

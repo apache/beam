@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -51,6 +50,9 @@ import scala.Tuple2;
  * SparkPipelineOptions#getMinReadTimeMillis()}. Records bound is controlled by the {@link
  * RateController} mechanism.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends InputDStream<Tuple2<Source<T>, CheckpointMarkT>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceDStream.class);
@@ -168,7 +170,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     return numPartitions;
   }
 
-  //---- Bound by time.
+  // ---- Bound by time.
 
   // return the largest between the proportional read time (%batchDuration dedicated for read)
   // and the min. read time set.
@@ -185,7 +187,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     return readDuration;
   }
 
-  //---- Bound by records.
+  // ---- Bound by records.
 
   private scala.Option<Long> rateControlledMaxRecords() {
     final scala.Option<RateController> rateControllerOption = rateController();

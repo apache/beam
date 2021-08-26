@@ -21,13 +21,16 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
@@ -49,13 +52,21 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 	conn, err := dial(ctx, controlEndpoint, 60*time.Second)
 	if err != nil {
-		return fmt.Errorf("Failed to connect: %v", err)
+		return errors.Wrap(err, "failed to connect")
 	}
 	defer conn.Close()
 
-	client, err := fnpb.NewBeamFnControlClient(conn).Control(ctx)
+	client := fnpb.NewBeamFnControlClient(conn)
+
+	lookupDesc := func(id bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error) {
+		pbd, err := client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
+		log.Debugf(ctx, "GPBD RESP [%v]: %v, err %v", id, pbd, err)
+		return pbd, err
+	}
+
+	stub, err := client.Control(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to control service: %v", err)
+		return errors.Wrapf(err, "failed to connect to control service")
 	}
 
 	log.Debugf(ctx, "Successfully connected to control @ %v", controlEndpoint)
@@ -74,25 +85,35 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		for resp := range respc {
 			log.Debugf(ctx, "RESP: %v", proto.MarshalTextString(resp))
 
-			if err := client.Send(resp); err != nil {
-				log.Errorf(ctx, "Failed to respond: %v", err)
+			if err := stub.Send(resp); err != nil {
+				log.Errorf(ctx, "control.Send: Failed to respond: %v", err)
 			}
 		}
+		log.Debugf(ctx, "control response channel closed")
 	}()
 
 	ctrl := &control{
-		plans:  make(map[string]*exec.Plan),
-		active: make(map[string]*exec.Plan),
-		data:   &DataManager{},
+		lookupDesc:  lookupDesc,
+		descriptors: make(map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor),
+		plans:       make(map[bundleDescriptorID][]*exec.Plan),
+		active:      make(map[instructionID]*exec.Plan),
+		inactive:    newCircleBuffer(),
+		metStore:    make(map[instructionID]*metrics.Store),
+		failed:      make(map[instructionID]error),
+		data:        &DataChannelManager{},
+		state:       &StateChannelManager{},
 	}
 
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,
 	// so as to avoid blocking the underlying network channel.
+	var shutdown int32
 	for {
-		req, err := client.Recv()
+		req, err := stub.Recv()
 		if err != nil {
+			// An error means we can't send or receive anymore. Shut down.
+			atomic.AddInt32(&shutdown, 1)
 			close(respc)
 			wg.Wait()
 
@@ -100,7 +121,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 				recordFooter()
 				return nil
 			}
-			return fmt.Errorf("recv failed: %v", err)
+			return errors.Wrapf(err, "control.Recv failed")
 		}
 
 		// Launch a goroutine to handle the control message.
@@ -115,12 +136,18 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			hooks.RunResponseHooks(ctx, req, resp)
 
 			recordInstructionResponse(resp)
-			if resp != nil {
+			if resp != nil && atomic.LoadInt32(&shutdown) == 0 {
 				respc <- resp
 			}
 		}
 
 		if req.GetProcessBundle() != nil {
+			// Add this to the inactive queue before allowing other requests
+			// to be processed. This prevents race conditions with split
+			// or progress requests for this instruction.
+			ctrl.mu.Lock()
+			ctrl.inactive.Add(instructionID(req.GetInstructionId()))
+			ctrl.mu.Unlock()
 			// Only process bundles in a goroutine. We at least need to process instructions for
 			// each plan serially. Perhaps just invoke plan.Execute async?
 			go fn(ctx, req)
@@ -130,41 +157,128 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}
 }
 
+type bundleDescriptorID string
+type instructionID string
+
+const circleBufferCap = 1000
+
+// circleBuffer is an ordered eviction buffer
+type circleBuffer struct {
+	buf map[instructionID]struct{}
+	// order that instructions should be removed from the buf map.
+	// treated like a circular buffer with nextRemove as the pointer.
+	removeQueue [circleBufferCap]instructionID
+	nextRemove  int
+}
+
+func newCircleBuffer() circleBuffer {
+	return circleBuffer{buf: map[instructionID]struct{}{}}
+}
+
+// Add the instruction to the buffer without including it in the remove queue.
+func (c *circleBuffer) Add(instID instructionID) {
+	c.buf[instID] = struct{}{}
+}
+
+// Remove deletes the value from the map.
+func (c *circleBuffer) Remove(instID instructionID) {
+	delete(c.buf, instID)
+}
+
+// Insert adds an instruction to the buffer, and removes one if necessary.
+// If one is removed, it's returned so the instruction can be GCd from other
+// maps.
+func (c *circleBuffer) Insert(instID instructionID) (removed instructionID, ok bool) {
+	// check if we need to evict something, and then do so.
+	if len(c.buf) >= len(c.removeQueue) {
+		removed = c.removeQueue[c.nextRemove]
+		delete(c.buf, removed)
+		ok = true
+	}
+	// nextRemove is now free, add the current instruction to the set.
+	c.removeQueue[c.nextRemove] = instID
+	c.buf[instID] = struct{}{}
+	// increment and wrap around.
+	c.nextRemove++
+	if c.nextRemove >= len(c.removeQueue) {
+		c.nextRemove = 0
+	}
+	return removed, ok
+}
+
+// Contains returns whether the buffer contains the given instruction.
+func (c *circleBuffer) Contains(instID instructionID) bool {
+	_, ok := c.buf[instID]
+	return ok
+}
+
 type control struct {
+	lookupDesc  func(bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error)
+	descriptors map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor // protected by mu
 	// plans that are candidates for execution.
-	plans map[string]*exec.Plan // protected by mu
+	plans map[bundleDescriptorID][]*exec.Plan // protected by mu
 	// plans that are actively being executed.
 	// a plan can only be in one of these maps at any time.
-	active map[string]*exec.Plan // protected by mu
+	active map[instructionID]*exec.Plan // protected by mu
+	// a plan that's either about to start or has finished recently
+	// instructions in this queue should return empty responses to control messages.
+	inactive circleBuffer // protected by mu
+	// metric stores for active plans.
+	metStore map[instructionID]*metrics.Store // protected by mu
+	// plans that have failed during execution
+	failed map[instructionID]error // protected by mu
 	mu     sync.Mutex
 
-	data *DataManager
+	data  *DataChannelManager
+	state *StateChannelManager
+}
+
+func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
+	c.mu.Lock()
+	plans, ok := c.plans[bdID]
+	var plan *exec.Plan
+	if ok && len(plans) > 0 {
+		plan = plans[len(plans)-1]
+		c.plans[bdID] = plans[:len(plans)-1]
+	} else {
+		desc, ok := c.descriptors[bdID]
+		if !ok {
+			c.mu.Unlock() // Unlock to make the lookup.
+			newDesc, err := c.lookupDesc(bdID)
+			if err != nil {
+				return nil, errors.WithContextf(err, "execution plan for %v not found", bdID)
+			}
+			c.mu.Lock()
+			c.descriptors[bdID] = newDesc
+			desc = newDesc
+		}
+		newPlan, err := exec.UnmarshalPlan(desc)
+		if err != nil {
+			c.mu.Unlock()
+			return nil, errors.WithContextf(err, "invalid bundle desc: %v\n%v\n", bdID, desc.String())
+		}
+		plan = newPlan
+	}
+	c.mu.Unlock()
+	return plan, nil
 }
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
-	id := req.GetInstructionId()
-	ctx = setInstID(ctx, id)
+	instID := instructionID(req.GetInstructionId())
+	ctx = setInstID(ctx, instID)
 
 	switch {
 	case req.GetRegister() != nil:
 		msg := req.GetRegister()
 
+		c.mu.Lock()
 		for _, desc := range msg.GetProcessBundleDescriptor() {
-			p, err := exec.UnmarshalPlan(desc)
-			if err != nil {
-				return fail(id, "Invalid bundle desc: %v", err)
-			}
-
-			pid := desc.GetId()
-			log.Debugf(ctx, "Plan %v: %v", pid, p)
-
-			c.mu.Lock()
-			c.plans[pid] = p
-			c.mu.Unlock()
+			c.descriptors[bundleDescriptorID(desc.GetId())] = desc
 		}
+		c.mu.Unlock()
 
 		return &fnpb.InstructionResponse{
-			InstructionId: id,
+			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_Register{
 				Register: &fnpb.RegisterResponse{},
 			},
@@ -175,38 +289,57 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		// NOTE: the harness sends a 0-length process bundle request to sources (changed?)
 
-		log.Debugf(ctx, "PB: %v", msg)
+		bdID := bundleDescriptorID(msg.GetProcessBundleDescriptorId())
+		log.Debugf(ctx, "PB [%v]: %v", instID, msg)
+		plan, err := c.getOrCreatePlan(bdID)
 
-		ref := msg.GetProcessBundleDescriptorReference()
+		// Make the plan active.
 		c.mu.Lock()
-		plan, ok := c.plans[ref]
-		// Make the plan active, and remove it from candidates
-		// since a plan can't be run concurrently.
-		c.active[id] = plan
-		delete(c.plans, ref)
-		c.mu.Unlock()
-
-		if !ok {
-			return fail(id, "execution plan for %v not found", ref)
-		}
-
-		err := plan.Execute(ctx, id, c.data)
-		m := plan.Metrics()
-		// Move the plan back to the candidate state
-		c.mu.Lock()
-		c.plans[plan.ID()] = plan
-		delete(c.active, id)
+		c.inactive.Remove(instID)
+		c.active[instID] = plan
+		// Get the user metrics store for this bundle.
+		ctx = metrics.SetBundleID(ctx, string(instID))
+		store := metrics.GetStore(ctx)
+		c.metStore[instID] = store
 		c.mu.Unlock()
 
 		if err != nil {
-			return fail(id, "execute failed: %v", err)
+			return fail(ctx, instID, "Failed: %v", err)
+		}
+
+		data := NewScopedDataManager(c.data, instID)
+		state := NewScopedStateReader(c.state, instID)
+		err = plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
+		data.Close()
+		state.Close()
+
+		mons, pylds := monitoring(plan, store)
+		// Move the plan back to the candidate state
+		c.mu.Lock()
+		// Mark the instruction as failed.
+		if err != nil {
+			c.failed[instID] = err
+		} else {
+			// Non failure plans can be re-used.
+			c.plans[bdID] = append(c.plans[bdID], plan)
+		}
+		delete(c.active, instID)
+		if removed, ok := c.inactive.Insert(instID); ok {
+			delete(c.failed, removed) // Also GC old failed bundles.
+		}
+		delete(c.metStore, instID)
+		c.mu.Unlock()
+
+		if err != nil {
+			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, err)
 		}
 
 		return &fnpb.InstructionResponse{
-			InstructionId: id,
+			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundle{
 				ProcessBundle: &fnpb.ProcessBundleResponse{
-					Metrics: m,
+					MonitoringData:  pylds,
+					MonitoringInfos: mons,
 				},
 			},
 		}
@@ -214,23 +347,29 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 	case req.GetProcessBundleProgress() != nil:
 		msg := req.GetProcessBundleProgress()
 
-		// log.Debugf(ctx, "PB Progress: %v", msg)
+		ref := instructionID(msg.GetInstructionId())
 
-		ref := msg.GetInstructionReference()
-		c.mu.Lock()
-		plan, ok := c.active[ref]
-		c.mu.Unlock()
-		if !ok {
-			return fail(id, "execution plan for %v not found", ref)
+		plan, store, resp := c.getPlanOrResponse(ctx, "progress", instID, ref)
+		if resp != nil {
+			return resp
+		}
+		if plan == nil && resp == nil {
+			return &fnpb.InstructionResponse{
+				InstructionId: string(instID),
+				Response: &fnpb.InstructionResponse_ProcessBundleProgress{
+					ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{},
+				},
+			}
 		}
 
-		m := plan.Metrics()
+		mons, pylds := monitoring(plan, store)
 
 		return &fnpb.InstructionResponse{
-			InstructionId: id,
+			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
-					Metrics: m,
+					MonitoringData:  pylds,
+					MonitoringInfos: mons,
 				},
 			},
 		}
@@ -239,24 +378,132 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		msg := req.GetProcessBundleSplit()
 
 		log.Debugf(ctx, "PB Split: %v", msg)
+		ref := instructionID(msg.GetInstructionId())
+
+		plan, _, resp := c.getPlanOrResponse(ctx, "split", instID, ref)
+		if resp != nil {
+			return resp
+		}
+		if plan == nil {
+			return &fnpb.InstructionResponse{
+				InstructionId: string(instID),
+				Response: &fnpb.InstructionResponse_ProcessBundleSplit{
+					ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
+				},
+			}
+		}
+
+		// Get the desired splits for the root FnAPI read operation.
+		ds := msg.GetDesiredSplits()[plan.SourcePTransformID()]
+		if ds == nil {
+			return fail(ctx, instID, "failed to split: desired splits for root of %v was empty.", ref)
+		}
+		sr, err := plan.Split(exec.SplitPoints{
+			Splits:  ds.GetAllowedSplitPoints(),
+			Frac:    ds.GetFractionOfRemainder(),
+			BufSize: ds.GetEstimatedInputElements(),
+		})
+
+		if err != nil {
+			return fail(ctx, instID, "unable to split %v: %v", ref, err)
+		}
+
+		var pRoots []*fnpb.BundleApplication
+		var rRoots []*fnpb.DelayedBundleApplication
+		if sr.PS != nil && len(sr.PS) > 0 && sr.RS != nil && len(sr.RS) > 0 {
+			pRoots = make([]*fnpb.BundleApplication, len(sr.PS))
+			for i, p := range sr.PS {
+				pRoots[i] = &fnpb.BundleApplication{
+					TransformId: sr.TId,
+					InputId:     sr.InId,
+					Element:     p,
+				}
+			}
+			rRoots = make([]*fnpb.DelayedBundleApplication, len(sr.RS))
+			for i, r := range sr.RS {
+				rRoots[i] = &fnpb.DelayedBundleApplication{
+					Application: &fnpb.BundleApplication{
+						TransformId: sr.TId,
+						InputId:     sr.InId,
+						Element:     r,
+					},
+				}
+			}
+		}
 
 		return &fnpb.InstructionResponse{
-			InstructionId: id,
+			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleSplit{
-				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
+				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{
+					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{{
+						TransformId:          plan.SourcePTransformID(),
+						LastPrimaryElement:   sr.PI,
+						FirstResidualElement: sr.RI,
+					}},
+					PrimaryRoots:  pRoots,
+					ResidualRoots: rRoots,
+				},
+			},
+		}
+	case req.GetMonitoringInfos() != nil:
+		msg := req.GetMonitoringInfos()
+		return &fnpb.InstructionResponse{
+			InstructionId: string(instID),
+			Response: &fnpb.InstructionResponse_MonitoringInfos{
+				MonitoringInfos: &fnpb.MonitoringInfosMetadataResponse{
+					MonitoringInfo: shortIdsToInfos(msg.GetMonitoringInfoId()),
+				},
+			},
+		}
+	case req.GetHarnessMonitoringInfos() != nil:
+		return &fnpb.InstructionResponse{
+			InstructionId: string(instID),
+			Response: &fnpb.InstructionResponse_HarnessMonitoringInfos{
+				HarnessMonitoringInfos: &fnpb.HarnessMonitoringInfosResponse{
+					// TODO(BEAM-11092): Populate with non-bundle metrics data.
+					MonitoringData: map[string][]byte{},
+				},
 			},
 		}
 
 	default:
-		return fail(id, "Unexpected request: %v", req)
+		return fail(ctx, instID, "Unexpected request: %v", req)
 	}
 }
 
-func fail(id, format string, args ...interface{}) *fnpb.InstructionResponse {
+// getPlanOrResponse returns the plan for the given instruction id.
+// Otherwise, provides an error response.
+// However, if that plan is known as inactive, it returns both the plan and response as nil,
+// indicating that an empty response of the appropriate type must be returned instead.
+// This is done because the OneOf types in Go protos are not exported, so we can't pass
+// them as a parameter here instead, and relying on those proto internal would be brittle.
+//
+// Since this logic is subtle, it's been abstracted to a method to scope the defer unlock.
+func (c *control) getPlanOrResponse(ctx context.Context, kind string, instID, ref instructionID) (*exec.Plan, *metrics.Store, *fnpb.InstructionResponse) {
+	c.mu.Lock()
+	plan, ok := c.active[ref]
+	err := c.failed[ref]
+	store, _ := c.metStore[ref]
+	defer c.mu.Unlock()
+
+	if err != nil {
+		return nil, nil, fail(ctx, instID, "failed to return %v: instruction %v failed: %v", kind, ref, err)
+	}
+	if !ok {
+		if c.inactive.Contains(ref) {
+			return nil, nil, nil
+		}
+		return nil, nil, fail(ctx, instID, "failed to return %v: instruction %v not active", kind, ref)
+	}
+	return plan, store, nil
+}
+
+func fail(ctx context.Context, id instructionID, format string, args ...interface{}) *fnpb.InstructionResponse {
+	log.Output(ctx, log.SevError, 1, fmt.Sprintf(format, args...))
 	dummy := &fnpb.InstructionResponse_Register{Register: &fnpb.RegisterResponse{}}
 
 	return &fnpb.InstructionResponse{
-		InstructionId: id,
+		InstructionId: string(id),
 		Error:         fmt.Sprintf(format, args...),
 		Response:      dummy,
 	}

@@ -20,14 +20,12 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.TestUtils.LINES;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -65,6 +63,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -76,7 +78,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for Create. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("unchecked")
+@SuppressWarnings({
+  "unchecked",
+})
 public class CreateTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   @Rule public final TestPipeline p = TestPipeline.create();
@@ -190,7 +194,7 @@ public class CreateTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       return myString.equals(((UnserializableRecord) o).myString);
     }
 
@@ -418,6 +422,7 @@ public class CreateTest {
             Create.of("a", "b", "c", "d")
                 .withSchema(
                     STRING_SCHEMA,
+                    TypeDescriptors.strings(),
                     s -> Row.withSchema(STRING_SCHEMA).addValue(s).build(),
                     r -> r.getString("field")));
     assertThat(out.getCoder(), instanceOf(SchemaCoder.class));

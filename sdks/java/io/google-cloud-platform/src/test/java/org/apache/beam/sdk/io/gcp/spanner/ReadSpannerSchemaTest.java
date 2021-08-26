@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -36,9 +36,12 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
 
 /** A test of {@link ReadSpannerSchemaTest}. */
+@RunWith(JUnit4.class)
 public class ReadSpannerSchemaTest {
 
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
@@ -82,7 +85,7 @@ public class ReadSpannerSchemaTest {
                 new ArgumentMatcher<Statement>() {
 
                   @Override
-                  public boolean matches(Object argument) {
+                  public boolean matches(Statement argument) {
                     if (!(argument instanceof Statement)) {
                       return false;
                     }
@@ -104,7 +107,7 @@ public class ReadSpannerSchemaTest {
                 new ArgumentMatcher<Statement>() {
 
                   @Override
-                  public boolean matches(Object argument) {
+                  public boolean matches(Statement argument) {
                     if (!(argument instanceof Statement)) {
                       return false;
                     }

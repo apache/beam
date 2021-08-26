@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
+
 import com.google.bigtable.admin.v2.GetTableRequest;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.MutateRowsRequest;
@@ -32,11 +34,6 @@ import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.io.Closer;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
@@ -48,6 +45,11 @@ import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,8 +57,11 @@ import org.slf4j.LoggerFactory;
  * An implementation of {@link BigtableService} that actually communicates with the Cloud Bigtable
  * service.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BigtableServiceImpl implements BigtableService {
-  private static final Logger LOG = LoggerFactory.getLogger(BigtableService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
 
   public BigtableServiceImpl(BigtableOptions options) {
     this.options = options;
@@ -137,7 +142,7 @@ class BigtableServiceImpl implements BigtableService {
     @Override
     public boolean advance() throws IOException {
       currentRow = results.next();
-      return (currentRow != null);
+      return currentRow != null;
     }
 
     @Override
@@ -228,7 +233,7 @@ class BigtableServiceImpl implements BigtableService {
 
       CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
       Futures.addCallback(
-          bulkMutation.add(request),
+          new VendoredListenableFutureAdapter<>(bulkMutation.add(request)),
           new FutureCallback<MutateRowResponse>() {
             @Override
             public void onSuccess(MutateRowResponse mutateRowResponse) {
@@ -239,7 +244,8 @@ class BigtableServiceImpl implements BigtableService {
             public void onFailure(Throwable throwable) {
               result.completeExceptionally(throwable);
             }
-          });
+          },
+          directExecutor());
       return result;
     }
   }

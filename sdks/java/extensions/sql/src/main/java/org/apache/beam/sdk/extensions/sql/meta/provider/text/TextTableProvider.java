@@ -15,32 +15,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLines2BeamRows;
+import static org.apache.beam.sdk.util.RowJsonUtils.jsonToRow;
+import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 
 import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableSet;
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ToJson;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
+import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Text table provider.
@@ -59,6 +74,9 @@ import org.apache.commons.csv.CSVFormat;
  * }</pre>
  */
 @AutoService(TableProvider.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TextTableProvider extends InMemoryMetaTableProvider {
 
   @Override
@@ -73,11 +91,12 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
     String filePattern = table.getLocation();
     JSONObject properties = table.getProperties();
     String format = MoreObjects.firstNonNull(properties.getString("format"), "csv");
+    String deadLetterFile = properties.getString("deadLetterFile");
 
     // Backwards compatibility: previously "type": "text" meant CSV and "format" was where the
     // CSV format went. So assume that any other format is the CSV format.
     @Nullable String legacyCsvFormat = null;
-    if (!ImmutableSet.of("csv", "lines").contains(format)) {
+    if (!ImmutableSet.of("csv", "lines", "json").contains(format)) {
       legacyCsvFormat = format;
       format = "csv";
     }
@@ -93,17 +112,21 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
                     : CSVFormat.DEFAULT);
         return new TextTable(
             schema, filePattern, new CsvToRow(schema, csvFormat), new RowToCsv(csvFormat));
+      case "json":
+        return new TextJsonTable(
+            schema, filePattern, JsonToRow.create(schema, deadLetterFile), RowToJson.create());
       case "lines":
-        checkArgument(
-            schema.getFieldCount() == 1
-                && schema.getField(0).getType().equals(Schema.FieldType.STRING),
-            "Table with type 'text' and format 'lines' "
-                + "must have exactly one STRING/VARCHAR/CHAR column");
+        if (!(schema.getFieldCount() == 1
+            && schema.getField(0).getType().getTypeName().equals(TypeName.STRING))) {
+          throw new InvalidTableException(
+              "Table with type 'text' and format 'lines' "
+                  + "must have exactly one STRING/VARCHAR/CHAR column ");
+        }
         return new TextTable(
             schema, filePattern, new LinesReadConverter(), new LinesWriteConverter());
       default:
-        throw new IllegalArgumentException(
-            "Table with type 'text' must have format 'csv' or 'lines'");
+        throw new InvalidTableException(
+            "Table with type 'text' must have format 'csv' or 'lines' or 'json'");
     }
   }
 
@@ -138,6 +161,80 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
               MapElements.into(TypeDescriptors.rows())
                   .via(s -> Row.withSchema(SCHEMA).addValue(s).build()))
           .setRowSchema(SCHEMA);
+    }
+  }
+
+  /** Read-side converter for {@link TextJsonTable} with format {@code 'json'}. */
+  @AutoValue
+  @Internal
+  abstract static class JsonToRow extends PTransform<PCollection<String>, PCollection<Row>>
+      implements Serializable {
+    protected static final TupleTag<String> DLF_TAG = new TupleTag<>();
+    protected static final TupleTag<Row> MAIN_TAG = new TupleTag<>();
+
+    public abstract Schema schema();
+
+    public abstract @Nullable String deadLetterFile();
+
+    public static JsonToRow create(Schema schema, @Nullable String deadLetterFile) {
+      return new AutoValue_TextTableProvider_JsonToRow(schema, deadLetterFile);
+    }
+
+    public static JsonToRow create(Schema schema) {
+      return create(schema, null);
+    }
+
+    @Override
+    public PCollection<Row> expand(PCollection<String> input) {
+      PCollectionTuple rows =
+          input.apply(
+              ParDo.of(
+                      new DoFn<String, Row>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext context) {
+                          try {
+                            context.output(jsonToRow(getObjectMapper(), context.element()));
+                          } catch (UnsupportedRowJsonException jsonException) {
+                            if (deadLetterFile() != null) {
+                              context.output(DLF_TAG, context.element());
+                            } else {
+                              throw new RuntimeException("Error parsing JSON", jsonException);
+                            }
+                          }
+                        }
+                      })
+                  .withOutputTags(
+                      MAIN_TAG,
+                      deadLetterFile() != null ? TupleTagList.of(DLF_TAG) : TupleTagList.empty()));
+
+      if (deadLetterFile() != null) {
+        rows.get(DLF_TAG).setCoder(StringUtf8Coder.of()).apply(writeJsonToDlf());
+      }
+      return rows.get(MAIN_TAG).setRowSchema(schema());
+    }
+
+    private TextIO.Write writeJsonToDlf() {
+      return TextIO.write().withDelimiter(new char[] {}).to(deadLetterFile());
+    }
+
+    private ObjectMapper getObjectMapper() {
+      return newObjectMapperWith(RowJsonDeserializer.forSchema(schema()));
+    }
+  }
+
+  /** Write-side converter for {@link TextJsonTable} with format {@code 'json'}. */
+  @AutoValue
+  @Internal
+  abstract static class RowToJson extends PTransform<PCollection<Row>, PCollection<String>>
+      implements Serializable {
+
+    public static RowToJson create() {
+      return new AutoValue_TextTableProvider_RowToJson();
+    }
+
+    @Override
+    public PCollection<String> expand(PCollection<Row> input) {
+      return input.apply(ToJson.of());
     }
   }
 

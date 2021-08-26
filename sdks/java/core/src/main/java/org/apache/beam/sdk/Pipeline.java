@@ -17,26 +17,19 @@
  */
 package org.apache.beam.sdk;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.Iterables.transform;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.transform;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.SetMultimap;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
@@ -52,12 +45,26 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,6 +121,9 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
   /**
@@ -328,6 +338,7 @@ public class Pipeline {
     return coderRegistry;
   }
 
+  @Experimental(Kind.SCHEMAS)
   public SchemaRegistry getSchemaRegistry() {
     if (schemaRegistry == null) {
       schemaRegistry = SchemaRegistry.createDefault();
@@ -402,7 +413,7 @@ public class Pipeline {
      */
     class Defaults implements PipelineVisitor {
 
-      @Nullable private Pipeline pipeline;
+      private @Nullable Pipeline pipeline;
 
       protected Pipeline getPipeline() {
         if (pipeline == null) {
@@ -495,10 +506,10 @@ public class Pipeline {
   private Set<String> usedFullNames = new HashSet<>();
 
   /** Lazily initialized; access via {@link #getCoderRegistry()}. */
-  @Nullable private CoderRegistry coderRegistry;
+  private @Nullable CoderRegistry coderRegistry;
 
   /** Lazily initialized; access via {@link #getSchemaRegistry()}. */
-  @Nullable private SchemaRegistry schemaRegistry;
+  private @Nullable SchemaRegistry schemaRegistry;
 
   private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
   private final PipelineOptions defaultOptions;
@@ -509,7 +520,7 @@ public class Pipeline {
   }
 
   protected Pipeline(PipelineOptions options) {
-    this(new TransformHierarchy(), options);
+    this(new TransformHierarchy(ResourceHints.fromOptions(options)), options);
   }
 
   @Override
@@ -557,16 +568,26 @@ public class Pipeline {
       return;
     }
     InputT originalInput = replacement.getInput();
+    Map<TupleTag<?>, PCollection<?>> originalOutputs = original.getOutputs();
 
     LOG.debug("Replacing {} with {}", original, replacement);
     transforms.replaceNode(original, originalInput, replacement.getTransform());
     try {
       OutputT newOutput = replacement.getTransform().expand(originalInput);
-      Map<PValue, ReplacementOutput> originalToReplacement =
+      Map<PCollection<?>, ReplacementOutput> originalToReplacement =
           replacementFactory.mapOutputs(original.getOutputs(), newOutput);
       // Ensure the internal TransformHierarchy data structures are consistent.
       transforms.setOutput(newOutput);
       transforms.replaceOutputs(originalToReplacement);
+      checkState(
+          ImmutableSet.copyOf(originalOutputs.values())
+              .equals(ImmutableSet.copyOf(transforms.getCurrent().getOutputs().values())),
+          "After replacing %s with %s, outputs were not rewired correctly:"
+              + " Original outputs %s became %s.",
+          original,
+          transforms.getCurrent(),
+          originalOutputs,
+          transforms.getCurrent().getOutputs());
     } finally {
       transforms.popNode();
     }
@@ -589,8 +610,8 @@ public class Pipeline {
         case ERROR: // be very verbose here since it will just fail the execution
           throw new IllegalStateException(
               String.format(
-                      "Pipeline update will not be possible"
-                          + " because the following transforms do not have stable unique names: %s.",
+                      "Pipeline update will not be possible because the following transforms do"
+                          + " not have stable unique names: %s.",
                       Joiner.on(", ").join(transform(errors, new KeysExtractor())))
                   + "\n\n"
                   + "Conflicting instances:\n"
@@ -664,8 +685,11 @@ public class Pipeline {
       this.instances = instancePerName;
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
+    public String apply(@Nonnull final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
       final Collection<PTransform<?, ?>> values = instances.get(input.getKey());
       return "- name="
           + input.getKey()
@@ -676,15 +700,21 @@ public class Pipeline {
 
   private static class KeysExtractor
       implements Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
+    public String apply(@Nonnull final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
       return input.getKey();
     }
   }
 
   private static class IsUnique<K, V> implements Predicate<Map.Entry<K, Collection<V>>> {
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public boolean apply(final Map.Entry<K, Collection<V>> input) {
+    public boolean apply(@Nonnull final Map.Entry<K, Collection<V>> input) {
       return input != null && input.getValue().size() == 1;
     }
   }

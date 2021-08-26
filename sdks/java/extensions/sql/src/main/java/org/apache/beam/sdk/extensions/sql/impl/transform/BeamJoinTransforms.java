@@ -15,153 +15,109 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
+import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexFieldAccess;
+import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexInputRef;
+import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexNode;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 
 /** Collections of {@code PTransform} and {@code DoFn} used to perform JOIN operation. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamJoinTransforms {
 
-  /** A {@code SimpleFunction} to extract join fields from the specified row. */
-  public static class ExtractJoinFields extends SimpleFunction<Row, KV<Row, Row>> {
-    private final List<Integer> joinColumns;
-
-    public ExtractJoinFields(boolean isLeft, List<Pair<Integer, Integer>> joinColumns) {
-      this.joinColumns =
-          joinColumns.stream().map(pair -> isLeft ? pair.left : pair.right).collect(toList());
-    }
-
-    @Override
-    public KV<Row, Row> apply(Row input) {
-      Schema schema =
-          joinColumns
-              .stream()
-              .map(fieldIndex -> toField(input.getSchema(), fieldIndex))
-              .collect(toSchema());
-
-      Row row = joinColumns.stream().map(input::getValue).collect(toRow(schema));
-
-      return KV.of(row, input);
-    }
-
-    private Schema.Field toField(Schema schema, Integer fieldIndex) {
-      Schema.Field original = schema.getField(fieldIndex);
-      return original.withName("c" + fieldIndex);
-    }
+  public static FieldAccessDescriptor getJoinColumns(
+      boolean isLeft,
+      List<Pair<RexNode, RexNode>> joinColumns,
+      int leftRowColumnCount,
+      Schema schema) {
+    List<SerializableRexNode> joinColumnsBuilt =
+        joinColumns.stream()
+            .map(pair -> SerializableRexNode.builder(isLeft ? pair.left : pair.right).build())
+            .collect(toList());
+    return FieldAccessDescriptor.union(
+        joinColumnsBuilt.stream()
+            .map(v -> getJoinColumn(v, leftRowColumnCount).resolve(schema))
+            .collect(Collectors.toList()));
   }
 
-  /** A {@code DoFn} which implement the sideInput-JOIN. */
-  public static class SideInputJoinDoFn extends DoFn<KV<Row, Row>, Row> {
-    private final PCollectionView<Map<Row, Iterable<Row>>> sideInputView;
-    private final JoinRelType joinType;
-    private final Row rightNullRow;
-    private final boolean swap;
-
-    public SideInputJoinDoFn(
-        JoinRelType joinType,
-        Row rightNullRow,
-        PCollectionView<Map<Row, Iterable<Row>>> sideInputView,
-        boolean swap) {
-      this.joinType = joinType;
-      this.rightNullRow = rightNullRow;
-      this.sideInputView = sideInputView;
-      this.swap = swap;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      Row key = context.element().getKey();
-      Row leftRow = context.element().getValue();
-      Map<Row, Iterable<Row>> key2Rows = context.sideInput(sideInputView);
-      Iterable<Row> rightRowsIterable = key2Rows.get(key);
-
-      if (rightRowsIterable != null && rightRowsIterable.iterator().hasNext()) {
-        for (Row aRightRowsIterable : rightRowsIterable) {
-          context.output(combineTwoRowsIntoOne(leftRow, aRightRowsIterable, swap));
-        }
-      } else {
-        if (joinType == JoinRelType.LEFT) {
-          context.output(combineTwoRowsIntoOne(leftRow, rightNullRow, swap));
-        }
+  private static FieldAccessDescriptor getJoinColumn(
+      SerializableRexNode serializableRexNode, int leftRowColumnCount) {
+    if (serializableRexNode instanceof SerializableRexInputRef) {
+      SerializableRexInputRef inputRef = (SerializableRexInputRef) serializableRexNode;
+      return FieldAccessDescriptor.withFieldIds(inputRef.getIndex() - leftRowColumnCount);
+    } else { // It can only be SerializableFieldAccess.
+      List<Integer> indexes = ((SerializableRexFieldAccess) serializableRexNode).getIndexes();
+      FieldAccessDescriptor fieldAccessDescriptor =
+          FieldAccessDescriptor.withFieldIds(indexes.get(0) - leftRowColumnCount);
+      for (int i = 1; i < indexes.size(); i++) {
+        fieldAccessDescriptor =
+            FieldAccessDescriptor.withFieldIds(fieldAccessDescriptor, indexes.get(i));
       }
-    }
-  }
-
-  /** A {@code SimpleFunction} to combine two rows into one. */
-  public static class JoinParts2WholeRow extends SimpleFunction<KV<Row, KV<Row, Row>>, Row> {
-    @Override
-    public Row apply(KV<Row, KV<Row, Row>> input) {
-      KV<Row, Row> parts = input.getValue();
-      Row leftRow = parts.getKey();
-      Row rightRow = parts.getValue();
-      return combineTwoRowsIntoOne(leftRow, rightRow, false);
+      return fieldAccessDescriptor;
     }
   }
 
   /** As the method name suggests: combine two rows into one wide row. */
-  private static Row combineTwoRowsIntoOne(Row leftRow, Row rightRow, boolean swap) {
+  private static Row combineTwoRowsIntoOne(
+      Row leftRow, Row rightRow, boolean swap, Schema outputSchema) {
     if (swap) {
-      return combineTwoRowsIntoOneHelper(rightRow, leftRow);
+      return combineTwoRowsIntoOneHelper(rightRow, leftRow, outputSchema);
     } else {
-      return combineTwoRowsIntoOneHelper(leftRow, rightRow);
+      return combineTwoRowsIntoOneHelper(leftRow, rightRow, outputSchema);
     }
   }
 
   /** As the method name suggests: combine two rows into one wide row. */
-  private static Row combineTwoRowsIntoOneHelper(Row leftRow, Row rightRow) {
-    // build the type
-    List<Schema.Field> fields = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
-    fields.addAll(leftRow.getSchema().getFields());
-    fields.addAll(rightRow.getSchema().getFields());
-    Schema type = Schema.builder().addFields(fields).build();
-
-    return Row.withSchema(type)
-        .addValues(leftRow.getValues())
-        .addValues(rightRow.getValues())
+  private static Row combineTwoRowsIntoOneHelper(Row leftRow, Row rightRow, Schema ouputSchema) {
+    return Row.withSchema(ouputSchema)
+        .addValues(leftRow.getBaseValues())
+        .addValues(rightRow.getBaseValues())
         .build();
   }
 
   /** Transform to execute Join as Lookup. */
   public static class JoinAsLookup extends PTransform<PCollection<Row>, PCollection<Row>> {
-
-    BeamSqlSeekableTable seekableTable;
-    Schema lkpSchema;
-    Schema joinSubsetType;
-    List<Integer> factJoinIdx;
+    private final BeamSqlSeekableTable seekableTable;
+    private final Schema lkpSchema;
+    private final int factColOffset;
+    private Schema joinSubsetType;
+    private final Schema outputSchema;
+    private List<Integer> factJoinIdx;
 
     public JoinAsLookup(
         RexNode joinCondition,
         BeamSqlSeekableTable seekableTable,
         Schema lkpSchema,
-        int factTableColSize) {
+        Schema outputSchema,
+        int factColOffset,
+        int lkpColOffset) {
       this.seekableTable = seekableTable;
       this.lkpSchema = lkpSchema;
-      joinFieldsMapping(joinCondition, factTableColSize);
+      this.outputSchema = outputSchema;
+      this.factColOffset = factColOffset;
+      joinFieldsMapping(joinCondition, factColOffset, lkpColOffset);
     }
 
-    private void joinFieldsMapping(RexNode joinCondition, int factTableColSize) {
+    private void joinFieldsMapping(RexNode joinCondition, int factColOffset, int lkpColOffset) {
       factJoinIdx = new ArrayList<>();
       List<Schema.Field> lkpJoinFields = new ArrayList<>();
 
@@ -169,15 +125,15 @@ public class BeamJoinTransforms {
       if ("AND".equals(call.getOperator().getName())) {
         List<RexNode> operands = call.getOperands();
         for (RexNode rexNode : operands) {
-          factJoinIdx.add(((RexInputRef) ((RexCall) rexNode).getOperands().get(0)).getIndex());
+          factJoinIdx.add(
+              ((RexInputRef) ((RexCall) rexNode).getOperands().get(0)).getIndex() - factColOffset);
           int lkpJoinIdx =
-              ((RexInputRef) ((RexCall) rexNode).getOperands().get(1)).getIndex()
-                  - factTableColSize;
+              ((RexInputRef) ((RexCall) rexNode).getOperands().get(1)).getIndex() - lkpColOffset;
           lkpJoinFields.add(lkpSchema.getField(lkpJoinIdx));
         }
       } else if ("=".equals(call.getOperator().getName())) {
-        factJoinIdx.add(((RexInputRef) call.getOperands().get(0)).getIndex());
-        int lkpJoinIdx = ((RexInputRef) call.getOperands().get(1)).getIndex() - factTableColSize;
+        factJoinIdx.add(((RexInputRef) call.getOperands().get(0)).getIndex() - factColOffset);
+        int lkpJoinIdx = ((RexInputRef) call.getOperands().get(1)).getIndex() - lkpColOffset;
         lkpJoinFields.add(lkpSchema.getField(lkpJoinIdx));
       } else {
         throw new UnsupportedOperationException(
@@ -205,7 +161,8 @@ public class BeamJoinTransforms {
                       Row joinSubRow = extractJoinSubRow(factRow);
                       List<Row> lookupRows = seekableTable.seekRow(joinSubRow);
                       for (Row lr : lookupRows) {
-                        context.output(combineTwoRowsIntoOneHelper(factRow, lr));
+                        context.output(
+                            combineTwoRowsIntoOne(factRow, lr, factColOffset != 0, outputSchema));
                       }
                     }
 
@@ -216,7 +173,9 @@ public class BeamJoinTransforms {
 
                     private Row extractJoinSubRow(Row factRow) {
                       List<Object> joinSubsetValues =
-                          factJoinIdx.stream().map(factRow::getValue).collect(toList());
+                          factJoinIdx.stream()
+                              .map(i -> factRow.getBaseValue(i, Object.class))
+                              .collect(toList());
 
                       return Row.withSchema(joinSubsetType).addValues(joinSubsetValues).build();
                     }

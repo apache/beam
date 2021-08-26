@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Represents the metadata of a {@code BeamSqlTable}. */
 @AutoValue
@@ -34,19 +33,16 @@ public abstract class Table implements Serializable {
 
   public abstract Schema getSchema();
 
-  @Nullable
-  public abstract String getComment();
+  public abstract @Nullable String getComment();
 
-  @Nullable
-  public abstract String getLocation();
+  public abstract @Nullable String getLocation();
 
-  @Nullable
   public abstract JSONObject getProperties();
 
   public abstract Builder toBuilder();
 
   public static Builder builder() {
-    return new org.apache.beam.sdk.extensions.sql.meta.AutoValue_Table.Builder();
+    return new AutoValue_Table.Builder().properties(new JSONObject());
   }
 
   /** Builder class for {@link Table}. */

@@ -29,11 +29,20 @@ class PrecommitJobBuilder {
   /**  The Gradle task to execute. */
   String gradleTask
 
+  /** If defined, set of additional switches to pass to Gradle. */
+  List<String> gradleSwitches = []
+
   /** Overall job timeout. */
-  int timeoutMins = 90
+  int timeoutMins = 120
 
   /** If defined, set of path expressions used to trigger the job on commit. */
   List<String> triggerPathPatterns = []
+
+  /** If defined, set of path expressions to not trigger the job on commit. */
+  List<String> excludePathPatterns = []
+
+  /** Whether to trigger on new PR commits. Useful to set to false when testing new jobs. */
+  boolean commitTriggering = true
 
   /**
    * Define a set of pre-commit jobs.
@@ -42,7 +51,9 @@ class PrecommitJobBuilder {
    */
   void build(Closure additionalCustomization = {}) {
     defineCronJob additionalCustomization
-    defineCommitJob additionalCustomization
+    if (commitTriggering) {
+      defineCommitJob additionalCustomization
+    }
     definePhraseJob additionalCustomization
   }
 
@@ -62,20 +73,25 @@ class PrecommitJobBuilder {
     def defaultPathTriggers = [
       '^build.gradle$',
       '^buildSrc/.*$',
+      '^gradle/.*$',
       '^gradle.properties$',
       '^gradlew$',
       '^gradle.bat$',
-      '^settings.gradle$'
+      '^settings.gradle.kts$'
     ]
-    triggerPathPatterns.addAll defaultPathTriggers
+    if (triggerPathPatterns) {
+      triggerPathPatterns.addAll defaultPathTriggers
+    }
     job.with {
       description buildDescription('for each commit push.')
       concurrentBuild()
       commonJobProperties.setPullRequestBuildTrigger(delegate,
-        githubUiHint(),
-        '',
-        false,
-        triggerPathPatterns)
+          githubUiHint(),
+          '',
+          false,
+          true,
+          triggerPathPatterns,
+          excludePathPatterns)
     }
     job.with additionalCustomization
   }
@@ -94,13 +110,14 @@ class PrecommitJobBuilder {
     def allowRemotePoll = !usesRegionFilter
     return scope.job("beam_PreCommit_${nameBase}_${nameSuffix}") {
       commonJobProperties.setTopLevelMainJobProperties(delegate,
-      'master',
-      timeoutMins,
-      allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
+          'master',
+          timeoutMins,
+          allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(gradleTask)
+          gradleSwitches.each { switches(it) }
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

@@ -18,71 +18,138 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableFindbugs: false,
-  // Override the default shading configuration to exclude everything since
-  // Bigtable needs to expose Guava types.
-  shadowClosure: {
-    dependencies {
-      exclude(dependency(".*:.*"))
-    }
-  })
+  automaticModuleName: 'org.apache.beam.sdk.io.gcp',
+  enableSpotbugs: false,
+  classesTriggerCheckerBugs: [
+    'PubSubPayloadTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+  ],
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
 dependencies {
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-extensions-protobuf", configuration: "shadow")
-  shadow library.java.guava
-  shadow library.java.jackson_databind
-  shadow library.java.grpc_core
-  shadow library.java.google_api_services_bigquery
-  shadow library.java.gax_grpc
-  shadow library.java.google_cloud_core_grpc
-  shadow library.java.google_api_services_pubsub
-  shadow library.java.grpc_google_cloud_pubsub_v1
-  shadow library.java.proto_google_cloud_pubsub_v1
-  shadow library.java.bigdataoss_util
-  shadow library.java.datastore_v1_proto_client
-  shadow library.java.datastore_v1_protos
-  shadow library.java.grpc_auth
-  shadow library.java.grpc_netty
-  shadow library.java.netty_handler
-  shadow library.java.grpc_stub
-  shadow library.java.joda_time
-  shadow library.java.google_cloud_core
-  shadow library.java.google_cloud_spanner
-  shadow library.java.bigtable_protos
-  shadow library.java.bigtable_client_core
-  shadow library.java.google_api_client
-  shadow library.java.google_http_client
-  shadow library.java.google_http_client_jackson2
-  shadow library.java.google_auth_library_credentials
-  shadow library.java.google_auth_library_oauth2_http
-  shadow library.java.slf4j_api
-  shadow library.java.protobuf_java
-  shadow library.java.avro
-  shadow library.java.proto_google_cloud_spanner_admin_database_v1
-  shadow library.java.proto_google_common_protos
-  shadow library.java.grpc_all
-  shadow library.java.netty_tcnative_boringssl_static
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
-  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.mockito_core
-  shadowTest library.java.junit
-  shadowTest library.java.slf4j_jdk14
+  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(":runners:core-java")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:expansion-service")
+  permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  compile project(":sdks:java:extensions:protobuf")
+  compile project(":runners:core-construction-java")
+  compile project(":sdks:java:extensions:arrow")
+  compile library.java.avro
+  compile library.java.bigdataoss_util
+  compile library.java.error_prone_annotations
+  compile library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  permitUnusedDeclared library.java.flogger_system_backend // BEAM-11010
+  compile library.java.gax
+  compile library.java.gax_grpc
+  compile library.java.gax_httpjson
+  permitUnusedDeclared library.java.gax_httpjson // BEAM-8755
+  compile library.java.google_api_client
+  compile library.java.google_api_common
+  compile library.java.google_api_services_bigquery
+  compile library.java.google_api_services_healthcare
+  compile library.java.google_api_services_pubsub
+  compile library.java.google_api_services_storage
+  compile library.java.google_auth_library_credentials
+  compile library.java.google_auth_library_oauth2_http
+  compile library.java.google_cloud_bigquery_storage
+  compile(library.java.google_cloud_bigtable_client_core) {
+    exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
+    exclude group: 'io.grpc', module: 'grpc-grpclb'
+  }
+  compile library.java.google_cloud_core
+  compile(library.java.google_cloud_core_grpc) {
+    exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
+  }
+  permitUnusedDeclared library.java.google_cloud_core_grpc // BEAM-11761
+  compile library.java.google_cloud_datastore_v1_proto_client
+  compile library.java.google_cloud_firestore
+  compile library.java.google_cloud_pubsublite
+  // GCP PubSub client is used in TestPubSub
+  compile library.java.google_cloud_pubsub
+  compile library.java.google_cloud_spanner
+  compile library.java.google_code_gson
+  compile library.java.google_http_client
+  compile library.java.google_http_client_jackson2
+  compile library.java.grpc_alts
+  permitUnusedDeclared library.java.grpc_alts // BEAM-11761
+  compile library.java.grpc_api
+  compile library.java.grpc_auth
+  compile library.java.grpc_core
+  permitUnusedDeclared library.java.grpc_core // BEAM-11761
+  compile library.java.grpc_context
+  permitUnusedDeclared library.java.grpc_context // BEAM-11761
+  compile library.java.grpc_grpclb
+  permitUnusedDeclared library.java.grpc_grpclb // BEAM-11761
+  compile library.java.grpc_netty
+  compile library.java.grpc_netty_shaded
+  permitUnusedDeclared library.java.grpc_netty_shaded // BEAM-11761
+  compile library.java.grpc_stub
+  permitUnusedDeclared library.java.grpc_stub // BEAM-11761
+  compile library.java.grpc_google_cloud_pubsub_v1
+  compile library.java.grpc_google_cloud_pubsublite_v1
+  permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
+  compile library.java.guava
+  compile library.java.hamcrest
+  compile library.java.http_client
+  compile library.java.hamcrest_core
+  permitUnusedDeclared library.java.hamcrest_core // BEAM-11761
+  compile library.java.http_core
+  compile library.java.jackson_core
+  compile library.java.jackson_databind
+  compile library.java.joda_time
+  compile library.java.junit
+  compile library.java.netty_handler
+  compile library.java.netty_tcnative_boringssl_static
+  permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
+  compile library.java.proto_google_cloud_bigquery_storage_v1
+  compile library.java.proto_google_cloud_bigquery_storage_v1beta2
+  compile library.java.proto_google_cloud_bigtable_admin_v2
+  compile library.java.proto_google_cloud_bigtable_v2
+  compile library.java.proto_google_cloud_datastore_v1
+  compile library.java.proto_google_cloud_firestore_v1
+  compile library.java.proto_google_cloud_pubsub_v1
+  compile library.java.proto_google_cloud_pubsublite_v1
+  compile library.java.proto_google_cloud_spanner_admin_database_v1
+  permitUnusedDeclared library.java.proto_google_cloud_spanner_admin_database_v1 // BEAM-11761
+  compile library.java.proto_google_cloud_spanner_v1
+  compile library.java.proto_google_common_protos
+  compile library.java.protobuf_java
+  compile library.java.protobuf_java_util
+  compile library.java.slf4j_api
+  compile library.java.vendored_grpc_1_36_0
+  compile library.java.vendored_guava_26_0_jre
+  compile library.java.arrow_memory_core
+  compile library.java.arrow_vector
+
+  compile "org.threeten:threetenbp:1.4.4"
+
+  testCompile "org.apache.arrow:arrow-memory-netty:4.0.0"
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntime")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testCompile library.java.mockito_core
+  testCompile library.java.powermock
+  testCompile library.java.powermock_mockito
+  testCompile library.java.joda_time
+  testRuntimeOnly library.java.slf4j_jdk14
 }
+
 
 /**
  * These are integration tests with the real Pubsub service and the DirectRunner.
  */
-task integrationTest(type: Test) {
+task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
@@ -96,14 +163,47 @@ task integrationTest(type: Test) {
   outputs.upToDateWhen { false }
 
   include '**/*IT.class'
+  exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageQueryIT.class'
+  exclude '**/BigQueryIOStorageReadIT.class'
+  exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/BigQueryToTableIT.class'
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs
-  useJUnit { }
+
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
+}
+
+task integrationTestKms(type: Test) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcpTempRoot = project.findProperty('gcpTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
+  def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=DirectRunner",
+          "--project=${gcpProject}",
+          "--tempRoot=${gcpTempRoot}",
+          "--dataflowKmsKey=${dataflowKmsKey}",
+  ])
+
+  // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+  outputs.upToDateWhen { false }
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
 }
 
 task postCommit {
   group = "Verification"
   description = "Integration tests of GCP connectors using the DirectRunner."
   dependsOn integrationTest
+  dependsOn integrationTestKms
 }

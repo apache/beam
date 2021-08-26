@@ -26,6 +26,11 @@ page at http://checkstyle.sourceforge.net/config.html -->
 <module name="Checker">
   <property name="severity" value="error"/>
 
+  <!-- Allows inline SuppressWarnings annotation, by using for example
+      "@SuppressWarnings("checkstyle:JavadocMethod")".
+  -->
+  <module name="SuppressWarningsFilter" />
+
   <module name="RegexpSingleline">
     <property name="format" value="Throwables.propagate\("/>
     <property name="message" value="Throwables.propagate is deprecated"/>
@@ -35,6 +40,13 @@ page at http://checkstyle.sourceforge.net/config.html -->
   <!-- Prevent *Tests.java as tools may not pick them up -->
   <module name="RegexpOnFilename">
     <property name="fileNamePattern" value=".*Tests\.java$" />
+  </module>
+
+  <!--  Skip check on unsupported file : module-info.java
+        https://checkstyle.sourceforge.io/config_filefilters.html
+  -->
+  <module name="BeforeExecutionExclusionFileFilter">
+    <property name="fileNamePattern" value="module\-info\.java$"/>
   </module>
 
   <!-- Check that every module has a package-info.java -->
@@ -71,8 +83,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="severity" value="error"/>
     </module>
 
+    <!-- Forbid importing any shaded code, since it does not exist at compile time and this is probably an IDE error -->
     <module name="IllegalImport">
       <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+    </module>
+
+    <!-- This is not the Nullable annotation you are looking for -->
+    <module name="IllegalImport">
+      <property name="illegalPkgs" value="com.sun.istack" />
     </module>
 
     <module name="RedundantModifier">
@@ -83,11 +101,95 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <!--
-        IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
+        IllegalImport cannot forbid classes, and c.g.api.client.util is used for some shaded
         code and some useful code. So we need to fall back to Regexp.
     -->
     <module name="RegexpSinglelineJava">
       <property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
+    </module>
+
+    <!--
+        Forbid non-vendored guava imports.
+        testing import is allowed because it comes from guava-testing for the tests.
+    -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidNonVendoredGuava"/>
+      <property name="format" value="(\scom\.google\.common\.(?!testing))|(\scom\.google\.thirdparty)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using raw guava, please use vendored guava classes."/>
+    </module>
+
+    <!-- Forbid use of Charset.defaultCharset()-->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidDefaultCharset"/>
+      <property name="format" value="(\sCharset\.defaultCharset())"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using Charset.defaultCharset(), please use StandardCharsets.UTF_8."/>
+    </module>
+
+    <!-- Forbid non-vendored gRPC/protobuf imports. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidNonVendoredGrpcProtobuf"/>
+      <property name="format" value="((\scom\.google\.protobuf)|(\sio\.grpc))"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using raw grpc/protobuf, please use vendored grpc/protobuf classes."/>
+    </module>
+
+    <!-- Forbid guava imports from gRPC vendored guava version. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidGrpcVendoredGuava"/>
+      <property name="format" value="(\sorg\.apache\.beam\.vendor\.grpc\.(.*)\.com\.google\.common\.(?!testing))|(\sorg\.apache\.beam\.vendor\.grpc\.(.*)\.com\.google\.thirdparty)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using raw guava, please use vendored guava classes."/>
+    </module>
+
+    <!-- Forbid deprecated Assert.assertThat. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidDeprecatedAssertThat"/>
+      <property name="ignoreComments" value="true"/>
+      <property name="format" value="(\sorg\.junit\.Assert\.assertThat)|(\sAssert\.assertThat)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="Using deprecated Assert.assertThat. Please use MatcherAssert.assertThat."/>
+    </module>
+
+    <!-- Forbid org.spark_project imports. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidSparkProject"/>
+      <property name="format" value="(\sorg\.spark_project)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You should not use org.spark_project classes in Beam."/>
+    </module>
+
+    <!-- Forbid calling Loggers different than LOG. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="LoggerNamingStyle"/>
+      <property name="format" value="(\sprivate static final Logger )(?!LOG )"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You should name sfl4j Loggers as LOG."/>
+    </module>
+
+    <!-- Forbid TestNG imports that may leak because of dependencies. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidTestNG"/>
+      <property name="format" value="(\sorg\.testng)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You should not use TestNG classes in Beam."/>
+    </module>
+
+    <!-- Forbid Non-vendored byte-buddy imports. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidByteBuddy"/>
+      <property name="format" value="(\snet\.bytebuddy)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using raw byte-buddy, please use vendored byte-buddy classes."/>
+    </module>
+
+    <!-- Forbid Non-vendored calcite imports. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidCalcite"/>
+      <property name="format" value="(\sorg\.apache\.calcite)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using raw calcite, please use vendored calcite classes."/>
     </module>
 
     <module name="UnusedImports">
@@ -97,11 +199,19 @@ page at http://checkstyle.sourceforge.net/config.html -->
                value="Unused import: {0}."/>
     </module>
 
+    <module name="IllegalThrows">
+      <property name="illegalClassNames"
+        value="java.lang.Error,java.lang.RuntimeException" />
+    </module>
+
     <!--
 
     JAVADOC CHECKS
 
     -->
+
+    <!-- Required to work in pair with SuppressWarningsFilter-->
+    <module name="SuppressWarningsHolder" />
 
     <!-- Checks for Javadoc comments.                     -->
     <!-- See http://checkstyle.sf.net/config_javadoc.html -->
@@ -109,6 +219,19 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="scope" value="protected"/>
       <property name="severity" value="error"/>
       <property name="allowMissingJavadoc" value="true"/>
+      <property name="allowMissingParamTags" value="true"/>
+      <property name="allowMissingReturnTag" value="true"/>
+      <property name="allowMissingThrowsTags" value="true"/>
+      <property name="allowThrowsTagsForSubclasses" value="true"/>
+      <property name="allowUndeclaredRTE" value="true"/>
+    </module>
+
+    <module name="JavadocMethod">
+      <property name="scope" value="public"/>
+      <property name="severity" value="error"/>
+      <property name="minLineCount" value="30"/>
+      <property name="allowMissingJavadoc" value="false"/>
+      <property name="allowMissingPropertyJavadoc" value="true"/>
       <property name="allowMissingParamTags" value="true"/>
       <property name="allowMissingReturnTag" value="true"/>
       <property name="allowMissingThrowsTags" value="true"/>
@@ -155,6 +278,8 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]{1,})*$"/>
       <property name="severity" value="error"/>
     </module>
+ 
+    <module name="PackageDeclaration" />
 
     <module name="TypeNameCheck">
       <!-- Validates static, final fields against the
@@ -310,6 +435,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
       <property name="checkFormat" value="$1"/>
     </module>
+
+    <module name="ArrayTypeStyle"/>
   </module>
+
 </module>
 

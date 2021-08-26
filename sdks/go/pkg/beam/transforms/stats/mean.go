@@ -18,13 +18,9 @@ package stats
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
-
-func init() {
-	beam.RegisterType(reflect.TypeOf((*meanFn)(nil)).Elem())
-}
 
 // Mean returns the arithmetic mean (or average) of the elements in a collection.
 // It expects a PCollection<A> as input and returns a singleton PCollection<float64>.
@@ -78,13 +74,8 @@ func (f *meanFn) AddInput(a meanAccum, val beam.T) meanAccum {
 	return a
 }
 
-func (f *meanFn) MergeAccumulators(list []meanAccum) meanAccum {
-	var ret meanAccum
-	for _, a := range list {
-		ret.Count += a.Count
-		ret.Sum += a.Sum
-	}
-	return ret
+func (f *meanFn) MergeAccumulators(a, b meanAccum) meanAccum {
+	return meanAccum{Count: a.Count + b.Count, Sum: a.Sum + b.Sum}
 }
 
 func (f *meanFn) ExtractOutput(a meanAccum) float64 {

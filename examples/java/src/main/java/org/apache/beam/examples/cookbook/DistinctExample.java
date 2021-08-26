@@ -18,6 +18,7 @@
 package org.apache.beam.examples.cookbook;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -25,7 +26,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Distinct;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 /**
  * This example uses as input Shakespeare's plays as plaintext files, and will remove any duplicate
@@ -56,7 +56,7 @@ public class DistinctExample {
    *
    * <p>Inherits standard configuration options.
    */
-  private interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
     @Default.String("gs://apache-beam-samples/shakespeare/*")
     String getInput();

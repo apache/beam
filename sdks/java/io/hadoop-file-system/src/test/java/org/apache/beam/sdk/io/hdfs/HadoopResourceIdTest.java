@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 import java.net.URI;
 import java.util.Collections;
 import org.apache.beam.sdk.io.FileSystems;
@@ -27,7 +30,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -60,11 +62,22 @@ public class HadoopResourceIdTest {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4142")
   public void testResourceIdTester() {
     ResourceId baseDirectory =
         FileSystems.matchNewResource(
             "hdfs://" + hdfsClusterBaseUri.getPath(), true /* isDirectory */);
     ResourceIdTester.runResourceIdBattery(baseDirectory);
+  }
+
+  @Test
+  public void testGetFilename() {
+    assertNull(toResourceIdentifier("").getFilename());
+    assertEquals("abc", toResourceIdentifier("/dirA/abc").getFilename());
+    assertEquals("abc", toResourceIdentifier("/dirA/abc/").getFilename());
+    assertEquals("xyz.txt", toResourceIdentifier("/dirA/abc/xyz.txt").getFilename());
+  }
+
+  private ResourceId toResourceIdentifier(String path) {
+    return new HadoopResourceId(hdfsClusterBaseUri.resolve(path));
   }
 }

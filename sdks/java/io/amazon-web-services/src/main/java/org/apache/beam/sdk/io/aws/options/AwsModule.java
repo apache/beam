@@ -26,13 +26,11 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -48,10 +46,10 @@ import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
@@ -61,18 +59,34 @@ import java.util.Map;
  * SSEAwsKeyManagementParams}.
  */
 @AutoService(Module.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AwsModule extends SimpleModule {
 
   private static final String AWS_ACCESS_KEY_ID = "awsAccessKeyId";
   private static final String AWS_SECRET_KEY = "awsSecretKey";
   private static final String CREDENTIALS_FILE_PATH = "credentialsFilePath";
+  public static final String CLIENT_EXECUTION_TIMEOUT = "clientExecutionTimeout";
+  public static final String CONNECTION_MAX_IDLE_TIME = "connectionMaxIdleTime";
+  public static final String CONNECTION_TIMEOUT = "connectionTimeout";
+  public static final String CONNECTION_TIME_TO_LIVE = "connectionTimeToLive";
+  public static final String MAX_CONNECTIONS = "maxConnections";
+  public static final String REQUEST_TIMEOUT = "requestTimeout";
+  public static final String SOCKET_TIMEOUT = "socketTimeout";
+  public static final String PROXY_HOST = "proxyHost";
+  public static final String PROXY_PORT = "proxyPort";
+  public static final String PROXY_USERNAME = "proxyUsername";
+  public static final String PROXY_PASSWORD = "proxyPassword";
+  private static final String ROLE_ARN = "roleArn";
+  private static final String ROLE_SESSION_NAME = "roleSessionName";
 
   public AwsModule() {
     super("AwsModule");
     setMixInAnnotation(AWSCredentialsProvider.class, AWSCredentialsProviderMixin.class);
     setMixInAnnotation(SSECustomerKey.class, SSECustomerKeyMixin.class);
     setMixInAnnotation(SSEAwsKeyManagementParams.class, SSEAwsKeyManagementParamsMixin.class);
-    setMixInAnnotation(ClientConfiguration.class, ClientConfigurationMixin.class);
+    setMixInAnnotation(ClientConfiguration.class, AwsHttpClientConfigurationMixin.class);
   }
 
   /** A mixin to add Jackson annotations to {@link AWSCredentialsProvider}. */
@@ -122,6 +136,10 @@ public class AwsModule extends SimpleModule {
         return new ProfileCredentialsProvider();
       } else if (typeName.equals(EC2ContainerCredentialsProviderWrapper.class.getSimpleName())) {
         return new EC2ContainerCredentialsProviderWrapper();
+      } else if (typeName.equals(STSAssumeRoleSessionCredentialsProvider.class.getSimpleName())) {
+        return new STSAssumeRoleSessionCredentialsProvider.Builder(
+                asMap.get(ROLE_ARN), asMap.get(ROLE_SESSION_NAME))
+            .build();
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
@@ -138,7 +156,8 @@ public class AwsModule extends SimpleModule {
             EnvironmentVariableCredentialsProvider.class,
             SystemPropertiesCredentialsProvider.class,
             ProfileCredentialsProvider.class,
-            EC2ContainerCredentialsProviderWrapper.class);
+            EC2ContainerCredentialsProviderWrapper.class,
+            STSAssumeRoleSessionCredentialsProvider.class);
 
     @Override
     public void serialize(
@@ -156,6 +175,7 @@ public class AwsModule extends SimpleModule {
         SerializerProvider serializers,
         TypeSerializer typeSerializer)
         throws IOException {
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
       typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
 
       if (credentialsProvider.getClass().equals(AWSStaticCredentialsProvider.class)) {
@@ -171,7 +191,7 @@ public class AwsModule extends SimpleModule {
           Field field =
               PropertiesFileCredentialsProvider.class.getDeclaredField(CREDENTIALS_FILE_PATH);
           field.setAccessible(true);
-          String credentialsFilePath = ((String) field.get(specificProvider));
+          String credentialsFilePath = (String) field.get(specificProvider);
           jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
         } catch (NoSuchFieldException | IllegalAccessException e) {
           throw new IOException("failed to access private field with reflection", e);
@@ -187,16 +207,37 @@ public class AwsModule extends SimpleModule {
               ClasspathPropertiesFileCredentialsProvider.class.getDeclaredField(
                   CREDENTIALS_FILE_PATH);
           field.setAccessible(true);
-          String credentialsFilePath = ((String) field.get(specificProvider));
+          String credentialsFilePath = (String) field.get(specificProvider);
           jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
         } catch (NoSuchFieldException | IllegalAccessException e) {
           throw new IOException("failed to access private field with reflection", e);
         }
+      } else if (credentialsProvider
+          .getClass()
+          .equals(STSAssumeRoleSessionCredentialsProvider.class)) {
+        try {
+          STSAssumeRoleSessionCredentialsProvider specificProvider =
+              (STSAssumeRoleSessionCredentialsProvider) credentialsProvider;
 
+          Field fieldRole =
+              STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField(ROLE_ARN);
+          fieldRole.setAccessible(true);
+          String roleArn = (String) fieldRole.get(specificProvider);
+          jsonGenerator.writeStringField(ROLE_ARN, roleArn);
+
+          Field fieldSession =
+              STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField(ROLE_SESSION_NAME);
+          fieldSession.setAccessible(true);
+          String roleSessionName = (String) fieldSession.get(specificProvider);
+          jsonGenerator.writeStringField(ROLE_SESSION_NAME, roleSessionName);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+          throw new IOException("failed to access private field with reflection", e);
+        }
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(credentialsProvider.getClass())) {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
       }
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
       typeSerializer.writeTypeSuffixForObject(credentialsProvider, jsonGenerator);
     }
   }
@@ -240,22 +281,92 @@ public class AwsModule extends SimpleModule {
     }
   }
 
-  @JsonAutoDetect(
-    fieldVisibility = Visibility.NONE,
-    getterVisibility = Visibility.NONE,
-    setterVisibility = Visibility.NONE
-  )
-  interface ClientConfigurationMixin {
-    @JsonProperty
-    String getProxyHost();
+  /** A mixin to add Jackson annotations to {@link ClientConfiguration}. */
+  @JsonSerialize(using = AwsHttpClientConfigurationSerializer.class)
+  @JsonDeserialize(using = AwsHttpClientConfigurationDeserializer.class)
+  private static class AwsHttpClientConfigurationMixin {}
 
-    @JsonProperty
-    Integer getProxyPort();
+  private static class AwsHttpClientConfigurationDeserializer
+      extends JsonDeserializer<ClientConfiguration> {
+    @Override
+    public ClientConfiguration deserialize(JsonParser jsonParser, DeserializationContext context)
+        throws IOException {
+      Map<String, Object> map = jsonParser.readValueAs(new TypeReference<Map<String, Object>>() {});
 
-    @JsonProperty
-    String getProxyUsername();
+      ClientConfiguration clientConfiguration = new ClientConfiguration();
 
-    @JsonProperty
-    String getProxyPassword();
+      if (map.containsKey(PROXY_HOST)) {
+        clientConfiguration.setProxyHost((String) map.get(PROXY_HOST));
+      }
+      if (map.containsKey(PROXY_PORT)) {
+        clientConfiguration.setProxyPort(((Number) map.get(PROXY_PORT)).intValue());
+      }
+      if (map.containsKey(PROXY_USERNAME)) {
+        clientConfiguration.setProxyUsername((String) map.get(PROXY_USERNAME));
+      }
+      if (map.containsKey(PROXY_PASSWORD)) {
+        clientConfiguration.setProxyPassword((String) map.get(PROXY_PASSWORD));
+      }
+      if (map.containsKey(CLIENT_EXECUTION_TIMEOUT)) {
+        clientConfiguration.setClientExecutionTimeout(
+            ((Number) map.get(CLIENT_EXECUTION_TIMEOUT)).intValue());
+      }
+      if (map.containsKey(CONNECTION_MAX_IDLE_TIME)) {
+        clientConfiguration.setConnectionMaxIdleMillis(
+            ((Number) map.get(CONNECTION_MAX_IDLE_TIME)).longValue());
+      }
+      if (map.containsKey(CONNECTION_TIMEOUT)) {
+        clientConfiguration.setConnectionTimeout(((Number) map.get(CONNECTION_TIMEOUT)).intValue());
+      }
+      if (map.containsKey(CONNECTION_TIME_TO_LIVE)) {
+        clientConfiguration.setConnectionTTL(
+            ((Number) map.get(CONNECTION_TIME_TO_LIVE)).longValue());
+      }
+      if (map.containsKey(MAX_CONNECTIONS)) {
+        clientConfiguration.setMaxConnections(((Number) map.get(MAX_CONNECTIONS)).intValue());
+      }
+      if (map.containsKey(REQUEST_TIMEOUT)) {
+        clientConfiguration.setRequestTimeout(((Number) map.get(REQUEST_TIMEOUT)).intValue());
+      }
+      if (map.containsKey(SOCKET_TIMEOUT)) {
+        clientConfiguration.setSocketTimeout(((Number) map.get(SOCKET_TIMEOUT)).intValue());
+      }
+      return clientConfiguration;
+    }
+  }
+
+  private static class AwsHttpClientConfigurationSerializer
+      extends JsonSerializer<ClientConfiguration> {
+
+    @Override
+    public void serialize(
+        ClientConfiguration clientConfiguration,
+        JsonGenerator jsonGenerator,
+        SerializerProvider serializer)
+        throws IOException {
+
+      jsonGenerator.writeStartObject();
+      jsonGenerator.writeObjectField(PROXY_HOST /*string*/, clientConfiguration.getProxyHost());
+      jsonGenerator.writeObjectField(PROXY_PORT /*int*/, clientConfiguration.getProxyPort());
+      jsonGenerator.writeObjectField(
+          PROXY_USERNAME /*string*/, clientConfiguration.getProxyUsername());
+      jsonGenerator.writeObjectField(
+          PROXY_PASSWORD /*string*/, clientConfiguration.getProxyPassword());
+      jsonGenerator.writeObjectField(
+          CLIENT_EXECUTION_TIMEOUT /*int*/, clientConfiguration.getClientExecutionTimeout());
+      jsonGenerator.writeObjectField(
+          CONNECTION_MAX_IDLE_TIME /*long*/, clientConfiguration.getConnectionMaxIdleMillis());
+      jsonGenerator.writeObjectField(
+          CONNECTION_TIMEOUT /*int*/, clientConfiguration.getConnectionTimeout());
+      jsonGenerator.writeObjectField(
+          CONNECTION_TIME_TO_LIVE /*long*/, clientConfiguration.getConnectionTTL());
+      jsonGenerator.writeObjectField(
+          MAX_CONNECTIONS /*int*/, clientConfiguration.getMaxConnections());
+      jsonGenerator.writeObjectField(
+          REQUEST_TIMEOUT /*int*/, clientConfiguration.getRequestTimeout());
+      jsonGenerator.writeObjectField(
+          SOCKET_TIMEOUT /*int*/, clientConfiguration.getSocketTimeout());
+      jsonGenerator.writeEndObject();
+    }
   }
 }

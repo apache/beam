@@ -15,41 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
-import com.google.common.collect.Iterables;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.Serializable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Component that regularly merges metrics and pushes them to a metrics sink. */
-@Experimental(Experimental.Kind.METRICS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricsPusher implements Serializable {
 
   private MetricsSink metricsSink;
   private long period;
-  @Nullable private transient ScheduledFuture<?> scheduledFuture;
+  private transient @Nullable ScheduledFuture<?> scheduledFuture;
   private transient PipelineResult pipelineResult;
   private MetricsContainerStepMap metricsContainerStepMap;
 
   public MetricsPusher(
       MetricsContainerStepMap metricsContainerStepMap,
-      PipelineOptions pipelineOptions,
+      MetricsOptions pipelineOptions,
       PipelineResult pipelineResult) {
     this.metricsContainerStepMap = metricsContainerStepMap;
     this.pipelineResult = pipelineResult;
@@ -59,7 +58,7 @@ public class MetricsPusher implements Serializable {
     metricsSink =
         InstanceBuilder.ofType(MetricsSink.class)
             .fromClass(pipelineOptions.getMetricsSink())
-            .withArg(PipelineOptions.class, pipelineOptions)
+            .withArg(MetricsOptions.class, pipelineOptions)
             .build();
   }
 
@@ -71,7 +70,7 @@ public class MetricsPusher implements Serializable {
                   .setDaemon(true)
                   .setNameFormat("MetricsPusher-thread")
                   .build());
-      scheduledFuture = scheduler.scheduleAtFixedRate(() -> run(), 0, period, TimeUnit.SECONDS);
+      scheduledFuture = scheduler.scheduleAtFixedRate(this::run, 0, period, TimeUnit.SECONDS);
     }
   }
 
@@ -97,8 +96,7 @@ public class MetricsPusher implements Serializable {
       try {
         // merge metrics
         MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
-        MetricQueryResults metricQueryResults =
-            metricResults.queryMetrics(MetricsFilter.builder().build());
+        MetricQueryResults metricQueryResults = metricResults.allMetrics();
         if ((Iterables.size(metricQueryResults.getDistributions()) != 0)
             || (Iterables.size(metricQueryResults.getGauges()) != 0)
             || (Iterables.size(metricQueryResults.getCounters()) != 0)) {

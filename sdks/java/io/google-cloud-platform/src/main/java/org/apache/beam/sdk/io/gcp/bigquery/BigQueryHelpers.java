@@ -15,39 +15,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
-import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A set of helper functions and classes used by {@link BigQueryIO}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryHelpers {
   private static final String RESOURCE_NOT_FOUND_ERROR =
       "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
@@ -79,24 +87,210 @@ public class BigQueryHelpers {
     }
   }
 
+  // A class that waits for pending jobs, retrying them according to policy if they fail.
+  static class PendingJobManager {
+    private static class JobInfo {
+      private final PendingJob pendingJob;
+      private final @Nullable SerializableFunction<PendingJob, Exception> onSuccess;
+
+      public JobInfo(PendingJob pendingJob, SerializableFunction<PendingJob, Exception> onSuccess) {
+        this.pendingJob = pendingJob;
+        this.onSuccess = onSuccess;
+      }
+    }
+
+    private List<JobInfo> pendingJobs = Lists.newArrayList();
+    private final BackOff backOff;
+
+    PendingJobManager() {
+      this(
+          BackOffAdapter.toGcpBackOff(
+              FluentBackoff.DEFAULT
+                  .withMaxRetries(Integer.MAX_VALUE)
+                  .withInitialBackoff(Duration.standardSeconds(1))
+                  .withMaxBackoff(Duration.standardMinutes(1))
+                  .backoff()));
+    }
+
+    PendingJobManager(BackOff backOff) {
+      this.backOff = backOff;
+    }
+
+    // Add a pending job and a function to call when the job has completed successfully.
+    PendingJobManager addPendingJob(
+        PendingJob pendingJob, @Nullable SerializableFunction<PendingJob, Exception> onSuccess) {
+      this.pendingJobs.add(new JobInfo(pendingJob, onSuccess));
+      return this;
+    }
+
+    void waitForDone() throws Exception {
+      LOG.info("Waiting for jobs to complete.");
+      Sleeper sleeper = Sleeper.DEFAULT;
+      while (!pendingJobs.isEmpty()) {
+        List<JobInfo> retryJobs = Lists.newArrayList();
+        for (JobInfo jobInfo : pendingJobs) {
+          if (jobInfo.pendingJob.pollJob()) {
+            // Job has completed successfully.
+            LOG.info("Job {} completed successfully.", jobInfo.pendingJob.currentJobId);
+            Exception e = jobInfo.onSuccess.apply(jobInfo.pendingJob);
+            if (e != null) {
+              throw e;
+            }
+          } else {
+            // Job not yet complete, schedule it again.
+            LOG.info("Job {} pending. retrying.", jobInfo.pendingJob.currentJobId);
+            retryJobs.add(jobInfo);
+          }
+        }
+        pendingJobs = retryJobs;
+        if (!pendingJobs.isEmpty()) {
+          // Sleep before retrying.
+          nextBackOff(sleeper, backOff);
+          // Run the jobs to retry. If a job has hit the maximum number of retries then runJob
+          // will raise an exception.
+          for (JobInfo job : pendingJobs) {
+            job.pendingJob.runJob();
+          }
+        }
+      }
+    }
+
+    /** Identical to {@link BackOffUtils#next} but without checked IOException. */
+    private static boolean nextBackOff(Sleeper sleeper, BackOff backOff)
+        throws InterruptedException {
+      try {
+        return BackOffUtils.next(sleeper, backOff);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  static class PendingJob {
+    private final SerializableFunction<RetryJobId, Void> executeJob;
+    private final SerializableFunction<RetryJobId, Job> pollJob;
+    private final SerializableFunction<RetryJobId, Job> lookupJob;
+    private final int maxRetries;
+    private int currentAttempt;
+    RetryJobId currentJobId;
+    Job lastJobAttempted;
+    boolean started;
+
+    PendingJob(
+        SerializableFunction<RetryJobId, Void> executeJob,
+        SerializableFunction<RetryJobId, Job> pollJob,
+        SerializableFunction<RetryJobId, Job> lookupJob,
+        int maxRetries,
+        String jobIdPrefix) {
+      this.executeJob = executeJob;
+      this.pollJob = pollJob;
+      this.lookupJob = lookupJob;
+      this.maxRetries = maxRetries;
+      this.currentAttempt = 0;
+      currentJobId = new RetryJobId(jobIdPrefix, 0);
+      this.started = false;
+    }
+
+    // Run the job.
+    void runJob() throws IOException {
+      ++currentAttempt;
+      if (!shouldRetry()) {
+        throw new RuntimeException(
+            String.format(
+                "Failed to create job with prefix %s, "
+                    + "reached max retries: %d, last failed job: %s.",
+                currentJobId.getJobIdPrefix(),
+                maxRetries,
+                BigQueryHelpers.jobToPrettyString(lastJobAttempted)));
+      }
+
+      try {
+        this.started = false;
+        executeJob.apply(currentJobId);
+      } catch (RuntimeException e) {
+        LOG.warn("Job {} failed.", currentJobId.getJobId(), e);
+        // It's possible that the job actually made it to BQ even though we got a failure here.
+        // For example, the response from BQ may have timed out returning. getRetryJobId will
+        // return the correct job id to use on retry, or a job id to continue polling (if it turns
+        // out that the job has not actually failed yet).
+        RetryJobIdResult result = getRetryJobId(currentJobId, lookupJob);
+        currentJobId = result.jobId;
+        if (result.shouldRetry) {
+          // Otherwise the jobs either never started or started and failed. Try the job again with
+          // the job id returned by getRetryJobId.
+          LOG.info("Will retry with job id {}", currentJobId.getJobId());
+          return;
+        }
+      }
+      LOG.info("job {} started", currentJobId.getJobId());
+      // The job has reached BigQuery and is in either the PENDING state or has completed
+      // successfully.
+      this.started = true;
+    }
+
+    // Poll the status of the job. Returns true if the job has completed successfully and false
+    // otherwise.
+    boolean pollJob() throws IOException {
+      if (started) {
+        Job job = pollJob.apply(currentJobId);
+        this.lastJobAttempted = job;
+        Status jobStatus = parseStatus(job);
+        switch (jobStatus) {
+          case SUCCEEDED:
+            LOG.info("Load job {} succeeded. Statistics: {}", currentJobId, job.getStatistics());
+            return true;
+          case UNKNOWN:
+            // This might happen if BigQuery's job listing is slow. Retry with the same
+            // job id.
+            LOG.info(
+                "Load job {} finished in unknown state: {}: {}",
+                currentJobId,
+                job.getStatus(),
+                shouldRetry() ? "will retry" : "will not retry");
+            return false;
+          case FAILED:
+            String oldJobId = currentJobId.getJobId();
+            currentJobId = BigQueryHelpers.getRetryJobId(currentJobId, lookupJob).jobId;
+            LOG.warn(
+                "Load job {} failed, {}: {}. Next job id {}",
+                oldJobId,
+                shouldRetry() ? "will retry" : "will not retry",
+                job.getStatus(),
+                currentJobId);
+            return false;
+          default:
+            throw new IllegalStateException(
+                String.format(
+                    "Unexpected status [%s] of load job: %s.",
+                    job.getStatus(), BigQueryHelpers.jobToPrettyString(job)));
+        }
+      }
+      return false;
+    }
+
+    boolean shouldRetry() {
+      return currentAttempt < maxRetries + 1;
+    }
+  }
+
   static class RetryJobId {
     private final String jobIdPrefix;
     private final int retryIndex;
 
-    public RetryJobId(String jobIdPrefix, int retryIndex) {
+    RetryJobId(String jobIdPrefix, int retryIndex) {
       this.jobIdPrefix = jobIdPrefix;
       this.retryIndex = retryIndex;
     }
 
-    public String getJobIdPrefix() {
+    String getJobIdPrefix() {
       return jobIdPrefix;
     }
 
-    public int getRetryIndex() {
+    int getRetryIndex() {
       return retryIndex;
     }
 
-    public String getJobId() {
+    String getJobId() {
       return jobIdPrefix + "-" + retryIndex;
     }
 
@@ -107,17 +301,11 @@ public class BigQueryHelpers {
   }
 
   static RetryJobIdResult getRetryJobId(
-      RetryJobId currentJobId, String projectId, String bqLocation, JobService jobService)
-      throws InterruptedException {
+      RetryJobId currentJobId, SerializableFunction<RetryJobId, Job> lookupJob) {
     for (int retryIndex = currentJobId.getRetryIndex(); ; retryIndex++) {
       RetryJobId jobId = new RetryJobId(currentJobId.getJobIdPrefix(), retryIndex);
-      JobReference jobRef =
-          new JobReference()
-              .setProjectId(projectId)
-              .setJobId(jobId.getJobId())
-              .setLocation(bqLocation);
       try {
-        Job loadJob = jobService.getJob(jobRef);
+        Job loadJob = lookupJob.apply(jobId);
         if (loadJob == null) {
           LOG.info("job id {} not found, so retrying with that id", jobId);
           // This either means that the original job was never properly issued (on the first
@@ -147,8 +335,8 @@ public class BigQueryHelpers {
         // This job has failed, so we assume the data cannot enter BigQuery. We will check the next
         // job in the sequence (with the same unique prefix) to see if is either pending/succeeded
         // or can be used to generate a retry job.
-        LOG.info("job {} is failed. Checking the next job id.", jobId);
-      } catch (IOException e) {
+        LOG.info("job {} is failed. Checking the next job id", jobId);
+      } catch (RuntimeException e) {
         LOG.info("caught exception while querying job {}", jobId);
         return new RetryJobIdResult(jobId, true);
       }
@@ -162,9 +350,24 @@ public class BigQueryHelpers {
     UNKNOWN,
   }
 
-  @Nullable
+  /** Project resource name formatted according to https://google.aip.dev/122. */
+  static String toProjectResourceName(String projectName) {
+    return "projects/" + projectName;
+  }
+
+  /** Table resource name formatted according to https://google.aip.dev/122. */
+  static String toTableResourceName(TableReference tableReference) {
+    return "projects/"
+        + tableReference.getProjectId()
+        + "/datasets/"
+        + tableReference.getDatasetId()
+        + "/tables/"
+        + tableReference.getTableId();
+  }
+
   /** Return a displayable string representation for a {@link TableReference}. */
-  static ValueProvider<String> displayTable(@Nullable ValueProvider<TableReference> table) {
+  static @Nullable ValueProvider<String> displayTable(
+      @Nullable ValueProvider<TableReference> table) {
     if (table == null) {
       return null;
     }
@@ -200,6 +403,21 @@ public class BigQueryHelpers {
           "Table reference is not in [project_id]:[dataset_id].[table_id] "
               + "format: "
               + tableSpec);
+    }
+
+    TableReference ref = new TableReference();
+    ref.setProjectId(match.group("PROJECT"));
+
+    return ref.setDatasetId(match.group("DATASET")).setTableId(match.group("TABLE"));
+  }
+
+  public static TableReference parseTableUrn(String tableUrn) {
+    Matcher match = BigQueryIO.TABLE_URN_SPEC.matcher(tableUrn);
+    if (!match.matches()) {
+      throw new IllegalArgumentException(
+          "Table reference is not in projects/[project_id]/datasets/[dataset_id]/tables/[table_id] "
+              + "format: "
+              + tableUrn);
     }
 
     TableReference ref = new TableReference();
@@ -244,8 +462,7 @@ public class BigQueryHelpers {
     }
   }
 
-  @VisibleForTesting
-  static String toJsonString(Object item) {
+  public static String toJsonString(Object item) {
     if (item == null) {
       return null;
     }
@@ -258,8 +475,7 @@ public class BigQueryHelpers {
     }
   }
 
-  @VisibleForTesting
-  static <T> T fromJsonString(String json, Class<T> clazz) {
+  public static <T> T fromJsonString(String json, Class<T> clazz) {
     if (json == null) {
       return null;
     }
@@ -316,6 +532,27 @@ public class BigQueryHelpers {
     }
   }
 
+  /**
+   * It returns the number of rows for a given table.
+   *
+   * @return The number of rows in the table or null if it cannot get any estimate.
+   */
+  public static @Nullable BigInteger getNumRows(BigQueryOptions options, TableReference tableRef)
+      throws InterruptedException, IOException {
+
+    try (DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options)) {
+      Table table = datasetService.getTable(tableRef);
+      if (table == null) {
+        return null;
+      }
+      return table.getNumRows();
+    } catch (IOException | InterruptedException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   static String getDatasetLocation(
       DatasetService datasetService, String projectId, String datasetId) {
     Dataset dataset;
@@ -352,22 +589,6 @@ public class BigQueryHelpers {
     }
   }
 
-  // Create a unique job id for a table load.
-  static String createJobId(
-      String prefix, TableDestination tableDestination, int partition, long index) {
-    // Job ID must be different for each partition of each table.
-    String destinationHash =
-        Hashing.murmur3_128().hashUnencodedChars(tableDestination.toString()).toString();
-    String jobId = String.format("%s_%s", prefix, destinationHash);
-    if (partition >= 0) {
-      jobId += String.format("_%05d", partition);
-    }
-    if (index >= 0) {
-      jobId += String.format("_%05d", index);
-    }
-    return jobId;
-  }
-
   @VisibleForTesting
   static class JsonSchemaToTableSchema implements SerializableFunction<String, TableSchema> {
     @Override
@@ -397,17 +618,17 @@ public class BigQueryHelpers {
     }
   }
 
-  static class TableRefToTableSpec implements SerializableFunction<TableReference, String> {
-    @Override
-    public String apply(TableReference from) {
-      return toTableSpec(from);
-    }
-  }
-
   static class TableRefToJson implements SerializableFunction<TableReference, String> {
     @Override
     public String apply(TableReference from) {
       return toJsonString(from);
+    }
+  }
+
+  static class TableRefToTableSpec implements SerializableFunction<TableReference, String> {
+    @Override
+    public String apply(TableReference from) {
+      return toTableSpec(from);
     }
   }
 
@@ -424,25 +645,6 @@ public class BigQueryHelpers {
     public String apply(TimePartitioning partitioning) {
       return toJsonString(partitioning);
     }
-  }
-
-  static String createJobIdToken(String jobName, String stepUuid) {
-    return String.format("beam_job_%s_%s", stepUuid, jobName.replaceAll("-", ""));
-  }
-
-  static String getExtractJobId(String jobIdToken) {
-    return String.format("%s-extract", jobIdToken);
-  }
-
-  static TableReference createTempTableReference(String projectId, String jobUuid) {
-    String queryTempDatasetId = "temp_dataset_" + jobUuid;
-    String queryTempTableId = "temp_table_" + jobUuid;
-    TableReference queryTempTableRef =
-        new TableReference()
-            .setProjectId(projectId)
-            .setDatasetId(queryTempDatasetId)
-            .setTableId(queryTempTableId);
-    return queryTempTableRef;
   }
 
   static String resolveTempLocation(

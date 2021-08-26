@@ -15,18 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collection;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -44,9 +45,10 @@ public class DoFnLifecycleManagersTest {
 
   @Test
   public void removeAllWhenManagersThrowSuppressesAndThrows() throws Exception {
-    DoFnLifecycleManager first = DoFnLifecycleManager.of(new ThrowsInCleanupFn("foo"));
-    DoFnLifecycleManager second = DoFnLifecycleManager.of(new ThrowsInCleanupFn("bar"));
-    DoFnLifecycleManager third = DoFnLifecycleManager.of(new ThrowsInCleanupFn("baz"));
+    PipelineOptions options = PipelineOptionsFactory.create();
+    DoFnLifecycleManager first = DoFnLifecycleManager.of(new ThrowsInCleanupFn("foo"), options);
+    DoFnLifecycleManager second = DoFnLifecycleManager.of(new ThrowsInCleanupFn("bar"), options);
+    DoFnLifecycleManager third = DoFnLifecycleManager.of(new ThrowsInCleanupFn("baz"), options);
     first.get();
     second.get();
     third.get();
@@ -90,9 +92,10 @@ public class DoFnLifecycleManagersTest {
 
   @Test
   public void whenManagersSucceedSucceeds() throws Exception {
-    DoFnLifecycleManager first = DoFnLifecycleManager.of(new EmptyFn());
-    DoFnLifecycleManager second = DoFnLifecycleManager.of(new EmptyFn());
-    DoFnLifecycleManager third = DoFnLifecycleManager.of(new EmptyFn());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    DoFnLifecycleManager first = DoFnLifecycleManager.of(new EmptyFn(), options);
+    DoFnLifecycleManager second = DoFnLifecycleManager.of(new EmptyFn(), options);
+    DoFnLifecycleManager third = DoFnLifecycleManager.of(new EmptyFn(), options);
     first.get();
     second.get();
     third.get();

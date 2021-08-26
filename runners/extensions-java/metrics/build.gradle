@@ -16,17 +16,21 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  exportJavadoc: false,
+  automaticModuleName: 'org.apache.beam.runners.extensions.metrics',
+)
 
 description = "Apache Beam :: Runners :: Extensions Java :: Metrics"
 ext.summary = "Beam Runners Extensions Metrics provides implementations of runners core metrics APIs."
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.jackson_databind
-  shadow library.java.jackson_datatype_joda
-  shadowTest library.java.joda_time
-  shadowTest library.java.junit
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.jackson_databind
+  compile library.java.jackson_datatype_joda
+  compile library.java.jackson_core
+  compile library.java.joda_time
+  testCompile library.java.joda_time
+  testCompile library.java.junit
 }

@@ -22,7 +22,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // MakeQualifiedTopicName returns a fully-qualified topic name for
@@ -102,7 +103,7 @@ func Publish(ctx context.Context, project, topic string, messages ...string) (*p
 		}
 		id, err := t.Publish(ctx, m).Get(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to publish '%v': %v", msg, err)
+			return nil, errors.Wrapf(err, "failed to publish '%v'", msg)
 		}
 		log.Infof(ctx, "Published %v with id: %v", msg, id)
 	}

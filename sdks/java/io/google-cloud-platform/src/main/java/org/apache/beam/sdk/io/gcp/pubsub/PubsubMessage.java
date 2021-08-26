@@ -17,39 +17,82 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.auto.value.AutoValue;
 import java.util.Map;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Class representing a Pub/Sub message. Each message contains a single message payload and a map of
- * attached attributes.
+ * Class representing a Pub/Sub message. Each message contains a single message payload, a map of
+ * attached attributes, and a message id.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubMessage {
+  @AutoValue
+  abstract static class Impl {
+    @SuppressWarnings("mutable")
+    abstract byte[] getPayload();
 
-  private byte[] message;
-  private Map<String, String> attributes;
+    abstract @Nullable Map<String, String> getAttributeMap();
 
-  public PubsubMessage(byte[] payload, Map<String, String> attributes) {
-    this.message = payload;
-    this.attributes = attributes;
+    abstract @Nullable String getMessageId();
+
+    static Impl create(
+        byte[] payload, @Nullable Map<String, String> attributes, @Nullable String messageId) {
+      return new AutoValue_PubsubMessage_Impl(payload, attributes, messageId);
+    }
+  }
+
+  private Impl impl;
+
+  public PubsubMessage(byte[] payload, @Nullable Map<String, String> attributes) {
+    this(payload, attributes, null);
+  }
+
+  public PubsubMessage(
+      byte[] payload, @Nullable Map<String, String> attributes, @Nullable String messageId) {
+    impl = Impl.create(payload, attributes, messageId);
   }
 
   /** Returns the main PubSub message. */
   public byte[] getPayload() {
-    return message;
+    return impl.getPayload();
   }
 
   /** Returns the given attribute value. If not such attribute exists, returns null. */
-  @Nullable
-  public String getAttribute(String attribute) {
+  public @Nullable String getAttribute(String attribute) {
     checkNotNull(attribute, "attribute");
-    return attributes.get(attribute);
+    return impl.getAttributeMap().get(attribute);
   }
 
   /** Returns the full map of attributes. This is an unmodifiable map. */
-  public Map<String, String> getAttributeMap() {
-    return attributes;
+  public @Nullable Map<String, String> getAttributeMap() {
+    return impl.getAttributeMap();
+  }
+
+  /** Returns the messageId of the message populated by Cloud Pub/Sub. */
+  public @Nullable String getMessageId() {
+    return impl.getMessageId();
+  }
+
+  @Override
+  public String toString() {
+    return impl.toString();
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof PubsubMessage)) {
+      return false;
+    }
+    return impl.equals(((PubsubMessage) other).impl);
+  }
+
+  @Override
+  public int hashCode() {
+    return impl.hashCode();
   }
 }

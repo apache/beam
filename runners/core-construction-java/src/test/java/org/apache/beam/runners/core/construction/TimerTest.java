@@ -17,14 +17,16 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.coders.ByteArrayCoder;
+import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,42 +35,128 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link Timer}. */
 @RunWith(JUnit4.class)
 public class TimerTest {
-  private static final Instant INSTANT = Instant.now();
+  private static final Instant FIRE_TIME = new Instant(123L);
+  private static final Instant HOLD_TIME = new Instant(456L);
+
+  @Test
+  public void testClearTimer() {
+    Timer<String> clearedTimer =
+        Timer.cleared("timer", "tag", Collections.singleton(GlobalWindow.INSTANCE));
+    assertTrue(clearedTimer.getClearBit());
+    assertEquals("timer", clearedTimer.getUserKey());
+    assertEquals("tag", clearedTimer.getDynamicTimerTag());
+    assertEquals(Collections.singleton(GlobalWindow.INSTANCE), clearedTimer.getWindows());
+  }
 
   @Test
   public void testTimer() {
-    Timer<Void> timerA = Timer.of(INSTANT);
-    assertEquals(INSTANT, timerA.getTimestamp());
-    assertNull(timerA.getPayload());
-
-    Timer<String> timerB = Timer.of(INSTANT, "ABC");
-    assertEquals(INSTANT, timerB.getTimestamp());
-    assertEquals("ABC", timerB.getPayload());
+    Timer<String> timer =
+        Timer.of(
+            "key",
+            "tag",
+            Collections.singleton(GlobalWindow.INSTANCE),
+            FIRE_TIME,
+            HOLD_TIME,
+            PaneInfo.NO_FIRING);
+    assertEquals("key", timer.getUserKey());
+    assertEquals("tag", timer.getDynamicTimerTag());
+    assertEquals(FIRE_TIME, timer.getFireTimestamp());
+    assertEquals(HOLD_TIME, timer.getHoldTimestamp());
+    assertEquals(Collections.singleton(GlobalWindow.INSTANCE), timer.getWindows());
+    assertEquals(PaneInfo.NO_FIRING, timer.getPane());
+    assertFalse(timer.getClearBit());
   }
 
   @Test
-  public void testTimerCoderWithInconsistentWithEqualsPayloadCoder() throws Exception {
-    Coder<Timer<byte[]>> coder = Timer.Coder.of(ByteArrayCoder.of());
+  public void testTimerCoderWithInconsistentWithEqualsComponentCoders() throws Exception {
+    Coder<Timer<String>> coder = Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
     CoderProperties.coderSerializable(coder);
     CoderProperties.structuralValueDecodeEncodeEqual(
-        coder, Timer.of(INSTANT, "ABC".getBytes(UTF_8)));
+        coder,
+        Timer.of(
+            "key",
+            "tag",
+            Collections.singleton(GlobalWindow.INSTANCE),
+            FIRE_TIME,
+            HOLD_TIME,
+            PaneInfo.NO_FIRING));
+    CoderProperties.structuralValueDecodeEncodeEqual(
+        coder, Timer.cleared("key", "tag", Collections.singleton(GlobalWindow.INSTANCE)));
     CoderProperties.structuralValueConsistentWithEquals(
-        coder, Timer.of(INSTANT, "ABC".getBytes(UTF_8)), Timer.of(INSTANT, "ABC".getBytes(UTF_8)));
+        coder,
+        Timer.of(
+            "key",
+            "tag",
+            Collections.singleton(GlobalWindow.INSTANCE),
+            FIRE_TIME,
+            HOLD_TIME,
+            PaneInfo.NO_FIRING),
+        Timer.of(
+            "key",
+            "tag",
+            Collections.singleton(GlobalWindow.INSTANCE),
+            FIRE_TIME,
+            HOLD_TIME,
+            PaneInfo.NO_FIRING));
+    CoderProperties.structuralValueConsistentWithEquals(
+        coder,
+        Timer.cleared("key", "tag", Collections.singleton(GlobalWindow.INSTANCE)),
+        Timer.cleared("key", "tag", Collections.singleton(GlobalWindow.INSTANCE)));
   }
 
   @Test
-  public void testTimerCoderWithConsistentWithEqualsPayloadCoder() throws Exception {
-    Coder<Timer<String>> coder = Timer.Coder.of(StringUtf8Coder.of());
-    CoderProperties.coderDecodeEncodeEqual(coder, Timer.of(INSTANT, "ABC"));
+  public void testTimerCoderWithConsistentWithEqualsComponentCoders() throws Exception {
+    Coder<Timer<String>> coder = Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+    CoderProperties.coderDecodeEncodeEqual(
+        coder,
+        Timer.of(
+            "key",
+            "tag",
+            Collections.singletonList(GlobalWindow.INSTANCE),
+            FIRE_TIME,
+            HOLD_TIME,
+            PaneInfo.NO_FIRING));
+    CoderProperties.coderDecodeEncodeEqual(
+        coder, Timer.cleared("key", "tag", Collections.singletonList(GlobalWindow.INSTANCE)));
     CoderProperties.coderConsistentWithEquals(
-        coder, Timer.of(INSTANT, "ABC"), Timer.of(INSTANT, "ABC"));
-    CoderProperties.coderDeterministic(coder, Timer.of(INSTANT, "ABC"), Timer.of(INSTANT, "ABC"));
-  }
-
-  @Test
-  public void testTimerCoderWireFormat() throws Exception {
-    Coder<Timer<String>> coder = Timer.Coder.of(StringUtf8Coder.of());
-    CoderProperties.coderEncodesBase64(
-        coder, Timer.of(new Instant(255L), "ABC"), "gAAAAAAAAP8DQUJD");
+        coder,
+        Timer.of(
+            "key",
+            "tag",
+            Collections.singletonList(GlobalWindow.INSTANCE),
+            FIRE_TIME,
+            HOLD_TIME,
+            PaneInfo.NO_FIRING),
+        Timer.of(
+            "key",
+            "tag",
+            Collections.singletonList(GlobalWindow.INSTANCE),
+            FIRE_TIME,
+            HOLD_TIME,
+            PaneInfo.NO_FIRING));
+    CoderProperties.coderConsistentWithEquals(
+        coder,
+        Timer.cleared("key", "tag", Collections.singletonList(GlobalWindow.INSTANCE)),
+        Timer.cleared("key", "tag", Collections.singletonList(GlobalWindow.INSTANCE)));
+    CoderProperties.coderDeterministic(
+        coder,
+        Timer.of(
+            "key",
+            "tag",
+            Collections.singletonList(GlobalWindow.INSTANCE),
+            FIRE_TIME,
+            HOLD_TIME,
+            PaneInfo.NO_FIRING),
+        Timer.of(
+            "key",
+            "tag",
+            Collections.singletonList(GlobalWindow.INSTANCE),
+            FIRE_TIME,
+            HOLD_TIME,
+            PaneInfo.NO_FIRING));
+    CoderProperties.coderDeterministic(
+        coder,
+        Timer.cleared("key", "tag", Collections.singletonList(GlobalWindow.INSTANCE)),
+        Timer.cleared("key", "tag", Collections.singletonList(GlobalWindow.INSTANCE)));
   }
 }

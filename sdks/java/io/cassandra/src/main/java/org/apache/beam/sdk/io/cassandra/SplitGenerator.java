@@ -119,7 +119,10 @@ final class SplitGenerator {
         if (token.compareTo(rangeMax) > 0) {
           token = token.subtract(rangeSize);
         }
-        endpointTokens.add(token);
+        // Long.MIN_VALUE is not a valid token and has to be silently incremented.
+        // See https://issues.apache.org/jira/browse/CASSANDRA-14684
+        endpointTokens.add(
+            token.equals(BigInteger.valueOf(Long.MIN_VALUE)) ? token.add(BigInteger.ONE) : token);
       }
 
       // Append the splits between the endpoints
@@ -173,6 +176,6 @@ final class SplitGenerator {
   }
 
   private BigInteger getTargetSplitSize(long splitCount) {
-    return (rangeMax.subtract(rangeMin)).divide(BigInteger.valueOf(splitCount));
+    return rangeMax.subtract(rangeMin).divide(BigInteger.valueOf(splitCount));
   }
 }

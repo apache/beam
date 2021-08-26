@@ -1,0 +1,134 @@
+/*
+ *  Licensed to the Apache Software Foundation (ASF) under one
+ *  or more contributor license agreements.  See the NOTICE file
+ *  distributed with this work for additional information
+ *  regarding copyright ownership.  The ASF licenses this file
+ *  to you under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+buildscript {
+  ext {
+    beamVersion = '2.19.0'
+    guavaVersion = '28.1-jre'
+    jodaTimeVersion = '2.10.4'
+    slf4jVersion = '1.7.30'
+    log4jSlf4jImpl = '2.12.1'
+    kotlinVersion = '1.3.72'
+
+    assertjVersion = '3.13.2'
+    hamcrestVersion = '2.1'
+    junitVersion = '4.12'
+  }
+
+  repositories {
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+  }
+}
+
+def printOutput(def output) {
+  return tasks.create("printOutput") {
+    for (line in output.toString().readLines()) {
+      println "#educational_plugin" + line
+    }
+  }
+}
+
+subprojects {
+  apply plugin: 'application'
+  apply plugin: 'java'
+  apply plugin: 'kotlin'
+
+  sourceCompatibility = 1.8
+
+  repositories {
+    mavenCentral()
+  }
+
+  dependencies {
+    compile "org.apache.beam:beam-sdks-java-core:$beamVersion"
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
+    runtime "org.apache.beam:beam-runners-direct-java:$beamVersion"
+
+    compile "joda-time:joda-time:$jodaTimeVersion"
+    compile "org.slf4j:slf4j-api:$slf4jVersion"
+    compile "org.apache.logging.log4j:log4j-slf4j-impl:$log4jSlf4jImpl"
+    compile "com.google.guava:guava:$guavaVersion"
+
+    testCompile "junit:junit:$junitVersion"
+    testCompile "org.hamcrest:hamcrest-core:$hamcrestVersion"
+    testCompile "org.hamcrest:hamcrest-library:$hamcrestVersion"
+    testCompile "org.assertj:assertj-core:$assertjVersion"
+  }
+
+  compileKotlin.destinationDir = compileJava.destinationDir
+
+  compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+  }
+  compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+  }
+
+  sourceSets {
+    main {
+      java.srcDir 'src'
+      resources.srcDir 'resources'
+    }
+    test {
+      java.srcDir 'test'
+    }
+  }
+
+  mainClassName = project.hasProperty("mainClass") ? project.getProperty("mainClass") : ""
+
+  test {
+    outputs.upToDateWhen { false }
+    afterTest { TestDescriptor test, TestResult result ->
+      if (result.resultType == TestResult.ResultType.FAILURE) {
+        def message = result.exception?.message ?: "Wrong answer"
+        def lines = message.readLines()
+        println "#educational_plugin FAILED + " + lines[0]
+        lines[1..-1].forEach { line ->
+          println "#educational_plugin" + line
+        }
+        // we need this to separate output of different tests
+        println()
+      }
+    }
+  }
+
+  def runOutput = new ByteArrayOutputStream()
+  tasks.run.setStandardOutput(runOutput)
+  tasks.run.doLast { printOutput(runOutput) }
+}
+
+project(':util') {
+  dependencies {
+    compile "junit:junit:$junitVersion"
+  }
+}
+
+configure(subprojects.findAll { it.name != 'util' }) {
+  dependencies {
+    compile project(':util').sourceSets.main.output
+    testCompile project(':util').sourceSets.test.output
+  }
+}
+
+wrapper {
+  gradleVersion = '5.0'
+}

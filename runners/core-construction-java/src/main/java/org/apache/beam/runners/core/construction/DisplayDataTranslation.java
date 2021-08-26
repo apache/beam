@@ -15,25 +15,63 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardDisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Any;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.BoolValue;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Utilities for going to/from DisplayData protos. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DisplayDataTranslation {
-  public static RunnerApi.DisplayData toProto(DisplayData displayData) {
-    // TODO https://issues.apache.org/jira/browse/BEAM-2645
-    return RunnerApi.DisplayData.newBuilder()
-        .addItems(
-            RunnerApi.DisplayData.Item.newBuilder()
-                .setId(RunnerApi.DisplayData.Identifier.newBuilder().setKey("stubImplementation"))
-                .setLabel("Stub implementation")
-                .setType(RunnerApi.DisplayData.Type.Enum.BOOLEAN)
-                .setValue(Any.pack(BoolValue.newBuilder().setValue(true).build())))
-        .build();
+  public static final String LABELLED = "beam:display_data:labelled:v1";
+
+  static {
+    checkState(LABELLED.equals(BeamUrns.getUrn(StandardDisplayData.DisplayData.LABELLED)));
+  }
+
+  private static final Map<String, Function<DisplayData.Item, ByteString>>
+      WELL_KNOWN_URN_TRANSLATORS =
+          ImmutableMap.of(LABELLED, DisplayDataTranslation::translateStringUtf8);
+
+  public static List<RunnerApi.DisplayData> toProto(DisplayData displayData) {
+    ImmutableList.Builder<RunnerApi.DisplayData> builder = ImmutableList.builder();
+    for (DisplayData.Item item : displayData.items()) {
+      Function<DisplayData.Item, ByteString> translator =
+          WELL_KNOWN_URN_TRANSLATORS.get(item.getKey());
+      String urn;
+      if (translator != null) {
+        urn = item.getKey();
+      } else {
+        urn = LABELLED;
+        translator = DisplayDataTranslation::translateStringUtf8;
+      }
+      builder.add(
+          RunnerApi.DisplayData.newBuilder()
+              .setUrn(urn)
+              .setPayload(translator.apply(item))
+              .build());
+    }
+    return builder.build();
+  }
+
+  private static ByteString translateStringUtf8(DisplayData.Item item) {
+    String value = String.valueOf(item.getValue() == null ? item.getShortValue() : item.getValue());
+    String label = item.getLabel() == null ? item.getKey() : item.getLabel();
+    return RunnerApi.LabelledPayload.newBuilder()
+        .setLabel(label)
+        .setStringValue(value)
+        .build()
+        .toByteString();
   }
 }

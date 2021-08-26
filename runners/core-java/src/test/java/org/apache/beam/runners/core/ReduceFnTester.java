@@ -21,11 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.base.Equivalence;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
@@ -70,6 +64,12 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -83,6 +83,9 @@ import org.joda.time.Instant;
  *     Iterable<InputT>})
  * @param <W> The type of windows being used.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private static final String KEY = "TEST_KEY";
 
@@ -284,8 +287,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     this.autoAdvanceOutputWatermark = autoAdvanceOutputWatermark;
   }
 
-  @Nullable
-  public Instant getNextTimer(TimeDomain domain) {
+  public @Nullable Instant getNextTimer(TimeDomain domain) {
     return timerInternals.getNextTimer(domain);
   }
 
@@ -540,8 +542,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     Iterable<WindowedValue<InputT>> inputs =
-        values
-            .stream()
+        values.stream()
             .map(
                 input -> {
                   try {
@@ -571,7 +572,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     ArrayList<TimerData> timers = new ArrayList<>(1);
     timers.add(
-        TimerData.of(StateNamespaces.window(windowFn.windowCoder(), window), timestamp, domain));
+        TimerData.of(
+            StateNamespaces.window(windowFn.windowCoder(), window), timestamp, timestamp, domain));
     runner.onTimers(timers);
     runner.persist();
   }
@@ -583,6 +585,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       timerData.add(
           TimerData.of(
               StateNamespaces.window(windowFn.windowCoder(), window),
+              timer.getTimestamp(),
               timer.getTimestamp(),
               timer.getValue()));
     }

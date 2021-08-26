@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.util.CoderUtils.decodeFromByteArray;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -38,6 +38,10 @@ import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
 
 /** Utilities for working with Serializables. */
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class SerializableUtils {
   /**
    * Serializes the argument into an array of bytes, and returns it.
@@ -73,6 +77,19 @@ public class SerializableUtils {
     } catch (IOException | ClassNotFoundException exn) {
       throw new IllegalArgumentException("unable to deserialize " + description, exn);
     }
+  }
+
+  public static <T extends Serializable> T ensureSerializableRoundTrip(T value) {
+    T copy = ensureSerializable(value);
+
+    checkState(
+        value.equals(copy),
+        "Value not equal to original after serialization, indicating that its type may not "
+            + "implement serialization or equals correctly.  Before: %s, after: %s",
+        value,
+        copy);
+
+    return copy;
   }
 
   public static <T extends Serializable> T ensureSerializable(T value) {

@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.aggregators;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /**
  * This class wraps a map of named aggregators. Spark expects that all accumulators be declared
@@ -31,6 +30,9 @@ import org.apache.beam.sdk.transforms.Combine;
  * create a map of named aggregators and instantiate in the the spark context before the job is
  * launched. We can then add aggregators on the fly in Spark.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class NamedAggregators implements Serializable {
   /** Map from aggregator name to current state. */
   private final Map<String, State<?, ?, ?>> mNamedAggregators = new TreeMap<>();

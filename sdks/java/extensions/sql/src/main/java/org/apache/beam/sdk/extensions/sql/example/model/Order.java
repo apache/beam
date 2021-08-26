@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.extensions.sql.example.model;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.schemas.DefaultSchema;
+import java.util.Objects;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Describes an order. */
 @DefaultSchema(JavaBeanSchema.class)
@@ -48,5 +50,27 @@ public class Order implements Serializable {
 
   public void setCustomerId(int customerId) {
     this.customerId = customerId;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Order order = (Order) o;
+    return id == order.id && customerId == order.customerId;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id, customerId);
+  }
+
+  @Override
+  public String toString() {
+    return "Order{" + "id=" + id + ", customerId=" + customerId + '}';
   }
 }

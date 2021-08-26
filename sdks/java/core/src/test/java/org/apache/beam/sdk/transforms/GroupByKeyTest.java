@@ -21,11 +21,10 @@ import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -53,14 +52,15 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
@@ -70,7 +70,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -78,12 +82,17 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for GroupByKey. */
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unchecked"
+})
+@RunWith(Enclosed.class)
 public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */
   public abstract static class SharedTestBase {
@@ -149,7 +158,7 @@ public class GroupByKeyTest implements Serializable {
      * a spurious output.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTestStream.class})
+    @Category({ValidatesRunner.class, UsesTestStreamWithProcessingTime.class})
     public void testCombiningAccumulatingProcessingTime() throws Exception {
       PCollection<Integer> triggeredSums =
           p.apply(
@@ -192,6 +201,104 @@ public class GroupByKeyTest implements Serializable {
 
       thrown.expect(IllegalStateException.class);
       thrown.expectMessage("must be deterministic");
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterPane.elementCountAtLeast(1) is not OK
+    @Test
+    public void testGroupByKeyFinishingTriggerRejected() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(AfterPane.elementCountAtLeast(1)));
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("Unsafe trigger");
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterWatermark.pastEndOfWindow() is OK with 0 allowed lateness
+    @Test
+    public void testGroupByKeyFinishingEndOfWindowTriggerOk() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(AfterWatermark.pastEndOfWindow())
+                      .withAllowedLateness(Duration.ZERO));
+
+      // OK
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterWatermark.pastEndOfWindow().withEarlyFirings() is OK with 0 allowed lateness
+    @Test
+    public void testGroupByKeyFinishingEndOfWindowEarlyFiringsTriggerOk() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(
+                          AfterWatermark.pastEndOfWindow()
+                              .withEarlyFirings(AfterPane.elementCountAtLeast(1)))
+                      .withAllowedLateness(Duration.ZERO));
+
+      // OK
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterWatermark.pastEndOfWindow() is not OK with > 0 allowed lateness
+    @Test
+    public void testGroupByKeyFinishingEndOfWindowTriggerNotOk() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(AfterWatermark.pastEndOfWindow())
+                      .withAllowedLateness(Duration.millis(10)));
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("Unsafe trigger");
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterWatermark.pastEndOfWindow().withEarlyFirings() is not OK with > 0 allowed lateness
+    @Test
+    public void testGroupByKeyFinishingEndOfWindowEarlyFiringsTriggerNotOk() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(
+                          AfterWatermark.pastEndOfWindow()
+                              .withEarlyFirings(AfterPane.elementCountAtLeast(1)))
+                      .withAllowedLateness(Duration.millis(10)));
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("Unsafe trigger");
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterWatermark.pastEndOfWindow().withLateFirings() is always OK
+    @Test
+    public void testGroupByKeyEndOfWindowLateFiringsOk() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(
+                          AfterWatermark.pastEndOfWindow()
+                              .withLateFirings(AfterPane.elementCountAtLeast(1)))
+                      .withAllowedLateness(Duration.millis(10)));
+
+      // OK
       input.apply(GroupByKey.create());
     }
 
@@ -308,7 +415,7 @@ public class GroupByKeyTest implements Serializable {
 
     /** Verify that runners correctly hash/group on the encoded value and not the value itself. */
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class})
     public void testGroupByKeyWithBadEqualsHashCode() throws Exception {
       final int numValues = 10;
       final int numKeys = 5;
@@ -480,6 +587,44 @@ public class GroupByKeyTest implements Serializable {
     }
 
     @Test
+    @Category(ValidatesRunner.class)
+    public void testRewindowWithTimestampCombiner() {
+      PCollection<KV<String, Integer>> input =
+          p.apply(
+                  Create.timestamped(
+                      TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
+                      TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
+                      TimestampedValue.of(KV.of("bar", 3), new Instant(3)),
+                      TimestampedValue.of(KV.of("foo", 9), new Instant(9))))
+              .apply(
+                  "GlobalWindows",
+                  Window.<KV<String, Integer>>configure()
+                      .withTimestampCombiner(TimestampCombiner.LATEST));
+
+      PCollection<KV<String, Integer>> result =
+          input
+              .apply(GroupByKey.create())
+              .apply(
+                  MapElements.into(
+                          TypeDescriptors.kvs(
+                              TypeDescriptors.strings(), TypeDescriptors.integers()))
+                      .via(kv -> KV.of(kv.getKey(), sum(kv.getValue()))))
+              .apply("FixedWindows", Window.into(FixedWindows.of(Duration.millis(1))));
+
+      PAssert.that(result)
+          .inWindow(new IntervalWindow(new Instant(9), new Instant(10)))
+          .containsInAnyOrder(KV.of("foo", 14))
+          .inWindow(new IntervalWindow(new Instant(3), new Instant(4)))
+          .containsInAnyOrder(KV.of("bar", 3));
+
+      p.run();
+    }
+
+    private static int sum(Iterable<Integer> parts) {
+      return Streams.stream(parts).mapToInt(e -> e).sum();
+    }
+
+    @Test
     @Category(NeedsRunner.class)
     public void testIdentityWindowFnPropagation() {
 
@@ -504,43 +649,48 @@ public class GroupByKeyTest implements Serializable {
 
     @Test
     @Category(NeedsRunner.class)
-    public void testWindowFnInvalidation() {
+    public void testWindowFnPostMerging() throws Exception {
 
-      List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
-
-      PCollection<KV<String, Integer>> input =
+      List<KV<String, Integer>> ungroupedPairs = ImmutableList.of(KV.of("a", 3));
+      PCollection<KV<String, Integer>> windowedInput =
           p.apply(
-                  Create.of(ungroupedPairs)
-                      .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-              .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))));
+                  Create.timestamped(
+                      TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
+                      TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
+                      TimestampedValue.of(KV.of("bar", 3), new Instant(3)),
+                      TimestampedValue.of(KV.of("foo", 9), new Instant(9))))
+              .apply(Window.into(Sessions.withGapDuration(Duration.millis(4L))));
 
-      PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+      PCollection<KV<String, Iterable<Integer>>> grouped =
+          windowedInput.apply("First grouping", GroupByKey.create());
+      PAssert.that(grouped).satisfies(containsKvs(kv("foo", 1, 4), kv("foo", 9), kv("bar", 3)));
+
+      // Check that the WindowFn is carried along as-is but alreadyMerged bit is set
+      assertThat(
+          grouped.getWindowingStrategy().getWindowFn(),
+          equalTo(windowedInput.getWindowingStrategy().getWindowFn()));
+
+      assertThat(
+          "WindowingStrategy should be already merged",
+          grouped.getWindowingStrategy().isAlreadyMerged());
+
+      // Second grouping should sum existing groupings, even those exploded, since the windows match
+      // and are carried along.
+      PCollection<Integer> sums =
+          grouped
+              .apply("Drop keys", Values.create())
+              .apply("Explode iterables", Flatten.iterables())
+              .apply("Map to same key", WithKeys.of("bizzle"))
+              .apply("Summed grouping", Sum.integersPerKey())
+              .apply("Pull out sums", Values.create());
+
+      PAssert.that(sums)
+          .containsInAnyOrder(
+              5 /* sum originating from (foo, 1) and (foo, 4) that merged */,
+              9 /* sum of just (foo, 9) which doesn't merge */,
+              3 /* sum of just (bar, 3) which doesn't merge */);
 
       p.run();
-
-      Assert.assertTrue(
-          output
-              .getWindowingStrategy()
-              .getWindowFn()
-              .isCompatible(
-                  new InvalidWindows(
-                      "Invalid", Sessions.withGapDuration(Duration.standardMinutes(1)))));
-    }
-
-    @Test
-    public void testInvalidWindowsDirect() {
-
-      List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
-
-      PCollection<KV<String, Integer>> input =
-          p.apply(
-                  Create.of(ungroupedPairs)
-                      .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-              .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))));
-
-      thrown.expect(IllegalStateException.class);
-      thrown.expectMessage("GroupByKey must have a valid Window merge function");
-      input.apply("GroupByKey", GroupByKey.create()).apply("GroupByKeyAgain", GroupByKey.create());
     }
   }
 
@@ -643,7 +793,7 @@ public class GroupByKeyTest implements Serializable {
    * returns {@code false} for {@link #equals(Object)}. The results of the test are correct if the
    * runner correctly hashes and sorts on the encoded bytes.
    */
-  static class BadEqualityKey {
+  protected static class BadEqualityKey {
     long key;
 
     public BadEqualityKey() {}
@@ -653,7 +803,7 @@ public class GroupByKeyTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       return false;
     }
 
@@ -664,7 +814,7 @@ public class GroupByKeyTest implements Serializable {
   }
 
   /** Deterministic {@link Coder} for {@link BadEqualityKey}. */
-  static class DeterministicKeyCoder extends AtomicCoder<BadEqualityKey> {
+  protected static class DeterministicKeyCoder extends AtomicCoder<BadEqualityKey> {
 
     public static DeterministicKeyCoder of() {
       return INSTANCE;

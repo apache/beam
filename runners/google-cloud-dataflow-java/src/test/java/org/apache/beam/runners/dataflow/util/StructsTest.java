@@ -33,6 +33,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.getLong;
 import static org.apache.beam.runners.dataflow.util.Structs.getObject;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.runners.dataflow.util.Structs.getStrings;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -91,7 +92,7 @@ public class StructsTest {
       getString(o, "missingKey");
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(
+      assertThat(
           exn.toString(), Matchers.containsString("didn't find required parameter missingKey"));
     }
 
@@ -99,26 +100,26 @@ public class StructsTest {
       getString(o, "noStringsKey");
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), Matchers.containsString("not a string"));
+      assertThat(exn.toString(), Matchers.containsString("not a string"));
     }
 
-    Assert.assertThat(getStrings(o, "noStringsKey", null), Matchers.emptyIterable());
-    Assert.assertThat(getObject(o, "noStringsKey").keySet(), Matchers.emptyIterable());
-    Assert.assertThat(getDictionary(o, "noStringsKey").keySet(), Matchers.emptyIterable());
-    Assert.assertThat(getDictionary(o, "noStringsKey", null).keySet(), Matchers.emptyIterable());
+    assertThat(getStrings(o, "noStringsKey", null), Matchers.emptyIterable());
+    assertThat(getObject(o, "noStringsKey").keySet(), Matchers.emptyIterable());
+    assertThat(getDictionary(o, "noStringsKey").keySet(), Matchers.emptyIterable());
+    assertThat(getDictionary(o, "noStringsKey", null).keySet(), Matchers.emptyIterable());
 
     try {
       getString(o, "multipleStringsKey");
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), Matchers.containsString("not a string"));
+      assertThat(exn.toString(), Matchers.containsString("not a string"));
     }
 
     try {
       getString(o, "emptyKey");
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), Matchers.containsString("not a string"));
+      assertThat(exn.toString(), Matchers.containsString("not a string"));
     }
   }
 
@@ -126,14 +127,14 @@ public class StructsTest {
   public void testGetBooleanParameter() throws Exception {
     Map<String, Object> o = makeCloudDictionary();
 
-    Assert.assertEquals(true, getBoolean(o, "singletonBooleanKey", false));
-    Assert.assertEquals(false, getBoolean(o, "missingKey", false));
+    Assert.assertTrue(getBoolean(o, "singletonBooleanKey", false));
+    Assert.assertFalse(getBoolean(o, "missingKey", false));
 
     try {
       getBoolean(o, "emptyKey", false);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), Matchers.containsString("not a boolean"));
+      assertThat(exn.toString(), Matchers.containsString("not a boolean"));
     }
   }
 
@@ -149,13 +150,13 @@ public class StructsTest {
       getLong(o, "emptyKey", 666L);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), Matchers.containsString("not a long"));
+      assertThat(exn.toString(), Matchers.containsString("not a long"));
     }
     try {
       getInt(o, "emptyKey", 666);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), Matchers.containsString("not an int"));
+      assertThat(exn.toString(), Matchers.containsString("not an int"));
     }
   }
 
@@ -169,7 +170,7 @@ public class StructsTest {
       getListOfMaps(o, "singletonLongKey", null);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), Matchers.containsString("not a list"));
+      assertThat(exn.toString(), Matchers.containsString("not a list"));
     }
   }
 

@@ -19,9 +19,11 @@ package dot
 import (
 	"fmt"
 	"io"
+	"path"
 	"text/template"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 var (
@@ -34,23 +36,26 @@ digraph execution_plan {
   bgcolor="lightgray";
   style="solid";
   penwidth="0.5";
-	concentrate="true";
+  concentrate="true";
 
-	// Node definition used for multiedge
+  // Node definition used for multiedge
   node [shape="rectangle" style="filled" fillcolor="honeydew" fontname="Ubuntu" penwidth="1.0" margin="0.05,0.0.05"];
 
-	bgcolor="#e6ecfa";
+  bgcolor="#e6ecfa";
 `
 
 	nodeText = `  "{{.Name}}" [ shape="ellipse" fillcolor = "lightblue" label="{{.Label}}"]
+`
+	edgeDefnText = `  "{{.Name}}" [ label="{{.Label}}" ]
 `
 	edgeText = `  "{{.From}}" -> "{{.To}}"
 `
 	footer = `
 }
 `
-	nodeTmpl = template.Must(template.New("node").Parse(nodeText))
-	edgeTmpl = template.Must(template.New("edge").Parse(edgeText))
+	nodeTmpl     = template.Must(template.New("node").Parse(nodeText))
+	edgeDefnTmpl = template.Must(template.New("edge_defn").Parse(edgeDefnText))
+	edgeTmpl     = template.Must(template.New("edge").Parse(edgeText))
 )
 
 type nodeLinks struct {
@@ -102,7 +107,12 @@ func Render(edges []*graph.MultiEdge, nodes []*graph.Node, w io.Writer) error {
 
 	// Render the graph elements: nodes and the edges
 	w.Write([]byte(header))
-	for node := range uniqNodes {
+	seen := make(map[*graph.Node]bool)
+	for _, node := range nodes {
+		if seen[node] {
+			continue
+		}
+		seen[node] = true
 		err := nodeTmpl.Execute(w, struct{ Name, Label string }{node.String(), uniqNodes[node].String()})
 		if err != nil {
 			return err
@@ -111,17 +121,24 @@ func Render(edges []*graph.MultiEdge, nodes []*graph.Node, w io.Writer) error {
 
 	for _, edge := range edges {
 		e := fmt.Sprintf("%d: %s", edge.ID(), edge.Op)
+		label := fmt.Sprint(edge.Op)
+		if name := path.Base(edge.Name()); name != label {
+			label = fmt.Sprintf("%s\n%s", edge.Op, name)
+		}
+		if err := edgeDefnTmpl.Execute(w, struct{ Name, Label string }{e, label}); err != nil {
+			return errors.Wrap(err, "render DOT failed")
+		}
 		for _, ib := range edge.Input {
 			err := edgeTmpl.Execute(w, struct{ From, To string }{ib.From.String(), e})
 			if err != nil {
-				return fmt.Errorf("render DOT failed: %v", err)
+				return errors.Wrap(err, "render DOT failed")
 			}
 		}
 		for _, ob := range edge.Output {
 			uniqNodes[ob.To].From = ob
 			err := edgeTmpl.Execute(w, struct{ From, To string }{e, ob.To.String()})
 			if err != nil {
-				return fmt.Errorf("render DOT failed: %v", err)
+				return errors.Wrap(err, "render DOT failed")
 			}
 		}
 	}

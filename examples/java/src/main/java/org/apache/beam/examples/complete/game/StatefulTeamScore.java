@@ -17,9 +17,8 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
 /**
@@ -76,10 +76,13 @@ import org.joda.time.Instant;
  * <p>The BigQuery dataset you specify must already exist. The PubSub topic you specify should be
  * the same topic to which the Injector is publishing.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StatefulTeamScore extends LeaderBoard {
 
   /** Options supported by {@link StatefulTeamScore}. */
-  interface Options extends LeaderBoard.Options {
+  public interface Options extends LeaderBoard.Options {
 
     @Description("Numeric value, multiple of which is used as threshold for outputting team score.")
     @Default.Integer(5000)

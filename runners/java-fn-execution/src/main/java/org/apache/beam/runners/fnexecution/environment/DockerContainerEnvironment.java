@@ -20,6 +20,8 @@ package org.apache.beam.runners.fnexecution.environment;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link RemoteEnvironment} that wraps a running Docker container.
@@ -30,12 +32,16 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 @ThreadSafe
 class DockerContainerEnvironment implements RemoteEnvironment {
 
+  private static final Logger LOG = LoggerFactory.getLogger(DockerContainerEnvironment.class);
+
   static DockerContainerEnvironment create(
       DockerCommand docker,
       Environment environment,
       String containerId,
-      InstructionRequestHandler instructionHandler) {
-    return new DockerContainerEnvironment(docker, environment, containerId, instructionHandler);
+      InstructionRequestHandler instructionHandler,
+      boolean retainDockerContainer) {
+    return new DockerContainerEnvironment(
+        docker, environment, containerId, instructionHandler, retainDockerContainer);
   }
 
   private final Object lock = new Object();
@@ -43,6 +49,7 @@ class DockerContainerEnvironment implements RemoteEnvironment {
   private final Environment environment;
   private final String containerId;
   private final InstructionRequestHandler instructionHandler;
+  private final boolean retainDockerContainer;
 
   private boolean isClosed = false;
 
@@ -50,11 +57,13 @@ class DockerContainerEnvironment implements RemoteEnvironment {
       DockerCommand docker,
       Environment environment,
       String containerId,
-      InstructionRequestHandler instructionHandler) {
+      InstructionRequestHandler instructionHandler,
+      boolean retainDockerContainer) {
     this.docker = docker;
     this.environment = environment;
     this.containerId = containerId;
     this.instructionHandler = instructionHandler;
+    this.retainDockerContainer = retainDockerContainer;
   }
 
   @Override
@@ -79,7 +88,12 @@ class DockerContainerEnvironment implements RemoteEnvironment {
       if (!isClosed) {
         isClosed = true;
         instructionHandler.close();
+        String containerLogs = docker.getContainerLogs(containerId);
+        LOG.info("Closing Docker container {}. Logs:\n{}", containerId, containerLogs);
         docker.killContainer(containerId);
+        if (!retainDockerContainer) {
+          docker.removeContainer(containerId);
+        }
       }
     }
   }

@@ -15,20 +15,27 @@
 # limitations under the License.
 #
 
-
 """Utility methods for testing on GCP."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
+import random
+import time
 
+from apache_beam.io import filesystems
+from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
 try:
+  from google.api_core import exceptions as gexc
   from google.cloud import bigquery
 except ImportError:
+  gexc = None
   bigquery = None
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class GcpTestIOError(retry.PermanentException):
@@ -38,28 +45,124 @@ class GcpTestIOError(retry.PermanentException):
 
 
 @retry.with_exponential_backoff(
-    num_retries=3,
-    retry_filter=retry.retry_on_server_errors_filter)
-def delete_bq_table(project, dataset, table):
-  """Delete a Biqquery table.
+    num_retries=3, retry_filter=retry.retry_on_server_errors_filter)
+def create_bq_dataset(project, dataset_base_name):
+  """Creates an empty BigQuery dataset.
+
+  Args:
+    project: Project to work in.
+    dataset_base_name: Prefix for dataset id.
+
+  Returns:
+    A ``google.cloud.bigquery.dataset.DatasetReference`` object pointing to the
+    new dataset.
+  """
+  client = bigquery.Client(project=project)
+  unique_dataset_name = '%s%s%d' % (
+      dataset_base_name, str(int(time.time())), random.randint(0, 10000))
+  dataset_ref = client.dataset(unique_dataset_name, project=project)
+  dataset = bigquery.Dataset(dataset_ref)
+  client.create_dataset(dataset)
+  return dataset_ref
+
+
+@retry.with_exponential_backoff(
+    num_retries=3, retry_filter=retry.retry_on_server_errors_filter)
+def delete_bq_dataset(project, dataset_ref):
+  """Deletes a BigQuery dataset and its contents.
+
+  Args:
+    project: Project to work in.
+    dataset_ref: A ``google.cloud.bigquery.dataset.DatasetReference`` object
+      pointing to the dataset to delete.
+  """
+  client = bigquery.Client(project=project)
+  client.delete_dataset(dataset_ref, delete_contents=True)
+
+
+@retry.with_exponential_backoff(
+    num_retries=3, retry_filter=retry.retry_on_server_errors_filter)
+def delete_bq_table(project, dataset_id, table_id):
+  """Delete a BiqQuery table.
 
   Args:
     project: Name of the project.
-    dataset: Name of the dataset where table is.
-    table:   Name of the table.
+    dataset_id: Name of the dataset where table is.
+    table_id: Name of the table.
   """
-  logging.info('Clean up a Bigquery table with project: %s, dataset: %s, '
-               'table: %s.', project, dataset, table)
-  bq_dataset = bigquery.Client(project=project).dataset(dataset)
-  if not bq_dataset.exists():
-    raise GcpTestIOError('Failed to cleanup. Bigquery dataset %s doesn\'t '
-                         'exist in project %s.' % (dataset, project))
-  bq_table = bq_dataset.table(table)
-  if not bq_table.exists():
-    raise GcpTestIOError('Failed to cleanup. Bigquery table %s doesn\'t '
-                         'exist in project %s, dataset %s.' %
-                         (table, project, dataset))
-  bq_table.delete()
-  if bq_table.exists():
-    raise RuntimeError('Failed to cleanup. Bigquery table %s still exists '
-                       'after cleanup.' % table)
+  _LOGGER.info(
+      'Clean up a BigQuery table with project: %s, dataset: %s, '
+      'table: %s.',
+      project,
+      dataset_id,
+      table_id)
+  client = bigquery.Client(project=project)
+  table_ref = client.dataset(dataset_id).table(table_id)
+  try:
+    client.delete_table(table_ref)
+  except gexc.NotFound:
+    raise GcpTestIOError('BigQuery table does not exist: %s' % table_ref)
+
+
+@retry.with_exponential_backoff(
+    num_retries=3, retry_filter=retry.retry_on_server_errors_filter)
+def delete_directory(directory):
+  """Delete a directory in a filesystem.
+
+  Args:
+    directory: Full path to a directory supported by Beam filesystems (e.g.
+      "gs://mybucket/mydir/", "s3://...", ...)
+  """
+  filesystems.FileSystems.delete([directory])
+
+
+def write_to_pubsub(
+    pub_client,
+    topic_path,
+    messages,
+    with_attributes=False,
+    chunk_size=100,
+    delay_between_chunks=0.1):
+  for start in range(0, len(messages), chunk_size):
+    message_chunk = messages[start:start + chunk_size]
+    if with_attributes:
+      futures = [
+          pub_client.publish(topic_path, message.data, **message.attributes)
+          for message in message_chunk
+      ]
+    else:
+      futures = [
+          pub_client.publish(topic_path, message) for message in message_chunk
+      ]
+    for future in futures:
+      future.result()
+    time.sleep(delay_between_chunks)
+
+
+def read_from_pubsub(
+    sub_client,
+    subscription_path,
+    with_attributes=False,
+    number_of_elements=None,
+    timeout=None):
+  if number_of_elements is None and timeout is None:
+    raise ValueError("Either number_of_elements or timeout must be specified.")
+  messages = []
+  start_time = time.time()
+
+  while ((number_of_elements is None or len(messages) < number_of_elements) and
+         (timeout is None or (time.time() - start_time) < timeout)):
+    try:
+      response = sub_client.pull(
+          subscription_path, max_messages=1000, retry=None, timeout=10)
+    except (gexc.RetryError, gexc.DeadlineExceeded):
+      continue
+    ack_ids = [msg.ack_id for msg in response.received_messages]
+    sub_client.acknowledge(subscription_path, ack_ids)
+    for msg in response.received_messages:
+      message = PubsubMessage._from_message(msg.message)
+      if with_attributes:
+        messages.append(message)
+      else:
+        messages.append(message.data)
+  return messages

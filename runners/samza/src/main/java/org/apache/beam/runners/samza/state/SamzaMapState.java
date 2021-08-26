@@ -15,17 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.state;
 
 import java.util.Iterator;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.ReadableState;
 
 /** Samza's extended MapState, allowing extra access methods to the state. */
-@Experimental(Experimental.Kind.STATE)
 public interface SamzaMapState<KeyT, ValueT> extends MapState<KeyT, ValueT> {
 
   /**

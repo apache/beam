@@ -18,31 +18,35 @@
 package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
 
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.fn.harness.MapFnRunners.ValueMapFnFactory;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingFunction;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
+import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.function.ThrowingFunction;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -58,15 +62,34 @@ public class MapFnRunnersTest {
           .putInputs("input", "inputPC")
           .putOutputs("output", "outputPC")
           .build();
+  private static final RunnerApi.PCollection INPUT_PCOLLECTION =
+      RunnerApi.PCollection.newBuilder().setUniqueName("inputPC").setCoderId("coder-id").build();
+  private static RunnerApi.Coder valueCoder;
+
+  static {
+    try {
+      valueCoder = CoderTranslation.toProto(StringUtf8Coder.of()).getCoder();
+    } catch (IOException e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
 
   @Test
   public void testValueOnlyMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put("outputPC", outputConsumer::add);
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add, StringUtf8Coder.of());
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     ValueMapFnFactory<String, String> factory = (ptId, pt) -> String::toUpperCase;
     MapFnRunners.forValueMapFnFactory(factory)
@@ -74,23 +97,29 @@ public class MapFnRunnersTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            Collections.singletonMap("inputPC", INPUT_PCOLLECTION),
+            Collections.singletonMap("coder-id", valueCoder),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
-            null /* splitListener */);
+            startFunctionRegistry,
+            finishFunctionRegistry,
+            null /* addResetFunction */,
+            teardownFunctions::add,
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
+    assertThat(teardownFunctions, empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
+    consumers.getMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -98,34 +127,48 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put("outputPC", outputConsumer::add);
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add, StringUtf8Coder.of());
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            Collections.singletonMap("inputPC", INPUT_PCOLLECTION),
+            Collections.singletonMap("coder-id", valueCoder),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
-            null /* splitListener */);
+            startFunctionRegistry,
+            finishFunctionRegistry,
+            null /* addResetFunction */,
+            teardownFunctions::add,
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
+    assertThat(teardownFunctions, empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
+    consumers.getMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -133,37 +176,52 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMappingWithCompressedWindow() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put("outputPC", outputConsumer::add);
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register("outputPC", "pTransformId", outputConsumer::add, StringUtf8Coder.of());
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            Collections.singletonMap("inputPC", INPUT_PCOLLECTION),
+            Collections.singletonMap("coder-id", valueCoder),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
-            null /* splitListener */);
+            startFunctionRegistry,
+            finishFunctionRegistry,
+            null /* addResetFunction */,
+            teardownFunctions::add,
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
+    assertThat(teardownFunctions, empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0L), Duration.standardMinutes(10L));
     IntervalWindow secondWindow =
         new IntervalWindow(new Instant(-10L), Duration.standardSeconds(22L));
-    Iterables.getOnlyElement(consumers.get("inputPC"))
+    consumers
+        .getMultiplexingConsumer("inputPC")
         .accept(
             WindowedValue.of(
                 "abc",

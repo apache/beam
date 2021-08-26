@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Signals there was an error retrieving information about a job from the Cloud Dataflow Service.

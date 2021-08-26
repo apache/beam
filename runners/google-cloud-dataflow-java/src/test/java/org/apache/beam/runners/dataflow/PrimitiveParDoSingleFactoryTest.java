@@ -15,14 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
@@ -37,8 +35,12 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValues;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -70,9 +72,10 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
         application =
             AppliedPTransform.of(
                 "original",
-                input.expand(),
-                input.apply(originalTransform).expand(),
+                PValues.expandInput(input),
+                PValues.expandOutput(input.apply(originalTransform)),
                 originalTransform,
+                ResourceHints.create(),
                 pipeline);
 
     PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacement =
@@ -107,16 +110,17 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
         application =
             AppliedPTransform.of(
                 "original",
-                input.expand(),
-                input.apply(originalTransform).expand(),
+                PValues.expandInput(input),
+                PValues.expandOutput(input.apply(originalTransform)),
                 originalTransform,
+                ResourceHints.create(),
                 pipeline);
 
     PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =
         factory.getReplacementTransform(application);
     ParDoSingle<Integer, Long> parDoSingle =
         (ParDoSingle<Integer, Long>) replacementTransform.getTransform();
-    assertThat(parDoSingle.getSideInputs(), containsInAnyOrder(sideStrings, sideLong));
+    assertThat(parDoSingle.getSideInputs().values(), containsInAnyOrder(sideStrings, sideLong));
   }
 
   @Test
@@ -129,9 +133,10 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
         application =
             AppliedPTransform.of(
                 "original",
-                input.expand(),
-                input.apply(originalTransform).expand(),
+                PValues.expandInput(input),
+                PValues.expandOutput(input.apply(originalTransform)),
                 originalTransform,
+                ResourceHints.create(),
                 pipeline);
 
     PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =
@@ -150,7 +155,7 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other != null && other.getClass().equals(getClass());
     }
 

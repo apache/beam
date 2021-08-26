@@ -15,13 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -30,10 +28,12 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -59,6 +59,7 @@ public class PTransformReplacementsTest {
             Collections.singletonMap(new TupleTag<Long>(), mainInput),
             Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()),
+            ResourceHints.create(),
             pipeline);
     PCollection<Long> input = PTransformReplacements.getSingletonMainInput(application);
     assertThat(input, equalTo(mainInput));
@@ -69,12 +70,13 @@ public class PTransformReplacementsTest {
     AppliedPTransform<PCollection<Long>, ?, ?> application =
         AppliedPTransform.of(
             "application",
-            ImmutableMap.<TupleTag<?>, PValue>builder()
+            ImmutableMap.<TupleTag<?>, PCollection<?>>builder()
                 .put(new TupleTag<Long>(), mainInput)
                 .put(sideInput.getTagInternal(), sideInput.getPCollection())
                 .build(),
             Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()).withSideInputs(sideInput),
+            ResourceHints.create(),
             pipeline);
     PCollection<Long> input = PTransformReplacements.getSingletonMainInput(application);
     assertThat(input, equalTo(mainInput));
@@ -83,9 +85,9 @@ public class PTransformReplacementsTest {
   @Test
   public void getMainInputExtraMainInputsThrows() {
     PCollection<Long> notInParDo = pipeline.apply("otherPCollection", Create.of(1L, 2L, 3L));
-    ImmutableMap<TupleTag<?>, PValue> inputs =
-        ImmutableMap.<TupleTag<?>, PValue>builder()
-            .putAll(mainInput.expand())
+    ImmutableMap<TupleTag<?>, PCollection<?>> inputs =
+        ImmutableMap.<TupleTag<?>, PCollection<?>>builder()
+            .putAll(PValues.expandInput(mainInput))
             // Not represnted as an input
             .put(new TupleTag<Long>(), notInParDo)
             .put(sideInput.getTagInternal(), sideInput.getPCollection())
@@ -96,6 +98,7 @@ public class PTransformReplacementsTest {
             inputs,
             Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()).withSideInputs(sideInput),
+            ResourceHints.create(),
             pipeline);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("multiple inputs");
@@ -107,8 +110,8 @@ public class PTransformReplacementsTest {
 
   @Test
   public void getMainInputNoMainInputsThrows() {
-    ImmutableMap<TupleTag<?>, PValue> inputs =
-        ImmutableMap.<TupleTag<?>, PValue>builder()
+    ImmutableMap<TupleTag<?>, PCollection<?>> inputs =
+        ImmutableMap.<TupleTag<?>, PCollection<?>>builder()
             .put(sideInput.getTagInternal(), sideInput.getPCollection())
             .build();
     AppliedPTransform<PCollection<Long>, ?, ?> application =
@@ -117,6 +120,7 @@ public class PTransformReplacementsTest {
             inputs,
             Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()).withSideInputs(sideInput),
+            ResourceHints.create(),
             pipeline);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("No main input");

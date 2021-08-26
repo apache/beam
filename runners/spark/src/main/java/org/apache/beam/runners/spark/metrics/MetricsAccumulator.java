@@ -15,38 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import java.io.IOException;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
+import org.apache.spark.util.AccumulatorV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * For resilience, {@link Accumulator Accumulators} are required to be wrapped in a Singleton.
+ * For resilience, {@link AccumulatorV2 Accumulators} are required to be wrapped in a Singleton.
  *
  * @see <a
- *     href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
+ *     href="https://spark.apache.org/docs/2.4.4/streaming-programming-guide.html#accumulators-broadcast-variables-and-checkpoints">accumulatorsV2</a>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsAccumulator.class);
 
   private static final String ACCUMULATOR_NAME = "Beam.Metrics";
   private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "metrics";
 
-  private static volatile Accumulator<MetricsContainerStepMap> instance = null;
+  private static volatile MetricsContainerStepMapAccumulator instance = null;
   private static volatile FileSystem fileSystem;
   private static volatile Path checkpointFilePath;
 
@@ -59,27 +61,28 @@ public class MetricsAccumulator {
               opts.isStreaming()
                   ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
                   : Optional.absent();
-          Accumulator<MetricsContainerStepMap> accumulator =
-              jsc.sc()
-                  .accumulator(
-                      new MetricsContainerStepMap(),
-                      ACCUMULATOR_NAME,
-                      new MetricsAccumulatorParam());
+          MetricsContainerStepMap metricsContainerStepMap = new SparkMetricsContainerStepMap();
+          MetricsContainerStepMapAccumulator accumulator =
+              new MetricsContainerStepMapAccumulator(metricsContainerStepMap);
+
           if (maybeCheckpointDir.isPresent()) {
             Optional<MetricsContainerStepMap> maybeRecoveredValue =
                 recoverValueFromCheckpoint(jsc, maybeCheckpointDir.get());
             if (maybeRecoveredValue.isPresent()) {
-              accumulator.setValue(maybeRecoveredValue.get());
+              accumulator = new MetricsContainerStepMapAccumulator(maybeRecoveredValue.get());
             }
           }
+          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
           instance = accumulator;
         }
       }
       LOG.info("Instantiated metrics accumulator: " + instance.value());
+    } else {
+      instance.reset();
     }
   }
 
-  public static Accumulator<MetricsContainerStepMap> getInstance() {
+  public static MetricsContainerStepMapAccumulator getInstance() {
     if (instance == null) {
       throw new IllegalStateException("Metrics accumulator has not been instantiated");
     } else {
@@ -93,7 +96,7 @@ public class MetricsAccumulator {
       Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
       checkpointFilePath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);
       fileSystem = checkpointFilePath.getFileSystem(jsc.hadoopConfiguration());
-      MetricsContainerStepMap recoveredValue =
+      SparkMetricsContainerStepMap recoveredValue =
           Checkpoint.readObject(fileSystem, checkpointFilePath);
       if (recoveredValue != null) {
         LOG.info("Recovered metrics from checkpoint.");

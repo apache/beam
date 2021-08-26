@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.io.common;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Optional;
 import javax.sql.DataSource;
 import org.postgresql.ds.PGSimpleDataSource;
 
@@ -47,6 +49,15 @@ public class DatabaseTestHelper {
     }
   }
 
+  public static void createTableForRowWithSchema(DataSource dataSource, String tableName)
+      throws SQLException {
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        statement.execute(String.format("create table %s (name VARCHAR(500), id INT)", tableName));
+      }
+    }
+  }
+
   public static void deleteTable(DataSource dataSource, String tableName) throws SQLException {
     if (tableName != null) {
       try (Connection connection = dataSource.getConnection();
@@ -68,5 +79,29 @@ public class DatabaseTestHelper {
         options.getPostgresServerName(),
         options.getPostgresPort(),
         options.getPostgresDatabaseName());
+  }
+
+  public static Optional<Long> getPostgresTableSize(DataSource dataSource, String tableName) {
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        ResultSet resultSet =
+            statement.executeQuery(String.format("select pg_relation_size('%s')", tableName));
+        if (resultSet.next()) {
+          return Optional.of(resultSet.getLong(1));
+        }
+      }
+    } catch (SQLException e) {
+      return Optional.empty();
+    }
+    return Optional.empty();
+  }
+
+  public static void createTableWithStatement(DataSource dataSource, String stmt)
+      throws SQLException {
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        statement.execute(stmt);
+      }
+    }
   }
 }

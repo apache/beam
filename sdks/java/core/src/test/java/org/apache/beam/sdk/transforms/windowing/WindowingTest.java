@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import com.google.common.base.Splitter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -142,10 +142,10 @@ public class WindowingTest implements Serializable {
     PAssert.that(output)
         .containsInAnyOrder(
             output("a", 1, 1, -5, 5),
-            output("a", 2, 5, 0, 10),
-            output("a", 1, 10, 5, 15),
+            output("a", 2, 1, 0, 10),
+            output("a", 1, 7, 5, 15),
             output("b", 1, 8, 0, 10),
-            output("b", 1, 10, 5, 15));
+            output("b", 1, 8, 5, 15));
 
     p.run();
   }

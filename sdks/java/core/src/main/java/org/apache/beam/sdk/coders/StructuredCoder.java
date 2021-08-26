@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An abstract base class to implement a {@link Coder} that defines equality, hashing, and printing
@@ -55,7 +56,7 @@ public abstract class StructuredCoder<T> extends Coder<T> {
    *     components.
    */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (o == null || this.getClass() != o.getClass()) {
       return false;
     }

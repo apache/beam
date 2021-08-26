@@ -17,18 +17,14 @@ package passert
 
 import (
 	"fmt"
-	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-func init() {
-	beam.RegisterType(reflect.TypeOf((*sumFn)(nil)).Elem())
-}
-
-// Sum validates that the incoming PCollection<int> is a singleton
-// with the given value. Specialized version of Equals that avoids
-// a lot of machinery for testing.
+// Sum validates that the sum and count of elements in the incoming PCollection<int> is
+// the same as the given sum and count, under coder equality. Sum is a specialized version of Equals
+// that avoids a lot of machinery for testing.
 func Sum(s beam.Scope, col beam.PCollection, name string, size, value int) {
 	s = s.Scope(fmt.Sprintf("passert.Sum(%v)", name))
 
@@ -51,7 +47,7 @@ func (f *sumFn) ProcessElement(_ int, values func(*int) bool) error {
 	}
 
 	if f.Sum != sum || f.Size != count {
-		return fmt.Errorf("passert.Sum(%v) = {%v, size: %v}, want {%v, size:%v}", f.Name, sum, count, f.Sum, f.Size)
+		return errors.Errorf("passert.Sum(%v) = {%v, size: %v}, want {%v, size:%v}", f.Name, sum, count, f.Sum, f.Size)
 	}
 	return nil
 }

@@ -18,15 +18,11 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -73,6 +69,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
@@ -88,6 +88,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Tests DStream recovery from checkpoint.
@@ -97,6 +99,10 @@ import org.junit.rules.TemporaryFolder;
  * asserted, along with {@link Metrics} values that are expected to resume from previous count and a
  * side-input that is expected to recover as well.
  */
+@RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ResumeFromCheckpointStreamingTest implements Serializable {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
       new EmbeddedKafkaCluster.EmbeddedZookeeper();
@@ -133,13 +139,11 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     Serializer<String> stringSerializer = new StringSerializer();
     Serializer<Instant> instantSerializer = new InstantSerializer();
 
-    try (@SuppressWarnings("unchecked")
-        KafkaProducer<String, Instant> kafkaProducer =
-            new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
+    try (KafkaProducer<String, Instant> kafkaProducer =
+        new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
       for (Map.Entry<String, Instant> en : messages.entrySet()) {
         kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
       }
-      kafkaProducer.close();
     }
   }
 
@@ -179,12 +183,12 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
                 "EOFShallNotPassFn",
                 4L)));
 
-    //--- between executions:
+    // --- between executions:
 
-    //- clear state.
+    // - clear state.
     clean();
 
-    //- write a bit more.
+    // - write a bit more.
     produce(
         ImmutableMap.of(
             "k5", new Instant(499),
@@ -255,7 +259,6 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     return run(Optional.absent(), expectedAssertions);
   }
 
-  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private SparkPipelineResult run(Optional<Instant> stopWatermarkOption, int expectedAssertions) {
     KafkaIO.Read<String, Instant> read =
         KafkaIO.<String, Instant>read()
@@ -263,7 +266,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
             .withTopics(Collections.singletonList(TOPIC))
             .withKeyDeserializer(StringDeserializer.class)
             .withValueDeserializer(InstantDeserializer.class)
-            .updateConsumerProperties(ImmutableMap.of("auto.offset.reset", "earliest"))
+            .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
             .withTimestampFn(KV::getValue)
             .withWatermarkFn(
                 kv -> {
@@ -332,7 +335,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     final PCollectionView<List<String>> view;
     private final Counter aggregator =
         Metrics.counter(ResumeFromCheckpointStreamingTest.class, "processedMessages");
-    Counter counter = Metrics.counter(ResumeFromCheckpointStreamingTest.class, "allMessages");
+    final Counter counter = Metrics.counter(ResumeFromCheckpointStreamingTest.class, "allMessages");
 
     private EOFShallNotPassFn(PCollectionView<List<String>> view) {
       this.view = view;
@@ -359,6 +362,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
       extends PTransform<PCollection<Iterable<T>>, PDone> {
     private final T[] expected;
 
+    @SafeVarargs
     private PAssertWithoutFlatten(T... expected) {
       this.expected = expected;
     }

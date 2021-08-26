@@ -17,6 +17,8 @@ package coder
 
 import (
 	"bytes"
+	"fmt"
+	"math"
 	"testing"
 )
 
@@ -58,11 +60,15 @@ func TestEncodeDecodeVarUint64(t *testing.T) {
 
 func TestEncodeDecodeVarInt(t *testing.T) {
 	tests := []struct {
-		value  int32
+		value  int64
 		length int
 	}{
-		{-2147483648, 5},
-		{-1, 5},
+		{math.MinInt32, 10},
+		{math.MaxInt32, 5},
+		{math.MinInt64, 10},
+		{math.MinInt64 + 234, 10},
+		{math.MaxInt64, 9},
+		{-1, 10},
 		{0, 1},
 		{1, 1},
 		{127, 1},
@@ -71,24 +77,26 @@ func TestEncodeDecodeVarInt(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		var buf bytes.Buffer
+		t.Run(fmt.Sprintf("num:%d,len:%d", test.value, test.length), func(t *testing.T) {
+			var buf bytes.Buffer
 
-		if err := EncodeVarInt(test.value, &buf); err != nil {
-			t.Fatalf("EncodeVarInt(%v) failed: %v", test.value, err)
-		}
+			if err := EncodeVarInt(test.value, &buf); err != nil {
+				t.Fatalf("EncodeVarInt(%v) failed: %v", test.value, err)
+			}
 
-		t.Logf("Encoded %v to %v", test.value, buf.Bytes())
+			t.Logf("Encoded %v to %v", test.value, buf.Bytes())
 
-		if len(buf.Bytes()) != test.length {
-			t.Errorf("EncodeVarInt(%v) = %v, want %v", test.value, len(buf.Bytes()), test.length)
-		}
+			if len(buf.Bytes()) != test.length {
+				t.Errorf("len(EncodeVarInt(%v)) = %v, want %v", test.value, len(buf.Bytes()), test.length)
+			}
 
-		actual, err := DecodeVarInt(&buf)
-		if err != nil {
-			t.Fatalf("DecodeVarInt(<%v>) failed: %v", test.value, err)
-		}
-		if actual != test.value {
-			t.Errorf("DecodeVarInt(<%v>) = %v, want %v", test.value, actual, test.value)
-		}
+			actual, err := DecodeVarInt(&buf)
+			if err != nil {
+				t.Fatalf("DecodeVarInt(<%v>) failed: %v", test.value, err)
+			}
+			if actual != test.value {
+				t.Errorf("DecodeVarInt(<%v>) = %v, want %v", test.value, actual, test.value)
+			}
+		})
 	}
 }

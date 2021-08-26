@@ -17,24 +17,20 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -43,6 +39,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CollectionCoder;
+import org.apache.beam.sdk.coders.DequeCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -67,6 +64,11 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -101,7 +103,10 @@ import org.joda.time.Instant;
  *
  * @param <T> the type of the elements of the resulting {@code PCollection}
  */
-@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+@SuppressWarnings({
+  "OptionalUsedAsFieldOrParameterType",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Create<T> {
   /**
    * Returns a new {@code Create.Values} transform that produces a {@link PCollection} containing
@@ -143,6 +148,16 @@ public class Create<T> {
     input.add(elem);
     input.addAll(Arrays.asList(elems));
     return of(input);
+  }
+
+  /**
+   * Returns a new {@code Create.Values} transform that produces an empty {@link PCollection} of
+   * rows.
+   */
+  @Experimental(Kind.SCHEMAS)
+  public static Values<Row> empty(Schema schema) {
+    return new Values<Row>(
+        new ArrayList<>(), Optional.of(SchemaCoder.of(schema)), Optional.absent());
   }
 
   /**
@@ -282,9 +297,19 @@ public class Create<T> {
     @Experimental(Kind.SCHEMAS)
     public Values<T> withSchema(
         Schema schema,
+        TypeDescriptor<T> typeDescriptor,
         SerializableFunction<T, Row> toRowFunction,
         SerializableFunction<Row, T> fromRowFunction) {
-      return withCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+      return withCoder(SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction));
+    }
+
+    /**
+     * Returns a {@link Create.Values} PTransform like this one that uses the given {@code Schema}
+     * to represent objects.
+     */
+    @Experimental(Kind.SCHEMAS)
+    public Values<T> withRowSchema(Schema schema) {
+      return withCoder((SchemaCoder<T>) SchemaCoder.of(schema));
     }
 
     /**
@@ -321,6 +346,7 @@ public class Create<T> {
               coder =
                   SchemaCoder.of(
                       schemaRegistry.getSchema(typeDescriptor.get()),
+                      typeDescriptor.get(),
                       schemaRegistry.getToRowFunction(typeDescriptor.get()),
                       schemaRegistry.getFromRowFunction(typeDescriptor.get()));
             } catch (NoSuchSchemaException e) {
@@ -446,7 +472,7 @@ public class Create<T> {
        * Use an optional to distinguish between null next element (as Optional.absent()) and no next
        * element (next is null).
        */
-      @Nullable private Optional<T> next;
+      private @Nullable Optional<T> next;
 
       public BytesReader(CreateSource<T> source) {
         super(source);
@@ -454,8 +480,7 @@ public class Create<T> {
       }
 
       @Override
-      @Nullable
-      public T getCurrent() throws NoSuchElementException {
+      public @Nullable T getCurrent() throws NoSuchElementException {
         if (next == null) {
           throw new NoSuchElementException();
         }
@@ -558,9 +583,10 @@ public class Create<T> {
     @Experimental(Kind.SCHEMAS)
     public TimestampedValues<T> withSchema(
         Schema schema,
+        TypeDescriptor<T> typeDescriptor,
         SerializableFunction<T, Row> toRowFunction,
         SerializableFunction<Row, T> fromRowFunction) {
-      return withCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+      return withCoder(SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction));
     }
 
     /**
@@ -594,6 +620,7 @@ public class Create<T> {
             coder =
                 SchemaCoder.of(
                     schemaRegistry.getSchema(typeDescriptor.get()),
+                    typeDescriptor.get(),
                     schemaRegistry.getToRowFunction(typeDescriptor.get()),
                     schemaRegistry.getFromRowFunction(typeDescriptor.get()));
           } catch (NoSuchSchemaException e) {
@@ -684,6 +711,7 @@ public class Create<T> {
         Coder<T> coder =
             SchemaCoder.of(
                 schemaRegistry.getSchema(typeDescriptor),
+                typeDescriptor,
                 schemaRegistry.getToRowFunction(typeDescriptor),
                 schemaRegistry.getFromRowFunction(typeDescriptor));
         return coder;
@@ -754,8 +782,9 @@ public class Create<T> {
     try {
       return SchemaCoder.of(
           schemaRegistry.getSchema(o.getClass()),
+          TypeDescriptor.of(o.getClass()),
           (SerializableFunction) schemaRegistry.getToRowFunction(o.getClass()),
-          schemaRegistry.getFromRowFunction(o.getClass()));
+          (SerializableFunction) schemaRegistry.getFromRowFunction(o.getClass()));
     } catch (NoSuchSchemaException e) {
       // No schema.
     }
@@ -764,14 +793,15 @@ public class Create<T> {
       return TimestampedValueCoder.of(
           inferCoderFromObject(coderRegistry, schemaRegistry, ((TimestampedValue) o).getValue()));
     } else if (o instanceof List) {
-      return ListCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return ListCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Set) {
-      return SetCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return SetCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
+    } else if (o instanceof Deque) {
+      return DequeCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Collection) {
-      return CollectionCoder.of(
-          inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return CollectionCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Iterable) {
-      return IterableCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return IterableCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Map) {
       return MapCoder.of(
           inferCoderFromObjects(coderRegistry, schemaRegistry, ((Map) o).keySet()),

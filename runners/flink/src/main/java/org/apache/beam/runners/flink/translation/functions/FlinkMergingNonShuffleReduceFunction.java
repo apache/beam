@@ -19,15 +19,17 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import java.util.Map;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 /**
@@ -64,6 +66,13 @@ public class FlinkMergingNonShuffleReduceFunction<
   }
 
   @Override
+  public void open(Configuration parameters) {
+    // Initialize FileSystems for any coders which may want to use the FileSystem,
+    // see https://issues.apache.org/jira/browse/BEAM-8303
+    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
+  }
+
+  @Override
   public void reduce(
       Iterable<WindowedValue<KV<K, InputT>>> elements, Collector<WindowedValue<KV<K, OutputT>>> out)
       throws Exception {
@@ -74,7 +83,7 @@ public class FlinkMergingNonShuffleReduceFunction<
         new FlinkSideInputReader(sideInputs, getRuntimeContext());
 
     AbstractFlinkCombineRunner<K, InputT, AccumT, OutputT, W> reduceRunner;
-    if (windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
+    if (windowingStrategy.getWindowFn() instanceof Sessions) {
       reduceRunner = new SortingFlinkCombineRunner<>();
     } else {
       reduceRunner = new HashingFlinkCombineRunner<>();

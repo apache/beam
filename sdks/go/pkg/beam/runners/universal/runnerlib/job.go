@@ -20,13 +20,14 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/provision"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -42,21 +43,28 @@ type JobOptions struct {
 
 	// Worker is the worker binary override.
 	Worker string
+
+	// RetainDocker is an option to pass to the runner.
+	RetainDocker bool
+
+	Parallelism int
 }
 
 // Prepare prepares a job to the given job service. It returns the preparation id
 // artifact staging endpoint, and staging token if successful.
-func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline, opt *JobOptions) (id, endpoint, stagingToken string, err error) {
+func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipeline, opt *JobOptions) (id, endpoint, stagingToken string, err error) {
 	hooks.SerializeHooksToOptions()
 	raw := runtime.RawOptionsWrapper{
-		Options:     beam.PipelineOptions.Export(),
-		AppName:     opt.Name,
-		Experiments: append(opt.Experiments, "beam_fn_api"),
+		Options:      beam.PipelineOptions.Export(),
+		AppName:      opt.Name,
+		Experiments:  append(opt.Experiments, "beam_fn_api"),
+		RetainDocker: opt.RetainDocker,
+		Parallelism:  opt.Parallelism,
 	}
 
 	options, err := provision.OptionsToProto(raw)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to produce pipeline options: %v", err)
+		return "", "", "", errors.WithContext(err, "producing pipeline options")
 	}
 	req := &jobpb.PrepareJobRequest{
 		Pipeline:        p,
@@ -65,7 +73,7 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline,
 	}
 	resp, err := client.Prepare(ctx, req)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to connect to job service: %v", err)
+		return "", "", "", errors.Wrap(err, "failed to connect to job service")
 	}
 	return resp.GetPreparationId(), resp.GetArtifactStagingEndpoint().GetUrl(), resp.GetStagingSessionToken(), nil
 }
@@ -79,7 +87,7 @@ func Submit(ctx context.Context, client jobpb.JobServiceClient, id, token string
 
 	resp, err := client.Run(ctx, req)
 	if err != nil {
-		return "", fmt.Errorf("failed to submit job: %v", err)
+		return "", errors.Wrap(err, "failed to submit job")
 	}
 	return resp.GetJobId(), nil
 }
@@ -89,7 +97,7 @@ func Submit(ctx context.Context, client jobpb.JobServiceClient, id, token string
 func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID string) error {
 	stream, err := client.GetMessageStream(ctx, &jobpb.JobMessagesRequest{JobId: jobID})
 	if err != nil {
-		return fmt.Errorf("failed to get job stream: %v", err)
+		return errors.Wrap(err, "failed to get job stream")
 	}
 
 	for {
@@ -111,7 +119,7 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 			case jobpb.JobState_DONE, jobpb.JobState_CANCELLED:
 				return nil
 			case jobpb.JobState_FAILED:
-				return fmt.Errorf("job %v failed", jobID)
+				return errors.Errorf("job %v failed", jobID)
 			}
 
 		case msg.GetMessageResponse() != nil:
@@ -121,7 +129,7 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 			log.Output(ctx, messageSeverity(resp.GetImportance()), 1, text)
 
 		default:
-			return fmt.Errorf("unexpected job update: %v", proto.MarshalTextString(msg))
+			return errors.Errorf("unexpected job update: %v", proto.MarshalTextString(msg))
 		}
 	}
 }

@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.metrics.MetricName;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -50,5 +50,46 @@ public class DistributionCellTest {
 
     assertThat(
         "Adding a new value made the cell dirty", cell.getDirty().beforeCommit(), equalTo(true));
+  }
+
+  @Test
+  public void testEquals() {
+    DistributionCell distributionCell = new DistributionCell(MetricName.named("namespace", "name"));
+    DistributionCell equal = new DistributionCell(MetricName.named("namespace", "name"));
+    Assert.assertEquals(distributionCell, equal);
+    Assert.assertEquals(distributionCell.hashCode(), equal.hashCode());
+  }
+
+  @Test
+  public void testNotEquals() {
+    DistributionCell distributionCell = new DistributionCell(MetricName.named("namespace", "name"));
+
+    Assert.assertNotEquals(distributionCell, new Object());
+
+    DistributionCell differentDirty = new DistributionCell(MetricName.named("namespace", "name"));
+    differentDirty.getDirty().beforeCommit();
+    Assert.assertNotEquals(distributionCell, differentDirty);
+    Assert.assertNotEquals(distributionCell.hashCode(), differentDirty.hashCode());
+
+    DistributionCell differentValue = new DistributionCell(MetricName.named("namespace", "name"));
+    differentValue.update(DistributionData.create(1, 1, 1, 1));
+    Assert.assertNotEquals(distributionCell, differentValue);
+    Assert.assertNotEquals(distributionCell.hashCode(), differentValue.hashCode());
+
+    DistributionCell differentName =
+        new DistributionCell(MetricName.named("DIFFERENT", "DIFFERENT"));
+    Assert.assertNotEquals(distributionCell, differentName);
+    Assert.assertNotEquals(distributionCell.hashCode(), differentName.hashCode());
+  }
+
+  @Test
+  public void testReset() {
+    DistributionCell distributionCell = new DistributionCell(MetricName.named("namespace", "name"));
+    distributionCell.update(2);
+    assertThat(distributionCell.getCumulative(), equalTo(DistributionData.create(2, 1, 2, 2)));
+
+    distributionCell.reset();
+    assertThat(distributionCell.getCumulative(), equalTo(DistributionData.EMPTY));
+    assertThat(distributionCell.getDirty(), equalTo(new DirtyState()));
   }
 }

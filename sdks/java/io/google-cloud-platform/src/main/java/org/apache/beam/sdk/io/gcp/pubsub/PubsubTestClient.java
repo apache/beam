@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
@@ -32,14 +29,21 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A (partial) implementation of {@link PubsubClient} for use by unit tests. Only suitable for
  * testing {@link #publish}, {@link #pull}, {@link #acknowledge} and {@link #modifyAckDeadline}
  * methods. Relies on statics to mimic the Pubsub service, though we try to hide that.
  */
-class PubsubTestClient extends PubsubClient implements Serializable {
+@Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
+public class PubsubTestClient extends PubsubClient implements Serializable {
   /**
    * Mimic the state of the simulated Pubsub 'service'.
    *
@@ -95,17 +99,12 @@ class PubsubTestClient extends PubsubClient implements Serializable {
    * Return a factory for testing publishers. Only one factory may be in-flight at a time. The
    * factory must be closed when the test is complete, at which point final validation will occur.
    */
-  static PubsubTestClientFactory createFactoryForPublish(
+  public static PubsubTestClientFactory createFactoryForPublish(
       final TopicPath expectedTopic,
       final Iterable<OutgoingMessage> expectedOutgoingMessages,
       final Iterable<OutgoingMessage> failingOutgoingMessages) {
-    synchronized (STATE) {
-      checkState(!STATE.isActive, "Test still in flight");
-      STATE.expectedTopic = expectedTopic;
-      STATE.remainingExpectedOutgoingMessages = Sets.newHashSet(expectedOutgoingMessages);
-      STATE.remainingFailingOutgoingMessages = Sets.newHashSet(failingOutgoingMessages);
-      STATE.isActive = true;
-    }
+    activate(
+        () -> setPublishState(expectedTopic, expectedOutgoingMessages, failingOutgoingMessages));
     return new PubsubTestClientFactory() {
       @Override
       public PubsubClient newClient(
@@ -121,15 +120,7 @@ class PubsubTestClient extends PubsubClient implements Serializable {
 
       @Override
       public void close() {
-        synchronized (STATE) {
-          checkState(STATE.isActive, "No test still in flight");
-          checkState(
-              STATE.remainingExpectedOutgoingMessages.isEmpty(),
-              "Still waiting for %s messages to be published",
-              STATE.remainingExpectedOutgoingMessages.size());
-          STATE.isActive = false;
-          STATE.remainingExpectedOutgoingMessages = null;
-        }
+        deactivate(PubsubTestClient::performFinalPublishStateChecks);
       }
     };
   }
@@ -143,16 +134,8 @@ class PubsubTestClient extends PubsubClient implements Serializable {
       final SubscriptionPath expectedSubscription,
       final int ackTimeoutSec,
       final Iterable<IncomingMessage> expectedIncomingMessages) {
-    synchronized (STATE) {
-      checkState(!STATE.isActive, "Test still in flight");
-      STATE.clock = clock;
-      STATE.expectedSubscription = expectedSubscription;
-      STATE.ackTimeoutSec = ackTimeoutSec;
-      STATE.remainingPendingIncomingMessages = Lists.newArrayList(expectedIncomingMessages);
-      STATE.pendingAckIncomingMessages = new HashMap<>();
-      STATE.ackDeadline = new HashMap<>();
-      STATE.isActive = true;
-    }
+    activate(
+        () -> setPullState(expectedSubscription, clock, ackTimeoutSec, expectedIncomingMessages));
     return new PubsubTestClientFactory() {
       @Override
       public PubsubClient newClient(
@@ -168,27 +151,137 @@ class PubsubTestClient extends PubsubClient implements Serializable {
 
       @Override
       public void close() {
-        synchronized (STATE) {
-          checkState(STATE.isActive, "No test still in flight");
-          checkState(
-              STATE.remainingPendingIncomingMessages.isEmpty(),
-              "Still waiting for %s messages to be pulled",
-              STATE.remainingPendingIncomingMessages.size());
-          checkState(
-              STATE.pendingAckIncomingMessages.isEmpty(),
-              "Still waiting for %s messages to be ACKed",
-              STATE.pendingAckIncomingMessages.size());
-          checkState(
-              STATE.ackDeadline.isEmpty(),
-              "Still waiting for %s messages to be ACKed",
-              STATE.ackDeadline.size());
-          STATE.isActive = false;
-          STATE.remainingPendingIncomingMessages = null;
-          STATE.pendingAckIncomingMessages = null;
-          STATE.ackDeadline = null;
-        }
+        deactivate(PubsubTestClient::performFinalPullStateChecks);
       }
     };
+  }
+
+  /**
+   * Returns a factory for a test that is expected to both publish and pull messages over the course
+   * of the test.
+   */
+  public static PubsubTestClientFactory createFactoryForPullAndPublish(
+      final SubscriptionPath pullSubscription,
+      final TopicPath publishTopicPath,
+      final Clock pullClock,
+      final int pullAckTimeoutSec,
+      final Iterable<IncomingMessage> expectedIncomingMessages,
+      final Iterable<OutgoingMessage> expectedOutgoingMessages,
+      final Iterable<OutgoingMessage> failingOutgoingMessages) {
+    activate(
+        () -> {
+          setPublishState(publishTopicPath, expectedOutgoingMessages, failingOutgoingMessages);
+          setPullState(pullSubscription, pullClock, pullAckTimeoutSec, expectedIncomingMessages);
+        });
+    return new PubsubTestClientFactory() {
+      @Override
+      public void close() throws IOException {
+        deactivate(
+            () -> {
+              performFinalPublishStateChecks();
+              performFinalPullStateChecks();
+            });
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
+          throws IOException {
+        return new PubsubTestClient();
+      }
+
+      @Override
+      public String getKind() {
+        return "PublishAndPullTest";
+      }
+    };
+  }
+
+  /**
+   * Activates {@link PubsubTestClientFactory} state for the test. This can only be called once per
+   * test.
+   *
+   * <p>It is not necessary to set {@code STATE.isActive}. That will be set regardless.
+   *
+   * @param setStateValues a {@link Runnable} that sets all the desired values.
+   */
+  private static void activate(Runnable setStateValues) {
+    synchronized (STATE) {
+      checkState(!STATE.isActive, "Test still in flight");
+      setStateValues.run();
+      STATE.isActive = true;
+    }
+  }
+
+  /**
+   * Deactivates {@link PubsubTestClientFactory} state for use in other tests. This can only be
+   * called once per test.
+   *
+   * <p>It is not necessary to check or set {@code STATE.isActivate}. That will be handled by this
+   * method.
+   *
+   * @param runFinalChecks a {@link Runnable} to handle any final state checking before marking
+   *     {@code STATE} as no longer active
+   */
+  private static void deactivate(Runnable runFinalChecks) {
+    synchronized (STATE) {
+      checkState(STATE.isActive, "No test still in flight");
+      runFinalChecks.run();
+      STATE.remainingExpectedOutgoingMessages = null;
+      STATE.remainingPendingIncomingMessages = null;
+      STATE.pendingAckIncomingMessages = null;
+      STATE.ackDeadline = null;
+      STATE.isActive = false;
+    }
+  }
+
+  /** Handles setting {@code STATE} values for a publishing client. */
+  private static void setPublishState(
+      final TopicPath expectedTopic,
+      final Iterable<OutgoingMessage> expectedOutgoingMessages,
+      final Iterable<OutgoingMessage> failingOutgoingMessages) {
+    STATE.expectedTopic = expectedTopic;
+    STATE.remainingExpectedOutgoingMessages = Sets.newHashSet(expectedOutgoingMessages);
+    STATE.remainingFailingOutgoingMessages = Sets.newHashSet(failingOutgoingMessages);
+  }
+
+  /** Handles setting {@code STATE} values for a pulling client. */
+  private static void setPullState(
+      final SubscriptionPath expectedSubscription,
+      final Clock clock,
+      final int ackTimeoutSec,
+      final Iterable<IncomingMessage> expectedIncomingMessages) {
+    STATE.clock = clock;
+    STATE.expectedSubscription = expectedSubscription;
+    STATE.ackTimeoutSec = ackTimeoutSec;
+    STATE.remainingPendingIncomingMessages = Lists.newArrayList(expectedIncomingMessages);
+    STATE.pendingAckIncomingMessages = new HashMap<>();
+    STATE.ackDeadline = new HashMap<>();
+  }
+
+  /** Handles verifying {@code STATE} at end of publish test. */
+  private static void performFinalPublishStateChecks() {
+    checkState(STATE.isActive, "No test still in flight");
+    checkState(
+        STATE.remainingExpectedOutgoingMessages.isEmpty(),
+        "Still waiting for %s messages to be published",
+        STATE.remainingExpectedOutgoingMessages.size());
+  }
+
+  /** Handles verifying {@code STATE} at end of pull test. */
+  private static void performFinalPullStateChecks() {
+    checkState(
+        STATE.remainingPendingIncomingMessages.isEmpty(),
+        "Still waiting for %s messages to be pulled",
+        STATE.remainingPendingIncomingMessages.size());
+    checkState(
+        STATE.pendingAckIncomingMessages.isEmpty(),
+        "Still waiting for %s messages to be ACKed",
+        STATE.pendingAckIncomingMessages.size());
+    checkState(
+        STATE.ackDeadline.isEmpty(),
+        "Still waiting for %s messages to be ACKed",
+        STATE.ackDeadline.size());
   }
 
   public static PubsubTestClientFactory createFactoryForCreateSubscription() {
@@ -308,12 +401,17 @@ class PubsubTestClient extends PubsubClient implements Serializable {
         IncomingMessage incomingMessage = pendItr.next();
         pendItr.remove();
         IncomingMessage incomingMessageWithRequestTime =
-            incomingMessage.withRequestTime(requestTimeMsSinceEpoch);
+            IncomingMessage.of(
+                incomingMessage.message(),
+                incomingMessage.timestampMsSinceEpoch(),
+                requestTimeMsSinceEpoch,
+                incomingMessage.ackId(),
+                incomingMessage.recordId());
         incomingMessages.add(incomingMessageWithRequestTime);
         STATE.pendingAckIncomingMessages.put(
-            incomingMessageWithRequestTime.ackId, incomingMessageWithRequestTime);
+            incomingMessageWithRequestTime.ackId(), incomingMessageWithRequestTime);
         STATE.ackDeadline.put(
-            incomingMessageWithRequestTime.ackId,
+            incomingMessageWithRequestTime.ackId(),
             requestTimeMsSinceEpoch + STATE.ackTimeoutSec * 1000);
         if (incomingMessages.size() >= batchSize) {
           break;

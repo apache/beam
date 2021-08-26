@@ -27,6 +27,7 @@ cdef class CountAccumulator(object):
   @cython.locals(accumulator=CountAccumulator)
   cpdef merge(self, accumulators)
 
+
 cdef class SumInt64Accumulator(object):
   cdef readonly int64_t value
   cpdef add_input(self, int64_t element)
@@ -39,11 +40,13 @@ cdef class MinInt64Accumulator(object):
   @cython.locals(accumulator=MinInt64Accumulator)
   cpdef merge(self, accumulators)
 
+
 cdef class MaxInt64Accumulator(object):
   cdef readonly int64_t value
   cpdef add_input(self, int64_t element)
   @cython.locals(accumulator=MaxInt64Accumulator)
   cpdef merge(self, accumulators)
+
 
 cdef class MeanInt64Accumulator(object):
   cdef readonly int64_t sum
@@ -53,11 +56,22 @@ cdef class MeanInt64Accumulator(object):
   cpdef merge(self, accumulators)
 
 
+cdef class DistributionInt64Accumulator(object):
+  cdef readonly int64_t sum
+  cdef readonly int64_t count
+  cdef readonly int64_t min
+  cdef readonly int64_t max
+  cpdef add_input(self, int64_t element)
+  @cython.locals(accumulator=DistributionInt64Accumulator)
+  cpdef merge(self, accumulators)
+
+
 cdef class SumDoubleAccumulator(object):
   cdef readonly double value
   cpdef add_input(self, double element)
   @cython.locals(accumulator=SumDoubleAccumulator)
   cpdef merge(self, accumulators)
+
 
 cdef class MinDoubleAccumulator(object):
   cdef readonly double value
@@ -65,11 +79,13 @@ cdef class MinDoubleAccumulator(object):
   @cython.locals(accumulator=MinDoubleAccumulator)
   cpdef merge(self, accumulators)
 
+
 cdef class MaxDoubleAccumulator(object):
   cdef readonly double value
   cpdef add_input(self, double element)
   @cython.locals(accumulator=MaxDoubleAccumulator)
   cpdef merge(self, accumulators)
+
 
 cdef class MeanDoubleAccumulator(object):
   cdef readonly double sum
@@ -85,8 +101,16 @@ cdef class AllAccumulator(object):
   @cython.locals(accumulator=AllAccumulator)
   cpdef merge(self, accumulators)
 
+
 cdef class AnyAccumulator(object):
   cdef readonly bint value
   cpdef add_input(self, bint element)
   @cython.locals(accumulator=AnyAccumulator)
   cpdef merge(self, accumulators)
+
+
+cdef class ComparableValue(object):
+  cdef readonly object value, _less_than_fn, _comparable_value
+  cdef readonly bint requires_hydration
+  cpdef hydrate(self, object less_than_fn, object key_fn)
+

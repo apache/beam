@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.io.Serializable;
@@ -52,7 +51,7 @@ public class SparkPipelineStateTest implements Serializable {
     }
   }
 
-  private transient SparkPipelineOptions options =
+  private final transient SparkPipelineOptions options =
       PipelineOptionsFactory.as(SparkPipelineOptions.class);
 
   @Rule public transient TestName testName = new TestName();

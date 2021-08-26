@@ -16,54 +16,85 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins {
+  id 'org.apache.beam.module'
+  id 'com.github.jk1.dependency-license-report' version '1.16'
+}
+
 applyGoNature()
-applyDockerNature()
+
+evaluationDependsOn(":sdks:java:harness")
+evaluationDependsOn(":sdks:java:io:kafka")
 
 description = "Apache Beam :: SDKs :: Java :: Container"
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":beam-sdks-go:build"
+// Disable gogradle's dependency resolution so it uses Go modules instead.
+installDependencies.enabled = false
+resolveBuildDependencies.enabled = false
+resolveTestDependencies.enabled = false
 
 configurations {
   dockerDependency
+  sdkHarnessLauncher
 }
 
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
     // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
+    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
   }
   dockerDependency library.java.slf4j_api
   dockerDependency library.java.slf4j_jdk14
-  dockerDependency project(path: ":beam-sdks-java-harness", configuration: "shadow")
-}
-
-task copyDockerfileDependencies(type: Copy) {
-  from configurations.dockerDependency
-  rename "slf4j-api.*", "slf4j-api.jar"
-  rename "slf4j-jdk14.*", "slf4j-jdk14.jar"
-  rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
-  into "build/target"
+  dockerDependency project(path: ":sdks:java:harness", configuration: "shadow")
+  // For executing KafkaIO, e.g. as an external transform
+  dockerDependency project(":sdks:java:io:kafka")
+  // This dependency is set to 'provided' scope in :sdks:java:io:kafka
+  dockerDependency library.java.kafka_clients
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/java/boot'
-  build {
+  packagePath = 'github.com/apache/beam/sdks/v2/java/container'
+  goBuild {
     // TODO(herohde): build local platform + linux-amd64, if possible.
     targetPlatform = ['linux-amd64']
     outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
   }
 }
 
-docker {
-  name containerImageName(name: "java")
-  files "./build/"
+// command: ./gradlew generateLicenseReport
+import com.github.jk1.license.render.*
+licenseReport {
+  projects = [project,
+              project.rootProject.findProject(':sdks:java:harness'),
+              project.rootProject.findProject(':sdks:java:io:kafka')]
+  excludeOwnGroup = true
+  excludeGroups = ["beam.*"] // project dependencies do not match their maven coords
+  configurations = ALL
+  renderers = [new JsonReportRenderer()]
 }
-// Ensure that we build the required resources and copy and file dependencies from related projects
-dockerPrepare.dependsOn build
-dockerPrepare.dependsOn copyDockerfileDependencies
+
+task pullLicenses(type: Exec) {
+  dependsOn generateLicenseReport
+  generateLicenseReport.outputs.cacheIf { false }
+
+  commandLine './license_scripts/license_script.sh'
+  outputs.dir('build/target/third_party_licenses')
+  outputs.dir('build/target/java_third_party_licenses')
+}
+
+task downloadCloudProfilerAgent(type: Exec) {
+  executable "sh"
+  args "-c", "wget -q -O- https://storage.googleapis.com/cloud-profiler/java/latest/profiler_java_agent.tar.gz | tar xzv -C build/target/profiler/"
+  outputs.dir('build/target/profiler')
+}
+
+artifacts {
+  sdkHarnessLauncher file: file('./build/target'), builtBy: goBuild
+}
+
+task pushAll {
+  dependsOn ":sdks:java:container:java8:dockerPush"
+  dependsOn ":sdks:java:container:java11:dockerPush"
+}

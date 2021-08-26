@@ -17,15 +17,14 @@
 
 """End-to-end test for Bigquery tornadoes example."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import time
 import unittest
-from builtins import round
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples.cookbook import bigquery_tornadoes
 from apache_beam.io.gcp.tests import utils
@@ -36,14 +35,11 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 class BigqueryTornadoesIT(unittest.TestCase):
 
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   # The default checksum is a SHA-1 hash generated from sorted rows reading
   # from expected Bigquery table.
-  DEFAULT_CHECKSUM = '83789a7c1bca7959dcf23d3bc37e9204e594330f'
+  DEFAULT_CHECKSUM = 'd860e636050c559a16a791aff40d6ad809d4daf0'
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_bigquery_tornadoes_it(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 
@@ -53,23 +49,25 @@ class BigqueryTornadoesIT(unittest.TestCase):
     dataset = 'BigQueryTornadoesIT'
     table = 'monthly_tornadoes_%s' % int(round(time.time() * 1000))
     output_table = '.'.join([dataset, table])
-    query = 'SELECT month, tornado_count FROM [%s]' % output_table
+    query = 'SELECT month, tornado_count FROM `%s`' % output_table
 
-    pipeline_verifiers = [PipelineStateMatcher(),
-                          BigqueryMatcher(
-                              project=project,
-                              query=query,
-                              checksum=self.DEFAULT_CHECKSUM)]
-    extra_opts = {'output': output_table,
-                  'on_success_matcher': all_of(*pipeline_verifiers)}
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        BigqueryMatcher(
+            project=project, query=query, checksum=self.DEFAULT_CHECKSUM)
+    ]
+    extra_opts = {
+        'output': output_table,
+        'on_success_matcher': all_of(*pipeline_verifiers)
+    }
 
     # Register cleanup before pipeline execution.
+    # Note that actual execution happens in reverse order.
     self.addCleanup(utils.delete_bq_table, project, dataset, table)
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    bigquery_tornadoes.run(
-        test_pipeline.get_full_options_as_args(**extra_opts))
+    bigquery_tornadoes.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
 
 if __name__ == '__main__':

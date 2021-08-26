@@ -20,26 +20,26 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Spark runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Spark_Gradle',
-  'Run Spark ValidatesRunner', 'Apache Spark Runner ValidatesRunner Tests', this) {
-  description('Runs the ValidatesRunner suite on the Spark runner.')
-  previousNames('beam_PostCommit_Java_ValidatesRunner_Spark')
-  previousNames('beam_PostCommit_Java_RunnableOnService_Spark')
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Spark',
+    'Run Spark ValidatesRunner', 'Apache Spark Runner ValidatesRunner Tests', this) {
+      description('Runs the ValidatesRunner suite on the Spark runner.')
+      previousNames(/beam_PostCommit_Java_ValidatesRunner_Spark_Gradle/)
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-  // Publish all test results to Jenkins
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+      // Publish all test results to Jenkins
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+      }
 
-  // Gradle goals for this job.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-runners-spark:validatesRunner')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Gradle goals for this job.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:spark:2:validatesRunner')
+          tasks(':runners:spark:3:validatesRunner')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

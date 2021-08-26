@@ -15,53 +15,44 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pytype: skip-file
 
-import os
-import shutil
-import tempfile
 import time
 import unittest
 
-from apache_beam.io import filesystems
+import apache_beam as beam
+from apache_beam import coders
 from apache_beam.runners.interactive import cache_manager as cache
 
 
-class LocalFileCacheManagerTest(unittest.TestCase):
-  """Unit test for LocalFileCacheManager.
+class FileBasedCacheManagerTest(object):
+  """Unit test for FileBasedCacheManager.
 
-  Note that this set of tests focuses only the the methods that interacts with
-  the local operating system. Those tests that involve interactions with Beam
-  (i.e. source(), sink(), ReadCache, and WriteCache) will be tested with
-  InteractiveRunner as a part of integration tests instead.
+  Note that this set of tests focuses only the methods that interacts with
+  the LOCAL file system. The idea is that once FileBasedCacheManager works well
+  with the local file system, it should work with any file system with
+  `apache_beam.io.filesystem` interface. Those tests that involve interactions
+  with Beam pipeline (i.e. source(), sink(), ReadCache, and WriteCache) will be
+  tested with InteractiveRunner as a part of integration tests instead.
   """
 
+  cache_format = None  # type: str
+
   def setUp(self):
-    self.test_dir = tempfile.mkdtemp()
-    self.cache_manager = cache.LocalFileCacheManager(self.test_dir)
+    self.cache_manager = cache.FileBasedCacheManager(
+        cache_format=self.cache_format)
 
   def tearDown(self):
-    # The test_dir might have already been removed by cache_manager.cleanup().
-    if os.path.exists(self.test_dir):
-      shutil.rmtree(self.test_dir)
+    self.cache_manager.cleanup()
 
-  def mock_write_cache(self, pcoll_list, prefix, cache_label):
+  def mock_write_cache(self, values, prefix, cache_label):
     """Cache the PCollection where cache.WriteCache would write to."""
-    cache_path = filesystems.FileSystems.join(self.test_dir, prefix)
-    if not filesystems.FileSystems.exists(cache_path):
-      filesystems.FileSystems.mkdirs(cache_path)
-
     # Pause for 0.1 sec, because the Jenkins test runs so fast that the file
     # writes happen at the same timestamp.
     time.sleep(0.1)
 
-    cache_file = cache_label + '-1-of-2'
-    with open(self.cache_manager._path(prefix, cache_file), 'w') as f:
-      for line in pcoll_list:
-        f.write(cache.SafeFastPrimitivesCoder().encode(line))
-        f.write('\n')
+    labels = [prefix, cache_label]
+    self.cache_manager.write(values, *labels)
 
   def test_exists(self):
     """Test that CacheManager can correctly tell if the cache exists or not."""
@@ -77,6 +68,44 @@ class LocalFileCacheManagerTest(unittest.TestCase):
     self.mock_write_cache(cache_version_one, prefix, cache_label)
     self.assertTrue(self.cache_manager.exists(prefix, cache_label))
 
+  def test_size(self):
+    """Test getting the size of some cache label."""
+
+    # The Beam API for writing doesn't return the number of bytes that was
+    # written to disk. So this test is only possible when the coder encodes the
+    # bytes that will be written directly to disk, which only the WriteToText
+    # transform does (with respect to the WriteToTFRecord transform).
+    if self.cache_manager.cache_format != 'text':
+      return
+
+    prefix = 'full'
+    cache_label = 'some-cache-label'
+
+    # Test that if nothing is written the size is 0.
+    self.assertEqual(self.cache_manager.size(prefix, cache_label), 0)
+
+    value = 'a'
+    self.mock_write_cache([value], prefix, cache_label)
+    coder = self.cache_manager.load_pcoder(prefix, cache_label)
+    encoded = coder.encode(value)
+
+    # Add one to the size on disk because of the extra new-line character when
+    # writing to file.
+    self.assertEqual(
+        self.cache_manager.size(prefix, cache_label), len(encoded) + 1)
+
+  def test_clear(self):
+    """Test that CacheManager can correctly tell if the cache exists or not."""
+    prefix = 'full'
+    cache_label = 'some-cache-label'
+    cache_version_one = ['cache', 'version', 'one']
+
+    self.assertFalse(self.cache_manager.exists(prefix, cache_label))
+    self.mock_write_cache(cache_version_one, prefix, cache_label)
+    self.assertTrue(self.cache_manager.exists(prefix, cache_label))
+    self.assertTrue(self.cache_manager.clear(prefix, cache_label))
+    self.assertFalse(self.cache_manager.exists(prefix, cache_label))
+
   def test_read_basic(self):
     """Test the condition where the cache is read once after written once."""
     prefix = 'full'
@@ -84,7 +113,8 @@ class LocalFileCacheManagerTest(unittest.TestCase):
     cache_version_one = ['cache', 'version', 'one']
 
     self.mock_write_cache(cache_version_one, prefix, cache_label)
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    reader, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list = list(reader)
     self.assertListEqual(pcoll_list, cache_version_one)
     self.assertEqual(version, 0)
     self.assertTrue(
@@ -98,13 +128,15 @@ class LocalFileCacheManagerTest(unittest.TestCase):
     cache_version_two = ['cache', 'version', 'two']
 
     self.mock_write_cache(cache_version_one, prefix, cache_label)
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    reader, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list = list(reader)
 
     self.mock_write_cache(cache_version_two, prefix, cache_label)
     self.assertFalse(
         self.cache_manager.is_latest_version(version, prefix, cache_label))
 
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    reader, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list = list(reader)
     self.assertListEqual(pcoll_list, cache_version_two)
     self.assertEqual(version, 1)
     self.assertTrue(
@@ -117,7 +149,8 @@ class LocalFileCacheManagerTest(unittest.TestCase):
 
     self.assertFalse(self.cache_manager.exists(prefix, cache_label))
 
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    reader, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list = list(reader)
     self.assertListEqual(pcoll_list, [])
     self.assertEqual(version, -1)
     self.assertTrue(
@@ -132,7 +165,8 @@ class LocalFileCacheManagerTest(unittest.TestCase):
 
     # The initial write and read.
     self.mock_write_cache(cache_version_one, prefix, cache_label)
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    reader, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list = list(reader)
 
     # Cache cleanup.
     self.cache_manager.cleanup()
@@ -140,7 +174,8 @@ class LocalFileCacheManagerTest(unittest.TestCase):
     self.assertTrue(
         self.cache_manager.is_latest_version(version, prefix, cache_label))
 
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    reader, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list = list(reader)
     self.assertListEqual(pcoll_list, [])
     self.assertEqual(version, -1)
     self.assertFalse(
@@ -151,13 +186,38 @@ class LocalFileCacheManagerTest(unittest.TestCase):
     self.assertFalse(
         self.cache_manager.is_latest_version(version, prefix, cache_label))
 
-    pcoll_list, version = self.cache_manager.read(prefix, cache_label)
+    reader, version = self.cache_manager.read(prefix, cache_label)
+    pcoll_list = list(reader)
     self.assertListEqual(pcoll_list, cache_version_two)
     # Check that version continues from the previous value instead of starting
     # from 0 again.
     self.assertEqual(version, 1)
     self.assertTrue(
         self.cache_manager.is_latest_version(version, prefix, cache_label))
+
+  def test_load_saved_pcoder(self):
+    pipeline = beam.Pipeline()
+    pcoll = pipeline | beam.Create([1, 2, 3])
+    _ = pcoll | cache.WriteCache(self.cache_manager, 'a key')
+    self.assertIs(
+        type(self.cache_manager.load_pcoder('full', 'a key')),
+        type(coders.registry.get_coder(int)))
+
+
+class TextFileBasedCacheManagerTest(
+    FileBasedCacheManagerTest,
+    unittest.TestCase,
+):
+
+  cache_format = 'text'
+
+
+class TFRecordBasedCacheManagerTest(
+    FileBasedCacheManagerTest,
+    unittest.TestCase,
+):
+
+  cache_format = 'tfrecord'
 
 
 if __name__ == '__main__':

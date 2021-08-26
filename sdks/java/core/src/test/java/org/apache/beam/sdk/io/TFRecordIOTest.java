@@ -22,24 +22,43 @@ import static org.apache.beam.sdk.io.Compression.DEFLATE;
 import static org.apache.beam.sdk.io.Compression.GZIP;
 import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.hamcrest.Matchers.isIn;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.in;
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assume.assumeFalse;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-import com.google.common.io.BaseEncoding;
-import com.google.common.io.ByteStreams;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.Base64.Decoder;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileIO.ReadableFile;
+import org.apache.beam.sdk.io.TFRecordIO.TFRecordCodec;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -48,6 +67,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -84,7 +108,8 @@ public class TFRecordIOTest {
   private static final String[] FOO_BAR_RECORDS = {"foo", "bar"};
 
   private static final Iterable<String> EMPTY = Collections.emptyList();
-  private static final Iterable<String> LARGE = makeLines(1000);
+  private static final Iterable<String> LARGE = makeLines(1000, 4);
+  private static final Iterable<String> LARGE_RECORDS = makeLines(100, 100000);
 
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -96,16 +121,34 @@ public class TFRecordIOTest {
 
   @Test
   public void testReadNamed() {
-    writePipeline.enableAbandonedNodeEnforcement(false);
+    readPipeline.enableAbandonedNodeEnforcement(false);
+
+    assertThat(
+        readPipeline.apply(TFRecordIO.read().from("foo.*").withoutValidation()).getName(),
+        startsWith("TFRecordIO.Read/Read"));
+    assertThat(
+        readPipeline.apply("MyRead", TFRecordIO.read().from("foo.*").withoutValidation()).getName(),
+        startsWith("MyRead/Read"));
+  }
+
+  @Test
+  public void testReadFilesNamed() {
+    readPipeline.enableAbandonedNodeEnforcement(false);
+
+    Metadata metadata =
+        Metadata.builder()
+            .setResourceId(FileSystems.matchNewResource("file", false /* isDirectory */))
+            .setIsReadSeekEfficient(true)
+            .setSizeBytes(1024)
+            .build();
+    Create.Values<ReadableFile> create = Create.of(new ReadableFile(metadata, Compression.AUTO));
 
     assertEquals(
-        "TFRecordIO.Read/Read.out",
-        writePipeline.apply(TFRecordIO.read().from("foo.*").withoutValidation()).getName());
+        "TFRecordIO.ReadFiles/Read all via FileBasedSource/Read ranges/ParMultiDo(ReadFileRanges).output",
+        readPipeline.apply(create).apply(TFRecordIO.readFiles()).getName());
     assertEquals(
-        "MyRead/Read.out",
-        writePipeline
-            .apply("MyRead", TFRecordIO.read().from("foo.*").withoutValidation())
-            .getName());
+        "MyRead/Read all via FileBasedSource/Read ranges/ParMultiDo(ReadFileRanges).output",
+        readPipeline.apply(create).apply("MyRead", TFRecordIO.readFiles()).getName());
   }
 
   @Test
@@ -122,6 +165,8 @@ public class TFRecordIOTest {
 
   @Test
   public void testWriteDisplayData() {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10739
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     TFRecordIO.Write write =
         TFRecordIO.write()
             .to("/foo")
@@ -166,17 +211,14 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadInvalidRecord() throws Exception {
-    expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("Not a valid TFRecord. Fewer than 12 bytes.");
-    System.out.println("abr".getBytes(Charsets.UTF_8).length);
     runTestRead("bar".getBytes(Charsets.UTF_8), new String[0]);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testReadInvalidLengthMask() throws Exception {
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("Mismatch of length mask");
+    expectedException.expectCause(hasMessage(containsString("Mismatch of length mask")));
     byte[] data = BaseEncoding.base64().decode(FOO_RECORD_BASE64);
     data[9] += (byte) 1;
     runTestRead(data, FOO_RECORDS);
@@ -185,8 +227,7 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadInvalidDataMask() throws Exception {
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("Mismatch of data mask");
+    expectedException.expectCause(hasMessage(containsString("Mismatch of data mask")));
     byte[] data = BaseEncoding.base64().decode(FOO_RECORD_BASE64);
     data[16] += (byte) 1;
     runTestRead(data, FOO_RECORDS);
@@ -196,6 +237,7 @@ public class TFRecordIOTest {
     runTestRead(BaseEncoding.base64().decode(base64), expected);
   }
 
+  /** Tests both {@link TFRecordIO.Read} and {@link TFRecordIO.ReadFiles}. */
   private void runTestRead(byte[] data, String[] expected) throws IOException {
     File tmpFile =
         Files.createTempFile(tempFolder.getRoot().toPath(), "file", ".tfrecords").toFile();
@@ -206,10 +248,20 @@ public class TFRecordIOTest {
     }
 
     TFRecordIO.Read read = TFRecordIO.read().from(filename);
-    PCollection<String> output = writePipeline.apply(read).apply(ParDo.of(new ByteArrayToString()));
-
+    PCollection<String> output = readPipeline.apply(read).apply(ParDo.of(new ByteArrayToString()));
     PAssert.that(output).containsInAnyOrder(expected);
-    writePipeline.run();
+
+    Compression compression = AUTO;
+    PAssert.that(
+            readPipeline
+                .apply("Create_Paths_ReadFiles_" + tmpFile, Create.of(tmpFile.getPath()))
+                .apply("Match_" + tmpFile, FileIO.matchAll())
+                .apply("ReadMatches_" + tmpFile, FileIO.readMatches().withCompression(compression))
+                .apply("ReadFiles_" + compression.toString(), TFRecordIO.readFiles())
+                .apply("ToString", ParDo.of(new ByteArrayToString())))
+        .containsInAnyOrder(expected);
+
+    readPipeline.run();
   }
 
   private void runTestWrite(String[] elems, String... base64) throws IOException {
@@ -230,7 +282,7 @@ public class TFRecordIOTest {
     FileInputStream fis = new FileInputStream(tmpFile);
     String written = BaseEncoding.base64().encode(ByteStreams.toByteArray(fis));
     // bytes written may vary depending the order of elems
-    assertThat(written, isIn(base64));
+    assertThat(written, is(in(base64)));
   }
 
   @Test
@@ -287,6 +339,18 @@ public class TFRecordIOTest {
     runTestRoundTrip(LARGE, 10, ".tfrecords", DEFLATE, AUTO);
   }
 
+  @Test
+  @Category(NeedsRunner.class)
+  public void runTestRoundTripLargeRecords() throws IOException {
+    runTestRoundTrip(LARGE_RECORDS, 10, ".tfrecords", UNCOMPRESSED, UNCOMPRESSED);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void runTestRoundTripLargeRecordsGzip() throws IOException {
+    runTestRoundTrip(LARGE_RECORDS, 10, ".tfrecords", GZIP, GZIP);
+  }
+
   private void runTestRoundTrip(
       Iterable<String> elems,
       int numShards,
@@ -330,7 +394,7 @@ public class TFRecordIOTest {
                     TFRecordIO.read()
                         .from(baseFilenameViaWrite + "*")
                         .withCompression(readCompression))
-                .apply("To string first", ParDo.of(new ByteArrayToString())))
+                .apply("To string read from write", ParDo.of(new ByteArrayToString())))
         .containsInAnyOrder(elems);
     PAssert.that(
             readPipeline
@@ -339,15 +403,41 @@ public class TFRecordIOTest {
                     TFRecordIO.read()
                         .from(baseFilenameViaSink + "*")
                         .withCompression(readCompression))
-                .apply("To string second", ParDo.of(new ByteArrayToString())))
+                .apply("To string read from sink", ParDo.of(new ByteArrayToString())))
+        .containsInAnyOrder(elems);
+    PAssert.that(
+            readPipeline
+                .apply(
+                    "Create_Paths_ReadFiles_" + baseFilenameViaWrite,
+                    Create.of(baseFilenameViaWrite + "*"))
+                .apply("Match_" + baseFilenameViaWrite, FileIO.matchAll())
+                .apply(
+                    "ReadMatches_" + baseFilenameViaWrite,
+                    FileIO.readMatches().withCompression(readCompression))
+                .apply("ReadFiles written by TFRecordIO.write", TFRecordIO.readFiles())
+                .apply("To string readFiles from write", ParDo.of(new ByteArrayToString())))
+        .containsInAnyOrder(elems);
+    PAssert.that(
+            readPipeline
+                .apply(
+                    "ReadFiles written by TFRecordIO.sink",
+                    TFRecordIO.read()
+                        .from(baseFilenameViaSink + "*")
+                        .withCompression(readCompression))
+                .apply("To string readFiles from sink", ParDo.of(new ByteArrayToString())))
         .containsInAnyOrder(elems);
     readPipeline.run();
   }
 
-  private static Iterable<String> makeLines(int n) {
+  private static Iterable<String> makeLines(int n, int minRecordSize) {
     List<String> ret = Lists.newArrayList();
+    StringBuilder recordBuilder = new StringBuilder();
+    for (int i = 0; i < minRecordSize; i++) {
+      recordBuilder.append("x");
+    }
+    String record = recordBuilder.toString();
     for (int i = 0; i < n; ++i) {
-      ret.add("word" + i);
+      ret.add(record + " " + i);
     }
     return ret;
   }
@@ -364,5 +454,119 @@ public class TFRecordIOTest {
     public void processElement(ProcessContext c) {
       c.output(c.element().getBytes(Charsets.UTF_8));
     }
+  }
+
+  static boolean maybeThisTime() {
+    return ThreadLocalRandom.current().nextBoolean();
+  }
+
+  static class PickyReadChannel extends FilterInputStream implements ReadableByteChannel {
+    protected PickyReadChannel(InputStream in) {
+      super(in);
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int read(ByteBuffer dst) throws IOException {
+      if (!maybeThisTime() || !dst.hasRemaining()) {
+        return 0;
+      }
+      int n = read();
+      if (n == -1) {
+        return -1;
+      }
+      dst.put((byte) n);
+      return 1;
+    }
+
+    @Override
+    public boolean isOpen() {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  static class PickyWriteChannel extends FilterOutputStream implements WritableByteChannel {
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    public PickyWriteChannel(OutputStream out) {
+      super(out);
+    }
+
+    @Override
+    public int write(ByteBuffer src) throws IOException {
+      if (!maybeThisTime() || !src.hasRemaining()) {
+        return 0;
+      }
+      write(src.get());
+      return 1;
+    }
+
+    @Override
+    public boolean isOpen() {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  @Test
+  public void testReadFully() throws IOException {
+    byte[] data = "Hello World".getBytes(StandardCharsets.UTF_8);
+    ReadableByteChannel chan = new PickyReadChannel(new ByteArrayInputStream(data));
+
+    ByteBuffer buffer = ByteBuffer.allocate(data.length);
+    TFRecordCodec.readFully(chan, buffer);
+
+    assertArrayEquals(data, buffer.array());
+  }
+
+  @Test
+  public void testReadFullyFail() throws IOException {
+    byte[] trunc = "Hello Wo".getBytes(StandardCharsets.UTF_8);
+    ReadableByteChannel chan = new PickyReadChannel(new ByteArrayInputStream(trunc));
+    ByteBuffer buffer = ByteBuffer.allocate(trunc.length + 1);
+
+    expectedException.expect(IOException.class);
+    expectedException.expectMessage("expected 9, but got 8");
+    TFRecordCodec.readFully(chan, buffer);
+  }
+
+  @Test
+  public void testWriteFully() throws IOException {
+    byte[] data = "Hello World".getBytes(StandardCharsets.UTF_8);
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    WritableByteChannel chan = new PickyWriteChannel(baos);
+
+    ByteBuffer buffer = ByteBuffer.wrap(data);
+    TFRecordCodec.writeFully(chan, buffer);
+
+    assertArrayEquals(data, baos.toByteArray());
+  }
+
+  @Test
+  public void testTFRecordCodec() throws IOException {
+    Decoder b64 = Base64.getDecoder();
+    TFRecordCodec codec = new TFRecordCodec();
+
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    PickyWriteChannel outChan = new PickyWriteChannel(baos);
+
+    codec.write(outChan, "foo".getBytes(StandardCharsets.UTF_8));
+    assertArrayEquals(b64.decode(FOO_RECORD_BASE64), baos.toByteArray());
+    codec.write(outChan, "bar".getBytes(StandardCharsets.UTF_8));
+    assertArrayEquals(b64.decode(FOO_BAR_RECORD_BASE64), baos.toByteArray());
+
+    PickyReadChannel inChan = new PickyReadChannel(new ByteArrayInputStream(baos.toByteArray()));
+    byte[] foo = codec.read(inChan);
+    byte[] bar = codec.read(inChan);
+    assertNull(codec.read(inChan));
+
+    assertEquals("foo", new String(foo, StandardCharsets.UTF_8));
+    assertEquals("bar", new String(bar, StandardCharsets.UTF_8));
   }
 }

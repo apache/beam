@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 var registry = make(map[string]func(context.Context) Interface)
@@ -41,7 +43,7 @@ func New(ctx context.Context, path string) (Interface, error) {
 	scheme := getScheme(path)
 	mkfs, ok := registry[scheme]
 	if !ok {
-		return nil, fmt.Errorf("file system scheme %v not registered for %v", scheme, path)
+		return nil, errors.Errorf("file system scheme %v not registered for %v", scheme, path)
 	}
 	return mkfs(ctx), nil
 }
@@ -59,6 +61,8 @@ type Interface interface {
 	// OpenRead opens a file for writing. If the file already exist, it will be
 	// overwritten.
 	OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error)
+	// Size returns the size of a file in bytes.
+	Size(ctx context.Context, filename string) (int64, error)
 }
 
 func getScheme(path string) string {

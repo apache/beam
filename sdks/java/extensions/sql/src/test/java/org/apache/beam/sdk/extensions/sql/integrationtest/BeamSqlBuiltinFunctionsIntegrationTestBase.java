@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
+import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -35,8 +34,9 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -45,18 +45,21 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
 import org.junit.Rule;
 
 /** Base class for all built-in functions integration tests. */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
+  private static final double PRECISION_DOUBLE = 1e-7;
+  private static final float PRECISION_FLOAT = 1e-7f;
 
   private static final Map<Class, TypeName> JAVA_CLASS_TO_TYPENAME =
       ImmutableMap.<Class, TypeName>builder()
@@ -70,6 +73,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           .put(String.class, TypeName.STRING)
           .put(DateTime.class, TypeName.DATETIME)
           .put(Boolean.class, TypeName.BOOLEAN)
+          .put(byte[].class, TypeName.BYTES)
           .build();
 
   private static final Schema ROW_TYPE =
@@ -88,13 +92,33 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           .addInt64Field("c_bigint_max")
           .build();
 
+  private static final Schema ROW_TYPE_TWO =
+      Schema.builder()
+          .addNullableField("ts", FieldType.DATETIME)
+          .addNullableField("c_tinyint", FieldType.BYTE)
+          .addNullableField("c_smallint", FieldType.INT16)
+          .addNullableField("c_integer", FieldType.INT32)
+          .addNullableField("c_integer_two", FieldType.INT32)
+          .addNullableField("c_bigint", FieldType.INT64)
+          .addNullableField("c_float", FieldType.FLOAT)
+          .addNullableField("c_double", FieldType.DOUBLE)
+          .addNullableField("c_double_two", FieldType.DOUBLE)
+          .addNullableField("c_decimal", FieldType.DECIMAL)
+          .build();
+
+  private static final Schema ROW_TYPE_THREE =
+      Schema.builder()
+          .addField("ts", FieldType.DATETIME)
+          .addField("c_double", FieldType.DOUBLE)
+          .build();
+
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   protected PCollection<Row> getTestPCollection() {
     try {
-      return MockedBoundedTable.of(ROW_TYPE)
+      return TestBoundedTable.of(ROW_TYPE)
           .addRows(
-              parseDate("1986-02-15 11:35:26"),
+              parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"),
               (byte) 1,
               (short) 1,
               1,
@@ -113,8 +137,59 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     }
   }
 
-  protected static DateTime parseDate(String str) {
-    return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
+  protected PCollection<Row> getFloorCeilingTestPCollection() {
+    try {
+      return TestBoundedTable.of(ROW_TYPE_THREE)
+          .addRows(parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"), 1.4)
+          .buildIOReader(pipeline.begin())
+          .setRowSchema(ROW_TYPE_THREE);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  protected PCollection<Row> getAggregationTestPCollection() {
+    try {
+      return TestBoundedTable.of(ROW_TYPE_TWO)
+          .addRows(
+              parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"),
+              (byte) 1,
+              (short) 1,
+              1,
+              5,
+              1L,
+              1.0f,
+              1.0,
+              7.0,
+              BigDecimal.valueOf(1.0))
+          .addRows(
+              parseTimestampWithUTCTimeZone("1986-03-15 11:35:26"),
+              (byte) 2,
+              (short) 2,
+              2,
+              6,
+              2L,
+              2.0f,
+              2.0,
+              8.0,
+              BigDecimal.valueOf(2.0))
+          .addRows(
+              parseTimestampWithUTCTimeZone("1986-04-15 11:35:26"),
+              (byte) 3,
+              (short) 3,
+              3,
+              7,
+              3L,
+              3.0f,
+              3.0,
+              9.0,
+              BigDecimal.valueOf(3.0))
+          .addRows(null, null, null, null, null, null, null, null, null, null)
+          .buildIOReader(pipeline.begin())
+          .setRowSchema(ROW_TYPE_TWO);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @AutoValue
@@ -128,7 +203,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
     abstract String sqlExpr();
 
-    abstract Object expectedResult();
+    abstract @Nullable Object expectedResult();
 
     abstract FieldType resultFieldType();
   }
@@ -152,13 +227,21 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     private transient List<ExpressionTestCase> exps = new ArrayList<>();
 
     public ExpressionChecker addExpr(String expression, Object expectedValue) {
-      // Because of erasure, we can only automatically infer non-parameterized types
       TypeName resultTypeName = JAVA_CLASS_TO_TYPENAME.get(expectedValue.getClass());
       checkArgument(
           resultTypeName != null,
-          "Could not infer a Beam type for %s."
-              + " Parameterized types must be provided explicitly.");
+          String.format(
+              "The type of the expected value '%s' is unknown in 'addExpr(String expression, "
+                  + "Object expectedValue)'. Please use 'addExpr(String expr, Object expected, "
+                  + "FieldType type)' instead and provide the type of the expected object",
+              expectedValue));
       addExpr(expression, expectedValue, FieldType.of(resultTypeName));
+      return this;
+    }
+
+    public ExpressionChecker addExprWithNullExpectedValue(
+        String expression, TypeName resultTypeName) {
+      addExpr(expression, null, FieldType.of(resultTypeName));
       return this;
     }
 
@@ -168,21 +251,39 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       return this;
     }
 
-    /** Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result. */
     public void buildRunAndCheck() {
-      PCollection<Row> inputCollection = getTestPCollection();
+      buildRunAndCheck(getTestPCollection());
+    }
+
+    /** Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result. */
+    public void buildRunAndCheck(PCollection<Row> inputCollection) {
 
       for (ExpressionTestCase testCase : exps) {
         String expression = testCase.sqlExpr();
         Object expectedValue = testCase.expectedResult();
         String sql = String.format("SELECT %s FROM PCOLLECTION", expression);
-        Schema schema = Schema.builder().addField(expression, testCase.resultFieldType()).build();
+        Schema schema;
+        if (expectedValue == null) {
+          schema =
+              Schema.builder().addNullableField(expression, testCase.resultFieldType()).build();
+        } else {
+          schema = Schema.builder().addField(expression, testCase.resultFieldType()).build();
+        }
 
         PCollection<Row> output =
             inputCollection.apply(testCase.toString(), SqlTransform.query(sql));
 
-        PAssert.that(output)
-            .containsInAnyOrder(TestUtils.RowsBuilder.of(schema).addRows(expectedValue).getRows());
+        // For floating point number(Double and Float), it's allowed to have some precision delta,
+        // other types can use regular equality check.
+        if (expectedValue instanceof Double) {
+          PAssert.that(output).satisfies(matchesScalar((double) expectedValue, PRECISION_DOUBLE));
+        } else if (expectedValue instanceof Float) {
+          PAssert.that(output).satisfies(matchesScalar((float) expectedValue, PRECISION_FLOAT));
+        } else {
+          PAssert.that(output)
+              .containsInAnyOrder(
+                  TestUtils.RowsBuilder.of(schema).addRows(expectedValue).getRows());
+        }
       }
 
       inputCollection.getPipeline().run();
@@ -229,7 +330,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
      */
     public void check(Pipeline pipeline) throws Exception {
       checkPTransform(pipeline);
-      checkJdbc();
+      checkJdbc(pipeline.getOptions());
     }
 
     private static final Schema DUMMY_SCHEMA = Schema.builder().addBooleanField("dummy").build();
@@ -246,12 +347,12 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedBoundedTable.of(
+                TestBoundedTable.of(
                         Schema.FieldType.INT32, "id",
                         Schema.FieldType.STRING, "name")
                     .addRows(1, "first")));
 
-    private void checkJdbc() throws Exception {
+    private void checkJdbc(PipelineOptions pipelineOptions) throws Exception {
       // Beam SQL code is only invoked when the calling convention insists on it, so we
       // have to express this as selecting from a Beam table, even though the contents are
       // irrelevant.
@@ -261,8 +362,10 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       //
       // Here we create a Beam table just to force the calling convention.
       TestTableProvider tableProvider = new TestTableProvider();
-      Connection connection = JdbcDriver.connect(tableProvider);
-      connection.createStatement().executeUpdate("CREATE TABLE dummy (dummy BOOLEAN) TYPE 'test'");
+      Connection connection = JdbcDriver.connect(tableProvider, pipelineOptions);
+      connection
+          .createStatement()
+          .executeUpdate("CREATE EXTERNAL TABLE dummy (dummy BOOLEAN) TYPE 'test'");
       tableProvider.addRows("dummy", DUMMY_ROW);
 
       for (String expr : exprs) {
@@ -286,12 +389,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       public PDone expand(PBegin begin) {
         PCollection<Boolean> result =
             begin
-                .apply(
-                    Create.of(DUMMY_ROW)
-                        .withSchema(
-                            DUMMY_SCHEMA,
-                            SerializableFunctions.identity(),
-                            SerializableFunctions.identity()))
+                .apply(Create.of(DUMMY_ROW).withRowSchema(DUMMY_SCHEMA))
                 .apply(SqlTransform.query("SELECT " + expr))
                 .apply(MapElements.into(TypeDescriptors.booleans()).via(row -> row.getBoolean(0)));
 

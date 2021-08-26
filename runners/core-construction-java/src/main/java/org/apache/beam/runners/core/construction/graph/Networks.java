@@ -17,19 +17,10 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
-import com.google.common.graph.ElementOrder;
-import com.google.common.graph.EndpointPair;
-import com.google.common.graph.Graphs;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
-import com.google.common.graph.NetworkBuilder;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -42,8 +33,22 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.ElementOrder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.EndpointPair;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Graphs;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.NetworkBuilder;
 
 /** Static utility methods for {@link Network} instances that are directed. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Networks {
   /**
    * An abstract class that can be extended to apply a function in a type safe manner.
@@ -208,11 +213,14 @@ public class Networks {
     //
     // The only edges that are ignored by the algorithm are back edges.
     // The algorithm (while there are still nodes in the graph):
-    //   1) Removes all sinks from the graph adding them to the beginning of "s2". Continue to do this till there
+    //   1) Removes all sinks from the graph adding them to the beginning of "s2". Continue to do
+    // this till there
     //      are no more sinks.
-    //   2) Removes all source from the graph adding them to the end of "s1". Continue to do this till there
+    //   2) Removes all source from the graph adding them to the end of "s1". Continue to do this
+    // till there
     //      are no more sources.
-    //   3) Remote a single node with the highest delta within the graph and add it to the end of "s1".
+    //   3) Remote a single node with the highest delta within the graph and add it to the end of
+    // "s1".
     //
     // The topological order is then the s1 concatenated with s2.
 
@@ -221,8 +229,11 @@ public class Networks {
 
     Ordering<NodeT> maximumOrdering =
         new Ordering<NodeT>() {
+          @SuppressFBWarnings(
+              value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+              justification = "https://github.com/google/guava/issues/920")
           @Override
-          public int compare(NodeT t0, NodeT t1) {
+          public int compare(@Nonnull NodeT t0, @Nonnull NodeT t1) {
             return (network.outDegree(t0) - network.inDegree(t0))
                 - (network.outDegree(t1) - network.inDegree(t1));
           }

@@ -18,21 +18,21 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.apache.beam.sdk.values.Row.toRow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableMap;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -43,14 +43,17 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.jdbc.CalciteConnection;
-import org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.ReadableInstant;
@@ -82,7 +85,7 @@ public class JdbcDriverTest {
           "test",
           ImmutableMap.of(
               "test",
-              MockedBoundedTable.of(
+              TestBoundedTable.of(
                       Schema.FieldType.INT32, "id",
                       Schema.FieldType.STRING, "name")
                   .addRows(1, "first")));
@@ -117,6 +120,17 @@ public class JdbcDriverTest {
         (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
     Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
     assertThat(pipelineOptions.get("userAgent"), containsString("BeamSQL"));
+  }
+
+  /** Tests that userAgent is set. */
+  @Test
+  public void testDriverManager_hasUserAgent() throws Exception {
+    JdbcConnection connection =
+        (JdbcConnection) DriverManager.getConnection(JdbcDriver.CONNECT_STRING_PREFIX);
+    BeamCalciteSchema schema = connection.getCurrentBeamSchema();
+    assertThat(
+        schema.getPipelineOptions().get("userAgent"),
+        equalTo("BeamSQL/" + ReleaseInfo.getReleaseInfo().getVersion()));
   }
 
   /** Tests that userAgent can be overridden on the querystring. */
@@ -164,9 +178,9 @@ public class JdbcDriverTest {
     ResultSet resultSet = metadata.getTables(null, null, null, new String[] {"TABLE"});
     assertFalse(resultSet.next());
 
-    // Create tables
+    // create external tables
     Statement statement = connection.createStatement();
-    assertEquals(0, statement.executeUpdate("CREATE TABLE test (id INTEGER) TYPE 'text'"));
+    assertEquals(0, statement.executeUpdate("CREATE EXTERNAL TABLE test (id INTEGER) TYPE 'text'"));
 
     // Ensure table test
     resultSet = metadata.getTables(null, null, null, new String[] {"TABLE"});
@@ -174,7 +188,6 @@ public class JdbcDriverTest {
     assertEquals("test", resultSet.getString("TABLE_NAME"));
     assertFalse(resultSet.next());
 
-    // Create tables
     assertEquals(0, statement.executeUpdate("DROP TABLE test"));
 
     // Ensure no tables
@@ -185,11 +198,11 @@ public class JdbcDriverTest {
   @Test
   public void testSelectsFromExistingTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider);
+    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
 
     connection
         .createStatement()
-        .executeUpdate("CREATE TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
+        .executeUpdate("CREATE EXTERNAL TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
 
     tableProvider.addRows("person", row(1L, "aaa"), row(2L, "bbb"));
 
@@ -197,8 +210,7 @@ public class JdbcDriverTest {
         connection.createStatement().executeQuery("SELECT id, name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 
@@ -208,11 +220,13 @@ public class JdbcDriverTest {
   @Test
   public void testTimestampWithDefaultTimezone() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider);
+    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
 
     // A table with one TIMESTAMP column
     Schema schema = Schema.builder().addDateTimeField("ts").build();
-    connection.createStatement().executeUpdate("CREATE TABLE test (ts TIMESTAMP) TYPE 'test'");
+    connection
+        .createStatement()
+        .executeUpdate("CREATE EXTERNAL TABLE test (ts TIMESTAMP) TYPE 'test'");
 
     ReadableInstant july1 =
         ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
@@ -237,11 +251,13 @@ public class JdbcDriverTest {
   public void testTimestampWithNonzeroTimezone() throws Exception {
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Tokyo"), Locale.ROOT);
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider);
+    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
 
     // A table with one TIMESTAMP column
     Schema schema = Schema.builder().addDateTimeField("ts").build();
-    connection.createStatement().executeUpdate("CREATE TABLE test (ts TIMESTAMP) TYPE 'test'");
+    connection
+        .createStatement()
+        .executeUpdate("CREATE EXTERNAL TABLE test (ts TIMESTAMP) TYPE 'test'");
 
     ReadableInstant july1 =
         ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
@@ -265,11 +281,13 @@ public class JdbcDriverTest {
   public void testTimestampWithZeroTimezone() throws Exception {
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ROOT);
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider);
+    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
 
     // A table with one TIMESTAMP column
     Schema schema = Schema.builder().addDateTimeField("ts").build();
-    connection.createStatement().executeUpdate("CREATE TABLE test (ts TIMESTAMP) TYPE 'test'");
+    connection
+        .createStatement()
+        .executeUpdate("CREATE EXTERNAL TABLE test (ts TIMESTAMP) TYPE 'test'");
 
     ReadableInstant july1 =
         ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
@@ -292,12 +310,12 @@ public class JdbcDriverTest {
   @Test
   public void testSelectsFromExistingComplexTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider);
+    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
 
     connection
         .createStatement()
         .executeUpdate(
-            "CREATE TABLE person ( \n"
+            "CREATE EXTERNAL TABLE person ( \n"
                 + "description VARCHAR, \n"
                 + "nestedRow ROW< \n"
                 + "              id BIGINT, \n"
@@ -316,8 +334,7 @@ public class JdbcDriverTest {
             .executeQuery("SELECT person.nestedRow.id, person.nestedRow.name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 
@@ -327,15 +344,15 @@ public class JdbcDriverTest {
   @Test
   public void testInsertIntoCreatedTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    Connection connection = JdbcDriver.connect(tableProvider);
+    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
 
     connection
         .createStatement()
-        .executeUpdate("CREATE TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
+        .executeUpdate("CREATE EXTERNAL TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
 
     connection
         .createStatement()
-        .executeUpdate("CREATE TABLE person_src (id BIGINT, name VARCHAR) TYPE 'test'");
+        .executeUpdate("CREATE EXTERNAL TABLE person_src (id BIGINT, name VARCHAR) TYPE 'test'");
     tableProvider.addRows("person_src", row(1L, "aaa"), row(2L, "bbb"));
 
     connection.createStatement().execute("INSERT INTO person SELECT id, name FROM person_src");
@@ -344,8 +361,7 @@ public class JdbcDriverTest {
         connection.createStatement().executeQuery("SELECT id, name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(resultValues -> resultValues.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 
@@ -354,7 +370,8 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_boundedTable() throws Exception {
-    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    CalciteConnection connection =
+        JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
     Statement statement = connection.createStatement();
     ResultSet resultSet = statement.executeQuery("SELECT * FROM test");
     assertTrue(resultSet.next());
@@ -370,14 +387,15 @@ public class JdbcDriverTest {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedBoundedTable.of(
+                TestBoundedTable.of(
                         Schema.FieldType.INT32, "id",
                         Schema.FieldType.STRING, "name")
                     .addRows(1, "first")
                     .addRows(1, "second first")
                     .addRows(2, "second")));
 
-    CalciteConnection connection = JdbcDriver.connect(tableProvider);
+    CalciteConnection connection =
+        JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
     Statement statement = connection.createStatement();
     ResultSet resultSet1 = statement.executeQuery("SELECT * FROM test LIMIT 5");
     assertTrue(resultSet1.next());
@@ -409,7 +427,7 @@ public class JdbcDriverTest {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedUnboundedTable.of(
+                TestUnboundedTable.of(
                         Schema.FieldType.INT32, "order_id",
                         Schema.FieldType.INT32, "site_id",
                         Schema.FieldType.INT32, "price",
@@ -417,7 +435,8 @@ public class JdbcDriverTest {
                     .timestampColumnIndex(3)
                     .addRows(Duration.ZERO, 1, 1, 1, FIRST_DATE, 1, 2, 6, FIRST_DATE)));
 
-    CalciteConnection connection = JdbcDriver.connect(tableProvider);
+    CalciteConnection connection =
+        JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
     Statement statement = connection.createStatement();
 
     ResultSet resultSet1 = statement.executeQuery("SELECT * FROM test LIMIT 1");
@@ -455,7 +474,8 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_setDirectRunner() throws Exception {
-    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    CalciteConnection connection =
+        JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
     Statement statement = connection.createStatement();
     assertEquals(0, statement.executeUpdate("SET runner = direct"));
     assertTrue(statement.execute("SELECT * FROM test"));
@@ -465,7 +485,8 @@ public class JdbcDriverTest {
   public void testInternalConnect_setBogusRunner() throws Exception {
     thrown.expectMessage("Unknown 'runner' specified 'bogus'");
 
-    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    CalciteConnection connection =
+        JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
     Statement statement = connection.createStatement();
     assertEquals(0, statement.executeUpdate("SET runner = bogus"));
     assertTrue(statement.execute("SELECT * FROM test"));
@@ -473,10 +494,19 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_resetAll() throws Exception {
-    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    CalciteConnection connection =
+        JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
     Statement statement = connection.createStatement();
     assertEquals(0, statement.executeUpdate("SET runner = bogus"));
     assertEquals(0, statement.executeUpdate("RESET ALL"));
     assertTrue(statement.execute("SELECT * FROM test"));
+  }
+
+  @Test
+  public void testInternalConnect_driverManagerDifferentProtocol() throws Exception {
+    thrown.expect(SQLException.class);
+    thrown.expectMessage("No suitable driver found");
+
+    DriverManager.getConnection("jdbc:baaaaaad");
   }
 }

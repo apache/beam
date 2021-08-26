@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.common.base.Throwables;
-import com.google.common.io.BaseEncoding;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -29,8 +27,13 @@ import java.lang.reflect.ParameterizedType;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 
 /** Utilities for working with Coders. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class CoderUtils {
   private CoderUtils() {} // Non-instantiable
 
@@ -164,11 +167,13 @@ public final class CoderUtils {
    * If {@code coderType} is a subclass of {@code Coder<T>} for a specific type {@code T}, returns
    * {@code T.class}.
    */
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
+  })
   public static TypeDescriptor getCodedType(TypeDescriptor coderDescriptor) {
     ParameterizedType coderType =
         (ParameterizedType) coderDescriptor.getSupertype(Coder.class).getType();
-    TypeDescriptor codedType = TypeDescriptor.of(coderType.getActualTypeArguments()[0]);
-    return codedType;
+    return TypeDescriptor.of(coderType.getActualTypeArguments()[0]);
   }
 }

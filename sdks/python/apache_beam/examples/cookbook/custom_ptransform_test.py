@@ -17,7 +17,7 @@
 
 """Tests for the various custom Count implementation examples."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
 import logging
 import unittest
@@ -30,7 +30,6 @@ from apache_beam.testing.util import equal_to
 
 
 class CustomCountTest(unittest.TestCase):
-
   def test_count1(self):
     self.run_pipeline(custom_ptransform.Count1())
 

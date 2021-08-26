@@ -17,41 +17,54 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.jms.Message;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Checkpoint for an unbounded JmsIO.Read. Consists of JMS destination name, and the latest message
- * ID consumed so far.
+ * Checkpoint for an unbounded JMS source. Consists of the JMS messages waiting to be acknowledged
+ * and oldest pending message timestamp.
  */
-@DefaultCoder(AvroCoder.class)
-public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
+class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
-  private final List<Message> messages = new ArrayList<>();
-  private Instant oldestPendingTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+  private static final Logger LOG = LoggerFactory.getLogger(JmsCheckpointMark.class);
 
-  public JmsCheckpointMark() {}
+  private Instant oldestMessageTimestamp = Instant.now();
+  private transient List<Message> messages = new ArrayList<>();
 
-  protected List<Message> getMessages() {
-    return this.messages;
-  }
+  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
-  protected void addMessage(Message message) throws Exception {
-    Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
-    if (currentMessageTimestamp.isBefore(oldestPendingTimestamp)) {
-      oldestPendingTimestamp = currentMessageTimestamp;
+  JmsCheckpointMark() {}
+
+  void add(Message message) throws Exception {
+    lock.writeLock().lock();
+    try {
+      Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
+      if (currentMessageTimestamp.isBefore(oldestMessageTimestamp)) {
+        oldestMessageTimestamp = currentMessageTimestamp;
+      }
+      messages.add(message);
+    } finally {
+      lock.writeLock().unlock();
     }
-    messages.add(message);
   }
 
-  protected Instant getOldestPendingTimestamp() {
-    return oldestPendingTimestamp;
+  Instant getOldestMessageTimestamp() {
+    lock.readLock().lock();
+    try {
+      return this.oldestMessageTimestamp;
+    } finally {
+      lock.readLock().unlock();
+    }
   }
 
   /**
@@ -61,17 +74,46 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
    */
   @Override
   public void finalizeCheckpoint() {
-    for (Message message : messages) {
-      try {
-        message.acknowledge();
-        Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
-        if (currentMessageTimestamp.isAfter(oldestPendingTimestamp)) {
-          oldestPendingTimestamp = currentMessageTimestamp;
+    lock.writeLock().lock();
+    try {
+      for (Message message : messages) {
+        try {
+          message.acknowledge();
+          Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
+          if (currentMessageTimestamp.isAfter(oldestMessageTimestamp)) {
+            oldestMessageTimestamp = currentMessageTimestamp;
+          }
+        } catch (Exception e) {
+          LOG.error("Exception while finalizing message: ", e);
         }
-      } catch (Exception e) {
-        // nothing to do
       }
+      messages.clear();
+    } finally {
+      lock.writeLock().unlock();
     }
-    messages.clear();
+  }
+
+  // set an empty list to messages when deserialize
+  private void readObject(java.io.ObjectInputStream stream)
+      throws IOException, ClassNotFoundException {
+    stream.defaultReadObject();
+    messages = new ArrayList<>();
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    JmsCheckpointMark that = (JmsCheckpointMark) o;
+    return oldestMessageTimestamp.equals(that.oldestMessageTimestamp);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(oldestMessageTimestamp);
   }
 }

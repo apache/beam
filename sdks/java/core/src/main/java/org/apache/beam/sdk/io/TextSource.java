@@ -17,22 +17,22 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Implementation detail of {@link TextIO.Read}.
@@ -48,6 +48,9 @@ import org.apache.beam.sdk.options.ValueProvider;
  * representing the beginning of the first record to be decoded.
  */
 @VisibleForTesting
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class TextSource extends FileBasedSource<String> {
   byte[] delimiter;
 
@@ -87,6 +90,8 @@ class TextSource extends FileBasedSource<String> {
   @VisibleForTesting
   static class TextBasedReader extends FileBasedReader<String> {
     private static final int READ_BUFFER_SIZE = 8192;
+    private static final ByteString UTF8_BOM =
+        ByteString.copyFrom(new byte[] {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF});
     private final ByteBuffer readBuffer = ByteBuffer.allocate(READ_BUFFER_SIZE);
     private ByteString buffer;
     private int startOfDelimiterInBuffer;
@@ -97,7 +102,7 @@ class TextSource extends FileBasedSource<String> {
     private volatile boolean elementIsPresent;
     private @Nullable String currentValue;
     private @Nullable ReadableByteChannel inChannel;
-    private @Nullable byte[] delimiter;
+    private byte @Nullable [] delimiter;
 
     private TextBasedReader(TextSource source, byte[] delimiter) {
       super(source);
@@ -251,6 +256,10 @@ class TextSource extends FileBasedSource<String> {
      */
     private void decodeCurrentElement() throws IOException {
       ByteString dataToDecode = buffer.substring(0, startOfDelimiterInBuffer);
+      // If present, the UTF8 Byte Order Mark (BOM) will be removed.
+      if (startOfRecord == 0 && dataToDecode.startsWith(UTF8_BOM)) {
+        dataToDecode = dataToDecode.substring(UTF8_BOM.size());
+      }
       currentValue = dataToDecode.toStringUtf8();
       elementIsPresent = true;
       buffer = buffer.substring(endOfDelimiterInBuffer);

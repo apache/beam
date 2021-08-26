@@ -14,13 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """GCS file system implementation for accessing files on GCS."""
 
-from __future__ import absolute_import
+# pytype: skip-file
 
-from builtins import zip
-
-from future.utils import iteritems
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -97,7 +96,7 @@ class GCSFileSystem(FileSystem):
       path: string path of the directory structure that should be created
 
     Raises:
-      IOError if leaf directory already exists.
+      IOError: if leaf directory already exists.
     """
     pass
 
@@ -118,16 +117,20 @@ class GCSFileSystem(FileSystem):
       Generator of ``FileMetadata`` objects.
 
     Raises:
-      ``BeamIOError`` if listing fails, but not if no files were found.
+      ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, size in iteritems(gcsio.GcsIO().list_prefix(dir_or_prefix)):
+      for path, size in gcsio.GcsIO().list_prefix(dir_or_prefix).items():
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
-  def _path_open(self, path, mode, mime_type='application/octet-stream',
-                 compression_type=CompressionTypes.AUTO):
+  def _path_open(
+      self,
+      path,
+      mode,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     """Helper functions to open a file in the provided mode.
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
@@ -137,8 +140,13 @@ class GCSFileSystem(FileSystem):
       return raw_file
     return CompressedFile(raw_file, compression_type=compression_type)
 
-  def create(self, path, mime_type='application/octet-stream',
-             compression_type=CompressionTypes.AUTO):
+  def create(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
+
     """Returns a write channel for the given file path.
 
     Args:
@@ -150,8 +158,13 @@ class GCSFileSystem(FileSystem):
     """
     return self._path_open(path, 'wb', mime_type, compression_type)
 
-  def open(self, path, mime_type='application/octet-stream',
-           compression_type=CompressionTypes.AUTO):
+  def open(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
+
     """Returns a read channel for the given file path.
 
     Args:
@@ -171,10 +184,11 @@ class GCSFileSystem(FileSystem):
       destination_file_names: list of destination of the new object
 
     Raises:
-      ``BeamIOError`` if any of the copy operations fail
+      ``BeamIOError``: if any of the copy operations fail
     """
-    err_msg = ("source_file_names and destination_file_names should "
-               "be equal in length")
+    err_msg = (
+        "source_file_names and destination_file_names should "
+        "be equal in length")
     assert len(source_file_names) == len(destination_file_names), err_msg
 
     def _copy_path(source, destination):
@@ -207,10 +221,11 @@ class GCSFileSystem(FileSystem):
       destination_file_names: List of destination_file_names for the files
 
     Raises:
-      ``BeamIOError`` if any of the rename operations fail
+      ``BeamIOError``: if any of the rename operations fail
     """
-    err_msg = ("source_file_names and destination_file_names should "
-               "be equal in length")
+    err_msg = (
+        "source_file_names and destination_file_names should "
+        "be equal in length")
     assert len(source_file_names) == len(destination_file_names), err_msg
 
     gcs_batches = []
@@ -262,9 +277,22 @@ class GCSFileSystem(FileSystem):
     Returns: int size of path according to the FileSystem.
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     return gcsio.GcsIO().size(path)
+
+  def last_updated(self, path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+
+    Args:
+      path: string path of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError``: if path doesn't exist.
+    """
+    return gcsio.GcsIO().last_updated(path)
 
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
@@ -276,7 +304,7 @@ class GCSFileSystem(FileSystem):
     Returns: string containing checksum
 
     Raises:
-      ``BeamIOError`` if path isn't a file or doesn't exist.
+      ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
       return gcsio.GcsIO().checksum(path)

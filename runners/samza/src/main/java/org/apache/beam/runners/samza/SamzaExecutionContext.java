@@ -15,14 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza;
 
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
+import org.apache.samza.context.ApplicationContainerContext;
+import org.apache.samza.context.ApplicationContainerContextFactory;
+import org.apache.samza.context.ContainerContext;
+import org.apache.samza.context.ExternalContext;
+import org.apache.samza.context.JobContext;
+import org.apache.samza.metrics.MetricsRegistryMap;
 
 /** Runtime context for the Samza runner. */
-public class SamzaExecutionContext {
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
+public class SamzaExecutionContext implements ApplicationContainerContext {
+
+  private final SamzaPipelineOptions options;
   private SamzaMetricsContainer metricsContainer;
+
+  public SamzaExecutionContext(SamzaPipelineOptions options) {
+    this.options = options;
+  }
+
+  public SamzaPipelineOptions getPipelineOptions() {
+    return options;
+  }
 
   public SamzaMetricsContainer getMetricsContainer() {
     return this.metricsContainer;
@@ -30,5 +48,25 @@ public class SamzaExecutionContext {
 
   void setMetricsContainer(SamzaMetricsContainer metricsContainer) {
     this.metricsContainer = metricsContainer;
+  }
+
+  @Override
+  public void start() {}
+
+  @Override
+  public void stop() {}
+
+  /** The factory to return this {@link SamzaExecutionContext}. */
+  public class Factory implements ApplicationContainerContextFactory<SamzaExecutionContext> {
+
+    @Override
+    public SamzaExecutionContext create(
+        ExternalContext externalContext, JobContext jobContext, ContainerContext containerContext) {
+
+      final MetricsRegistryMap metricsRegistry =
+          (MetricsRegistryMap) containerContext.getContainerMetricsRegistry();
+      SamzaExecutionContext.this.setMetricsContainer(new SamzaMetricsContainer(metricsRegistry));
+      return SamzaExecutionContext.this;
+    }
   }
 }

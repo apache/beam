@@ -17,43 +17,81 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import InfluxDBCredentialsHelper
 
-// This job runs the Beam Python performance tests on PerfKit Benchmarker.
-job('beam_PerformanceTests_Python'){
-  // Set default Beam job properties.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-  // Run job in postcommit every 6 hours, don't trigger every push.
-  commonJobProperties.setAutoJob(
-      delegate,
-      'H */6 * * *')
+// Common pipeline args for Dataflow job.
+def dataflowPipelineArgs = [
+  project         : 'apache-beam-testing',
+  region          : 'us-central1',
+  staging_location: 'gs://temp-storage-for-end-to-end-tests/staging-it',
+  temp_location   : 'gs://temp-storage-for-end-to-end-tests/temp-it',
+]
 
-  // Allows triggering this build against pull requests.
-  commonJobProperties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Python SDK Performance Test',
-      'Run Python Performance Test')
+testConfigurations = []
+pythonVersions = ['37']
 
-  def pipelineArgs = [
-      project: 'apache-beam-testing',
-      staging_location: 'gs://temp-storage-for-end-to-end-tests/staging-it',
-      temp_location: 'gs://temp-storage-for-end-to-end-tests/temp-it',
-      output: 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output'
-  ]
-  def pipelineArgList = []
-  pipelineArgs.each({
-    key, value -> pipelineArgList.add("--$key=$value")
-  })
-  def pipelineArgsJoined = pipelineArgList.join(',')
+for (pythonVersion in pythonVersions) {
+  testConfigurations.add([
+    jobName           : "beam_PerformanceTests_WordCountIT_Py${pythonVersion}",
+    jobDescription    : "Python SDK Performance Test - Run WordCountIT in Py${pythonVersion} with 1Gb files",
+    jobTriggerPhrase  : "Run Python${pythonVersion} WordCountIT Performance Test",
+    test              : "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
+    gradleTaskName    : ":sdks:python:test-suites:dataflow:py${pythonVersion}:runPerformanceTest",
+    pipelineOptions   : dataflowPipelineArgs + [
+      job_name             : "performance-tests-wordcount-python${pythonVersion}-batch-1gb${now}",
+      runner               : 'TestDataflowRunner',
+      publish_to_big_query : true,
+      metrics_dataset      : 'beam_performance',
+      metrics_table        : "wordcount_py${pythonVersion}_pkb_results",
+      influx_measurement   : "wordcount_py${pythonVersion}_results",
+      influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+      influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostUrl,
+      input                : "gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*", // 1Gb
+      output               : "gs://temp-storage-for-end-to-end-tests/py-it-cloud/output",
+      expect_checksum      : "ea0ca2e5ee4ea5f218790f28d0b9fe7d09d8d710",
+      num_workers          : '10',
+      autoscaling_algorithm: "NONE",  // Disable autoscale the worker pool.
+    ]
+  ])
+}
 
-  def argMap = [
-      beam_sdk       : 'python',
-      benchmarks     : 'beam_integration_benchmark',
-      bigquery_table : 'beam_performance.wordcount_py_pkb_results',
-      beam_it_class  : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
-      beam_prebuilt  : 'true',  // skip beam prebuild
-      beam_it_args   : pipelineArgsJoined,
-  ]
+for (testConfig in testConfigurations) {
+  createPythonPerformanceTestJob(testConfig)
+}
 
-  commonJobProperties.buildPerformanceTest(delegate, argMap)
+private void createPythonPerformanceTestJob(Map testConfig) {
+  // This job runs the Beam Python performance tests
+  job(testConfig.jobName) {
+    // Set default Beam job properties.
+    commonJobProperties.setTopLevelMainJobProperties(delegate)
+
+    InfluxDBCredentialsHelper.useCredentials(delegate)
+
+    // Run job in postcommit, don't trigger every push.
+    commonJobProperties.setAutoJob(delegate, 'H */6 * * *')
+
+    // Allows triggering this build against pull requests.
+    commonJobProperties.enablePhraseTriggeringFromPullRequest(
+        delegate,
+        testConfig.jobDescription,
+        testConfig.jobTriggerPhrase,
+        )
+
+    publishers {
+      archiveJunit('**/pytest*.xml')
+    }
+
+    steps {
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        switches("--info")
+        switches("-Ptest-pipeline-options=\"${commonJobProperties.mapToArgString(testConfig.pipelineOptions)}\"")
+        switches("-Ptest=${testConfig.test}")
+        tasks(testConfig.gradleTaskName)
+        commonJobProperties.setGradleSwitches(delegate)
+      }
+    }
+  }
 }

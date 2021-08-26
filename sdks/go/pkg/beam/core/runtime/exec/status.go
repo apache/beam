@@ -15,6 +15,8 @@
 
 package exec
 
+import "fmt"
+
 // Status is the status of a unit or plan.
 type Status int
 
@@ -25,3 +27,20 @@ const (
 	Broken
 	Down
 )
+
+func (s Status) String() string {
+	switch s {
+	case Initializing:
+		return "Initialzing"
+	case Up:
+		return "Up"
+	case Active:
+		return "Active"
+	case Broken:
+		return "Broken"
+	case Down:
+		return "Down"
+	default:
+		return fmt.Sprintf("UnknownStatus(%d)", int(s))
+	}
+}

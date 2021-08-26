@@ -15,29 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
-import java.util.List;
-import org.apache.beam.sdk.options.ApplicationNameOptions;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
 
 /**
  * Spark runner {@link PipelineOptions} handles Spark execution-related configurations, such as the
  * master address, batch-interval, and other user-related knobs.
  */
-public interface SparkPipelineOptions
-    extends PipelineOptions, StreamingOptions, ApplicationNameOptions {
-
-  @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
-  @Default.String("local[4]")
-  String getSparkMaster();
-
-  void setSparkMaster(String master);
+public interface SparkPipelineOptions extends SparkCommonPipelineOptions {
 
   @Description("Batch interval for Spark streaming in milliseconds.")
   @Default.Long(500)
@@ -72,25 +61,6 @@ public interface SparkPipelineOptions
   void setReadTimePercentage(Double readTimePercentage);
 
   @Description(
-      "A checkpoint directory for streaming resilience, ignored in batch. "
-          + "For durability, a reliable filesystem such as HDFS/S3/GS is necessary.")
-  @Default.InstanceFactory(TmpCheckpointDirFactory.class)
-  String getCheckpointDir();
-
-  void setCheckpointDir(String checkpointDir);
-
-  /**
-   * Returns the default checkpoint directory of /tmp/${job.name}. For testing purposes only.
-   * Production applications should use a reliable filesystem such as HDFS/S3/GS.
-   */
-  class TmpCheckpointDirFactory implements DefaultValueFactory<String> {
-    @Override
-    public String create(PipelineOptions options) {
-      return "/tmp/" + options.as(SparkPipelineOptions.class).getJobName();
-    }
-  }
-
-  @Description(
       "The period to checkpoint (in Millis). If not set, Spark will default "
           + "to Max(slideDuration, Seconds(10)). This PipelineOptions default (-1) will end-up "
           + "with the described Spark default.")
@@ -99,11 +69,15 @@ public interface SparkPipelineOptions
 
   void setCheckpointDurationMillis(Long durationMillis);
 
-  @Description("Enable/disable sending aggregator values to Spark's metric sinks")
-  @Default.Boolean(true)
-  Boolean getEnableSparkMetricSinks();
+  @Description(
+      "If set bundleSize will be used for splitting BoundedSources, otherwise default to "
+          + "splitting BoundedSources on Spark defaultParallelism. Most effective when used with "
+          + "Spark dynamicAllocation.")
+  @Default.Long(0)
+  Long getBundleSize();
 
-  void setEnableSparkMetricSinks(Boolean enableSparkMetricSinks);
+  @Experimental
+  void setBundleSize(Long value);
 
   @Description(
       "If the spark runner will be initialized with a provided Spark Context. "
@@ -113,17 +87,11 @@ public interface SparkPipelineOptions
 
   void setUsesProvidedSparkContext(boolean value);
 
-  /**
-   * List of local files to make available to workers.
-   *
-   * <p>Jars are placed on the worker's classpath.
-   *
-   * <p>The default value is the list of jars from the main program's classpath.
-   */
   @Description(
-      "Jar-Files to send to all workers and put on the classpath. "
-          + "The default value is all files from the classpath.")
-  List<String> getFilesToStage();
+      "Disable caching of reused PCollections for whole Pipeline."
+          + " It's useful when it's faster to recompute RDD rather than save. ")
+  @Default.Boolean(false)
+  boolean isCacheDisabled();
 
-  void setFilesToStage(List<String> value);
+  void setCacheDisabled(boolean value);
 }

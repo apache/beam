@@ -14,14 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Utils for the io library.
 * CountingSource: Subclass of iobase.BoundedSource. Used
 on transforms.ptransform_test.test_read_metrics.
 """
 
-from __future__ import absolute_import
-
-from builtins import range
+# pytype: skip-file
 
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -29,7 +28,6 @@ from apache_beam.metrics import Metrics
 
 
 class CountingSource(iobase.BoundedSource):
-
   def __init__(self, count):
     self.records_read = Metrics.counter(self.__class__, 'recordsRead')
     self._count = count
@@ -46,24 +44,25 @@ class CountingSource(iobase.BoundedSource):
     return OffsetRangeTracker(start_position, stop_position)
 
   def read(self, range_tracker):
-    for i in range(self._count):
+    for i in range(range_tracker.start_position(),
+                   range_tracker.stop_position()):
       if not range_tracker.try_claim(i):
         return
       self.records_read.inc()
       yield i
 
-  def split(self, desired_bundle_size, start_position=None,
-            stop_position=None):
+  def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if start_position is None:
       start_position = 0
     if stop_position is None:
       stop_position = self._count
 
     bundle_start = start_position
-    while bundle_start < self._count:
-      bundle_stop = max(self._count, bundle_start + desired_bundle_size)
-      yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
-                                source=self,
-                                start_position=bundle_start,
-                                stop_position=bundle_stop)
+    while bundle_start < stop_position:
+      bundle_stop = min(stop_position, bundle_start + desired_bundle_size)
+      yield iobase.SourceBundle(
+          weight=(bundle_stop - bundle_start),
+          source=self,
+          start_position=bundle_start,
+          stop_position=bundle_stop)
       bundle_start = bundle_stop

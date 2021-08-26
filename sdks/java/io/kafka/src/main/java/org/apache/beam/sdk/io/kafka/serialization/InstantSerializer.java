@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.kafka.serialization;
 
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.joda.time.Instant;
@@ -28,6 +29,7 @@ import org.joda.time.Instant;
  *
  * <p>This encodes the number of milliseconds since epoch using {@link LongSerializer}.
  */
+@Experimental(Kind.SOURCE_SINK)
 public class InstantSerializer implements Serializer<Instant> {
   private static final LongSerializer LONG_SERIALIZER = new LongSerializer();
 

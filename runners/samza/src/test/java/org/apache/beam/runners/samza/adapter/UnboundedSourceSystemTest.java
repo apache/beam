@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.adapter;
 
 import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.createElementMessage;
+import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.createEndOfStreamMessage;
 import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.createWatermarkMessage;
 import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.expectWrappedException;
 import static org.junit.Assert.assertEquals;
@@ -49,6 +49,7 @@ import org.apache.samza.system.MessageType;
 import org.apache.samza.system.SystemConsumer;
 import org.apache.samza.system.SystemStreamPartition;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** Tests for {@link UnboundedSourceSystem}. */
@@ -57,6 +58,7 @@ public class UnboundedSourceSystemTest {
   // A reasonable time to wait to get all messages from the source assuming no blocking.
   private static final long DEFAULT_TIMEOUT_MILLIS = 1000;
   private static final long DEFAULT_WATERMARK_TIMEOUT_MILLIS = 1000;
+  private static final String NULL_STRING = null;
 
   private static final SystemStreamPartition DEFAULT_SSP =
       new SystemStreamPartition("default-system", "default-system", new Partition(0));
@@ -87,13 +89,40 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     assertEquals(
         Arrays.asList(
             createElementMessage(
                 DEFAULT_SSP, offset(0), "test", BoundedWindow.TIMESTAMP_MIN_VALUE)),
         consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
+    consumer.stop();
+  }
+
+  @Test
+  public void testMaxWatermarkTriggersEndOfStreamMessage()
+      throws IOException, InterruptedException {
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder()
+            .addElements("test")
+            .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE)
+            .build();
+
+    final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
+        createConsumer(source);
+
+    consumer.register(DEFAULT_SSP, NULL_STRING);
+    consumer.start();
+    List<IncomingMessageEnvelope> actualList =
+        consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS);
+    actualList.addAll(
+        consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
+    assertEquals(
+        Arrays.asList(
+            createElementMessage(DEFAULT_SSP, offset(0), "test", BoundedWindow.TIMESTAMP_MIN_VALUE),
+            createWatermarkMessage(DEFAULT_SSP, BoundedWindow.TIMESTAMP_MAX_VALUE),
+            createEndOfStreamMessage(DEFAULT_SSP)),
+        actualList);
     consumer.stop();
   }
 
@@ -111,7 +140,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     assertEquals(
         Arrays.asList(
@@ -134,7 +163,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     assertEquals(
         Arrays.asList(
@@ -162,7 +191,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     assertEquals(
         Arrays.asList(
@@ -174,6 +203,7 @@ public class UnboundedSourceSystemTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-10521")
   public void testMultipleAdvanceWatermark() throws IOException, InterruptedException {
     final Instant now = Instant.now();
     final Instant nowPlusOne = now.plus(1L);
@@ -194,7 +224,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     // consume to the first watermark
     assertEquals(
@@ -224,7 +254,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     expectWrappedException(
         exception,
@@ -272,7 +302,7 @@ public class UnboundedSourceSystemTest {
     final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
         createConsumer(source);
 
-    consumer.register(DEFAULT_SSP, null);
+    consumer.register(DEFAULT_SSP, NULL_STRING);
     consumer.start();
     assertEquals(
         Collections.singletonList(createElementMessage(DEFAULT_SSP, offset(0), "before", now)),

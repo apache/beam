@@ -18,14 +18,19 @@
 package org.apache.beam.sdk.extensions.sql.example.model;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.schemas.DefaultSchema;
+import java.util.Objects;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Describes a customer. */
 @DefaultSchema(JavaBeanSchema.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Customer implements Serializable {
-  private String name;
   private int id;
+  private String name;
   private String countryOfResidence;
 
   public Customer(int id, String name, String countryOfResidence) {
@@ -36,27 +41,60 @@ public class Customer implements Serializable {
 
   public Customer() {}
 
-  public String getName() {
-    return name;
-  }
-
   public int getId() {
     return id;
+  }
+
+  public String getName() {
+    return name;
   }
 
   public String getCountryOfResidence() {
     return countryOfResidence;
   }
 
-  public void setName(String name) {
-    this.name = name;
-  }
-
   public void setId(int id) {
     this.id = id;
   }
 
+  public void setName(String name) {
+    this.name = name;
+  }
+
   public void setCountryOfResidence(String countryOfResidence) {
     this.countryOfResidence = countryOfResidence;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Customer customer = (Customer) o;
+    return id == customer.id
+        && Objects.equals(name, customer.name)
+        && Objects.equals(countryOfResidence, customer.countryOfResidence);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id, name, countryOfResidence);
+  }
+
+  @Override
+  public String toString() {
+    return "Customer{"
+        + "id="
+        + id
+        + ", name='"
+        + name
+        + '\''
+        + ", countryOfResidence='"
+        + countryOfResidence
+        + '\''
+        + '}';
   }
 }

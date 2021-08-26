@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.testing;
+
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Category tag for validation tests which utilize {@link org.apache.beam.sdk.metrics.Gauge}. Tests
  * tagged with {@link UsesGaugeMetrics} should be run for runners which support gauges.
  */
+@Internal
 public class UsesGaugeMetrics {}

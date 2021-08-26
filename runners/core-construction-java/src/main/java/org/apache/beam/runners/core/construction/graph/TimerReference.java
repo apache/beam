@@ -21,17 +21,16 @@ import com.google.auto.value.AutoValue;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 /**
- * A reference to a timer. This includes the PTransform that references the timer as well as the
- * PCollection referenced. Both are necessary in order to fully resolve a timer.
+ * Contains references to components relevant for runners during execution for timers. The
+ * referenced PTransform specifies the timer specification while the PCollection specifies the
+ * encoding representation.
  */
 @AutoValue
 public abstract class TimerReference {
+
   /** Create a timer reference. */
-  public static TimerReference of(
-      PipelineNode.PTransformNode transform,
-      String localName,
-      PipelineNode.PCollectionNode collection) {
-    return new AutoValue_TimerReference(transform, localName, collection);
+  public static TimerReference of(PipelineNode.PTransformNode transform, String localName) {
+    return new AutoValue_TimerReference(transform, localName);
   }
 
   /** Create a timer reference from a TimerId proto and components. */
@@ -39,19 +38,12 @@ public abstract class TimerReference {
       RunnerApi.ExecutableStagePayload.TimerId timerId, RunnerApi.Components components) {
     String transformId = timerId.getTransformId();
     String localName = timerId.getLocalName();
-    String collectionId = components.getTransformsOrThrow(transformId).getInputsOrThrow(localName);
     RunnerApi.PTransform transform = components.getTransformsOrThrow(transformId);
-    RunnerApi.PCollection collection = components.getPcollectionsOrThrow(collectionId);
-    return of(
-        PipelineNode.pTransform(transformId, transform),
-        localName,
-        PipelineNode.pCollection(collectionId, collection));
+    return of(PipelineNode.pTransform(transformId, transform), localName);
   }
 
   /** The PTransform that uses this timer. */
   public abstract PipelineNode.PTransformNode transform();
   /** The local name the referencing PTransform uses to refer to this timer. */
   public abstract String localName();
-  /** The PCollection that backs this timer. */
-  public abstract PipelineNode.PCollectionNode collection();
 }

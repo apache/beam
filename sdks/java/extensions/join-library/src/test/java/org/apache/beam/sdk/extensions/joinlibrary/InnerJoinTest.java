@@ -33,9 +33,9 @@ import org.junit.Test;
 
 /** This test Inner Join functionality. */
 public class InnerJoinTest {
-  private List<KV<String, Long>> leftListOfKv;
-  private List<KV<String, String>> listRightOfKv;
-  private List<KV<String, KV<Long, String>>> expectedResult;
+  private List<KV<String, Long>> leftListOfKv = new ArrayList<>();
+  private List<KV<String, String>> rightListOfKv = new ArrayList<>();
+  private List<KV<String, KV<Long, String>>> expectedResult = new ArrayList<>();
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
@@ -43,7 +43,7 @@ public class InnerJoinTest {
   public void setup() {
 
     leftListOfKv = new ArrayList<>();
-    listRightOfKv = new ArrayList<>();
+    rightListOfKv = new ArrayList<>();
 
     expectedResult = new ArrayList<>();
   }
@@ -54,10 +54,10 @@ public class InnerJoinTest {
     leftListOfKv.add(KV.of("Key2", 4L));
     PCollection<KV<String, Long>> leftCollection = p.apply("CreateLeft", Create.of(leftListOfKv));
 
-    listRightOfKv.add(KV.of("Key1", "foo"));
-    listRightOfKv.add(KV.of("Key2", "bar"));
+    rightListOfKv.add(KV.of("Key1", "foo"));
+    rightListOfKv.add(KV.of("Key2", "bar"));
     PCollection<KV<String, String>> rightCollection =
-        p.apply("CreateRight", Create.of(listRightOfKv));
+        p.apply("CreateRight", Create.of(rightListOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output =
         Join.innerJoin(leftCollection, rightCollection);
@@ -74,10 +74,10 @@ public class InnerJoinTest {
     leftListOfKv.add(KV.of("Key2", 4L));
     PCollection<KV<String, Long>> leftCollection = p.apply("CreateLeft", Create.of(leftListOfKv));
 
-    listRightOfKv.add(KV.of("Key2", "bar"));
-    listRightOfKv.add(KV.of("Key2", "gazonk"));
+    rightListOfKv.add(KV.of("Key2", "bar"));
+    rightListOfKv.add(KV.of("Key2", "gazonk"));
     PCollection<KV<String, String>> rightCollection =
-        p.apply("CreateRight", Create.of(listRightOfKv));
+        p.apply("CreateRight", Create.of(rightListOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output =
         Join.innerJoin(leftCollection, rightCollection);
@@ -95,9 +95,9 @@ public class InnerJoinTest {
     leftListOfKv.add(KV.of("Key2", 6L));
     PCollection<KV<String, Long>> leftCollection = p.apply("CreateLeft", Create.of(leftListOfKv));
 
-    listRightOfKv.add(KV.of("Key2", "bar"));
+    rightListOfKv.add(KV.of("Key2", "bar"));
     PCollection<KV<String, String>> rightCollection =
-        p.apply("CreateRight", Create.of(listRightOfKv));
+        p.apply("CreateRight", Create.of(rightListOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output =
         Join.innerJoin(leftCollection, rightCollection);
@@ -114,9 +114,9 @@ public class InnerJoinTest {
     leftListOfKv.add(KV.of("Key2", 4L));
     PCollection<KV<String, Long>> leftCollection = p.apply("CreateLeft", Create.of(leftListOfKv));
 
-    listRightOfKv.add(KV.of("Key3", "bar"));
+    rightListOfKv.add(KV.of("Key3", "bar"));
     PCollection<KV<String, String>> rightCollection =
-        p.apply("CreateRight", Create.of(listRightOfKv));
+        p.apply("CreateRight", Create.of(rightListOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output =
         Join.innerJoin(leftCollection, rightCollection);
@@ -125,16 +125,39 @@ public class InnerJoinTest {
     p.run();
   }
 
+  @Test
+  public void testMultipleJoinsInSamePipeline() {
+    leftListOfKv.add(KV.of("Key2", 4L));
+    PCollection<KV<String, Long>> leftCollection = p.apply("CreateLeft", Create.of(leftListOfKv));
+
+    rightListOfKv.add(KV.of("Key2", "bar"));
+    PCollection<KV<String, String>> rightCollection =
+        p.apply("CreateRight", Create.of(rightListOfKv));
+
+    expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
+
+    PCollection<KV<String, KV<Long, String>>> output1 =
+        Join.innerJoin("Join1", leftCollection, rightCollection);
+    PCollection<KV<String, KV<Long, String>>> output2 =
+        Join.innerJoin("Join2", leftCollection, rightCollection);
+    PAssert.that(output1).containsInAnyOrder(expectedResult);
+    PAssert.that(output2).containsInAnyOrder(expectedResult);
+
+    p.run();
+  }
+
+  @SuppressWarnings("nullness")
   @Test(expected = NullPointerException.class)
   public void testJoinLeftCollectionNull() {
     p.enableAbandonedNodeEnforcement(false);
     Join.innerJoin(
         null,
         p.apply(
-            Create.of(listRightOfKv)
+            Create.of(rightListOfKv)
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
   }
 
+  @SuppressWarnings("nullness")
   @Test(expected = NullPointerException.class)
   public void testJoinRightCollectionNull() {
     p.enableAbandonedNodeEnforcement(false);

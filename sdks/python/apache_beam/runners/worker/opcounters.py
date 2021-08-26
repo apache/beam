@@ -20,17 +20,24 @@
 
 """Counters collect the progress of the Worker for reporting to the service."""
 
-from __future__ import absolute_import
-from __future__ import division
+# pytype: skip-file
 
 import math
 import random
-from builtins import hex
-from builtins import object
+import sys
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Optional
 
+from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
+
+if TYPE_CHECKING:
+  from apache_beam.utils import windowed_value
+  from apache_beam.runners.worker.statesampler import StateSampler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -44,7 +51,6 @@ class TransformIOCounter(object):
 
   Some examples of IO can be side inputs, shuffle, or streaming state.
   """
-
   def __init__(self, counter_factory, state_sampler):
     """Create a new IO read counter.
 
@@ -91,7 +97,6 @@ class TransformIOCounter(object):
 
 class NoOpTransformIOCounter(TransformIOCounter):
   """All operations for IO tracking are no-ops."""
-
   def __init__(self):
     super(NoOpTransformIOCounter, self).__init__(None, None)
 
@@ -122,8 +127,12 @@ class SideInputReadCounter(TransformIOCounter):
   not be the only step that spends time reading from this side input.
   """
 
-  def __init__(self, counter_factory, state_sampler, declaring_step,
-               input_index):
+  def __init__(self,
+               counter_factory,
+               state_sampler,  # type: StateSampler
+               declaring_step,
+               input_index
+              ):
     """Create a side input read counter.
 
     Args:
@@ -150,9 +159,7 @@ class SideInputReadCounter(TransformIOCounter):
   def _update_counters_for_requesting_step(self, step_name):
     side_input_id = counters.side_input_id(step_name, self.input_index)
     self.scoped_state = self._state_sampler.scoped_state(
-        self.declaring_step,
-        'read-sideinput',
-        io_target=side_input_id)
+        self.declaring_step, 'read-sideinput', io_target=side_input_id)
     self.bytes_read_counter = self._counter_factory.get_counter(
         CounterName(
             'read-sideinput-byte-count',
@@ -163,7 +170,6 @@ class SideInputReadCounter(TransformIOCounter):
 
 class SumAccumulator(object):
   """Accumulator for collecting byte counts."""
-
   def __init__(self):
     self._value = 0
 
@@ -176,21 +182,31 @@ class SumAccumulator(object):
 
 class OperationCounters(object):
   """The set of basic counters to attach to an Operation."""
-
-  def __init__(self, counter_factory, step_name, coder, output_index):
+  def __init__(
+      self,
+      counter_factory,
+      step_name,  # type: str
+      coder,
+      index,
+      suffix='out',
+      producer_type_hints=None):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
-        '%s-out%s-ElementCount' % (step_name, output_index), Counter.SUM)
+        '%s-%s%s-ElementCount' % (step_name, suffix, index), Counter.SUM)
     self.mean_byte_counter = counter_factory.get_counter(
-        '%s-out%s-MeanByteCount' % (step_name, output_index), Counter.MEAN)
+        '%s-%s%s-MeanByteCount' % (step_name, suffix, index),
+        Counter.BEAM_DISTRIBUTION)
     self.coder_impl = coder.get_impl() if coder else None
-    self.active_accumulator = None
+    self.active_accumulator = None  # type: Optional[SumAccumulator]
+    self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
+    self.output_type_constraints = producer_type_hints or {}
 
   def update_from(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
+
     """Add one value to this counter."""
-    self.element_counter.update(1)
     if self._should_sample():
       self.do_sample(windowed_value)
 
@@ -206,13 +222,34 @@ class OperationCounters(object):
         accumulator.update(size)
       else:
         accumulator.update(inner_coder_impl.estimate_size(value))
+
     return _observable_callback_inner
 
+  def type_check(self, value):
+    # type: (Any, bool) -> None
+    for transform_label, type_constraint_tuple in (
+            self.output_type_constraints.items()):
+      parameter_name, constraint = type_constraint_tuple
+      try:
+        _check_instance_type(constraint, value, parameter_name, verbose=True)
+      except TypeCheckError as e:
+        # TODO: Remove the 'ParDo' prefix for the label name (BEAM-10710)
+        if not transform_label.startswith('ParDo'):
+          transform_label = 'ParDo(%s)' % transform_label
+        error_msg = (
+            'Runtime type violation detected within %s: '
+            '%s' % (transform_label, e))
+        _, _, traceback = sys.exc_info()
+        raise TypeCheckError(error_msg).with_traceback(traceback)
+
   def do_sample(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
+    self.type_check(windowed_value.value)
+
     size, observables = (
         self.coder_impl.get_estimated_size_and_observables(windowed_value))
     if not observables:
-      self.mean_byte_counter.update(size)
+      self.current_size = size
     else:
       self.active_accumulator = SumAccumulator()
       self.active_accumulator.update(size)
@@ -227,7 +264,11 @@ class OperationCounters(object):
     Now that the element has been processed, we ask our accumulator
     for the total and store the result in a counter.
     """
-    if self.active_accumulator is not None:
+    self.element_counter.update(1)
+    if self.current_size is not None:
+      self.mean_byte_counter.update(self.current_size)
+      self.current_size = None
+    elif self.active_accumulator is not None:
       self.mean_byte_counter.update(self.active_accumulator.value())
       self.active_accumulator = None
 
@@ -289,10 +330,13 @@ class OperationCounters(object):
     # is marked as inline in Cython and thus can't be exposed to Python code.
     return self._should_sample()
 
+  def restart_sampling(self):
+    self._sample_counter = 0
+
   def __str__(self):
-    return '<%s [%s]>' % (self.__class__.__name__,
-                          ', '.join([str(x) for x in self.__iter__()]))
+    return '<%s [%s]>' % (
+        self.__class__.__name__, ', '.join([str(x) for x in self.__iter__()]))
 
   def __repr__(self):
-    return '<%s %s at %s>' % (self.__class__.__name__,
-                              [x for x in self.__iter__()], hex(id(self)))
+    return '<%s %s at %s>' % (
+        self.__class__.__name__, [x for x in self.__iter__()], hex(id(self)))

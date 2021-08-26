@@ -16,186 +16,289 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"sync/atomic"
+	"math"
+	"sort"
+	"sync"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // DataSource is a Root execution unit.
 type DataSource struct {
-	UID    UnitID
-	Port   Port
-	Target Target
-	Coder  *coder.Coder
-	Out    Node
+	UID   UnitID
+	SID   StreamID
+	Name  string
+	Coder *coder.Coder
+	Out   Node
+	PCol  PCollection // Handles size metrics. Value instead of pointer so it's initialized by default in tests.
 
-	sid    StreamID
-	source DataReader
-	count  int64
-	start  time.Time
+	source DataManager
+	state  StateReader
+
+	index    int64
+	splitIdx int64
+	start    time.Time
+
+	// su is non-nil if this DataSource feeds directly to a splittable unit,
+	// and receives that splittable unit when it is available for splitting.
+	// While the splittable unit is received, it is blocked from processing
+	// new elements, so it must be sent back through the channel once the
+	// DataSource is finished using it.
+	su chan SplittableUnit
+
+	mu sync.Mutex
 }
 
+// InitSplittable initializes the SplittableUnit channel from the output unit,
+// if it provides one.
+func (n *DataSource) InitSplittable() {
+	if n.Out == nil {
+		return
+	}
+	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok == true {
+		n.su = u.SU
+	}
+}
+
+// ID returns the UnitID for this node.
 func (n *DataSource) ID() UnitID {
 	return n.UID
 }
 
+// Up initializes this datasource.
 func (n *DataSource) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *DataSource) StartBundle(ctx context.Context, id string, data DataManager) error {
-	n.sid = StreamID{Port: n.Port, Target: n.Target, InstID: id}
-	n.source = data
+// StartBundle initializes this datasource for the bundle.
+func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContext) error {
+	n.mu.Lock()
+	n.source = data.Data
+	n.state = data.State
 	n.start = time.Now()
-	atomic.StoreInt64(&n.count, 0)
+	n.index = -1
+	n.splitIdx = math.MaxInt64
+	n.mu.Unlock()
 	return n.Out.StartBundle(ctx, id, data)
 }
 
+// ByteCountReader is a passthrough reader that counts all the bytes read through it.
+// It trusts the nested reader to return accurate byte information.
+type byteCountReader struct {
+	count  *int
+	reader io.ReadCloser
+}
+
+func (r *byteCountReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	*r.count += n
+	return n, err
+}
+
+func (r *byteCountReader) Close() error {
+	return r.reader.Close()
+}
+
+func (r *byteCountReader) reset() int {
+	c := *r.count
+	*r.count = 0
+	return c
+}
+
+// Process opens the data source, reads and decodes data, kicking off element processing.
 func (n *DataSource) Process(ctx context.Context) error {
-	r, err := n.source.OpenRead(ctx, n.sid)
+	r, err := n.source.OpenRead(ctx, n.SID)
 	if err != nil {
 		return err
 	}
 	defer r.Close()
+	n.PCol.resetSize() // initialize the size distribution for this bundle.
+	var byteCount int
+	bcr := byteCountReader{reader: r, count: &byteCount}
 
 	c := coder.SkipW(n.Coder)
 	wc := MakeWindowDecoder(n.Coder.Window)
 
+	var cp ElementDecoder    // Decoder for the primary element or the key in CoGBKs.
+	var cvs []ElementDecoder // Decoders for each value stream in CoGBKs.
+
 	switch {
 	case coder.IsCoGBK(c):
-		ck := MakeElementDecoder(c.Components[0])
-		cv := MakeElementDecoder(c.Components[1])
+		cp = MakeElementDecoder(c.Components[0])
 
-		for {
-			ws, t, err := DecodeWindowedValueHeader(wc, r)
-			if err != nil {
-				if err == io.EOF {
-					return nil
-				}
-				return fmt.Errorf("source failed: %v", err)
-			}
-
-			// Decode key
-
-			key, err := ck.Decode(r)
-			if err != nil {
-				return fmt.Errorf("source decode failed: %v", err)
-			}
-			key.Timestamp = t
-			key.Windows = ws
-
-			// TODO(herohde) 4/30/2017: the State API will be handle re-iterations
-			// and only "small" value streams would be inline. Presumably, that
-			// would entail buffering the whole stream. We do that for now.
-
-			var buf []FullValue
-
-			size, err := coder.DecodeInt32(r)
-			if err != nil {
-				return fmt.Errorf("stream size decoding failed: %v", err)
-			}
-
-			if size > -1 {
-				// Single chunk stream.
-
-				// log.Printf("Fixed size=%v", size)
-				atomic.AddInt64(&n.count, int64(size))
-
-				for i := int32(0); i < size; i++ {
-					value, err := cv.Decode(r)
-					if err != nil {
-						return fmt.Errorf("stream value decode failed: %v", err)
-					}
-					buf = append(buf, value)
-				}
-			} else {
-				// Multi-chunked stream.
-
-				for {
-					chunk, err := coder.DecodeVarUint64(r)
-					if err != nil {
-						return fmt.Errorf("stream chunk size decoding failed: %v", err)
-					}
-
-					// log.Printf("Chunk size=%v", chunk)
-
-					if chunk == 0 {
-						break
-					}
-
-					atomic.AddInt64(&n.count, int64(chunk))
-					for i := uint64(0); i < chunk; i++ {
-						value, err := cv.Decode(r)
-						if err != nil {
-							return fmt.Errorf("stream value decode failed: %v", err)
-						}
-						buf = append(buf, value)
-					}
-				}
-			}
-
-			values := &FixedReStream{Buf: buf}
-			if err := n.Out.ProcessElement(ctx, key, values); err != nil {
-				return err
-			}
-		}
-
+		// TODO(BEAM-490): Support multiple value streams (coder components) with
+		// with CoGBK.
+		cvs = []ElementDecoder{MakeElementDecoder(c.Components[1])}
 	default:
-		ec := MakeElementDecoder(c)
+		cp = MakeElementDecoder(c)
+	}
 
-		for {
-			atomic.AddInt64(&n.count, 1)
-			ws, t, err := DecodeWindowedValueHeader(wc, r)
-			if err != nil {
-				if err == io.EOF {
-					return nil
-				}
-				return fmt.Errorf("source failed: %v", err)
+	for {
+		if n.incrementIndexAndCheckSplit() {
+			return nil
+		}
+		// TODO(lostluck) 2020/02/22: Should we include window headers or just count the element sizes?
+		ws, t, pn, err := DecodeWindowedValueHeader(wc, r)
+		if err != nil {
+			if err == io.EOF {
+				return nil
 			}
+			return errors.Wrap(err, "source failed")
+		}
 
-			elm, err := ec.Decode(r)
+		// Decode key or parallel element.
+		pe, err := cp.Decode(&bcr)
+		if err != nil {
+			return errors.Wrap(err, "source decode failed")
+		}
+		pe.Timestamp = t
+		pe.Windows = ws
+		pe.Pane = pn
+
+		var valReStreams []ReStream
+		for _, cv := range cvs {
+			values, err := n.makeReStream(ctx, pe, cv, &bcr)
 			if err != nil {
-				return fmt.Errorf("source decode failed: %v", err)
-			}
-			elm.Timestamp = t
-			elm.Windows = ws
-
-			// log.Printf("READ: %v %v", elm.Key.Type(), elm.Key.Interface())
-
-			if err := n.Out.ProcessElement(ctx, elm); err != nil {
 				return err
 			}
+			valReStreams = append(valReStreams, values)
 		}
+
+		if err := n.Out.ProcessElement(ctx, pe, valReStreams...); err != nil {
+			return err
+		}
+		// Collect the actual size of the element, and reset the bytecounter reader.
+		n.PCol.addSize(int64(bcr.reset()))
+		bcr.reader = r
 	}
 }
 
+func (n *DataSource) makeReStream(ctx context.Context, key *FullValue, cv ElementDecoder, bcr *byteCountReader) (ReStream, error) {
+	// TODO(lostluck) 2020/02/22: Do we include the chunk size, or just the element sizes?
+	size, err := coder.DecodeInt32(bcr.reader)
+	if err != nil {
+		return nil, errors.Wrap(err, "stream size decoding failed")
+	}
+
+	switch {
+	case size >= 0:
+		// Single chunk streams are fully read in and buffered in memory.
+		buf := make([]FullValue, 0, size)
+		buf, err = readStreamToBuffer(cv, bcr, int64(size), buf)
+		if err != nil {
+			return nil, err
+		}
+		return &FixedReStream{Buf: buf}, nil
+	case size == -1:
+		// Multi-chunked stream.
+		var buf []FullValue
+		for {
+			chunk, err := coder.DecodeVarInt(bcr.reader)
+			if err != nil {
+				return nil, errors.Wrap(err, "stream chunk size decoding failed")
+			}
+			// All done, escape out.
+			switch {
+			case chunk == 0: // End of stream, return buffer.
+				return &FixedReStream{Buf: buf}, nil
+			case chunk > 0: // Non-zero chunk, read that many elements from the stream, and buffer them.
+				chunkBuf := make([]FullValue, 0, chunk)
+				chunkBuf, err = readStreamToBuffer(cv, bcr, chunk, chunkBuf)
+				if err != nil {
+					return nil, err
+				}
+				buf = append(buf, chunkBuf...)
+			case chunk == -1: // State backed iterable!
+				chunk, err := coder.DecodeVarInt(bcr.reader)
+				if err != nil {
+					return nil, err
+				}
+				token, err := ioutilx.ReadN(bcr.reader, (int)(chunk))
+				if err != nil {
+					return nil, err
+				}
+				return &concatReStream{
+					first: &FixedReStream{Buf: buf},
+					next: &proxyReStream{
+						open: func() (Stream, error) {
+							r, err := n.state.OpenIterable(ctx, n.SID, token)
+							if err != nil {
+								return nil, err
+							}
+							// We can't re-use the original bcr, since we may get new iterables,
+							// or multiple of them at the same time, but we can re-use the count itself.
+							r = &byteCountReader{reader: r, count: bcr.count}
+							return &elementStream{r: r, ec: cv}, nil
+						},
+					},
+				}, nil
+			default:
+				return nil, errors.Errorf("multi-chunk stream with invalid chunk size of %d", chunk)
+			}
+		}
+	default:
+		return nil, errors.Errorf("received stream with marker size of %d", size)
+	}
+}
+
+func readStreamToBuffer(cv ElementDecoder, r io.ReadCloser, size int64, buf []FullValue) ([]FullValue, error) {
+	for i := int64(0); i < size; i++ {
+		value, err := cv.Decode(r)
+		if err != nil {
+			return nil, errors.Wrap(err, "stream value decode failed")
+		}
+		buf = append(buf, *value)
+	}
+	return buf, nil
+}
+
+// FinishBundle resets the source.
 func (n *DataSource) FinishBundle(ctx context.Context) error {
-	log.Infof(ctx, "DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
-	n.sid = StreamID{}
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.source = nil
+	n.splitIdx = 0 // Ensure errors are returned for split requests if this plan is re-used.
 	return n.Out.FinishBundle(ctx)
 }
 
+// Down resets the source.
 func (n *DataSource) Down(ctx context.Context) error {
-	n.sid = StreamID{}
 	n.source = nil
 	return nil
 }
 
 func (n *DataSource) String() string {
-	sid := StreamID{Port: n.Port, Target: n.Target}
-	return fmt.Sprintf("DataSource[%v] Coder:%v Out:%v", sid, n.Coder, n.Out.ID())
+	return fmt.Sprintf("DataSource[%v, %v] Coder:%v Out:%v", n.SID, n.Name, n.Coder, n.Out.ID())
+}
+
+// incrementIndexAndCheckSplit increments DataSource.index by one and checks if
+// the caller should abort further element processing, and finish the bundle.
+// Returns true if the new value of index is greater than or equal to the split
+// index, and false otherwise.
+func (n *DataSource) incrementIndexAndCheckSplit() bool {
+	b := false
+	n.mu.Lock()
+	n.index++
+	if n.index >= n.splitIdx {
+		b = true
+	}
+	n.mu.Unlock()
+	return b
 }
 
 // ProgressReportSnapshot captures the progress reading an input source.
 type ProgressReportSnapshot struct {
 	ID, Name string
 	Count    int64
+
+	pcol PCollectionSnapshot
 }
 
 // Progress returns a snapshot of the source's progress.
@@ -203,5 +306,302 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	if n == nil {
 		return ProgressReportSnapshot{}
 	}
-	return ProgressReportSnapshot{n.sid.Target.ID, n.sid.Target.Name, atomic.LoadInt64(&n.count)}
+	n.mu.Lock()
+	pcol := n.PCol.snapshot()
+	// The count is the number of "completely processed elements"
+	// which matches the index of the currently processing element.
+	c := n.index
+	n.mu.Unlock()
+	// Do not sent negative progress reports, index is initialized to 0.
+	if c < 0 {
+		c = 0
+	}
+	pcol.ElementCount = c
+	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol}
+}
+
+// Split takes a sorted set of potential split indices and a fraction of the
+// remainder to split at, selects and actuates a split on an appropriate split
+// index, and returns the selected split index in a SplitResult if successful or
+// an error when unsuccessful.
+//
+// If the following transform is splittable, and the split indices and fraction
+// allow for splitting on the currently processing element, then a sub-element
+// split is performed, and the appropriate information is returned in the
+// SplitResult.
+//
+// The bufSize param specifies the estimated number of elements that will be
+// sent to this DataSource, and is used to be able to perform accurate splits
+// even if the DataSource has not yet received all its elements. A bufSize of
+// 0 or less indicates that its unknown, and so uses the current known size.
+func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitResult, error) {
+	if n == nil {
+		return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, DataSource not initialized", splits)
+	}
+	if frac > 1.0 {
+		frac = 1.0
+	} else if frac < 0.0 {
+		frac = 0.0
+	}
+
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	var currProg float64 // Current element progress.
+	var su SplittableUnit
+	if n.index < 0 { // Progress is at the end of the non-existant -1st element.
+		currProg = 1.0
+	} else if n.su == nil { // If this isn't sub-element splittable, estimate some progress.
+		currProg = 0.5
+	} else { // If this is sub-element splittable, get progress of the current element.
+
+		select {
+		case su = <-n.su:
+			// If an element is processing, we'll get a splittable unit.
+			if su == nil {
+				return SplitResult{}, fmt.Errorf("failed to split: splittable unit was nil")
+			}
+			defer func() {
+				n.su <- su
+			}()
+			currProg = su.GetProgress()
+		case <-time.After(500 * time.Millisecond):
+			// Otherwise, the current element hasn't started processing yet
+			// or has already finished. By adding a short timeout, we avoid
+			// the first possibility, and can assume progress is at max.
+			currProg = 1.0
+		}
+	}
+	// Size to split within is the minimum of bufSize or splitIdx so we avoid
+	// including elements we already know won't be processed.
+	if bufSize <= 0 || n.splitIdx < bufSize {
+		bufSize = n.splitIdx
+	}
+	s, fr, err := splitHelper(n.index, bufSize, currProg, splits, frac, su != nil)
+	if err != nil {
+		return SplitResult{}, err
+	}
+
+	// No fraction returned, perform channel split.
+	if fr < 0 {
+		n.splitIdx = s
+		return SplitResult{PI: s - 1, RI: s}, nil
+	}
+	// Otherwise, perform a sub-element split.
+	ps, rs, err := su.Split(fr)
+	if err != nil {
+		return SplitResult{}, err
+	}
+
+	if len(ps) == 0 || len(rs) == 0 { // Unsuccessful split.
+		// Fallback to channel split, so split at next elm, not current.
+		n.splitIdx = s + 1
+		return SplitResult{PI: s, RI: s + 1}, nil
+	}
+
+	// TODO(BEAM-10579) Eventually encode elements with the splittable
+	// unit's input coder instead of the DataSource's coder.
+	wc := MakeWindowEncoder(n.Coder.Window)
+	ec := MakeElementEncoder(coder.SkipW(n.Coder))
+	encodeElms := func(fvs []*FullValue) ([][]byte, error) {
+		encElms := make([][]byte, len(fvs))
+		for i, fv := range fvs {
+			enc, err := encodeElm(fv, wc, ec)
+			if err != nil {
+				return nil, err
+			}
+			encElms[i] = enc
+		}
+		return encElms, nil
+	}
+
+	psEnc, err := encodeElms(ps)
+	if err != nil {
+		return SplitResult{}, err
+	}
+	rsEnc, err := encodeElms(rs)
+	if err != nil {
+		return SplitResult{}, err
+	}
+	n.splitIdx = s + 1 // In a sub-element split, s is currIdx.
+	res := SplitResult{
+		PI:   s - 1,
+		RI:   s + 1,
+		PS:   psEnc,
+		RS:   rsEnc,
+		TId:  su.GetTransformId(),
+		InId: su.GetInputId(),
+	}
+	return res, nil
+}
+
+// splitHelper is a helper function that finds a split point in a range.
+//
+// currIdx and endIdx should match the DataSource's index and splitIdx fields,
+// and represent the start and end of the splittable range respectively.
+//
+// currProg represents the progress through the current element (currIdx).
+//
+// splits is an optional slice of valid split indices, and if nil then all
+// indices are considered valid split points.
+//
+// frac must be between [0, 1], and represents a fraction of the remaining work
+// that the split point aims to be as close as possible to.
+//
+// splittable indicates that sub-element splitting is possible (i.e. the next
+// unit is an SDF).
+//
+// Returns the element index to split at (first element of residual). If the
+// split position qualifies for sub-element splitting, then this also returns
+// the fraction of remaining work in the current element to use as a split
+// fraction for a sub-element split, and otherwise returns -1.
+//
+// A split point is sub-element splittable iff the split point is the current
+// element, the splittable param is set to true, and both the element being
+// split and the following element are valid split points.
+func splitHelper(
+	currIdx, endIdx int64,
+	currProg float64,
+	splits []int64,
+	frac float64,
+	splittable bool) (int64, float64, error) {
+	// Get split index from fraction. Find the closest index to the fraction of
+	// the remainder.
+	start := float64(currIdx) + currProg
+	safeStart := currIdx + 1 // safeStart avoids splitting at 0, or <= currIdx
+	if safeStart <= 0 {
+		safeStart = 1
+	}
+	var splitFloat = start + frac*(float64(endIdx)-start)
+
+	// Handle simpler cases where all split points are valid first.
+	if len(splits) == 0 {
+		if splittable && int64(splitFloat) == currIdx {
+			// Sub-element splitting is valid.
+			_, f := math.Modf(splitFloat)
+			// Convert from fraction of entire element to fraction of remainder.
+			fr := (f - currProg) / (1.0 - currProg)
+			return int64(splitFloat), fr, nil
+		}
+		// All split points are valid so just split at safe index closest to
+		// fraction.
+		splitIdx := int64(math.Round(splitFloat))
+		if splitIdx < safeStart {
+			splitIdx = safeStart
+		}
+		return splitIdx, -1.0, nil
+	}
+
+	// Cases where we have to find a valid split point.
+	sort.Slice(splits, func(i, j int) bool { return splits[i] < splits[j] })
+	if splittable && int64(splitFloat) == currIdx {
+		// Check valid split points to see if we can do a sub-element split.
+		// We need to find the currIdx and currIdx + 1 for it to be valid.
+		c, cp1 := false, false
+		for _, s := range splits {
+			if s == currIdx {
+				c = true
+			} else if s == currIdx+1 {
+				cp1 = true
+				break
+			} else if s > currIdx+1 {
+				break
+			}
+		}
+		if c && cp1 { // Sub-element splitting is valid.
+			_, f := math.Modf(splitFloat)
+			// Convert from fraction of entire element to fraction of remainder.
+			fr := (f - currProg) / (1.0 - currProg)
+			return int64(splitFloat), fr, nil
+		}
+	}
+
+	// For non-sub-element splitting, find the closest unprocessed split
+	// point to our fraction.
+	var prevDiff = math.MaxFloat64
+	var bestS int64 = -1
+	for _, s := range splits {
+		if s >= safeStart && s <= endIdx {
+			diff := math.Abs(splitFloat - float64(s))
+			if diff <= prevDiff {
+				prevDiff = diff
+				bestS = s
+			} else {
+				break // Stop early if the difference starts increasing.
+			}
+		}
+	}
+	if bestS != -1 {
+		return bestS, -1.0, nil
+	}
+
+	return -1, -1.0, fmt.Errorf("failed to split DataSource (at index: %v) at requested splits: {%v}", currIdx, splits)
+}
+
+func encodeElm(elm *FullValue, wc WindowEncoder, ec ElementEncoder) ([]byte, error) {
+	var b bytes.Buffer
+	if err := EncodeWindowedValueHeader(wc, elm.Windows, elm.Timestamp, elm.Pane, &b); err != nil {
+		return nil, err
+	}
+	if err := ec.Encode(elm, &b); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+type concatReStream struct {
+	first, next ReStream
+}
+
+func (c *concatReStream) Open() (Stream, error) {
+	firstStream, err := c.first.Open()
+	if err != nil {
+		return nil, err
+	}
+	return &concatStream{first: firstStream, nextStream: c.next}, nil
+}
+
+type concatStream struct {
+	first      Stream
+	nextStream ReStream
+}
+
+// Close nils the stream.
+func (s *concatStream) Close() error {
+	if s.first == nil {
+		return nil
+	}
+	defer func() {
+		s.first = nil
+		s.nextStream = nil
+	}()
+	return s.first.Close()
+}
+
+func (s *concatStream) Read() (*FullValue, error) {
+	if s.first == nil { // When the stream is closed.
+		return nil, io.EOF
+	}
+	fv, err := s.first.Read()
+	if err == nil {
+		return fv, nil
+	}
+	if err == io.EOF {
+		if err := s.first.Close(); err != nil {
+			s.nextStream = nil
+			return nil, err
+		}
+		if s.nextStream == nil {
+			s.first = nil
+			return nil, io.EOF
+		}
+		s.first, err = s.nextStream.Open()
+		s.nextStream = nil
+		if err != nil {
+			return nil, err
+		}
+		fv, err := s.first.Read()
+		return fv, err
+	}
+	return nil, err
 }

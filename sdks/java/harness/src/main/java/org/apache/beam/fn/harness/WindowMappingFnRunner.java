@@ -18,26 +18,36 @@
 package org.apache.beam.fn.harness;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
-import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PCollectionViewTranslation;
-import org.apache.beam.sdk.fn.function.ThrowingFunction;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * Maps windows using a window mapping fn. The input is {@link KV} with the key being a nonce and
- * the value being a window, the output must be a {@link KV} with the key being the same nonce as
- * the input and the value being the mapped window.
+ * Represents mapping of main input window onto side input window.
+ *
+ * <p>Side input window mapping function:
+ *
+ * <ul>
+ *   <li>Input: {@code KV<nonce, MainInputWindow>}
+ *   <li>Output: {@code KV<nonce, SideInputWindow>}
+ * </ul>
+ *
+ * <p>For each main input window, the side input window is returned. The nonce is used by a runner
+ * to associate each input with its output. The nonce is represented as an opaque set of bytes.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class WindowMappingFnRunner {
-  static final String URN = BeamUrns.getUrn(StandardPTransforms.Primitives.MAP_WINDOWS);
+  static final String URN = PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN;
 
   /**
    * A registrar which provides a factory to handle mapping main input windows onto side input
@@ -57,8 +67,7 @@ public class WindowMappingFnRunner {
   static <T, W1 extends BoundedWindow, W2 extends BoundedWindow>
       ThrowingFunction<KV<T, W1>, KV<T, W2>> createMapFunctionForPTransform(
           String ptransformId, PTransform pTransform) throws IOException {
-    SdkFunctionSpec windowMappingFnPayload =
-        SdkFunctionSpec.parseFrom(pTransform.getSpec().getPayload());
+    FunctionSpec windowMappingFnPayload = FunctionSpec.parseFrom(pTransform.getSpec().getPayload());
     WindowMappingFn<W2> windowMappingFn =
         (WindowMappingFn<W2>)
             PCollectionViewTranslation.windowMappingFnFromProto(windowMappingFnPayload);

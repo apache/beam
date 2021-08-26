@@ -49,6 +49,7 @@ public final class ConsoleIO {
      * @param <T> the type of the elements in the {@link PCollection}
      */
     public static class Unbound<T> extends PTransform<PCollection<T>, PDone> {
+      public static final String TRANSFORM_URN = "beam:transform:spark:consoleio_write_unbound:v1";
 
       private final int num;
 

@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
@@ -28,6 +27,7 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -44,7 +44,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -69,10 +68,11 @@ public class BatchStatefulParDoOverrides {
    */
   public static <K, InputT, OutputT>
       PTransformOverrideFactory<
-              PCollection<KV<K, InputT>>, PCollection<OutputT>,
+              PCollection<KV<K, InputT>>,
+              PCollection<OutputT>,
               ParDo.SingleOutput<KV<K, InputT>, OutputT>>
-          singleOutputOverrideFactory(DataflowPipelineOptions options) {
-    return new SingleOutputOverrideFactory<>(isFnApi(options));
+          singleOutputOverrideFactory() {
+    return new SingleOutputOverrideFactory<>();
   }
 
   /**
@@ -81,43 +81,37 @@ public class BatchStatefulParDoOverrides {
    */
   public static <K, InputT, OutputT>
       PTransformOverrideFactory<
-              PCollection<KV<K, InputT>>, PCollectionTuple,
+              PCollection<KV<K, InputT>>,
+              PCollectionTuple,
               ParDo.MultiOutput<KV<K, InputT>, OutputT>>
           multiOutputOverrideFactory(DataflowPipelineOptions options) {
-    return new MultiOutputOverrideFactory<>(isFnApi(options));
-  }
-
-  private static boolean isFnApi(DataflowPipelineOptions options) {
-    List<String> experiments = options.getExperiments();
-    return experiments != null && experiments.contains("beam_fn_api");
+    return new MultiOutputOverrideFactory<>();
   }
 
   private static class SingleOutputOverrideFactory<K, InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<KV<K, InputT>>, PCollection<OutputT>,
+          PCollection<KV<K, InputT>>,
+          PCollection<OutputT>,
           ParDo.SingleOutput<KV<K, InputT>, OutputT>> {
 
-    private final boolean isFnApi;
-
-    private SingleOutputOverrideFactory(boolean isFnApi) {
-      this.isFnApi = isFnApi;
-    }
+    private SingleOutputOverrideFactory() {}
 
     @Override
     public PTransformReplacement<PCollection<KV<K, InputT>>, PCollection<OutputT>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<K, InputT>>, PCollection<OutputT>,
+                    PCollection<KV<K, InputT>>,
+                    PCollection<OutputT>,
                     SingleOutput<KV<K, InputT>, OutputT>>
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new StatefulSingleOutputParDo<>(transform.getTransform(), isFnApi));
+          new StatefulSingleOutputParDo<>(transform.getTransform()));
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<OutputT> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<OutputT> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -126,27 +120,24 @@ public class BatchStatefulParDoOverrides {
       implements PTransformOverrideFactory<
           PCollection<KV<K, InputT>>, PCollectionTuple, ParDo.MultiOutput<KV<K, InputT>, OutputT>> {
 
-    private final boolean isFnApi;
-
-    private MultiOutputOverrideFactory(boolean isFnApi) {
-      this.isFnApi = isFnApi;
-    }
+    private MultiOutputOverrideFactory() {}
 
     @Override
     public PTransformReplacement<PCollection<KV<K, InputT>>, PCollectionTuple>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<K, InputT>>, PCollectionTuple,
+                    PCollection<KV<K, InputT>>,
+                    PCollectionTuple,
                     MultiOutput<KV<K, InputT>, OutputT>>
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new StatefulMultiOutputParDo<>(transform.getTransform(), isFnApi));
+          new StatefulMultiOutputParDo<>(transform.getTransform()));
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollectionTuple newOutput) {
       return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
@@ -155,12 +146,9 @@ public class BatchStatefulParDoOverrides {
       extends PTransform<PCollection<KV<K, InputT>>, PCollection<OutputT>> {
 
     private final ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo;
-    private final boolean isFnApi;
 
-    StatefulSingleOutputParDo(
-        ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo, boolean isFnApi) {
+    StatefulSingleOutputParDo(ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo) {
       this.originalParDo = originalParDo;
-      this.isFnApi = isFnApi;
     }
 
     ParDo.SingleOutput<KV<K, InputT>, OutputT> getOriginalParDo() {
@@ -171,15 +159,10 @@ public class BatchStatefulParDoOverrides {
     public PCollection<OutputT> expand(PCollection<KV<K, InputT>> input) {
       DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
-      DataflowRunner.verifyStateSupported(fn);
+      DataflowPipelineOptions options =
+          input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
+      DataflowRunner.verifyDoFnSupported(fn, false, DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
-
-      if (isFnApi) {
-        return input
-            .apply(GroupByKey.create())
-            .apply(ParDo.of(new ExpandGbkFn<>()))
-            .apply(originalParDo);
-      }
 
       PTransform<
               PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
@@ -195,27 +178,19 @@ public class BatchStatefulParDoOverrides {
       extends PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> {
 
     private final ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo;
-    private final boolean isFnApi;
 
-    StatefulMultiOutputParDo(
-        ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo, boolean isFnApi) {
+    StatefulMultiOutputParDo(ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo) {
       this.originalParDo = originalParDo;
-      this.isFnApi = isFnApi;
     }
 
     @Override
     public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
       DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
-      DataflowRunner.verifyStateSupported(fn);
+      DataflowPipelineOptions options =
+          input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
+      DataflowRunner.verifyDoFnSupported(fn, false, DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
-
-      if (isFnApi) {
-        return input
-            .apply(GroupByKey.create())
-            .apply(ParDo.of(new ExpandGbkFn<>()))
-            .apply(originalParDo);
-      }
 
       PTransform<
               PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
@@ -288,20 +263,6 @@ public class BatchStatefulParDoOverrides {
   }
 
   /**
-   * A key preserving {@link DoFn} that expands the output of a GBK {@code KV<K, Iterable<V>>} into
-   * individual KVs.
-   */
-  static class ExpandGbkFn<K, V> extends DoFn<KV<K, Iterable<V>>, KV<K, V>> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      K k = c.element().getKey();
-      for (V v : c.element().getValue()) {
-        c.output(KV.of(k, v));
-      }
-    }
-  }
-
-  /**
    * A key-preserving {@link DoFn} that explodes an iterable that has been grouped by key and
    * window.
    */
@@ -319,8 +280,8 @@ public class BatchStatefulParDoOverrides {
     }
 
     @Setup
-    public void setup() {
-      DoFnInvokers.invokerFor(underlyingDoFn).invokeSetup();
+    public void setup(final PipelineOptions options) {
+      DoFnInvokers.tryInvokeSetupFor(underlyingDoFn, options);
     }
 
     @ProcessElement
