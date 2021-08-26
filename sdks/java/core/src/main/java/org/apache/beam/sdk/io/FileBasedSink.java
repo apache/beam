@@ -507,7 +507,11 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     protected final FileBasedSink<?, DestinationT, OutputT> sink;
 
     /** Directory for temporary output files. */
-    protected final ValueProvider<ResourceId> tempDirectory;
+    private final ValueProvider<ResourceId> tempDirectory;
+    /** Random subdirectory for temporary files if used. */
+    private final ValueProvider<ResourceId> subdirTempDirectory;
+    /** If true, a subdirectory of the temporary directory is used. */
+    private boolean useSubdirTempDirectory;
 
     /** Whether windowed writes are being used. */
     @Experimental(Kind.FILESYSTEM)
@@ -524,16 +528,21 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * Constructs a WriteOperation using the default strategy for generating a temporary directory
      * from the base output filename.
      *
-     * <p>Default is a uniquely named subdirectory of the provided tempDirectory, e.g. if
-     * tempDirectory is /path/to/foo/, the temporary directory will be
+     * <p>Without windowing, the default is a uniquely named subdirectory of the provided
+     * tempDirectory, e.g. if tempDirectory is /path/to/foo/, the temporary directory will be
      * /path/to/foo/.temp-beam-$uuid.
+     *
+     * <p>With windowing, the default is to use tempDirectory directly. With windowing,
+     * subdirectories of the tempDirectory are not beneficial as they cannot be used for cleanup. By
+     * using the base tempDirectory, create temp files are well-distributed beneath a common
+     * directory prefix, across both worker and pipeline executions. This is beneficial for
+     * filesystems such as GCS which can reuse autoscaling of the file metadata.
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
     public WriteOperation(FileBasedSink<?, DestinationT, OutputT> sink) {
-      this(
-          sink,
-          NestedValueProvider.of(sink.getTempDirectoryProvider(), new TemporaryDirectoryBuilder()));
+      // The use of the subdir tempdirectory will be disabled if setWindowedWrites is called.
+      this(sink, sink.getTempDirectoryProvider(), true);
     }
 
     private static class TemporaryDirectoryBuilder
@@ -558,14 +567,23 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      */
     @Experimental(Kind.FILESYSTEM)
     public WriteOperation(FileBasedSink<?, DestinationT, OutputT> sink, ResourceId tempDirectory) {
-      this(sink, StaticValueProvider.of(tempDirectory));
+      this(sink, StaticValueProvider.of(tempDirectory), false);
     }
 
     private WriteOperation(
-        FileBasedSink<?, DestinationT, OutputT> sink, ValueProvider<ResourceId> tempDirectory) {
+        FileBasedSink<?, DestinationT, OutputT> sink,
+        ValueProvider<ResourceId> tempDirectory,
+        boolean useSubdirTempDirectory) {
       this.sink = sink;
       this.tempDirectory = tempDirectory;
+      this.useSubdirTempDirectory = useSubdirTempDirectory;
+      this.subdirTempDirectory =
+          NestedValueProvider.of(tempDirectory, new TemporaryDirectoryBuilder());
       this.windowedWrites = false;
+    }
+
+    public ResourceId getTempDirectory() {
+      return useSubdirTempDirectory ? subdirTempDirectory.get() : tempDirectory.get();
     }
 
     /**
@@ -575,8 +593,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     public abstract Writer<DestinationT, OutputT> createWriter() throws Exception;
 
     /** Indicates that the operation will be performing windowed writes. */
-    public void setWindowedWrites(boolean windowedWrites) {
-      this.windowedWrites = windowedWrites;
+    public void setWindowedWrites() {
+      this.windowedWrites = true;
+      this.useSubdirTempDirectory = false;
     }
 
     /*
@@ -795,9 +814,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     final void removeTemporaryFiles(
         Collection<ResourceId> knownFiles, boolean shouldRemoveTemporaryDirectory)
         throws IOException {
-      ResourceId tempDir = tempDirectory.get();
-      LOG.debug("Removing temporary bundle output files in {}.", tempDir);
-
       // To partially mitigate the effects of filesystems with eventually-consistent
       // directory matching APIs, we remove not only files that the filesystem says exist
       // in the directory (which may be incomplete), but also files that are known to exist
@@ -811,7 +827,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
       // TODO: Windows OS cannot resolves and matches '*' in the path,
       // ignore the exception for now to avoid failing the pipeline.
+      ResourceId tempDir = getTempDirectory();
       if (shouldRemoveTemporaryDirectory) {
+        LOG.debug("Removing temporary bundle output files in {}.", tempDir);
         try {
           MatchResult singleMatch =
               Iterables.getOnlyElement(
@@ -851,7 +869,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       return getClass().getSimpleName()
           + "{"
           + "tempDirectory="
-          + tempDirectory
+          + getTempDirectory()
           + ", windowedWrites="
           + windowedWrites
           + '}';
@@ -932,6 +950,14 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      */
     protected void finishWrite() throws Exception {}
 
+    @VisibleForTesting
+    static String spreadUid(String uId) {
+      // We prepend the hash of the uId to ensure that the temporary
+      // filenames used do not have common prefix. In some filesystems
+      // (for example GCS) such filenames can lead to hotspots.
+      return String.format("%08x%s", uId.hashCode(), uId);
+    }
+
     /**
      * Opens a uniquely named temporary file and initializes the writer using {@link #prepareWrite}.
      *
@@ -940,8 +966,8 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * fault tolerance.
      */
     public final void open(String uId) throws Exception {
-      this.id = uId;
-      ResourceId tempDirectory = getWriteOperation().tempDirectory.get();
+      this.id = spreadUid(uId);
+      ResourceId tempDirectory = getWriteOperation().getTempDirectory();
       outputFile = tempDirectory.resolve(id, StandardResolveOptions.RESOLVE_FILE);
       verifyNotNull(
           outputFile, "FileSystems are not allowed to return null from resolve: %s", tempDirectory);
