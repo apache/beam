@@ -841,7 +841,7 @@ public class GcsUtilTest {
         .thenThrow(IOException.class);
     GcsPath gcsPath = GcsPath.fromComponents("testbucket", "testobject");
     assertThrows(IOException.class, () -> gcsUtil.create(gcsPath, ""));
-    verifyMetricWasSet("my_project", "testbucket", "Objects.insert", "unauthenticated", 1);
+    verifyMetricWasSet("my_project", "testbucket", "Objects.insert", "permission_denied", 1);
   }
 
   private void verifyMetricWasSet(
