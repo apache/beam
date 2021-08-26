@@ -284,7 +284,6 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
-from apache_beam.io import range_trackers
 from apache_beam.io.avroio import _create_avro_source as create_avro_source
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
@@ -1949,16 +1948,15 @@ class ReadFromBigQuery(PTransform):
     return (
         pcoll
         | beam.io.Read(
-            _CustomBigQuerySource(
-                gcs_location=self.gcs_location,
-                pipeline_options=pcoll.pipeline.options,
-                job_name=job_name,
-                step_name=step_name,
-                unique_id=unique_id,
-                *self._args,
-                **self._kwargs))
+        _CustomBigQuerySource(
+            gcs_location=self.gcs_location,
+            pipeline_options=pcoll.pipeline.options,
+            job_name=job_name,
+            step_name=step_name,
+            unique_id=unique_id,
+            *self._args,
+            **self._kwargs))
         | _PassThroughThenCleanup(files_to_remove_pcoll))
-
 
 class ReadFromBigQueryRequest:
   """
