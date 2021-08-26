@@ -78,6 +78,8 @@ public final class MonitoringInfoConstants {
     public static final String BIGQUERY_TABLE = "BIGQUERY_TABLE";
     public static final String BIGQUERY_VIEW = "BIGQUERY_VIEW";
     public static final String BIGQUERY_QUERY_NAME = "BIGQUERY_QUERY_NAME";
+    public static final String DATASTORE_PROJECT = "DATASTORE_PROJECT";
+    public static final String DATASTORE_NAMESPACE = "DATASTORE_NAMESPACE";
 
     static {
       // Note: One benefit of defining these strings above, instead of pulling them in from
@@ -104,6 +106,9 @@ public final class MonitoringInfoConstants {
       checkArgument(BIGQUERY_VIEW.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_VIEW)));
       checkArgument(
           BIGQUERY_QUERY_NAME.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_QUERY_NAME)));
+      checkArgument(DATASTORE_PROJECT.equals(extractLabel(MonitoringInfoLabels.DATASTORE_PROJECT)));
+      checkArgument(
+          DATASTORE_NAMESPACE.equals(extractLabel(MonitoringInfoLabels.DATASTORE_NAMESPACE)));
     }
   }
 
