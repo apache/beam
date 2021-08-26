@@ -307,11 +307,6 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
   }
 
-  /** An internal State interface that holds underlying KeyValueIterators. */
-  interface KeyValueIteratorState {
-    void closeIterators();
-  }
-
   private abstract class AbstractSamzaState<T> {
     private final StateNamespace namespace;
     private final String addressId;
@@ -537,7 +532,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
   }
 
-  private class SamzaSetStateImpl<T> implements SamzaSetState<T>, KeyValueIteratorState {
+  private class SamzaSetStateImpl<T> implements SamzaSetState<T> {
     private final SamzaMapStateImpl<T, Boolean> mapState;
 
     private SamzaSetStateImpl(
@@ -630,7 +625,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   }
 
   private class SamzaMapStateImpl<KeyT, ValueT> extends AbstractSamzaState<ValueT>
-      implements SamzaMapState<KeyT, ValueT>, KeyValueIteratorState {
+      implements SamzaMapState<KeyT, ValueT> {
 
     private final Coder<KeyT> keyCoder;
     private final int storeKeySize;

@@ -267,15 +267,13 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       }
 
       if (lastTimestamp != null) {
-        final TimerData lastTimerData =
-            TimerData.of(
-                timerData.getTimerId(),
-                timerData.getTimerFamilyId(),
-                timerData.getNamespace(),
-                new Instant(lastTimestamp),
-                new Instant(lastTimestamp),
-                timerData.getDomain());
-        deleteTimer(lastTimerData, false);
+        deleteTimer(
+            timerData.getNamespace(),
+            timerData.getTimerId(),
+            timerData.getTimerFamilyId(),
+            new Instant(lastTimestamp),
+            new Instant(lastTimestamp),
+            timerData.getDomain());
       }
 
       // persist it first
@@ -284,7 +282,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       // TO-DO: apply the same memory optimization over processing timers
       switch (timerData.getDomain()) {
         case EVENT_TIME:
-          /**
+          /*
            * To determine if the upcoming KeyedTimerData could be added to the Buffer while
            * guaranteeing the Buffer's timestamps are all <= than those in State Store to preserve
            * timestamp eviction priority:
@@ -319,36 +317,50 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       }
     }
 
+    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
+    @Override
+    @Deprecated
+    public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
+      deleteTimer(namespace, timerId, timerFamilyId, TimeDomain.EVENT_TIME);
+    }
+
+    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
+    @Override
+    @Deprecated
+    public void deleteTimer(TimerData timerData) {
+      deleteTimer(
+          timerData.getNamespace(),
+          timerData.getTimerId(),
+          timerData.getTimerFamilyId(),
+          timerData.getDomain());
+    }
+
     @Override
     public void deleteTimer(
         StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
-      TimerKey<K> timerKey = TimerKey.of(key, namespace, timerId, timerFamilyId);
-
-      Long lastTimestamp = state.get(timerKey, timeDomain);
+      final TimerKey<K> timerKey = TimerKey.of(key, namespace, timerId, timerFamilyId);
+      final Long lastTimestamp = state.get(timerKey, timeDomain);
 
       if (lastTimestamp == null) {
         return;
       }
 
-      Instant timestamp = Instant.ofEpochMilli(lastTimestamp);
-      deleteTimer(TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain));
+      final Instant timestamp = Instant.ofEpochMilli(lastTimestamp);
+      deleteTimer(namespace, timerId, timerFamilyId, timestamp, timestamp, timeDomain);
     }
 
-    @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
-      deleteTimer(namespace, timerId, timerFamilyId, TimeDomain.EVENT_TIME);
-    }
-
-    @Override
-    public void deleteTimer(TimerData timerData) {
-      deleteTimer(timerData, true);
-    }
-
-    private void deleteTimer(TimerData timerData, boolean updateState) {
+    private void deleteTimer(
+        StateNamespace namespace,
+        String timerId,
+        String timerFamilyId,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
+      final TimerData timerData =
+          TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain);
       final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(keyBytes, key, timerData);
-      if (updateState) {
-        state.deletePersisted(keyedTimerData);
-      }
+
+      state.deletePersisted(keyedTimerData);
 
       switch (timerData.getDomain()) {
         case EVENT_TIME:
@@ -515,8 +527,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         maxEventTimeInBuffer = keyedTimerData.getTimerData().getTimestamp().getMillis();
       }
 
-      ((SamzaStoreStateInternals.KeyValueIteratorState) timestampSortedEventTimeTimerState)
-          .closeIterators();
+      timestampSortedEventTimeTimerState.closeIterators();
       LOG.info("Loaded {} event time timers in memory", eventTimeBuffer.size());
 
       if (eventTimeBuffer.size() < maxEventTimerBufferSize) {
@@ -544,7 +555,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
             keyedTimerData, keyedTimerData.getTimerData().getTimestamp().getMillis());
         ++count;
       }
-      ((SamzaStoreStateInternals.KeyValueIteratorState) processingTimeTimerState).closeIterators();
+      processingTimeTimerState.closeIterators();
 
       LOG.info("Loaded {} processing time timers in memory", count);
     }
@@ -573,10 +584,9 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
             timestampSortedEventTimeTimerState.add(keyedTimerData);
           }
         }
-        ((SamzaStoreStateInternals.KeyValueIteratorState) timestampSortedEventTimeTimerState)
-            .closeIterators();
+        timestampSortedEventTimeTimerState.closeIterators();
       }
-      ((SamzaStoreStateInternals.KeyValueIteratorState) eventTimeTimerState).closeIterators();
+      eventTimeTimerState.closeIterators();
 
       reloadEventTimeTimers();
       loadProcessingTimeTimers();
