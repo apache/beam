@@ -1036,6 +1036,8 @@ def to_split_int(n):
   return res
 
 
+# TODO: Used in legacy batch worker. Move under MetricUpdateTranslators
+# after Runner V2 transition.
 def translate_distribution(distribution_update, metric_update_proto):
   """Translate metrics DistributionUpdate to dataflow distribution update.
 
@@ -1056,18 +1058,9 @@ def translate_distribution(distribution_update, metric_update_proto):
   metric_update_proto.distribution = dist_update_proto
 
 
+# TODO: Used in legacy batch worker. Delete after Runner V2 transition.
 def translate_value(value, metric_update_proto):
   metric_update_proto.integer = to_split_int(value)
-
-
-def translate_mean(accumulator, metric_update):
-  if accumulator.count:
-    metric_update.meanSum = to_json_value(accumulator.sum, with_type=True)
-    metric_update.meanCount = to_json_value(accumulator.count, with_type=True)
-  else:
-    # A denominator of 0 will raise an error in the service.
-    # What it means is we have nothing to report yet, so don't.
-    metric_update.kind = None
 
 
 def _use_fnapi(pipeline_options):
