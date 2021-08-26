@@ -103,7 +103,6 @@ if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
       )
   )
 
-
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version
@@ -155,7 +154,7 @@ REQUIRED_PACKAGES = [
     'pytz>=2018.3',
     'requests>=2.24.0,<3.0.0',
     'typing-extensions>=3.7.0,<4',
-    ]
+]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
@@ -178,7 +177,7 @@ REQUIRED_TEST_PACKAGES = [
     'sqlalchemy>=1.3,<2.0',
     'psycopg2-binary>=2.8.5,<3.0.0',
     'testcontainers>=3.0.3,<4.0.0',
-    ]
+]
 
 GCP_REQUIREMENTS = [
     'cachetools>=3.1.0,<5',
@@ -222,15 +221,12 @@ INTERACTIVE_BEAM_TEST = [
     'pillow>=7.1.1,<8',
 ]
 
-AWS_REQUIREMENTS = [
-    'boto3 >=1.9'
-]
+AWS_REQUIREMENTS = ['boto3 >=1.9']
 
 AZURE_REQUIREMENTS = [
     'azure-storage-blob >=12.3.2',
     'azure-core >=1.7.0',
 ]
-
 
 
 # We must generate protos after setup_requires are installed.
@@ -244,6 +240,7 @@ def generate_protos_first(original_cmd):
       def run(self):
         gen_protos.generate_proto_files()
         super(cmd, self).run()
+
     return cmd
   except ImportError:
     warnings.warn("Could not import gen_protos, skipping proto generation.")
@@ -255,8 +252,8 @@ python_requires = '>=3.6'
 if sys.version_info.major == 3 and sys.version_info.minor >= 9:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
-      'Python %s.%s. You may encounter bugs or missing features.' % (
-          sys.version_info.major, sys.version_info.minor))
+      'Python %s.%s. You may encounter bugs or missing features.' %
+      (sys.version_info.major, sys.version_info.minor))
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -268,9 +265,18 @@ setuptools.setup(
     author=PACKAGE_AUTHOR,
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
-    package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', '*/*.h', '*/*/*.h',
-        'testing/data/*.yaml', 'portability/api/*.yaml']},
+    package_data={
+        'apache_beam': [
+            '*/*.pyx',
+            '*/*/*.pyx',
+            '*/*.pxd',
+            '*/*/*.pxd',
+            '*/*.h',
+            '*/*/*.h',
+            'testing/data/*.yaml',
+            'portability/api/*.yaml'
+        ]
+    },
     ext_modules=cythonize([
         # Make sure to use language_level=3 cython directive in files below.
         'apache_beam/**/*.pyx',
