@@ -141,7 +141,11 @@ public class SdkHarnessClientTest {
             .getCoder();
     pbdBuilder.putCoders("wire_coder", fullValueCoder);
 
-    PTransform targetProcessor = userProto.getComponents().getTransformsOrThrow("proc");
+    PTransform targetProcessor =
+        userProto
+            .getComponents()
+            .getTransformsOrThrow(
+                userProto.getComponents().getTransformsOrThrow("proc").getSubtransforms(0));
     RemoteGrpcPort port =
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(harness.dataEndpoint())
