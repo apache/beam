@@ -172,8 +172,10 @@ public class AzureModule extends SimpleModule {
       Class<?> cls = obj.getClass();
       Field field = cls.getDeclaredField(member);
       field.setAccessible(true);
-
-      return field.get(obj);
+      
+      Object fieldObj = field.get(obj);
+      assert fieldObj != null
+      return fieldObj;
     }
 
     @Override
