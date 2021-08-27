@@ -50,6 +50,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -640,4 +641,69 @@ func MergeGauges(
 		res = append(res, v)
 	}
 	return res
+}
+
+// MetricsExtractor extracts the metrics.Results from Store using ctx.
+// This is same as what metrics.dumperExtractor and metrics.dumpTo would do together.
+func MetricsExtractor(ctx context.Context) Results {
+	store := GetStore(ctx)
+	m := make(map[Labels]interface{})
+	e := &Extractor{
+		SumInt64: func(l Labels, v int64) {
+			m[l] = &counter{value: v}
+		},
+		DistributionInt64: func(l Labels, count, sum, min, max int64) {
+			m[l] = &distribution{count: count, sum: sum, min: min, max: max}
+		},
+		GaugeInt64: func(l Labels, v int64, t time.Time) {
+			m[l] = &gauge{v: v, t: t}
+		},
+	}
+	e.ExtractFrom(store)
+
+	var ls []Labels
+	for l := range m {
+		ls = append(ls, l)
+	}
+
+	sort.Slice(ls, func(i, j int) bool {
+		if ls[i].transform < ls[j].transform {
+			return true
+		}
+		tEq := ls[i].transform == ls[j].transform
+		if tEq && ls[i].namespace < ls[j].namespace {
+			return true
+		}
+		nsEq := ls[i].namespace == ls[j].namespace
+		if tEq && nsEq && ls[i].name < ls[j].name {
+			return true
+		}
+		return false
+	})
+
+	r := Results{counters: []CounterResult{}, distributions: []DistributionResult{}, gauges: []GaugeResult{}}
+	for _, l := range ls {
+		key := StepKey{Step: l.transform, Name: l.name, Namespace: l.namespace}
+		switch opt := m[l]; opt.(type) {
+		case *counter:
+			attempted := make(map[StepKey]int64)
+			committed := make(map[StepKey]int64)
+			attempted[key] = 0
+			committed[key] = opt.(*counter).value
+			r.counters = append(r.counters, MergeCounters(attempted, committed)...)
+		case *distribution:
+			attempted := make(map[StepKey]DistributionValue)
+			committed := make(map[StepKey]DistributionValue)
+			attempted[key] = DistributionValue{}
+			committed[key] = DistributionValue{opt.(*distribution).count, opt.(*distribution).sum, opt.(*distribution).min, opt.(*distribution).max}
+			r.distributions = append(r.distributions, MergeDistributions(attempted, committed)...)
+		case *gauge:
+			attempted := make(map[StepKey]GaugeValue)
+			committed := make(map[StepKey]GaugeValue)
+			attempted[key] = GaugeValue{}
+			committed[key] = GaugeValue{opt.(*gauge).v, opt.(*gauge).t}
+			r.gauges = append(r.gauges, MergeGauges(attempted, committed)...)
+		}
+	}
+	return r
 }

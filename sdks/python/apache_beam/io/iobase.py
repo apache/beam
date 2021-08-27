@@ -44,6 +44,8 @@ from typing import Union
 
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.coders.coders import _MemoizingPickleCoder
+from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -886,12 +888,14 @@ class Read(ptransform.PTransform):
 
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
+      coders.registry.register_coder(BoundedSource, _MemoizingPickleCoder)
       display_data = self.source.display_data() or {}
       display_data['source'] = self.source.__class__
+
       return (
           pbegin
           | Impulse()
-          | core.Map(lambda _: self.source)
+          | core.Map(lambda _: self.source).with_output_types(BoundedSource)
           | SDFBoundedSourceReader(display_data))
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
@@ -1573,6 +1577,18 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
     return True
 
 
+class _SDFBoundedSourceWrapperRestrictionCoder(coders.Coder):
+  def decode(self, value):
+    return _SDFBoundedSourceRestriction(SourceBundle(*pickler.loads(value)))
+
+  def encode(self, restriction):
+    return pickler.dumps((
+        restriction._source_bundle.weight,
+        restriction._source_bundle.source,
+        restriction._source_bundle.start_position,
+        restriction._source_bundle.stop_position))
+
+
 class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
   """
   A `RestrictionProvider` that is used by SDF for `BoundedSource`.
@@ -1580,8 +1596,10 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
   This restriction provider initializes restriction based on input
   element that is expected to be of BoundedSource type.
   """
-  def __init__(self, desired_chunk_size=None):
+  def __init__(self, desired_chunk_size=None, restriction_coder=None):
     self._desired_chunk_size = desired_chunk_size
+    self._restriction_coder = (
+        restriction_coder or _SDFBoundedSourceWrapperRestrictionCoder())
 
   def _check_source(self, src):
     if not isinstance(src, BoundedSource):
@@ -1618,7 +1636,7 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     return restriction.weight()
 
   def restriction_coder(self):
-    return coders.DillCoder()
+    return self._restriction_coder
 
 
 class SDFBoundedSourceReader(PTransform):

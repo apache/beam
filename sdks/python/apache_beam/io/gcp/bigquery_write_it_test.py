@@ -397,7 +397,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         on_success_matcher=BigqueryFullResultMatcher(
             project=self.project,
             query="""
-            SELECT bytes, date, time, int64, bool, fruit 
+            SELECT bytes, date, time, int64, bool, fruit
             FROM %s,
             UNNEST(nested_field) as nested_field
             ORDER BY int64

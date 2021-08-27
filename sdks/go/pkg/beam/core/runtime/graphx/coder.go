@@ -70,7 +70,7 @@ func knownStandardCoders() []string {
 		urnWindowedValueCoder,
 		urnGlobalWindow,
 		urnIntervalWindow,
-		// TODO(BEAM-9615): Add urnRowCoder once finalized.
+		urnRowCoder,
 		// TODO(BEAM-10660): Add urnTimerCoder once finalized.
 	}
 }
