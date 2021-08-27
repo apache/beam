@@ -255,6 +255,30 @@ class RowCoderTest(unittest.TestCase):
 
     self.assertEqual(value, coder.decode(coder.encode(value)))
 
+  def test_encoding_position_reorder_fields(self):
+    fields = [("field1", str), ("field2", typing.Optional[str])]
+
+    Old = typing.NamedTuple('Old', fields[:-1])
+    New = typing.NamedTuple('New', fields)
+
+    old_coder = RowCoder.from_type_hint(Old, None)
+    new_coder = RowCoder.from_type_hint(New, None)
+
+    self.assertEqual(
+        New("bar", None), new_coder.decode(old_coder.encode(Old("bar"))))
+
+  def test_encoding_position_add_fields(self):
+    fields = [("field1", str), ("field2", str)]
+
+    Old = typing.NamedTuple('Old', fields[:-1])
+    New = typing.NamedTuple('New', fields)
+
+    old_coder = RowCoder.from_type_hint(Old, None)
+    new_coder = RowCoder.from_type_hint(New, None)
+
+    self.assertEqual(
+        New("bar", None), new_coder.decode(old_coder.encode(Old("bar"))))
+
 
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)

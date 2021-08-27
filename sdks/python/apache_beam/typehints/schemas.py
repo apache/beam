@@ -272,6 +272,10 @@ def _hydrate_namedtuple_instance(encoded_schema, values):
       proto_utils.parse_Bytes(encoded_schema, schema_pb2.Schema))(*values)
 
 
+def get_encoding_position(schema):
+  return [f.encoding_position for f in schema.fields]
+
+
 def named_tuple_from_schema(schema):
   return typing_from_runner_api(
       schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema)))

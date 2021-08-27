@@ -38,6 +38,7 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
 from apache_beam.typehints.schemas import PYTHON_ANY_URN
 from apache_beam.typehints.schemas import LogicalType
+from apache_beam.typehints.schemas import get_encoding_position
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import schema_from_element_type
 from apache_beam.utils import proto_utils
@@ -166,6 +167,7 @@ class RowCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     nvals = len(self.schema.fields)
+
     self.SIZE_CODER.encode_to_stream(nvals, out, True)
     attrs = [getattr(value, f.name) for f in self.schema.fields]
 
@@ -178,6 +180,11 @@ class RowCoderImpl(StreamCoderImpl):
           words[i // 8] |= is_null << (i % 8)
 
     self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
+
+    if get_encoding_position(self.schema):
+      atr_pos = [0] * len(self.schema.fields)
+      for c, field, attr in zip(self.components, self.schema.fields, attrs):
+        atr_pos[field.encoding_position] = [c, field, attr]
 
     for c, field, attr in zip(self.components, self.schema.fields, attrs):
       if attr is None:
