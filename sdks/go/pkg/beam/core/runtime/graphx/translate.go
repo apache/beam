@@ -1061,12 +1061,12 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 			},
 		}
 	case window.AfterEndOfWindowTrigger:
-		// TODO: change it to take user config triggers for early and late firings
+		// TODO(BEAM-3304): change it to take user config triggers for early and late firings
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterEndOfWindow_{
 				AfterEndOfWindow: &pipepb.Trigger_AfterEndOfWindow{
-					EarlyFirings: makeTrigger(window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 1}),
-					LateFirings:  nil,
+					EarlyFirings: makeTrigger(window.Trigger{Kind: window.DefaultTrigger}),
+					LateFirings:  makeTrigger(window.Trigger{Kind: window.AlwaysTrigger}),
 				},
 			},
 		}
