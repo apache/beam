@@ -1,4 +1,73 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Thu, 08 Jul 2021 09:00:00 -0700</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.31.0</title><link>/blog/beam-2.31.0/</link><pubDate>Thu, 08 Jul 2021 09:00:00 -0700</pubDate><guid>/blog/beam-2.31.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 25 Aug 2021 00:00:01 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.32.0</title><link>/blog/beam-2.32.0/</link><pubDate>Wed, 25 Aug 2021 00:00:01 -0800</pubDate><guid>/blog/beam-2.32.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.32.0 release of Apache Beam. This release includes both improvements and new functionality.&lt;/p>
+&lt;p>See the &lt;a href="/get-started/downloads/#2320-2021-08-11">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.32.0, check out the&lt;/p>
+&lt;p>&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349992">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>The &lt;a href="https://beam.apache.org/documentation/dsls/dataframes/overview/">Beam DataFrame
+API&lt;/a> is no
+longer experimental! We&amp;rsquo;ve spent the time since the &lt;a href="https://beam.apache.org/blog/dataframe-api-preview-available/">2.26.0 preview
+announcement&lt;/a>
+implementing the most frequently used pandas operations
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-9547">BEAM-9547&lt;/a>), improving
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.html">documentation&lt;/a>
+and &lt;a href="https://issues.apache.org/jira/browse/BEAM-12028">error messages&lt;/a>,
+adding
+&lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/dataframe">examples&lt;/a>,
+integrating DataFrames with &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.runners.interactive.interactive_beam.html">interactive
+Beam&lt;/a>,
+and of course finding and fixing
+&lt;a href="https://issues.apache.org/jira/issues/?jql=project%3DBEAM%20AND%20issuetype%3DBug%20AND%20status%3DResolved%20AND%20component%3Ddsl-dataframe">bugs&lt;/a>.
+Leaving experimental just means that we now have high confidence in the API
+and recommend its use for production workloads. We will continue to improve
+the API, guided by your
+&lt;a href="https://beam.apache.org/community/contact-us/">feedback&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Support for X source added (Java/Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-X">BEAM-X&lt;/a>).&lt;/li>
+&lt;li>Added ability to use JdbcIO.Write.withResults without statement and preparedStatementSetter. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12511">BEAM-12511&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;ul>
+&lt;li>Added ability to register URI schemes to use the S3 protocol via FileIO. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12435">BEAM-12435&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;ul>
+&lt;li>Respect number of shards set in SnowflakeWrite batch mode. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12715">BEAM-12715&lt;/a>)&lt;/li>
+&lt;li>Java SDK: Update Google Cloud Healthcare IO connectors from using v1beta1 to using the GA version.&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Add support to convert Beam Schema to Avro Schema for JDBC LogicalTypes:
+&lt;code>VARCHAR&lt;/code>, &lt;code>NVARCHAR&lt;/code>, &lt;code>LONGVARCHAR&lt;/code>, &lt;code>LONGNVARCHAR&lt;/code>, &lt;code>DATE&lt;/code>, &lt;code>TIME&lt;/code>
+(Java)(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12385">BEAM-12385&lt;/a>).&lt;/li>
+&lt;li>Reading from JDBC source by partitions (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12456">BEAM-12456&lt;/a>).&lt;/li>
+&lt;li>PubsubIO can now write to a dead-letter topic after a parsing error (Java)(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12474">BEAM-12474&lt;/a>).&lt;/li>
+&lt;li>New append-only option for Elasticsearch sink (Java) &lt;a href="https://issues.apache.org/jira/browse/BEAM-12601">BEAM-12601&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>ListShards (with DescribeStreamSummary) is used instead of DescribeStream to list shards in Kinesis streams. Due to this change, as mentioned in &lt;a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_ListShards.html">AWS documentation&lt;/a>, for fine-grained IAM policies it is required to update them to allow calls to ListShards and DescribeStreamSummary APIs. For more information, see &lt;a href="https://docs.aws.amazon.com/streams/latest/dev/controlling-access.html">Controlling Access to Amazon Kinesis Data Streams&lt;/a> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12225">BEAM-12225&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Fixed race condition in RabbitMqIO causing duplicate acks (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6516">BEAM-6516&lt;/a>))&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.32.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay, Ajo Thomas, Alex Amato, Alexey Romanenko, Alex Koay, allenpradeep, Anant Damle, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, Benjamin Gonzalez, BenWhitehead, Blake Williams, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Daniel Oliveira, Daniel Thevessen, daria-malkova, David Cavazos, David Huntsperger, dennisylyung, Dennis Yung, dmkozh, egalpin, emily, Esun Kim, Gabriel Melo de Paula, Harch Vardhan, Heejong Lee, heidimhurst, hoshimura, Iñigo San Jose Visiers, Ismaël Mejía, Jack McCluskey, Jan Lukavský, Justin King, Kenneth Knowles, KevinGG, Ke Wu, kileys, Kyle Weaver, Luke Cwik, Maksym Skorupskyi, masahitojp, Matthew Ouyang, Matthias Baetens, Matt Rudary, MiguelAnzoWizeline, Miguel Hernandez, Nikita Petunin, Ning Ding, Ning Kang, odidev, Pablo Estrada, Pascal Gillet, rafal.ochyra, raphael.sanamyan, Reuven Lax, Robert Bradshaw, Robert Burke, roger-mike, Ryan McDowell, Sam Rohde, Sam Whittle, Siyuan Chen, Teng Qiu, Tianzi Cai, Tobias Hermann, Tomo Suzuki, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vitaly Terentyev, Yichi Zhang, Yifan Mai, yoshiki.obata, Yu Feng, YuqiHuai, yzhang559, Zachary Houfek, zhoufek&lt;/p></description></item><item><title>Blog: Apache Beam 2.31.0</title><link>/blog/beam-2.31.0/</link><pubDate>Thu, 08 Jul 2021 09:00:00 -0700</pubDate><guid>/blog/beam-2.31.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4020,120 +4089,4 @@ improvement&lt;/li>
 &lt;/ul>
 &lt;h1 id="list-of-contributors">List of Contributors&lt;/h1>
 &lt;p>According to git shortlog, the following 78 people contributed to the 2.3.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Ankur Goenka, Anton Kedin, Arnaud Fournier, Asha Rostamianfar, Ben Chambers, Ben Sidhom, Bill Neubauer, Brian Foo, cclauss, Chamikara Jayalath, Charles Chen, Colm O hEigeartaigh, Daniel Oliveira, Dariusz Aniszewski, David Cavazos, David Sabater, David Sabater Dinter, Dawid Wysakowicz, Dmytro Ivanov, Etienne Chauchot, Eugene Kirpichov, Exprosed, Grzegorz Kołakowski, Henning Rohde, Holden Karau, Huygaa Batsaikhan, Ilya Figotin, Innocent Djiofack, Ismaël Mejía, Itamar Ostricher, Jacky, Jacob Marble, James Xu, Jean-Baptiste Onofré, Jeremie Lenfant-Engelmann, Kamil Szewczyk, Kenneth Knowles, Lukasz Cwik, Łukasz Gajowy, Luke Zhu, Mairbek Khadikov, María García Herrero, Marian Dvorsky, Mark Liu, melissa, Miles Saul, mingmxu, Motty Gruda, nerdynick, Neville Li, Nigel Kilmer, Pablo, Pawel Kaczmarczyk, Petr Shevtsov, Rafal Wojdyla, Raghu Angadi, Robert Bradshaw, Robert Burke, Romain Manni-Bucau, Ryan Niemocienski, Ryan Skraba, Sam Whittle, Scott Wegner, Shashank Prabhakara, Solomon Duskis, Thomas Groh, Thomas Weise, Udi Meiri, Valentyn Tymofieiev, wtanaka.com, XuMingmin, zhouhai02, Zohar Yahav, 琨瑜.&lt;/p></description></item><item><title>Blog: Apache Beam: A Look Back at 2017</title><link>/blog/beam-a-look-back/</link><pubDate>Tue, 09 Jan 2018 00:00:01 -0800</pubDate><guid>/blog/beam-a-look-back/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>On January 10, 2017, Apache Beam got &lt;a href="/blog/2017/01/10/beam-graduates.html">promoted&lt;/a>
-as a Top-Level Apache Software Foundation project. It was an important milestone
-that validated the value of the project, legitimacy of its community, and
-heralded its growing adoption. In the past year, Apache Beam has been on a
-phenomenal growth trajectory, with significant growth in its community and
-feature set. Let us walk you through some of the notable achievements.&lt;/p>
-&lt;h2 id="use-cases">Use cases&lt;/h2>
-&lt;p>First, lets take a glimpse at how Beam was used in 2017. Apache Beam being a
-unified framework for batch and stream processing, enables a very wide spectrum
-of diverse use cases. Here are some use cases that exemplify the versatility of
-Beam.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/2017-look-back/timeline.png"
-alt="Use Cases"
-width="600">&lt;/p>
-&lt;h2 id="community-growth">Community growth&lt;/h2>
-&lt;p>In 2017, Apache Beam had 174 contributors worldwide, from many different
-organizations. As an Apache project, we are proud to count 18 PMC members and
-31 committers. The community had 7 releases in 2017, each bringing a rich set of
-new features and fixes.&lt;/p>
-&lt;p>The most obvious and encouraging sign of the growth of Apache Beam’s community,
-and validation of its core value proposition of portability, is the addition of
-significant new &lt;a href="/documentation/runners/capability-matrix/">runners&lt;/a>
-(i.e. execution engines). We entered 2017 with Apache Flink, Apache Spark 1.x,
-Google Cloud Dataflow, Apache Apex, and Apache Gearpump. In 2017, the following
-new and updated runners were developed:&lt;/p>
-&lt;ul>
-&lt;li>Apache Spark 2.x update&lt;/li>
-&lt;li>&lt;a href="https://www.ibm.com/blogs/bluemix/2017/10/streaming-analytics-updates-ibm-streams-runner-apache-beam-2-0/">IBM Streams runner&lt;/a>&lt;/li>
-&lt;li>MapReduce runner&lt;/li>
-&lt;li>&lt;a href="http://jstorm.io/">JStorm runner&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;p>In addition to runners, Beam added new IO connectors, some notable ones being
-the Cassandra, MQTT, AMQP, HBase/HCatalog, JDBC, Solr, Tika, Redis, and
-Elasticsearch connectors. Beam’s IO connectors make it possible to read from or
-write to data sources/sinks even when they are not natively supported by the
-underlying execution engine. Beam also provides fully pluggable filesystem
-support, allowing us to support and extend our coverage to HDFS, S3, Azure
-Storage, and Google Storage. We continue to add new IO connectors and
-filesystems to extend the Beam use cases.&lt;/p>
-&lt;p>A particularly telling sign of the maturity of an open source community is when
-it is able to collaborate with multiple other open source communities, and
-mutually improve the state of the art. Over the past few months, the Beam,
-Calcite, and Flink communities have come together to define a robust &lt;a href="https://docs.google.com/document/d/1wrla8mF_mmq-NW9sdJHYVgMyZsgCmHumJJ5f5WUzTiM/edit">spec&lt;/a>
-for Streaming SQL, with engineers from over four organizations contributing to
-it. If, like us, you are excited by the prospect of improving the state of
-streaming SQL, please join us!&lt;/p>
-&lt;p>In addition to SQL, new XML and JSON based declarative DSLs are also in PoC.&lt;/p>
-&lt;h2 id="continued-innovation">Continued innovation&lt;/h2>
-&lt;p>Innovation is important to the success on any open source project, and Beam has
-a rich history of bringing innovative new ideas to the open source community.
-Apache Beam was the first to introduce some seminal concepts in the world of
-big-data processing:&lt;/p>
-&lt;ul>
-&lt;li>Unified batch and streaming SDK that enables users to author big-data jobs
-without having to learn multiple disparate SDKs/APIs.&lt;/li>
-&lt;li>Cross-Engine Portability: Giving enterprises the confidence that workloads
-authored today will not have to be re-written when open source engines become
-outdated and are supplanted by newer ones.&lt;/li>
-&lt;li>&lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">Semantics&lt;/a>
-essential for reasoning about unbounded unordered data, and achieving
-consistent and correct output from a streaming job.&lt;/li>
-&lt;/ul>
-&lt;p>In 2017, the pace of innovation continued. The following capabilities were
-introduced:&lt;/p>
-&lt;ul>
-&lt;li>Cross-Language Portability framework, and a &lt;a href="https://golang.org/">Go&lt;/a> SDK
-developed with it.&lt;/li>
-&lt;li>Dynamically Shardable IO (SplittableDoFn)&lt;/li>
-&lt;li>Support for schemas in PCollection, allowing us to extend the runner
-capabilities.&lt;/li>
-&lt;li>Extensions addressing new use cases such as machine learning, and new data
-formats.&lt;/li>
-&lt;/ul>
-&lt;h2 id="areas-of-improvement">Areas of improvement&lt;/h2>
-&lt;p>Any retrospective view of a project is incomplete without an honest assessment
-of areas of improvement. Two aspects stand out:&lt;/p>
-&lt;ul>
-&lt;li>Helping runners showcase their individual strengths. After all, portability
-does not imply homogeneity. Different runners have different areas in which
-they excel, and we need to do a better job of helping them highlight their
-strengths.&lt;/li>
-&lt;li>Based on the previous point, helping customers make a more informed decision
-when they select a runner or migrate from one to another.&lt;/li>
-&lt;/ul>
-&lt;p>In 2018, we aim to take proactive steps to improve the above aspects.&lt;/p>
-&lt;h2 id="ethos-of-the-project-and-its-community">Ethos of the project and its community&lt;/h2>
-&lt;p>The world of batch and stream big-data processing today is reminiscent of the
-&lt;a href="https://en.wikipedia.org/wiki/Tower_of_Babel">Tower of Babel&lt;/a> parable: a
-slowdown of progress because different communities spoke different languages.
-Similarly, today there are multiple disparate big-data SDKs/APIs, each with
-their own distinct terminology to describe similar concepts. The side effect is
-user confusion and slower adoption.&lt;/p>
-&lt;p>The Apache Beam project aims to provide an industry standard portable SDK that
-will:&lt;/p>
-&lt;ul>
-&lt;li>Benefit users by providing &lt;em>&lt;strong>innovation with stability&lt;/strong>&lt;/em>: The separation of
-SDK and engine enables healthy competition between runners, without requiring
-users to constantly learn new SDKs/APIs and rewrite their workloads to
-benefit from new innovation.&lt;/li>
-&lt;li>Benefit big-data engines by &lt;em>&lt;strong>growing the pie for everyone&lt;/strong>&lt;/em>: Making it
-easier for users to author, maintain, upgrade and migrate their big-data
-workloads will lead to significant growth in the number of production
-big-data deployments.&lt;/li>
-&lt;/ul></description></item></channel></rss>
+&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Ankur Goenka, Anton Kedin, Arnaud Fournier, Asha Rostamianfar, Ben Chambers, Ben Sidhom, Bill Neubauer, Brian Foo, cclauss, Chamikara Jayalath, Charles Chen, Colm O hEigeartaigh, Daniel Oliveira, Dariusz Aniszewski, David Cavazos, David Sabater, David Sabater Dinter, Dawid Wysakowicz, Dmytro Ivanov, Etienne Chauchot, Eugene Kirpichov, Exprosed, Grzegorz Kołakowski, Henning Rohde, Holden Karau, Huygaa Batsaikhan, Ilya Figotin, Innocent Djiofack, Ismaël Mejía, Itamar Ostricher, Jacky, Jacob Marble, James Xu, Jean-Baptiste Onofré, Jeremie Lenfant-Engelmann, Kamil Szewczyk, Kenneth Knowles, Lukasz Cwik, Łukasz Gajowy, Luke Zhu, Mairbek Khadikov, María García Herrero, Marian Dvorsky, Mark Liu, melissa, Miles Saul, mingmxu, Motty Gruda, nerdynick, Neville Li, Nigel Kilmer, Pablo, Pawel Kaczmarczyk, Petr Shevtsov, Rafal Wojdyla, Raghu Angadi, Robert Bradshaw, Robert Burke, Romain Manni-Bucau, Ryan Niemocienski, Ryan Skraba, Sam Whittle, Scott Wegner, Shashank Prabhakara, Solomon Duskis, Thomas Groh, Thomas Weise, Udi Meiri, Valentyn Tymofieiev, wtanaka.com, XuMingmin, zhouhai02, Zohar Yahav, 琨瑜.&lt;/p></description></item></channel></rss>
