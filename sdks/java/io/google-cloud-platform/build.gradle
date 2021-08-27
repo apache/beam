@@ -91,6 +91,7 @@ dependencies {
   compile library.java.grpc_netty
   compile library.java.grpc_netty_shaded
   permitUnusedDeclared library.java.grpc_netty_shaded // BEAM-11761
+  compile library.java.grpc_protobuf
   compile library.java.grpc_stub
   permitUnusedDeclared library.java.grpc_stub // BEAM-11761
   compile library.java.grpc_google_cloud_pubsub_v1
