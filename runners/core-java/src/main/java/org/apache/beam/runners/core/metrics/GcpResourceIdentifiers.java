@@ -37,4 +37,14 @@ public class GcpResourceIdentifiers {
     return String.format(
         "//bigtable.googleapis.com/projects/%s/namespaces/%s", projectId, namespace);
   }
+
+  public static String spannerTable(String projectId, String databaseId, String tableId) {
+    return String.format(
+      "//spanner.googleapis.com/projects/%s/topics/%s/tables/%s", projectId, databaseId, tableId);
+  }
+
+  public static String spannerQuery(String projectId, String queryName) {
+    return String.format(
+      "//spanner.googleapis.com/projects/%s/queries/%s", projectId, databaseId);
+  }
 }

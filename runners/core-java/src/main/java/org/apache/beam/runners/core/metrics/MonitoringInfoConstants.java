@@ -80,6 +80,10 @@ public final class MonitoringInfoConstants {
     public static final String BIGQUERY_QUERY_NAME = "BIGQUERY_QUERY_NAME";
     public static final String DATASTORE_PROJECT = "DATASTORE_PROJECT";
     public static final String DATASTORE_NAMESPACE = "DATASTORE_NAMESPACE";
+    public static final String SPANNER_PROJECT_ID = "SPANNER_PROJECT_ID";
+    public static final String SPANNER_DATABASE_ID = "SPANNER_DATABASE_ID";
+    public static final String SPANNER_INSTANCE_ID = "SPANNER_INSTANCE_ID";
+    public static final String SPANNER_QUERY_NAME = "SPANNER_QUERY_NAME";
 
     static {
       // Note: One benefit of defining these strings above, instead of pulling them in from
