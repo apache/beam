@@ -26,14 +26,12 @@ import logging
 import random
 import time
 import unittest
-import uuid
 from decimal import Decimal
 from functools import wraps
 
 import pytest
 
 import apache_beam as beam
-from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.value_provider import StaticValueProvider
@@ -175,163 +173,6 @@ class ReadTests(BigQueryReadIntegrationTests):
           p | 'read with value provider query' >> beam.io.ReadFromBigQuery(
               query=query, use_standard_sql=True, project=self.project))
       assert_that(result, equal_to(self.TABLE_DATA))
-
-
-class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
-  TABLE_DATA = [{
-      'number': 1, 'str': 'abc'
-  }, {
-      'number': 2, 'str': 'def'
-  }, {
-      'number': 3, 'str': u'你好'
-  }, {
-      'number': 4, 'str': u'привет'
-  }]
-
-  @classmethod
-  def setUpClass(cls):
-    super(ReadUsingStorageApiTests, cls).setUpClass()
-    cls.table_name = 'python_read_table'
-    cls._create_table(cls.table_name)
-
-    table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)
-    cls.query = 'SELECT number, str FROM `%s`' % table_id
-
-    # Materializing the newly created Table to ensure the Read API can stream.
-    cls.temp_table_reference = cls._execute_query(cls.project, cls.query)
-
-  @classmethod
-  def tearDownClass(cls):
-    cls.bigquery_client.clean_up_temporary_dataset(cls.project)
-    super(ReadUsingStorageApiTests, cls).tearDownClass()
-
-  @classmethod
-  def _create_table(cls, table_name):
-    table_schema = bigquery.TableSchema()
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'number'
-    table_field.type = 'INTEGER'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'str'
-    table_field.type = 'STRING'
-    table_schema.fields.append(table_field)
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=cls.project, datasetId=cls.dataset_id,
-            tableId=table_name),
-        schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=cls.project, datasetId=cls.dataset_id, table=table)
-    cls.bigquery_client.client.tables.Insert(request)
-    cls.bigquery_client.insert_rows(
-        cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
-
-  @classmethod
-  def _setup_temporary_dataset(cls, project, query):
-    location = cls.bigquery_client.get_query_location(project, query, False)
-    cls.bigquery_client.create_temporary_dataset(project, location)
-
-  @classmethod
-  def _execute_query(cls, project, query):
-    query_job_name = bigquery_tools.generate_bq_job_name(
-        'materializing_table_before_reading',
-        str(uuid.uuid4())[0:10],
-        bigquery_tools.BigQueryJobTypes.QUERY,
-        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
-    cls._setup_temporary_dataset(cls.project, cls.query)
-    job = cls.bigquery_client._start_query_job(
-        project,
-        query,
-        use_legacy_sql=False,
-        flatten_results=False,
-        job_id=query_job_name)
-    job_ref = job.jobReference
-    cls.bigquery_client.wait_for_bq_job(job_ref, max_retries=0)
-    return cls.bigquery_client._get_temp_table(project)
-
-  def test_iobase_source(self):
-    with beam.Pipeline(argv=self.args) as p:
-      result = (
-          p | 'Read with BigQuery Storage API' >> beam.io.ReadFromBigQuery(
-              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
-              project=self.temp_table_reference.projectId,
-              dataset=self.temp_table_reference.datasetId,
-              table=self.temp_table_reference.tableId,
-              use_fastavro_for_direct_read=True))
-      assert_that(result, equal_to(self.TABLE_DATA))
-
-  def test_iobase_source_without_fastavro(self):
-    with beam.Pipeline(argv=self.args) as p:
-      result = (
-          p | 'Read with BigQuery Storage API' >> beam.io.ReadFromBigQuery(
-              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
-              project=self.temp_table_reference.projectId,
-              dataset=self.temp_table_reference.datasetId,
-              table=self.temp_table_reference.tableId,
-              use_fastavro_for_direct_read=False))
-      assert_that(result, equal_to(self.TABLE_DATA))
-
-  def test_iobase_source_with_column_selection(self):
-    EXPECTED_TABLE_DATA = [{
-        'number': 1
-    }, {
-        'number': 2
-    }, {
-        'number': 3
-    }, {
-        'number': 4
-    }]
-    with beam.Pipeline(argv=self.args) as p:
-      result = (
-          p | 'Read with BigQuery Storage API' >> beam.io.ReadFromBigQuery(
-              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
-              project=self.temp_table_reference.projectId,
-              dataset=self.temp_table_reference.datasetId,
-              table=self.temp_table_reference.tableId,
-              selected_fields=['number']))
-      assert_that(result, equal_to(EXPECTED_TABLE_DATA))
-
-  def test_iobase_source_with_row_restriction(self):
-    EXPECTED_TABLE_DATA = [{
-        'number': 3, 'str': u'你好'
-    }, {
-        'number': 4, 'str': u'привет'
-    }]
-    with beam.Pipeline(argv=self.args) as p:
-      result = (
-          p | 'Read with BigQuery Storage API' >> beam.io.ReadFromBigQuery(
-              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
-              project=self.temp_table_reference.projectId,
-              dataset=self.temp_table_reference.datasetId,
-              table=self.temp_table_reference.tableId,
-              row_restriction='number > 2'))
-      assert_that(result, equal_to(EXPECTED_TABLE_DATA))
-
-  def test_iobase_source_with_column_selection_and_row_restriction(self):
-    EXPECTED_TABLE_DATA = [{'str': u'你好'}, {'str': u'привет'}]
-    with beam.Pipeline(argv=self.args) as p:
-      result = (
-          p | 'Read with BigQuery Storage API' >> beam.io.ReadFromBigQuery(
-              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
-              project=self.temp_table_reference.projectId,
-              dataset=self.temp_table_reference.datasetId,
-              table=self.temp_table_reference.tableId,
-              selected_fields=['str'],
-              row_restriction='number > 2'))
-      assert_that(result, equal_to(EXPECTED_TABLE_DATA))
-
-  def test_iobase_source_with_very_selective_filters(self):
-    with beam.Pipeline(argv=self.args) as p:
-      result = (
-          p | 'Read with BigQuery Storage API' >> beam.io.ReadFromBigQuery(
-              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
-              project=self.temp_table_reference.projectId,
-              dataset=self.temp_table_reference.datasetId,
-              table=self.temp_table_reference.tableId,
-              selected_fields=['str'],
-              row_restriction='number > 4'))
-      assert_that(result, equal_to([]))
 
 
 class ReadNewTypesTests(BigQueryReadIntegrationTests):
