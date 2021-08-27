@@ -169,7 +169,8 @@ class Top(object):
   """Combiners for obtaining extremal elements."""
 
   # pylint: disable=no-self-argument
-
+  @with_input_types(T)
+  @with_output_types(List[T])
   class Of(CombinerWithoutDefaults):
     """Obtain a list of the compare-most N elements in a PCollection.
 
@@ -203,10 +204,12 @@ class Top(object):
         # This is a more efficient global algorithm.
         top_per_bundle = pcoll | core.ParDo(
             _TopPerBundle(self._n, self._key, self._reverse))
-        # If pcoll is empty, we can't guerentee that top_per_bundle
+        # If pcoll is empty, we can't guarantee that top_per_bundle
         # won't be empty, so inject at least one empty accumulator
-        # so that downstream is guerenteed to produce non-empty output.
-        empty_bundle = pcoll.pipeline | core.Create([(None, [])])
+        # so that downstream is guaranteed to produce non-empty output.
+        empty_bundle = (
+            pcoll.pipeline | core.Create([(None, [])]).with_output_types(
+                top_per_bundle.element_type))
         return ((top_per_bundle, empty_bundle) | core.Flatten()
                 | core.GroupByKey()
                 | core.ParDo(
@@ -220,6 +223,8 @@ class Top(object):
               TopCombineFn(self._n, self._key,
                            self._reverse)).without_defaults()
 
+  @with_input_types(Tuple[K, V])
+  @with_output_types(Tuple[K, List[V]])
   class PerKey(ptransform.PTransform):
     """Identifies the compare-most N elements associated with each key.
 
@@ -525,6 +530,8 @@ class Sample(object):
 
   # pylint: disable=no-self-argument
 
+  @with_input_types(T)
+  @with_output_types(List[T])
   class FixedSizeGlobally(CombinerWithoutDefaults):
     """Sample n elements from the input PCollection without replacement."""
     def __init__(self, n):
@@ -544,6 +551,8 @@ class Sample(object):
     def default_label(self):
       return 'FixedSizeGlobally(%d)' % self._n
 
+  @with_input_types(Tuple[K, V])
+  @with_output_types(Tuple[K, List[V]])
   class FixedSizePerKey(ptransform.PTransform):
     """Sample n elements associated with each key without replacement."""
     def __init__(self, n):
@@ -691,7 +700,8 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
         a in zip(self._combiners, accumulator)
     ]
 
-
+@with_input_types(T)
+@with_output_types(List[T])
 class ToList(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single list."""
   def expand(self, pcoll):
@@ -720,6 +730,8 @@ class ToListCombineFn(core.CombineFn):
     return accumulator
 
 
+@with_input_types(Tuple[K, V])
+@with_output_types(Dict[K, V])
 class ToDict(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single dict.
 
@@ -757,6 +769,8 @@ class ToDictCombineFn(core.CombineFn):
     return accumulator
 
 
+@with_input_types(T)
+@with_output_types(Set[T])
 class ToSet(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a set."""
   def expand(self, pcoll):
