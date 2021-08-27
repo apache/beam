@@ -174,7 +174,7 @@ public class AzureModule extends SimpleModule {
       field.setAccessible(true);
       
       Object fieldObj = field.get(obj);
-      assert fieldObj != null
+      assert fieldObj != null;
       return fieldObj;
     }
 
