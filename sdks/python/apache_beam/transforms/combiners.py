@@ -700,6 +700,7 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
         a in zip(self._combiners, accumulator)
     ]
 
+
 @with_input_types(T)
 @with_output_types(List[T])
 class ToList(CombinerWithoutDefaults):
