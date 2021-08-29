@@ -36,8 +36,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfigurationPayload;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms.PayloadTypeUrns;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.Environments;
@@ -52,6 +52,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.AllowList;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -374,14 +375,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
   private @MonotonicNonNull Map<String, TransformProvider> registeredTransforms;
   private final PipelineOptions pipelineOptions;
-  private String allowlistFile = "";
 
   public ExpansionService() {
     this(new String[] {});
-  }
-
-  void setAllowlistFile(String allowlistFile) {
-    this.allowlistFile = allowlistFile;
   }
 
   public ExpansionService(String[] args) {
@@ -471,13 +467,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     String urn = request.getTransform().getSpec().getUrn();
 
     TransformProvider transformProvider = null;
-    if (getUrn(PayloadTypeUrns.Enum.JAVA_CLASS_LOOKUP).equals(urn)) {
-
-      if (this.allowlistFile.isEmpty()) {
-        this.allowlistFile =
-            pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
-      }
-      transformProvider = new JavaClassLookupTransformProvider(this.allowlistFile);
+    if (getUrn(ExpansionMethods.Enum.JAVA_CLASS_LOOKUP).equals(urn)) {
+      AllowList allowList =
+          pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
+      assert allowList != null;
+      transformProvider = new JavaClassLookupTransformProvider(allowList);
     } else {
       transformProvider = getRegisteredTransforms().get(urn);
       if (transformProvider == null) {

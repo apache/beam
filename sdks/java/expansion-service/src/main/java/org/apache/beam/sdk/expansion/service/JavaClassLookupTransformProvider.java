@@ -21,12 +21,8 @@ import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.File;
-import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -36,9 +32,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.BuilderMethod;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.JavaClassLookupPayload;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.Parameter;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms.PayloadTypeUrns;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ClassUtils;
 import org.apache.beam.sdk.expansion.service.ExpansionService.ExternalTransformRegistrarLoader;
@@ -49,12 +45,12 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform provider that can be used to directly instantiate a transform using Java class name
@@ -63,28 +59,20 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <InputT> input {@link PInput} type of the transform
  * @param <OutputT> output {@link POutput} type of the transform
  */
-@SuppressWarnings({"rawtypes", "argument.type.incompatible", "assignment.type.incompatible"})
+@SuppressWarnings({"argument.type.incompatible", "assignment.type.incompatible"})
 @SuppressFBWarnings("UWF_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD")
 class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends POutput>
     implements TransformProvider<PInput, POutput> {
 
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
-  @Nullable AllowList allowList;
+  AllowList allowList;
+  public static final String ALLOW_LIST_VERSION = "v1";
 
-  public JavaClassLookupTransformProvider(String allowListFile) {
-    if (!allowListFile.isEmpty()) {
-      ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-      File allowListFileObj = new File(allowListFile);
-      if (!allowListFileObj.exists()) {
-        throw new IllegalArgumentException("Allow list file " + allowListFile + " does not exist");
-      }
-      try {
-        allowList = mapper.readValue(allowListFileObj, AllowList.class);
-      } catch (IOException e) {
-        throw new IllegalArgumentException(
-            "Could not load the provided allowlist file " + allowListFile, e);
-      }
+  public JavaClassLookupTransformProvider(AllowList allowList) {
+    if (!allowList.getVersion().equals(ALLOW_LIST_VERSION)) {
+      throw new IllegalArgumentException("Unknown allow-list version");
     }
+    this.allowList = allowList;
   }
 
   @Override
@@ -94,7 +82,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       payload = JavaClassLookupPayload.parseFrom(spec.getPayload());
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(
-          "Invalid payload type for URN " + getUrn(PayloadTypeUrns.Enum.JAVA_CLASS_LOOKUP), e);
+          "Invalid payload type for URN " + getUrn(ExpansionMethods.Enum.JAVA_CLASS_LOOKUP), e);
     }
 
     String className = payload.getClassName();
@@ -115,11 +103,14 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
         throw new UnsupportedOperationException(
             "Expanding a transform class by the name " + className + " is not allowed.");
       }
-      Class transformClass = Class.forName(className);
+      Class<PTransform<InputT, OutputT>> transformClass =
+          (Class<PTransform<InputT, OutputT>>)
+              ReflectHelpers.findClassLoader().loadClass(className);
       PTransform<PInput, POutput> transform;
       if (payload.getConstructorMethod().isEmpty()) {
-        Constructor[] constructors = transformClass.getConstructors();
-        Constructor constructor = findMappingConstructor(constructors, payload);
+        Constructor<?>[] constructors = transformClass.getConstructors();
+        Constructor<PTransform<InputT, OutputT>> constructor =
+            findMappingConstructor(constructors, payload);
         Object[] parameterValues =
             getParameterValues(
                 constructor.getParameters(),
@@ -259,7 +250,8 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
         return false;
       }
 
-      Class parameterClass = parameterFromReflection.getType();
+      Class<PTransform<InputT, OutputT>> parameterClass =
+          (Class<PTransform<InputT, OutputT>>) parameterFromReflection.getType();
       Row parameterRow =
           ExternalTransformRegistrarLoader.decodeRow(
               parameterFromPayload.getSchema(), parameterFromPayload.getPayload());
@@ -303,7 +295,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     int i = 0;
     for (java.lang.reflect.Parameter parameter : parameters) {
       Parameter parameterConfig = payloadParameters[i];
-      Class parameterClass = parameter.getType();
+      Class<?> parameterClass = parameter.getType();
 
       Row parameterRow =
           ExternalTransformRegistrarLoader.decodeRow(
@@ -313,7 +305,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       if (isPrimitiveOrWrapperOrString(parameterClass)) {
         parameterValue = getPrimitiveValueFromRow(parameterRow);
       } else {
-        SerializableFunction<Row, Object> fromRowFunc = null;
+        SerializableFunction<Row, ?> fromRowFunc = null;
         // SCHEMA_REGISTRY.
         try {
           fromRowFunc = SCHEMA_REGISTRY.getFromRowFunction(parameterClass);
@@ -343,11 +335,11 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     return value;
   }
 
-  private Constructor findMappingConstructor(
-      Constructor[] constructors, JavaClassLookupPayload payload) {
+  private Constructor<PTransform<InputT, OutputT>> findMappingConstructor(
+      Constructor<?>[] constructors, JavaClassLookupPayload payload) {
     Parameter[] constructorParametersFromPayload =
         payload.getConstructorParametersList().toArray(new Parameter[0]);
-    List<Constructor> mappingConstructors =
+    List<Constructor<?>> mappingConstructors =
         Arrays.stream(constructors)
             .filter(c -> c.getParameterCount() == payload.getConstructorParametersCount())
             .filter(c -> parametersCompatible(c.getParameters(), constructorParametersFromPayload))
@@ -356,7 +348,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       throw new RuntimeException(
           "Expected to find a single mapping constructor but found " + mappingConstructors.size());
     }
-    return mappingConstructors.get(0);
+    return (Constructor<PTransform<InputT, OutputT>>) mappingConstructors.get(0);
   }
 
   private boolean isConstructorMethodForName(

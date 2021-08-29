@@ -17,14 +17,55 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.AllowList;
 import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 public interface ExpansionServiceOptions extends PipelineOptions {
+
+  @Description("Allow list for Java class based transform expansion")
+  @Default.InstanceFactory(JavaClassLookupAllowListFactory.class)
+  AllowList getJavaClassLookupAllowlist();
+
+  void setJavaClassLookupAllowlist(AllowList file);
+
   @Description("Allow list file for Java class based transform expansion")
   @Default.String("")
-  String getJavaClassLookupAllowlist();
+  String getJavaClassLookupAllowlistFile();
 
-  void setJavaClassLookupAllowlist(String file);
+  void setJavaClassLookupAllowlistFile(String file);
+
+  class JavaClassLookupAllowListFactory implements DefaultValueFactory<AllowList> {
+
+    @Override
+    public AllowList create(PipelineOptions options) {
+      String allowListFile =
+          options.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlistFile();
+      if (!allowListFile.isEmpty()) {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        File allowListFileObj = new File(allowListFile);
+        if (!allowListFileObj.exists()) {
+          throw new IllegalArgumentException(
+              "Allow list file " + allowListFile + " does not exist");
+        }
+        try {
+          return mapper.readValue(allowListFileObj, AllowList.class);
+        } catch (IOException e) {
+          throw new IllegalArgumentException(
+              "Could not load the provided allowlist file " + allowListFile, e);
+        }
+      }
+
+      // By default produces an empty allow-list.
+      return new AutoValue_JavaClassLookupTransformProvider_AllowList(
+          JavaClassLookupTransformProvider.ALLOW_LIST_VERSION, new ArrayList<>());
+    }
+  }
 }

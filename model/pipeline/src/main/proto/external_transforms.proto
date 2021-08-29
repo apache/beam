@@ -68,10 +68,13 @@ message BuilderMethod {
   repeated Parameter parameter = 2;
 }
 
-message PayloadTypeUrns {
+// Defines specific expansion methods that may be used to expand cross-language
+// transforms.
+// Has to be set as the URN of the transform of the expansion request.
+message ExpansionMethods {
   enum Enum {
-    // Cross-language transform  payload will be of type
-    // JavaClassLookupPayload.
+    // Expand a Java transform using specified constructor and builder methods.
+    // Transform payload will be of type JavaClassLookupPayload.
     JAVA_CLASS_LOOKUP = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:expansion:payload:java_class_lookup:v1"];
   }

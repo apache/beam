@@ -19,7 +19,8 @@ package org.apache.beam.sdk.expansion.service;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -29,10 +30,11 @@ import java.net.URL;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.BuilderMethod;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms.PayloadTypeUrns;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -45,12 +47,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 import org.hamcrest.Matchers;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link JavaCLassLookupTransformProvider}. */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
+@RunWith(JUnit4.class)
 public class JavaCLassLookupTransformProviderTest {
 
   private static final String TEST_URN = "test:beam:transforms:count";
@@ -59,7 +62,17 @@ public class JavaCLassLookupTransformProviderTest {
 
   private static final String TEST_NAMESPACE = "namespace";
 
-  private ExpansionService expansionService = new ExpansionService();
+  private static ExpansionService expansionService;
+
+  @BeforeClass
+  public static void setupExpansionService() {
+    PipelineOptionsFactory.register(ExpansionServiceOptions.class);
+    URL allowListFile = Resources.getResource("./test_allowlist.yaml");
+    System.out.println("Exists: " + new File(allowListFile.getPath()).exists());
+    expansionService =
+        new ExpansionService(
+            new String[] {"--javaClassLookupAllowlistFile=" + allowListFile.getPath()});
+  }
 
   public static class DummyTransform extends PTransform<PBegin, PCollection<String>> {
 
@@ -70,8 +83,9 @@ public class JavaCLassLookupTransformProviderTest {
     @Override
     public PCollection<String> expand(PBegin input) {
       return input
-          .apply(Create.of("aaa", "bbb", "ccc"))
+          .apply("MyCreateTransform", Create.of("aaa", "bbb", "ccc"))
           .apply(
+              "MyParDoTransform",
               ParDo.of(
                   new DoFn<String, String>() {
                     @ProcessElement
@@ -172,19 +186,23 @@ public class JavaCLassLookupTransformProviderTest {
                     .setUniqueName(TEST_NAME)
                     .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn(getUrn(PayloadTypeUrns.Enum.JAVA_CLASS_LOOKUP))
+                            .setUrn(getUrn(ExpansionMethods.Enum.JAVA_CLASS_LOOKUP))
                             .setPayload(payloaad.toByteString())))
             .setNamespace(TEST_NAMESPACE)
             .build();
-    URL allowListFile = Resources.getResource("./test_allowlist.yaml");
-    System.out.println("Exists: " + new File(allowListFile.getPath()).exists());
-    expansionService.setAllowlistFile(allowListFile.getPath());
     ExpansionApi.ExpansionResponse response = expansionService.expand(request);
     RunnerApi.PTransform expandedTransform = response.getTransform();
     assertEquals(TEST_NAMESPACE + TEST_NAME, expandedTransform.getUniqueName());
     assertThat(expandedTransform.getInputsCount(), Matchers.is(0));
     assertThat(expandedTransform.getOutputsCount(), Matchers.is(1));
-    assertThat(expandedTransform.getSubtransformsCount(), greaterThan(0));
+    assertEquals(2, expandedTransform.getSubtransformsCount());
+    assertEquals(2, expandedTransform.getSubtransformsCount());
+    assertThat(
+        expandedTransform.getSubtransforms(0),
+        anyOf(containsString("MyCreateTransform"), containsString("MyParDoTransform")));
+    assertThat(
+        expandedTransform.getSubtransforms(1),
+        anyOf(containsString("MyCreateTransform"), containsString("MyParDoTransform")));
   }
 
   @Test
