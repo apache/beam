@@ -67,6 +67,7 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
 from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import thread_pool_executor
+from apache_beam.utils.exception import raise_exception
 from apache_beam.utils.sentinel import Sentinel
 
 if TYPE_CHECKING:
@@ -1102,7 +1103,7 @@ class GrpcStateHandler(StateHandler):
       if self._exc_info:
         t, v, tb = self._exc_info
         if t and v and tb:
-          raise t(v).with_traceback(tb)
+          raise_exception(t, v, tb)
       elif self._done:
         raise RuntimeError()
     response = req_future.get()

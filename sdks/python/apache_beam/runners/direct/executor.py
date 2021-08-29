@@ -38,6 +38,7 @@ from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import sideinputs
 from apache_beam.utils import counters
+from apache_beam.utils.exception import raise_exception
 
 if TYPE_CHECKING:
   from apache_beam import pvalue
@@ -479,7 +480,7 @@ class _ExecutorServiceParallelExecutor(object):
     try:
       if update.exception:
         t, v, tb = update.exc_info
-        raise t(v).with_traceback(tb)
+        raise_exception(t, v, tb)
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()

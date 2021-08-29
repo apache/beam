@@ -51,6 +51,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.utils.exception import raise_exception
 
 if TYPE_CHECKING:
   import apache_beam.coders.slow_stream
@@ -499,7 +500,7 @@ class _GrpcDataChannel(DataChannel):
             return
           t, v, tb = self._exc_info
           if t:
-            raise t(v).with_traceback(tb)
+            raise_exception(t, v, tb)
         else:
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             if element.is_last:
