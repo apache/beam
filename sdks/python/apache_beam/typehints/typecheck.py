@@ -105,7 +105,7 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
           'Returning a %s from a ParDo or FlatMap is '
           'discouraged. Please use list("%s") if you really '
           'want this behavior.' % (object_type, output))
-    elif not isinstance(output, collections.Iterable):
+    elif not isinstance(output, collections.abc.Iterable):
       raise TypeCheckError(
           'FlatMap and ParDo must return an '
           'iterable. %s was returned instead.' % type(output))

@@ -532,7 +532,7 @@ class UnionHint(CompositeTypeHint):
               error_msg))
 
   def __getitem__(self, type_params):
-    if not isinstance(type_params, (collections.Sequence, set)):
+    if not isinstance(type_params, (collections.abc.Sequence, set)):
       raise TypeError('Cannot create Union without a sequence of types.')
 
     # Flatten nested Union's and duplicated repeated type hints.
@@ -573,7 +573,7 @@ class OptionalHint(UnionHint):
   """
   def __getitem__(self, py_type):
     # A single type must have been passed.
-    if isinstance(py_type, collections.Sequence):
+    if isinstance(py_type, collections.abc.Sequence):
       raise TypeError(
           'An Option type-hint only accepts a single type '
           'parameter.')
@@ -693,7 +693,7 @@ class TupleHint(CompositeTypeHint):
   def __getitem__(self, type_params):
     ellipsis = False
 
-    if not isinstance(type_params, collections.Iterable):
+    if not isinstance(type_params, collections.abc.Iterable):
       # Special case for hinting tuples with arity-1.
       type_params = (type_params, )
 
@@ -962,7 +962,7 @@ class IterableHint(CompositeTypeHint):
   class IterableTypeConstraint(SequenceTypeConstraint):
     def __init__(self, iter_type):
       super(IterableHint.IterableTypeConstraint,
-            self).__init__(iter_type, collections.Iterable)
+            self).__init__(iter_type, collections.abc.Iterable)
 
     def __repr__(self):
       return 'Iterable[%s]' % _unified_repr(self.inner_type)
