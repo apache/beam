@@ -87,12 +87,16 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
                             IntStream.range(0, partitionCount)
                                 .mapToObj(Partition::of)
                                 .collect(Collectors.toList());
-                        return PollResult.incomplete(Instant.now(), partitions);
+                        return PollResult.incomplete(Instant.now(), partitions)
+                            // TODO(BEAM-12459): Remove when this is fixed upstream
+                            .withWatermark(Instant.now());
                       }
                     })
                 .withPollInterval(pollDuration)
                 .withTerminationPerInput(
-                    terminate ? Watch.Growth.afterIterations(10) : Watch.Growth.never()));
+                    terminate
+                        ? Watch.Growth.afterTotalOf(pollDuration.multipliedBy(10))
+                        : Watch.Growth.never()));
     return partitions.apply(
         MapElements.into(TypeDescriptor.of(SubscriptionPartition.class))
             .via(kv -> SubscriptionPartition.of(subscription, kv.getValue())));
