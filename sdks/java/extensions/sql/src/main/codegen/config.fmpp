@@ -386,7 +386,6 @@ data: {
       # Example: SqlShowDatabases(), SqlShowTables().
       statementParserMethods: [
         "SqlSetOptionBeam(Span.of(), null)"
-        "SqlCreateFunction()"
       ]
 
       # List of methods for parsing custom literals.
@@ -418,6 +417,7 @@ data: {
       # Each must accept arguments "(SqlParserPos pos, boolean replace)".
       createStatementParserMethods: [
         "SqlCreateExternalTable"
+        "SqlCreateFunction"
         "SqlCreateTableNotSupportedMessage"
       ]
 

@@ -56,8 +56,12 @@ public class SqlCreateFunction extends SqlCreate implements BeamSqlParser.Execut
 
   /** Creates a SqlCreateFunction. */
   public SqlCreateFunction(
-      SqlParserPos pos, SqlIdentifier functionName, SqlNode jarPath, boolean isAggregate) {
-    super(OPERATOR, pos, false, false);
+      SqlParserPos pos,
+      boolean replace,
+      SqlIdentifier functionName,
+      SqlNode jarPath,
+      boolean isAggregate) {
+    super(OPERATOR, pos, replace, false);
     this.functionName = Objects.requireNonNull(functionName, "functionName");
     this.jarPath = Objects.requireNonNull(jarPath, "jarPath");
     this.isAggregate = isAggregate;
