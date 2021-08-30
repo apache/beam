@@ -87,9 +87,7 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
                             IntStream.range(0, partitionCount)
                                 .mapToObj(Partition::of)
                                 .collect(Collectors.toList());
-                        return PollResult.incomplete(Instant.now(), partitions)
-                            // TODO(BEAM-12459): Remove when this is fixed upstream
-                            .withWatermark(Instant.now());
+                        return PollResult.incomplete(Instant.now(), partitions);
                       }
                     })
                 .withPollInterval(pollDuration)
