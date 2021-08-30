@@ -121,6 +121,39 @@ public final class PartitionQueryResponseToRunQueryRequestTest {
     assertEquals(expectedQueries, actualQueries);
   }
 
+  @Test
+  public void ensureCursorPairingWorks_emptyCursorsInResponse() {
+    StructuredQuery query =
+        StructuredQuery.newBuilder()
+            .addFrom(
+                CollectionSelector.newBuilder()
+                    .setAllDescendants(true)
+                    .setCollectionId("c1")
+                    .build())
+            .build();
+
+    List<StructuredQuery> expectedQueries = newArrayList(query);
+
+    PartitionQueryPair partitionQueryPair =
+        new PartitionQueryPair(
+            PartitionQueryRequest.newBuilder().setStructuredQuery(query).build(),
+            PartitionQueryResponse.newBuilder().build());
+
+    ArgumentCaptor<RunQueryRequest> captor = ArgumentCaptor.forClass(RunQueryRequest.class);
+    when(processContext.element()).thenReturn(partitionQueryPair);
+    doNothing().when(processContext).output(captor.capture());
+
+    PartitionQueryResponseToRunQueryRequest fn = new PartitionQueryResponseToRunQueryRequest();
+    fn.processElement(processContext);
+
+    List<StructuredQuery> actualQueries =
+        captor.getAllValues().stream()
+            .map(RunQueryRequest::getStructuredQuery)
+            .collect(Collectors.toList());
+
+    assertEquals(expectedQueries, actualQueries);
+  }
+
   private static Cursor referenceValueCursor(String referenceValue) {
     return Cursor.newBuilder()
         .addValues(Value.newBuilder().setReferenceValue(referenceValue).build())
