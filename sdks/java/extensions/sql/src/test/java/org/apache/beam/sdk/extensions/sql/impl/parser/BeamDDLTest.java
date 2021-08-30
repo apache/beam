@@ -225,7 +225,7 @@ public class BeamDDLTest {
     SqlIdentifier name = new SqlIdentifier("foo", SqlParserPos.ZERO);
     SqlNode jarPath = SqlLiteral.createCharString("path/to/udf.jar", SqlParserPos.ZERO);
     SqlCreateFunction createFunction =
-        new SqlCreateFunction(SqlParserPos.ZERO, name, jarPath, false);
+        new SqlCreateFunction(SqlParserPos.ZERO, false, name, jarPath, false);
     SqlWriter sqlWriter = new SqlPrettyWriter(BeamBigQuerySqlDialect.DEFAULT);
 
     createFunction.unparse(sqlWriter, 0, 0);
@@ -239,7 +239,7 @@ public class BeamDDLTest {
     SqlIdentifier name = new SqlIdentifier("foo", SqlParserPos.ZERO);
     SqlNode jarPath = SqlLiteral.createCharString("path/to/udf.jar", SqlParserPos.ZERO);
     SqlCreateFunction createFunction =
-        new SqlCreateFunction(SqlParserPos.ZERO, name, jarPath, true);
+        new SqlCreateFunction(SqlParserPos.ZERO, false, name, jarPath, true);
     SqlWriter sqlWriter = new SqlPrettyWriter(BeamBigQuerySqlDialect.DEFAULT);
 
     createFunction.unparse(sqlWriter, 0, 0);
