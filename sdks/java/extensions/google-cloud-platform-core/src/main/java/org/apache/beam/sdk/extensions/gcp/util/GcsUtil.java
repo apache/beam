@@ -461,7 +461,7 @@ public class GcsUtil {
     HashMap<String, String> baseLabels = new HashMap<>();
     baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
     baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
-    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Objects.get");
+    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "GcsGet");
     baseLabels.put(
         MonitoringInfoConstants.Labels.RESOURCE,
         GcpResourceIdentifiers.cloudStorageBucket(path.getBucket()));
@@ -517,7 +517,7 @@ public class GcsUtil {
     HashMap<String, String> baseLabels = new HashMap<>();
     baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
     baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
-    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Objects.insert");
+    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "GcsInsert");
     baseLabels.put(
         MonitoringInfoConstants.Labels.RESOURCE,
         GcpResourceIdentifiers.cloudStorageBucket(path.getBucket()));
