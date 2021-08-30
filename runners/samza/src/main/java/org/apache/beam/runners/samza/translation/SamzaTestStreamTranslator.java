@@ -17,11 +17,16 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import java.io.IOException;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
+import org.apache.beam.runners.core.construction.TestStreamTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -29,6 +34,7 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.samza.SamzaException;
 import org.apache.samza.operators.KV;
@@ -40,8 +46,7 @@ import org.apache.samza.system.descriptors.GenericSystemDescriptor;
 
 /**
  * Translate {@link org.apache.beam.sdk.testing.TestStream} to a samza message stream produced by
- * {@link
- * org.apache.beam.runners.samza.translation.SamzaTestStreamSystemFactory.SmazaTestStreamSystemConsumer}.
+ * {@link SamzaTestStreamSystemFactory.SamzaTestStreamSystemConsumer}.
  */
 @SuppressWarnings({"rawtypes"})
 public class SamzaTestStreamTranslator<T> implements TransformTranslator<TestStream<T>> {
@@ -90,11 +95,53 @@ public class SamzaTestStreamTranslator<T> implements TransformTranslator<TestStr
     ctx.registerInputMessageStream(output, inputDescriptor);
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public void translatePortable(
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
-    throw new SamzaException("TestStream is not supported in portable by Samza runner");
+    final String outputId = ctx.getOutputId(transform);
+    final String escapedOutputId = SamzaPipelineTranslatorUtils.escape(outputId);
+    final GenericSystemDescriptor systemDescriptor =
+        new GenericSystemDescriptor(escapedOutputId, SamzaTestStreamSystemFactory.class.getName());
+    final ByteString bytes = transform.getTransform().getSpec().getPayload();
+    final RunnerApi.TestStreamPayload payload;
+    final Coder<T> coder;
+
+    try {
+      payload = RunnerApi.TestStreamPayload.parseFrom(bytes);
+      coder =
+          (Coder<T>)
+              RehydratedComponents.forComponents(pipeline.getComponents())
+                  .getCoder(payload.getCoderId());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    // the decoder for encodedTestStream
+    SerializableFunction<String, TestStream<?>> testStreamDecoder =
+        string -> {
+          try {
+            return TestStreamTranslation.testStreamFromProtoPayload(payload, coder);
+          } catch (IOException e) {
+            throw new SamzaException("Could not decode TestStream.", e);
+          }
+        };
+
+    final Map<String, String> systemConfig =
+        ImmutableMap.of(
+            "encodedTestStream",
+            Base64Serializer.serializeUnchecked(bytes),
+            "testStreamDecoder",
+            Base64Serializer.serializeUnchecked(testStreamDecoder));
+    systemDescriptor.withSystemConfigs(systemConfig);
+
+    // The KvCoder is needed here for Samza not to crop the key.
+    final Serde<KV<?, OpMessage<T>>> kvSerde = KVSerde.of(new NoOpSerde(), new NoOpSerde<>());
+    final GenericInputDescriptor<KV<?, OpMessage<T>>> inputDescriptor =
+        systemDescriptor.getInputDescriptor(escapedOutputId, kvSerde);
+
+    ctx.registerInputMessageStream(outputId, inputDescriptor);
   }
 }

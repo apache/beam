@@ -57,7 +57,7 @@ public class SamzaTestStreamSystemFactory implements SystemFactory {
   public SystemConsumer getConsumer(String systemName, Config config, MetricsRegistry registry) {
     final String streamPrefix = "systems." + systemName;
     final Config scopedConfig = config.subset(streamPrefix + ".", true);
-    return new SmazaTestStreamSystemConsumer<>(getTestStream(scopedConfig));
+    return new SamzaTestStreamSystemConsumer<>(getTestStream(scopedConfig));
   }
 
   @Override
@@ -76,13 +76,12 @@ public class SamzaTestStreamSystemFactory implements SystemFactory {
     final SerializableFunction<String, TestStream<T>> testStreamDecoder =
         Base64Serializer.deserializeUnchecked(
             config.get("testStreamDecoder"), SerializableFunction.class);
-    final TestStream<T> testStream = testStreamDecoder.apply(config.get("encodedTestStream"));
-    return testStream;
+    return testStreamDecoder.apply(config.get("encodedTestStream"));
   }
 
   private static final String DUMMY_OFFSET = "0";
 
-  /** System admin for SmazaTestStreamSystem. */
+  /** System admin for SamzaTestStreamSystem. */
   public static class SamzaTestStreamSystemAdmin implements SystemAdmin {
     @Override
     public Map<SystemStreamPartition, String> getOffsetsAfter(
@@ -116,10 +115,10 @@ public class SamzaTestStreamSystemFactory implements SystemFactory {
   }
 
   /** System consumer for SmazaTestStreamSystem. */
-  public static class SmazaTestStreamSystemConsumer<T> implements SystemConsumer {
+  public static class SamzaTestStreamSystemConsumer<T> implements SystemConsumer {
     TestStream<T> testStream;
 
-    public SmazaTestStreamSystemConsumer(TestStream<T> testStream) {
+    public SamzaTestStreamSystemConsumer(TestStream<T> testStream) {
       this.testStream = testStream;
     }
 
