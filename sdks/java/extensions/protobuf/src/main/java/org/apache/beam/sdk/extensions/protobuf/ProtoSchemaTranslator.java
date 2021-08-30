@@ -192,7 +192,7 @@ class ProtoSchemaTranslator {
                 .withOptions(getFieldOptions(fieldDescriptor)));
         /* Note that descriptor.getFields() returns an iterator in the order of the fields in the .proto file, not
          * in field number order. Therefore we can safely insert the OneOfField at the field of its first component.*/
-      } else if (oneOfFieldLocation.containsKey(fieldDescriptorNumber)) {
+      } else {
         Field oneOfField = oneOfFieldLocation.get(fieldDescriptorNumber);
         if (oneOfField != null) {
           fields.add(oneOfField);
