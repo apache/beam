@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -100,7 +101,7 @@ public class PerKeyOrderingTest implements Serializable {
   public void testSingleCallOrderingWithShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
     List<Integer> perKeyElements =
-        Lists.newArrayList(-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8);
+        Lists.newArrayList(-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 123456789);
     Collections.shuffle(perKeyElements);
     List<String> allKeys =
         Lists.newArrayList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).stream()
@@ -140,21 +141,39 @@ public class PerKeyOrderingTest implements Serializable {
   @Category({ValidatesRunner.class, UsesPerKeyOrderInStage.class})
   public void testSingleCallOrderingWithoutShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
-    List<Integer> perKeyElements =
-        Lists.newArrayList(-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8);
+    List<Long> perKeyElements =
+        Lists.newArrayList(
+            -8L,
+            -7L,
+            -6L,
+            -5L,
+            -4L,
+            -3L,
+            -2L,
+            -1L,
+            0L,
+            1L,
+            2L,
+            3L,
+            4L,
+            5L,
+            6L,
+            7L,
+            8L,
+            178907878346L);
     Collections.shuffle(perKeyElements);
     List<String> allKeys =
         Lists.newArrayList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).stream()
             .map(elm -> String.format("k%s", elm))
             .collect(Collectors.toList());
-    PCollection<KV<String, Integer>> kvSeeds =
+    PCollection<KV<String, Long>> kvSeeds =
         pipeline
             .apply("Generate all keys", Create.of(allKeys))
             .apply(
                 "Map into KV pairs",
                 MapElements.into(
-                        TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
-                    .via(key -> KV.of(key, 0)))
+                        TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
+                    .via(key -> KV.of(key, 0L)))
             .apply("Shuffle by key", Reshuffle.of());
 
     PCollection<KV<String, Boolean>> result =
@@ -162,7 +181,7 @@ public class PerKeyOrderingTest implements Serializable {
             .apply(
                 "Generate ordered values per key",
                 FlatMapElements.into(
-                        TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+                        TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
                     .via(
                         input -> {
                           return perKeyElements.stream()
@@ -206,14 +225,32 @@ public class PerKeyOrderingTest implements Serializable {
   public void testMultipleStatefulOrderingWithShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
     Instant instant = Instant.ofEpochMilli(0);
-    List<Integer> perKeyElements =
-        Lists.newArrayList(-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8);
+    List<Long> perKeyElements =
+        Lists.newArrayList(
+            -8L,
+            -7L,
+            -6L,
+            -5L,
+            -4L,
+            -3L,
+            -2L,
+            -1L,
+            0L,
+            1L,
+            2L,
+            3L,
+            4L,
+            5L,
+            6L,
+            7L,
+            8L,
+            -178907878346L);
     Collections.shuffle(perKeyElements);
     List<String> allKeys =
         Lists.newArrayList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).stream()
             .map(elm -> String.format("k%s", elm))
             .collect(Collectors.toList());
-    PCollection<KV<String, Integer>> kvSeeds =
+    PCollection<KV<String, Long>> kvSeeds =
         pipeline
             .apply(
                 "Periodic impulse",
@@ -226,19 +263,20 @@ public class PerKeyOrderingTest implements Serializable {
             .apply(
                 "Generate all keys",
                 FlatMapElements.into(
-                        TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+                        TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
                     .via(
-                        elm -> allKeys.stream().map(k -> KV.of(k, 0)).collect(Collectors.toList())))
+                        elm ->
+                            allKeys.stream().map(k -> KV.of(k, 0L)).collect(Collectors.toList())))
             .apply("Shuffle by key", Reshuffle.of());
 
     PCollection<KV<String, Boolean>> result =
         kvSeeds
             .apply(
                 "Generate ordered values per key",
-                ParDo.of(new StatefulOrderedGenerator<Integer>(perKeyElements)))
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+                ParDo.of(new StatefulOrderedGenerator<Long>(perKeyElements)))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()))
             .apply("Reshuffle", Reshuffle.of())
-            .apply("Verify", ParDo.of(new VerifyDoFn<Integer>(perKeyElements)));
+            .apply("Verify", ParDo.of(new VerifyDoFn<Long>(perKeyElements)));
 
     PAssert.that(result)
         .containsInAnyOrder(allKeys.stream().map(k -> KV.of(k, true)).collect(Collectors.toList()));
@@ -251,7 +289,7 @@ public class PerKeyOrderingTest implements Serializable {
     // Here we test that the output of a single process call in a DoFn will be output in order
     Instant instant = Instant.ofEpochMilli(0);
     List<Integer> perKeyElements =
-        Lists.newArrayList(-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8);
+        Lists.newArrayList(-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 123456789);
     Collections.shuffle(perKeyElements);
     List<String> allKeys =
         Lists.newArrayList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).stream()
