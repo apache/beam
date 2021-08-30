@@ -17,16 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.io.Serializable;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 
-interface SubscriptionPartitionProcessorFactory extends Serializable {
-  long serialVersionUID = 765145146544654L;
+/**
+ * A ManagedBacklogReaderFactory produces TopicBacklogReaders and tears down any produced readers
+ * when it is itself closed.
+ *
+ * <p>close() should never be called on produced readers.
+ */
+public interface ManagedBacklogReaderFactory extends AutoCloseable, Serializable {
+  TopicBacklogReader newReader(SubscriptionPartition subscriptionPartition);
 
-  SubscriptionPartitionProcessor newProcessor(
-      SubscriptionPartition subscriptionPartition,
-      RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker,
-      OutputReceiver<SequencedMessage> receiver);
+  @Override
+  void close();
 }
