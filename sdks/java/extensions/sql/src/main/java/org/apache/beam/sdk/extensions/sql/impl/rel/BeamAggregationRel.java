@@ -216,7 +216,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     private WindowFn<Row, IntervalWindow> windowFn;
     private int windowFieldIndex;
     private List<FieldAggregation> fieldAggregations;
-    private int groupSetCount;
+    private final int groupSetCount;
     private boolean ignoreValues;
 
     private Transform(
@@ -277,18 +277,18 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       for (FieldAggregation fieldAggregation : fieldAggregations) {
         List<Integer> inputs = fieldAggregation.inputs;
         CombineFn combineFn = fieldAggregation.combineFn;
-        if (inputs.size() > 1 || inputs.isEmpty()) {
-          // In this path we extract a Row (an empty row if inputs.isEmpty).
-          combined =
-              (combined == null)
-                  ? globally.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField)
-                  : combined.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField);
-        } else {
+        if (inputs.size() == 1) {
           // Combining over a single field, so extract just that field.
           combined =
               (combined == null)
                   ? globally.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField)
                   : combined.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField);
+        } else {
+          // In this path we extract a Row (an empty row if inputs.isEmpty).
+          combined =
+              (combined == null)
+                  ? globally.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField)
+                  : combined.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField);
         }
       }
 
@@ -317,18 +317,18 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       for (FieldAggregation fieldAggregation : fieldAggregations) {
         List<Integer> inputs = fieldAggregation.inputs;
         CombineFn combineFn = fieldAggregation.combineFn;
-        if (inputs.size() > 1 || inputs.isEmpty()) {
-          // In this path we extract a Row (an empty row if inputs.isEmpty).
-          combined =
-              (combined == null)
-                  ? byFields.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField)
-                  : combined.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField);
-        } else {
+        if (inputs.size() == 1) {
           // Combining over a single field, so extract just that field.
           combined =
               (combined == null)
                   ? byFields.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField)
                   : combined.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField);
+        } else {
+          // In this path we extract a Row (an empty row if inputs.isEmpty).
+          combined =
+              (combined == null)
+                  ? byFields.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField)
+                  : combined.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField);
         }
       }
 

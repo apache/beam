@@ -58,7 +58,7 @@ public class BeamBuiltinAggregations {
       BUILTIN_AGGREGATOR_FACTORIES =
           ImmutableMap.<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>builder()
               .put("ANY_VALUE", typeName -> Sample.anyValueCombineFn())
-              // Drop null elements for these aggregations BEAM-10379
+              // Drop null elements for these aggregations.
               .put("COUNT", typeName -> new DropNullFn(Count.combineFn()))
               .put("MAX", typeName -> new DropNullFn(BeamBuiltinAggregations.createMax(typeName)))
               .put("MIN", typeName -> new DropNullFn(BeamBuiltinAggregations.createMin(typeName)))
@@ -287,8 +287,9 @@ public class BeamBuiltinAggregations {
     }
   }
 
-  static class DropNullFn<InputT, AccumT, OutputT> extends CombineFn<InputT, AccumT, OutputT> {
-    CombineFn<InputT, AccumT, OutputT> combineFn;
+  private static class DropNullFn<InputT, AccumT, OutputT>
+      extends CombineFn<InputT, AccumT, OutputT> {
+    private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     DropNullFn(CombineFn<InputT, AccumT, OutputT> combineFn) {
       this.combineFn = combineFn;
@@ -449,7 +450,12 @@ public class BeamBuiltinAggregations {
     static class Accum implements Serializable {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
-      /** The bitwise-and of the inputs seen so far. */
+      /**
+       * True if any null inputs have been seen. If we see a single null value, the end result is
+       * null, so if isNull is true, isEmpty and bitOr are ignored.
+       */
+      boolean isNull = false;
+      /** The bitwise-or of the inputs seen so far. */
       long bitOr = 0L;
     }
 
@@ -460,8 +466,15 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Accum addInput(Accum accum, T input) {
-      accum.bitOr |= input.longValue();
+      if (accum.isNull) {
+        return accum;
+      }
+      if (input == null) {
+        accum.isNull = true;
+        return accum;
+      }
       accum.isEmpty = false;
+      accum.bitOr |= input.longValue();
       return accum;
     }
 
@@ -469,6 +482,9 @@ public class BeamBuiltinAggregations {
     public Accum mergeAccumulators(Iterable<Accum> accums) {
       Accum merged = createAccumulator();
       for (Accum accum : accums) {
+        if (accum.isNull) {
+          return accum;
+        }
         if (accum.isEmpty) {
           continue;
         }
@@ -480,7 +496,7 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Long extractOutput(Accum accum) {
-      if (accum.isEmpty) {
+      if (accum.isEmpty || accum.isNull) {
         return null;
       }
       return accum.bitOr;
