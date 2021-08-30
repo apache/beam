@@ -59,8 +59,7 @@ public class TestStreamTranslation {
   }
 
   public static <T> TestStream<T> testStreamFromProtoPayload(
-      RunnerApi.TestStreamPayload testStreamPayload, Coder<T> coder)
-      throws IOException {
+      RunnerApi.TestStreamPayload testStreamPayload, Coder<T> coder) throws IOException {
     List<TestStream.Event<T>> events = new ArrayList<>();
 
     for (RunnerApi.TestStreamPayload.Event event : testStreamPayload.getEventsList()) {
