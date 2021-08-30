@@ -18,11 +18,27 @@
 """Collection of useful coders.
 
 Only those coders listed in __all__ are part of the public API of this module.
+
+## On usage of `pickle`, `dill` and `pickler` in Beam
+
+In Beam, we generally we use `pickle` for pipeline elements and `dill` for
+more complex types, like user functions.
+
+`pickler` is Beam's own wrapping of dill + compression + error handling.
+It serves also as an API to mask the actual encoding layer (so we can
+change it from `dill` if necessary).
+
+We created `_MemoizingPickleCoder` to improve performance when serializing
+complex user types for the execution of SDF. Specifically to address
+BEAM-12781, where many identical `BoundedSource` instances are being
+encoded.
+
 """
 # pytype: skip-file
 
 import base64
 import pickle
+from functools import lru_cache
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -739,6 +755,33 @@ class _PickleCoderBase(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+class _MemoizingPickleCoder(_PickleCoderBase):
+  """Coder using Python's pickle functionality with memoization."""
+  def __init__(self, cache_size=16):
+    super(_MemoizingPickleCoder, self).__init__()
+    self.cache_size = cache_size
+
+  def _create_impl(self):
+    from apache_beam.internal import pickler
+    dumps = pickler.dumps
+
+    mdumps = lru_cache(maxsize=self.cache_size, typed=True)(dumps)
+
+    def _nonhashable_dumps(x):
+      try:
+        return mdumps(x)
+      except TypeError:
+        return dumps(x)
+
+    return coder_impl.CallbackCoderImpl(_nonhashable_dumps, pickler.loads)
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return FastPrimitivesCoder(self, requires_deterministic=step_label)
+
+  def to_type_hint(self):
+    return Any
 
 
 class PickleCoder(_PickleCoderBase):

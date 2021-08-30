@@ -21,6 +21,7 @@
 
 import copy
 import heapq
+import itertools
 import operator
 import random
 from typing import Any
@@ -597,16 +598,24 @@ class SampleCombineFn(core.CombineFn):
 
 
 class _TupleCombineFnBase(core.CombineFn):
-  def __init__(self, *combiners):
+  def __init__(self, *combiners, merge_accumulators_batch_size=None):
     self._combiners = [core.CombineFn.maybe_from_callable(c) for c in combiners]
     self._named_combiners = combiners
+    # If the `merge_accumulators_batch_size` value is not specified, we chose a
+    # bounded default that is inversely proportional to the number of
+    # accumulators in merged tuples.
+    self._merge_accumulators_batch_size = (
+        merge_accumulators_batch_size or max(10, 1000 // len(combiners)))
 
   def display_data(self):
     combiners = [
         c.__name__ if hasattr(c, '__name__') else c.__class__.__name__
         for c in self._named_combiners
     ]
-    return {'combiners': str(combiners)}
+    return {
+        'combiners': str(combiners),
+        'merge_accumulators_batch_size': self._merge_accumulators_batch_size
+    }
 
   def setup(self, *args, **kwargs):
     for c in self._combiners:
@@ -616,10 +625,23 @@ class _TupleCombineFnBase(core.CombineFn):
     return [c.create_accumulator(*args, **kwargs) for c in self._combiners]
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
-    return [
-        c.merge_accumulators(a, *args, **kwargs) for c,
-        a in zip(self._combiners, zip(*accumulators))
-    ]
+    # Make sure that `accumulators` is an iterator (so that the position is
+    # remembered).
+    accumulators = iter(accumulators)
+    result = next(accumulators)
+    while True:
+      # Load accumulators into memory and merge in batches to decrease peak
+      # memory usage.
+      accumulators_batch = list(
+          itertools.islice(accumulators, self._merge_accumulators_batch_size))
+      if not accumulators_batch:
+        break
+      accumulators_batch += [result]
+      result = [
+          c.merge_accumulators(a, *args, **kwargs) for c,
+          a in zip(self._combiners, zip(*accumulators_batch))
+      ]
+    return result
 
   def compact(self, accumulator, *args, **kwargs):
     return [

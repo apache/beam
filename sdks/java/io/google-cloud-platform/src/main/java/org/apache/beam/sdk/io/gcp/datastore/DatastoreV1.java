@@ -58,9 +58,13 @@ import com.google.rpc.Code;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -901,12 +905,27 @@ public class DatastoreV1 {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = RUNQUERY_BACKOFF.backoff();
         while (true) {
+          HashMap<String, String> baseLabels = new HashMap<>();
+          baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+          baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
+          baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BatchDatastoreRead");
+          baseLabels.put(
+              MonitoringInfoConstants.Labels.RESOURCE,
+              GcpResourceIdentifiers.datastoreResource(
+                  options.getProjectId(), options.getNamespace()));
+          baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, options.getProjectId());
+          baseLabels.put(
+              MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, options.getNamespace());
+          ServiceCallMetric serviceCallMetric =
+              new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
           try {
             RunQueryResponse response = datastore.runQuery(request);
+            serviceCallMetric.call("ok");
             rpcSuccesses.inc();
             return response;
           } catch (DatastoreException exception) {
             rpcErrors.inc();
+            serviceCallMetric.call(exception.getCode().getNumber());
 
             if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
               throw exception;
@@ -1447,9 +1466,21 @@ public class DatastoreV1 {
           continue;
         }
 
+        HashMap<String, String> baseLabels = new HashMap<>();
+        baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+        baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
+        baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BatchDatastoreWrite");
+        baseLabels.put(
+            MonitoringInfoConstants.Labels.RESOURCE,
+            GcpResourceIdentifiers.datastoreResource(projectId.get(), ""));
+        baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, projectId.get());
+        baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, "");
+        ServiceCallMetric serviceCallMetric =
+            new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
         try {
           datastore.commit(commitRequest.build());
           endTime = System.currentTimeMillis();
+          serviceCallMetric.call("ok");
 
           writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
           adaptiveThrottler.successfulRequest(startTime);
@@ -1460,6 +1491,7 @@ public class DatastoreV1 {
           // Break if the commit threw no exception.
           break;
         } catch (DatastoreException exception) {
+          serviceCallMetric.call(exception.getCode().getNumber());
           if (exception.getCode() == Code.DEADLINE_EXCEEDED) {
             /* Most errors are not related to request size, and should not change our expectation of
              * the latency of successful requests. DEADLINE_EXCEEDED can be taken into

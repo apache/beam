@@ -372,7 +372,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.33.0'
+    project.version = '2.34.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -472,7 +472,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark_version = "2.4.8"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
-    def arrow_version = "4.0.0"
+    def arrow_version = "5.0.0"
     def jmh_version = "1.32"
 
     // A map of maps containing common libraries used per language. To use:

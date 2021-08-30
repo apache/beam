@@ -207,6 +207,10 @@ class CodersTest(unittest.TestCase):
     coder = coders.PickleCoder()
     self.check_coder(coder, *self.test_values)
 
+  def test_memoizing_pickle_coder(self):
+    coder = coders._MemoizingPickleCoder()
+    self.check_coder(coder, *self.test_values)
+
   def test_deterministic_coder(self):
     coder = coders.FastPrimitivesCoder()
     deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')

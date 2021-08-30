@@ -128,7 +128,7 @@ class ReadTests(BigQueryReadIntegrationTests):
   @classmethod
   def setUpClass(cls):
     super(ReadTests, cls).setUpClass()
-    cls.table_name = 'python_write_table'
+    cls.table_name = 'python_read_table'
     cls.create_table(cls.table_name)
 
     table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)
