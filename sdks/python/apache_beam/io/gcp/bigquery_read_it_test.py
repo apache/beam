@@ -80,6 +80,19 @@ def datetime_to_utc(element):
   return element
 
 
+class CheckPythonTypes(beam.DoFn):
+  def process(self, element):
+    for key, value in element.items():
+      if key == 'float':
+        isinstance(value, float)
+      elif key == 'numeric':
+        isinstance(value, Decimal)
+      elif key == 'bytes':
+        isinstance(value, bytes)
+      else:
+        isinstance(value, str)
+
+
 class BigQueryReadIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_read_table_'
 
@@ -280,6 +293,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
           | 'read' >> beam.io.Read(
               beam.io.BigQuerySource(query=self.query, use_standard_sql=True)))
       assert_that(result, equal_to(self.get_expected_data()))
+      result = result | beam.ParDo(CheckPythonTypes())
 
   @pytest.mark.it_postcommit
   def test_iobase_source(self):
@@ -293,6 +307,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
               bigquery_job_labels={'launcher': 'apache_beam_tests'})
           | beam.Map(datetime_to_utc))
       assert_that(result, equal_to(self.get_expected_data(native=False)))
+      result = result | beam.ParDo(CheckPythonTypes())
 
 
 class ReadAllBQTests(BigQueryReadIntegrationTests):
