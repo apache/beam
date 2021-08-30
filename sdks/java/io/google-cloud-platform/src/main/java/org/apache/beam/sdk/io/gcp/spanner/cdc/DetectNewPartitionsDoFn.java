@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.Tracer;
@@ -174,7 +173,6 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
 
     metrics.updatePartitionCreatedToScheduled(
         new Duration(createdAt.toDate().getTime(), scheduledAt.toSqlTimestamp().getTime()));
-
     LOG.debug("Updated the record:" + token);
     return partition.toBuilder().setScheduledAt(scheduledAt).build();
   }

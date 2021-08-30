@@ -29,14 +29,16 @@ public class DaoFactory implements Serializable {
 
   private static final long serialVersionUID = 7929063669009832487L;
   private static PartitionMetadataAdminDao partitionMetadataAdminDao;
+  private static PartitionMetricsAdminDao partitionMetricsAdminDao;
   private static PartitionMetadataDao partitionMetadataDaoInstance;
   private static ChangeStreamDao changeStreamDaoInstance;
 
   private final SpannerConfig changeStreamSpannerConfig;
-  private final SpannerConfig partitionMetadataSpannerConfig;
+  private final SpannerConfig metadataSpannerConfig;
 
   private final String changeStreamName;
   private final String partitionMetadataTableName;
+  private final String partitionMetricsTableName;
   private final MapperFactory mapperFactory;
   private final RpcPriority rpcPriority;
   private final String jobName;
@@ -44,15 +46,17 @@ public class DaoFactory implements Serializable {
   public DaoFactory(
       SpannerConfig changeStreamSpannerConfig,
       String changeStreamName,
-      SpannerConfig partitionMetadataSpannerConfig,
+      SpannerConfig metadataSpannerConfig,
       String partitionMetadataTableName,
+      String partitionMetricsTableName,
       MapperFactory mapperFactory,
       RpcPriority rpcPriority,
       String jobName) {
     this.changeStreamSpannerConfig = changeStreamSpannerConfig;
     this.changeStreamName = changeStreamName;
-    this.partitionMetadataSpannerConfig = partitionMetadataSpannerConfig;
+    this.metadataSpannerConfig = metadataSpannerConfig;
     this.partitionMetadataTableName = partitionMetadataTableName;
+    this.partitionMetricsTableName = partitionMetricsTableName;
     this.mapperFactory = mapperFactory;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
@@ -62,25 +66,40 @@ public class DaoFactory implements Serializable {
   public synchronized PartitionMetadataAdminDao getPartitionMetadataAdminDao() {
     if (partitionMetadataAdminDao == null) {
       DatabaseAdminClient databaseAdminClient =
-          SpannerAccessor.getOrCreate(partitionMetadataSpannerConfig).getDatabaseAdminClient();
+          SpannerAccessor.getOrCreate(metadataSpannerConfig).getDatabaseAdminClient();
       partitionMetadataAdminDao =
           new PartitionMetadataAdminDao(
               databaseAdminClient,
-              partitionMetadataSpannerConfig.getInstanceId().get(),
-              partitionMetadataSpannerConfig.getDatabaseId().get(),
+              metadataSpannerConfig.getInstanceId().get(),
+              metadataSpannerConfig.getDatabaseId().get(),
               partitionMetadataTableName);
     }
     return partitionMetadataAdminDao;
   }
 
   // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized PartitionMetricsAdminDao getPartitionMetricsAdminDao() {
+    if (partitionMetricsAdminDao == null) {
+      DatabaseAdminClient databaseAdminClient =
+          SpannerAccessor.getOrCreate(metadataSpannerConfig).getDatabaseAdminClient();
+      partitionMetricsAdminDao =
+          new PartitionMetricsAdminDao(
+              databaseAdminClient,
+              metadataSpannerConfig.getInstanceId().get(),
+              metadataSpannerConfig.getDatabaseId().get(),
+              partitionMetricsTableName);
+    }
+    return partitionMetricsAdminDao;
+  }
+
+  // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized PartitionMetadataDao getPartitionMetadataDao() {
-    final SpannerAccessor spannerAccessor =
-        SpannerAccessor.getOrCreate(partitionMetadataSpannerConfig);
+    final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(metadataSpannerConfig);
     if (partitionMetadataDaoInstance == null) {
       partitionMetadataDaoInstance =
           new PartitionMetadataDao(
               this.partitionMetadataTableName,
+              this.partitionMetricsTableName,
               spannerAccessor.getDatabaseClient(),
               mapperFactory.partitionMetadataMapper());
     }

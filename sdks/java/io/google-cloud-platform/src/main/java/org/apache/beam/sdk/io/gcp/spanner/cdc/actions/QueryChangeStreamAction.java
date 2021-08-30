@@ -93,6 +93,8 @@ public class QueryChangeStreamAction {
               PARTITION_ID_ATTRIBUTE_LABEL,
               AttributeValue.stringAttributeValue(partition.getPartitionToken()));
 
+      partitionMetadataDao.updateQueryStartedAt(partition.getPartitionToken());
+
       final String token = partition.getPartitionToken();
       try (ChangeStreamResultSet resultSet =
           changeStreamDao.changeStreamQuery(
@@ -103,6 +105,7 @@ public class QueryChangeStreamAction {
               partition.isInclusiveEnd(),
               partition.getHeartbeatMillis())) {
 
+        long recordsProcessed = 0;
         while (resultSet.next()) {
           // TODO: Check what should we do if there is an error here
           final List<ChangeStreamRecord> records =
@@ -114,6 +117,7 @@ public class QueryChangeStreamAction {
 
           Optional<ProcessContinuation> maybeContinuation;
           for (final ChangeStreamRecord record : records) {
+            recordsProcessed++;
             if (record instanceof DataChangeRecord) {
               maybeContinuation =
                   dataChangeRecordAction.run(
@@ -133,6 +137,8 @@ public class QueryChangeStreamAction {
             }
             if (maybeContinuation.isPresent()) {
               LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
+              partitionMetadataDao.updateRecordsProcessed(
+                  partition.getPartitionToken(), recordsProcessed);
               bundleFinalizer.afterBundleCommit(
                   Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
                   updateWatermarkCallback(partition.getPartitionToken(), watermarkEstimator));
@@ -140,6 +146,8 @@ public class QueryChangeStreamAction {
             }
           }
         }
+        partitionMetadataDao.updateRecordsProcessed(
+            partition.getPartitionToken(), recordsProcessed);
         LOG.debug("[" + token + "] Query change stream action completed successfully");
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),

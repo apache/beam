@@ -28,31 +28,29 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 // TODO: Add java docs
-public class PartitionMetadataAdminDao {
+public class PartitionMetricsAdminDao {
 
-  // Metadata table column names
+  // Metrics table column names
   public static final String COLUMN_PARTITION_TOKEN = "PartitionToken";
-  public static final String COLUMN_PARENT_TOKENS = "ParentTokens";
-  public static final String COLUMN_START_TIMESTAMP = "StartTimestamp";
-  public static final String COLUMN_INCLUSIVE_START = "InclusiveStart";
-  public static final String COLUMN_END_TIMESTAMP = "EndTimestamp";
-  public static final String COLUMN_INCLUSIVE_END = "InclusiveEnd";
-  public static final String COLUMN_HEARTBEAT_MILLIS = "HeartbeatMillis";
-  public static final String COLUMN_STATE = "State";
-  public static final String COLUMN_CURRENT_WATERMARK = "CurrentWatermark";
   public static final String COLUMN_CREATED_AT = "CreatedAt";
   public static final String COLUMN_SCHEDULED_AT = "ScheduledAt";
   public static final String COLUMN_RUNNING_AT = "RunningAt";
   public static final String COLUMN_FINISHED_AT = "FinishedAt";
+  public static final String COLUMN_DELETED_AT = "DeletedAt";
+  public static final String COLUMN_QUERY_STARTED_AT = "QueryStartedAt";
+  public static final String COLUMN_RECORDS_PROCESSED = "RecordsProcessed";
+  public static final String COLUMN_LAST_PROCESSED_AT = "LastProcessedAt";
+  public static final String COLUMN_LAST_UPDATED_AT = "LastUpdatedAt";
 
   private static final int TIMEOUT_MINUTES = 10;
+  private static final int TTL_AFTER_PARTITION_DELETED_DAYS = 1;
 
   private final DatabaseAdminClient databaseAdminClient;
   private final String instanceId;
   private final String databaseId;
   private final String tableName;
 
-  public PartitionMetadataAdminDao(
+  public PartitionMetricsAdminDao(
       DatabaseAdminClient databaseAdminClient,
       String instanceId,
       String databaseId,
@@ -63,29 +61,13 @@ public class PartitionMetadataAdminDao {
     this.tableName = tableName;
   }
 
-  public void createPartitionMetadataTable() {
-    final String metadataCreateStmt =
+  public void createPartitionMetricsTable() {
+    final String metricsCreateStmt =
         "CREATE TABLE "
             + tableName
             + " ("
             + COLUMN_PARTITION_TOKEN
             + " STRING(MAX) NOT NULL,"
-            + COLUMN_PARENT_TOKENS
-            + " ARRAY<STRING(MAX)> NOT NULL,"
-            + COLUMN_START_TIMESTAMP
-            + " TIMESTAMP NOT NULL,"
-            + COLUMN_INCLUSIVE_START
-            + " BOOL NOT NULL, "
-            + COLUMN_END_TIMESTAMP
-            + " TIMESTAMP,"
-            + COLUMN_INCLUSIVE_END
-            + " BOOL,"
-            + COLUMN_HEARTBEAT_MILLIS
-            + " INT64 NOT NULL,"
-            + COLUMN_STATE
-            + " STRING(MAX) NOT NULL,"
-            + COLUMN_CURRENT_WATERMARK
-            + " TIMESTAMP NOT NULL,"
             + COLUMN_CREATED_AT
             + " TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),"
             + COLUMN_SCHEDULED_AT
@@ -94,10 +76,25 @@ public class PartitionMetadataAdminDao {
             + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
             + COLUMN_FINISHED_AT
             + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
-            + ") PRIMARY KEY (PartitionToken)";
+            + COLUMN_DELETED_AT
+            + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
+            + COLUMN_QUERY_STARTED_AT
+            + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
+            + COLUMN_RECORDS_PROCESSED
+            + " INT64 NOT NULL,"
+            + COLUMN_LAST_PROCESSED_AT
+            + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
+            + COLUMN_LAST_UPDATED_AT
+            + " TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),"
+            + ") PRIMARY KEY (PartitionToken)"
+            + ", ROW DELETION POLICY (OLDER_THAN("
+            + COLUMN_DELETED_AT
+            + ", INTERVAL "
+            + TTL_AFTER_PARTITION_DELETED_DAYS
+            + " DAY))";
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(
-            instanceId, databaseId, Collections.singletonList(metadataCreateStmt), null);
+            instanceId, databaseId, Collections.singletonList(metricsCreateStmt), null);
     try {
       // Initiate the request which returns an OperationFuture.
       op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
@@ -111,11 +108,11 @@ public class PartitionMetadataAdminDao {
     }
   }
 
-  public void deletePartitionMetadataTable() {
-    final String metadataDropStmt = "DROP TABLE " + tableName;
+  public void deletePartitionMetricsTable() {
+    final String metricsDropStmt = "DROP TABLE " + tableName;
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(
-            instanceId, databaseId, Collections.singletonList(metadataDropStmt), null);
+            instanceId, databaseId, Collections.singletonList(metricsDropStmt), null);
     try {
       // Initiate the request which returns an OperationFuture.
       op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES);

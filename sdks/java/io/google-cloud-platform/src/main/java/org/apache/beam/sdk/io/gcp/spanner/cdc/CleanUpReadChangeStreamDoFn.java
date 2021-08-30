@@ -34,5 +34,6 @@ public class CleanUpReadChangeStreamDoFn extends DoFn<byte[], Void> implements S
   @ProcessElement
   public void processElement(OutputReceiver<Void> receiver) {
     daoFactory.getPartitionMetadataAdminDao().deletePartitionMetadataTable();
+    daoFactory.getPartitionMetricsAdminDao().deletePartitionMetricsTable();
   }
 }

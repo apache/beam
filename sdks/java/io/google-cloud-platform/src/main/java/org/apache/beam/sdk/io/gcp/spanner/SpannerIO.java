@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.NameGenerator.generatePartitionMetadataTableName;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.NameGenerator.generatePartitionMetricsTableName;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -1470,6 +1471,9 @@ public class SpannerIO {
           MoreObjects.firstNonNull(getMetadataDatabase(), changeStreamDatabaseId.getDatabase());
       final String partitionMetadataTableName =
           generatePartitionMetadataTableName(partitionMetadataDatabaseId);
+      final String partitionMetricsTableName =
+          generatePartitionMetricsTableName(partitionMetadataDatabaseId);
+      LOG.info("Partition metrics table name: " + partitionMetricsTableName);
 
       if (getTraceSampler() != null) {
         TraceConfig globalTraceConfig = Tracing.getTraceConfig();
@@ -1501,6 +1505,7 @@ public class SpannerIO {
                 getChangeStreamName(),
                 partitionMetadataSpannerConfig,
                 partitionMetadataTableName,
+                partitionMetricsTableName,
                 mapperFactory,
                 rpcPriority,
                 input.getPipeline().getOptions().getJobName());
@@ -1515,6 +1520,7 @@ public class SpannerIO {
 
         PipelineInitializer.initialize(
             daoFactory.getPartitionMetadataAdminDao(),
+            daoFactory.getPartitionMetricsAdminDao(),
             daoFactory.getPartitionMetadataDao(),
             getInclusiveStartAt(),
             getInclusiveEndAt());

@@ -17,18 +17,18 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.mapper;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_CREATED_AT;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_END_TIMESTAMP;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_FINISHED_AT;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_HEARTBEAT_MILLIS;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_INCLUSIVE_END;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_INCLUSIVE_START;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_PARENT_TOKENS;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_PARTITION_TOKEN;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_RUNNING_AT;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_SCHEDULED_AT;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_START_TIMESTAMP;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_STATE;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_CREATED_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_INCLUSIVE_END;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_INCLUSIVE_START;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_RUNNING_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_STATE;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
