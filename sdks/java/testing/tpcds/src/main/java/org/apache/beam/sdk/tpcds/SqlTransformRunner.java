@@ -210,7 +210,7 @@ public class SqlTransformRunner {
       }
     }
     org.apache.avro.Schema schemaProjected =
-        org.apache.avro.Schema.createRecord(schema.getName() + "_projected", null, null, false);
+        org.apache.avro.Schema.createRecord(schema.getName() + "_projected", "", "", false);
     schemaProjected.setFields(projectedFields);
     return schemaProjected;
   }
