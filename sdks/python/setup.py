@@ -201,7 +201,7 @@ GCP_REQUIREMENTS = [
 
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
-    'ipython>=5.8.0,<8',
+    'ipython>=7,<8',
     'ipykernel>=5.2.0,<6',
     # Skip version 6.1.13 due to
     # https://github.com/jupyter/jupyter_client/issues/637
