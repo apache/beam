@@ -134,7 +134,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
   private class MatchTransform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
-    private final ImmutableBitSet parKeys;
+    private final ImmutableBitSet partitionKeys;
     private final RelCollation orderKeys;
     private final Map<String, RexNode> measures;
     private final boolean allRows;
@@ -142,13 +142,13 @@ public class BeamMatchRel extends Match implements BeamRelNode {
     private final Map<String, RexNode> patternDefs;
 
     public MatchTransform(
-        ImmutableBitSet parKeys,
+        ImmutableBitSet partitionKeys,
         RelCollation orderKeys,
         Map<String, RexNode> measures,
         boolean allRows,
         RexNode pattern,
         Map<String, RexNode> patternDefs) {
-      this.parKeys = parKeys;
+      this.partitionKeys = partitionKeys;
       this.orderKeys = orderKeys;
       this.measures = measures;
       this.allRows = allRows;
@@ -168,7 +168,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       Schema outSchema = CalciteUtils.toSchema(getRowType());
 
       Schema.Builder schemaBuilder = new Schema.Builder();
-      for (int index : parKeys.asList()) {
+      for (int index : partitionKeys.asList()) {
         schemaBuilder.addField(upstreamSchema.getField(index));
       }
       Schema partitionKeySchema = schemaBuilder.build();
@@ -215,7 +215,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       // apply the ParDo for the match process and measures clause
       // for now, support FINAL only
       // TODO: add support for FINAL/RUNNING
-      List<CEPFieldRef> cepParKeys = CEPUtils.getCEPFieldRefFromParKeys(parKeys);
+      List<CEPFieldRef> cepParKeys = CEPUtils.getCEPFieldRefFromParKeys(partitionKeys);
       PCollection<Row> outStream =
           orderedUpstream
               .apply(
@@ -234,20 +234,20 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
     private final Schema upstreamSchema;
     private final Schema outSchema;
-    private final List<CEPFieldRef> parKeys;
+    private final List<CEPFieldRef> partitionKeys;
     private final ArrayList<CEPPattern> pattern;
     private final List<CEPMeasure> measures;
     private final boolean allRows;
 
     MatchPattern(
         Schema upstreamSchema,
-        List<CEPFieldRef> parKeys,
+        List<CEPFieldRef> partitionKeys,
         ArrayList<CEPPattern> pattern,
         List<CEPMeasure> measures,
         boolean allRows,
         Schema outSchema) {
       this.upstreamSchema = upstreamSchema;
-      this.parKeys = parKeys;
+      this.partitionKeys = partitionKeys;
       this.pattern = pattern;
       this.measures = measures;
       this.allRows = allRows;
@@ -281,18 +281,18 @@ public class BeamMatchRel extends Match implements BeamRelNode {
           Row.FieldValueBuilder newFieldBuilder = null;
 
           // add partition key columns
-          for (CEPFieldRef i : parKeys) {
+          for (CEPFieldRef i : partitionKeys) {
             int colIndex = i.getIndex();
             Schema.Field parSchema = upstreamSchema.getField(colIndex);
             String fieldName = parSchema.getName();
             if (!result.isEmpty()) {
-              Row parKeyRow = keyRows.getKey();
+              Row partitionKeyRow = keyRows.getKey();
               if (newFieldBuilder == null) {
                 newFieldBuilder =
-                    newRowBuilder.withFieldValue(fieldName, parKeyRow.getValue(fieldName));
+                    newRowBuilder.withFieldValue(fieldName, partitionKeyRow.getValue(fieldName));
               } else {
                 newFieldBuilder =
-                    newFieldBuilder.withFieldValue(fieldName, parKeyRow.getValue(fieldName));
+                    newFieldBuilder.withFieldValue(fieldName, partitionKeyRow.getValue(fieldName));
               }
             } else {
               break;
