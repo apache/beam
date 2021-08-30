@@ -467,7 +467,7 @@ class TestProtoSchemas {
           .setOptions(withTypeName("proto3_schema_messages.ReversedOneOf"))
           .build();
 
-  // Sample row instances for each OneOf case.
+  // Sample row instances for each ReversedOneOf case.
   static final Row REVERSED_ONEOF_ROW_INT32 =
       Row.withSchema(REVERSED_ONEOF_SCHEMA)
           .addValues("foo", REVERSED_ONE_OF_TYPE.createValue("oneof_int32", 1), 0)
@@ -485,7 +485,7 @@ class TestProtoSchemas {
           .addValues("foo", REVERSED_ONE_OF_TYPE.createValue("oneof_primitive", PRIMITIVE_ROW), 0)
           .build();
 
-  // Sample proto instances for each reversedOneOf case.
+  // Sample proto instances for each ReversedOneOf case.
   static final ReversedOneOf REVERSED_ONEOF_PROTO_INT32 =
       ReversedOneOf.newBuilder().setOneofInt32(1).setPlace1("foo").setPlace2(0).build();
   static final ReversedOneOf REVERSED_ONEOF_PROTO_BOOL =
