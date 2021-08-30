@@ -503,23 +503,29 @@ class ExternalTransform(ptransform.PTransform):
     if isinstance(self._expansion_service, str):
       channel_options = [("grpc.max_receive_message_length", -1),
                          ("grpc.max_send_message_length", -1)]
-      if hasattr(grpc, 'local_channel_credentials'):
-        # Some environments may not support insecure channels. Hence use a
-        # secure channel with local credentials here.
-        # TODO: update this to support secure non-local channels.
-        channel_factory_fn = functools.partial(
-            grpc.secure_channel,
-            self._expansion_service,
-            grpc.local_channel_credentials(),
-            options=channel_options)
-      else:
-        # local_channel_credentials is an experimental API which is unsupported
-        # by older versions of grpc which may be pulled in due to other project
-        # dependencies.
-        channel_factory_fn = functools.partial(
-            grpc.insecure_channel,
-            self._expansion_service,
-            options=channel_options)
+      # if hasattr(grpc, 'local_channel_credentials'):
+      #   # Some environments may not support insecure channels. Hence use a
+      #   # secure channel with local credentials here.
+      #   # TODO: update this to support secure non-local channels.
+      #   channel_factory_fn = functools.partial(
+      #       grpc.secure_channel,
+      #       self._expansion_service,
+      #       grpc.local_channel_credentials(),
+      #       options=channel_options)
+      # else:
+      #   # local_channel_credentials is an experimental API which is unsupported
+      #   # by older versions of grpc which may be pulled in due to other project
+      #   # dependencies.
+      #   channel_factory_fn = functools.partial(
+      #       grpc.insecure_channel,
+      #       self._expansion_service,
+      #       options=channel_options)
+      # N.B. This code was hacked to fix https://issues.apache.org/jira/browse/BEAM-12244
+      # See also: https://github.com/apache/beam/pull/14671
+      channel_factory_fn = functools.partial(
+          grpc.insecure_channel,
+          self._expansion_service,
+          options=channel_options)
       with channel_factory_fn() as channel:
         yield ExpansionAndArtifactRetrievalStub(channel)
     elif hasattr(self._expansion_service, 'Expand'):
