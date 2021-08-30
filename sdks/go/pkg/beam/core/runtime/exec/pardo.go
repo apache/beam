@@ -253,16 +253,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 
 	// Slow path: init side input for the given window
 
-	streams := make([]ReStream, len(n.Side), len(n.Side))
-	for i, adapter := range n.Side {
-		s, err := adapter.NewIterable(ctx, n.reader, w)
-		if err != nil {
-			return err
-		}
-		streams[i] = s
-	}
-
-	sideinput, err := makeSideInputs(n.Fn.ProcessElementFn(), n.Inbound, streams)
+	sideinput, err := makeSideInputs(ctx, w, n.Side, n.reader, n.Fn.ProcessElementFn(), n.Inbound)
 	if err != nil {
 		return err
 	}
