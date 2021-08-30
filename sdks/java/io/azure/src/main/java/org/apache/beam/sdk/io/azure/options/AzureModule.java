@@ -167,12 +167,12 @@ public class AzureModule extends SimpleModule {
       serializers.defaultSerializeValue(tokenCredential, jsonGenerator);
     }
 
+    @SuppressWarnings("nullness")
     private static Object getMember(Object obj, String member)
         throws IllegalAccessException, NoSuchFieldException {
       Class<?> cls = obj.getClass();
       Field field = cls.getDeclaredField(member);
       field.setAccessible(true);
-      
       Object fieldObj = field.get(obj);
       assert fieldObj != null;
       return fieldObj;
