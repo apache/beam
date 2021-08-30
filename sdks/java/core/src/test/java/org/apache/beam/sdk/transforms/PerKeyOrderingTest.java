@@ -53,6 +53,7 @@ public class PerKeyOrderingTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(PerKeyOrderingTest.class);
 
   private static class VerifyDoFn<T> extends DoFn<KV<String, T>, KV<String, Boolean>> {
+
     private final List<T> perKeyElements;
 
     VerifyDoFn(List<T> perKeyElements) {
@@ -72,12 +73,15 @@ public class PerKeyOrderingTest implements Serializable {
       if (matched == -1) {
         // When matched is set to -1, it means that we have met an error, and elements on this
         // key are not matched anymore - thus we ignore all inputs.
+        return;
       } else if (matched < this.perKeyElements.size()
           && !this.perKeyElements.get(matched).equals(elm.getValue())) {
         // If we meet this condition, then the order of elements is not what we're expecting.
         // We mark `matched` as -1, and output a failed ordering.
         matchedElements.write(-1);
         receiver.output(KV.of(elm.getKey(), false));
+      } else if (matched >= this.perKeyElements.size()) {
+        throw new RuntimeException("Got more elements than expected!");
       } else {
         assert this.perKeyElements.get(matched).equals(elm.getValue())
             : String.format("Element %s is not expected %s", elm, this.perKeyElements.get(matched));
