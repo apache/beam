@@ -156,10 +156,9 @@ public class CEPUtils {
   }
 
   /** Transform the partition columns into serializable CEPFieldRef. */
-  public static List<CEPFieldRef> getCEPFieldRefFromParKeys(ImmutableBitSet parKeys) {
+  public static List<CEPFieldRef> getCEPFieldRefFromParKeys(ImmutableBitSet partitionKeys) {
     ArrayList<CEPFieldRef> fieldList = new ArrayList<>();
-    for (int index : parKeys.asList()) {
-      // FIXME: Don't know where to get a better name.
+    for (int index : partitionKeys.asList()) {
       fieldList.add(new CEPFieldRef("Partition Key " + index, index));
     }
     return fieldList;
