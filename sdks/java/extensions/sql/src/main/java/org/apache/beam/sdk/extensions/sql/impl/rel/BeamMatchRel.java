@@ -465,11 +465,10 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    // FIXME: THIS IS PROBABLY WRONG
     return new BeamMatchRel(
         getCluster(),
         traitSet,
-        input,
+        inputs.get(0),
         rowType,
         pattern,
         strictStart,
