@@ -1,0 +1,13 @@
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sbe',
+)
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: SBE"
+ext.summary = "Add support to Beam for FIX SBE"
+
+dependencies {
+    implementation 'org.agrona:agrona:1.12.0'
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+}
