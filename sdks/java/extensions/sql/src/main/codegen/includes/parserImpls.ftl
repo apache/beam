@@ -189,15 +189,13 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
     }
 }
 
-SqlCreate SqlCreateFunction() :
+SqlCreate SqlCreateFunction(Span s, boolean replace) :
 {
-    final Span s = Span.of();
     boolean isAggregate = false;
     final SqlIdentifier name;
     final SqlNode jarName;
 }
 {
-    <CREATE>
     (
         <AGGREGATE> {
             isAggregate = true;
@@ -213,6 +211,7 @@ SqlCreate SqlCreateFunction() :
         return
             new SqlCreateFunction(
                 s.end(this),
+                replace,
                 name,
                 jarName,
                 isAggregate);
