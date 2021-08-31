@@ -54,7 +54,7 @@ google-cloud-dlp==0.13.0
 google-cloud-language==1.3.0
 google-cloud-profiler==3.0.4
 google-cloud-recommendations-ai==0.2.0
-google-cloud-spanner==1.13.0
+google-cloud-spanner==3.3.0
 google-cloud-videointelligence==1.13.0
 google-cloud-vision==0.42.0
 google-python-cloud-debugger == 2.15

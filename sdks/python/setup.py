@@ -189,7 +189,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-bigquery>=1.6.0,<3',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<2',
-    'google-cloud-spanner>=1.13.0,<2',
+    'google-cloud-spanner>=3.3.0',
     'grpcio-gcp>=0.2.2,<1',
     # GCP Packages required by ML functionality
     'google-cloud-dlp>=0.12.0,<2',
