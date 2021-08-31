@@ -554,13 +554,13 @@ class _ReadFromPartitionFn(DoFn):
       read_action_request = read_action(element['partitions'])
     elif self._retry is None:
       read_action_request = read_action(
-        element['partitions'], timeout = self._timeout)
+        element['partitions'], timeout=self._timeout)
     elif self._timeout is None:
       read_action_request = read_action(
-        element['partitions'], retry = self._retry)
-    else: 
+        element['partitions'], retry=self._retry)
+    else:
       read_action_request = read_action(
-        element['partitions'], retry = self._retry, timeout = self._timeout)
+        element['partitions'], retry=self._retry, timeout=self._timeout)
 
     for row in read_action_request:
       yield row
