@@ -1473,7 +1473,6 @@ public class SpannerIO {
           generatePartitionMetadataTableName(partitionMetadataDatabaseId);
       final String partitionMetricsTableName =
           generatePartitionMetricsTableName(partitionMetadataDatabaseId);
-      LOG.info("Partition metrics table name: " + partitionMetricsTableName);
 
       if (getTraceSampler() != null) {
         TraceConfig globalTraceConfig = Tracing.getTraceConfig();
