@@ -64,9 +64,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends POutput>
     implements TransformProvider<PInput, POutput> {
 
-  private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
-  AllowList allowList;
   public static final String ALLOW_LIST_VERSION = "v1";
+  private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
+  private final AllowList allowList;
 
   public JavaClassLookupTransformProvider(AllowList allowList) {
     if (!allowList.getVersion().equals(ALLOW_LIST_VERSION)) {
@@ -101,7 +101,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       }
       if (allowlistClass == null) {
         throw new UnsupportedOperationException(
-            "Expanding a transform class by the name " + className + " is not allowed.");
+            "The provided allow list does not enable expanding a transform class by the name " + className + ".");
       }
       Class<PTransform<InputT, OutputT>> transformClass =
           (Class<PTransform<InputT, OutputT>>)
@@ -292,8 +292,8 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
   private Object[] getParameterValues(
       java.lang.reflect.Parameter[] parameters, Parameter[] payloadParameters) {
     ArrayList<Object> parameterValues = new ArrayList<>();
-    int i = 0;
-    for (java.lang.reflect.Parameter parameter : parameters) {
+    for (int i = 0; i < parameters.length; ++i) {
+      Parameter parameter = parameters[i];
       Parameter parameterConfig = payloadParameters[i];
       Class<?> parameterClass = parameter.getType();
 
@@ -316,7 +316,6 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
         parameterValue = fromRowFunc.apply(parameterRow);
       }
       parameterValues.add(parameterValue);
-      i++;
     }
 
     return parameterValues.toArray();

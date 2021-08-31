@@ -37,7 +37,6 @@ public interface ExpansionServiceOptions extends PipelineOptions {
   void setJavaClassLookupAllowlist(AllowList file);
 
   @Description("Allow list file for Java class based transform expansion")
-  @Default.String("")
   String getJavaClassLookupAllowlistFile();
 
   void setJavaClassLookupAllowlistFile(String file);
@@ -48,7 +47,7 @@ public interface ExpansionServiceOptions extends PipelineOptions {
     public AllowList create(PipelineOptions options) {
       String allowListFile =
           options.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlistFile();
-      if (!allowListFile.isEmpty()) {
+      if (allowListFile != null) {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         File allowListFileObj = new File(allowListFile);
         if (!allowListFileObj.exists()) {
