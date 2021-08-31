@@ -843,8 +843,6 @@ class BigQueryServicesImpl implements BigQueryServices {
         idsToPublish = insertIdList;
       }
 
-      ServiceCallMetric serviceCallMetric = BigQueryUtils.writeCallMetric(ref);
-
       while (true) {
         List<FailsafeValueInSingleWindow<TableRow, TableRow>> retryRows = new ArrayList<>();
         List<String> retryIds = (idsToPublish != null) ? new ArrayList<>() : null;
@@ -898,6 +896,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                           BackOffAdapter.toGcpBackOff(rateLimitBackoffFactory.backoff());
                       long totalBackoffMillis = 0L;
                       while (true) {
+                        ServiceCallMetric serviceCallMetric = BigQueryUtils.writeCallMetric(ref);
                         try {
                           List<TableDataInsertAllResponse.InsertErrors> response =
                               insert.execute().getInsertErrors();
