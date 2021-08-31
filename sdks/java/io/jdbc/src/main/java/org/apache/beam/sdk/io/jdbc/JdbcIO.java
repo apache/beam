@@ -1722,7 +1722,7 @@ public class JdbcIO {
               // commit the changes
               connection.commit();
               RECORDS_PER_BATCH.update(records.size());
-              MS_PER_BATCH.update((System.nanoTime() - startTimeNs) * 1000);
+              MS_PER_BATCH.update((System.nanoTime() - startTimeNs) / 1000);
               break;
             } catch (SQLException exception) {
               if (!spec.getRetryStrategy().apply(exception)) {
