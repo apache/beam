@@ -221,6 +221,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.windowCoder = (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
     this.inputCoder = windowedInputCoder;
     this.pipelineOptions = new SerializablePipelineOptions(options);
+
+    Preconditions.checkArgument(
+        !windowedInputCoder.getCoderArguments().isEmpty(),
+        "Empty arguments for WindowedValue Coder %s",
+        windowedInputCoder);
   }
 
   @Override

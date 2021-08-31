@@ -64,7 +64,7 @@ class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitO
   @Override
   public RelNode convert(ResolvedLimitOffsetScan zetaNode, List<RelNode> inputs) {
     ResolvedOrderByScan inputOrderByScan = (ResolvedOrderByScan) zetaNode.getInputScan();
-    RelNode input = convertOrderByScanToLogicalScan(inputOrderByScan, inputs.get(0));
+    RelNode input = inputs.get(0);
     RelCollation relCollation = getRelCollation(inputOrderByScan);
 
     RexNode offset =
@@ -83,12 +83,13 @@ class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitO
       throw new UnsupportedOperationException("Limit requires non-null count and offset");
     }
 
-    return LogicalSort.create(input, relCollation, offset, fetch);
+    RelNode sorted = LogicalSort.create(input, relCollation, offset, fetch);
+    return convertOrderByScanToLogicalScan(inputOrderByScan, sorted);
   }
 
   /** Collation is a sort order, as in ORDER BY DESCENDING/ASCENDING. */
   private static RelCollation getRelCollation(ResolvedOrderByScan node) {
-    final long inputOffset = node.getColumnList().get(0).getId();
+    final long inputOffset = node.getInputScan().getColumnList().get(0).getId();
     List<RelFieldCollation> fieldCollations =
         node.getOrderByItemList().stream()
             .map(item -> orderByItemToFieldCollation(item, inputOffset))

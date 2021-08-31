@@ -329,7 +329,7 @@ class SdkWorkerTest(unittest.TestCase):
 
     with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
       with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 21 * 60  # 21 minutes
+        time_mock.return_value = now + 42 * 60  # 21 minutes after previous one
         sampler_info = self._get_state_sampler_info_for_lull(21 * 60)
         worker._log_lull_sampler_info(sampler_info)
         log_full_thread_dump.assert_called_once_with()

@@ -131,7 +131,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
   }
 
   @Override
-  public boolean reachedEnd() throws IOException {
+  public boolean reachedEnd() {
     return !inputAvailable;
   }
 
@@ -150,7 +150,9 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
 
   @Override
   public void close() throws IOException {
-    metricContainer.registerMetricsForPipelineResult();
+    if (metricContainer != null) {
+      metricContainer.registerMetricsForPipelineResult();
+    }
     // TODO null check can be removed once FLINK-3796 is fixed
     if (reader != null) {
       reader.close();

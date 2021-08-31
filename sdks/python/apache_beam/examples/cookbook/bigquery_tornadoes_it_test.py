@@ -35,9 +35,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 class BigqueryTornadoesIT(unittest.TestCase):
 
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   # The default checksum is a SHA-1 hash generated from sorted rows reading
   # from expected Bigquery table.
   DEFAULT_CHECKSUM = 'd860e636050c559a16a791aff40d6ad809d4daf0'

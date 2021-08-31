@@ -425,12 +425,8 @@ public class SamzaTimerInternalsFactoryTest {
     store.close();
   }
 
-  /**
-   * Test the number of event time timers maintained in memory does not go beyond the limit defined
-   * in pipeline option.
-   */
   @Test
-  public void testEventTimeTimersMemoryBoundary1() {
+  public void testBufferSizeNotExceedingPipelineOptionValue() {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     pipelineOptions.setEventTimerBufferSize(2);
@@ -445,30 +441,19 @@ public class SamzaTimerInternalsFactoryTest {
     // prepare 5 timers.
     // timers in memory are then timestamped from 0 - 1;
     // timers in store are then timestamped from 0 - 4.
-    TimerInternals.TimerData timer;
     for (int i = 0; i < 5; i++) {
-      timer =
-          TimerInternals.TimerData.of(
-              "timer" + i, nameSpace, new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
-      timerInternals.setTimer(timer);
+      timerInternals.setTimer(
+          nameSpace, "timer" + i, "", new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
     }
 
-    timerInternalsFactory.setInputWatermark(new Instant(2));
-    Collection<KeyedTimerData<String>> readyTimers;
-
-    readyTimers = timerInternalsFactory.removeReadyTimers();
-    assertEquals(2, readyTimers.size());
+    // only two timers are supposed to be in event time buffer
     assertEquals(2, timerInternalsFactory.getEventTimeBuffer().size());
 
     store.close();
   }
 
-  /**
-   * Test the total number of event time timers reloaded into memory is aligned with the number of
-   * event time timers written to the store.
-   */
   @Test
-  public void testEventTimeTimersMemoryBoundary2() {
+  public void testAllTimersAreFiredWithReload() {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     pipelineOptions.setEventTimerBufferSize(2);
@@ -483,18 +468,16 @@ public class SamzaTimerInternalsFactoryTest {
     // prepare 3 timers.
     // timers in memory now are timestamped from 0 - 1;
     // timers in store now are timestamped from 0 - 2.
-    TimerInternals.TimerData timer;
     for (int i = 0; i < 3; i++) {
-      timer =
-          TimerInternals.TimerData.of(
-              "timer" + i, nameSpace, new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
-      timerInternals.setTimer(timer);
+      timerInternals.setTimer(
+          nameSpace, "timer" + i, "", new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
     }
 
     // total number of event time timers to fire equals to the number of timers in store
     Collection<KeyedTimerData<String>> readyTimers;
     timerInternalsFactory.setInputWatermark(new Instant(3));
     readyTimers = timerInternalsFactory.removeReadyTimers();
+    // buffer should reload from store and all timers are supposed to be fired.
     assertEquals(3, readyTimers.size());
 
     store.close();
@@ -506,7 +489,7 @@ public class SamzaTimerInternalsFactoryTest {
    * maintained in order.
    */
   @Test
-  public void testEventTimeTimersMemoryBoundary3() {
+  public void testAllTimersAreFiredInOrder() {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     pipelineOptions.setEventTimerBufferSize(5);
@@ -521,19 +504,16 @@ public class SamzaTimerInternalsFactoryTest {
     // prepare 8 timers.
     // timers in memory now are timestamped from 0 - 4;
     // timers in store now are timestamped from 0 - 7.
-    TimerInternals.TimerData timer;
     for (int i = 0; i < 8; i++) {
-      timer =
-          TimerInternals.TimerData.of(
-              "timer" + i, nameSpace, new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
-      timerInternals.setTimer(timer);
+      timerInternals.setTimer(
+          nameSpace, "timer" + i, "", new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
     }
 
     // fire the first 2 timers.
     // timers in memory now are timestamped from 2 - 4;
     // timers in store now are timestamped from 2 - 7.
     Collection<KeyedTimerData<String>> readyTimers;
-    timerInternalsFactory.setInputWatermark(new Instant(2));
+    timerInternalsFactory.setInputWatermark(new Instant(1));
     long lastTimestamp = 0;
     readyTimers = timerInternalsFactory.removeReadyTimers();
     for (KeyedTimerData<String> keyedTimerData : readyTimers) {
@@ -549,10 +529,8 @@ public class SamzaTimerInternalsFactoryTest {
     // timers in store now are timestamped from 2 - 19.
     // the total number of timers to fire is 18.
     for (int i = 8; i < 20; i++) {
-      timer =
-          TimerInternals.TimerData.of(
-              "timer" + i, nameSpace, new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
-      timerInternals.setTimer(timer);
+      timerInternals.setTimer(
+          nameSpace, "timer" + i, "", new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
     }
     timerInternalsFactory.setInputWatermark(new Instant(20));
     lastTimestamp = 0;
@@ -567,14 +545,8 @@ public class SamzaTimerInternalsFactoryTest {
     store.close();
   }
 
-  /**
-   * Test the total number of event time timers reloaded into memory is aligned with the number of
-   * the event time timers written to the store. Moreover, event time timers reloaded into memory is
-   * maintained in order, even though memory boundary is hit and timer is early than the last timer
-   * in memory.
-   */
   @Test
-  public void testEventTimeTimersMemoryBoundary4() {
+  public void testNewTimersAreInsertedInOrder() {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     pipelineOptions.setEventTimerBufferSize(5);
@@ -586,22 +558,19 @@ public class SamzaTimerInternalsFactoryTest {
     final StateNamespace nameSpace = StateNamespaces.global();
     final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
 
-    // prepare 8 timers.
+    // prepare 10 timers.
     // timers in memory now are timestamped from 0 - 4;
     // timers in store now are timestamped from 0 - 9.
-    TimerInternals.TimerData timer;
     for (int i = 0; i < 10; i++) {
-      timer =
-          TimerInternals.TimerData.of(
-              "timer" + i, nameSpace, new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
-      timerInternals.setTimer(timer);
+      timerInternals.setTimer(
+          nameSpace, "timer" + i, "", new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
     }
 
     // fire the first 2 timers.
     // timers in memory now are timestamped from 2 - 4;
     // timers in store now are timestamped from 2 - 9.
     Collection<KeyedTimerData<String>> readyTimers;
-    timerInternalsFactory.setInputWatermark(new Instant(2));
+    timerInternalsFactory.setInputWatermark(new Instant(1));
     long lastTimestamp = 0;
     readyTimers = timerInternalsFactory.removeReadyTimers();
     for (KeyedTimerData<String> keyedTimerData : readyTimers) {
@@ -611,16 +580,14 @@ public class SamzaTimerInternalsFactoryTest {
     }
     assertEquals(2, readyTimers.size());
 
-    // add 3 timers.
+    // add 3 timers but timer 2 has duplicate so drop.
     // timers in memory now are timestamped from 0 to 2 prefixed with lateTimer, and 2 to
     // 4 prefixed with timer, timestamp is in order;
     // timers in store now are timestamped from 0 to 2 prefixed with lateTimer, and 2 to 9
     // prefixed with timer, timestamp is in order;
     for (int i = 0; i < 3; i++) {
-      timer =
-          TimerInternals.TimerData.of(
-              "lateTimer" + i, nameSpace, new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
-      timerInternals.setTimer(timer);
+      timerInternals.setTimer(
+          nameSpace, "timer" + i, "", new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
     }
 
     // there are 11 timers in state now.
@@ -647,15 +614,14 @@ public class SamzaTimerInternalsFactoryTest {
       assertTrue(lastTimestamp <= currentTimeStamp);
       lastTimestamp = currentTimeStamp;
     }
-    assertEquals(5, readyTimers.size());
+    assertEquals(4, readyTimers.size());
     assertEquals(0, timerInternalsFactory.getEventTimeBuffer().size());
 
     store.close();
   }
 
-  /** Test buffer could still be filled after restore to a non-full state. */
   @Test
-  public void testEventTimeTimersMemoryBoundary5() {
+  public void testBufferRefilledAfterRestoreToNonFullState() {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     pipelineOptions.setEventTimerBufferSize(5);
@@ -670,37 +636,28 @@ public class SamzaTimerInternalsFactoryTest {
     // prepare (buffer capacity + 1) 6 timers.
     // timers in memory now are timestamped from 0 - 4;
     // timer in store now is timestamped 6.
-    TimerInternals.TimerData timer;
     for (int i = 0; i < 6; i++) {
-      timer =
-          TimerInternals.TimerData.of(
-              "timer" + i, nameSpace, new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
-      timerInternals.setTimer(timer);
+      timerInternals.setTimer(
+          nameSpace, "timer" + i, "", new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
     }
 
     // total number of event time timers to fire equals to the number of timers in store
     Collection<KeyedTimerData<String>> readyTimers;
-    timerInternalsFactory.setInputWatermark(new Instant(5));
+    timerInternalsFactory.setInputWatermark(new Instant(4));
     readyTimers = timerInternalsFactory.removeReadyTimers();
     assertEquals(5, readyTimers.size());
     // reloaded timer5
     assertEquals(1, timerInternalsFactory.getEventTimeBuffer().size());
 
-    for (int i = 0; i < 7; i++) {
-      timer =
-          TimerInternals.TimerData.of(
-              "timer" + (i + 6),
-              nameSpace,
-              new Instant(i + 6),
-              new Instant(i + 6),
-              TimeDomain.EVENT_TIME);
-      timerInternals.setTimer(timer);
+    for (int i = 6; i < 13; i++) {
+      timerInternals.setTimer(
+          nameSpace, "timer" + i, "", new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
     }
     // timers should go into buffer not state
     assertEquals(5, timerInternalsFactory.getEventTimeBuffer().size());
 
-    // watermark 12 comes, so all timers will be evicted in order.
-    timerInternalsFactory.setInputWatermark(new Instant(11));
+    // watermark 10 comes,6 timers will be evicted in order and 2 still in buffer.
+    timerInternalsFactory.setInputWatermark(new Instant(10));
     readyTimers = timerInternalsFactory.removeReadyTimers();
     long lastTimestamp = 0;
     for (KeyedTimerData<String> keyedTimerData : readyTimers) {

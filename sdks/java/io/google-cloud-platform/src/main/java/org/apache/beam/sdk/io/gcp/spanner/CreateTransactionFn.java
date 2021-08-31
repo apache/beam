@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
+import com.google.cloud.spanner.TimestampBound;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /** Creates a batch transaction. */
@@ -25,18 +26,19 @@ import org.apache.beam.sdk.transforms.DoFn;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class CreateTransactionFn extends DoFn<Object, Transaction> {
+  private final SpannerConfig config;
+  private final TimestampBound timestampBound;
 
-  private final SpannerIO.CreateTransaction config;
-
-  CreateTransactionFn(SpannerIO.CreateTransaction config) {
+  CreateTransactionFn(SpannerConfig config, TimestampBound timestampBound) {
     this.config = config;
+    this.timestampBound = timestampBound;
   }
 
   private transient SpannerAccessor spannerAccessor;
 
   @DoFn.Setup
   public void setup() throws Exception {
-    spannerAccessor = SpannerAccessor.getOrCreate(config.getSpannerConfig());
+    spannerAccessor = SpannerAccessor.getOrCreate(config);
   }
 
   @Teardown
@@ -47,7 +49,7 @@ class CreateTransactionFn extends DoFn<Object, Transaction> {
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
     BatchReadOnlyTransaction tx =
-        spannerAccessor.getBatchClient().batchReadOnlyTransaction(config.getTimestampBound());
+        spannerAccessor.getBatchClient().batchReadOnlyTransaction(timestampBound);
     c.output(Transaction.create(tx.getBatchTransactionId()));
   }
 }

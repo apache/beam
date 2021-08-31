@@ -45,6 +45,7 @@ import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.runtime.SamzaDoFnInvokerRegistrar;
 import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.runners.samza.util.StateUtils;
+import org.apache.beam.runners.samza.util.WindowUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -250,7 +251,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
               .getTransformsOrThrow(sideInputId.getTransformId())
               .getInputsOrThrow(sideInputId.getLocalName());
       final WindowingStrategy<?, BoundedWindow> windowingStrategy =
-          ctx.getPortableWindowStrategy(sideInputCollectionId, components);
+          WindowUtils.getWindowStrategy(sideInputCollectionId, components);
       final WindowedValue.WindowedValueCoder<?> coder =
           (WindowedValue.WindowedValueCoder) instantiateCoder(sideInputCollectionId, components);
 
@@ -295,7 +296,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             });
 
     WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
-        ctx.instantiateCoder(inputId, pipeline.getComponents());
+        WindowUtils.instantiateWindowedCoder(inputId, pipeline.getComponents());
 
     // TODO: support schema and side inputs for portable runner
     // Note: transform.getTransform() is an ExecutableStage, not ParDo, so we need to extract
@@ -321,7 +322,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             Collections.emptyMap(), // output coders not in use
             new ArrayList<>(sideInputMapping.values()),
             new ArrayList<>(idToTupleTagMap.values()), // used by java runner only
-            ctx.getPortableWindowStrategy(inputId, stagePayload.getComponents()),
+            WindowUtils.getWindowStrategy(inputId, stagePayload.getComponents()),
             idToViewMapping,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             ctx.getTransformFullName(),

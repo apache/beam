@@ -37,6 +37,7 @@ import org.apache.beam.sdk.testing.TestStream.ProcessingTimeEvent;
 import org.apache.beam.sdk.testing.TestStream.WatermarkEvent;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -451,6 +452,7 @@ public class GroupIntoBatchesTest implements Serializable {
     NeedsRunner.class,
     UsesTimersInParDo.class,
     UsesTestStream.class,
+    UsesTestStreamWithProcessingTime.class,
     UsesStatefulParDo.class
   })
   public void testBufferingTimerInFixedWindow() {
@@ -573,6 +575,7 @@ public class GroupIntoBatchesTest implements Serializable {
     NeedsRunner.class,
     UsesTimersInParDo.class,
     UsesTestStream.class,
+    UsesTestStreamWithProcessingTime.class,
     UsesStatefulParDo.class
   })
   public void testBufferingTimerInGlobalWindow() {

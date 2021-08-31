@@ -35,8 +35,6 @@ from apache_beam.transforms.periodicsequence import PeriodicSequence
 
 
 class PeriodicSequenceTest(unittest.TestCase):
-  # Enable nose tests running in parallel
-
   def test_periodicsequence_outputs_valid_sequence(self):
     start_offset = 1
     start_time = time.time() + start_offset

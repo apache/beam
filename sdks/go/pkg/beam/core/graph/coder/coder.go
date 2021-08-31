@@ -23,10 +23,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // CustomCoder contains possibly untyped encode/decode user functions that are
@@ -170,6 +170,7 @@ const (
 	Double             Kind = "double"
 	Row                Kind = "R"
 	Timer              Kind = "T"
+	PaneInfo           Kind = "PI"
 	WindowedValue      Kind = "W"
 	ParamWindowedValue Kind = "PW"
 	Iterable           Kind = "I"
@@ -295,6 +296,11 @@ func NewString() *Coder {
 // IsW returns true iff the coder is for a WindowedValue.
 func IsW(c *Coder) bool {
 	return c.Kind == WindowedValue
+}
+
+// NewPI returns a PaneInfo coder
+func NewPI() *Coder {
+	return &Coder{Kind: PaneInfo, T: typex.New(typex.PaneInfoType)}
 }
 
 // NewW returns a WindowedValue coder for the window of elements.

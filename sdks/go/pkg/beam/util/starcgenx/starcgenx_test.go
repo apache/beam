@@ -47,7 +47,7 @@ func TestExtractor(t *testing.T) {
 			expected: []string{"runtime.RegisterType(reflect.TypeOf((*myDoFn)(nil)).Elem())", "funcMakerEmitIntГ", "emitMakerInt", "funcMakerValTypeValTypeEmitIntГ", "runtime.RegisterType(reflect.TypeOf((*valType)(nil)).Elem())", "reflectx.RegisterStructWrapper(reflect.TypeOf((*myDoFn)(nil)).Elem(), wrapMakerMyDoFn)"},
 			excluded: []string{"funcMakerStringГ", "emitMakerString", "nonPipelineType", "UnrelatedMethod1", "UnrelatedMethod2", "UnrelatedMethod3", "nonLifecycleMethod"},
 		},
-		{name: "excludedtypes", files: []string{excludedtypes}, pkg: "excludedtypes", imports: []string{"github.com/apache/beam/sdks/go/pkg/beam"},
+		{name: "excludedtypes", files: []string{excludedtypes}, pkg: "excludedtypes", imports: []string{"github.com/apache/beam/sdks/v2/go/pkg/beam"},
 			expected: []string{"runtime.RegisterFunction(ShouldExist)", "funcMakerTypex۰TГTypex۰XError"},
 			excluded: []string{"runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*typex.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*error)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())"},
 		},
@@ -69,7 +69,7 @@ func TestExtractor(t *testing.T) {
 		{name: "vars", files: []string{vars}, pkg: "vars", imports: []string{"strings"},
 			excluded: []string{"runtime.RegisterFunction(strings.MyTitle)", "runtime.RegisterFunction(anonFunction)"},
 		},
-		{name: "registerDoFn", files: []string{pardo, registerDoFn}, pkg: "pardo", imports: []string{"github.com/apache/beam/sdks/go/pkg/beam"},
+		{name: "registerDoFn", files: []string{pardo, registerDoFn}, pkg: "pardo", imports: []string{"github.com/apache/beam/sdks/v2/go/pkg/beam"},
 			expected: []string{"runtime.RegisterFunction(MyIdent)", "runtime.RegisterFunction(MyOtherDoFn)", "runtime.RegisterType(reflect.TypeOf((*foo)(nil)).Elem())", "funcMakerStringГString", "funcMakerFooГStringFoo"},
 			excluded: []string{"runtime.RegisterFunction(MyDropVal)", "funcMakerIntStringГInt"},
 		},
@@ -182,7 +182,7 @@ const excludedtypes = `
 package excludedtypes
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 func ShouldExist(v beam.T) (beam.X, error) {

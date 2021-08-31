@@ -18,9 +18,10 @@ package teststream
 import (
 	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -90,7 +91,7 @@ func TestAddElements(t *testing.T) {
 			[][]interface{}{{"test", "other test"}},
 		},
 		{
-			"doubles",
+			"floats",
 			[][]interface{}{{1.1, 2.2, 3.3}},
 		},
 	}
@@ -112,5 +113,60 @@ func TestAddElements(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestAddElementList(t *testing.T) {
+	tests := []struct {
+		name          string
+		elementGroups [][]interface{}
+	}{
+		{
+			"bools",
+			[][]interface{}{{true, false}},
+		},
+		{
+			"multiple bools",
+			[][]interface{}{{true, false}, {true, false}},
+		},
+		{
+			"strings",
+			[][]interface{}{{"test", "other test"}},
+		},
+		{
+			"floats",
+			[][]interface{}{{1.1, 2.2, 3.3}},
+		},
+	}
+	for _, tc := range tests {
+		con := NewConfig()
+		for i, elements := range tc.elementGroups {
+			if err := con.AddElementList(100, elements); err != nil {
+				t.Fatalf("%v failed to add elements to config, got %v", tc.name, err)
+			}
+			for j, event := range con.events[i].GetElementEvent().GetElements() {
+				dec := beam.NewElementDecoder(reflect.TypeOf(elements[j]))
+				buf := bytes.NewReader(event.GetEncodedElement())
+				val, err := dec.Decode(buf)
+				if err != nil {
+					t.Errorf("%v, error decoding element, got %v", tc.name, err)
+				}
+				if val != elements[j] {
+					t.Errorf("%v added element mismatch, want %v, got %v", tc.name, elements[j], val)
+				}
+			}
+		}
+	}
+}
+
+func TestAddElementList_Bad(t *testing.T) {
+	con := NewConfig()
+	err := con.AddElementList(100, true)
+	if err == nil {
+		t.Fatalf("pipeline succeeded when it should have failed")
+	}
+	str := err.Error()
+	if !strings.Contains(str, "must be a slice or array") {
+		t.Errorf("pipeline failed but got unexpected error message, got %v", err)
 	}
 }

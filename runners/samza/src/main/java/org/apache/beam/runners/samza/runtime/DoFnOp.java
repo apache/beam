@@ -230,6 +230,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               sideInputMapping,
               sideInputHandler,
               nonKeyedStateInternalsFactory,
+              timerInternalsFactory,
               samzaPipelineOptions,
               outputManagerFactory.create(emitter, outputFutureCollector),
               stageBundleFactory,
@@ -415,19 +416,14 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     // NOTE: not sure why this is safe, but DoFnOperator makes this assumption
     final BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
 
-    if (fnRunner instanceof DoFnRunnerWithKeyedInternals) {
-      // Need to pass in the keyed TimerData here
-      ((DoFnRunnerWithKeyedInternals) fnRunner).onTimer(keyedTimerData, window);
-    } else {
-      pushbackFnRunner.onTimer(
-          timer.getTimerId(),
-          timer.getTimerFamilyId(),
-          null,
-          window,
-          timer.getTimestamp(),
-          timer.getOutputTimestamp(),
-          timer.getDomain());
-    }
+    fnRunner.onTimer(
+        timer.getTimerId(),
+        timer.getTimerFamilyId(),
+        keyedTimerData.getKey(),
+        window,
+        timer.getTimestamp(),
+        timer.getOutputTimestamp(),
+        timer.getDomain());
   }
 
   // todo: should this go through bundle manager to start and finish the bundle?
