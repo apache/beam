@@ -51,6 +51,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -1615,6 +1617,8 @@ public class JdbcIO {
 
     private static class WriteFn<T> extends DoFn<T, Void> {
 
+      private static final Distribution RECORDS_PER_BATCH =
+          Metrics.distribution(WriteFn.class, "records_per_jdbc_batch");
       private final WriteVoid<T> spec;
       private DataSource dataSource;
       private Connection connection;
@@ -1714,6 +1718,7 @@ public class JdbcIO {
               preparedStatement.executeBatch();
               // commit the changes
               connection.commit();
+              RECORDS_PER_BATCH.update(records.size());
               break;
             } catch (SQLException exception) {
               if (!spec.getRetryStrategy().apply(exception)) {
