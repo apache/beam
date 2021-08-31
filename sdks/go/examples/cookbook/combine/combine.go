@@ -69,7 +69,6 @@ type extractFn struct {
 }
 
 func (f *extractFn) ProcessElement(ctx context.Context, row WordRow, emit func(string, string)) {
-
 	if len(row.Word) >= f.MinLength {
 		emit(row.Word, row.Corpus)
 	} else {

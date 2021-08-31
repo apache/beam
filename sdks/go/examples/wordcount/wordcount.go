@@ -111,11 +111,11 @@ func init() {
 }
 
 var (
-	wordRE      = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-	empty       = beam.NewCounter("extract", "emptyLines")
-	minLength   = flag.Int("min_length", 9, "Minimum word length")
-	small_words = beam.NewCounter("extract", "small_words")
-	lineLen     = beam.NewDistribution("extract", "lineLenDistro")
+	wordRE            = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+	empty             = beam.NewCounter("extract", "emptyLines")
+	small_word_length = flag.Int("small_word_length", 9, "small_word_length")
+	small_words       = beam.NewCounter("extract", "small_words")
+	lineLen           = beam.NewDistribution("extract", "lineLenDistro")
 )
 
 // extractFn is a DoFn that emits the words in a given line.
@@ -125,7 +125,9 @@ func extractFn(ctx context.Context, line string, emit func(string)) {
 		empty.Inc(ctx, 1)
 	}
 	for _, word := range wordRE.FindAllString(line, -1) {
-		if len(word) < *minLength {
+		// increment the counter for small words if length of words is
+		// less than small_word_length
+		if len(word) < *small_word_length {
 			small_words.Inc(ctx, 1)
 		}
 		emit(word)
