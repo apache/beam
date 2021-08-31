@@ -41,6 +41,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -1722,7 +1723,7 @@ public class JdbcIO {
               // commit the changes
               connection.commit();
               RECORDS_PER_BATCH.update(records.size());
-              MS_PER_BATCH.update((System.nanoTime() - startTimeNs) / 1000);
+              MS_PER_BATCH.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs));
               break;
             } catch (SQLException exception) {
               if (!spec.getRetryStrategy().apply(exception)) {
