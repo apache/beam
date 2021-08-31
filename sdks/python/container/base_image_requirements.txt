@@ -68,7 +68,7 @@ cachetools == 3.1.1
 dataclasses == 0.8 ; python_version=="3.6"
 guppy3==3.0.10
 mmh3==2.5.1
-orjson==3.5.3
+orjson==3.6.1
 python-dateutil == 2.8.1
 requests == 2.24.0
 freezegun == 0.3.15
@@ -82,6 +82,7 @@ pandas==1.2.4 ; python_version>="3.7"
 protorpc==0.12.0
 python-gflags==3.1.2
 tensorflow==2.5.0
+nltk==3.5.0
 
 # Packages needed for testing.
 tenacity>=5.0.2
