@@ -156,7 +156,7 @@ class ProtoSchemaTranslator {
   }
 
   static Schema getSchema(Descriptors.Descriptor descriptor) {
-    /* OneOfComponentFields refers to the field number of the protobuf in the protobuf where the component subfields
+    /* OneOfComponentFields refers to the field number in the protobuf where the component subfields
      * are. This is needed to prevent double inclusion of the component fields.*/
     Set<Integer> oneOfComponentFields = Sets.newHashSet();
     /* OneOfFieldLocation stores the field number of the first field in the OneOf. Using this, we can use the location
