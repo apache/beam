@@ -44,13 +44,13 @@ type AccumulationMode struct {
 
 func (m AccumulationMode) windowIntoOption() {}
 
-// PaneAccumulation applies an Accumulating AccumulationMode to the window.
-func PaneAccumulation() AccumulationMode {
+// PanesAccumulate applies an Accumulating AccumulationMode to the window.
+func PanesAccumulate() AccumulationMode {
 	return AccumulationMode{Mode: window.Accumulating}
 }
 
-// PaneDiscarding applies a Discarding AccumulationMode to the window.
-func PaneDiscarding() AccumulationMode {
+// PanesDiscard applies a Discarding AccumulationMode to the window.
+func PanesDiscard() AccumulationMode {
 	return AccumulationMode{Mode: window.Discarding}
 }
 

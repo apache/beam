@@ -97,9 +97,9 @@ func validateEquals(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window
 	var accumulationMode beam.AccumulationMode
 	switch m {
 	case window.Accumulating:
-		accumulationMode = beam.PaneAccumulation()
+		accumulationMode = beam.PanesAccumulate()
 	case window.Discarding:
-		accumulationMode = beam.PaneDiscarding()
+		accumulationMode = beam.PanesDiscard()
 	}
 	windowed := beam.WindowInto(s, wfn, in, beam.Trigger(tr), accumulationMode)
 	sums := stats.Sum(s, windowed)
@@ -135,9 +135,9 @@ func validateCount(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.
 	var accumulationMode beam.AccumulationMode
 	switch m {
 	case window.Accumulating:
-		accumulationMode = beam.PaneAccumulation()
+		accumulationMode = beam.PanesAccumulate()
 	case window.Discarding:
-		accumulationMode = beam.PaneDiscarding()
+		accumulationMode = beam.PanesDiscard()
 	}
 	windowed := beam.WindowInto(s, wfn, in, beam.Trigger(tr), accumulationMode)
 	sums := stats.Sum(s, windowed)
