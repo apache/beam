@@ -35,3 +35,38 @@ const (
 	NeverTrigger                           string = "Trigger_Never_"
 	AfterSynchronizedProcessingTimeTrigger string = "Trigger_AfterSynchronizedProcessingTime_"
 )
+
+// TriggerDefault constructs a default trigger that fires after the end of window.
+// No provision for late arriving data.
+func TriggerDefault() Trigger {
+	return Trigger{Kind: DefaultTrigger}
+}
+
+// TriggerAlways constructs an always trigger that keeps firing immediately after an element is processed.
+func TriggerAlways() Trigger {
+	return Trigger{Kind: AlwaysTrigger}
+}
+
+// TriggerAfterCount constructs an element count trigger that fires after atleast `count` number of elements are processed.
+func TriggerAfterCount(count int32) Trigger {
+	return Trigger{Kind: ElementCountTrigger, ElementCount: count}
+}
+
+// TriggerAfterProcessingTime constructs a after processing time trigger that fires after 'delay' milliseconds of processing time has passed.
+func TriggerAfterProcessingTime(delay int64) Trigger {
+	return Trigger{Kind: AfterProcessingTimeTrigger, Delay: delay}
+}
+
+// TriggerRepeat constructs a repeat trigger that fires a trigger repeatedly once the condition has been met.
+// Ex: window.TriggerRepeat(window.TriggerAfterCount(1)) is same as window.TriggerAlways().
+func TriggerRepeat(tr Trigger) Trigger {
+	return Trigger{Kind: RepeatTrigger, SubTriggers: []Trigger{tr}}
+}
+
+// TriggerAfterEndOfWindow constructs an end of window trigger that is configurable for early firing trigger(before the end of window)
+// and late firing trigger(after the end of window).
+// As of now, the values of Early firing is set to TriggerDefault and Late firing is set to TriggerAlways.
+func TriggerAfterEndOfWindow() Trigger {
+	// TODO(BEAM-3304): modify it to take parameters for early and late firing trigger
+	return Trigger{Kind: AfterEndOfWindowTrigger}
+}

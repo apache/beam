@@ -93,8 +93,15 @@ func WindowSums_Lifted(s beam.Scope) {
 	WindowSums(s.Scope("Lifted"), stats.SumPerKey)
 }
 
-func validate(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigger, m window.AccumulationMode, expected ...interface{}) {
-	windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: tr}, beam.AccumulationMode{Mode: m})
+func validateEquals(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigger, m window.AccumulationMode, expected ...interface{}) {
+	var accumulationMode beam.AccumulationMode
+	switch m {
+	case window.Accumulating:
+		accumulationMode = beam.PaneAccumulation()
+	case window.Discarding:
+		accumulationMode = beam.PaneDiscarding()
+	}
+	windowed := beam.WindowInto(s, wfn, in, beam.Trigger(tr), accumulationMode)
 	sums := stats.Sum(s, windowed)
 	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
 	passert.Equals(s, sums, expected...)
@@ -110,7 +117,7 @@ func TriggerDefault(s beam.Scope) {
 
 	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
-	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.Trigger{Kind: window.DefaultTrigger}, window.Accumulating, 6.0, 9.0)
+	validateEquals(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.TriggerDefault(), window.Discarding, 6.0, 9.0)
 }
 
 // TriggerAlways tests the Always trigger, it is expected to receive every input value as the output.
@@ -121,7 +128,21 @@ func TriggerAlways(s beam.Scope) {
 	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
 
-	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.Trigger{Kind: window.AlwaysTrigger}, window.Discarding, 1.0, 2.0, 3.0)
+	validateEquals(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.TriggerAlways(), window.Discarding, 1.0, 2.0, 3.0)
+}
+
+func validateCount(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigger, m window.AccumulationMode, expected int) {
+	var accumulationMode beam.AccumulationMode
+	switch m {
+	case window.Accumulating:
+		accumulationMode = beam.PaneAccumulation()
+	case window.Discarding:
+		accumulationMode = beam.PaneDiscarding()
+	}
+	windowed := beam.WindowInto(s, wfn, in, beam.Trigger(tr), accumulationMode)
+	sums := stats.Sum(s, windowed)
+	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
+	passert.Count(s, sums, "total collections", expected)
 }
 
 // TriggerElementCount tests the ElementCount Trigger, it waits for atleast N elements to be ready
@@ -136,14 +157,11 @@ func TriggerElementCount(s beam.Scope) {
 	con.AdvanceWatermark(53000)
 
 	col := teststream.Create(s, con)
+	windowSize := 10 * time.Second
 
 	// waits only for two elements to arrive and fires output after that and never fires that.
 	// For the trigger to fire every 2 elements, combine it with Repeat Trigger
-	tr := window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 2}
-	windowed := beam.WindowInto(s, window.NewGlobalWindows(), col, beam.WindowTrigger{Name: tr}, beam.AccumulationMode{Mode: window.Discarding})
-	sums := stats.Sum(s, windowed)
-	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
-	passert.Count(s, sums, "total collections", 1)
+	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.TriggerAfterCount(2), window.Discarding, 2)
 }
 
 // TriggerAfterProcessingTime tests the AfterProcessingTime Trigger, it fires output panes once 't' processing time has passed
@@ -158,7 +176,7 @@ func TriggerAfterProcessingTime(s beam.Scope) {
 
 	col := teststream.Create(s, con)
 
-	validate(s.Scope("Fixed"), window.NewGlobalWindows(), col, window.Trigger{Kind: window.AfterProcessingTimeTrigger, Delay: 5000}, window.Discarding, 6.0)
+	validateEquals(s.Scope("Fixed"), window.NewGlobalWindows(), col, window.TriggerAfterProcessingTime(5000), window.Discarding, 6.0)
 }
 
 // TriggerRepeat tests the repeat trigger. As of now is it is configure to take only one trigger as a subtrigger.
@@ -173,10 +191,5 @@ func TriggerRepeat(s beam.Scope) {
 
 	col := teststream.Create(s, con)
 
-	subTr := window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 2}
-	tr := window.Trigger{Kind: window.RepeatTrigger, SubTriggers: []window.Trigger{subTr}}
-	windowed := beam.WindowInto(s, window.NewGlobalWindows(), col, beam.WindowTrigger{Name: tr}, beam.AccumulationMode{Mode: window.Discarding})
-	sums := stats.Sum(s, windowed)
-	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
-	passert.Count(s, sums, "total collections", 3)
+	validateCount(s.Scope("Fixed"), window.NewGlobalWindows(), col, window.TriggerRepeat(window.TriggerAfterCount(2)), window.Discarding, 3)
 }
