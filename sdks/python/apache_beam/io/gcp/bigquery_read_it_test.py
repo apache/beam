@@ -83,13 +83,19 @@ def datetime_to_utc(element):
 class CheckPythonTypes(beam.DoFn):
   def process(self, element):
     for key, value in element.items():
-      if key == 'float':
+      if key == 'bool':
+        isinstance(value, bool)
+      elif key == 'int':
+        isinstance(value, int)
+      elif key == 'float':
         isinstance(value, float)
       elif key == 'numeric':
         isinstance(value, Decimal)
       elif key == 'bytes':
         isinstance(value, bytes)
       else:
+        # Includes STRING, STRUCT/RECORD, DATE, DATETIME, TIMESTAMP and
+        # GEOGRAPHY types.
         isinstance(value, str)
 
 
@@ -196,12 +202,19 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     cls.create_table(cls.table_name)
 
     table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)
-    cls.query = 'SELECT float, numeric, bytes, date, time, datetime,' \
-                'timestamp, geo FROM `%s`' % table_id
+    cls.query = 'SELECT * FROM `%s`' % table_id
 
   @classmethod
   def create_table(cls, table_name):
     table_schema = bigquery.TableSchema()
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'bool'
+    table_field.type = 'BOOLEAN'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'int'
+    table_field.type = 'INTEGER'
+    table_schema.fields.append(table_field)
     table_field = bigquery.TableFieldSchema()
     table_field.name = 'float'
     table_field.type = 'FLOAT'
@@ -213,6 +226,10 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     table_field = bigquery.TableFieldSchema()
     table_field.name = 'bytes'
     table_field.type = 'BYTES'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'string'
+    table_field.type = 'STRING'
     table_schema.fields.append(table_field)
     table_field = bigquery.TableFieldSchema()
     table_field.name = 'date'
@@ -234,6 +251,18 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     table_field.name = 'geo'
     table_field.type = 'GEOGRAPHY'
     table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'rec'
+    table_field.type = 'RECORD'
+    table_field_child = bigquery.TableFieldSchema()
+    table_field_child.name = 'string'
+    table_field_child.type = 'STRING'
+    table_field.fields.append(table_field_child)
+    table_field_child = bigquery.TableFieldSchema()
+    table_field_child.name = 'bool'
+    table_field_child.type = 'BOOLEAN'
+    table_field.fields.append(table_field_child)
+    table_schema.fields.append(table_field)
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId=cls.project, datasetId=cls.dataset_id,
@@ -243,35 +272,46 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
     row_data = {
-        'float': 0.33,
+        'bool': True,
+        'int': 33,
+        'float': 0.11,
         'numeric': Decimal('10'),
         'bytes': base64.b64encode(b'\xab\xac').decode('utf-8'),
+        'string': 'String!',
         'date': '3000-12-31',
         'time': '23:59:59',
         'datetime': '2018-12-31T12:44:31',
         'timestamp': '2018-12-31 12:44:31.744957 UTC',
-        'geo': 'POINT(30 10)'
+        'geo': 'POINT(30 10)',
+        'rec': {
+            'string': 'Struct String!!', 'bool': False
+        },
     }
 
     table_data = [row_data]
     # add rows with only one key value pair and None values for all other keys
     for key, value in row_data.items():
       table_data.append({key: value})
-
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, table_data)
 
   def get_expected_data(self, native=True):
     byts = b'\xab\xac'
     expected_row = {
-        'float': 0.33,
+        'bool': True,
+        'int': 33,
+        'float': 0.11,
         'numeric': Decimal('10'),
         'bytes': base64.b64encode(byts) if native else byts,
+        'string': 'String!',
         'date': '3000-12-31',
         'time': '23:59:59',
         'datetime': '2018-12-31T12:44:31',
         'timestamp': '2018-12-31 12:44:31.744957 UTC',
-        'geo': 'POINT(30 10)'
+        'geo': 'POINT(30 10)',
+        'rec': {
+            'string': 'Struct String!!', 'bool': False
+        }
     }
 
     expected_data = [expected_row]
