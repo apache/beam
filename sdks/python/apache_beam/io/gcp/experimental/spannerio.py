@@ -287,7 +287,9 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
                                             "credentials",
                                             "pool",
                                             "snapshot_read_timestamp",
-                                            "snapshot_exact_staleness"])):
+                                            "snapshot_exact_staleness",
+                                            "snapshot_retry",
+                                            "snapshot_timeout"])):
   """
   A namedtuple holds the immutable data of the connection string to the cloud
   spanner.
