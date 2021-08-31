@@ -44,12 +44,24 @@ public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {
   }
 
   @Override
+  public int getDefaultPrecision(SqlTypeName typeName) {
+    switch (typeName) {
+      case TIME:
+      case TIMESTAMP:
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        return 6; // support microsecond precision
+      default:
+        return super.getDefaultPrecision(typeName);
+    }
+  }
+
+  @Override
   public int getMaxPrecision(SqlTypeName typeName) {
     switch (typeName) {
       case TIME:
-        return 6; // support microsecond time precision
+      case TIMESTAMP:
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-        return 6; // support microsecond datetime precision
+        return 6; // support microsecond precision
       default:
         return super.getMaxPrecision(typeName);
     }
