@@ -534,7 +534,7 @@ class _ReadFromPartitionFn(DoFn):
         pool=self._spanner_configuration.pool)
     self._snapshot = self._database.batch_snapshot(
         **self._spanner_configuration.snapshot_options)
-    
+
     self._retry = self._spanner_configuration.snapshot_retry
     self._timeout = self._spanner_configuration.snapshot_timeout
 
@@ -553,11 +553,14 @@ class _ReadFromPartitionFn(DoFn):
     if self._retry is None and self._timeout is None:
       read_action_request = read_action(element['partitions'])
     elif self._retry is None:
-      read_action_request = read_action(element['partitions'], timeout = self._timeout)
+      read_action_request = read_action(
+        element['partitions'], timeout = self._timeout)
     elif self._timeout is None:
-      read_action_request = read_action(element['partitions'], retry = self._retry)
+      read_action_request = read_action(
+        element['partitions'], retry = self._retry)
     else: 
-      read_action_request = read_action(element['partitions'], retry = self._retry, timeout = self._timeout)
+      read_action_request = read_action(
+        element['partitions'], retry = self._retry, timeout = self._timeout)
 
     for row in read_action_request:
       yield row
@@ -633,8 +636,8 @@ class ReadFromSpanner(PTransform):
         pool=pool,
         snapshot_read_timestamp=read_timestamp,
         snapshot_exact_staleness=exact_staleness,
-        snapshot_retry = retry,
-        snapshot_timeout = timeout)
+        snapshot_retry=retry,
+        snapshot_timeout=timeout)
 
     self._read_operations = read_operations
     self._transaction = transaction
