@@ -256,7 +256,7 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PT
 		len(s.Edges) != 2 ||
 		len(s.Edges[0].Edge.Input) != 1 ||
 		len(s.Edges[1].Edge.Output) != 1 ||
-		s.Edges[1].Edge.Op != graph.Combine {
+		(s.Edges[1].Edge.Op != graph.Combine && s.Edges[1].Edge.Op != graph.CombineGlobally) {
 		return nil
 	}
 
@@ -436,7 +436,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 		annotations = edge.Edge.DoFn.Annotations()
 
-	case graph.Combine:
+	case graph.Combine, graph.CombineGlobally:
 		mustEncodeMultiEdge, err := mustEncodeMultiEdgeBase64(edge.Edge)
 		if err != nil {
 			return handleErr(err)

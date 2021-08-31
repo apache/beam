@@ -33,14 +33,15 @@ type Opcode string
 
 // Valid opcodes.
 const (
-	Impulse    Opcode = "Impulse"
-	ParDo      Opcode = "ParDo"
-	CoGBK      Opcode = "CoGBK"
-	Reshuffle  Opcode = "Reshuffle"
-	External   Opcode = "External"
-	Flatten    Opcode = "Flatten"
-	Combine    Opcode = "Combine"
-	WindowInto Opcode = "WindowInto"
+	Impulse         Opcode = "Impulse"
+	ParDo           Opcode = "ParDo"
+	CoGBK           Opcode = "CoGBK"
+	Reshuffle       Opcode = "Reshuffle"
+	External        Opcode = "External"
+	Flatten         Opcode = "Flatten"
+	Combine         Opcode = "Combine"
+	CombineGlobally Opcode = "CombineGlobally"
+	WindowInto      Opcode = "WindowInto"
 )
 
 // InputKind represents the role of the input and its shape.
@@ -513,7 +514,11 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder, typ
 	}
 
 	edge := g.NewEdge(s)
-	edge.Op = Combine
+	if s.Label == CombineGloballyScope {
+		edge.Op = CombineGlobally
+	} else {
+		edge.Op = Combine
+	}
 	edge.CombineFn = u
 	edge.AccumCoder = ac
 	edge.Input = []*Inbound{{Kind: kinds[0], From: in, Type: inbound[0]}}
