@@ -1619,6 +1619,8 @@ public class JdbcIO {
 
       private static final Distribution RECORDS_PER_BATCH =
           Metrics.distribution(WriteFn.class, "records_per_jdbc_batch");
+      private static final Distribution MS_PER_BATCH =
+          Metrics.distribution(WriteFn.class, "milliseconds_per_batch");
       private final WriteVoid<T> spec;
       private DataSource dataSource;
       private Connection connection;
@@ -1698,6 +1700,7 @@ public class JdbcIO {
         if (records.isEmpty()) {
           return;
         }
+        Long startTimeNs = System.nanoTime();
         // Only acquire the connection if there is something to write.
         if (connection == null) {
           connection = dataSource.getConnection();
@@ -1719,6 +1722,7 @@ public class JdbcIO {
               // commit the changes
               connection.commit();
               RECORDS_PER_BATCH.update(records.size());
+              MS_PER_BATCH.update((System.nanoTime() - startTimeNs) * 1000);
               break;
             } catch (SQLException exception) {
               if (!spec.getRetryStrategy().apply(exception)) {
