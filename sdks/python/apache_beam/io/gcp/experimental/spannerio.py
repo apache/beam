@@ -532,6 +532,9 @@ class _ReadFromPartitionFn(DoFn):
         pool=self._spanner_configuration.pool)
     self._snapshot = self._database.batch_snapshot(
         **self._spanner_configuration.snapshot_options)
+    
+    self._retry = self._spanner_configuration.snapshot_retry
+    self._timeout = self._spanner_configuration.snapshot_timeout
 
   def process(self, element):
     self._snapshot = BatchSnapshot.from_dict(
@@ -545,7 +548,16 @@ class _ReadFromPartitionFn(DoFn):
       raise ValueError(
           "ReadOperation is improperly configure: %s" % str(element))
 
-    for row in read_action(element['partitions']):
+    if self._retry is None and self._timeout is None:
+      read_action_request = read_action(element['partitions'])
+    elif self._retry is None:
+      read_action_request = read_action(element['partitions'], timeout = self._timeout)
+    elif self._timeout is None:
+      read_action_request = read_action(element['partitions'], retry = self._retry)
+    else: 
+      read_action_request = read_action(element['partitions'], retry = self._retry, timeout = self._timeout)
+
+    for row in read_action_request:
       yield row
 
   def teardown(self):
@@ -565,7 +577,8 @@ class ReadFromSpanner(PTransform):
                sql=None, params=None, param_types=None,  # with_query
                table=None, columns=None, index="", keyset=None,  # with_table
                read_operations=None,  # for read all
-               transaction=None
+               transaction=None,
+               timeout=None, retry=None
               ):
     """
     A PTransform that uses Spanner Batch API to perform reads.
@@ -606,6 +619,9 @@ class ReadFromSpanner(PTransform):
         to perform read all. By default, set to `None`.
       transaction: (optional) PTransform of the :meth:`create_transaction` to
         perform naive read on cloud spanner. By default, set to `None`.
+      retry: (optional) google.api_core.retry.Retry with the retry settings for 
+        this request.
+      timeout: (optional) Float with the the timeout for the read request.
     """
     self._configuration = _BeamSpannerConfiguration(
         project=project_id,
@@ -614,7 +630,9 @@ class ReadFromSpanner(PTransform):
         credentials=credentials,
         pool=pool,
         snapshot_read_timestamp=read_timestamp,
-        snapshot_exact_staleness=exact_staleness)
+        snapshot_exact_staleness=exact_staleness,
+        snapshot_retry = retry,
+        snapshot_timeout = timeout)
 
     self._read_operations = read_operations
     self._transaction = transaction
