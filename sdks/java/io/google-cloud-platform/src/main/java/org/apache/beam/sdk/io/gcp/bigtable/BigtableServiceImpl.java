@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
-import com.google.api.gax.rpc.ApiException;
 import com.google.bigtable.admin.v2.GetTableRequest;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.MutateRowsRequest;
@@ -165,8 +164,8 @@ class BigtableServiceImpl implements BigtableService {
       try {
         results = session.getDataClient().readRows(requestB.build());
         serviceCallMetric.call("ok");
-      } catch (ApiException e) {
-        serviceCallMetric.call(e.getStatusCode().getCode().getHttpStatusCode());
+      } catch (StatusRuntimeException e) {
+        serviceCallMetric.call(e.getStatus().getCode().value());
         throw e;
       }
       return advance();
@@ -300,11 +299,11 @@ class BigtableServiceImpl implements BigtableService {
 
             @Override
             public void onFailure(Throwable throwable) {
-              if (throwable instanceof ApiException) {
+              if (throwable instanceof StatusRuntimeException) {
                 serviceCallMetric.call(
-                    ((ApiException) throwable).getStatusCode().getCode().getHttpStatusCode());
+                    ((StatusRuntimeException) throwable).getStatus().getCode().value());
               } else {
-                serviceCallMetric.call(2); // Unknown
+                serviceCallMetric.call("unknown");
               }
               result.completeExceptionally(throwable);
             }
