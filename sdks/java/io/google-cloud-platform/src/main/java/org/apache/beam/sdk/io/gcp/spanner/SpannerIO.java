@@ -1526,6 +1526,7 @@ public class SpannerIO {
             getInclusiveEndAt());
 
         LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
+        LOG.info("Partition metrics table that will be used is " + partitionMetricsTableName);
 
         PCollection<byte[]> impulseOut = input.apply(Impulse.create());
         PCollection<DataChangeRecord> results =
