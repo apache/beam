@@ -592,6 +592,7 @@ class SdkWorker(object):
     self.log_lull_timeout_ns = (
         log_lull_timeout_ns or DEFAULT_LOG_LULL_TIMEOUT_NS)
     self._last_full_thread_dump_secs = 0.0
+    self._last_lull_logged_secs = 0.0
 
   def do_instruction(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
@@ -686,7 +687,8 @@ class SdkWorker(object):
   def _log_lull_sampler_info(self, sampler_info):
     # type: (statesampler.StateSamplerInfo) -> None
     if (sampler_info and sampler_info.time_since_transition and
-        sampler_info.time_since_transition > self.log_lull_timeout_ns):
+        sampler_info.time_since_transition > self.log_lull_timeout_ns and
+        self._passed_lull_timeout_since_last_log()):
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
       lull_seconds = sampler_info.time_since_transition / 1e9
@@ -711,6 +713,14 @@ class SdkWorker(object):
 
       if self._should_log_full_thread_dump(lull_seconds):
         self._log_full_thread_dump()
+
+  def _passed_lull_timeout_since_last_log(self) -> bool:
+    if (time.time() - self._last_lull_logged_secs >
+        self.log_lull_timeout_ns / 1e9):
+      self._last_lull_logged_secs = time.time()
+      return True
+    else:
+      return False
 
   def _should_log_full_thread_dump(self, lull_seconds):
     # type: (float) -> bool

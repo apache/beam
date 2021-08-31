@@ -48,7 +48,6 @@ task postCommitIT {
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": testOpts,
                   "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
-                  "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
                   ]
     def batchCmdArgs = mapToArgString(argMap)
     exec {
@@ -108,7 +107,6 @@ task directRunnerIT {
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": batchTestOpts,
                   "suite": "directRunnerIT-batch",
-                  "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
                   ]
     def batchCmdArgs = mapToArgString(argMap)
     exec {
@@ -131,7 +129,6 @@ task directRunnerIT {
                   "streaming": "true",
                   "test_opts": streamingTestOpts,
                   "suite": "directRunnerIT-streaming",
-                  "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
                 ]
     def streamingCmdArgs = mapToArgString(argMap)
     exec {

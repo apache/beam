@@ -61,6 +61,12 @@ public abstract class S3FileSystemConfiguration {
   /** KMS key id for SSE-KMS encryption, e.g. "arn:aws:kms:...". */
   public abstract @Nullable SSEAwsKeyManagementParams getSSEAwsKeyManagementParams();
 
+  /**
+   * Whether to ose an S3 Bucket Key for object encryption with server-side encryption using AWS KMS
+   * (SSE-KMS) or not.
+   */
+  public abstract boolean getBucketKeyEnabled();
+
   /** Builder used to create the {@code AmazonS3Client}. */
   public abstract AmazonS3ClientBuilder getS3ClientBuilder();
 
@@ -84,6 +90,7 @@ public abstract class S3FileSystemConfiguration {
         .setSSEAlgorithm(s3Options.getSSEAlgorithm())
         .setSSECustomerKey(s3Options.getSSECustomerKey())
         .setSSEAwsKeyManagementParams(s3Options.getSSEAwsKeyManagementParams())
+        .setBucketKeyEnabled(s3Options.getBucketKeyEnabled())
         .setS3ClientBuilder(getBuilder(s3Options));
   }
 
@@ -110,6 +117,8 @@ public abstract class S3FileSystemConfiguration {
     public abstract Builder setSSECustomerKey(@Nullable SSECustomerKey value);
 
     public abstract Builder setSSEAwsKeyManagementParams(@Nullable SSEAwsKeyManagementParams value);
+
+    public abstract Builder setBucketKeyEnabled(boolean value);
 
     public abstract Builder setS3ClientBuilder(AmazonS3ClientBuilder value);
 

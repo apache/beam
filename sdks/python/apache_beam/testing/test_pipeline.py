@@ -40,7 +40,7 @@ class TestPipeline(Pipeline):
   It has a functionality to parse arguments from command line and build pipeline
   options for tests who runs against a pipeline runner and utilizes resources
   of the pipeline runner. Those test functions are recommended to be tagged by
-  ``@attr("ValidatesRunner")`` annotation.
+  ``@pytest.mark.it_validatesrunner`` annotation.
 
   In order to configure the test with customized pipeline options from command
   line, system argument ``--test-pipeline-options`` can be used to obtains a
@@ -48,7 +48,7 @@ class TestPipeline(Pipeline):
 
   For example, use following command line to execute all ValidatesRunner tests::
 
-    python setup.py nosetests -a ValidatesRunner \\
+    pytest -m it_validatesrunner \\
         --test-pipeline-options="--runner=DirectRunner \\
                                  --job_name=myJobName \\
                                  --num_workers=1"

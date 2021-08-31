@@ -79,6 +79,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -739,13 +740,15 @@ public class SpannerIO {
   }
 
   /**
-   * A {@link PTransform} that create a transaction.
+   * A {@link PTransform} that create a transaction. If applied to a {@link PCollection}, it will
+   * create a transaction after the {@link PCollection} is closed.
    *
    * @see SpannerIO
+   * @see Wait
    */
   @AutoValue
   public abstract static class CreateTransaction
-      extends PTransform<PBegin, PCollectionView<Transaction>> {
+      extends PTransform<PInput, PCollectionView<Transaction>> {
 
     abstract SpannerConfig getSpannerConfig();
 
@@ -754,12 +757,21 @@ public class SpannerIO {
     abstract Builder toBuilder();
 
     @Override
-    public PCollectionView<Transaction> expand(PBegin input) {
+    public PCollectionView<Transaction> expand(PInput input) {
       getSpannerConfig().validate();
 
-      return input
-          .apply(Create.of(1))
-          .apply("Create transaction", ParDo.of(new CreateTransactionFn(this)))
+      PCollection<?> collection = input.getPipeline().apply(Create.of(1));
+
+      if (input instanceof PCollection) {
+        collection = collection.apply(Wait.on((PCollection<?>) input));
+      } else if (!(input instanceof PBegin)) {
+        throw new RuntimeException("input must be PBegin or PCollection");
+      }
+
+      return collection
+          .apply(
+              "Create transaction",
+              ParDo.of(new CreateTransactionFn(this.getSpannerConfig(), this.getTimestampBound())))
           .apply("As PCollectionView", View.asSingleton());
     }
 

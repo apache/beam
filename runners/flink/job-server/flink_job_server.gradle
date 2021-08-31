@@ -86,7 +86,8 @@ dependencies {
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
   runtime project(":sdks:java:extensions:google-cloud-platform-core")
   runtime library.java.slf4j_simple
-//  TODO: Enable AWS and HDFS file system.
+  //  TODO: Enable HDFS file system.
+  runtime project(":sdks:java:io:amazon-web-services2")
   // External transform expansion
   // Kafka
   runtimeOnly project(":sdks:java:io:kafka")
@@ -193,6 +194,8 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
       // https://issues.apache.org/jira/browse/BEAM-12048
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams'
+      // https://issues.apache.org/jira/browse/BEAM-12710
+      excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
       // https://issues.apache.org/jira/browse/BEAM-12050
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerUnbounded'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignUnbounded'
