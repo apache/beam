@@ -61,7 +61,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamSourceDescriptor;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.CleanUpReadChangeStreamDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PostProcessingMetricsDoFn;
@@ -1543,9 +1542,10 @@ public class SpannerIO {
                 .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
                 .apply("Post processing metrics", ParDo.of(postProcessingMetricsDoFn));
 
-        impulseOut
-            .apply(Wait.on(results))
-            .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
+        // TODO: fix the watermark of these functions and enable them
+        // impulseOut
+        //     .apply(Wait.on(results))
+        //     .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
         return results;
       }
     }
