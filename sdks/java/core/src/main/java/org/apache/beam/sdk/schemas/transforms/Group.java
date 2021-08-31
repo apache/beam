@@ -150,7 +150,7 @@ public class Group {
   /** A {@link PTransform} for doing global aggregations on schema PCollections. */
   public static class Global<InputT>
       extends PTransform<PCollection<InputT>, PCollection<Iterable<InputT>>>
-      implements AggregateCombinerInterface<InputT> {
+      implements AggregateCombiner<InputT> {
     /**
      * Aggregate the grouped data using the specified {@link CombineFn}. The resulting {@link
      * PCollection} will have type OutputT.
@@ -369,16 +369,16 @@ public class Group {
     }
   }
 
-  public interface AggregateCombinerInterface<InputT> {
-    <CombineInputT, AccumT, CombineOutputT> AggregateCombinerInterface<InputT> aggregateField(
-        int inputFielId, CombineFn<CombineInputT, AccumT, CombineOutputT> fn, Field outputField);
+  public interface AggregateCombiner<InputT> {
+    <CombineInputT, AccumT, CombineOutputT> AggregateCombiner<InputT> aggregateField(
+        int inputFieldId, CombineFn<CombineInputT, AccumT, CombineOutputT> fn, Field outputField);
 
-    <CombineInputT, AccumT, CombineOutputT> AggregateCombinerInterface<InputT> aggregateFieldsById(
+    <CombineInputT, AccumT, CombineOutputT> AggregateCombiner<InputT> aggregateFieldsById(
         List<Integer> inputFieldIds,
         CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
         Field outputField);
 
-    <CombineInputT, AccumT, CombineOutputT> AggregateCombinerInterface<InputT> aggregateField(
+    <CombineInputT, AccumT, CombineOutputT> AggregateCombiner<InputT> aggregateField(
         String inputFieldName,
         CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
         Field outputField);
@@ -391,7 +391,7 @@ public class Group {
    */
   public static class CombineFieldsGlobally<InputT>
       extends PTransform<PCollection<InputT>, PCollection<Row>>
-      implements AggregateCombinerInterface<InputT> {
+      implements AggregateCombiner<InputT> {
     private final SchemaAggregateFn.Inner schemaAggregateFn;
 
     CombineFieldsGlobally(SchemaAggregateFn.Inner schemaAggregateFn) {
@@ -596,7 +596,7 @@ public class Group {
   @AutoValue
   public abstract static class ByFields<InputT>
       extends PTransform<PCollection<InputT>, PCollection<Row>>
-      implements AggregateCombinerInterface<InputT> {
+      implements AggregateCombiner<InputT> {
     abstract FieldAccessDescriptor getFieldAccessDescriptor();
 
     abstract String getKeyField();
@@ -909,7 +909,7 @@ public class Group {
   @AutoValue
   public abstract static class CombineFieldsByFields<InputT>
       extends PTransform<PCollection<InputT>, PCollection<Row>>
-      implements AggregateCombinerInterface<InputT> {
+      implements AggregateCombiner<InputT> {
     abstract ByFields<InputT> getByFields();
 
     abstract SchemaAggregateFn.Inner getSchemaAggregateFn();

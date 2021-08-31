@@ -250,7 +250,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       validateWindowIsSupported(windowedStream);
       // Check if have fields to be grouped
       if (groupSetCount > 0) {
-        org.apache.beam.sdk.schemas.transforms.Group.AggregateCombinerInterface<Row> byFields =
+        org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> byFields =
             org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(keyFieldsIds);
         PTransform<PCollection<Row>, PCollection<Row>> combiner = createCombiner(byFields);
         boolean verifyRowValues =
@@ -263,17 +263,16 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                     mergeRecord(outputSchema, windowFieldIndex, ignoreValues, verifyRowValues)))
             .setRowSchema(outputSchema);
       }
-      org.apache.beam.sdk.schemas.transforms.Group.AggregateCombinerInterface<Row> globally =
+      org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> globally =
           org.apache.beam.sdk.schemas.transforms.Group.globally();
       PTransform<PCollection<Row>, PCollection<Row>> combiner = createCombiner(globally);
       return windowedStream.apply(combiner).setRowSchema(outputSchema);
     }
 
     private PTransform<PCollection<Row>, PCollection<Row>> createCombiner(
-        org.apache.beam.sdk.schemas.transforms.Group.AggregateCombinerInterface<Row>
-            initialCombiner) {
+        org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> initialCombiner) {
 
-      org.apache.beam.sdk.schemas.transforms.Group.AggregateCombinerInterface<Row> combined = null;
+      org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> combined = null;
       for (FieldAggregation fieldAggregation : fieldAggregations) {
         List<Integer> inputs = fieldAggregation.inputs;
         CombineFn combineFn = fieldAggregation.combineFn;
