@@ -41,10 +41,10 @@ public class GcpResourceIdentifiers {
     return String.format(
         "//bigtable.googleapis.com/projects/%s/instances/%s/tables/%s",
         projectId, instanceId, tableId);
+  }
 
   public static String datastoreResource(String projectId, String namespace) {
     return String.format(
         "//bigtable.googleapis.com/projects/%s/namespaces/%s", projectId, namespace);
-
   }
 }
