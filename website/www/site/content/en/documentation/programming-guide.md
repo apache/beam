@@ -6350,6 +6350,11 @@ $ python -m apache_beam.runners.portability.expansion_service_test -p $PORT_FOR_
 
 Currently Python external transforms are limited to dependencies available in core Beam SDK Harness.
 
+#### 13.1.3. Creating cross-language Go transforms
+
+Go currently does not support creating cross-language transforms, only using cross-language
+transforms from other languages.
+
 ### 13.2. Using cross-language transforms {#use-x-lang-transforms}
 
 Depending on the SDK language of the pipeline, you can use a high-level SDK-wrapper class, or a low-level transform class to access a cross-language transform.
@@ -6369,7 +6374,7 @@ Currently, to access cross-language transforms from the Java SDK, you have to us
 3. Include [External.of(...)](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) when instantiating your pipeline. Reference the URN, payload, and expansion service. For examples, see the [cross-language transform test suite](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/test/java/org/apache/beam/runners/core/construction/ValidateRunnerXlangTest.java).
 4. After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.
 
-#### 13.2.2 Using cross-language transforms in a Python pipeline
+#### 13.2.2. Using cross-language transforms in a Python pipeline
 
 If a Python-specific wrapper for a cross-language transform is available, use that; otherwise, you have to use the lower-level [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) class to access the transform.
 
@@ -6415,6 +6420,68 @@ with pipeline as p:
     {{< /highlight >}}
 
 4. After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.
+
+#### 13.2.3. Using cross-language transforms in a Go pipeline
+
+If a Go-specific wrapper for a cross-language is available, use that; otherwise, you have to use the
+lower-level [CrossLanguage](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguage)
+function to access the transform.
+
+**Expansion Services**
+
+The Go SDK does not yet support automatically starting an expansion service. In order to use
+cross-language transforms, you must manually start any necessary expansion services on your local
+machine and ensure they are accessible to your code during pipeline construction.
+
+**Using an SDK wrapper**
+
+To use a cross-language transform through an SDK wrapper, include the module for the SDK wrapper
+and call it from your pipeline as shown in the example:
+
+{{< highlight >}}
+import (
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio"
+)
+
+// Kafka Read using previously defined values.
+kafkaRecords := kafkaio.Read(
+    s,
+    expansionAddr, // Address of expansion service.
+    bootstrapAddr,
+    []string{topicName},
+    kafkaio.MaxNumRecords(numRecords),
+    kafkaio.ConsumerConfigs(map[string]string{"auto.offset.reset": "earliest"}))
+{{< /highlight >}}
+
+**Using the CrossLanguage function**
+
+When an SDK-specific wrapper isn't available, you will have to access the cross-language transform through the `CrossLanguage` function.
+
+1. Make sure you have the appropriate expansion service running. See the expansion service section for details.
+2. Make sure the transform you're trying to use is available and can be used by the expansion service.
+   For Java, make sure the builder and registrar for the transform are available in the classpath of
+   the expansion service.
+3. Use the `CrossLanguage` function in your pipeline as appropriate. Reference the URN, Payload,
+   expansion service address, and define inputs and outputs. You can use the
+   [CrossLanguagePayload](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguagePayload)
+   function as a helper for encoding a payload. You can use the
+   [UnnamedInput](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedInput) and
+   [UnnamedOutput](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedOutput)
+   functions as shortcuts for single, unnamed inputs/outputs or define a map for named ones.
+
+   {{< highlight >}}
+type prefixPayload struct {
+    Data string
+}
+urn := "beam:transforms:xlang:test:prefix"
+payload := beam.CrossLanguagePayload(prefixPayload{Data: prefix})
+expansionAddr := <Address of expansion service>
+outT := beam.UnnamedOutput(typex.New(reflectx.String))
+res := beam.CrossLanguage(s, urn, payload, expansionAddr, beam.UnnamedInput(inputPCol))
+   {{< /highlight >}}
+
+4. After the job has been submitted to the Beam runner, shutdown the expansion service by
+   terminating the expansion service process.
 
 ### 13.3. Runner Support {#x-lang-transform-runner-support}
 
