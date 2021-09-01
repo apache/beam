@@ -366,21 +366,6 @@ public class ExpansionServiceTest {
         .build();
   }
 
-  static ExternalTransforms.Parameter encodeRowIntoParameter(Row row, @Nullable String name) {
-    ByteString.Output outputStream = ByteString.newOutput();
-    try {
-      SchemaCoder.of(row.getSchema()).encode(row, outputStream);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
-    return ExternalTransforms.Parameter.newBuilder()
-        .setName(name)
-        .setSchema(SchemaTranslation.schemaToProto(row.getSchema(), true))
-        .setPayload(outputStream.toByteString())
-        .build();
-  }
-
   public Set<String> allIds(RunnerApi.Components components) {
     Set<String> all = new HashSet<>();
     all.addAll(components.getTransformsMap().keySet());

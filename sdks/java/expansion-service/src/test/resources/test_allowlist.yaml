@@ -41,5 +41,17 @@ allowedClasses:
   allowedBuilderMethods:
   - abc
   - xyz
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithWrapperTypes
+  allowedBuilderMethods:
+  - withDoubleWrapperField
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithComplexTypes
+  allowedBuilderMethods:
+  - withComplexTypeField
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithArray
+  allowedBuilderMethods:
+  - withStrArrayField
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithComplexTypeArray
+  allowedBuilderMethods:
+  - withComplexTypeArrayField
 
 

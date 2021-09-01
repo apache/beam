@@ -44,6 +44,14 @@ message ExternalConfigurationPayload {
 
 // This defines a single parameter that should be provided to a method (or a
 // constructor) of the transform class.
+// Currently we support following Parameter types.
+// * Java primitive types and Strings.
+// * Java types that can be represented by a Beam schema (if a schema has not
+//   been registered service will try to generate a schema using
+//   'JavaFieldSchema').
+// * Arrays of supported types.
+// Following are currently not supported
+// * Top level collections that are not embedded in other complex types.
 message Parameter {
   // Name of the parameter.
   // Optional. If available, may be used to validate the parameter’s name at

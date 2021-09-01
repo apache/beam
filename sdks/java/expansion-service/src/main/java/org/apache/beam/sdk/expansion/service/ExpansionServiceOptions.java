@@ -28,6 +28,7 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
+/** Options used to configure the {@link ExpansionService}. */
 public interface ExpansionServiceOptions extends PipelineOptions {
 
   @Description("Allow list for Java class based transform expansion")
@@ -41,6 +42,10 @@ public interface ExpansionServiceOptions extends PipelineOptions {
 
   void setJavaClassLookupAllowlistFile(String file);
 
+  /**
+   * Loads the allow list from {@link #getJavaClassLookupAllowlistFile}, defaulting to an empty
+   * {@link JavaClassLookupTransformProvider.AllowList}.
+   */
   class JavaClassLookupAllowListFactory implements DefaultValueFactory<AllowList> {
 
     @Override
