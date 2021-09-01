@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE log4j:configuration SYSTEM "http://logging.apache.org/log4j/1.2/apidocs/org/apache/log4j/xml/doc-files/log4j.dtd">
+<log4j:configuration debug="true"
+                     xmlns:log4j='http://jakarta.apache.org/log4j/'>
+
+    <appender name="console" class="org.apache.log4j.ConsoleAppender">
+        <layout class="org.apache.log4j.PatternLayout">
+            <!-- param name="ConversionPattern" value="%x %p %t - %d{yyyy-MM-dd HH:mm:ss.SSS}; - %c - %m%n" /  -->
+            <param name="ConversionPattern" value="%x %p : %m%n" />
+        </layout>
+    </appender>
+
+    <appender name="file" class="org.apache.log4j.RollingFileAppender">
+        <!-- param name="DatePattern" value="'.'yyyyy-MM-dd-HH-mm-ss"/  -->
+        <param name="Append" value="true" />
+        <param name="File" value="logs/app.log" />
+        <!--        <param name="ImmediateFlush" value="true" /  -->
+        <param name="MaxFileSize" value="10MB" />
+        <param name="MaxBackupIndex" value="15" />
+
+        <layout class="org.apache.log4j.PatternLayout">
+<!--            <param name="ConversionPattern" value="%x %p %t - %d{yyyy-MM-dd HH:mm:ss.SSS}; - %c - %m%n" />-->
+            <param name="ConversionPattern" value="%x %p %t - %c - %m%n" />
+        </layout>
+    </appender>
+
+        
+    <root>
+        <level value="WARN" />
+        <appender-ref ref="console" />
+        <appender-ref ref="file" />
+    </root>
+
+</log4j:configuration>

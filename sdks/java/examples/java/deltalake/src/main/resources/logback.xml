@@ -1,0 +1,41 @@
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy/MM/dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+<!--            <pattern>%d{HH:mm:ss.SSS} %-5level - %msg%n</pattern>-->
+        </encoder>
+    </appender>
+
+    <logger name="org.apache.kafka.clients.consumer.internals.Fetcher" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="org.apache.kafka.clients.FetchSessionHandler" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="org.apache.kafka.common.network.SslTransportLayer" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="org.apache.flink.fs.s3base.shaded.com.amazonaws.latency" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+<!--    <logger name="org.apache.parquet" level="WARN" additivity="false">-->
+    <logger name="org.apache.parquet.hadoop.InternalParquetRecordReader" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="org.apache.beam.sdk.transforms.Watch" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="com.amazonaws.latency" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>
