@@ -76,6 +76,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteCon
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -193,6 +194,7 @@ public class PubsubTableProviderIT implements Serializable {
     resultSignal.waitForSuccess(timeout);
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-12320")
   @Test
   public void testSQLSelectsArrayAttributes() throws Exception {
 

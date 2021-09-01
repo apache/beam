@@ -264,7 +264,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public ValueState<T> readLater() {
-                    // TODO: Support prefetching.
+                    // TODO(BEAM-12802): Support prefetching.
                     return this;
                   }
                 };
@@ -310,7 +310,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public BagState<T> readLater() {
-                    // TODO: Support prefetching.
+                    // TODO(BEAM-12802): Support prefetching.
                     return this;
                   }
 

@@ -34,6 +34,15 @@ from apache_beam.typehints.schemas import named_fields_from_element_type
 
 _LOGGER = logging.getLogger(__name__)
 
+# Add line breaks to the IPythonLogHandler's HTML output.
+_INTERACTIVE_LOG_STYLE = """
+  <style>
+    div.alert {
+      white-space: pre-line;
+    }
+  </style>
+"""
+
 
 def to_element_list(
     reader,  # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
@@ -169,6 +178,7 @@ class IPythonLogHandler(logging.Handler):
       from html import escape
       from IPython.core.display import HTML
       from IPython.core.display import display
+      display(HTML(_INTERACTIVE_LOG_STYLE))
       display(
           HTML(
               self.log_template.format(
