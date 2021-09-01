@@ -39,7 +39,7 @@ public abstract class UpdateField implements Serializable {
 
   abstract UpdateField.Builder toBuilder();
 
-  public static UpdateField create() {
+  private static UpdateField create() {
     return builder().build();
   }
 
@@ -55,12 +55,14 @@ public abstract class UpdateField implements Serializable {
   }
 
   /** Sets the limit of documents to find. */
-  public UpdateField fullUpdate(String updateOperator, String destField) {
-    return toBuilder().setUpdateOperator(updateOperator).setDestField(destField).build();
+  public static UpdateField fullUpdate(String updateOperator, String destField) {
+    return create().toBuilder().setUpdateOperator(updateOperator).setDestField(destField).build();
   }
 
-  public UpdateField fieldUpdate(String updateOperator, String sourceField, String destField) {
-    return toBuilder()
+  public static UpdateField fieldUpdate(
+      String updateOperator, String sourceField, String destField) {
+    return create()
+        .toBuilder()
         .setUpdateOperator(updateOperator)
         .setSourceField(sourceField)
         .setDestField(destField)

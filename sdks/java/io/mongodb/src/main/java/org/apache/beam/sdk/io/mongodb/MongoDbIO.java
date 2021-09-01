@@ -127,10 +127,10 @@ import org.slf4j.LoggerFactory;
  * *     .withDatabase("my-database")
  * *     .withCollection("my-collection")
  * *     .withUpdateConfiguration(UpdateConfiguration.create().withUpdateKey("key1")
- * *     .withUpdateFields(UpdateField.of("$set", "source-field1", "dest-field1"),
- * *                       UpdateField.of("$set","source-field2", "dest-field2"),
+ * *     .withUpdateFields(UpdateField.fieldUpdate("$set", "source-field1", "dest-field1"),
+ * *                       UpdateField.fieldUpdate("$set","source-field2", "dest-field2"),
  * *                       //pushes entire input doc to the dest field
- * *                        UpdateField.of("$push", "dest-field3") )));
+ * *                        UpdateField.fullUpdate("$push", "dest-field3") )));
  * *
  * }</pre>
  */
