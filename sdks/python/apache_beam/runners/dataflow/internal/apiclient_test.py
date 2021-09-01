@@ -1087,8 +1087,8 @@ class UtilTest(unittest.TestCase):
         '--update',
     ])
     replace_job_id = '2021-08-21_00_00_01-6081497447916622336'
-    with mock.patch('apache_beam.runners.dataflow.internal.apiclient'
-                    '.DataflowApplicationClient.job_id_for_name',
+    with mock.patch('apache_beam.runners.dataflow.internal.apiclient.Job.'
+                    'job_id_for_name',
                     return_value=replace_job_id) as job_id_for_name_mock:
       job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
     job_id_for_name_mock.assert_called_once()
