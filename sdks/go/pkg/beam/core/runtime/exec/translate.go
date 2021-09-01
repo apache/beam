@@ -457,7 +457,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					}
 				}
 
-			case graph.Combine:
+			case graph.Combine, graph.CombineGlobally:
 				cn := &Combine{UID: b.idgen.New(), Out: out[0]}
 				cn.Fn, err = graph.AsCombineFn(fn)
 				if err != nil {
