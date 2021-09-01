@@ -211,6 +211,7 @@ class CoGroupByKey(PTransform):
       def _par(x):
         print(label, x)
         return x
+
       return _par
 
     return ([

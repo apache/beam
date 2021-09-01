@@ -110,10 +110,12 @@ DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
 DataOutput = Dict[str, BufferId]
 
 # A map of [Transform ID, Timer Family ID] to [Buffer ID, Time Domain for timer]
-OutputTimers = Dict[TimerFamilyId, Tuple[BufferId, beam_runner_api_pb2.TimeDomain]]
+OutputTimers = Dict[TimerFamilyId,
+                    Tuple[BufferId, beam_runner_api_pb2.TimeDomain]]
 
 # A map of [Transform ID, Timer Family ID] to [Buffer CONTENTS, Timestamp]
-OutputTimerData = Dict[TimerFamilyId, Tuple['PartitionableBuffer', timestamp.Timestamp]]
+OutputTimerData = Dict[TimerFamilyId,
+                       Tuple['PartitionableBuffer', timestamp.Timestamp]]
 
 BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
                             List[beam_fn_api_pb2.ProcessBundleSplitResponse]]

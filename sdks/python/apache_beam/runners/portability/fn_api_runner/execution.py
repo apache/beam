@@ -136,7 +136,7 @@ class ListBuffer:
     self._grouped_output = None  # type: Optional[List[List[bytes]]]
     self.cleared = False
 
-  def extend(self, extra:'ListBuffer'):
+  def extend(self, extra: 'ListBuffer'):
     if self.cleared:
       raise RuntimeError('Trying to append to a cleared ListBuffer.')
     if self._grouped_output:
@@ -407,10 +407,13 @@ class _ProcessingQueueManager(object):
           elif incoming_inputs.data[pcoll]:
             existing_inputs.data[pcoll] = incoming_inputs.data[pcoll]
         for timer_family in incoming_inputs.timers:
-          if incoming_inputs.timers[timer_family] and timer_family in existing_inputs.timers:
-            existing_inputs.timers[timer_family].extend(incoming_inputs.data[timer_family])
+          if incoming_inputs.timers[
+              timer_family] and timer_family in existing_inputs.timers:
+            existing_inputs.timers[timer_family].extend(
+                incoming_inputs.data[timer_family])
           elif incoming_inputs.timers[timer_family]:
-            existing_inputs.timers[timer_family] = incoming_inputs.timers[timer_family]
+            existing_inputs.timers[timer_family] = incoming_inputs.timers[
+                timer_family]
       else:
         self._keyed_elements[key] = elm
         self._q.appendleft(elm)
@@ -428,7 +431,8 @@ class _ProcessingQueueManager(object):
       return '<%s at 0x%x>' % (str(self), id(self))
 
     def __str__(self):
-      return '<%s len: %s %s>' % (self.__class__.__name__, len(self), list(self._q))
+      return '<%s len: %s %s>' % (
+          self.__class__.__name__, len(self), list(self._q))
 
   def __init__(self):
     # For time-pending and watermark-pending inputs, the key type is
@@ -525,8 +529,10 @@ class FnApiRunnerExecutionContext(object):
               self.pcollection_to_producer_transform[input_pcoll] = None
             if buffer_id not in self.buffer_id_to_consumer_pairs:
               self.buffer_id_to_consumer_pairs[buffer_id] = set()
-            if (s.name, t.unique_name) not in self.buffer_id_to_consumer_pairs[buffer_id]:
-              self.buffer_id_to_consumer_pairs[buffer_id].add((s.name, t.unique_name))
+            if (s.name, t.unique_name
+                ) not in self.buffer_id_to_consumer_pairs[buffer_id]:
+              self.buffer_id_to_consumer_pairs[buffer_id].add(
+                  (s.name, t.unique_name))
           elif t.spec.payload == translations.IMPULSE_BUFFER:
             # Impulse data is not produced by any PTransform.
             self.pcollection_to_producer_transform[

@@ -297,10 +297,13 @@ def assert_that(
         def _par(x):
           print(label, x)
           return x
+
         return _par
 
-      keyed_actual = pcoll | "ToVoidKey" >> Map(lambda v: (None, v)) | 'printi' >> Map(print_and_return('tovoidkey'))
-      keyed_singleton = keyed_singleton | 'praint' >> Map(print_and_return('singletonai'))
+      keyed_actual = pcoll | "ToVoidKey" >> Map(
+          lambda v: (None, v)) | 'printi' >> Map(print_and_return('tovoidkey'))
+      keyed_singleton = keyed_singleton | 'praint' >> Map(
+          print_and_return('singletonai'))
 
       # This is a CoGroupByKey so that the matcher always runs, even if the
       # PCollection is empty.
