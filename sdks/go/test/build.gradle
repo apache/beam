@@ -26,6 +26,7 @@ description = "Apache Beam :: SDKs :: Go :: Test"
 installDependencies.enabled = false
 resolveBuildDependencies.enabled = false
 resolveTestDependencies.enabled = false
+gofmt.enabled = false
 
 clean.dependsOn cleanVendor
 
