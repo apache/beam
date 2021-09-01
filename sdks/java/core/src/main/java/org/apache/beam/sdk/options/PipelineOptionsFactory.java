@@ -44,6 +44,7 @@ import com.fasterxml.jackson.databind.node.TreeTraversingParser;
 import com.fasterxml.jackson.databind.ser.DefaultSerializerProvider;
 import com.fasterxml.jackson.databind.type.TypeBindings;
 import com.fasterxml.jackson.databind.util.SimpleBeanPropertyDefinition;
+import com.fasterxml.jackson.databind.util.TokenBuffer;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
@@ -499,7 +500,8 @@ public class PipelineOptionsFactory {
 
   private static final DefaultDeserializationContext DESERIALIZATION_CONTEXT =
       new DefaultDeserializationContext.Impl(MAPPER.getDeserializationContext().getFactory())
-          .createInstance(MAPPER.getDeserializationConfig(), null, null);
+          .createInstance(
+              MAPPER.getDeserializationConfig(), new TokenBuffer(MAPPER, false).asParser(), null);
 
   static final DefaultSerializerProvider SERIALIZER_PROVIDER =
       new DefaultSerializerProvider.Impl()
