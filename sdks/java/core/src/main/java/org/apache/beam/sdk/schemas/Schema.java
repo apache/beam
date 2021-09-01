@@ -192,6 +192,10 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addSchemaField(String name) {
+      return addLogicalTypeField(name, new org.apache.beam.sdk.schemas.logicaltypes.Schema());
+    }
+
     public <InputT, BaseT> Builder addLogicalTypeField(
         String name, LogicalType<InputT, BaseT> logicalType) {
       fields.add(Field.of(name, FieldType.logicalType(logicalType)));

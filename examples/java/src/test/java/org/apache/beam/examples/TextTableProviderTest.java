@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.text;
+package org.apache.beam.examples;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -143,7 +143,7 @@ public class TextTableProviderTest {
     String query = "SELECT * FROM test";
     String ddl =
         String.format(
-            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"csv\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text2 LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"csv\"}'",
             SQL_CSV_SCHEMA, tempFolder.getRoot());
 
     PCollection<Row> rows = pipeline.apply(SqlTransform.query(query).withDdlString(ddl));
@@ -156,7 +156,7 @@ public class TextTableProviderTest {
   }
 
   /**
-   * Tests {@code CREATE EXTERNAL TABLE TYPE text TBLPROPERTIES '{"format":"csv", "csvFormat":
+   * Tests {@code CREATE EXTERNAL TABLE TYPE text2 TBLPROPERTIES '{"format":"csv", "csvFormat":
    * "Excel"}'} works as expected.
    *
    * <p>Not that the different with "Excel" format is that blank lines are not ignored but have a
@@ -170,7 +170,7 @@ public class TextTableProviderTest {
     String query = "SELECT * FROM test";
     String ddl =
         String.format(
-            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' "
+            "CREATE EXTERNAL TABLE test %s TYPE text2 LOCATION '%s/*' "
                 + "TBLPROPERTIES '{\"format\":\"csv\", \"csvFormat\":\"Excel\"}'",
             SINGLE_STRING_SQL_SCHEMA, tempFolder.getRoot());
 
@@ -184,7 +184,7 @@ public class TextTableProviderTest {
   }
 
   /**
-   * Tests {@code CREATE EXTERNAL TABLE TYPE text TBLPROPERTIES '{"format":"lines"}'} works as
+   * Tests {@code CREATE EXTERNAL TABLE TYPE text2 TBLPROPERTIES '{"format":"lines"}'} works as
    * expected.
    */
   @Test
@@ -196,7 +196,7 @@ public class TextTableProviderTest {
     String query = "SELECT * FROM test";
     String ddl =
         String.format(
-            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"lines\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text2 LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"lines\"}'",
             SQL_LINES_SCHEMA, tempFolder.getRoot());
 
     PCollection<Row> rows = pipeline.apply(SqlTransform.query(query).withDdlString(ddl));
@@ -215,7 +215,7 @@ public class TextTableProviderTest {
     String query = "SELECT * FROM test";
     String ddl =
         String.format(
-            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"json\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text2 LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"json\"}'",
             SQL_JSON_SCHEMA, tempFolder.getRoot());
 
     PCollection<Row> rows = pipeline.apply(SqlTransform.query(query).withDdlString(ddl));
@@ -234,7 +234,7 @@ public class TextTableProviderTest {
     String query = "SELECT * FROM test";
     String ddl =
         String.format(
-            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' "
+            "CREATE EXTERNAL TABLE test %s TYPE text2 LOCATION '%s/*' "
                 + "TBLPROPERTIES '{\"format\":\"json\", \"deadLetterFile\": \"%s\"}'",
             SQL_JSON_SCHEMA, tempFolder.getRoot(), deadLetterFile.getAbsoluteFile());
 
@@ -256,7 +256,7 @@ public class TextTableProviderTest {
     String query = "INSERT INTO test VALUES ('hello'), ('goodbye')";
     String ddl =
         String.format(
-            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"lines\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text2 LOCATION '%s' TBLPROPERTIES '{\"format\":\"lines\"}'",
             SQL_LINES_SCHEMA, destinationFile.getAbsolutePath());
 
     pipeline.apply(SqlTransform.query(query).withDdlString(ddl));
@@ -276,7 +276,7 @@ public class TextTableProviderTest {
     String query = "INSERT INTO test VALUES ('hello', 42), ('goodbye', 13)";
     String ddl =
         String.format(
-            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"csv\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text2 LOCATION '%s' TBLPROPERTIES '{\"format\":\"csv\"}'",
             SQL_CSV_SCHEMA, destinationFile.getAbsolutePath());
 
     pipeline.apply(SqlTransform.query(query).withDdlString(ddl));
@@ -295,7 +295,7 @@ public class TextTableProviderTest {
     String query = "INSERT INTO test(name, age) VALUES ('Jack', 13)";
     String ddl =
         String.format(
-            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"json\"}'",
+            "CREATE EXTERNAL TABLE test %s TYPE text2 LOCATION '%s' TBLPROPERTIES '{\"format\":\"json\"}'",
             SQL_JSON_SCHEMA, destinationFile.getAbsolutePath());
 
     pipeline.apply(SqlTransform.query(query).withDdlString(ddl));

@@ -240,6 +240,10 @@ public abstract class Row implements Serializable {
     return getLogicalTypeValue(getSchema().indexOf(fieldName), clazz);
   }
 
+  public @Nullable Schema getSchemaValue(String fieldName) {
+    return getSchemaValue(getSchema().indexOf(fieldName));
+  }
+
   /**
    * Returns the base type for this field. If this is a logical type, we convert to the base value.
    * Otherwise the field itself is returned.
@@ -383,6 +387,10 @@ public abstract class Row implements Serializable {
    */
   public @Nullable <T> T getLogicalTypeValue(int idx, Class<T> clazz) {
     return (T) getValue(idx);
+  }
+
+  public @Nullable Schema getSchemaValue(int idx) {
+    return getLogicalTypeValue(idx, Schema.class);
   }
 
   /**

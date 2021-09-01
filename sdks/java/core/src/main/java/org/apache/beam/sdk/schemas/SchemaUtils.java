@@ -17,7 +17,19 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 
 /** A set of utility functions for schemas. */
 @SuppressWarnings({
@@ -100,5 +112,38 @@ public class SchemaUtils {
         result = fieldType1;
     }
     return result.withNullable(fieldType1.getNullable() || fieldType2.getNullable());
+  }
+
+  // Return a row to the given schema.
+  public static Row convertRowToSchema(Row row, Schema schema) {
+    if (schema.equivalent(row.getSchema())) return row;
+    Row.Builder builder = Row.withSchema(schema);
+    for (Field field : schema.getFields()) {
+      if (row.getSchema().hasField(field.getName())) {
+        builder.addValue(row.getValue(field.getName()));
+      } else {
+        if (!field.getType().getNullable()) {
+          throw new IllegalArgumentException("Missing non-nullable field.");
+        }
+        builder.addValue(null);
+      }
+    }
+    return builder.build();
+  }
+
+  public static Map<String, Schema> getSchema(
+      SchemaTransform transform, Map<String, Schema> inputSchemas) {
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.empty(p);
+    for (Entry<String, Schema> entry : inputSchemas.entrySet()) {
+      inputTuple =
+          inputTuple.and(entry.getKey(), p.apply(Create.empty(RowCoder.of(entry.getValue()))));
+    }
+    PCollectionRowTuple outputTuple = inputTuple.apply(transform.buildTransform());
+    Map<String, Schema> outputSchemas = new HashMap<>();
+    for (Entry<TupleTag<Row>, PCollection<Row>> entry : outputTuple.getAll().entrySet()) {
+      outputSchemas.put(entry.getKey().getId(), entry.getValue().getSchema());
+    }
+    return outputSchemas;
   }
 }
