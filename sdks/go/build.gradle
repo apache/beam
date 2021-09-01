@@ -31,7 +31,6 @@ golang {
   packagePath = 'github.com/apache/beam/sdks/v2/go'
 
   goBuild {
-    environment "GOPATH", "/tmp/gopath"
     // The symlinks makes it hard (impossible?) to do a wildcard build
     // of pkg. Go build refuses to follow symlinks. Drop for now. The files
     // are built when tested anyway.
