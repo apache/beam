@@ -55,6 +55,7 @@ public class RecommendationAICatalogItemIT {
         .set("languageCode", "en");
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-12733")
   @Test
   public void createCatalogItem() {
     String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();

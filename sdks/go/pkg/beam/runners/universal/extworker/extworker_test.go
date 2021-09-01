@@ -19,8 +19,8 @@ import (
 	"context"
 	"testing"
 
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
 
 func TestLoopback(t *testing.T) {

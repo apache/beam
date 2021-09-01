@@ -70,9 +70,13 @@ import com.google.protobuf.Int32Value;
 import com.google.rpc.Code;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DatastoreWriterFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntity;
@@ -85,6 +89,7 @@ import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.UpsertFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.V1DatastoreFactory;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Write;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -141,6 +146,9 @@ public class DatastoreV1Test {
     when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class), any()))
         .thenReturn(mockDatastore);
     when(mockDatastoreFactory.getQuerySplitter()).thenReturn(mockQuerySplitter);
+    // Setup the ProcessWideContainer for testing metrics are set.
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    MetricsEnvironment.setProcessWideContainer(container);
   }
 
   @Test
@@ -504,12 +512,14 @@ public class DatastoreV1Test {
   @Test
   public void testDatatoreWriterFnWithOneBatch() throws Exception {
     datastoreWriterFnTest(100);
+    verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
   }
 
   /** Tests {@link DatastoreWriterFn} with entities of more than one batches, but not a multiple. */
   @Test
   public void testDatatoreWriterFnWithMultipleBatches() throws Exception {
     datastoreWriterFnTest(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START * 3 + 100);
+    verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 5);
   }
 
   /**
@@ -519,6 +529,7 @@ public class DatastoreV1Test {
   @Test
   public void testDatatoreWriterFnWithBatchesExactMultiple() throws Exception {
     datastoreWriterFnTest(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START * 2);
+    verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
   }
 
   // A helper method to test DatastoreWriterFn for various batch sizes.
@@ -612,6 +623,8 @@ public class DatastoreV1Test {
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
+    verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
+    verifyMetricWasSet("BatchDatastoreWrite", "unknown", "", 1);
   }
 
   /**
@@ -725,18 +738,21 @@ public class DatastoreV1Test {
   @Test
   public void testReadFnWithOneBatch() throws Exception {
     readFnTest(5);
+    verifyMetricWasSet("BatchDatastoreRead", "ok", NAMESPACE, 1);
   }
 
   /** Tests {@link ReadFn} with a query limit more than one batch, and not a multiple. */
   @Test
   public void testReadFnWithMultipleBatches() throws Exception {
     readFnTest(QUERY_BATCH_LIMIT + 5);
+    verifyMetricWasSet("BatchDatastoreRead", "ok", NAMESPACE, 2);
   }
 
   /** Tests {@link ReadFn} for several batches, using an exact multiple of batch size results. */
   @Test
   public void testReadFnWithBatchesExactMultiple() throws Exception {
     readFnTest(5 * QUERY_BATCH_LIMIT);
+    verifyMetricWasSet("BatchDatastoreRead", "ok", NAMESPACE, 5);
   }
 
   /** Tests that {@link ReadFn} retries after an error. */
@@ -758,6 +774,8 @@ public class DatastoreV1Test {
     DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(query);
+    verifyMetricWasSet("BatchDatastoreRead", "ok", NAMESPACE, 1);
+    verifyMetricWasSet("BatchDatastoreRead", "unknown", NAMESPACE, 1);
   }
 
   @Test
@@ -1060,5 +1078,25 @@ public class DatastoreV1Test {
     public int nextBatchSize(long timeSinceEpochMillis) {
       return DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START;
     }
+  }
+
+  private void verifyMetricWasSet(String method, String status, String namespace, long count) {
+    // Verify the metric as reported.
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    labels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
+    labels.put(MonitoringInfoConstants.Labels.METHOD, method);
+    labels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        "//bigtable.googleapis.com/projects/" + PROJECT_ID + "/namespaces/" + namespace);
+    labels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, PROJECT_ID);
+    labels.put(MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, namespace);
+    labels.put(MonitoringInfoConstants.Labels.STATUS, status);
+
+    MonitoringInfoMetricName name =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
+    assertEquals(count, (long) container.getCounter(name).getCumulative());
   }
 }

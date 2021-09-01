@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 // WindowInto places each element in one or more windows.
@@ -50,6 +50,7 @@ func (w *WindowInto) ProcessElement(ctx context.Context, elm *FullValue, values 
 		Timestamp: elm.Timestamp,
 		Elm:       elm.Elm,
 		Elm2:      elm.Elm2,
+		Pane:      elm.Pane,
 	}
 	return w.Out.ProcessElement(ctx, windowed, values...)
 }

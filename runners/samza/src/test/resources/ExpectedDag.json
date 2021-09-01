@@ -1,7 +1,6 @@
 {
   "RootNode": [
     { "fullName":"OuterMostNode",
-      "ioInfo":"TestTopic",
       "ChildNodes":[
         { "fullName":"Create.TimestampedValues",
           "enclosingNode":"OuterMostNode",

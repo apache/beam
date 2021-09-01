@@ -3994,6 +3994,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
     public void testSimpleProcessingTimerTimer() throws Exception {
@@ -4165,6 +4166,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
     public void testProcessingTimeTimerCanBeReset() throws Exception {
@@ -4589,6 +4591,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
+      UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class,
       UsesTestStreamWithOutputTimestamp.class
     })
@@ -4670,7 +4673,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testRelativeTimerWithOutputTimestamp() {
       DoFn<KV<Void, String>, String> buffferFn =
           new DoFn<KV<Void, String>, String>() {
@@ -4854,7 +4857,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({
+      NeedsRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+      UsesTestStreamWithProcessingTime.class
+    })
     public void testSetAndClearProcessingTimeTimer() {
 
       final String timerId = "processing-timer";
@@ -4929,7 +4937,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({
+      NeedsRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+      UsesTestStreamWithProcessingTime.class
+    })
     public void testClearUnsetProcessingTimeTimer() {
       final String timerId = "processing-timer";
 
@@ -5001,7 +5014,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({
+      NeedsRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+      UsesTestStreamWithProcessingTime.class
+    })
     public void testClearProcessingTimeTimer() {
       final String timerId = "processing-timer";
       final String clearTimerId = "clear-timer";
@@ -5111,7 +5129,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({
+      NeedsRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+      UsesTestStreamWithProcessingTime.class
+    })
     public void testSetProcessingTimerAfterClear() {
       final String timerId = "processing-timer";
 
@@ -5745,6 +5768,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class,
       UsesTimerMap.class
     })

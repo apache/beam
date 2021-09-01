@@ -218,6 +218,9 @@ ignore_identifiers = [
   'google.cloud.datastore.batch.Batch',
   'is_in_ipython',
   'doctest.TestResults',
+
+  # IPython Magics py:class reference target not found
+  'IPython.core.magic.Magics',
 ]
 ignore_references = [
   'BeamIOError',

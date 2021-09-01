@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.conf.Configuration;
@@ -244,8 +245,13 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
    */
   @Override
   protected void rename(
-      List<HadoopResourceId> srcResourceIds, List<HadoopResourceId> destResourceIds)
+      List<HadoopResourceId> srcResourceIds,
+      List<HadoopResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
+    if (moveOptions.length > 0) {
+      throw new UnsupportedOperationException("Support for move options is not yet implemented.");
+    }
     for (int i = 0; i < srcResourceIds.size(); ++i) {
 
       final Path srcPath = srcResourceIds.get(i).toPath();
