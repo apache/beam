@@ -50,7 +50,12 @@ func (n *AddFixedKey) StartBundle(ctx context.Context, id string, data exec.Data
 // ProcessElement adds a fixed key of 0 and moves the contents of the given FullValue into the Value portion
 // of a new FullValue struct.
 func (n *AddFixedKey) ProcessElement(ctx context.Context, elm *exec.FullValue, _ ...exec.ReStream) error {
-	keyedVal := exec.FullValue{Elm: fixedKey, Elm2: elm, Timestamp: elm.Timestamp, Windows: elm.Windows, Pane: elm.Pane}
+	var keyedVal exec.FullValue
+	if elm.Elm2 == nil {
+		keyedVal = exec.FullValue{Elm: fixedKey, Elm2: elm.Elm, Timestamp: elm.Timestamp, Windows: elm.Windows, Pane: elm.Pane}
+	} else {
+		keyedVal = exec.FullValue{Elm: fixedKey, Elm2: elm, Timestamp: elm.Timestamp, Windows: elm.Windows, Pane: elm.Pane}
+	}
 	return n.Out.ProcessElement(ctx, &keyedVal)
 }
 
