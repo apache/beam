@@ -3925,6 +3925,18 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testZetaSQLSumNulls() {
+    String sql = "SELECT SUM(x) AS sum FROM UNNEST([null, null, null]) AS x";
+
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue((Long) null).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testSimpleTableName() {
     String sql = "SELECT Key FROM KeyValue";
 

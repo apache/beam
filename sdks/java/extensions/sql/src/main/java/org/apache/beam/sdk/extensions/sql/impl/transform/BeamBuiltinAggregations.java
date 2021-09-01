@@ -63,7 +63,8 @@ public class BeamBuiltinAggregations {
               .put("MAX", typeName -> new DropNullFn(BeamBuiltinAggregations.createMax(typeName)))
               .put("MIN", typeName -> new DropNullFn(BeamBuiltinAggregations.createMin(typeName)))
               .put("SUM", typeName -> new DropNullFn(BeamBuiltinAggregations.createSum(typeName)))
-              .put("$SUM0", typeName -> new DropNullFn(BeamBuiltinAggregations.createSum(typeName)))
+              .put(
+                  "$SUM0", typeName -> new DropNullFn(BeamBuiltinAggregations.createSum0(typeName)))
               .put("AVG", typeName -> new DropNullFn(BeamBuiltinAggregations.createAvg(typeName)))
               .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
               .put("BIT_XOR", BeamBuiltinAggregations::createBitXOr)
@@ -166,6 +167,32 @@ public class BeamBuiltinAggregations {
     }
   }
 
+  /**
+   * {@link CombineFn} for Sum0 where sum of null returns 0 based on {@link Sum} and {@link
+   * Combine.BinaryCombineFn}.
+   */
+  static CombineFn createSum0(Schema.FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case INT32:
+        return new IntegerSum0();
+      case INT16:
+        return new ShortSum0();
+      case BYTE:
+        return new ByteSum0();
+      case INT64:
+        return new LongSum0();
+      case FLOAT:
+        return new FloatSum0();
+      case DOUBLE:
+        return new DoubleSum0();
+      case DECIMAL:
+        return new BigDecimalSum0();
+      default:
+        throw new UnsupportedOperationException(
+            String.format("[%s] is not supported in SUM", fieldType));
+    }
+  }
+
   /** {@link CombineFn} for AVG. */
   static CombineFn createAvg(Schema.FieldType fieldType) {
     switch (fieldType.getTypeName()) {
@@ -227,15 +254,17 @@ public class BeamBuiltinAggregations {
     }
   }
 
+  static class IntegerSum extends Combine.BinaryCombineFn<Integer> {
+    @Override
+    public Integer apply(Integer left, Integer right) {
+      return (int) (left + right);
+    }
+  }
+
   static class ShortSum extends Combine.BinaryCombineFn<Short> {
     @Override
     public Short apply(Short left, Short right) {
       return (short) (left + right);
-    }
-
-    @Override
-    public @Nullable Short identity() {
-      return 0;
     }
   }
 
@@ -244,11 +273,6 @@ public class BeamBuiltinAggregations {
     public Byte apply(Byte left, Byte right) {
       return (byte) (left + right);
     }
-
-    @Override
-    public @Nullable Byte identity() {
-      return 0;
-    }
   }
 
   static class FloatSum extends Combine.BinaryCombineFn<Float> {
@@ -256,10 +280,12 @@ public class BeamBuiltinAggregations {
     public Float apply(Float left, Float right) {
       return left + right;
     }
+  }
 
+  static class DoubleSum extends Combine.BinaryCombineFn<Double> {
     @Override
-    public @Nullable Float identity() {
-      return 0F;
+    public Double apply(Double left, Double right) {
+      return (double) left + right;
     }
   }
 
@@ -268,11 +294,6 @@ public class BeamBuiltinAggregations {
     public Long apply(Long left, Long right) {
       return Math.addExact(left, right);
     }
-
-    @Override
-    public @Nullable Long identity() {
-      return 0L;
-    }
   }
 
   static class BigDecimalSum extends Combine.BinaryCombineFn<BigDecimal> {
@@ -280,7 +301,51 @@ public class BeamBuiltinAggregations {
     public BigDecimal apply(BigDecimal left, BigDecimal right) {
       return left.add(right);
     }
+  }
 
+  static class IntegerSum0 extends IntegerSum {
+    @Override
+    public @Nullable Integer identity() {
+      return 0;
+    }
+  }
+
+  static class ShortSum0 extends ShortSum {
+    @Override
+    public @Nullable Short identity() {
+      return 0;
+    }
+  }
+
+  static class ByteSum0 extends ByteSum {
+    @Override
+    public @Nullable Byte identity() {
+      return 0;
+    }
+  }
+
+  static class FloatSum0 extends FloatSum {
+    @Override
+    public @Nullable Float identity() {
+      return 0F;
+    }
+  }
+
+  static class DoubleSum0 extends DoubleSum {
+    @Override
+    public @Nullable Double identity() {
+      return 0D;
+    }
+  }
+
+  static class LongSum0 extends LongSum {
+    @Override
+    public @Nullable Long identity() {
+      return 0L;
+    }
+  }
+
+  static class BigDecimalSum0 extends BigDecimalSum {
     @Override
     public @Nullable BigDecimal identity() {
       return BigDecimal.ZERO;
