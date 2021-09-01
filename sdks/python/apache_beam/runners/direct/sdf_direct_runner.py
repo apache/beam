@@ -20,10 +20,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import uuid
-from builtins import object
 from threading import Lock
 from threading import Timer
 from typing import TYPE_CHECKING

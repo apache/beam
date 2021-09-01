@@ -50,8 +50,7 @@ import org.junit.runners.JUnit4;
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "keyfor",
-  "nullness"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestStreamEvaluatorFactoryTest {
   private TestStreamEvaluatorFactory factory;
   private BundleFactory bundleFactory;

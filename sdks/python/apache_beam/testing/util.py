@@ -19,13 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import glob
 import io
 import tempfile
-from builtins import object
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -74,10 +71,6 @@ def contains_in_any_order(iterable):
 
     def __eq__(self, other):
       return self._counter == collections.Counter(other)
-
-    def __ne__(self, other):
-      # TODO(BEAM-5949): Needed for Python 2 compatibility.
-      return not self == other
 
     def __hash__(self):
       return hash(self._counter)
@@ -289,6 +282,7 @@ def assert_that(
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
 
       keyed_singleton = pcoll.pipeline | Create([(None, None)])
+      keyed_singleton.is_bounded = True
 
       if use_global_window:
         pcoll = pcoll | WindowInto(window.GlobalWindows())
@@ -302,6 +296,7 @@ def assert_that(
 
       keyed_actual = pcoll | "ToVoidKey" >> Map(
           lambda v: (None, v)) | 'printi' >> Map(print_and_return('tovoidkey'))
+      keyed_actual.is_bounded = True
       keyed_singleton = keyed_singleton | 'praint' >> Map(
           print_and_return('singletonai'))
 

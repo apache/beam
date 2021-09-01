@@ -39,9 +39,6 @@ import org.junit.runners.JUnit4;
  * number of records read equals the given expected number of records.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryIOReadIT {
 
   private BigQueryIOReadOptions options;

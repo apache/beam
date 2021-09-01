@@ -21,9 +21,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
+import builtins
 import collections
 import dis
 import inspect
@@ -31,21 +29,12 @@ import pprint
 import sys
 import traceback
 import types
-from builtins import object
-from builtins import zip
 from functools import reduce
 
 from apache_beam import pvalue
 from apache_beam.typehints import Any
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
-
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:  # Python 2
-  import __builtin__ as builtins
-except ImportError:  # Python 3
-  import builtins  # type: ignore
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 class TypeInferenceError(ValueError):
@@ -65,8 +54,6 @@ def instance_to_type(o):
     ])
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
     # pylint: disable=deprecated-types-field
-    if sys.version_info[0] == 2 and t == types.InstanceType:
-      return o.__class__
     if t == BoundMethod:
       return types.MethodType
     return t
@@ -118,10 +105,6 @@ class Const(object):
   def __eq__(self, other):
     return isinstance(other, Const) and self.value == other.value
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash(self.value)
 
@@ -150,10 +133,6 @@ class FrameState(object):
 
   def __eq__(self, other):
     return isinstance(other, FrameState) and self.__dict__ == other.__dict__
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash(tuple(sorted(self.__dict__.items())))
@@ -370,7 +349,6 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   code = co.co_code
   end = len(code)
   pc = 0
-  extended_arg = 0  # Python 2 only.
   free = None
 
   yields = set()
@@ -384,29 +362,19 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
 
   # In Python 3, use dis library functions to disassemble bytecode and handle
   # EXTENDED_ARGs.
-  is_py3 = sys.version_info[0] == 3
-  if is_py3:
-    ofs_table = {}  # offset -> instruction
-    for instruction in dis.get_instructions(f):
-      ofs_table[instruction.offset] = instruction
+  ofs_table = {}  # offset -> instruction
+  for instruction in dis.get_instructions(f):
+    ofs_table[instruction.offset] = instruction
 
-  # Python 2 - 3.5: 1 byte opcode + optional 2 byte arg (1 or 3 bytes).
   # Python 3.6+: 1 byte opcode + 1 byte arg (2 bytes, arg may be ignored).
-  if sys.version_info >= (3, 6):
-    inst_size = 2
-    opt_arg_size = 0
-  else:
-    inst_size = 1
-    opt_arg_size = 2
+  inst_size = 2
+  opt_arg_size = 0
 
   last_pc = -1
   while pc < end:  # pylint: disable=too-many-nested-blocks
     start = pc
-    if is_py3:
-      instruction = ofs_table[pc]
-      op = instruction.opcode
-    else:
-      op = ord(code[pc])
+    instruction = ofs_table[pc]
+    op = instruction.opcode
     if debug:
       print('-->' if pc == last_pc else '    ', end=' ')
       print(repr(pc).rjust(4), end=' ')
@@ -414,14 +382,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
 
     pc += inst_size
     if op >= dis.HAVE_ARGUMENT:
-      if is_py3:
-        arg = instruction.arg
-      else:
-        arg = ord(code[pc]) + ord(code[pc + 1]) * 256 + extended_arg
-      extended_arg = 0
+      arg = instruction.arg
       pc += opt_arg_size
-      if op == dis.EXTENDED_ARG:
-        extended_arg = arg * 65536
       if debug:
         print(str(arg).rjust(5), end=' ')
         if op in dis.hasconst:
@@ -450,34 +412,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     opname = dis.opname[op]
     jmp = jmp_state = None
     if opname.startswith('CALL_FUNCTION'):
-      if sys.version_info < (3, 6):
-        # Each keyword takes up two arguments on the stack (name and value).
-        standard_args = (arg & 0xFF) + 2 * (arg >> 8)
-        var_args = 'VAR' in opname
-        kw_args = 'KW' in opname
-        pop_count = standard_args + var_args + kw_args + 1
+      if opname == 'CALL_FUNCTION':
+        pop_count = arg + 1
         if depth <= 0:
           return_type = Any
-        elif arg >> 8:
-          if not var_args and not kw_args and not arg & 0xFF:
-            # Keywords only, maybe it's a call to Row.
-            if isinstance(state.stack[-pop_count], Const):
-              from apache_beam.pvalue import Row
-              if state.stack[-pop_count].value == Row:
-                fields = state.stack[-pop_count + 1::2]
-                types = state.stack[-pop_count + 2::2]
-                return_type = row_type.RowTypeConstraint(
-                    zip([fld.value for fld in fields], Const.unwrap_all(types)))
-              else:
-                return_type = Any
-          else:
-            # TODO(robertwb): Handle this case.
-            return_type = Any
         elif isinstance(state.stack[-pop_count], Const):
-          # TODO(robertwb): Handle this better.
-          if var_args or kw_args:
-            state.stack[-1] = Any
-            state.stack[-var_args - kw_args] = Any
           return_type = infer_return_type(
               state.stack[-pop_count].value,
               state.stack[1 - pop_count:],
@@ -485,57 +424,43 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
               depth=depth - 1)
         else:
           return_type = Any
-        state.stack[-pop_count:] = [return_type]
-      else:  # Python 3.6+
-        if opname == 'CALL_FUNCTION':
-          pop_count = arg + 1
-          if depth <= 0:
-            return_type = Any
-          elif isinstance(state.stack[-pop_count], Const):
-            return_type = infer_return_type(
-                state.stack[-pop_count].value,
-                state.stack[1 - pop_count:],
-                debug=debug,
-                depth=depth - 1)
+      elif opname == 'CALL_FUNCTION_KW':
+        # TODO(udim): Handle keyword arguments. Requires passing them by name
+        #   to infer_return_type.
+        pop_count = arg + 2
+        if isinstance(state.stack[-pop_count], Const):
+          from apache_beam.pvalue import Row
+          if state.stack[-pop_count].value == Row:
+            fields = state.stack[-1].value
+            return_type = row_type.RowTypeConstraint(
+                zip(fields, Const.unwrap_all(state.stack[-pop_count + 1:-1])))
           else:
             return_type = Any
-        elif opname == 'CALL_FUNCTION_KW':
-          # TODO(udim): Handle keyword arguments. Requires passing them by name
-          #   to infer_return_type.
-          pop_count = arg + 2
-          if isinstance(state.stack[-pop_count], Const):
-            from apache_beam.pvalue import Row
-            if state.stack[-pop_count].value == Row:
-              fields = state.stack[-1].value
-              return_type = row_type.RowTypeConstraint(
-                  zip(fields, Const.unwrap_all(state.stack[-pop_count + 1:-1])))
-            else:
-              return_type = Any
-          else:
-            return_type = Any
-        elif opname == 'CALL_FUNCTION_EX':
-          # stack[-has_kwargs]: Map of keyword args.
-          # stack[-1 - has_kwargs]: Iterable of positional args.
-          # stack[-2 - has_kwargs]: Function to call.
-          has_kwargs = arg & 1  # type: int
-          pop_count = has_kwargs + 2
-          if has_kwargs:
-            # TODO(udim): Unimplemented. Requires same functionality as a
-            #   CALL_FUNCTION_KW implementation.
-            return_type = Any
-          else:
-            args = state.stack[-1]
-            _callable = state.stack[-2]
-            if isinstance(args, typehints.ListConstraint):
-              # Case where there's a single var_arg argument.
-              args = [args]
-            elif isinstance(args, typehints.TupleConstraint):
-              args = list(args._inner_types())
-            return_type = infer_return_type(
-                _callable.value, args, debug=debug, depth=depth - 1)
         else:
-          raise TypeInferenceError('unable to handle %s' % opname)
-        state.stack[-pop_count:] = [return_type]
+          return_type = Any
+      elif opname == 'CALL_FUNCTION_EX':
+        # stack[-has_kwargs]: Map of keyword args.
+        # stack[-1 - has_kwargs]: Iterable of positional args.
+        # stack[-2 - has_kwargs]: Function to call.
+        has_kwargs = arg & 1  # type: int
+        pop_count = has_kwargs + 2
+        if has_kwargs:
+          # TODO(udim): Unimplemented. Requires same functionality as a
+          #   CALL_FUNCTION_KW implementation.
+          return_type = Any
+        else:
+          args = state.stack[-1]
+          _callable = state.stack[-2]
+          if isinstance(args, typehints.ListConstraint):
+            # Case where there's a single var_arg argument.
+            args = [args]
+          elif isinstance(args, typehints.TupleConstraint):
+            args = list(args._inner_types())
+          return_type = infer_return_type(
+              _callable.value, args, debug=debug, depth=depth - 1)
+      else:
+        raise TypeInferenceError('unable to handle %s' % opname)
+      state.stack[-pop_count:] = [return_type]
     elif opname == 'CALL_METHOD':
       pop_count = 1 + arg
       # LOAD_METHOD will return a non-Const (Any) if loading from an Any.

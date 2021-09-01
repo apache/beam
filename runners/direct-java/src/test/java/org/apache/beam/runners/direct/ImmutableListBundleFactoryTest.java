@@ -53,9 +53,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link ImmutableListBundleFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ImmutableListBundleFactoryTest {
   @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public ExpectedException thrown = ExpectedException.none();

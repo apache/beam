@@ -56,9 +56,6 @@ import org.mockito.Mockito;
 
 /** Tests to verify writes to Sns. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SnsIOTest implements Serializable {
 
   private static final String topicName = "arn:aws:sns:us-west-2:5880:topic-FMFEHJ47NRFO";

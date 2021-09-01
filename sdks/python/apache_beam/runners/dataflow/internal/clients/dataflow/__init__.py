@@ -18,8 +18,6 @@
 """Common imports for generated dataflow client library."""
 # pylint:disable=wildcard-import
 
-from __future__ import absolute_import
-
 import pkgutil
 
 # Protect against environments where apitools library is not available.

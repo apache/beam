@@ -58,9 +58,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link CreateRegisterFnOperationFunction}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class CreateRegisterFnOperationFunctionTest {
 
   @Mock private Supplier<Node> portSupplier;

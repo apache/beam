@@ -23,6 +23,7 @@ import edu.iu.dsc.tws.api.dataset.DataPartition;
 import edu.iu.dsc.tws.api.dataset.DataPartitionConsumer;
 import edu.iu.dsc.tws.api.tset.TSetContext;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,11 +32,11 @@ import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -75,40 +76,79 @@ public class Twister2SideInputReader implements SideInputReader {
   }
 
   private <T> T getSideInput(PCollectionView<T> view, BoundedWindow window) {
-    Map<BoundedWindow, List<WindowedValue<KV<?, ?>>>> partitionedElements = new HashMap<>();
+    switch (view.getViewFn().getMaterialization().getUrn()) {
+      case Materializations.MULTIMAP_MATERIALIZATION_URN:
+        return getMultimapSideInput(view, window);
+      case Materializations.ITERABLE_MATERIALIZATION_URN:
+        return getIterableSideInput(view, window);
+      default:
+        throw new IllegalArgumentException(
+            "Unknown materialization type: " + view.getViewFn().getMaterialization().getUrn());
+    }
+  }
+
+  private <T> T getMultimapSideInput(PCollectionView<T> view, BoundedWindow window) {
+    Map<BoundedWindow, List<WindowedValue<?>>> partitionedElements = getPartitionedElements(view);
+    Map<BoundedWindow, T> resultMap = new HashMap<>();
+
+    ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+    for (Map.Entry<BoundedWindow, List<WindowedValue<?>>> elements :
+        partitionedElements.entrySet()) {
+
+      Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+      resultMap.put(
+          elements.getKey(),
+          viewFn.apply(
+              InMemoryMultimapSideInputView.fromIterable(
+                  keyCoder,
+                  (Iterable)
+                      elements.getValue().stream()
+                          .map(WindowedValue::getValue)
+                          .collect(Collectors.toList()))));
+    }
+    T result = resultMap.get(window);
+    if (result == null) {
+      result = viewFn.apply(InMemoryMultimapSideInputView.empty());
+    }
+    return result;
+  }
+
+  private Map<BoundedWindow, List<WindowedValue<?>>> getPartitionedElements(
+      PCollectionView<?> view) {
+    Map<BoundedWindow, List<WindowedValue<?>>> partitionedElements = new HashMap<>();
     DataPartition<?> sideInput = runtimeContext.getInput(view.getTagInternal().getId());
     DataPartitionConsumer<?> dataPartitionConsumer = sideInput.getConsumer();
     while (dataPartitionConsumer.hasNext()) {
-      WindowedValue<KV<?, ?>> winValue = (WindowedValue<KV<?, ?>>) dataPartitionConsumer.next();
+      WindowedValue<?> winValue = (WindowedValue<?>) dataPartitionConsumer.next();
       for (BoundedWindow tbw : winValue.getWindows()) {
-        List<WindowedValue<KV<?, ?>>> windowedValues =
+        List<WindowedValue<?>> windowedValues =
             partitionedElements.computeIfAbsent(tbw, k -> new ArrayList<>());
         windowedValues.add(winValue);
       }
     }
+    return partitionedElements;
+  }
 
+  private <T> T getIterableSideInput(PCollectionView<T> view, BoundedWindow window) {
+    Map<BoundedWindow, List<WindowedValue<?>>> partitionedElements = getPartitionedElements(view);
+
+    ViewFn<Materializations.IterableView, T> viewFn =
+        (ViewFn<Materializations.IterableView, T>) view.getViewFn();
     Map<BoundedWindow, T> resultMap = new HashMap<>();
 
-    for (Map.Entry<BoundedWindow, List<WindowedValue<KV<?, ?>>>> elements :
+    for (Map.Entry<BoundedWindow, List<WindowedValue<?>>> elements :
         partitionedElements.entrySet()) {
-
-      ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
-      Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
       resultMap.put(
           elements.getKey(),
-          (T)
-              viewFn.apply(
-                  InMemoryMultimapSideInputView.fromIterable(
-                      keyCoder,
-                      (Iterable)
-                          elements.getValue().stream()
-                              .map(WindowedValue::getValue)
-                              .collect(Collectors.toList()))));
+          viewFn.apply(
+              () ->
+                  elements.getValue().stream()
+                      .map(WindowedValue::getValue)
+                      .collect(Collectors.toList())));
     }
     T result = resultMap.get(window);
     if (result == null) {
-      ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
-      result = viewFn.apply(InMemoryMultimapSideInputView.empty());
+      result = viewFn.apply(() -> Collections.<T>emptyList());
     }
     return result;
   }

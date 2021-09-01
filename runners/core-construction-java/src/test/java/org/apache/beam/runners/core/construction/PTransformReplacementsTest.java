@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValues;
@@ -41,9 +42,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link PTransformReplacements}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PTransformReplacementsTest {
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -61,6 +59,7 @@ public class PTransformReplacementsTest {
             Collections.singletonMap(new TupleTag<Long>(), mainInput),
             Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()),
+            ResourceHints.create(),
             pipeline);
     PCollection<Long> input = PTransformReplacements.getSingletonMainInput(application);
     assertThat(input, equalTo(mainInput));
@@ -77,6 +76,7 @@ public class PTransformReplacementsTest {
                 .build(),
             Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()).withSideInputs(sideInput),
+            ResourceHints.create(),
             pipeline);
     PCollection<Long> input = PTransformReplacements.getSingletonMainInput(application);
     assertThat(input, equalTo(mainInput));
@@ -98,6 +98,7 @@ public class PTransformReplacementsTest {
             inputs,
             Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()).withSideInputs(sideInput),
+            ResourceHints.create(),
             pipeline);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("multiple inputs");
@@ -119,6 +120,7 @@ public class PTransformReplacementsTest {
             inputs,
             Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()).withSideInputs(sideInput),
+            ResourceHints.create(),
             pipeline);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("No main input");

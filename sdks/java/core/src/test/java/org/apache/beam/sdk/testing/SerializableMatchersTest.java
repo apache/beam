@@ -49,9 +49,6 @@ import org.junit.runners.JUnit4;
  * boilerplate that is identical to each is considered thoroughly tested.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SerializableMatchersTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 

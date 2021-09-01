@@ -14,23 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import glob
 import importlib
 import math
 import os
 import platform
 import shutil
-import sys
 import tempfile
+import typing
 import unittest
+from datetime import datetime
 from io import BytesIO
 from io import StringIO
 
 import pandas as pd
 import pandas.testing
+import pytest
 from pandas.testing import assert_frame_equal
 from parameterized import parameterized
 
@@ -39,6 +38,11 @@ from apache_beam.dataframe import convert
 from apache_beam.dataframe import io
 from apache_beam.io import restriction_trackers
 from apache_beam.testing.util import assert_that
+
+
+class MyRow(typing.NamedTuple):
+  timestamp: int
+  value: int
 
 
 @unittest.skipIf(platform.system() == 'Windows', 'BEAM-10929')
@@ -59,14 +63,15 @@ class IOTest(unittest.TestCase):
           fout.write(contents)
     return dir + os.path.sep
 
-  def read_all_lines(self, pattern):
+  def read_all_lines(self, pattern, delete=False):
     for path in glob.glob(pattern):
       with open(path) as fin:
         # TODO(Py3): yield from
         for line in fin:
           yield line.rstrip('\n')
+      if delete:
+        os.remove(path)
 
-  @unittest.skipIf(sys.version_info[0] < 3, 'unicode issues')
   def test_read_write_csv(self):
     input = self.temp_dir({'1.csv': 'a,b\n1,2\n', '2.csv': 'a,b\n3,4\n'})
     output = self.temp_dir()
@@ -76,6 +81,11 @@ class IOTest(unittest.TestCase):
       df.to_csv(output + 'out.csv', index=False)
     self.assertCountEqual(['a,b,c', '1,2,3', '3,4,7'],
                           set(self.read_all_lines(output + 'out.csv*')))
+
+  @pytest.mark.uses_pyarrow
+  def test_read_write_parquet(self):
+    self._run_read_write_test(
+        'parquet', {}, {}, dict(check_index=False), ['pyarrow'])
 
   @parameterized.expand([
       ('csv', dict(index_col=0)),
@@ -100,7 +110,6 @@ class IOTest(unittest.TestCase):
           dict(check_index=False)),
       ('html', dict(index_col=0), {}, {}, ['lxml']),
       ('excel', dict(index_col=0), {}, {}, ['openpyxl', 'xlrd']),
-      ('parquet', {}, {}, dict(check_index=False), ['pyarrow']),
   ])
   # pylint: disable=dangerous-default-value
   def test_read_write(
@@ -110,6 +119,18 @@ class IOTest(unittest.TestCase):
       write_kwargs={},
       check_options={},
       requires=()):
+    self._run_read_write_test(
+        format, read_kwargs, write_kwargs, check_options, requires)
+
+  # pylint: disable=dangerous-default-value
+  def _run_read_write_test(
+      self,
+      format,
+      read_kwargs={},
+      write_kwargs={},
+      check_options={},
+      requires=()):
+
     for module in requires:
       try:
         importlib.import_module(module)
@@ -286,6 +307,41 @@ X     , c1, c2
             read_truncated_csv(split, len(contents)),
         ])
         assert_frame_equal(expected, split_at_header)
+
+  def test_file_not_found(self):
+    with self.assertRaisesRegex(FileNotFoundError, r'/tmp/fake_dir/\*\*'):
+      with beam.Pipeline() as p:
+        _ = p | io.read_csv('/tmp/fake_dir/**')
+
+  def test_windowed_write(self):
+    output = self.temp_dir()
+    with beam.Pipeline() as p:
+      pc = (
+          p | beam.Create([MyRow(timestamp=i, value=i % 3) for i in range(20)])
+          | beam.Map(lambda v: beam.window.TimestampedValue(v, v.timestamp)).
+          with_output_types(MyRow)
+          | beam.WindowInto(
+              beam.window.FixedWindows(10)).with_output_types(MyRow))
+
+      deferred_df = convert.to_dataframe(pc)
+      deferred_df.to_csv(output + 'out.csv', index=False)
+
+    first_window_files = (
+        f'{output}out.csv-'
+        f'{datetime.utcfromtimestamp(0).isoformat()}*')
+    self.assertCountEqual(
+        ['timestamp,value'] + [f'{i},{i%3}' for i in range(10)],
+        set(self.read_all_lines(first_window_files, delete=True)))
+
+    second_window_files = (
+        f'{output}out.csv-'
+        f'{datetime.utcfromtimestamp(10).isoformat()}*')
+    self.assertCountEqual(
+        ['timestamp,value'] + [f'{i},{i%3}' for i in range(10, 20)],
+        set(self.read_all_lines(second_window_files, delete=True)))
+
+    # Check that we've read (and removed) every output file
+    self.assertEqual(len(glob.glob(f'{output}out.csv*')), 0)
 
 
 if __name__ == '__main__':

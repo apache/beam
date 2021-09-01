@@ -45,9 +45,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link NullableCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class NullableCoderTest {
 
   private static final Coder<String> TEST_CODER = NullableCoder.of(StringUtf8Coder.of());

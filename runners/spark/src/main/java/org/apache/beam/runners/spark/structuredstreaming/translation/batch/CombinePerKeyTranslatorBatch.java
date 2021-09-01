@@ -19,8 +19,8 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.KVHelpers;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -48,7 +48,7 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
   @Override
   public void translateTransform(
       PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
-      TranslationContext context) {
+      AbstractTranslationContext context) {
 
     Combine.PerKey combineTransform = (Combine.PerKey) transform;
     @SuppressWarnings("unchecked")

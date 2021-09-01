@@ -79,15 +79,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import time
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
-
-from past.builtins import unicode
 
 from apache_beam import BeamJarExpansionService
 from apache_beam import ExternalTransform
@@ -109,14 +105,14 @@ def default_io_expansion_service():
 WriteToKinesisSchema = NamedTuple(
     'WriteToKinesisSchema',
     [
-        ('stream_name', unicode),
-        ('aws_access_key', unicode),
-        ('aws_secret_key', unicode),
-        ('region', unicode),
-        ('partition_key', unicode),
-        ('service_endpoint', Optional[unicode]),
+        ('stream_name', str),
+        ('aws_access_key', str),
+        ('aws_secret_key', str),
+        ('region', str),
+        ('partition_key', str),
+        ('service_endpoint', Optional[str]),
         ('verify_certificate', Optional[bool]),
-        ('producer_properties', Optional[Mapping[unicode, unicode]]),
+        ('producer_properties', Optional[Mapping[str, str]]),
     ],
 )
 
@@ -177,20 +173,20 @@ class WriteToKinesis(ExternalTransform):
 ReadFromKinesisSchema = NamedTuple(
     'ReadFromKinesisSchema',
     [
-        ('stream_name', unicode),
-        ('aws_access_key', unicode),
-        ('aws_secret_key', unicode),
-        ('region', unicode),
-        ('service_endpoint', Optional[unicode]),
+        ('stream_name', str),
+        ('aws_access_key', str),
+        ('aws_secret_key', str),
+        ('region', str),
+        ('service_endpoint', Optional[str]),
         ('verify_certificate', Optional[bool]),
         ('max_num_records', Optional[int]),
         ('max_read_time', Optional[int]),
-        ('initial_position_in_stream', Optional[unicode]),
+        ('initial_position_in_stream', Optional[str]),
         ('initial_timestamp_in_stream', Optional[int]),
         ('request_records_limit', Optional[int]),
         ('up_to_date_threshold', Optional[int]),
         ('max_capacity_per_shard', Optional[int]),
-        ('watermark_policy', Optional[unicode]),
+        ('watermark_policy', Optional[str]),
         ('watermark_idle_duration_threshold', Optional[int]),
         ('rate_limit', Optional[int]),
     ],

@@ -42,9 +42,6 @@ import org.mockito.ArgumentMatcher;
 
 /** A test of {@link ReadSpannerSchemaTest}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ReadSpannerSchemaTest {
 
   @Rule public final transient ExpectedException thrown = ExpectedException.none();

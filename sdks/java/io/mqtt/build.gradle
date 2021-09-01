@@ -34,8 +34,6 @@ dependencies {
   testCompile library.java.activemq_mqtt
   testCompile library.java.activemq_kahadb_store
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

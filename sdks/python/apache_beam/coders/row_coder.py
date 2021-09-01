@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import itertools
 from array import array
 
@@ -179,7 +177,7 @@ class RowCoderImpl(StreamCoderImpl):
         for i, is_null in enumerate(nulls):
           words[i // 8] |= is_null << (i % 8)
 
-    self.NULL_MARKER_CODER.encode_to_stream(words.tostring(), out, True)
+    self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
 
     for c, field, attr in zip(self.components, self.schema.fields, attrs):
       if attr is None:
@@ -193,7 +191,7 @@ class RowCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_stream, nested):
     nvals = self.SIZE_CODER.decode_from_stream(in_stream, True)
     words = array('B')
-    words.fromstring(self.NULL_MARKER_CODER.decode_from_stream(in_stream, True))
+    words.frombytes(self.NULL_MARKER_CODER.decode_from_stream(in_stream, True))
 
     if words:
       nulls = ((words[i // 8] >> (i % 8)) & 0x01 for i in range(nvals))

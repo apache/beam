@@ -16,9 +16,6 @@
 #
 
 """Generates Python proto modules and grpc stubs for Beam protos."""
-from __future__ import absolute_import
-from __future__ import print_function
-
 import contextlib
 import glob
 import inspect
@@ -32,6 +29,7 @@ import subprocess
 import sys
 import time
 import warnings
+from importlib import import_module
 
 import pkg_resources
 
@@ -181,8 +179,7 @@ def generate_urn_files(log, out_dir):
   sys.path.insert(0, os.path.dirname(api_path))
 
   def _import(m):
-    # TODO: replace with importlib when we drop support for python2.
-    return __import__('api.%s' % m, fromlist=[None])
+    return import_module('api.%s' % m)
 
   try:
     beam_runner_api_pb2 = _import('beam_runner_api_pb2')

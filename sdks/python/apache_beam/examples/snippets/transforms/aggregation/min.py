@@ -16,9 +16,6 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 
 def min_globally(test=None):
   # [START min_globally]

@@ -40,9 +40,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Unit tests for {@link Schema.Options}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SchemaOptionsTest {
 
   private static final String OPTION_NAME = "beam:test:field_i1";

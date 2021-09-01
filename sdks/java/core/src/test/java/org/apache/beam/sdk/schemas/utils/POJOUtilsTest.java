@@ -57,7 +57,6 @@ import org.junit.Test;
 /** Tests for the {@link POJOUtils} class. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class POJOUtilsTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");

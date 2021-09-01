@@ -40,6 +40,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -108,7 +109,7 @@ public final class ZetaSqlBeamTranslationUtils {
   }
 
   // Value conversion: Beam => ZetaSQL
-  public static Value toZetaSqlValue(Object object, FieldType fieldType) {
+  public static Value toZetaSqlValue(@Nullable Object object, FieldType fieldType) {
     if (object == null) {
       return Value.createNullValue(toZetaSqlType(fieldType));
     }

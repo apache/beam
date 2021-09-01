@@ -28,9 +28,11 @@ import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.fn.harness.AssignWindowsRunner.AssignWindowsMapFnFactory;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -38,6 +40,7 @@ import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -176,9 +179,13 @@ public class AssignWindowsRunnerTest implements Serializable {
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class));
-    pCollectionConsumerRegistry.register("output", "ptransform", outputs::add);
+    pCollectionConsumerRegistry.register("output", "ptransform", outputs::add, VarIntCoder.of());
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
+    RunnerApi.PCollection pCollection =
+        RunnerApi.PCollection.newBuilder().setUniqueName("input").setCoderId("coder-id").build();
+    RunnerApi.Coder coder = CoderTranslation.toProto(VarIntCoder.of()).getCoder();
+
     MapFnRunners.forWindowedValueMapFnFactory(new AssignWindowsMapFnFactory<>())
         .createRunnerForPTransform(
             null /* pipelineOptions */,
@@ -200,9 +207,9 @@ public class AssignWindowsRunnerTest implements Serializable {
                                 .toByteString()))
                 .build(),
             null /* processBundleInstructionId */,
-            null /* pCollections */,
-            null /* coders */,
-            null /* windowingStrategies */,
+            Collections.singletonMap("input", pCollection) /* pCollections */,
+            Collections.singletonMap("coder-id", coder) /* coders */,
+            Collections.emptyMap() /* windowingStrategies */,
             pCollectionConsumerRegistry,
             null /* startFunctionRegistry */,
             null /* finishFunctionRegistry */,

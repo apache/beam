@@ -40,9 +40,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link CoderProperties}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class CoderPropertiesTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 

@@ -23,8 +23,6 @@ graph of transformations belonging to a pipeline on the local machine.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import itertools
 import logging
 import time
@@ -118,8 +116,15 @@ class SwitchingDirectRunner(PipelineRunner):
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _FnApiRunnerSupportVisitor().accept(pipeline):
-      from apache_beam.runners.portability.fn_api_runner import FnApiRunner
-      runner = FnApiRunner()
+      from apache_beam.portability.api import beam_provision_api_pb2
+      from apache_beam.runners.portability.fn_api_runner import fn_runner
+      from apache_beam.runners.portability.portable_runner import JobServiceHandle
+      all_options = options.get_all_options()
+      encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
+      provision_info = fn_runner.ExtendedProvisionInfo(
+          beam_provision_api_pb2.ProvisionInfo(
+              pipeline_options=encoded_options))
+      runner = fn_runner.FnApiRunner(provision_info=provision_info)
     else:
       runner = BundleBasedDirectRunner()
 
@@ -393,7 +398,7 @@ class _DirectReadFromPubSub(PTransform):
     # type: (...) -> typing.Optional[coders.Coder]
     return coders.BytesCoder()
 
-  def get_windowing(self, inputs):
+  def get_windowing(self, unused_inputs):
     return beam.Windowing(beam.window.GlobalWindows())
 
   def expand(self, pvalue):

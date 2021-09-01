@@ -19,10 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import base64
 import bisect
 import collections
@@ -31,8 +27,6 @@ import json
 import logging
 import random
 import threading
-from builtins import next
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -52,7 +46,6 @@ from typing import TypeVar
 from typing import Union
 from typing import cast
 
-from future.utils import itervalues
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
@@ -76,6 +69,7 @@ from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
+from apache_beam.transforms import window
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
@@ -173,7 +167,7 @@ class DataInputOperation(RunnerIOOperation):
   def __init__(self,
                operation_name,  # type: Union[str, common.NameContext]
                step_name,
-               consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
+               consumers,  # type: Mapping[Any, List[operations.Operation]]
                counter_factory,  # type: counters.CounterFactory
                state_sampler,  # type: statesampler.StateSampler
                windowed_coder,  # type: coders.Coder
@@ -196,7 +190,7 @@ class DataInputOperation(RunnerIOOperation):
             self.counter_factory,
             self.name_context.step_name,
             0,
-            next(iter(itervalues(consumers))),
+            next(iter(consumers.values())),
             self.windowed_coder,
             self._get_runtime_performance_hints())
     ]
@@ -333,8 +327,9 @@ class DataInputOperation(RunnerIOOperation):
 
   def reset(self):
     # type: () -> None
-    self.index = -1
-    self.stop = float('inf')
+    with self.splitting_lock:
+      self.index = -1
+      self.stop = float('inf')
     super(DataInputOperation, self).reset()
 
 
@@ -842,6 +837,7 @@ class BundleProcessor(object):
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
+    self.current_instruction_id = None  # type: Optional[str]
 
     # There is no guarantee that the runner only set
     # timer_api_service_descriptor when having timers. So this field cannot be
@@ -949,6 +945,7 @@ class BundleProcessor(object):
 
     try:
       execution_context = ExecutionContext()
+      self.current_instruction_id = instruction_id
       self.state_sampler.start()
       # Start all operations.
       for op in reversed(self.ops.values()):
@@ -962,7 +959,7 @@ class BundleProcessor(object):
       # (transform_id, timer_family_id).
       data_channels = collections.defaultdict(
           list
-      )  # type: DefaultDict[data_plane.GrpcClientDataChannel, List[Union[str, Tuple[str, str]]]]
+      )  # type: DefaultDict[data_plane.DataChannel, List[Union[str, Tuple[str, str]]]]
 
       # Add expected data inputs for each data channel.
       input_op_by_transform_id = {}
@@ -975,13 +972,13 @@ class BundleProcessor(object):
         data_channels[self.timer_data_channel].extend(
             list(self.timers_info.keys()))
 
-      # Set up timer output stream for DoOperation.
-      for ((transform_id, timer_family_id),
-           timer_info) in self.timers_info.items():
-        output_stream = self.timer_data_channel.output_timer_stream(
-            instruction_id, transform_id, timer_family_id)
-        timer_info.output_stream = output_stream
-        self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
+        # Set up timer output stream for DoOperation.
+        for ((transform_id, timer_family_id),
+             timer_info) in self.timers_info.items():
+          output_stream = self.timer_data_channel.output_timer_stream(
+              instruction_id, transform_id, timer_family_id)
+          timer_info.output_stream = output_stream
+          self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
 
       # Process data and timer inputs
       for data_channel, expected_inputs in data_channels.items():
@@ -1018,7 +1015,7 @@ class BundleProcessor(object):
     finally:
       # Ensure any in-flight split attempts complete.
       with self.splitting_lock:
-        pass
+        self.current_instruction_id = None
       self.state_sampler.stop_if_still_running()
 
   def finalize_bundle(self):
@@ -1035,6 +1032,10 @@ class BundleProcessor(object):
     # type: (beam_fn_api_pb2.ProcessBundleSplitRequest) -> beam_fn_api_pb2.ProcessBundleSplitResponse
     split_response = beam_fn_api_pb2.ProcessBundleSplitResponse()
     with self.splitting_lock:
+      if bundle_split_request.instruction_id != self.current_instruction_id:
+        # This may be a delayed split for a former bundle, see BEAM-12475.
+        return split_response
+
       for op in self.ops.values():
         if isinstance(op, DataInputOperation):
           desired_split = bundle_split_request.desired_splits.get(
@@ -1445,6 +1446,8 @@ def create_split_and_size_restrictions(*args):
       element, (restriction, _) = element_restriction
       for part, size in self.restriction_provider.split_and_size(
           element, restriction):
+        if size < 0:
+          raise ValueError('Expected size >= 0 but received %s.' % size)
         estimator_state = (
             self.watermark_estimator_provider.initial_estimator_state(
                 element, part))
@@ -1469,6 +1472,10 @@ def create_truncate_sized_restriction(*args):
         truncated_restriction_size = (
             self.restriction_provider.restriction_size(
                 element, truncated_restriction))
+        if truncated_restriction_size < 0:
+          raise ValueError(
+              'Expected size >= 0 but received %s.' %
+              truncated_restriction_size)
         yield ((element, (truncated_restriction, estimator_state)),
                truncated_restriction_size)
 
@@ -1854,6 +1861,48 @@ def create_map_windows(
 
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers, MapWindows())
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.primitives.MERGE_WINDOWS.urn, beam_runner_api_pb2.FunctionSpec)
+def create_merge_windows(
+    factory,  # type: BeamTransformFactory
+    transform_id,  # type: str
+    transform_proto,  # type: beam_runner_api_pb2.PTransform
+    mapping_fn_spec,  # type: beam_runner_api_pb2.FunctionSpec
+    consumers  # type: Dict[str, List[operations.Operation]]
+):
+  assert mapping_fn_spec.urn == python_urns.PICKLED_WINDOWFN
+  window_fn = pickler.loads(mapping_fn_spec.payload)
+
+  class MergeWindows(beam.DoFn):
+    def process(self, element):
+      nonce, windows = element
+
+      original_windows = set(windows)  # type: Set[window.BoundedWindow]
+      merged_windows = collections.defaultdict(
+          set
+      )  # type: MutableMapping[window.BoundedWindow, Set[window.BoundedWindow]]
+
+      class RecordingMergeContext(window.WindowFn.MergeContext):
+        def merge(
+            self,
+            to_be_merged,  # type: Iterable[window.BoundedWindow]
+            merge_result,  # type: window.BoundedWindow
+          ):
+          originals = merged_windows[merge_result]
+          for window in to_be_merged:
+            if window in original_windows:
+              originals.add(window)
+              original_windows.remove(window)
+            else:
+              originals.update(merged_windows.pop(window))
+
+      window_fn.merge(RecordingMergeContext(windows))
+      yield nonce, (original_windows, merged_windows.items())
+
+  return _create_simple_pardo_operation(
+      factory, transform_id, transform_proto, consumers, MergeWindows())
 
 
 @BeamTransformFactory.register_urn(common_urns.primitives.TO_STRING.urn, None)

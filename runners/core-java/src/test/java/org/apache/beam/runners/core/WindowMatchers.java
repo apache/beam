@@ -31,9 +31,6 @@ import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Instant;
 
 /** Matchers that are useful for working with Windowing, Timestamps, etc. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class WindowMatchers {
 
   public static <T> Matcher<WindowedValue<? extends T>> isWindowedValue(

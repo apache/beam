@@ -19,9 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import itertools
+import pickle
 import unittest
 from typing import ByteString
 from typing import List
@@ -31,8 +30,6 @@ from typing import Optional
 from typing import Sequence
 
 import numpy as np
-from future.moves import pickle
-from past.builtins import unicode
 
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints.schemas import named_tuple_from_schema
@@ -58,7 +55,6 @@ class SchemaTest(unittest.TestCase):
         np.int64,
         np.float32,
         np.float64,
-        unicode,
         bool,
         bytes,
         str,
@@ -85,10 +81,8 @@ class SchemaTest(unittest.TestCase):
             'ComplexSchema',
             [
                 ('id', np.int64),
-                ('name', unicode),
-                (
-                    'optional_map',
-                    Optional[Mapping[unicode, Optional[np.float64]]]),
+                ('name', str),
+                ('optional_map', Optional[Mapping[str, Optional[np.float64]]]),
                 ('optional_array', Optional[Sequence[np.float32]]),
                 ('array_optional', Sequence[Optional[bool]]),
                 ('timestamp', Timestamp),
@@ -215,9 +209,9 @@ class SchemaTest(unittest.TestCase):
     MyCuteClass = NamedTuple(
         'MyCuteClass',
         [
-            ('name', unicode),
+            ('name', str),
             ('age', Optional[int]),
-            ('interests', List[unicode]),
+            ('interests', List[str]),
             ('height', float),
             ('blob', ByteString),
         ])
@@ -273,7 +267,7 @@ class SchemaTest(unittest.TestCase):
 
   def test_user_type_annotated_with_id_after_conversion(self):
     MyCuteClass = NamedTuple('MyCuteClass', [
-        ('name', unicode),
+        ('name', str),
     ])
     self.assertFalse(hasattr(MyCuteClass, '_beam_schema_id'))
 

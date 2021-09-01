@@ -63,7 +63,6 @@ import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
-import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
@@ -82,6 +81,8 @@ import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
+import org.apache.beam.runners.fnexecution.translation.StreamingSideInputHandlerFactory;
+import org.apache.beam.runners.fnexecution.wire.ByteStringCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -102,11 +103,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -221,6 +221,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.windowCoder = (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
     this.inputCoder = windowedInputCoder;
     this.pipelineOptions = new SerializablePipelineOptions(options);
+
+    Preconditions.checkArgument(
+        !windowedInputCoder.getCoderArguments().isEmpty(),
+        "Empty arguments for WindowedValue Coder %s",
+        windowedInputCoder);
   }
 
   @Override
@@ -314,7 +319,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       checkNotNull(super.sideInputHandler);
       StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
           Preconditions.checkNotNull(
-              FlinkStreamingSideInputHandlerFactory.forStage(
+              StreamingSideInputHandlerFactory.forStage(
                   executableStage, sideInputIds, super.sideInputHandler));
       try {
         sideInputStateHandler =
@@ -596,7 +601,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+    public void deleteTimer(
+        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
       throw new UnsupportedOperationException(
           "It is not expected to use SdfFlinkTimerInternals to delete a timer");
     }

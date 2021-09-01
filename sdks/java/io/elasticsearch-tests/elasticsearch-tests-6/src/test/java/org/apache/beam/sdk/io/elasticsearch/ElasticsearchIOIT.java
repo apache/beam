@@ -52,9 +52,6 @@ import org.junit.runners.JUnit4;
  * higher) in the backend Elasticsearch server for this test to run.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ElasticsearchIOIT {
   private static RestClient restClient;
   private static ElasticsearchPipelineOptions options;
@@ -111,6 +108,15 @@ public class ElasticsearchIOIT {
   }
 
   @Test
+  public void testWriteVolumeStateful() throws Exception {
+    // cannot share elasticsearchIOTestCommon because tests run in parallel.
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =
+        new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
+    elasticsearchIOTestCommonWrite.setPipeline(pipeline);
+    elasticsearchIOTestCommonWrite.testWriteStateful();
+  }
+
+  @Test
   public void testSizesVolume() throws Exception {
     elasticsearchIOTestCommon.testSizes();
   }
@@ -128,6 +134,29 @@ public class ElasticsearchIOIT {
         new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWriteWithFullAddressing();
+  }
+
+  @Test
+  public void testWriteWithAllowableErrors() throws Exception {
+    elasticsearchIOTestCommon.testWriteWithAllowedErrors();
+  }
+
+  @Test
+  public void testWriteWithRouting() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithRouting();
+  }
+
+  @Test
+  public void testWriteScriptedUpsert() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteScriptedUpsert();
+  }
+
+  @Test
+  public void testWriteWithDocVersion() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithDocVersion();
   }
 
   /**

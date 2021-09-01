@@ -41,9 +41,6 @@ import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
 /**
  * Fake implementation of {@link net.snowflake.client.jdbc.SnowflakeBasicDataSource} used in tests.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FakeSnowflakeBasicDataSource extends SnowflakeBasicDataSource implements Serializable {
   @Override
   public FakeConnection getConnection() throws SQLException {

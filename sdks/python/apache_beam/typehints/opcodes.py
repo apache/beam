@@ -29,15 +29,11 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import inspect
 import logging
 import sys
 import types
 from functools import reduce
-
-from past.builtins import unicode
 
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
@@ -160,7 +156,7 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 def binary_subscr(state, unused_arg):
   index = state.stack.pop()
   base = Const.unwrap(state.stack.pop())
-  if base in (str, unicode):
+  if base is str:
     out = base
   elif (isinstance(index, Const) and isinstance(index.value, int) and
         isinstance(base, typehints.IndexableTypeConstraint)):
@@ -266,7 +262,7 @@ def build_list(state, arg):
 
 # A Dict[Union[], Union[]] is the type of an empty dict.
 def build_map(state, arg):
-  if sys.version_info <= (2, ) or arg == 0:
+  if arg == 0:
     state.stack.append(Dict[Union[()], Union[()]])
   else:
     state.stack[-2 * arg:] = [
@@ -308,10 +304,7 @@ def _getattr(o, name):
         isinstance(getattr(o, name, None),
                    (types.MethodType, types.FunctionType))):
     # TODO(luke-zhu): Support other callable objects
-    if sys.version_info[0] == 2:
-      func = getattr(o, name).__func__
-    else:
-      func = getattr(o, name)  # Python 3 has no unbound methods
+    func = getattr(o, name)  # Python 3 has no unbound methods
     return Const(BoundMethod(func, o))
   elif isinstance(o, row_type.RowTypeConstraint):
     return o.get_type_for(name)
@@ -384,36 +377,20 @@ def make_function(state, arg):
   """
   # TODO(luke-zhu): Handle default argument types
   globals = state.f.__globals__  # Inherits globals from the current frame
-  if sys.version_info[0] == 2:
-    func_code = state.stack[-1].value
-    func = types.FunctionType(func_code, globals)
-    # argc is the number of default parameters. Ignored here.
-    pop_count = 1 + arg
-  else:  # Python 3.x
-    func_name = state.stack[-1].value
-    func_code = state.stack[-2].value
-    pop_count = 2
-    closure = None
-    if sys.version_info[:2] == (3, 5):
-      # https://docs.python.org/3.5/library/dis.html#opcode-MAKE_FUNCTION
-      num_default_pos_args = (arg & 0xff)
-      num_default_kwonly_args = ((arg >> 8) & 0xff)
-      num_annotations = ((arg >> 16) & 0x7fff)
-      pop_count += (
-          num_default_pos_args + 2 * num_default_kwonly_args + num_annotations +
-          num_annotations > 0)
-    elif sys.version_info >= (3, 6):
-      # arg contains flags, with corresponding stack values if positive.
-      # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
-      pop_count += bin(arg).count('1')
-      if arg & 0x08:
-        # Convert types in Tuple constraint to a tuple of CPython cells.
-        # https://stackoverflow.com/a/44670295
-        closure = tuple((lambda _: lambda: _)(t).__closure__[0]
-                        for t in state.stack[-3].tuple_types)
+  func_name = state.stack[-1].value
+  func_code = state.stack[-2].value
+  pop_count = 2
+  closure = None
+  # arg contains flags, with corresponding stack values if positive.
+  # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
+  pop_count += bin(arg).count('1')
+  if arg & 0x08:
+    # Convert types in Tuple constraint to a tuple of CPython cells.
+    # https://stackoverflow.com/a/44670295
+    closure = tuple((lambda _: lambda: _)(t).__closure__[0]
+                    for t in state.stack[-3].tuple_types)
 
-    func = types.FunctionType(
-        func_code, globals, name=func_name, closure=closure)
+  func = types.FunctionType(func_code, globals, name=func_name, closure=closure)
 
   assert pop_count <= len(state.stack)
   state.stack[-pop_count:] = [Const(func)]

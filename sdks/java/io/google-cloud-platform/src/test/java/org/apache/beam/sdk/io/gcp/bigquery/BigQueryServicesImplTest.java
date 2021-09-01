@@ -17,17 +17,20 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verifyNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,6 +49,8 @@ import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.util.MockSleeper;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
+import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.StatusCode;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
@@ -60,19 +65,32 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
+import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.RetryBoundedBackOff;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -80,6 +98,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
@@ -89,18 +108,16 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BigQueryServicesImpl}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryServicesImplTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(BigQueryServicesImpl.class);
-  @Mock private LowLevelHttpResponse response;
+  // A test can make mock responses through setupMockResponses
+  private LowLevelHttpResponse[] responses;
+
   private MockLowLevelHttpRequest request;
   private Bigquery bigquery;
 
@@ -108,12 +125,18 @@ public class BigQueryServicesImplTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    // Set up the MockHttpRequest for future inspection
+    // Set up the MockHttpRequest for future inspection.
     request =
         new MockLowLevelHttpRequest() {
+          int index = 0;
+
           @Override
           public LowLevelHttpResponse execute() throws IOException {
-            return response;
+            Verify.verify(
+                index < responses.length,
+                "The number of HttpRequest invocation exceeded the number of prepared mock requests. Index: %d",
+                index);
+            return responses[index++];
           }
         };
     // A mock transport that lets us mock the API responses.
@@ -125,6 +148,79 @@ public class BigQueryServicesImplTest {
         new Bigquery.Builder(
                 transport, Transport.getJsonFactory(), new RetryHttpRequestInitializer())
             .build();
+
+    // Setup the ProcessWideContainer for testing metrics are set.
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    MetricsEnvironment.setProcessWideContainer(container);
+  }
+
+  @FunctionalInterface
+  private interface MockSetupFunction {
+    void apply(LowLevelHttpResponse t) throws IOException;
+  }
+
+  /**
+   * Prepares the mock objects using {@code mockPreparations}, and assigns them to {@link
+   * #responses}.
+   */
+  private void setupMockResponses(MockSetupFunction... mockPreparations) throws IOException {
+    responses = new LowLevelHttpResponse[mockPreparations.length];
+    for (int i = 0; i < mockPreparations.length; ++i) {
+      MockSetupFunction setupFunction = mockPreparations[i];
+      LowLevelHttpResponse response = mock(LowLevelHttpResponse.class);
+      setupFunction.apply(response);
+      responses[i] = response;
+    }
+  }
+
+  /**
+   * Verifies the test interacted the mock objects in {@link #responses}.
+   *
+   * <p>The implementation of google-api-client or google-http-client may influence the number of
+   * interaction in future
+   */
+  private void verifyAllResponsesAreRead() throws IOException {
+    Verify.verify(responses != null, "The test setup is incorrect. Responses are not setup");
+    for (LowLevelHttpResponse response : responses) {
+      // Google-http-client reads the field twice per response.
+      verify(response, atLeastOnce()).getStatusCode();
+      verify(response, times(1)).getContent();
+      verify(response, times(1)).getContentType();
+    }
+  }
+
+  private void verifyRequestMetricWasSet(
+      String method, String projectId, String dataset, String table, String status, long count) {
+    // Verify the metric as reported.
+    HashMap<String, String> labels = new HashMap<String, String>();
+    // TODO(ajamato): Add Ptransform label. Populate it as empty for now to prevent the
+    // SpecMonitoringInfoValidator from dropping the MonitoringInfo.
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    labels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
+    labels.put(MonitoringInfoConstants.Labels.METHOD, method);
+    labels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.bigQueryTable(projectId, dataset, table));
+    labels.put(MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, projectId);
+    labels.put(MonitoringInfoConstants.Labels.BIGQUERY_DATASET, dataset);
+    labels.put(MonitoringInfoConstants.Labels.BIGQUERY_TABLE, table);
+    labels.put(MonitoringInfoConstants.Labels.STATUS, status);
+
+    MonitoringInfoMetricName name =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
+    assertEquals(count, (long) container.getCounter(name).getCumulative());
+  }
+
+  private void verifyWriteMetricWasSet(
+      String projectId, String dataset, String table, String status, long count) {
+    verifyRequestMetricWasSet("BigQueryBatchWrite", projectId, dataset, table, status, count);
+  }
+
+  private void verifyReadMetricWasSet(
+      String projectId, String dataset, String table, String status, long count) {
+    verifyRequestMetricWasSet("BigQueryBatchRead", projectId, dataset, table, status, count);
   }
 
   /** Tests that {@link BigQueryServicesImpl.JobServiceImpl#startLoadJob} succeeds. */
@@ -136,9 +232,12 @@ public class BigQueryServicesImplTest {
     jobRef.setProjectId("projectId");
     testJob.setJobReference(jobRef);
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContent()).thenReturn(toStream(testJob));
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testJob));
+        });
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     JobServiceImpl.startJob(
@@ -148,9 +247,7 @@ public class BigQueryServicesImplTest {
         sleeper,
         BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff()));
 
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
     expectedLogs.verifyInfo(String.format("Started BigQuery job: %s", jobRef));
   }
 
@@ -166,7 +263,10 @@ public class BigQueryServicesImplTest {
     jobRef.setProjectId("projectId");
     testJob.setJobReference(jobRef);
 
-    when(response.getStatusCode()).thenReturn(409); // 409 means already exists
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(409); // 409 means already exists
+        });
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     JobServiceImpl.startJob(
@@ -176,9 +276,7 @@ public class BigQueryServicesImplTest {
         sleeper,
         BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff()));
 
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
     expectedLogs.verifyNotLogged("Started BigQuery job");
   }
 
@@ -192,11 +290,18 @@ public class BigQueryServicesImplTest {
     testJob.setJobReference(jobRef);
 
     // First response is 403 rate limited, second response has valid payload.
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
-        .thenReturn(toStream(testJob));
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testJob));
+        });
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     JobServiceImpl.startJob(
@@ -206,9 +311,7 @@ public class BigQueryServicesImplTest {
         sleeper,
         BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff()));
 
-    verify(response, times(2)).getStatusCode();
-    verify(response, times(2)).getContent();
-    verify(response, times(2)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   /** Tests that {@link BigQueryServicesImpl.JobServiceImpl#pollJob} succeeds. */
@@ -217,9 +320,12 @@ public class BigQueryServicesImplTest {
     Job testJob = new Job();
     testJob.setStatus(new JobStatus().setState("DONE"));
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContent()).thenReturn(toStream(testJob));
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testJob));
+        });
 
     BigQueryServicesImpl.JobServiceImpl jobService =
         new BigQueryServicesImpl.JobServiceImpl(bigquery);
@@ -227,9 +333,7 @@ public class BigQueryServicesImplTest {
     Job job = jobService.pollJob(jobRef, Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
 
     assertEquals(testJob, job);
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   /** Tests that {@link BigQueryServicesImpl.JobServiceImpl#pollJob} fails. */
@@ -238,9 +342,12 @@ public class BigQueryServicesImplTest {
     Job testJob = new Job();
     testJob.setStatus(new JobStatus().setState("DONE").setErrorResult(new ErrorProto()));
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContent()).thenReturn(toStream(testJob));
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testJob));
+        });
 
     BigQueryServicesImpl.JobServiceImpl jobService =
         new BigQueryServicesImpl.JobServiceImpl(bigquery);
@@ -248,9 +355,7 @@ public class BigQueryServicesImplTest {
     Job job = jobService.pollJob(jobRef, Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
 
     assertEquals(testJob, job);
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   /** Tests that {@link BigQueryServicesImpl.JobServiceImpl#pollJob} returns UNKNOWN. */
@@ -259,9 +364,12 @@ public class BigQueryServicesImplTest {
     Job testJob = new Job();
     testJob.setStatus(new JobStatus());
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContent()).thenReturn(toStream(testJob));
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testJob));
+        });
 
     BigQueryServicesImpl.JobServiceImpl jobService =
         new BigQueryServicesImpl.JobServiceImpl(bigquery);
@@ -269,9 +377,7 @@ public class BigQueryServicesImplTest {
     Job job = jobService.pollJob(jobRef, Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
 
     assertEquals(null, job);
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   @Test
@@ -279,9 +385,12 @@ public class BigQueryServicesImplTest {
     Job testJob = new Job();
     testJob.setStatus(new JobStatus());
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContent()).thenReturn(toStream(testJob));
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testJob));
+        });
 
     BigQueryServicesImpl.JobServiceImpl jobService =
         new BigQueryServicesImpl.JobServiceImpl(bigquery);
@@ -289,15 +398,16 @@ public class BigQueryServicesImplTest {
     Job job = jobService.getJob(jobRef, Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
 
     assertEquals(testJob, job);
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   @Test
   public void testGetJobNotFound() throws Exception {
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(404);
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(404);
+        });
 
     BigQueryServicesImpl.JobServiceImpl jobService =
         new BigQueryServicesImpl.JobServiceImpl(bigquery);
@@ -305,15 +415,16 @@ public class BigQueryServicesImplTest {
     Job job = jobService.getJob(jobRef, Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
 
     assertEquals(null, job);
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   @Test
   public void testGetJobThrows() throws Exception {
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(401);
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(401);
+        });
 
     BigQueryServicesImpl.JobServiceImpl jobService =
         new BigQueryServicesImpl.JobServiceImpl(bigquery);
@@ -335,30 +446,40 @@ public class BigQueryServicesImplTest {
     Table testTable = new Table();
     testTable.setTableReference(tableRef);
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
-        .thenReturn(toStream(testTable));
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testTable));
+        });
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(
+            bigquery, null, PipelineOptionsFactory.create());
 
     Table table = datasetService.getTable(tableRef, null, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
 
     assertEquals(testTable, table);
-    verify(response, times(2)).getStatusCode();
-    verify(response, times(2)).getContent();
-    verify(response, times(2)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   @Test
   public void testGetTableNotFound() throws IOException, InterruptedException {
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(404);
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(404);
+        });
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(
+            bigquery, null, PipelineOptionsFactory.create());
 
     TableReference tableRef =
         new TableReference()
@@ -368,15 +489,16 @@ public class BigQueryServicesImplTest {
     Table table = datasetService.getTable(tableRef, null, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
 
     assertNull(table);
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   @Test
   public void testGetTableThrows() throws Exception {
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(401);
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(401);
+        });
 
     TableReference tableRef =
         new TableReference()
@@ -388,7 +510,8 @@ public class BigQueryServicesImplTest {
     thrown.expectMessage(String.format("Unable to get table: %s", tableRef.getTableId()));
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(
+            bigquery, null, PipelineOptionsFactory.create());
     datasetService.getTable(tableRef, null, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
   }
 
@@ -403,29 +526,39 @@ public class BigQueryServicesImplTest {
     TableDataList testDataList = new TableDataList().setRows(ImmutableList.of(new TableRow()));
 
     // First response is 403 rate limited, second response has valid payload.
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
-        .thenReturn(toStream(testDataList));
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testDataList));
+        });
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(
+            bigquery, null, PipelineOptionsFactory.create());
 
     assertFalse(datasetService.isTableEmpty(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT));
 
-    verify(response, times(2)).getStatusCode();
-    verify(response, times(2)).getContent();
-    verify(response, times(2)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   @Test
   public void testIsTableEmptyNoRetryForNotFound() throws IOException, InterruptedException {
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(404);
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(404);
+        });
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(
+            bigquery, null, PipelineOptionsFactory.create());
 
     TableReference tableRef =
         new TableReference()
@@ -439,16 +572,17 @@ public class BigQueryServicesImplTest {
     try {
       datasetService.isTableEmpty(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
     } finally {
-      verify(response, times(1)).getStatusCode();
-      verify(response, times(1)).getContent();
-      verify(response, times(1)).getContentType();
+      verifyAllResponsesAreRead();
     }
   }
 
   @Test
   public void testIsTableEmptyThrows() throws Exception {
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(401);
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(401);
+        });
 
     TableReference tableRef =
         new TableReference()
@@ -457,7 +591,8 @@ public class BigQueryServicesImplTest {
             .setTableId("tableId");
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(
+            bigquery, null, PipelineOptionsFactory.create());
 
     thrown.expect(IOException.class);
     thrown.expectMessage(String.format("Unable to list table data: %s", tableRef.getTableId()));
@@ -468,10 +603,12 @@ public class BigQueryServicesImplTest {
   @Test
   public void testExecuteWithRetries() throws IOException, InterruptedException {
     Table testTable = new Table();
-
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContent()).thenReturn(toStream(testTable));
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testTable));
+        });
 
     Table table =
         BigQueryServicesImpl.executeWithRetries(
@@ -482,9 +619,7 @@ public class BigQueryServicesImplTest {
             BigQueryServicesImpl.ALWAYS_RETRY);
 
     assertEquals(testTable, table);
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   private <T> FailsafeValueInSingleWindow<T, T> wrapValue(T value) {
@@ -513,14 +648,21 @@ public class BigQueryServicesImplTest {
     rows.add(wrapValue(new TableRow()));
 
     // First response is 403 rate limited, second response has valid payload.
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
-        .thenReturn(toStream(new TableDataInsertAllResponse()));
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(new TableDataInsertAllResponse()));
+        });
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
     dataService.insertAll(
         ref,
         rows,
@@ -533,11 +675,13 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
-    verify(response, times(2)).getStatusCode();
-    verify(response, times(2)).getContent();
-    verify(response, times(2)).getContentType();
+        false,
+        null);
+
+    verifyAllResponsesAreRead();
     expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "ratelimitexceeded", 1);
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} retries quota exceeded attempts. */
@@ -549,14 +693,21 @@ public class BigQueryServicesImplTest {
     rows.add(wrapValue(new TableRow()));
 
     // First response is 403 quota exceeded, second response has valid payload.
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
-        .thenReturn(toStream(new TableDataInsertAllResponse()));
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(new TableDataInsertAllResponse()));
+        });
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
     dataService.insertAll(
         ref,
         rows,
@@ -569,11 +720,13 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
-    verify(response, times(2)).getStatusCode();
-    verify(response, times(2)).getContent();
-    verify(response, times(2)).getContentType();
+        false,
+        null);
+
+    verifyAllResponsesAreRead();
     expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "quotaexceeded", 1);
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} can stop quotaExceeded retry attempts. */
@@ -584,25 +737,34 @@ public class BigQueryServicesImplTest {
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
+    MockSetupFunction quotaExceededResponse =
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)));
+        };
+
     // Respond 403 four times, then valid payload.
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode())
-        .thenReturn(403)
-        .thenReturn(403)
-        .thenReturn(403)
-        .thenReturn(403)
-        .thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
-        .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
-        .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
-        .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
-        .thenReturn(toStream(new TableDataInsertAllResponse()));
+    setupMockResponses(
+        quotaExceededResponse,
+        quotaExceededResponse,
+        quotaExceededResponse,
+        quotaExceededResponse,
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(new TableDataInsertAllResponse()));
+        });
+
     thrown.expect(RuntimeException.class);
+
+    // Google-http-client 1.39.1 and higher does not read the content of the response with error
+    // status code. How can we ensure appropriate exception is thrown?
     thrown.expectMessage("quotaExceeded");
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
     dataService.insertAll(
         ref,
         rows,
@@ -615,10 +777,12 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
-    verify(response, times(5)).getStatusCode();
-    verify(response, times(5)).getContent();
-    verify(response, times(5)).getContentType();
+        false,
+        null);
+
+    verifyAllResponsesAreRead();
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "quotaexceeded", 1);
   }
 
   // A BackOff that makes a total of 4 attempts
@@ -646,14 +810,20 @@ public class BigQueryServicesImplTest {
 
     final TableDataInsertAllResponse allRowsSucceeded = new TableDataInsertAllResponse();
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200).thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(bFailed))
-        .thenReturn(toStream(allRowsSucceeded));
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(bFailed));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(allRowsSucceeded));
+        });
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
     dataService.insertAll(
         ref,
         rows,
@@ -666,10 +836,13 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
-    verify(response, times(2)).getStatusCode();
-    verify(response, times(2)).getContent();
-    verify(response, times(2)).getContentType();
+        false,
+        null);
+
+    verifyAllResponsesAreRead();
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "unknown", 1);
+    verifyWriteMetricWasSet("project", "dataset", "table", "ok", 1);
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} fails gracefully when persistent issues. */
@@ -680,24 +853,42 @@ public class BigQueryServicesImplTest {
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         ImmutableList.of(wrapValue(new TableRow()), wrapValue(new TableRow()));
 
+    ErrorProto errorProto = new ErrorProto().setReason("schemaMismatch");
     final TableDataInsertAllResponse row1Failed =
         new TableDataInsertAllResponse()
-            .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(1L)));
+            .setInsertErrors(
+                ImmutableList.of(
+                    new InsertErrors().setIndex(1L).setErrors(ImmutableList.of(errorProto))));
 
     final TableDataInsertAllResponse row0Failed =
         new TableDataInsertAllResponse()
-            .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(0L)));
+            .setInsertErrors(
+                ImmutableList.of(
+                    new InsertErrors().setIndex(0L).setErrors(ImmutableList.of(errorProto))));
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    // Always return 200.
-    when(response.getStatusCode()).thenReturn(200);
-    // Return row 1 failing, then we retry row 1 as row 0, and row 0 persistently fails.
-    when(response.getContent())
-        .thenReturn(toStream(row1Failed))
-        .thenAnswer(invocation -> toStream(row0Failed));
+    MockSetupFunction row0FailureResponseFunction =
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          // Always return 200.
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenAnswer(invocation -> toStream(row0Failed));
+        };
+
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          // Always return 200.
+          when(response.getStatusCode()).thenReturn(200);
+          // Return row 1 failing, then we retry row 1 as row 0, and row 0 persistently fails.
+          when(response.getContent()).thenReturn(toStream(row1Failed));
+        },
+        // 3 failures
+        row0FailureResponseFunction,
+        row0FailureResponseFunction,
+        row0FailureResponseFunction);
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
 
     // Expect it to fail.
     try {
@@ -713,19 +904,20 @@ public class BigQueryServicesImplTest {
           null,
           false,
           false,
-          false);
+          false,
+          null);
       fail();
     } catch (IOException e) {
       assertThat(e, instanceOf(IOException.class));
       assertThat(e.getMessage(), containsString("Insert failed:"));
-      assertThat(e.getMessage(), containsString("[{\"index\":0}]"));
+      assertThat(e.getMessage(), containsString("[{\"errors\":[{\"reason\":\"schemaMismatch\"}]"));
     }
 
     // Verify the exact number of retries as well as log messages.
-    verify(response, times(4)).getStatusCode();
-    verify(response, times(4)).getContent();
-    verify(response, times(4)).getContentType();
+    verifyAllResponsesAreRead();
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "schemamismatch", 4);
   }
 
   /**
@@ -739,16 +931,25 @@ public class BigQueryServicesImplTest {
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
+    final TableDataInsertAllResponse allRowsSucceeded =
+        new TableDataInsertAllResponse().setInsertErrors(ImmutableList.of());
     // First response is 403 non-{rate-limited, quota-exceeded}, second response has valid payload
-    // but should not
-    // be invoked.
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
-        .thenReturn(toStream(new TableDataInsertAllResponse()));
+    // but should not be invoked.
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(new TableDataInsertAllResponse()));
+        });
+
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("actually forbidden");
     try {
@@ -764,12 +965,19 @@ public class BigQueryServicesImplTest {
           null,
           false,
           false,
-          false);
+          false,
+          null);
     } finally {
-      verify(response, times(1)).getStatusCode();
-      verify(response, times(1)).getContent();
-      verify(response, times(1)).getContentType();
+      verify(responses[0], atLeastOnce()).getStatusCode();
+      verify(responses[0]).getContent();
+      verify(responses[0]).getContentType();
+      // It should not invoke 2nd response
+      verify(responses[1], never()).getStatusCode();
+      verify(responses[1], never()).getContent();
+      verify(responses[1], never()).getContentType();
     }
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "actually forbidden", 1);
   }
 
   /**
@@ -807,20 +1015,26 @@ public class BigQueryServicesImplTest {
     // On the final attempt, no failures are returned.
     final TableDataInsertAllResponse allRowsSucceeded = new TableDataInsertAllResponse();
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    // Always return 200.
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200).thenReturn(200);
-
-    // First fail
-    when(response.getContent())
-        .thenReturn(toStream(firstFailure))
-        .thenReturn(toStream(secondFialure))
-        .thenReturn(toStream(allRowsSucceeded));
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          // Always return 200.
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(firstFailure));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(secondFialure));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(allRowsSucceeded));
+        });
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
 
     List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
     dataService.insertAll(
@@ -835,9 +1049,12 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
     assertEquals(1, failedInserts.size());
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "timeout", 2);
   }
 
   /**
@@ -855,14 +1072,16 @@ public class BigQueryServicesImplTest {
     final TableDataInsertAllResponse allRowsSucceeded = new TableDataInsertAllResponse();
 
     // Return a 200 response each time
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(allRowsSucceeded))
-        .thenReturn(toStream(allRowsSucceeded));
+    MockSetupFunction allRowsSucceededResponseFunction =
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(allRowsSucceeded));
+        };
+    setupMockResponses(allRowsSucceededResponseFunction, allRowsSucceededResponseFunction);
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
 
     // First, test with all flags disabled
     dataService.insertAll(
@@ -877,7 +1096,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
 
     TableDataInsertAllRequest parsedRequest =
         fromString(request.getContentAsString(), TableDataInsertAllRequest.class);
@@ -898,7 +1118,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         true,
         true,
-        true);
+        true,
+        null);
 
     parsedRequest = fromString(request.getContentAsString(), TableDataInsertAllRequest.class);
 
@@ -906,6 +1127,8 @@ public class BigQueryServicesImplTest {
     assertTrue(parsedRequest.getIgnoreUnknownValues());
     assertNull(parsedRequest.getRows().get(0).getInsertId());
     assertNull(parsedRequest.getRows().get(1).getInsertId());
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "ok", 2);
   }
 
   /** A helper to convert a string response back to a {@link GenericJson} subclass. */
@@ -938,7 +1161,7 @@ public class BigQueryServicesImplTest {
   @Test
   public void testGetErrorInfo() throws IOException {
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
     ErrorInfo info = new ErrorInfo();
     List<ErrorInfo> infoList = new ArrayList<>();
     infoList.add(info);
@@ -957,19 +1180,22 @@ public class BigQueryServicesImplTest {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
     Table testTable = new Table().setTableReference(ref);
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContent()).thenReturn(toStream(testTable));
+
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testTable));
+        });
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(
+            bigquery, null, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            testTable, new RetryBoundedBackOff(0, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+            testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 0), Sleeper.DEFAULT);
     assertEquals(testTable, ret);
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   /** Tests that {@link BigQueryServicesImpl} does not retry non-rate-limited attempts. */
@@ -980,25 +1206,37 @@ public class BigQueryServicesImplTest {
     Table testTable = new Table().setTableReference(ref);
     // First response is 403 not-rate-limited, second response has valid payload but should not
     // be invoked.
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
-        .thenReturn(toStream(testTable));
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testTable));
+        });
 
     thrown.expect(GoogleJsonResponseException.class);
     thrown.expectMessage("actually forbidden");
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(
+            bigquery, null, PipelineOptionsFactory.create());
     try {
       services.tryCreateTable(
-          testTable, new RetryBoundedBackOff(3, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+          testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 3), Sleeper.DEFAULT);
       fail();
     } catch (IOException e) {
-      verify(response, times(1)).getStatusCode();
-      verify(response, times(1)).getContent();
-      verify(response, times(1)).getContentType();
+      verify(responses[0], atLeastOnce()).getStatusCode();
+      verify(responses[0]).getContent();
+      verify(responses[0]).getContentType();
+      // It should not invoke 2nd response
+      verify(responses[1], never()).getStatusCode();
+      verify(responses[1], never()).getContent();
+      verify(responses[1], never()).getContentType();
       throw e;
     }
   }
@@ -1016,18 +1254,20 @@ public class BigQueryServicesImplTest {
                     new TableFieldSchema().setName("column2").setType("Integer")));
     Table testTable = new Table().setTableReference(ref).setSchema(schema);
 
-    when(response.getStatusCode()).thenReturn(409); // 409 means already exists
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(409); // 409 means already exists
+        });
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(
+            bigquery, null, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            testTable, new RetryBoundedBackOff(0, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+            testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 0), Sleeper.DEFAULT);
 
     assertNull(ret);
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verifyAllResponsesAreRead();
   }
 
   /** Tests that {@link BigQueryServicesImpl} retries quota rate limited attempts. */
@@ -1038,25 +1278,33 @@ public class BigQueryServicesImplTest {
     Table testTable = new Table().setTableReference(ref);
 
     // First response is 403 rate limited, second response has valid payload.
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
-    when(response.getContent())
-        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
-        .thenReturn(toStream(testTable));
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testTable));
+        });
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(
+            bigquery, null, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            testTable, new RetryBoundedBackOff(3, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+            testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 3), Sleeper.DEFAULT);
     assertEquals(testTable, ret);
-    verify(response, times(2)).getStatusCode();
-    verify(response, times(2)).getContent();
-    verify(response, times(2)).getContentType();
-    verifyNotNull(ret.getTableReference());
+    verifyAllResponsesAreRead();
+
+    assertNotNull(ret.getTableReference());
+
     expectedLogs.verifyInfo(
         "Quota limit reached when creating table project:dataset.table, "
-            + "retrying up to 5.0 minutes");
+            + "retrying up to 5 minutes");
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} uses the supplied {@link ErrorContainer}. */
@@ -1083,14 +1331,15 @@ public class BigQueryServicesImplTest {
                         .setIndex(1L)
                         .setErrors(ImmutableList.of(new ErrorProto().setReason("invalid")))));
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-
-    when(response.getContent()).thenReturn(toStream(failures));
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(failures));
+        });
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
 
     List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
     dataService.insertAll(
@@ -1105,7 +1354,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
 
     assertThat(failedInserts, is(expected));
   }
@@ -1139,14 +1389,17 @@ public class BigQueryServicesImplTest {
                 new BigQueryInsertError(
                     rows.get(1).getValue(), failures.getInsertErrors().get(1), ref)));
 
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
 
-    when(response.getContent()).thenReturn(toStream(failures));
+          when(response.getContent()).thenReturn(toStream(failures));
+        });
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
 
     List<ValueInSingleWindow<BigQueryInsertError>> failedInserts = Lists.newArrayList();
     dataService.insertAll(
@@ -1161,8 +1414,150 @@ public class BigQueryServicesImplTest {
         ErrorContainer.BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
 
     assertThat(failedInserts, is(expected));
+  }
+
+  @Test
+  public void testCreateReadSessionSetsRequestCountMetric()
+      throws InterruptedException, IOException {
+    BigQueryServicesImpl.StorageClientImpl client =
+        mock(BigQueryServicesImpl.StorageClientImpl.class);
+
+    CreateReadSessionRequest.Builder builder = CreateReadSessionRequest.newBuilder();
+    builder.getReadSessionBuilder().setTable("myproject:mydataset.mytable");
+    CreateReadSessionRequest request = builder.build();
+    when(client.callCreateReadSession(request))
+        .thenReturn(ReadSession.newBuilder().build()); // Mock implementation.
+    when(client.createReadSession(any())).thenCallRealMethod(); // Real implementation.
+
+    client.createReadSession(request);
+    verifyReadMetricWasSet("myproject", "mydataset", "mytable", "ok", 1);
+  }
+
+  @Test
+  public void testCreateReadSessionSetsRequestCountMetricOnError()
+      throws InterruptedException, IOException {
+    BigQueryServicesImpl.StorageClientImpl client =
+        mock(BigQueryServicesImpl.StorageClientImpl.class);
+
+    CreateReadSessionRequest.Builder builder = CreateReadSessionRequest.newBuilder();
+    builder.getReadSessionBuilder().setTable("myproject:mydataset.mytable");
+    CreateReadSessionRequest request = builder.build();
+    StatusCode statusCode =
+        new StatusCode() {
+          @Override
+          public Code getCode() {
+            return Code.NOT_FOUND;
+          }
+
+          @Override
+          public Object getTransportCode() {
+            return null;
+          }
+        };
+    when(client.callCreateReadSession(request))
+        .thenThrow(new ApiException("Not Found", null, statusCode, false)); // Mock implementation.
+    when(client.createReadSession(any())).thenCallRealMethod(); // Real implementation.
+
+    thrown.expect(ApiException.class);
+    thrown.expectMessage("Not Found");
+
+    client.createReadSession(request);
+    verifyReadMetricWasSet("myproject", "mydataset", "mytable", "not_found", 1);
+  }
+
+  @Test
+  public void testReadRowsSetsRequestCountMetric() throws InterruptedException, IOException {
+    BigQueryServices.StorageClient client = mock(BigQueryServicesImpl.StorageClientImpl.class);
+    ReadRowsRequest request = null;
+    BigQueryServices.BigQueryServerStream<ReadRowsResponse> response =
+        new BigQueryServices.BigQueryServerStream<ReadRowsResponse>() {
+          @Override
+          public Iterator<ReadRowsResponse> iterator() {
+            return null;
+          }
+
+          @Override
+          public void cancel() {}
+        };
+
+    when(client.readRows(request)).thenReturn(response); // Mock implementation.
+    when(client.readRows(any(), any())).thenCallRealMethod(); // Real implementation.
+
+    client.readRows(request, "myproject:mydataset.mytable");
+    verifyReadMetricWasSet("myproject", "mydataset", "mytable", "ok", 1);
+  }
+
+  @Test
+  public void testReadRowsSetsRequestCountMetricOnError() throws InterruptedException, IOException {
+    BigQueryServices.StorageClient client = mock(BigQueryServicesImpl.StorageClientImpl.class);
+    ReadRowsRequest request = null;
+    StatusCode statusCode =
+        new StatusCode() {
+          @Override
+          public Code getCode() {
+            return Code.INTERNAL;
+          }
+
+          @Override
+          public Object getTransportCode() {
+            return null;
+          }
+        };
+    when(client.readRows(request))
+        .thenThrow(new ApiException("Internal", null, statusCode, false)); // Mock implementation.
+    when(client.readRows(any(), any())).thenCallRealMethod(); // Real implementation.
+
+    thrown.expect(ApiException.class);
+    thrown.expectMessage("Internal");
+
+    client.readRows(request, "myproject:mydataset.mytable");
+    verifyReadMetricWasSet("myproject", "mydataset", "mytable", "internal", 1);
+  }
+
+  @Test
+  public void testSplitReadStreamSetsRequestCountMetric() throws InterruptedException, IOException {
+    BigQueryServices.StorageClient client = mock(BigQueryServicesImpl.StorageClientImpl.class);
+
+    SplitReadStreamRequest request = null;
+    when(client.splitReadStream(request))
+        .thenReturn(SplitReadStreamResponse.newBuilder().build()); // Mock implementation.
+    when(client.splitReadStream(any(), any())).thenCallRealMethod(); // Real implementation.
+
+    client.splitReadStream(request, "myproject:mydataset.mytable");
+    verifyReadMetricWasSet("myproject", "mydataset", "mytable", "ok", 1);
+  }
+
+  @Test
+  public void testSplitReadStreamSetsRequestCountMetricOnError()
+      throws InterruptedException, IOException {
+    BigQueryServices.StorageClient client = mock(BigQueryServicesImpl.StorageClientImpl.class);
+    SplitReadStreamRequest request = null;
+    StatusCode statusCode =
+        new StatusCode() {
+          @Override
+          public Code getCode() {
+            return Code.RESOURCE_EXHAUSTED;
+          }
+
+          @Override
+          public Object getTransportCode() {
+            return null;
+          }
+        };
+    when(client.splitReadStream(request))
+        .thenThrow(
+            new ApiException(
+                "Resource Exhausted", null, statusCode, false)); // Mock implementation.
+    when(client.splitReadStream(any(), any())).thenCallRealMethod(); // Real implementation.
+
+    thrown.expect(ApiException.class);
+    thrown.expectMessage("Resource Exhausted");
+
+    client.splitReadStream(request, "myproject:mydataset.mytable");
+    verifyReadMetricWasSet("myproject", "mydataset", "mytable", "resource_exhausted", 1);
   }
 }

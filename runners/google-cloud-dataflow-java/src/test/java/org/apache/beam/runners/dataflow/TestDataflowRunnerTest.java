@@ -75,9 +75,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link TestDataflowRunner}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestDataflowRunnerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Mock private DataflowClient mockClient;

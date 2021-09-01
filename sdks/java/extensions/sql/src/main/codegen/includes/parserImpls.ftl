@@ -191,6 +191,36 @@ SqlCreate SqlCreateExternalTable() :
     }
 }
 
+SqlCreate SqlCreateFunction() :
+{
+    final Span s = Span.of();
+    boolean isAggregate = false;
+    final SqlIdentifier name;
+    final SqlNode jarName;
+}
+{
+    <CREATE>
+    (
+        <AGGREGATE> {
+            isAggregate = true;
+        }
+    )?
+    <FUNCTION> {
+        s.add(this);
+    }
+    name = CompoundIdentifier()
+    <USING> <JAR>
+        jarName = StringLiteral()
+    {
+        return
+            new SqlCreateFunction(
+                s.end(this),
+                name,
+                jarName,
+                isAggregate);
+    }
+}
+
 SqlCreate SqlCreateTableNotSupportedMessage(Span s, boolean replace) :
 {
 }

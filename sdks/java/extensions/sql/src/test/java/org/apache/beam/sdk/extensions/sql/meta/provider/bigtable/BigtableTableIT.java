@@ -50,9 +50,6 @@ import org.junit.runners.JUnit4;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigtableTableIT {
   private static BigtableTestOptions options;
   private static BigtableClientWrapper clientWrapper;

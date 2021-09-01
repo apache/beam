@@ -18,10 +18,11 @@
 //
 // Integration tests are implemented through Go's test framework, as test
 // functions that create and execute pipelines using the ptest package. Tests
-// should be placed in appropriate sub-packages for organizational purposes, and
-// to allow greater parallelism, since tests are only run in parallel across
-// different packages. Integration tests should always begin with a call to
-// CheckFilters to allow the test to be filtered.
+// should be placed in smaller sub-packages for organizational purposes and
+// parallelism (tests are only run in parallel across different packages).
+// Integration tests should always begin with a call to CheckFilters to ensure
+// test filters can be applied, and each package containing integration tests
+// should call ptest.Main in a TestMain function if it uses ptest.
 //
 // Running integration tests can be done with a go test call with any flags that
 // are required by the test pipelines, such as --runner or --endpoint.
@@ -38,7 +39,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 // Filters for temporarily skipping integration tests. All filters are regex
@@ -51,12 +52,7 @@ import (
 
 // sickbay filters tests that fail due to Go SDK errors. These tests will not
 // execute on any runners.
-var sickbay = []string{
-	// TODO(BEAM-11418): These tests are currently failing with the Go SDK.
-	"TestXLang_CoGroupBy",
-	"TestXLang_Multi",
-	"TestXLang_Partition",
-}
+var sickbay = []string{}
 
 // Runner-specific test filters, for features that are not yet supported on
 // specific runners.
@@ -64,16 +60,36 @@ var sickbay = []string{
 var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
+	// Triggers are not yet supported
+	"TestTrigger.*",
+	// The direct runner does not support the TestStream primitive
+	"TestTestStream.*",
 }
 
 var portableFilters = []string{
-	// TODO(BEAM-11499): XLang tests timing out.
-	"TestXLang.*",
+	// The portable runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger tests uses TestStream
+	"TestTrigger.*",
 }
 
 var flinkFilters = []string{
 	// TODO(BEAM-11500): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
+	// TODO(BEAM-12753): Flink test stream fails for non-string/byte slice inputs
+	"TestTestStream.*Sequence.*",
+	// Triggers are not yet supported
+	"TestTrigger.*",
+}
+
+var samzaFilters = []string{
+	// TODO(BEAM-12608): Samza tests invalid encoding.
+	"TestReshuffle",
+	"TestReshuffleKV",
+	// The Samza runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger tests uses TestStream
+	"TestTrigger.*",
 }
 
 var sparkFilters = []string{
@@ -81,13 +97,19 @@ var sparkFilters = []string{
 	"TestXLang.*",
 	"TestParDoSideInput",
 	"TestParDoKVSideInput",
+	// The Spark runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger tests uses TestStream
+	"TestTrigger.*",
 }
 
 var dataflowFilters = []string{
-	// TODO(BEAM-11574): XLang needs to be enabled for Dataflow.
-	"TestXLang.*",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
+	// The Dataflow runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger tests uses TestStream
+	"TestTrigger.*",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
@@ -124,6 +146,8 @@ func CheckFilters(t *testing.T) {
 		filters = portableFilters
 	case "flink", "FlinkRunner":
 		filters = flinkFilters
+	case "samza", "SamzaRunner":
+		filters = samzaFilters
 	case "spark", "SparkRunner":
 		filters = sparkFilters
 	case "dataflow", "DataflowRunner":

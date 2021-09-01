@@ -24,9 +24,6 @@ import java.sql.Statement;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 
 /** Helper for creating connection and test tables on hive database via JDBC driver. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class HiveDatabaseTestHelper {
   private static Connection con;
   private static Statement stmt;

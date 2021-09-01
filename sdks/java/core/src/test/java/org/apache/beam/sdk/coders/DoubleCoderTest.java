@@ -33,9 +33,6 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link DoubleCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DoubleCoderTest {
 
   private static final Coder<Double> TEST_CODER = DoubleCoder.of();

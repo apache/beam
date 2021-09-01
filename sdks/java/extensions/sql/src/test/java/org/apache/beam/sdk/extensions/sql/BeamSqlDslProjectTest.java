@@ -35,9 +35,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests for field-project in queries with BOUNDED PCollection. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSqlDslProjectTest extends BeamSqlDslBase {
   /** select all fields with bounded PCollection. */
   @Test

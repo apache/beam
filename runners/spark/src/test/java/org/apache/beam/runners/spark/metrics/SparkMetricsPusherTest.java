@@ -116,7 +116,7 @@ public class SparkMetricsPusherTest {
 
   @Category(UsesMetricsPusher.class)
   @Test
-  public void testInSBatchMode() throws Exception {
+  public void testInBatchMode() throws Exception {
     pipeline.apply(Create.of(1, 2, 3, 4, 5, 6)).apply(ParDo.of(new CountingDoFn()));
 
     pipeline.run();

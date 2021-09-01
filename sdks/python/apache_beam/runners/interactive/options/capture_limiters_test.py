@@ -15,13 +15,14 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-
 import unittest
+
+import pandas as pd
 
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.options.capture_limiters import CountLimiter
 from apache_beam.runners.interactive.options.capture_limiters import ProcessingTimeLimiter
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 class CaptureLimitersTest(unittest.TestCase):
@@ -33,6 +34,19 @@ class CaptureLimitersTest(unittest.TestCase):
 
     self.assertFalse(limiter.is_triggered())
     limiter.update(4)
+    self.assertTrue(limiter.is_triggered())
+
+  def test_count_limiter_with_dataframes(self):
+    limiter = CountLimiter(5)
+
+    # Test that empty dataframes don't count.
+    for _ in range(10):
+      df = WindowedValue(pd.DataFrame(), 0, [])
+      limiter.update(df)
+
+    self.assertFalse(limiter.is_triggered())
+    df = WindowedValue(pd.DataFrame({'col': list(range(10))}), 0, [])
+    limiter.update(df)
     self.assertTrue(limiter.is_triggered())
 
   def test_processing_time_limiter(self):

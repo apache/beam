@@ -71,9 +71,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link SimpleParDoFn}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SimpleParDoFnTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -218,7 +215,7 @@ public class SimpleParDoFnTest {
     ParDoFn userParDoFn =
         new SimpleParDoFn<>(
             options,
-            DoFnInstanceManagers.cloningPool(fnInfo),
+            DoFnInstanceManagers.cloningPool(fnInfo, options),
             new EmptySideInputReader(),
             MAIN_OUTPUT,
             ImmutableMap.of(
@@ -440,7 +437,7 @@ public class SimpleParDoFnTest {
     ParDoFn userParDoFn =
         new SimpleParDoFn<>(
             options,
-            DoFnInstanceManagers.cloningPool(fnInfo),
+            DoFnInstanceManagers.cloningPool(fnInfo, options),
             NullSideInputReader.empty(),
             MAIN_OUTPUT,
             ImmutableMap.of(MAIN_OUTPUT, 0, new TupleTag<String>("declared"), 1),

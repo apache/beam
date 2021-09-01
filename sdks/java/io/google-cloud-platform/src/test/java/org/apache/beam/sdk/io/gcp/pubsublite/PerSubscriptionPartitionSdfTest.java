@@ -25,7 +25,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
@@ -45,17 +44,14 @@ import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -63,7 +59,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.stubbing.Answer;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
@@ -87,7 +82,6 @@ public class PerSubscriptionPartitionSdfTest {
   @Mock InitialOffsetReader initialOffsetReader;
   @Spy RestrictionTracker<OffsetRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> output;
-  @Mock BundleFinalizer finalizer;
   @Mock SubscriptionPartitionProcessor processor;
 
   abstract static class FakeCommitter extends FakeApiService implements Committer {}
@@ -148,28 +142,15 @@ public class PerSubscriptionPartitionSdfTest {
               assertFalse(wrapped.tryClaim(OffsetByteProgress.of(Offset.of(333333), 123)));
               return processor;
             });
-    AtomicReference<BundleFinalizer.Callback> callbackRef = new AtomicReference<>(null);
-    doAnswer(
-            (Answer<Void>)
-                args -> {
-                  callbackRef.set(args.getArgument(1));
-                  return null;
-                })
-        .when(finalizer)
-        .afterBundleCommit(any(), any());
     doReturn(Optional.of(example(Offset.class))).when(processor).lastClaimed();
-    assertEquals(
-        ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output, finalizer));
+    when(committer.commitOffset(any())).thenReturn(ApiFutures.immediateFuture(null));
+    assertEquals(ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output));
     verify(processorFactory).newProcessor(eq(PARTITION), any(), eq(output));
     InOrder order = inOrder(processor);
     order.verify(processor).start();
     order.verify(processor).waitForCompletion(MAX_SLEEP_TIME);
     order.verify(processor).lastClaimed();
     order.verify(processor).close();
-    verify(finalizer).afterBundleCommit(eq(Instant.ofEpochMilli(Long.MAX_VALUE)), any());
-    assertTrue(callbackRef.get() != null);
-    when(committer.commitOffset(any())).thenReturn(ApiFutures.immediateFuture(null));
-    callbackRef.get().onBundleSuccess();
     InOrder order2 = inOrder(committerFactory, committer);
     order2.verify(committer).startAsync();
     order2.verify(committer).awaitRunning();

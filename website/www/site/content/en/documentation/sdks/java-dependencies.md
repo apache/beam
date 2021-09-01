@@ -36,7 +36,7 @@ Compile and runtime dependencies for your Beam SDK version are listed in `BeamMo
 
 2. Review the list under `project.ext.library`.
 
-    **Note:** Some dependencies in the list use version variables, such as `google_auth_version`. These variables are defined prior to the `project.ext.library` map definition.
+    **Note:** Some dependencies in the list use version variables, such as `google_cloud_bigdataoss_version`. These variables are defined prior to the `project.ext.library` map definition.
 
 You can also retrieve this list by creating a new project through Maven and resolving the dependencies.
 

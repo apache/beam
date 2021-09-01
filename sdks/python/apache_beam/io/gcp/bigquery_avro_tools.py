@@ -23,9 +23,6 @@ backwards compatibility guarantees.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
 # with aliases (RECORD, BOOLEAN, FLOAT, INTEGER) as defined in

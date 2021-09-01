@@ -46,9 +46,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TikaIO}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TikaIOTest implements Serializable {
   private static final String PDF_ZIP_FILE =
       "\n\n\n\n\n\n\n\napache-beam-tika.pdf\n\n\nCombining\n\n\nApache Beam\n\n\n"

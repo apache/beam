@@ -33,9 +33,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** A test suite for the propagation of watermarks in the Spark runner. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class GlobalWatermarkHolderTest {
 
   @Rule public ClearWatermarksRule clearWatermarksRule = new ClearWatermarksRule();

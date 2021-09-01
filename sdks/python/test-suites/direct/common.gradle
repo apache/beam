@@ -21,9 +21,11 @@ def pythonContainerVersion = project.ext.pythonVersion == '2.7' ? '2' : project.
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
-    "--nocapture",  // print stdout instantly
-    "--processes=8",  // run tests in parallel
-    "--process-timeout=4500", // timeout of whole command execution
+    "--capture=no",  // print stdout instantly
+    "--numprocesses=8",  // run tests in parallel
+    "--timeout=4500", // timeout of whole command execution
+    "--color=yes", // console color
+    "--log-cli-level=INFO" //log level info
 ]
 
 task postCommitIT {
@@ -32,25 +34,21 @@ task postCommitIT {
   // Run IT tests with TestDirectRunner in batch in Python 3.
   doLast {
     def batchTests = [
-        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
-        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
-        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT",
-        "apache_beam.io.gcp.bigquery_io_read_it_test",
-        "apache_beam.io.gcp.bigquery_read_it_test",
-        "apache_beam.io.gcp.bigquery_write_it_test",
-        "apache_beam.io.gcp.datastore.v1new.datastore_write_it_test",
-        "apache_beam.io.gcp.experimental.spannerio_read_it_test",
-        "apache_beam.io.gcp.experimental.spannerio_write_it_test",
+        "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
+        "apache_beam/io/gcp/pubsub_integration_test.py::PubSubIntegrationTest",
+        "apache_beam/io/gcp/big_query_query_to_table_it_test.py::BigQueryQueryToTableIT",
+        "apache_beam/io/gcp/bigquery_io_read_it_test.py",
+        "apache_beam/io/gcp/bigquery_read_it_test.py",
+        "apache_beam/io/gcp/bigquery_write_it_test.py",
+        "apache_beam/io/gcp/datastore/v1new/datastore_write_it_test.py",
+        "apache_beam/io/gcp/experimental/spannerio_read_it_test.py",
+        "apache_beam/io/gcp/experimental/spannerio_write_it_test.py",
     ]
-    def testOpts = [
-        "--tests=${batchTests.join(',')}",
-        "--nocapture",    // Print stdout instantly
-        "--processes=8",  // run tests in parallel
-        "--process-timeout=4500", // timeout of whole command execution
-    ]
+    def testOpts = basicTestOpts + ["${batchTests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": testOpts,
-                  "suite": "postCommitIT-direct-py${pythonVersionSuffix}"]
+                  "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+                  ]
     def batchCmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
@@ -97,18 +95,19 @@ task directRunnerIT {
   // Run IT tests with TestDirectRunner in batch.
   doLast {
     def tests = [
-        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
-        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
-        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT",
-        "apache_beam.io.gcp.bigquery_io_read_it_test",
-        "apache_beam.io.gcp.bigquery_read_it_test",
-        "apache_beam.io.gcp.bigquery_write_it_test",
-        "apache_beam.io.gcp.datastore.v1new.datastore_write_it_test",
+        "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
+        "apache_beam/io/gcp/pubsub_integration_test.py::PubSubIntegrationTest",
+        "apache_beam/io/gcp/big_query_query_to_table_it_test.py::BigQueryQueryToTableIT",
+        "apache_beam/io/gcp/bigquery_io_read_it_test.py",
+        "apache_beam/io/gcp/bigquery_read_it_test.py",
+        "apache_beam/io/gcp/bigquery_write_it_test.py",
+        "apache_beam/io/gcp/datastore/v1new/datastore_write_it_test.py",
     ]
-    def batchTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
+    def batchTestOpts = basicTestOpts + ["${tests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": batchTestOpts,
-                  "suite": "directRunnerIT-batch"]
+                  "suite": "directRunnerIT-batch",
+                  ]
     def batchCmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
@@ -119,18 +118,18 @@ task directRunnerIT {
   // Run IT tests with TestDirectRunner in streaming.
   doLast {
     def tests = [
-        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
-        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
-        "apache_beam.io.gcp.bigquery_test:BigQueryStreamingInsertTransformIntegrationTests\
-.test_multiple_destinations_transform",
-        "apache_beam.io.gcp.bigquery_test:PubSubBigQueryIT",
-        "apache_beam.io.gcp.bigquery_file_loads_test:BigQueryFileLoadsIT.test_bqfl_streaming",
+        "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
+        "apache_beam/io/gcp/pubsub_integration_test.py::PubSubIntegrationTest",
+        "apache_beam/io/gcp/bigquery_test.py::BigQueryStreamingInsertTransformIntegrationTests::test_multiple_destinations_transform",
+        "apache_beam/io/gcp/bigquery_test.py::PubSubBigQueryIT",
+        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming",
     ]
-    def streamingTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
+    def streamingTestOpts = basicTestOpts + ["${tests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",
                   "streaming": "true",
                   "test_opts": streamingTestOpts,
-                  "suite": "directRunnerIT-streaming"]
+                  "suite": "directRunnerIT-streaming",
+                ]
     def streamingCmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'

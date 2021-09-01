@@ -56,9 +56,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests of {@link CountingSource}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class CountingSourceTest {
 
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {

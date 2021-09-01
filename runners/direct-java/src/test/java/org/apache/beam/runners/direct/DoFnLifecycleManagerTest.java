@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.hamcrest.Matchers;
@@ -48,7 +49,7 @@ public class DoFnLifecycleManagerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private TestFn fn = new TestFn();
-  private DoFnLifecycleManager mgr = DoFnLifecycleManager.of(fn);
+  private DoFnLifecycleManager mgr = DoFnLifecycleManager.of(fn, PipelineOptionsFactory.create());
 
   @Test
   public void setupOnGet() throws Exception {

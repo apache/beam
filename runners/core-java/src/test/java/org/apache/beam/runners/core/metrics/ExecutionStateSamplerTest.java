@@ -29,9 +29,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Tests for {@link org.apache.beam.runners.core.metrics.ExecutionStateSampler}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ExecutionStateSamplerTest {
 
   private MillisProvider clock;

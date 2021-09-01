@@ -465,10 +465,10 @@ public class DoFnOperator<InputT, OutputT>
     // So must wait StateInternals and TimerInternals ready.
     // This will be called after initializeState()
     this.doFn = getDoFn();
-    doFnInvoker = DoFnInvokers.invokerFor(doFn);
-    doFnInvoker.invokeSetup();
 
     FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
+    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, options);
+
     StepContext stepContext = new FlinkStepContext();
     doFnRunner =
         DoFnRunners.simpleRunner(
@@ -1530,7 +1530,8 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+    public void deleteTimer(
+        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
       try {
         cancelPendingTimerById(getContextTimerId(timerId, namespace));
       } catch (Exception e) {
@@ -1545,6 +1546,7 @@ public class DoFnOperator<InputT, OutputT>
       deleteTimer(
           timer.getNamespace(),
           constructTimerId(timer.getTimerFamilyId(), timer.getTimerId()),
+          timer.getTimerFamilyId(),
           timer.getDomain());
     }
 

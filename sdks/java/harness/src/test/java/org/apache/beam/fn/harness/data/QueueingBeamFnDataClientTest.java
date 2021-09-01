@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -31,6 +33,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
@@ -47,13 +50,13 @@ import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -171,7 +174,7 @@ public class QueueingBeamFnDataClientTest {
               PipelineOptionsFactory.create(),
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
-      QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(clientFactory);
+      QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(clientFactory, 1000);
 
       InboundDataClient readFutureA =
           queueingClient.receive(
@@ -235,6 +238,118 @@ public class QueueingBeamFnDataClientTest {
     }
   }
 
+  @Test(timeout = 10000)
+  public void testClosingWithFullInboundQueue() throws Exception {
+    CountDownLatch waitForClientToConnect = new CountDownLatch(1);
+    CountDownLatch allowValueProcessing = new CountDownLatch(1);
+    final int numValues = 100;
+    CountDownLatch receiveAllValues = new CountDownLatch(numValues);
+    Collection<WindowedValue<String>> inboundValues = new ConcurrentLinkedQueue<>();
+    Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
+    AtomicReference<StreamObserver<BeamFnApi.Elements>> outboundServerObserver =
+        new AtomicReference<>();
+    CallStreamObserver<BeamFnApi.Elements> inboundServerObserver =
+        TestStreams.withOnNext(inboundServerValues::add).build();
+
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
+            .build();
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnDataGrpc.BeamFnDataImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.Elements> data(
+                      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+                    outboundServerObserver.set(outboundObserver);
+                    waitForClientToConnect.countDown();
+                    return inboundServerObserver;
+                  }
+                })
+            .build();
+    server.start();
+    try {
+      ManagedChannel channel =
+          InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+
+      BeamFnDataGrpcClient clientFactory =
+          new BeamFnDataGrpcClient(
+              PipelineOptionsFactory.create(),
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel,
+              OutboundObserverFactory.trivial());
+      // We want the queue to have no room when we try to close. The queue size
+      // is therefore set to numValues -1 since one of the values has been removed
+      // from the queue to accept it.
+      QueueingBeamFnDataClient queueingClient =
+          new QueueingBeamFnDataClient(clientFactory, numValues - 1);
+
+      final AtomicInteger currentCount = new AtomicInteger();
+      InboundDataClient inboundDataClient =
+          queueingClient.receive(
+              apiServiceDescriptor,
+              ENDPOINT_A,
+              CODER,
+              (WindowedValue<String> wv) -> {
+                if (allowValueProcessing.getCount() != 0) {
+                  LOG.info("Inbound processing blocking");
+                }
+                allowValueProcessing.await();
+                LOG.info("Received " + wv.getValue());
+                assertEquals("ABC" + currentCount.getAndIncrement(), wv.getValue());
+              });
+
+      waitForClientToConnect.await();
+
+      // Start draining elements, the drain will be blocked by allowValueProcessing.
+      Future<?> drainElementsFuture =
+          executor.submit(
+              () -> {
+                try {
+                  queueingClient.drainAndBlock();
+                } catch (Exception e) {
+                  LOG.error("Failed ", e);
+                  fail();
+                }
+              });
+
+      // We should be able to send all the elements and complete without blocking.
+      for (int i = 0; i < numValues; ++i) {
+        BeamFnApi.Elements element =
+            BeamFnApi.Elements.newBuilder()
+                .addData(
+                    BeamFnApi.Elements.Data.newBuilder()
+                        .setInstructionId(ENDPOINT_A.getInstructionId())
+                        .setTransformId(ENDPOINT_A.getTransformId())
+                        .setData(
+                            ByteString.copyFrom(
+                                encodeToByteArray(CODER, valueInGlobalWindow("ABC" + i)))))
+                .build();
+        outboundServerObserver.get().onNext(element);
+      }
+      outboundServerObserver
+          .get()
+          .onNext(
+              BeamFnApi.Elements.newBuilder()
+                  .addData(
+                      BeamFnApi.Elements.Data.newBuilder()
+                          .setInstructionId(ENDPOINT_A.getInstructionId())
+                          .setTransformId(ENDPOINT_A.getTransformId())
+                          .setIsLast(true))
+                  .build());
+      inboundDataClient.awaitCompletion();
+
+      // Allow processing to complete and verify that draining finishes.
+      LOG.info("Completed client, allowing inbound processing.");
+      allowValueProcessing.countDown();
+      drainElementsFuture.get();
+
+      assertThat(currentCount.get(), equalTo(numValues));
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
   @Test(timeout = 100000)
   public void testBundleProcessorThrowsExecutionExceptionWhenUserCodeThrows() throws Exception {
     CountDownLatch waitForClientToConnect = new CountDownLatch(1);
@@ -273,7 +388,7 @@ public class QueueingBeamFnDataClientTest {
               PipelineOptionsFactory.create(),
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
-      QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(clientFactory);
+      QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(clientFactory, 1000);
 
       InboundDataClient readFutureA =
           queueingClient.receive(
@@ -342,6 +457,8 @@ public class QueueingBeamFnDataClientTest {
       } catch (ExecutionException e) {
         if (e.getCause() instanceof RuntimeException) {
           intentionallyFailedB = true;
+        } else {
+          LOG.error("Unintentional failure ", e);
         }
       }
       assertTrue(intentionallyFailedB);

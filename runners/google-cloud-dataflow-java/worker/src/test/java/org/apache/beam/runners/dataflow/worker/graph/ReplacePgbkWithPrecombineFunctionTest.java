@@ -46,9 +46,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link ReplacePgbkWithPrecombineFunction}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public final class ReplacePgbkWithPrecombineFunctionTest {
 
   @Test

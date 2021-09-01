@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -42,15 +43,12 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link DoFnLifecycleManagerRemovingTransformEvaluator}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   private DoFnLifecycleManager lifecycleManager;
 
   @Before
   public void setup() {
-    lifecycleManager = DoFnLifecycleManager.of(new TestFn());
+    lifecycleManager = DoFnLifecycleManager.of(new TestFn(), PipelineOptionsFactory.create());
   }
 
   @Test

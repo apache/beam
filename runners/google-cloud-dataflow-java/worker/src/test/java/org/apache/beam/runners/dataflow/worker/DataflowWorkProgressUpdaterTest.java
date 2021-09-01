@@ -61,9 +61,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link DataflowWorkProgressUpdater}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataflowWorkProgressUpdaterTest {
 
   private static final long LEASE_MS = 2000;

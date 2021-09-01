@@ -113,10 +113,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * output time function.
    */
   private Instant shift(Instant timestamp, W window) {
-    Instant shifted =
-        windowingStrategy
-            .getTimestampCombiner()
-            .assign(window, windowingStrategy.getWindowFn().getOutputTime(timestamp, window));
+    Instant shifted = windowingStrategy.getTimestampCombiner().assign(window, timestamp);
     // Don't call checkState(), to avoid calling BoundedWindow.formatTimestamp() every time
     if (shifted.isBefore(timestamp)) {
       throw new IllegalStateException(

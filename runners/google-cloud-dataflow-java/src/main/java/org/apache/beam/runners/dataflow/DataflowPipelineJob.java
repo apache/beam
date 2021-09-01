@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
@@ -119,6 +120,32 @@ public class DataflowPipelineJob implements PipelineResult {
           .withMaxRetries(STATUS_POLLING_RETRIES)
           .withExponent(DEFAULT_BACKOFF_EXPONENT);
 
+  private @Nullable String latestStateString;
+
+  private final @Nullable Pipeline pipelineProto;
+
+  /**
+   * Constructs the job.
+   *
+   * @param jobId the job id
+   * @param dataflowOptions used to configure the client for the Dataflow Service
+   * @param transformStepNames a mapping from AppliedPTransforms to Step Names
+   * @param pipelineProto Runner API pipeline proto.
+   */
+  public DataflowPipelineJob(
+      DataflowClient dataflowClient,
+      String jobId,
+      DataflowPipelineOptions dataflowOptions,
+      Map<AppliedPTransform<?, ?, ?>, String> transformStepNames,
+      @Nullable Pipeline pipelineProto) {
+    this.dataflowClient = dataflowClient;
+    this.jobId = jobId;
+    this.dataflowOptions = dataflowOptions;
+    this.transformStepNames = HashBiMap.create(firstNonNull(transformStepNames, ImmutableMap.of()));
+    this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
+    this.pipelineProto = pipelineProto;
+  }
+
   /**
    * Constructs the job.
    *
@@ -131,11 +158,7 @@ public class DataflowPipelineJob implements PipelineResult {
       String jobId,
       DataflowPipelineOptions dataflowOptions,
       Map<AppliedPTransform<?, ?, ?>, String> transformStepNames) {
-    this.dataflowClient = dataflowClient;
-    this.jobId = jobId;
-    this.dataflowOptions = dataflowOptions;
-    this.transformStepNames = HashBiMap.create(firstNonNull(transformStepNames, ImmutableMap.of()));
-    this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
+    this(dataflowClient, jobId, dataflowOptions, transformStepNames, null);
   }
 
   /** Get the id of this job. */
@@ -150,6 +173,11 @@ public class DataflowPipelineJob implements PipelineResult {
 
   public DataflowPipelineOptions getDataflowOptions() {
     return dataflowOptions;
+  }
+
+  /** Get the Runner API pipeline proto if available. */
+  public @Nullable Pipeline getPipelineProto() {
+    return pipelineProto;
   }
 
   /** Get the region this job exists in. */
@@ -480,6 +508,11 @@ public class DataflowPipelineJob implements PipelineResult {
         BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.backoff()), Sleeper.DEFAULT);
   }
 
+  @Nullable
+  String getLatestStateString() {
+    return latestStateString;
+  }
+
   /**
    * Attempts to get the state. Uses exponential backoff on failure up to the maximum number of
    * passed in attempts.
@@ -505,7 +538,8 @@ public class DataflowPipelineJob implements PipelineResult {
       return terminalState;
     }
     Job job = getJobWithRetries(attempts, sleeper);
-    return MonitoringUtil.toState(job.getCurrentState());
+    latestStateString = job.getCurrentState();
+    return MonitoringUtil.toState(latestStateString);
   }
 
   /**
@@ -528,7 +562,11 @@ public class DataflowPipelineJob implements PipelineResult {
           terminalState = currentState;
           replacedByJob =
               new DataflowPipelineJob(
-                  dataflowClient, job.getReplacedByJobId(), dataflowOptions, transformStepNames);
+                  dataflowClient,
+                  job.getReplacedByJobId(),
+                  dataflowOptions,
+                  transformStepNames,
+                  pipelineProto);
         }
         return job;
       } catch (IOException exn) {

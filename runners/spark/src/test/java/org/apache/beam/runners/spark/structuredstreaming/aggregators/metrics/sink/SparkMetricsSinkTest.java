@@ -49,9 +49,6 @@ import org.junit.runners.JUnit4;
  */
 @Ignore("Has been failing since at least c350188ef7a8704c7336f3c20a1ab2144abbcd4a")
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SparkMetricsSinkTest {
   @Rule public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
 

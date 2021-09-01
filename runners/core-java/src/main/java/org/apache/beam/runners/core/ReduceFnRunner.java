@@ -257,7 +257,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private ActiveWindowSet<W> createActiveWindowSet() {
-    return windowingStrategy.getWindowFn().isNonMerging()
+    return !windowingStrategy.needsMerge()
         ? new NonMergingActiveWindowSet<>()
         : new MergingActiveWindowSet<>(windowingStrategy.getWindowFn(), stateInternals);
   }
@@ -698,9 +698,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       W window = windowNamespace.getWindow();
 
       WindowTracing.debug(
-          "{}: Received timer key:{}; window:{}; data:{} with "
+          "ReduceFnRunner: Received timer key:{}; window:{}; data:{} with "
               + "inputWatermark:{}; outputWatermark:{}",
-          ReduceFnRunner.class.getSimpleName(),
           key,
           window,
           timer,
@@ -756,8 +755,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       if (windowActivation.isGarbageCollection) {
         WindowTracing.debug(
-            "{}: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
-            ReduceFnRunner.class.getSimpleName(),
+            "ReduceFnRunner: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
             key,
             directContext.window(),
             timerInternals.currentInputWatermarkTime(),
@@ -880,7 +878,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // - A pane has fired.
       // - But the trigger is not (yet) closed.
       if (windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES
-          && !windowingStrategy.getWindowFn().isNonMerging()) {
+          && windowingStrategy.needsMerge()) {
         watermarkHold.clearHolds(directContext);
       }
     }

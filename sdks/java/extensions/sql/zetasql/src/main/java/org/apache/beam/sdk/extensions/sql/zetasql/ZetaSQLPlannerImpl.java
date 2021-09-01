@@ -17,25 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_FUNCTION_STMT;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
-
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.LanguageOptions;
-import com.google.zetasql.ParseResumeLocation;
-import com.google.zetasql.SimpleCatalog;
-import com.google.zetasql.resolvedast.ResolvedNode;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
-import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
@@ -51,7 +40,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Framework
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Program;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** ZetaSQLPlannerImpl. */
 @SuppressWarnings({
@@ -89,59 +77,25 @@ class ZetaSQLPlannerImpl {
 
   public RelRoot rel(String sql, QueryParameters params) {
     RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory));
-    QueryTrait trait = new QueryTrait();
-    SqlAnalyzer analyzer =
-        new SqlAnalyzer(trait, defaultSchemaPlus, (JavaTypeFactory) cluster.getTypeFactory());
-
     AnalyzerOptions options = SqlAnalyzer.getAnalyzerOptions(params, defaultTimezone);
+    BeamZetaSqlCatalog catalog =
+        BeamZetaSqlCatalog.create(
+            defaultSchemaPlus, (JavaTypeFactory) cluster.getTypeFactory(), options);
 
     // Set up table providers that need to be pre-registered
+    SqlAnalyzer analyzer = new SqlAnalyzer();
     List<List<String>> tables = analyzer.extractTableNames(sql, options);
     TableResolution.registerTables(this.defaultSchemaPlus, tables);
-    SimpleCatalog catalog =
-        analyzer.createPopulatedCatalog(defaultSchemaPlus.getName(), options, tables);
+    QueryTrait trait = new QueryTrait();
+    catalog.addTables(tables, trait);
 
-    ImmutableMap.Builder<List<String>, ResolvedCreateFunctionStmt> udfBuilder =
-        ImmutableMap.builder();
-    ImmutableMap.Builder<List<String>, ResolvedNode> udtvfBuilder = ImmutableMap.builder();
-
-    ResolvedStatement statement;
-    ParseResumeLocation parseResumeLocation = new ParseResumeLocation(sql);
-    do {
-      statement = analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
-      if (statement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
-        ResolvedCreateFunctionStmt createFunctionStmt = (ResolvedCreateFunctionStmt) statement;
-        udfBuilder.put(createFunctionStmt.getNamePath(), createFunctionStmt);
-      } else if (statement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
-        ResolvedCreateTableFunctionStmt createTableFunctionStmt =
-            (ResolvedCreateTableFunctionStmt) statement;
-        udtvfBuilder.put(createTableFunctionStmt.getNamePath(), createTableFunctionStmt.getQuery());
-      } else if (statement.nodeKind() == RESOLVED_QUERY_STMT) {
-        if (!SqlAnalyzer.isEndOfInput(parseResumeLocation)) {
-          throw new UnsupportedOperationException(
-              "No additional statements are allowed after a SELECT statement.");
-        }
-        break;
-      }
-    } while (!SqlAnalyzer.isEndOfInput(parseResumeLocation));
-
-    if (!(statement instanceof ResolvedQueryStmt)) {
-      throw new UnsupportedOperationException(
-          "Statement list must end in a SELECT statement, not " + statement.nodeKindString());
-    }
-
-    UserFunctionDefinitions userFunctionDefinitions =
-        UserFunctionDefinitions.newBuilder()
-            .setSqlScalarFunctions(udfBuilder.build())
-            .setSqlTableValuedFunctions(udtvfBuilder.build())
-            .build();
+    ResolvedQueryStmt statement = analyzer.analyzeQuery(sql, options, catalog);
 
     ExpressionConverter expressionConverter =
-        new ExpressionConverter(cluster, params, userFunctionDefinitions);
+        new ExpressionConverter(cluster, params, catalog.getUserFunctionDefinitions());
     ConversionContext context = ConversionContext.of(config, expressionConverter, cluster, trait);
 
-    RelNode convertedNode =
-        QueryStatementConverter.convertRootQuery(context, (ResolvedQueryStmt) statement);
+    RelNode convertedNode = QueryStatementConverter.convertRootQuery(context, statement);
     return RelRoot.of(convertedNode, SqlKind.ALL);
   }
 

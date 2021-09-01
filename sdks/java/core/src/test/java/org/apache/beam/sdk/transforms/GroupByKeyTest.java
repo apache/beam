@@ -61,7 +61,6 @@ import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
@@ -71,8 +70,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
@@ -586,6 +587,44 @@ public class GroupByKeyTest implements Serializable {
     }
 
     @Test
+    @Category(ValidatesRunner.class)
+    public void testRewindowWithTimestampCombiner() {
+      PCollection<KV<String, Integer>> input =
+          p.apply(
+                  Create.timestamped(
+                      TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
+                      TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
+                      TimestampedValue.of(KV.of("bar", 3), new Instant(3)),
+                      TimestampedValue.of(KV.of("foo", 9), new Instant(9))))
+              .apply(
+                  "GlobalWindows",
+                  Window.<KV<String, Integer>>configure()
+                      .withTimestampCombiner(TimestampCombiner.LATEST));
+
+      PCollection<KV<String, Integer>> result =
+          input
+              .apply(GroupByKey.create())
+              .apply(
+                  MapElements.into(
+                          TypeDescriptors.kvs(
+                              TypeDescriptors.strings(), TypeDescriptors.integers()))
+                      .via(kv -> KV.of(kv.getKey(), sum(kv.getValue()))))
+              .apply("FixedWindows", Window.into(FixedWindows.of(Duration.millis(1))));
+
+      PAssert.that(result)
+          .inWindow(new IntervalWindow(new Instant(9), new Instant(10)))
+          .containsInAnyOrder(KV.of("foo", 14))
+          .inWindow(new IntervalWindow(new Instant(3), new Instant(4)))
+          .containsInAnyOrder(KV.of("bar", 3));
+
+      p.run();
+    }
+
+    private static int sum(Iterable<Integer> parts) {
+      return Streams.stream(parts).mapToInt(e -> e).sum();
+    }
+
+    @Test
     @Category(NeedsRunner.class)
     public void testIdentityWindowFnPropagation() {
 
@@ -610,43 +649,48 @@ public class GroupByKeyTest implements Serializable {
 
     @Test
     @Category(NeedsRunner.class)
-    public void testWindowFnInvalidation() {
+    public void testWindowFnPostMerging() throws Exception {
 
-      List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
-
-      PCollection<KV<String, Integer>> input =
+      List<KV<String, Integer>> ungroupedPairs = ImmutableList.of(KV.of("a", 3));
+      PCollection<KV<String, Integer>> windowedInput =
           p.apply(
-                  Create.of(ungroupedPairs)
-                      .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-              .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))));
+                  Create.timestamped(
+                      TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
+                      TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
+                      TimestampedValue.of(KV.of("bar", 3), new Instant(3)),
+                      TimestampedValue.of(KV.of("foo", 9), new Instant(9))))
+              .apply(Window.into(Sessions.withGapDuration(Duration.millis(4L))));
 
-      PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+      PCollection<KV<String, Iterable<Integer>>> grouped =
+          windowedInput.apply("First grouping", GroupByKey.create());
+      PAssert.that(grouped).satisfies(containsKvs(kv("foo", 1, 4), kv("foo", 9), kv("bar", 3)));
+
+      // Check that the WindowFn is carried along as-is but alreadyMerged bit is set
+      assertThat(
+          grouped.getWindowingStrategy().getWindowFn(),
+          equalTo(windowedInput.getWindowingStrategy().getWindowFn()));
+
+      assertThat(
+          "WindowingStrategy should be already merged",
+          grouped.getWindowingStrategy().isAlreadyMerged());
+
+      // Second grouping should sum existing groupings, even those exploded, since the windows match
+      // and are carried along.
+      PCollection<Integer> sums =
+          grouped
+              .apply("Drop keys", Values.create())
+              .apply("Explode iterables", Flatten.iterables())
+              .apply("Map to same key", WithKeys.of("bizzle"))
+              .apply("Summed grouping", Sum.integersPerKey())
+              .apply("Pull out sums", Values.create());
+
+      PAssert.that(sums)
+          .containsInAnyOrder(
+              5 /* sum originating from (foo, 1) and (foo, 4) that merged */,
+              9 /* sum of just (foo, 9) which doesn't merge */,
+              3 /* sum of just (bar, 3) which doesn't merge */);
 
       p.run();
-
-      Assert.assertTrue(
-          output
-              .getWindowingStrategy()
-              .getWindowFn()
-              .isCompatible(
-                  new InvalidWindows(
-                      "Invalid", Sessions.withGapDuration(Duration.standardMinutes(1)))));
-    }
-
-    @Test
-    public void testInvalidWindowsDirect() {
-
-      List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
-
-      PCollection<KV<String, Integer>> input =
-          p.apply(
-                  Create.of(ungroupedPairs)
-                      .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-              .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))));
-
-      thrown.expect(IllegalStateException.class);
-      thrown.expectMessage("GroupByKey must have a valid Window merge function");
-      input.apply("GroupByKey", GroupByKey.create()).apply("GroupByKeyAgain", GroupByKey.create());
     }
   }
 
@@ -749,7 +793,7 @@ public class GroupByKeyTest implements Serializable {
    * returns {@code false} for {@link #equals(Object)}. The results of the test are correct if the
    * runner correctly hashes and sorts on the encoded bytes.
    */
-  static class BadEqualityKey {
+  protected static class BadEqualityKey {
     long key;
 
     public BadEqualityKey() {}
@@ -770,7 +814,7 @@ public class GroupByKeyTest implements Serializable {
   }
 
   /** Deterministic {@link Coder} for {@link BadEqualityKey}. */
-  static class DeterministicKeyCoder extends AtomicCoder<BadEqualityKey> {
+  protected static class DeterministicKeyCoder extends AtomicCoder<BadEqualityKey> {
 
     public static DeterministicKeyCoder of() {
       return INSTANCE;

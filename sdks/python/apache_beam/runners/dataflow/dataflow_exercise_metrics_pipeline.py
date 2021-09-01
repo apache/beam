@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import time
 
 from hamcrest.library.number.ordering_comparison import greater_than

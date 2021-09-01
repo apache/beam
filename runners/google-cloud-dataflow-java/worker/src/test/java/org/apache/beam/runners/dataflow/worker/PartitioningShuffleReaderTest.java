@@ -45,9 +45,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for PartitioningShuffleReader. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PartitioningShuffleReaderTest {
   private static final List<WindowedValue<KV<Integer, String>>> NO_KVS = Collections.emptyList();
 

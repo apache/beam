@@ -32,6 +32,6 @@ public class BeamSqlOutputToConsoleFn extends DoFn<Row, Void> {
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-    System.out.println("Output: " + c.element().getValues());
+    System.out.println("Output: " + c.element().toString());
   }
 }

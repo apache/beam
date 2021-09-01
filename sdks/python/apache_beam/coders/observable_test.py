@@ -18,8 +18,6 @@
 """Tests for the Observable mixin class."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 from typing import List

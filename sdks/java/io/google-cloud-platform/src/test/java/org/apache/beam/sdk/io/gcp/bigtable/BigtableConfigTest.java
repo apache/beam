@@ -44,9 +44,6 @@ import org.mockito.Mockito;
 
 /** Unit tests for {@link BigtableConfig}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigtableConfigTest {
 
   static final ValueProvider<String> NOT_ACCESSIBLE_VALUE =

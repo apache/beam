@@ -16,12 +16,22 @@
 // Package window contains window representation, windowing strategies and utilities.
 package window
 
+type AccumulationMode string
+
+const (
+	Unspecified  AccumulationMode = "AccumulationMode_UNSPECIFIED"
+	Discarding   AccumulationMode = "AccumulationMode_DISCARDING"
+	Accumulating AccumulationMode = "AccumulationMode_ACCUMULATING"
+	Retracting   AccumulationMode = "AccumulationMode_RETRACTING"
+)
+
 // WindowingStrategy defines the types of windowing used in a pipeline and contains
 // the data to support executing a windowing strategy.
 type WindowingStrategy struct {
-	Fn *Fn
-
-	// TODO(BEAM-3304): trigger support
+	Fn               *Fn
+	Trigger          Trigger
+	AccumulationMode AccumulationMode
+	AllowedLateness  int // in milliseconds
 }
 
 func (ws *WindowingStrategy) Equals(o *WindowingStrategy) bool {
@@ -34,5 +44,5 @@ func (ws *WindowingStrategy) String() string {
 
 // DefaultWindowingStrategy returns the default windowing strategy.
 func DefaultWindowingStrategy() *WindowingStrategy {
-	return &WindowingStrategy{Fn: NewGlobalWindows()}
+	return &WindowingStrategy{Fn: NewGlobalWindows(), Trigger: Trigger{Kind: DefaultTrigger}, AccumulationMode: Discarding, AllowedLateness: 0}
 }

@@ -48,9 +48,6 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * KinesisTestOptions} in order to run this.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class KinesisIOIT implements Serializable {
   private static int numberOfShards;
   private static int numberOfRows;

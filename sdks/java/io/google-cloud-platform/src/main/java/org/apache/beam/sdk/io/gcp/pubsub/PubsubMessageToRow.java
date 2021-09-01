@@ -17,36 +17,31 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.ATTRIBUTE_ARRAY_ENTRY_SCHEMA;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.apache.avro.AvroRuntimeException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.PayloadFormat;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
-import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
-import org.apache.beam.sdk.util.RowJsonUtils;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 
 /** Read side converter for {@link PubsubMessage} with JSON/AVRO payload. */
@@ -58,6 +53,8 @@ import org.joda.time.Instant;
 })
 abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>, PCollectionTuple>
     implements Serializable {
+  interface SerializerProvider extends SerializableFunction<Schema, PayloadSerializer> {}
+
   static final String TIMESTAMP_FIELD = "event_timestamp";
   static final String ATTRIBUTES_FIELD = "attributes";
   static final String PAYLOAD_FIELD = "payload";
@@ -85,10 +82,11 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
 
   public abstract boolean useFlatSchema();
 
-  public abstract PayloadFormat payloadFormat();
+  // A provider for a PayloadSerializer given the expected payload schema.
+  public abstract @Nullable SerializerProvider serializerProvider();
 
   public static Builder builder() {
-    return new AutoValue_PubsubMessageToRow.Builder().payloadFormat(PayloadFormat.JSON);
+    return new AutoValue_PubsubMessageToRow.Builder();
   }
 
   @Override
@@ -98,61 +96,13 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
             ParDo.of(
                     useFlatSchema()
                         ? new FlatSchemaPubsubMessageToRow(
-                            messageSchema(), useDlq(), payloadFormat())
+                            messageSchema(), useDlq(), serializerProvider())
                         : new NestedSchemaPubsubMessageToRow(
-                            messageSchema(), useDlq(), payloadFormat()))
+                            messageSchema(), useDlq(), serializerProvider()))
                 .withOutputTags(
                     MAIN_TAG, useDlq() ? TupleTagList.of(DLQ_TAG) : TupleTagList.empty()));
     rows.get(MAIN_TAG).setRowSchema(messageSchema());
     return rows;
-  }
-
-  @VisibleForTesting
-  static SimpleFunction<PubsubMessage, Row> getParsePayloadFn(
-      PayloadFormat format, Schema payloadSchema) {
-    switch (format) {
-      case JSON:
-        return new ParseJsonPayloadFn(payloadSchema);
-      case AVRO:
-        return new ParseAvroPayloadFn(payloadSchema);
-      default:
-        throw new IllegalArgumentException("Unsupported payload format given: " + format);
-    }
-  }
-
-  private static class ParseJsonPayloadFn extends SimpleFunction<PubsubMessage, Row> {
-    private final ObjectMapper jsonMapper;
-
-    ParseJsonPayloadFn(Schema payloadSchema) {
-      jsonMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(payloadSchema));
-    }
-
-    @Override
-    public Row apply(PubsubMessage message) {
-      String payloadJson = new String(message.getPayload(), UTF_8);
-      try {
-        return RowJsonUtils.jsonToRow(jsonMapper, payloadJson);
-      } catch (UnsupportedRowJsonException e) {
-        throw new ParseException(e);
-      }
-    }
-  }
-
-  private static class ParseAvroPayloadFn extends SimpleFunction<PubsubMessage, Row> {
-    private final SimpleFunction<byte[], Row> avroBytesToRowFn;
-
-    public ParseAvroPayloadFn(Schema payloadSchema) {
-      avroBytesToRowFn = AvroUtils.getAvroBytesToRowFunction(payloadSchema);
-    }
-
-    @Override
-    public Row apply(PubsubMessage message) {
-      try {
-        return avroBytesToRowFn.apply(message.getPayload());
-      } catch (AvroRuntimeException e) {
-        throw new ParseException(e);
-      }
-    }
   }
 
   /**
@@ -166,10 +116,10 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
 
     private final boolean useDlq;
 
-    private final SimpleFunction<PubsubMessage, Row> parsePayloadFn;
+    private final PayloadSerializer payloadSerializer;
 
     protected FlatSchemaPubsubMessageToRow(
-        Schema messageSchema, boolean useDlq, PayloadFormat payloadFormat) {
+        Schema messageSchema, boolean useDlq, SerializerProvider serializerProvider) {
       this.messageSchema = messageSchema;
       // Construct flat payload schema.
       Schema payloadSchema =
@@ -178,7 +128,7 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
                   .filter(f -> !f.getName().equals(TIMESTAMP_FIELD))
                   .collect(Collectors.toList()));
       this.useDlq = useDlq;
-      this.parsePayloadFn = getParsePayloadFn(payloadFormat, payloadSchema);
+      this.payloadSerializer = serializerProvider.apply(payloadSchema);
     }
 
     /**
@@ -198,17 +148,17 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
     public void processElement(
         @Element PubsubMessage element, @Timestamp Instant timestamp, MultiOutputReceiver o) {
       try {
-        Row payload = parsePayloadFn.apply(element);
+        Row payload = payloadSerializer.deserialize(element.getPayload());
         List<Object> values =
             messageSchema.getFields().stream()
                 .map(field -> getValueForFieldFlatSchema(field, timestamp, payload))
                 .collect(toList());
         o.get(MAIN_TAG).output(Row.withSchema(messageSchema).addValues(values).build());
-      } catch (ParseException pe) {
+      } catch (Exception e) {
         if (useDlq) {
           o.get(DLQ_TAG).output(element);
         } else {
-          throw new RuntimeException(pe);
+          throw new RuntimeException(e);
         }
       }
     }
@@ -225,26 +175,51 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
 
     private final boolean useDlq;
 
-    private final SimpleFunction<PubsubMessage, Row> parsePayloadFn;
+    private final @Nullable PayloadSerializer payloadSerializer;
 
-    protected NestedSchemaPubsubMessageToRow(
-        Schema messageSchema, boolean useDlq, PayloadFormat payloadFormat) {
+    private NestedSchemaPubsubMessageToRow(
+        Schema messageSchema, boolean useDlq, @Nullable SerializerProvider serializerProvider) {
       this.messageSchema = messageSchema;
       this.useDlq = useDlq;
-      Schema payloadSchema = messageSchema.getField(PAYLOAD_FIELD).getType().getRowSchema();
-      this.parsePayloadFn = getParsePayloadFn(payloadFormat, payloadSchema);
+      if (serializerProvider == null) {
+        checkArgument(
+            messageSchema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.BYTES));
+        this.payloadSerializer = null;
+      } else {
+        checkArgument(
+            messageSchema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.ROW));
+        Schema payloadSchema = messageSchema.getField(PAYLOAD_FIELD).getType().getRowSchema();
+        this.payloadSerializer = serializerProvider.apply(payloadSchema);
+      }
+    }
+
+    private Object maybeDeserialize(byte[] payload) {
+      if (payloadSerializer == null) {
+        return payload;
+      }
+      return payloadSerializer.deserialize(payload);
+    }
+
+    private Object handleAttributes(Map<String, String> attributeMap) {
+      if (messageSchema.getField(ATTRIBUTES_FIELD).getType().getTypeName().isMapType()) {
+        return attributeMap;
+      }
+      ImmutableList.Builder<Row> rows = ImmutableList.builder();
+      attributeMap.forEach(
+          (k, v) -> rows.add(Row.withSchema(ATTRIBUTE_ARRAY_ENTRY_SCHEMA).attachValues(k, v)));
+      return rows.build();
     }
 
     /** Get the value for a field int the order they're specified in the nested schema. */
     private Object getValueForFieldNestedSchema(
-        Schema.Field field, Instant timestamp, Map<String, String> attributeMap, Row payload) {
+        Schema.Field field, Instant timestamp, Map<String, String> attributeMap, byte[] payload) {
       switch (field.getName()) {
         case TIMESTAMP_FIELD:
           return timestamp;
         case ATTRIBUTES_FIELD:
-          return attributeMap;
+          return handleAttributes(attributeMap);
         case PAYLOAD_FIELD:
-          return payload;
+          return maybeDeserialize(payload);
         default:
           throw new IllegalArgumentException(
               "Unexpected field '"
@@ -259,20 +234,19 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
     public void processElement(
         @Element PubsubMessage element, @Timestamp Instant timestamp, MultiOutputReceiver o) {
       try {
-        Row payload = parsePayloadFn.apply(element);
         List<Object> values =
             messageSchema.getFields().stream()
                 .map(
                     field ->
                         getValueForFieldNestedSchema(
-                            field, timestamp, element.getAttributeMap(), payload))
+                            field, timestamp, element.getAttributeMap(), element.getPayload()))
                 .collect(toList());
         o.get(MAIN_TAG).output(Row.withSchema(messageSchema).addValues(values).build());
-      } catch (ParseException exception) {
+      } catch (Exception e) {
         if (useDlq) {
           o.get(DLQ_TAG).output(element);
         } else {
-          throw new RuntimeException(exception);
+          throw new RuntimeException(e);
         }
       }
     }
@@ -286,7 +260,7 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
 
     public abstract Builder useFlatSchema(boolean useFlatSchema);
 
-    public abstract Builder payloadFormat(PayloadFormat payloadFormat);
+    public abstract Builder serializerProvider(SerializerProvider serializerProvider);
 
     public abstract PubsubMessageToRow build();
   }

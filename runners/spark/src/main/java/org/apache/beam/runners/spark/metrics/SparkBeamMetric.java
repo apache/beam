@@ -38,13 +38,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /**
  * An adapter between the {@link MetricsContainerStepMap} and Codahale's {@link Metric} interface.
  */
-class SparkBeamMetric implements Metric {
+public class SparkBeamMetric implements Metric {
   private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9-]";
 
-  Map<String, ?> renderAll() {
+  static Map<String, ?> renderAll(MetricResults metricResults) {
     Map<String, Object> metrics = new HashMap<>();
-    MetricResults metricResults =
-        asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
     MetricQueryResults metricQueryResults = metricResults.allMetrics();
     for (MetricResult<Long> metricResult : metricQueryResults.getCounters()) {
       metrics.put(renderName(metricResult), metricResult.getAttempted());
@@ -63,8 +61,24 @@ class SparkBeamMetric implements Metric {
     return metrics;
   }
 
+  public static Map<String, String> renderAllToString(MetricResults metricResults) {
+    Map<String, String> metricsString = new HashMap<>();
+    for (Map.Entry<String, ?> entry : renderAll(metricResults).entrySet()) {
+      String key = entry.getKey();
+      String value = String.valueOf(entry.getValue());
+      metricsString.put(key, value);
+    }
+    return metricsString;
+  }
+
+  Map<String, ?> renderAll() {
+    MetricResults metricResults =
+        asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
+    return renderAll(metricResults);
+  }
+
   @VisibleForTesting
-  String renderName(MetricResult<?> metricResult) {
+  static String renderName(MetricResult<?> metricResult) {
     MetricKey key = metricResult.getKey();
     MetricName name = key.metricName();
     String step = key.stepName();

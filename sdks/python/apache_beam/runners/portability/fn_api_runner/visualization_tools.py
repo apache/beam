@@ -85,31 +85,31 @@ def show_watermark_manager(watermark_manager: WatermarkManager):
 
   seen_nodes: Set[str] = set()
   seen_links: Set[Tuple[str, str]] = set()
-  for node in watermark_manager._watermarks_by_name.values():
-    if isinstance(node, WatermarkManager.StageNode):
-      name = 'STAGE_%s...%s' % (node.name[:30], node.name[-30:])
-      add_node(name, 'box')
-    else:
-      assert isinstance(node, WatermarkManager.PCollectionNode)
-      name = pcoll_node_name(node)
-      add_node(name)
+  for node in watermark_manager._stages_by_name.values():
+    name = 'STAGE_%s...%s' % (node.name[:30], node.name[-30:])
+    add_node(name, 'box')
 
-  for node in watermark_manager._watermarks_by_name.values():
-    if isinstance(node, WatermarkManager.StageNode):
-      stage = 'STAGE_%s...%s' % (node.name[:30], node.name[-30:])
-      for pcoll in node.inputs:
-        input_name = pcoll_node_name(pcoll)
-        # Main inputs have a BOLD edge.
-        add_links(link_from=input_name, link_to=stage, edge_style="bold")
-      for pcoll in node.side_inputs:
-        # Side inputs have a dashed edge.
-        input_name = pcoll_node_name(pcoll)
-        add_links(link_from=input_name, link_to=stage, edge_style="dashed")
-    else:
-      assert isinstance(node, WatermarkManager.PCollectionNode)
-      pcoll_name = pcoll_node_name(node)
-      for producer in node.producers:
-        prod_name = 'STAGE_%s...%s' % (producer.name[:30], producer.name[-30:])
-        add_links(link_from=prod_name, link_to=pcoll_name)
+  for pcnode in watermark_manager._pcollections_by_name.values():
+    assert isinstance(pcnode, WatermarkManager.PCollectionNode)
+    name = pcoll_node_name(pcnode)
+    add_node(name)
+
+  for node in watermark_manager._stages_by_name.values():
+    stage = 'STAGE_%s...%s' % (node.name[:30], node.name[-30:])
+    for pcoll in node.inputs:
+      input_name = pcoll_node_name(pcoll)
+      # Main inputs have a BOLD edge.
+      add_links(link_from=input_name, link_to=stage, edge_style="bold")
+    for pcoll in node.side_inputs:
+      # Side inputs have a dashed edge.
+      input_name = pcoll_node_name(pcoll)
+      add_links(link_from=input_name, link_to=stage, edge_style="dashed")
+
+  for pcnode in watermark_manager._pcollections_by_name.values():
+    assert isinstance(pcnode, WatermarkManager.PCollectionNode)
+    pcoll_name = pcoll_node_name(pcnode)
+    for producer in pcnode.producers:
+      prod_name = 'STAGE_%s...%s' % (producer.name[:30], producer.name[-30:])
+      add_links(link_from=prod_name, link_to=pcoll_name)
 
   g.render('pipeline_graph', format='png')

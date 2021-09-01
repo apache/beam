@@ -20,15 +20,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import errno
 import io
 import logging
 import re
 import time
 import traceback
-from builtins import object
 
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.io.filesystemio import Downloader
@@ -493,7 +490,7 @@ class S3IO(object):
     for src, dest, err in copy_results:
       if err is not None: rename_results.append((src, dest, err))
       elif delete_results_dict[src] is not None:
-        rename_results.append(src, dest, delete_results_dict[src])
+        rename_results.append((src, dest, delete_results_dict[src]))
       else:
         rename_results.append((src, dest, None))
 

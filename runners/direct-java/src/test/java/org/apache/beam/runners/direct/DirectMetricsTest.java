@@ -48,9 +48,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DirectMetrics}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DirectMetricsTest {
 
   @Mock private CommittedBundle<Object> bundle1;

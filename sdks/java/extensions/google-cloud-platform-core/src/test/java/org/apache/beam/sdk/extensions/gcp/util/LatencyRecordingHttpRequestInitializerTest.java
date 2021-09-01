@@ -51,9 +51,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for LatencyRecordingHttpRequestInitializer. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class LatencyRecordingHttpRequestInitializerTest {
 
   @Rule
@@ -106,7 +103,7 @@ public class LatencyRecordingHttpRequestInitializerTest {
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest).execute();
-    verify(mockLowLevelResponse).getStatusCode();
+    verify(mockLowLevelResponse, atLeastOnce()).getStatusCode();
   }
 
   @Test
@@ -127,6 +124,6 @@ public class LatencyRecordingHttpRequestInitializerTest {
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest).execute();
-    verify(mockLowLevelResponse).getStatusCode();
+    verify(mockLowLevelResponse, atLeastOnce()).getStatusCode();
   }
 }

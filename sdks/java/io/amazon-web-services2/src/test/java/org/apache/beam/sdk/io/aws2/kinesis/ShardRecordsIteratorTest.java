@@ -39,9 +39,6 @@ import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
 
 /** Tests {@link ShardRecordsIterator}. */
 @RunWith(MockitoJUnitRunner.Silent.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ShardRecordsIteratorTest {
 
   private static final String INITIAL_ITERATOR = "INITIAL_ITERATOR";

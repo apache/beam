@@ -31,9 +31,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Test for {@link SourceRDD.Bounded.ReaderToIteratorAdapter}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ReaderToIteratorAdapterTest {
 
   @Rule public ExpectedException exception = ExpectedException.none();

@@ -30,12 +30,9 @@ per line in the following format:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import json
 import logging
-from builtins import object
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -47,7 +44,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 class JsonCoder(object):
   """A JSON coder interpreting each line as a JSON string."""
   def encode(self, x):
-    return json.dumps(x)
+    return json.dumps(x).encode('utf-8')
 
   def decode(self, x):
     return json.loads(x)

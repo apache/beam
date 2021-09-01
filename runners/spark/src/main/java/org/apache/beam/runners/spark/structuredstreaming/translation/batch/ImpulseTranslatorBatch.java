@@ -18,8 +18,8 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.util.Collections;
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,7 +35,7 @@ public class ImpulseTranslatorBatch
 
   @Override
   public void translateTransform(
-      PTransform<PBegin, PCollection<byte[]>> transform, TranslationContext context) {
+      PTransform<PBegin, PCollection<byte[]>> transform, AbstractTranslationContext context) {
     Coder<WindowedValue<byte[]>> windowedValueCoder =
         WindowedValue.FullWindowedValueCoder.of(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE);
     Dataset<WindowedValue<byte[]>> dataset =

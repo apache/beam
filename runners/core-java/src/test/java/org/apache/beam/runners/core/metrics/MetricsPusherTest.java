@@ -45,9 +45,6 @@ import org.slf4j.LoggerFactory;
 /** A test that verifies that metrics push system works. */
 @Category({UsesMetricsPusher.class, ValidatesRunner.class})
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MetricsPusherTest {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsPusherTest.class);
 

@@ -46,9 +46,6 @@ import org.junit.runners.JUnit4;
 
 /** This suite tests that various scenarios result in proper states of the pipeline. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class StructuredStreamingPipelineStateTest implements Serializable {
 
   private static class MyCustomException extends RuntimeException {

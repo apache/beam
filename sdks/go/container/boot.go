@@ -24,10 +24,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	"github.com/apache/beam/sdks/go/pkg/beam/provision"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 )
 
 var (
@@ -106,11 +106,12 @@ func main() {
 	case 0:
 		log.Fatal("No artifacts staged")
 	case 1:
-		name = artifacts[0].Name
+		name, _ = artifact.MustExtractFilePayload(artifacts[0])
 	default:
 		found := false
 		for _, a := range artifacts {
-			if a.Name == worker {
+			n, _ := artifact.MustExtractFilePayload(a)
+			if n == worker {
 				found = true
 				break
 			}

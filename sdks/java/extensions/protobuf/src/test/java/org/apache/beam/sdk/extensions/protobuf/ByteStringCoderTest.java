@@ -41,9 +41,6 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link ByteStringCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ByteStringCoderTest {
 
   private static final ByteStringCoder TEST_CODER = ByteStringCoder.of();

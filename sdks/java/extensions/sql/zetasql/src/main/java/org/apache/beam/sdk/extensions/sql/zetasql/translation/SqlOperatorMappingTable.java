@@ -57,6 +57,7 @@ class SqlOperatorMappingTable {
           .put("$divide", SqlStdOperatorTable.DIVIDE)
           .put("concat", SqlOperators.CONCAT)
           .put("substr", SqlOperators.SUBSTR)
+          .put("substring", SqlOperators.SUBSTR)
           .put("trim", SqlOperators.TRIM)
           .put("replace", SqlOperators.REPLACE)
           .put("char_length", SqlOperators.CHAR_LENGTH)
@@ -75,6 +76,7 @@ class SqlOperatorMappingTable {
           // .put("bit_and", SqlStdOperatorTable.BIT_AND) //JIRA link:
           // https://issues.apache.org/jira/browse/BEAM-10379
           .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
+          .put("array_agg", SqlOperators.ARRAY_AGG_FN)
           .put("bit_or", SqlStdOperatorTable.BIT_OR)
           .put("bit_xor", SqlOperators.BIT_XOR)
           .put("ceil", SqlStdOperatorTable.CEIL)
@@ -94,6 +96,7 @@ class SqlOperatorMappingTable {
           .put("coalesce", SqlStdOperatorTable.CASE)
           .put("ifnull", SqlStdOperatorTable.CASE)
           .put("nullif", SqlStdOperatorTable.CASE)
+          .put("countif", SqlOperators.COUNTIF)
           .build();
 
   static final Map<String, SqlOperatorRewriter> ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER =

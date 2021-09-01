@@ -16,10 +16,10 @@
 package beam
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // xlang exposes an API to execute cross-language transforms within the Go SDK.
@@ -43,6 +43,17 @@ func UnnamedInput(col PCollection) map[string]PCollection {
 //    beam.CrossLanguage(s, urn, payload, addr, inputs, UnnamedOutput(output));
 func UnnamedOutput(t FullType) map[string]FullType {
 	return map[string]FullType{graph.UnnamedOutputTag: t}
+}
+
+// CrossLanguagePayload encodes a native Go struct into a payload for
+// cross-language transforms. To find the expected structure of a payload,
+// consult the documentation in the SDK performing the expansion.
+func CrossLanguagePayload(pl interface{}) []byte {
+	bytes, err := xlangx.EncodeStructPayload(pl)
+	if err != nil {
+		panic(err)
+	}
+	return bytes
 }
 
 // CrossLanguage executes a cross-language transform that uses named inputs and

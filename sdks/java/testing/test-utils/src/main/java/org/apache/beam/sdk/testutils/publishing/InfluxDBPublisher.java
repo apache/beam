@@ -58,8 +58,10 @@ public final class InfluxDBPublisher {
   private InfluxDBPublisher() {}
 
   public static void publishNexmarkResults(
-      final Collection<Map<String, Object>> results, final InfluxDBSettings settings) {
-    publishWithCheck(settings, () -> publishNexmark(results, settings));
+      final Collection<Map<String, Object>> results,
+      final InfluxDBSettings settings,
+      final Map<String, String> tags) {
+    publishWithCheck(settings, () -> publishNexmark(results, settings, tags));
   }
 
   public static void publishWithSettings(
@@ -82,25 +84,38 @@ public final class InfluxDBPublisher {
   }
 
   private static void publishNexmark(
-      final Collection<Map<String, Object>> results, final InfluxDBSettings settings)
+      final Collection<Map<String, Object>> results,
+      final InfluxDBSettings settings,
+      final Map<String, String> tags)
       throws Exception {
 
     final HttpClientBuilder builder = provideHttpBuilder(settings);
     final HttpPost postRequest = providePOSTRequest(settings);
     final StringBuilder metricBuilder = new StringBuilder();
+
     results.forEach(
-        map ->
-            metricBuilder
-                .append(map.get("measurement"))
-                .append(",")
-                .append(getKV(map, "runner"))
-                .append(" ")
-                .append(getKV(map, "runtimeMs"))
-                .append(",")
-                .append(getKV(map, "numResults"))
-                .append(" ")
-                .append(map.get("timestamp"))
-                .append('\n'));
+        map -> {
+          metricBuilder.append(map.get("measurement")).append(",").append(getKV(map, "runner"));
+          if (tags != null && !tags.isEmpty()) {
+            tags.entrySet().stream()
+                .forEach(
+                    entry -> {
+                      metricBuilder
+                          .append(",")
+                          .append(entry.getKey())
+                          .append("=")
+                          .append(entry.getValue());
+                    });
+          }
+          metricBuilder
+              .append(" ")
+              .append(getKV(map, "runtimeMs"))
+              .append(",")
+              .append(getKV(map, "numResults"))
+              .append(" ")
+              .append(map.get("timestamp"))
+              .append('\n');
+        });
 
     postRequest.setEntity(
         new GzipCompressingEntity(new ByteArrayEntity(metricBuilder.toString().getBytes(UTF_8))));

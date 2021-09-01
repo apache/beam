@@ -39,9 +39,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /** Test class for MetricsHttpSink. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MetricsHttpSinkTest {
   private static int port;
   private static List<String> messages = new ArrayList<>();

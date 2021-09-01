@@ -15,6 +15,11 @@
 
 // Package dataflow contains the Dataflow runner for submitting pipelines
 // to Google Cloud Dataflow.
+//
+// This package infers Pipeline Options from flags automatically on job
+// submission, for display in the Dataflow UI.
+// Use the DontUseFlagAsPipelineOption function to prevent using a given
+// flag as a PipelineOption.
 package dataflow
 
 import (
@@ -29,16 +34,17 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow/dataflowlib"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/hooks/perf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow/dataflowlib"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/hooks/perf"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -73,6 +79,66 @@ var (
 	cpuProfiling     = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
 	sessionRecording = flag.String("session_recording", "", "Job records session transcripts")
 )
+
+// flagFilter filters flags that are already represented by the above flags
+// or in the JobOpts to prevent them from appearing duplicated
+// as PipelineOption display data.
+//
+// New flags that are already put into pipeline options
+// should be added to this map.
+var flagFilter = map[string]bool{
+	"dataflow_endpoint":              true,
+	"staging_location":               true,
+	"worker_harness_container_image": true,
+	"labels":                         true,
+	"service_account_email":          true,
+	"num_workers":                    true,
+	"max_num_workers":                true,
+	"disk_size_gb":                   true,
+	"autoscaling_algorithm":          true,
+	"zone":                           true,
+	"network":                        true,
+	"subnetwork":                     true,
+	"no_use_public_ips":              true,
+	"temp_location":                  true,
+	"worker_machine_type":            true,
+	"min_cpu_platform":               true,
+	"dataflow_worker_jar":            true,
+	"worker_region":                  true,
+	"worker_zone":                    true,
+	"teardown_policy":                true,
+	"cpu_profiling":                  true,
+	"session_recording":              true,
+
+	// Job Options flags
+	"endpoint":                 true,
+	"job_name":                 true,
+	"environment_type":         true,
+	"environment_config":       true,
+	"experiments":              true,
+	"async":                    true,
+	"retain_docker_containers": true,
+	"parallelism":              true,
+
+	// GCP opts
+	"project": true,
+	"region":  true,
+
+	// Other common beam flags.
+	"runner": true,
+
+	// Don't filter these to note override.
+	// "beam_strict": true,
+	// "sdk_harness_container_image_override": true,
+	// "worker_binary": true,
+}
+
+// DontUseFlagAsPipelineOption prevents a set flag from appearing
+// as a PipelineOption in the Dataflow UI. Useful for sensitive,
+// noisy, or irrelevant configuration.
+func DontUseFlagAsPipelineOption(s string) {
+	flagFilter[s] = true
+}
 
 func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
@@ -130,16 +196,23 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 
 	experiments := jobopts.GetExperiments()
 	// Always use runner v2, unless set already.
-	var v2set bool
+	var v2set, portaSubmission bool
 	for _, e := range experiments {
 		if strings.Contains(e, "use_runner_v2") || strings.Contains(e, "use_unified_worker") {
 			v2set = true
-			break
+		}
+		if strings.Contains(e, "use_portable_job_submission") {
+			portaSubmission = true
 		}
 	}
+	// Enable by default unified worker, and portable job submission.
 	if !v2set {
 		experiments = append(experiments, "use_unified_worker")
 	}
+	if !portaSubmission {
+		experiments = append(experiments, "use_portable_job_submission")
+	}
+
 	if *minCPUPlatform != "" {
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
 	}
@@ -167,32 +240,49 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		WorkerRegion:        *workerRegion,
 		WorkerZone:          *workerZone,
 		TeardownPolicy:      *teardownPolicy,
+		ContainerImage:      getContainerImage(ctx),
 	}
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
 	}
 
 	// (1) Build and submit
-
-	edges, _, err := p.Build()
-	if err != nil {
-		return nil, err
-	}
-	enviroment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
-	if err != nil {
-		return nil, errors.WithContext(err, "generating model pipeline")
-	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
-	if err != nil {
-		return nil, errors.WithContext(err, "generating model pipeline")
-	}
-
 	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
 	id := fmt.Sprintf("go-%v-%v", atomic.AddInt32(&unique, 1), time.Now().UnixNano())
 
 	modelURL := gcsx.Join(*stagingLocation, id, "model")
 	workerURL := gcsx.Join(*stagingLocation, id, "worker")
 	jarURL := gcsx.Join(*stagingLocation, id, "dataflow-worker.jar")
+	xlangURL := gcsx.Join(*stagingLocation, id, "xlang")
+
+	edges, _, err := p.Build()
+	if err != nil {
+		return nil, err
+	}
+	artifactURLs, err := dataflowlib.ResolveXLangArtifacts(ctx, edges, opts.Project, xlangURL)
+	if err != nil {
+		return nil, errors.WithContext(err, "resolving cross-language artifacts")
+	}
+	opts.ArtifactURLs = artifactURLs
+	environment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
+	if err != nil {
+		return nil, errors.WithContext(err, "creating environment for model pipeline")
+	}
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	if err != nil {
+		return nil, errors.WithContext(err, "generating model pipeline")
+	}
+	err = pipelinex.ApplySdkImageOverrides(model, jobopts.GetSdkImageOverrides())
+	if err != nil {
+		return nil, errors.WithContext(err, "applying container image overrides")
+	}
+
+	// Apply the all the as Go Options
+	flag.Visit(func(f *flag.Flag) {
+		if !flagFilter[f.Name] {
+			opts.Options.Options[f.Name] = f.Value.String()
+		}
+	})
 
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")

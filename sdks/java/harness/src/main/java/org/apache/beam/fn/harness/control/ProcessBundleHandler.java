@@ -20,9 +20,11 @@ package org.apache.beam.fn.harness.control;
 import com.google.auto.value.AutoValue;
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -46,8 +48,10 @@ import org.apache.beam.fn.harness.data.BeamFnTimerGrpcClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
+import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
+import org.apache.beam.fn.harness.state.CachingBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
@@ -55,30 +59,38 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Message;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Message;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
@@ -113,6 +125,8 @@ public class ProcessBundleHandler {
   private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   public static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
+  private static final int DATA_QUEUE_SIZE = 1000;
+
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
   @VisibleForTesting static final Map<String, PTransformRunnerFactory> REGISTERED_RUNNER_FACTORIES;
 
@@ -130,27 +144,52 @@ public class ProcessBundleHandler {
     REGISTERED_RUNNER_FACTORIES = builder.build();
   }
 
+  // Creates a new map of state data for newly encountered state keys
+  private CacheLoader<
+          BeamFnApi.StateKey,
+          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
+      stateKeyMapCacheLoader =
+          new CacheLoader<
+              BeamFnApi.StateKey,
+              Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>() {
+            @Override
+            public Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse> load(
+                BeamFnApi.StateKey key) {
+              return new HashMap<>();
+            }
+          };
+
   private final PipelineOptions options;
   private final Function<String, Message> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
+  private final LoadingCache<
+          BeamFnApi.StateKey,
+          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
+      stateCache;
   private final FinalizeBundleHandler finalizeBundleHandler;
+  private final ShortIdMap shortIds;
+  private final boolean runnerAcceptsShortIds;
   private final Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap;
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
 
   public ProcessBundleHandler(
       PipelineOptions options,
+      Set<String> runnerCapabilities,
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
-      FinalizeBundleHandler finalizeBundleHandler) {
+      FinalizeBundleHandler finalizeBundleHandler,
+      ShortIdMap shortIds) {
     this(
         options,
+        runnerCapabilities,
         fnApiRegistry,
         beamFnDataClient,
         beamFnStateGrpcClientCache,
         finalizeBundleHandler,
+        shortIds,
         REGISTERED_RUNNER_FACTORIES,
         new BundleProcessorCache());
   }
@@ -158,17 +197,24 @@ public class ProcessBundleHandler {
   @VisibleForTesting
   ProcessBundleHandler(
       PipelineOptions options,
+      Set<String> runnerCapabilities,
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
       FinalizeBundleHandler finalizeBundleHandler,
+      ShortIdMap shortIds,
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap,
       BundleProcessorCache bundleProcessorCache) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
+    this.stateCache = CacheBuilder.newBuilder().build(stateKeyMapCacheLoader);
     this.finalizeBundleHandler = finalizeBundleHandler;
+    this.shortIds = shortIds;
+    this.runnerAcceptsShortIds =
+        runnerCapabilities.contains(
+            BeamUrns.getUrn(RunnerApi.StandardRunnerProtocols.Enum.MONITORING_INFO_SHORT_IDS));
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory =
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
@@ -288,12 +334,14 @@ public class ProcessBundleHandler {
                 throw new RuntimeException(e);
               }
             });
-    PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = bundleProcessor.getFinishFunctionRegistry();
-    ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
-    QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
-
     try {
+      BeamFnLoggingMDC.setInstructionId(request.getInstructionId());
+      PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
+      PTransformFunctionRegistry finishFunctionRegistry =
+          bundleProcessor.getFinishFunctionRegistry();
+      ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
+      QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
+
       try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
         try (Closeable closeTracker = stateTracker.activate()) {
           // Already in reverse topological order so we don't need to do anything.
@@ -315,23 +363,15 @@ public class ProcessBundleHandler {
         // Add all checkpointed residuals to the response.
         response.addAllResidualRoots(bundleProcessor.getSplitListener().getResidualRoots());
 
-        // TODO(BEAM-6597): This should be reporting monitoring infos using the short id system.
-        // Get start bundle Execution Time Metrics.
-        response.addAllMonitoringInfos(
-            bundleProcessor.getStartFunctionRegistry().getExecutionTimeMonitoringInfos());
-        // Get process bundle Execution Time Metrics.
-        response.addAllMonitoringInfos(
-            bundleProcessor.getpCollectionConsumerRegistry().getExecutionTimeMonitoringInfos());
-        // Get finish bundle Execution Time Metrics.
-        response.addAllMonitoringInfos(
-            bundleProcessor.getFinishFunctionRegistry().getExecutionTimeMonitoringInfos());
-        // Extract MonitoringInfos that come from the metrics container registry.
-        response.addAllMonitoringInfos(
-            bundleProcessor.getMetricsContainerRegistry().getMonitoringInfos());
-        // Add any additional monitoring infos that the "runners" report explicitly.
-        for (ProgressRequestCallback progressRequestCallback :
-            bundleProcessor.getProgressRequestCallbacks()) {
-          response.addAllMonitoringInfos(progressRequestCallback.getMonitoringInfos());
+        // Add all metrics to the response.
+        Map<String, ByteString> monitoringData = monitoringData(bundleProcessor);
+        if (runnerAcceptsShortIds) {
+          response.putAllMonitoringData(monitoringData);
+        } else {
+          for (Map.Entry<String, ByteString> metric : monitoringData.entrySet()) {
+            response.addMonitoringInfos(
+                shortIds.get(metric.getKey()).toBuilder().setPayload(metric.getValue()));
+          }
         }
 
         if (!bundleProcessor.getBundleFinalizationCallbackRegistrations().isEmpty()) {
@@ -341,14 +381,18 @@ public class ProcessBundleHandler {
           response.setRequiresFinalization(true);
         }
       }
+
+      // Mark the bundle processor as re-usable.
       bundleProcessorCache.release(
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
+      return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
     } catch (Exception e) {
-      bundleProcessorCache.release(
-          request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
+      // Make sure we clean-up from the active set of bundle processors.
+      bundleProcessorCache.discard(bundleProcessor);
       throw e;
+    } finally {
+      BeamFnLoggingMDC.setInstructionId(null);
     }
-    return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 
   public BeamFnApi.InstructionResponse.Builder progress(BeamFnApi.InstructionRequest request)
@@ -366,29 +410,46 @@ public class ProcessBundleHandler {
           .setProcessBundleProgress(BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance());
     }
 
-    // TODO(BEAM-6597): This should really only be reporting monitoring infos where the data
-    // changed
-    // and we should be using the short id system.
-
-    // Get start bundle Execution Time Metrics.
-    response.addAllMonitoringInfos(
-        bundleProcessor.getStartFunctionRegistry().getExecutionTimeMonitoringInfos());
-    // Get process bundle Execution Time Metrics.
-    response.addAllMonitoringInfos(
-        bundleProcessor.getpCollectionConsumerRegistry().getExecutionTimeMonitoringInfos());
-    // Get finish bundle Execution Time Metrics.
-    response.addAllMonitoringInfos(
-        bundleProcessor.getFinishFunctionRegistry().getExecutionTimeMonitoringInfos());
-    // Extract all other MonitoringInfos other than the execution time monitoring infos.
-    response.addAllMonitoringInfos(
-        bundleProcessor.getMetricsContainerRegistry().getMonitoringInfos());
-    // Add any additional monitoring infos that the "runners" report explicitly.
-    for (ProgressRequestCallback progressRequestCallback :
-        bundleProcessor.getProgressRequestCallbacks()) {
-      response.addAllMonitoringInfos(progressRequestCallback.getMonitoringInfos());
+    Map<String, ByteString> monitoringData = monitoringData(bundleProcessor);
+    if (runnerAcceptsShortIds) {
+      response.putAllMonitoringData(monitoringData);
+    } else {
+      for (Map.Entry<String, ByteString> metric : monitoringData.entrySet()) {
+        response.addMonitoringInfos(
+            shortIds.get(metric.getKey()).toBuilder().setPayload(metric.getValue()));
+      }
     }
 
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundleProgress(response);
+  }
+
+  private ImmutableMap<String, ByteString> monitoringData(BundleProcessor bundleProcessor)
+      throws Exception {
+    ImmutableMap.Builder<String, ByteString> result = ImmutableMap.builder();
+    // Get start bundle Execution Time Metrics.
+    result.putAll(
+        bundleProcessor.getStartFunctionRegistry().getExecutionTimeMonitoringData(shortIds));
+    // Get process bundle Execution Time Metrics.
+    result.putAll(
+        bundleProcessor.getpCollectionConsumerRegistry().getExecutionTimeMonitoringData(shortIds));
+    // Get finish bundle Execution Time Metrics.
+    result.putAll(
+        bundleProcessor.getFinishFunctionRegistry().getExecutionTimeMonitoringData(shortIds));
+    // Extract MonitoringInfos that come from the metrics container registry.
+    result.putAll(bundleProcessor.getMetricsContainerRegistry().getMonitoringData(shortIds));
+    // Add any additional monitoring infos that the "runners" report explicitly.
+    for (ProgressRequestCallback progressRequestCallback :
+        bundleProcessor.getProgressRequestCallbacks()) {
+      // TODO(BEAM-6597): Plumb reporting monitoring infos using the short id system upstream.
+      for (MetricsApi.MonitoringInfo monitoringInfo :
+          progressRequestCallback.getMonitoringInfos()) {
+        ByteString payload = monitoringInfo.getPayload();
+        String shortId =
+            shortIds.getOrCreateShortId(monitoringInfo.toBuilder().clearPayload().build());
+        result.put(shortId, payload);
+      }
+    }
+    return result.build();
   }
 
   /** Splits an active bundle. */
@@ -422,7 +483,8 @@ public class ProcessBundleHandler {
     // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
     // handle the life of a bundle. It will insert elements onto a queue and drain them off so all
     // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
-    QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(this.beamFnDataClient);
+    QueueingBeamFnDataClient queueingClient =
+        new QueueingBeamFnDataClient(this.beamFnDataClient, DATA_QUEUE_SIZE);
 
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
@@ -453,14 +515,30 @@ public class ProcessBundleHandler {
       }
     }
 
-    // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor
-    // was specified.
-    HandleStateCallsForBundle beamFnStateClient =
-        bundleDescriptor.hasStateApiServiceDescriptor()
-            ? new BlockTillStateCallsFinish(
-                beamFnStateGrpcClientCache.forApiServiceDescriptor(
-                    bundleDescriptor.getStateApiServiceDescriptor()))
-            : new FailAllStateCallsForBundle(processBundleRequest);
+    // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor was
+    // specified.
+    HandleStateCallsForBundle beamFnStateClient;
+    if (bundleDescriptor.hasStateApiServiceDescriptor()) {
+      BeamFnStateClient underlyingClient =
+          beamFnStateGrpcClientCache.forApiServiceDescriptor(
+              bundleDescriptor.getStateApiServiceDescriptor());
+
+      // If pipeline is batch, use a CachingBeamFnStateClient to store state responses.
+      // Once streaming is supported use CachingBeamFnStateClient for both.
+      // TODO(BEAM-10212): Remove experiment once cross bundle caching is used by default
+      if (ExperimentalOptions.hasExperiment(options, "cross_bundle_caching")) {
+        beamFnStateClient =
+            new BlockTillStateCallsFinish(
+                options.as(StreamingOptions.class).isStreaming()
+                    ? underlyingClient
+                    : new CachingBeamFnStateClient(
+                        underlyingClient, stateCache, processBundleRequest.getCacheTokensList()));
+      } else {
+        beamFnStateClient = new BlockTillStateCallsFinish(underlyingClient);
+      }
+    } else {
+      beamFnStateClient = new FailAllStateCallsForBundle(processBundleRequest);
+    }
 
     // Instantiate a Timer client registration handler depending on whether a Timer
     // ApiServiceDescriptor was specified.
@@ -535,10 +613,15 @@ public class ProcessBundleHandler {
     return bundleProcessor;
   }
 
+  public BundleProcessorCache getBundleProcessorCache() {
+    return bundleProcessorCache;
+  }
+
   /** A cache for {@link BundleProcessor}s. */
   public static class BundleProcessorCache {
 
-    private final Map<String, ConcurrentLinkedQueue<BundleProcessor>> cachedBundleProcessors;
+    private final LoadingCache<String, ConcurrentLinkedQueue<BundleProcessor>>
+        cachedBundleProcessors;
     private final Map<String, BundleProcessor> activeBundleProcessors;
 
     @Override
@@ -547,14 +630,36 @@ public class ProcessBundleHandler {
     }
 
     BundleProcessorCache() {
-      this.cachedBundleProcessors = Maps.newConcurrentMap();
+      this.cachedBundleProcessors =
+          CacheBuilder.newBuilder()
+              .expireAfterAccess(Duration.ofMinutes(1L))
+              .removalListener(
+                  removalNotification -> {
+                    ((ConcurrentLinkedQueue<BundleProcessor>) removalNotification.getValue())
+                        .forEach(
+                            bundleProcessor -> {
+                              bundleProcessor.shutdown();
+                            });
+                  })
+              .build(
+                  new CacheLoader<String, ConcurrentLinkedQueue<BundleProcessor>>() {
+                    @Override
+                    public ConcurrentLinkedQueue<BundleProcessor> load(String s) throws Exception {
+                      return new ConcurrentLinkedQueue<>();
+                    }
+                  });
       // We specifically use a weak hash map so that references will automatically go out of scope
       // and not need to be freed explicitly from the cache.
       this.activeBundleProcessors = Collections.synchronizedMap(new WeakHashMap<>());
     }
 
+    @VisibleForTesting
     Map<String, ConcurrentLinkedQueue<BundleProcessor>> getCachedBundleProcessors() {
-      return cachedBundleProcessors;
+      return ImmutableMap.copyOf(cachedBundleProcessors.asMap());
+    }
+
+    public Map<String, BundleProcessor> getActiveBundleProcessors() {
+      return ImmutableMap.copyOf(activeBundleProcessors);
     }
 
     /**
@@ -570,8 +675,7 @@ public class ProcessBundleHandler {
         String instructionId,
         Supplier<BundleProcessor> bundleProcessorSupplier) {
       ConcurrentLinkedQueue<BundleProcessor> bundleProcessors =
-          cachedBundleProcessors.computeIfAbsent(
-              bundleDescriptorId, descriptorId -> new ConcurrentLinkedQueue<>());
+          cachedBundleProcessors.getUnchecked(bundleDescriptorId);
       BundleProcessor bundleProcessor = bundleProcessors.poll();
       if (bundleProcessor == null) {
         bundleProcessor = bundleProcessorSupplier.get();
@@ -586,13 +690,13 @@ public class ProcessBundleHandler {
      * Finds an active bundle processor for the specified {@code instructionId} or null if one could
      * not be found.
      */
-    BundleProcessor find(String instructionId) {
+    public BundleProcessor find(String instructionId) {
       return activeBundleProcessors.get(instructionId);
     }
 
     /**
-     * Add a {@link BundleProcessor} to cache. The {@link BundleProcessor} will be reset before
-     * being added to the cache and will be marked as inactive.
+     * Add a {@link BundleProcessor} to cache. The {@link BundleProcessor} will be marked as
+     * inactive and reset before being added to the cache.
      */
     void release(String bundleDescriptorId, BundleProcessor bundleProcessor) {
       activeBundleProcessors.remove(bundleProcessor.getInstructionId());
@@ -607,18 +711,14 @@ public class ProcessBundleHandler {
       }
     }
 
+    /** Discard an active {@link BundleProcessor} instead of being re-used. */
+    void discard(BundleProcessor bundleProcessor) {
+      activeBundleProcessors.remove(bundleProcessor.getInstructionId());
+    }
+
     /** Shutdown all the cached {@link BundleProcessor}s, running the tearDown() functions. */
     void shutdown() throws Exception {
-      for (ConcurrentLinkedQueue<BundleProcessor> bundleProcessors :
-          cachedBundleProcessors.values()) {
-        for (BundleProcessor bundleProcessor : bundleProcessors) {
-          for (ThrowingRunnable tearDownFunction : bundleProcessor.getTearDownFunctions()) {
-            LOG.debug("Tearing down function {}", tearDownFunction);
-            tearDownFunction.run();
-          }
-        }
-      }
-      cachedBundleProcessors.clear();
+      cachedBundleProcessors.invalidateAll();
     }
   }
 
@@ -674,7 +774,7 @@ public class ProcessBundleHandler {
 
     abstract MetricsContainerStepMap getMetricsContainerRegistry();
 
-    abstract ExecutionStateTracker getStateTracker();
+    public abstract ExecutionStateTracker getStateTracker();
 
     abstract HandleStateCallsForBundle getBeamFnStateClient();
 
@@ -684,25 +784,40 @@ public class ProcessBundleHandler {
 
     abstract Collection<BeamFnDataReadRunner> getChannelRoots();
 
-    String getInstructionId() {
+    synchronized String getInstructionId() {
       return this.instructionId;
     }
 
-    void setInstructionId(String instructionId) {
+    synchronized void setInstructionId(String instructionId) {
       this.instructionId = instructionId;
     }
 
     void reset() throws Exception {
+      setInstructionId(null);
       getStartFunctionRegistry().reset();
       getFinishFunctionRegistry().reset();
       getSplitListener().clear();
       getpCollectionConsumerRegistry().reset();
       getMetricsContainerRegistry().reset();
       getStateTracker().reset();
-      ExecutionStateSampler.instance().reset();
+      getQueueingClient().reset();
       getBundleFinalizationCallbackRegistrations().clear();
       for (ThrowingRunnable resetFunction : getResetFunctions()) {
         resetFunction.run();
+      }
+    }
+
+    void shutdown() {
+      for (ThrowingRunnable tearDownFunction : getTearDownFunctions()) {
+        LOG.debug("Tearing down function {}", tearDownFunction);
+        try {
+          tearDownFunction.run();
+        } catch (Exception e) {
+          LOG.error(
+              "Exceptions are thrown from DoFn.teardown method. Note that it will not fail the"
+                  + " pipeline execution,",
+              e);
+        }
       }
     }
   }

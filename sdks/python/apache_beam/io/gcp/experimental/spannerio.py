@@ -168,8 +168,6 @@ size is not larger than the "max_batch_size_bytes", after this process, all the
 mutation groups together to process. If the Mutation references a table or
 column does not exits, it will cause a exception and fails the entire pipeline.
 """
-from __future__ import absolute_import
-
 import typing
 from collections import deque
 from collections import namedtuple

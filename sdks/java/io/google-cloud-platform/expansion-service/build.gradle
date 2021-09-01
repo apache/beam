@@ -32,6 +32,8 @@ ext.summary = "Expansion service serving GCP Java IOs"
 
 dependencies {
     compile project(":sdks:java:expansion-service")
+    permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
     compile project(":sdks:java:io:google-cloud-platform")
+    permitUnusedDeclared project(":sdks:java:io:google-cloud-platform") // BEAM-11761
     runtime library.java.slf4j_jdk14
 }

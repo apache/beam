@@ -30,13 +30,14 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 )
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*sourceFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*SourceConfig)(nil)).Elem())
 }
 
 // Source creates a synthetic source transform that emits randomly

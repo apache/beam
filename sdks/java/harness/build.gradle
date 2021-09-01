@@ -27,13 +27,13 @@ def dependOnProjects = [":sdks:java:fn-execution",
                         ":runners:core-java", ":runners:core-construction-java"]
 
 applyJavaNature(
-  enableStrictDependencies: true,
   classesTriggerCheckerBugs: [
     'AssignWindowsRunner': 'https://github.com/typetools/checker-framework/issues/3794',
     'WindowMergingFnRunner': 'https://github.com/typetools/checker-framework/issues/3794',
   ],
   automaticModuleName: 'org.apache.beam.fn.harness',
   validateShadowJar: false,
+  enableJmh: true,
   testShadowJar: true,
   shadowClosure:
   // Create an uber jar without repackaging for the SDK harness
@@ -67,10 +67,12 @@ dependencies {
   shadowTest library.java.powermock_mockito
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":runners:core-construction-java")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
+  jmhCompile project(path: ":sdks:java:harness", configuration: "shadowTest")
+  jmhRuntime library.java.slf4j_jdk14
 }

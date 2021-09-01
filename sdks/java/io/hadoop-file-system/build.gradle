@@ -20,7 +20,6 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.hdfs')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
@@ -71,6 +70,13 @@ hadoopVersions.each {kv ->
       force "org.apache.hadoop:hadoop-hdfs:$kv.value:tests"
       force library.java.slf4j_jdk14
     }
+  }
+}
+
+// Hadoop dependencies require old version of Guava (BEAM-11626)
+configurations.all {
+  resolutionStrategy {
+    force 'com.google.guava:guava:25.1-jre'
   }
 }
 

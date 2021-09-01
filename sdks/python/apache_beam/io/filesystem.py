@@ -24,9 +24,6 @@ Note to implementors:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import abc
 import bz2
 import io
@@ -36,17 +33,11 @@ import posixpath
 import re
 import time
 import zlib
-from builtins import object
-from builtins import zip
 from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Tuple
-
-from future.utils import with_metaclass
-from past.builtins import long
-from past.builtins import unicode
 
 from apache_beam.utils.plugin import BeamPlugin
 
@@ -211,9 +202,7 @@ class CompressedFile(object):
     if compressed:
       self._file.write(compressed)
 
-  def _fetch_to_internal_buffer(self, num_bytes):
-    # type: (int) -> None
-
+  def _fetch_to_internal_buffer(self, num_bytes: int) -> None:
     """Fetch up to num_bytes into the internal buffer."""
     if (not self._read_eof and self._read_position > 0 and
         (self._read_buffer.tell() - self._read_position) < num_bytes):
@@ -225,6 +214,7 @@ class CompressedFile(object):
       self._clear_read_buffer()
       self._read_buffer.write(data)
 
+    assert self._decompressor
     while not self._read_eof and (self._read_buffer.tell() -
                                   self._read_position) < num_bytes:
       # Continue reading from the underlying file object until enough bytes are
@@ -298,23 +288,22 @@ class CompressedFile(object):
 
     return bytes_io.getvalue()
 
-  def closed(self):
-    # type: () -> bool
-    return not self._file or self._file.closed()
+  def closed(self) -> bool:
+    return not self._file or self._file.closed
 
-  def close(self):
-    # type: () -> None
+  def close(self) -> None:
     if self.readable():
       self._read_buffer.close()
 
     if self.writeable():
+      assert self._compressor
       self._file.write(self._compressor.flush())
 
     self._file.close()
 
-  def flush(self):
-    # type: () -> None
+  def flush(self) -> None:
     if self.writeable():
+      assert self._compressor
       self._file.write(self._compressor.flush())
     self._file.flush()
 
@@ -435,8 +424,8 @@ class CompressedFile(object):
 class FileMetadata(object):
   """Metadata about a file path that is the output of FileSystem.match."""
   def __init__(self, path, size_in_bytes):
-    assert isinstance(path, (str, unicode)) and path, "Path should be a string"
-    assert isinstance(size_in_bytes, (int, long)) and size_in_bytes >= 0, \
+    assert isinstance(path, str) and path, "Path should be a string"
+    assert isinstance(size_in_bytes, int) and size_in_bytes >= 0, \
         "Invalid value for size_in_bytes should %s (of type %s)" % (
             size_in_bytes, type(size_in_bytes))
     self.path = path
@@ -451,10 +440,6 @@ class FileMetadata(object):
 
   def __hash__(self):
     return hash((self.path, self.size_in_bytes))
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __repr__(self):
     return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes)
@@ -487,7 +472,7 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
-class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
+class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to

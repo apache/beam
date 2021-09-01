@@ -17,11 +17,15 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.BEAM_SOURCE_OPTION;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.DEFAULT_PARALLELISM;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.PIPELINE_OPTIONS;
+
 import java.io.IOException;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -43,7 +47,7 @@ class ReadSourceTranslatorBatch<T>
   @SuppressWarnings("unchecked")
   @Override
   public void translateTransform(
-      PTransform<PBegin, PCollection<T>> transform, TranslationContext context) {
+      PTransform<PBegin, PCollection<T>> transform, AbstractTranslationContext context) {
     AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> rootTransform =
         (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
             context.getCurrentTransform();
@@ -61,12 +65,12 @@ class ReadSourceTranslatorBatch<T>
         sparkSession
             .read()
             .format(sourceProviderClass)
-            .option(DatasetSourceBatch.BEAM_SOURCE_OPTION, serializedSource)
+            .option(BEAM_SOURCE_OPTION, serializedSource)
             .option(
-                DatasetSourceBatch.DEFAULT_PARALLELISM,
+                DEFAULT_PARALLELISM,
                 String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
             .option(
-                DatasetSourceBatch.PIPELINE_OPTIONS, context.getSerializableOptions().toString())
+                PIPELINE_OPTIONS, context.getSerializableOptions().toString())
             .load();
 
     // extract windowedValue from Row

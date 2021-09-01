@@ -21,10 +21,10 @@ import (
 	"math"
 	"path"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // PairWithRestriction is an executor for the expanded SDF step of the same
@@ -172,13 +172,13 @@ func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *Full
 	mainElm := elm.Elm.(*FullValue)
 
 	splitRests := n.splitInv.Invoke(mainElm, rest)
-	if len(splitRests) == 0 {
-		err := errors.Errorf("initial splitting returned 0 restrictions.")
-		return errors.WithContextf(err, "%v", n)
-	}
 
 	for _, splitRest := range splitRests {
 		size := n.sizeInv.Invoke(mainElm, splitRest)
+		if size < 0 {
+			err := errors.Errorf("size returned expected to be non-negative but received %v.", size)
+			return errors.WithContextf(err, "%v", n)
+		}
 		output := &FullValue{}
 
 		output.Timestamp = elm.Timestamp
@@ -475,8 +475,14 @@ func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64) ([]*F
 		return []*FullValue{}, []*FullValue{}, nil
 	}
 
-	pfv := n.newSplitResult(p, n.elm.Windows)
-	rfv := n.newSplitResult(r, n.elm.Windows)
+	pfv, err := n.newSplitResult(p, n.elm.Windows)
+	if err != nil {
+		return nil, nil, err
+	}
+	rfv, err := n.newSplitResult(r, n.elm.Windows)
+	if err != nil {
+		return nil, nil, err
+	}
 	return []*FullValue{pfv}, []*FullValue{rfv}, nil
 }
 
@@ -548,16 +554,32 @@ func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64) ([]*
 
 	// Split of currently processing restriction in a single window.
 	ps := make([]*FullValue, 1)
-	ps[0] = n.newSplitResult(p, n.elm.Windows[n.currW:n.currW+1])
+	newP, err := n.newSplitResult(p, n.elm.Windows[n.currW:n.currW+1])
+	if err != nil {
+		return nil, nil, err
+	}
+	ps[0] = newP
 	rs := make([]*FullValue, 1)
-	rs[0] = n.newSplitResult(r, n.elm.Windows[n.currW:n.currW+1])
+	newR, err := n.newSplitResult(r, n.elm.Windows[n.currW:n.currW+1])
+	if err != nil {
+		return nil, nil, err
+	}
+	rs[0] = newR
 	// Window boundary split surrounding the split restriction above.
 	full := n.elm.Elm.(*FullValue).Elm2
 	if 0 < n.currW {
-		ps = append(ps, n.newSplitResult(full, n.elm.Windows[0:n.currW]))
+		newP, err := n.newSplitResult(full, n.elm.Windows[0:n.currW])
+		if err != nil {
+			return nil, nil, err
+		}
+		ps = append(ps, newP)
 	}
 	if n.currW+1 < n.numW {
-		rs = append(rs, n.newSplitResult(full, n.elm.Windows[n.currW+1:n.numW]))
+		newR, err := n.newSplitResult(full, n.elm.Windows[n.currW+1:n.numW])
+		if err != nil {
+			return nil, nil, err
+		}
+		rs = append(rs, newR)
 	}
 	n.numW = n.currW + 1
 	return ps, rs, nil
@@ -572,8 +594,14 @@ func (n *ProcessSizedElementsAndRestrictions) windowBoundarySplit(splitPt int) (
 		return []*FullValue{}, []*FullValue{}, nil
 	}
 	full := n.elm.Elm.(*FullValue).Elm2
-	pFv := n.newSplitResult(full, n.elm.Windows[0:splitPt])
-	rFv := n.newSplitResult(full, n.elm.Windows[splitPt:n.numW])
+	pFv, err := n.newSplitResult(full, n.elm.Windows[0:splitPt])
+	if err != nil {
+		return nil, nil, err
+	}
+	rFv, err := n.newSplitResult(full, n.elm.Windows[splitPt:n.numW])
+	if err != nil {
+		return nil, nil, err
+	}
 	n.numW = splitPt
 	return []*FullValue{pFv}, []*FullValue{rFv}, nil
 }
@@ -582,14 +610,22 @@ func (n *ProcessSizedElementsAndRestrictions) windowBoundarySplit(splitPt int) (
 // element restriction pair based on the currently processing element, but with
 // a modified restriction and windows. Intended for creating primaries and
 // residuals to return as split results.
-func (n *ProcessSizedElementsAndRestrictions) newSplitResult(rest interface{}, w []typex.Window) *FullValue {
+func (n *ProcessSizedElementsAndRestrictions) newSplitResult(rest interface{}, w []typex.Window) (*FullValue, error) {
 	var size float64
 	elm := n.elm.Elm.(*FullValue).Elm
 	if fv, ok := elm.(*FullValue); ok {
 		size = n.sizeInv.Invoke(fv, rest)
+		if size < 0 {
+			err := errors.Errorf("size returned expected to be non-negative but received %v.", size)
+			return nil, errors.WithContextf(err, "%v", n)
+		}
 	} else {
 		fv := &FullValue{Elm: elm}
 		size = n.sizeInv.Invoke(fv, rest)
+		if size < 0 {
+			err := errors.Errorf("size returned expected to be non-negative but received %v.", size)
+			return nil, errors.WithContextf(err, "%v", n)
+		}
 	}
 	return &FullValue{
 		Elm: &FullValue{
@@ -599,7 +635,7 @@ func (n *ProcessSizedElementsAndRestrictions) newSplitResult(rest interface{}, w
 		Elm2:      size,
 		Timestamp: n.elm.Timestamp,
 		Windows:   w,
-	}
+	}, nil
 }
 
 // GetProgress returns the current restriction tracker's progress as a fraction.

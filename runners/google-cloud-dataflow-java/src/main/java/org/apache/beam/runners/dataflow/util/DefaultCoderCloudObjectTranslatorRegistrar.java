@@ -65,6 +65,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
       ImmutableList.of(
           CloudObjectTranslators.globalWindow(),
           CloudObjectTranslators.intervalWindow(),
+          CloudObjectTranslators.customWindow(),
           CloudObjectTranslators.bytes(),
           CloudObjectTranslators.varInt(),
           CloudObjectTranslators.lengthPrefix(),
@@ -74,6 +75,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           new AvroCoderCloudObjectTranslator(),
           new SerializableCoderCloudObjectTranslator(),
           new SchemaCoderCloudObjectTranslator(),
+          new RowCoderCloudObjectTranslator(),
           CloudObjectTranslators.iterableLike(CollectionCoder.class),
           CloudObjectTranslators.iterableLike(ListCoder.class),
           CloudObjectTranslators.iterableLike(SetCoder.class),

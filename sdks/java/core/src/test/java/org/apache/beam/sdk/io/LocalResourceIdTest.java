@@ -48,9 +48,6 @@ import org.junit.runners.JUnit4;
  * <p>TODO: re-enable unicode tests when BEAM-1453 is resolved.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class LocalResourceIdTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();

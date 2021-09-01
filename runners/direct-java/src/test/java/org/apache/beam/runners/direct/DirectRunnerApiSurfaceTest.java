@@ -35,9 +35,6 @@ import org.junit.runners.JUnit4;
 
 /** API surface verification for {@link org.apache.beam.runners.direct}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DirectRunnerApiSurfaceTest {
   @Test
   public void testDirectRunnerApiSurface() throws Exception {

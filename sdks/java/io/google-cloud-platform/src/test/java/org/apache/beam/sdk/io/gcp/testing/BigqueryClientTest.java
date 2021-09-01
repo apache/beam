@@ -42,9 +42,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 /** Tests for {@link BigqueryClient}. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(BigqueryClient.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigqueryClientTest {
   private final String projectId = "test-project";
   private final String query = "test-query";

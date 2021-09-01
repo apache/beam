@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark;
 
+import java.util.Map;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
@@ -502,4 +503,10 @@ public interface NexmarkOptions
   String getInfluxRetentionPolicy();
 
   void setInfluxRetentionPolicy(String influxRetentionPolicy);
+
+  @Description("Additional tags for Influx data")
+  @Nullable
+  Map<String, String> getInfluxTags();
+
+  void setInfluxTags(Map<String, String> influxTags);
 }

@@ -36,9 +36,6 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link JavaBinCodecCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JavaBinCodecCoderTest {
   private static final Coder<SolrDocument> TEST_CODER = JavaBinCodecCoder.of(SolrDocument.class);
   private static final List<SolrDocument> TEST_VALUES = new ArrayList<>();

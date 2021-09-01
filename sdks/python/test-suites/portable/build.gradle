@@ -25,6 +25,12 @@ task flinkValidatesRunner {
   }
 }
 
+task samzaValidatesRunner {
+  getVersionsAsList('samza_validates_runner_postcommit_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:samzaValidatesRunner")
+  }
+}
+
 task flinkValidatesRunnerPrecommit {
   getVersionsAsList('flink_validates_runner_precommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:flinkValidatesRunner")

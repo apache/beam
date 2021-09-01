@@ -31,9 +31,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for functions in {@link IOITHelper}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class IOITHelperTest {
   private static long startTimeMeasure;
   private static String message = "";

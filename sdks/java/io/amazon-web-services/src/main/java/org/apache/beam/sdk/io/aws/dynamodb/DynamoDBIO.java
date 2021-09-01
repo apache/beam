@@ -255,10 +255,19 @@ public final class DynamoDBIO {
       @ProcessElement
       public void processElement(@Element Read<T> spec, OutputReceiver<T> out) {
         AmazonDynamoDB client = spec.getAwsClientsProvider().createDynamoDB();
-        ScanRequest scanRequest = spec.getScanRequestFn().apply(null);
-        scanRequest.setSegment(spec.getSegmentId());
-        ScanResult scanResult = client.scan(scanRequest);
-        out.output(spec.getScanResultMapperFn().apply(scanResult));
+        Map<String, AttributeValue> lastEvaluatedKey = null;
+
+        do {
+          ScanRequest scanRequest = spec.getScanRequestFn().apply(null);
+          scanRequest.setSegment(spec.getSegmentId());
+          if (lastEvaluatedKey != null) {
+            scanRequest.withExclusiveStartKey(lastEvaluatedKey);
+          }
+
+          ScanResult scanResult = client.scan(scanRequest);
+          out.output(spec.getScanResultMapperFn().apply(scanResult));
+          lastEvaluatedKey = scanResult.getLastEvaluatedKey();
+        } while (lastEvaluatedKey != null); // iterate until all records are fetched
       }
     }
 

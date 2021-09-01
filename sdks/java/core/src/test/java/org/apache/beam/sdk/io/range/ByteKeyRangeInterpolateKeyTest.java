@@ -34,9 +34,6 @@ import org.junit.runners.Parameterized.Parameters;
  * ByteKeyRange#estimateFractionForKey} by converting the interpolated keys back to fractions.
  */
 @RunWith(Parameterized.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ByteKeyRangeInterpolateKeyTest {
   private static final ByteKey[] TEST_KEYS = ByteKeyRangeTest.RANGE_TEST_KEYS;
 

@@ -56,9 +56,6 @@ or:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 from typing import Any
 from typing import Dict

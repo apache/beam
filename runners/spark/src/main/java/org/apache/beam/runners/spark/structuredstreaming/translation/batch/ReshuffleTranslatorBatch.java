@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.transforms.Reshuffle;
 
 /** TODO: Should be removed if {@link Reshuffle} won't be translated. */
 class ReshuffleTranslatorBatch<K, InputT> implements TransformTranslator<Reshuffle<K, InputT>> {
 
   @Override
-  public void translateTransform(Reshuffle<K, InputT> transform, TranslationContext context) {}
+  public void translateTransform(Reshuffle<K, InputT> transform, AbstractTranslationContext context) {}
 }

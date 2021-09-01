@@ -30,9 +30,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link FieldAccessDescriptor}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FieldAccessDescriptorTest {
   private static final Schema SIMPLE_SCHEMA =
       Schema.builder()

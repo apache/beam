@@ -88,9 +88,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TextIO.Write}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TextIOWriteTest {
   private static final String MY_HEADER = "myHeader";
   private static final String MY_FOOTER = "myFooter";
@@ -690,20 +687,6 @@ public class TextIOWriteTest {
                 .apply("Match All", FileIO.matchAll())
                 .apply("Read Matches", FileIO.readMatches())
                 .apply("Read Files", TextIO.readFiles()))
-        .containsInAnyOrder(data);
-
-    PAssert.that(
-            p.apply("Create Data ReadAll", Create.of(data))
-                .apply(
-                    "Write ReadAll",
-                    FileIO.<String>write()
-                        .to(tempFolder.getRoot().toString())
-                        .withSuffix(".txt")
-                        .via(TextIO.sink())
-                        .withIgnoreWindowing())
-                .getPerDestinationOutputFilenames()
-                .apply("Extract Values ReadAll", Values.create())
-                .apply("Read All", TextIO.readAll()))
         .containsInAnyOrder(data);
 
     p.run();

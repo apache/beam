@@ -18,9 +18,9 @@ package graphx
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
 
 // mergeExpandedWithPipeline adds expanded components of all ExternalTransforms to the existing pipeline
@@ -28,49 +28,47 @@ func mergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	// Adding Expanded transforms to their counterparts in the Pipeline
 
 	for _, e := range edges {
-		if e.Op == graph.External {
-			exp := e.External.Expanded
-			if exp == nil {
+		if e.Op != graph.External || e.External == nil || e.External.Expanded == nil {
+			continue
+		}
+		exp := e.External.Expanded
+		id := fmt.Sprintf("e%v", e.ID())
+
+		p.Requirements = append(p.Requirements, exp.Requirements...)
+
+		// Adding components of the Expanded Transforms to the current Pipeline
+		components, err := ExpandedComponents(exp)
+		if err != nil {
+			panic(err)
+		}
+		for k, v := range components.GetTransforms() {
+			p.Components.Transforms[k] = v
+		}
+		for k, v := range components.GetPcollections() {
+			p.Components.Pcollections[k] = v
+		}
+		for k, v := range components.GetWindowingStrategies() {
+			p.Components.WindowingStrategies[k] = v
+		}
+		for k, v := range components.GetCoders() {
+			p.Components.Coders[k] = v
+		}
+		for k, v := range components.GetEnvironments() {
+			if k == defaultEnvId {
+				// This case is not an anomaly. It is expected to be always
+				// present. Any initial ExpansionRequest will have a
+				// component which requires the default environment. Scoping
+				// using unique namespace prevents collision.
 				continue
 			}
-			id := fmt.Sprintf("e%v", e.ID())
-
-			p.Requirements = append(p.Requirements, exp.Requirements...)
-
-			// Adding components of the Expanded Transforms to the current Pipeline
-			components, err := ExpandedComponents(exp)
-			if err != nil {
-				panic(err)
-			}
-			for k, v := range components.GetTransforms() {
-				p.Components.Transforms[k] = v
-			}
-			for k, v := range components.GetPcollections() {
-				p.Components.Pcollections[k] = v
-			}
-			for k, v := range components.GetWindowingStrategies() {
-				p.Components.WindowingStrategies[k] = v
-			}
-			for k, v := range components.GetCoders() {
-				p.Components.Coders[k] = v
-			}
-			for k, v := range components.GetEnvironments() {
-				if k == defaultEnvId {
-					// This case is not an anomaly. It is expected to be always
-					// present. Any initial ExpansionRequest will have a
-					// component which requires the default environment. Scoping
-					// using unique namespace prevents collision.
-					continue
-				}
-				p.Components.Environments[k] = v
-			}
-
-			transform, err := ExpandedTransform(exp)
-			if err != nil {
-				panic(err)
-			}
-			p.Components.Transforms[id] = transform
+			p.Components.Environments[k] = v
 		}
+
+		transform, err := ExpandedTransform(exp)
+		if err != nil {
+			panic(err)
+		}
+		p.Components.Transforms[id] = transform
 	}
 }
 
@@ -83,30 +81,28 @@ func purgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 
 	// Generating map (oldID -> newID) of outputs to be purged
 	for _, e := range edges {
-		if e.Op == graph.External {
-			if e.External.Expanded == nil {
-				continue
-			}
-			for tag, n := range ExternalOutputs(e) {
-				nodeID := fmt.Sprintf("n%v", n.ID())
+		if e.Op != graph.External || e.External == nil || e.External.Expanded == nil {
+			continue
+		}
+		for tag, n := range ExternalOutputs(e) {
+			nodeID := fmt.Sprintf("n%v", n.ID())
 
-				transform, err := ExpandedTransform(e.External.Expanded)
-				if err != nil {
-					panic(err)
-				}
-				expandedOutputs := transform.GetOutputs()
-				var pcolID string
-				if tag == graph.UnnamedOutputTag {
-					for _, pcolID = range expandedOutputs {
-						// easiest way to access map with one entry (key,value)
-					}
-				} else {
-					pcolID = expandedOutputs[tag]
-				}
-
-				idxMap[nodeID] = pcolID
-				delete(components.Pcollections, nodeID)
+			transform, err := ExpandedTransform(e.External.Expanded)
+			if err != nil {
+				panic(err)
 			}
+			expandedOutputs := transform.GetOutputs()
+			var pcolID string
+			if tag == graph.UnnamedOutputTag {
+				for _, pcolID = range expandedOutputs {
+					// easiest way to access map with one entry (key,value)
+				}
+			} else {
+				pcolID = expandedOutputs[tag]
+			}
+
+			idxMap[nodeID] = pcolID
+			delete(components.Pcollections, nodeID)
 		}
 	}
 
@@ -258,10 +254,14 @@ func ExpandedTransform(exp *graph.ExpandedTransform) (*pipepb.PTransform, error)
 // pcollection) of input nodes with respect to the map (tag -> index of Inbound
 // in MultiEdge.Input) of named inputs
 func ExternalInputs(e *graph.MultiEdge) map[string]*graph.Node {
-	inputs := make(map[string]*graph.Node)
+	return InboundTagToNode(e.External.InputsMap, e.Input)
+}
 
-	for tag, id := range e.External.InputsMap {
-		inputs[tag] = e.Input[id].From
+// InboundTagToNode relates the tags from inbound links to their respective nodes.
+func InboundTagToNode(inputsMap map[string]int, inbound []*graph.Inbound) map[string]*graph.Node {
+	inputs := make(map[string]*graph.Node)
+	for tag, id := range inputsMap {
+		inputs[tag] = inbound[id].From
 	}
 	return inputs
 }
@@ -270,10 +270,14 @@ func ExternalInputs(e *graph.MultiEdge) map[string]*graph.Node {
 // pcollection) of output nodes with respect to the map (tag -> index of
 // Outbound in MultiEdge.Output) of named outputs
 func ExternalOutputs(e *graph.MultiEdge) map[string]*graph.Node {
-	outputs := make(map[string]*graph.Node)
+	return OutboundTagToNode(e.External.OutputsMap, e.Output)
+}
 
-	for tag, id := range e.External.OutputsMap {
-		outputs[tag] = e.Output[id].To
+// OutboundTagToNode relates the tags from outbound links to their respective nodes.
+func OutboundTagToNode(outputsMap map[string]int, outbound []*graph.Outbound) map[string]*graph.Node {
+	outputs := make(map[string]*graph.Node)
+	for tag, id := range outputsMap {
+		outputs[tag] = outbound[id].To
 	}
 	return outputs
 }

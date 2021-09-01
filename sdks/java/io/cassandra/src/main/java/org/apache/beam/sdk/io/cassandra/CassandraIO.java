@@ -1136,6 +1136,11 @@ public class CassandraIO {
       writer.mutate(c.element());
     }
 
+    @FinishBundle
+    public void finishBundle() throws Exception {
+      writer.flush();
+    }
+
     @Teardown
     public void teardown() throws Exception {
       writer.close();
@@ -1159,6 +1164,11 @@ public class CassandraIO {
     @ProcessElement
     public void processElement(ProcessContext c) throws ExecutionException, InterruptedException {
       deleter.mutate(c.element());
+    }
+
+    @FinishBundle
+    public void finishBundle() throws Exception {
+      deleter.flush();
     }
 
     @Teardown
@@ -1269,12 +1279,14 @@ public class CassandraIO {
       }
     }
 
-    void close() throws ExecutionException, InterruptedException {
+    void flush() throws ExecutionException, InterruptedException {
       if (this.mutateFutures.size() > 0) {
         // Waiting for the last in flight async queries to return before finishing the bundle.
         waitForFuturesToFinish();
       }
+    }
 
+    void close() {
       if (session != null) {
         session.close();
       }

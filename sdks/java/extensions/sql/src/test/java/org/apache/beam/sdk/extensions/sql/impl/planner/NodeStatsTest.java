@@ -31,9 +31,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /** This tests the NodeStats Metadata handler and the estimations. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class NodeStatsTest extends BaseRelTest {
   static class UnknownRel extends SingleRel {
     protected UnknownRel(RelOptCluster cluster, RelTraitSet traits, RelNode input) {

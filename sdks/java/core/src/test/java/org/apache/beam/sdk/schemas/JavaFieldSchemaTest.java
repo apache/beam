@@ -80,9 +80,6 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for the {@link JavaFieldSchema} schema provider. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JavaFieldSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final Instant INSTANT = DateTime.parse("1979-03-15").toInstant();

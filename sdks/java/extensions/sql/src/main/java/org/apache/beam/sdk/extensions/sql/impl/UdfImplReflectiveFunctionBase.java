@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -113,8 +114,7 @@ public abstract class UdfImplReflectiveFunctionBase implements Function {
       return add(type, name, false);
     }
 
-    public ParameterListBuilder add(
-        final Class<?> type, final String name, final boolean optional) {
+    public ParameterListBuilder add(final Type type, final String name, final boolean optional) {
       final int ordinal = builder.size();
       builder.add(
           new FunctionParameter() {
@@ -142,7 +142,7 @@ public abstract class UdfImplReflectiveFunctionBase implements Function {
     }
 
     public ParameterListBuilder addMethodParameters(Method method) {
-      final Class<?>[] types = method.getParameterTypes();
+      final Type[] types = method.getGenericParameterTypes();
       for (int i = 0; i < types.length; i++) {
         add(
             types[i],

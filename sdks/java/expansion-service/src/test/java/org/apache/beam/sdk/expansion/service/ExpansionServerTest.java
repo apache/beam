@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.expansion.service;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.is;
 
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.junit.Test;
 
 /** Tests for {@link ExpansionServer}. */
@@ -44,5 +46,21 @@ public class ExpansionServerTest {
     }
     assertThat(expansionServer.getHost(), is("localhost"));
     assertThat(expansionServer.getPort(), greaterThan(0));
+  }
+
+  @Test
+  public void testPassingPipelineArguments() {
+    String[] args = {
+      "--defaultEnvironmentType=PROCESS",
+      "--defaultEnvironmentConfig={\"command\": \"/opt/apache/beam/boot\"}"
+    };
+    ExpansionService service = new ExpansionService(args);
+    assertThat(
+        service
+            .createPipeline()
+            .getOptions()
+            .as(PortablePipelineOptions.class)
+            .getDefaultEnvironmentType(),
+        equalTo("PROCESS"));
   }
 }

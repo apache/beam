@@ -40,9 +40,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FinalizeBundleHandler}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FinalizeBundleHandlerTest {
   private static final String INSTRUCTION_ID = "instructionId";
   private static final InstructionResponse SUCCESSFUL_RESPONSE =

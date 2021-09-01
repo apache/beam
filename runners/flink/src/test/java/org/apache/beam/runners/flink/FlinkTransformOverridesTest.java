@@ -37,6 +37,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
@@ -47,9 +48,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Tests if overrides are properly applied. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FlinkTransformOverridesTest {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -72,7 +70,12 @@ public class FlinkTransformOverridesTest {
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
             AppliedPTransform.of(
-                "writefiles", PValues.expandInput(objs), Collections.emptyMap(), original, p);
+                "writefiles",
+                PValues.expandInput(objs),
+                Collections.emptyMap(),
+                original,
+                ResourceHints.create(),
+                p);
 
     WriteFiles<Object, Void, Object> replacement =
         (WriteFiles<Object, Void, Object>)

@@ -31,9 +31,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Test class for BigQuery sinks. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PerfsToBigQueryTest {
 
   private static final NexmarkQueryName QUERY = NexmarkQueryName.CURRENCY_CONVERSION;

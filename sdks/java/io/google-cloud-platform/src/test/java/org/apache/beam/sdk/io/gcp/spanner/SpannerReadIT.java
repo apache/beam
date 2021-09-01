@@ -54,9 +54,6 @@ import org.junit.runners.JUnit4;
 
 /** End-to-end test of Cloud Spanner Source. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SpannerReadIT {
 
   private static final int MAX_DB_NAME_LENGTH = 30;

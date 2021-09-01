@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 44 44">
+    <path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M22 36.667l-5.5-5.5h-3.666c-1.459 0-2.858-.58-3.89-1.611-1.03-1.032-1.61-2.43-1.61-3.89v-11c0-1.458.58-2.857 1.61-3.888 1.032-1.032 2.431-1.611 3.89-1.611h18.333c1.459 0 2.858.58 3.89 1.61 1.03 1.032 1.61 2.431 1.61 3.89v11c0 1.458-.58 2.857-1.61 3.889-1.032 1.031-2.431 1.61-3.89 1.61h-3.666l-5.5 5.5z"/>
+    <path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M18 15c0 .796.316 1.559.879 2.121.562.563 1.325.879 2.121.879-.796 0-1.559.316-2.121.879C18.316 19.44 18 20.204 18 21c0-.796-.316-1.559-.879-2.121C16.56 18.316 15.796 18 15 18c.796 0 1.559-.316 2.121-.879.563-.562.879-1.325.879-2.121zM26.833 21v3.667M25 22.833h3.667H25z"/>
+</svg>

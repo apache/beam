@@ -30,9 +30,9 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.NullValue;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Value;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.NullValue;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Value;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,9 +42,6 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PipelineOptionsTranslation}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PipelineOptionsTranslationTest {
   /** Tests that translations can round-trip through the proto format. */
   @RunWith(Parameterized.class)

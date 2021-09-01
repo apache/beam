@@ -34,9 +34,6 @@ Available classes:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-from builtins import object
 from typing import Dict
 from typing import Optional
 
@@ -81,10 +78,6 @@ class MetricName(object):
     return (
         self.namespace == other.namespace and self.name == other.name and
         self.urn == other.urn and self.labels == other.labels)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __str__(self):
     if self.urn:

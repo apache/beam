@@ -25,10 +25,6 @@ For internal use only. No backwards compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Optional
 
@@ -109,10 +105,6 @@ class HistogramResult(object):
   def __hash__(self):
     return hash(self.data)
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __repr__(self):
     return '<HistogramResult({})>'.format(
         self.data.histogram.get_percentile_info())
@@ -146,10 +138,6 @@ class HistogramData(object):
 
   def __hash__(self):
     return hash(self.histogram)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __repr__(self):
     return 'HistogramData({})'.format(self.histogram.get_percentile_info())

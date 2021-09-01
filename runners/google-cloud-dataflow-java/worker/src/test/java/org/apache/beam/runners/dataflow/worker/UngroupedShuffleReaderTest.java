@@ -40,9 +40,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for UngroupedShuffleReader. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class UngroupedShuffleReaderTest {
   private static final Instant timestamp = new Instant(123000);
   private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));

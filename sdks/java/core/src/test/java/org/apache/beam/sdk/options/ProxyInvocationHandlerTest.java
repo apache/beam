@@ -36,8 +36,17 @@ import static org.junit.Assume.assumeFalse;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.testing.EqualsTester;
 import java.io.IOException;
 import java.io.NotSerializableException;
@@ -72,9 +81,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link ProxyInvocationHandler}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ProxyInvocationHandlerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -972,6 +978,56 @@ public class ProxyInvocationHandlerTest {
     void setBar(String value);
   }
 
+  public static class JacksonObject {
+    String value;
+  }
+
+  public static class JacksonObjectSerializer extends StdSerializer<JacksonObject> {
+    public JacksonObjectSerializer() {
+      super(JacksonObject.class);
+    }
+
+    @Override
+    public void serialize(JacksonObject value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
+      gen.writeString(value.value);
+    }
+  }
+
+  public static class JacksonObjectDeserializer extends StdDeserializer<JacksonObject> {
+    public JacksonObjectDeserializer() {
+      super(JacksonObject.class);
+    }
+
+    @Override
+    public JacksonObject deserialize(JsonParser p, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
+      JacksonObject obj = new JacksonObject();
+      obj.value = p.getValueAsString();
+      return obj;
+    }
+  }
+
+  public interface JacksonOptions extends PipelineOptions {
+    @JsonSerialize(using = JacksonObjectSerializer.class)
+    @JsonDeserialize(using = JacksonObjectDeserializer.class)
+    JacksonObject getJacksonObject();
+
+    void setJacksonObject(JacksonObject value);
+  }
+
+  @Test
+  public void testJacksonSerializeAndDeserialize() throws Exception {
+    JacksonOptions options = PipelineOptionsFactory.as(JacksonOptions.class);
+    JacksonObject value = new JacksonObject();
+    value.value = "foo";
+
+    options.setJacksonObject(value);
+
+    JacksonOptions deserializedOptions = serializeDeserialize(JacksonOptions.class, options);
+    assertEquals(options.getJacksonObject().value, deserializedOptions.getJacksonObject().value);
+  }
+
   @Test
   public void testDisplayDataExcludesDefaultValues() {
     PipelineOptions options = PipelineOptionsFactory.as(HasDefaults.class);
@@ -995,6 +1051,23 @@ public class ProxyInvocationHandlerTest {
 
     DisplayData data = DisplayData.from(options);
     assertThat(data, not(hasDisplayItem("foo")));
+  }
+
+  @Test
+  public void testDisplayDataExcludesHiddenValues() {
+    HasHidden options = PipelineOptionsFactory.as(HasHidden.class);
+    options.setFoo("bar");
+
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, not(hasDisplayItem("foo")));
+  }
+
+  /** Test interface. */
+  public interface HasHidden extends PipelineOptions {
+    @Hidden
+    String getFoo();
+
+    void setFoo(String value);
   }
 
   @Test

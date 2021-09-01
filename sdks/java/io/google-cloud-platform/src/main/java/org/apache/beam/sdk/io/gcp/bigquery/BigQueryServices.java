@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.core.ApiFuture;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -34,6 +35,13 @@ import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
+import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
+import com.google.cloud.bigquery.storage.v1beta2.WriteStream;
+import com.google.protobuf.Descriptors.Descriptor;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -54,7 +62,7 @@ public interface BigQueryServices extends Serializable {
   StorageClient getStorageClient(BigQueryOptions bqOptions) throws IOException;
 
   /** An interface for the Cloud BigQuery load service. */
-  public interface JobService {
+  public interface JobService extends AutoCloseable {
     /** Start a BigQuery load job. */
     void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
@@ -90,7 +98,7 @@ public interface BigQueryServices extends Serializable {
   }
 
   /** An interface to get, create and delete Cloud BigQuery datasets and tables. */
-  public interface DatasetService {
+  public interface DatasetService extends AutoCloseable {
     /**
      * Gets the specified {@link Table} resource by table ID.
      *
@@ -158,12 +166,54 @@ public interface BigQueryServices extends Serializable {
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
         boolean ignoreUnknownValues,
-        boolean ignoreInsertIds)
+        boolean ignoreInsertIds,
+        List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException;
 
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
+
+    /** Create a Write Stream for use with the Storage Write API. */
+    WriteStream createWriteStream(String tableUrn, WriteStream.Type type)
+        throws IOException, InterruptedException;
+
+    /**
+     * Create an append client for a given Storage API write stream. The stream must be created
+     * first.
+     */
+    StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor)
+        throws Exception;
+
+    /** Flush a given stream up to the given offset. The stream must have type BUFFERED. */
+    ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset)
+        throws IOException, InterruptedException;
+
+    /**
+     * Finalize a write stream. After finalization, no more records can be appended to the stream.
+     */
+    ApiFuture<FinalizeWriteStreamResponse> finalizeWriteStream(String streamName);
+
+    /** Commit write streams of type PENDING. The streams must be finalized before committing. */
+    ApiFuture<BatchCommitWriteStreamsResponse> commitWriteStreams(
+        String tableUrn, Iterable<String> writeStreamNames);
+  }
+
+  /** An interface for appending records to a Storage API write stream. */
+  interface StreamAppendClient extends AutoCloseable {
+    /** Append rows to a Storage API write stream at the given offset. */
+    ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows) throws Exception;
+
+    /**
+     * Pin this object. If close() is called before all pins are removed, the underlying resources
+     * will not be freed until all pins are removed.
+     */
+    void pin();
+
+    /**
+     * Unpin this object. If the object has been closed, this will release any underlying resources.
+     */
+    void unpin() throws Exception;
   }
 
   /**
@@ -181,13 +231,22 @@ public interface BigQueryServices extends Serializable {
 
   /** An interface representing a client object for making calls to the BigQuery Storage API. */
   interface StorageClient extends AutoCloseable {
-    /** Create a new read session against an existing table. */
+    /**
+     * Create a new read session against an existing table. This method variant collects request
+     * count metric, table id in the request.
+     */
     ReadSession createReadSession(CreateReadSessionRequest request);
 
     /** Read rows in the context of a specific read stream. */
     BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request);
 
+    /* This method variant collects request count metric, using the fullTableID metadata. */
+    BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request, String fullTableId);
+
     SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request);
+
+    /* This method variant collects request count metric, using the fullTableID metadata. */
+    SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request, String fullTableId);
 
     /**
      * Close the client object.

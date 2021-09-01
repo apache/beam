@@ -36,9 +36,6 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link StructuredCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class StructuredCoderTest {
 
   /** A coder for nullable {@code Boolean} values that is consistent with equals. */

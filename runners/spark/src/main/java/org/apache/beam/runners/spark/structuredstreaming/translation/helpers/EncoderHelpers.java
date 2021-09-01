@@ -21,17 +21,11 @@ import static org.apache.spark.sql.types.DataTypes.BinaryType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
-import org.apache.spark.sql.catalyst.analysis.GetColumnByOrdinal;
-import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
-import org.apache.spark.sql.catalyst.expressions.BoundReference;
-import org.apache.spark.sql.catalyst.expressions.Cast;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NonSQLExpression;
 import org.apache.spark.sql.catalyst.expressions.UnaryExpression;
@@ -45,7 +39,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.StringContext;
 import scala.collection.JavaConversions;
 import scala.reflect.ClassTag;
-import scala.reflect.ClassTag$;
 
 /** {@link Encoders} utility class. */
 @SuppressWarnings({
@@ -57,19 +50,7 @@ public class EncoderHelpers {
    * generation).
    */
   public static <T> Encoder<T> fromBeamCoder(Coder<T> coder) {
-    Class<? super T> clazz = coder.getEncodedTypeDescriptor().getRawType();
-    ClassTag<T> classTag = ClassTag$.MODULE$.apply(clazz);
-    List<Expression> serializers =
-        Collections.singletonList(
-            new EncodeUsingBeamCoder<>(new BoundReference(0, new ObjectType(clazz), true), coder));
-
-    return new ExpressionEncoder<>(
-        SchemaHelpers.binarySchema(),
-        false,
-        JavaConversions.collectionAsScalaIterable(serializers).toSeq(),
-        new DecodeUsingBeamCoder<>(
-            new Cast(new GetColumnByOrdinal(0, BinaryType), BinaryType), classTag, coder),
-        classTag);
+    return EncoderFactory.fromBeamCoder(coder);
   }
 
   /**

@@ -16,5 +16,5 @@
 # under the License.
 
 influxdb==5.3.0
-Jinja2==2.11.2
+Jinja2==2.11.3
 prettytable==0.7.2

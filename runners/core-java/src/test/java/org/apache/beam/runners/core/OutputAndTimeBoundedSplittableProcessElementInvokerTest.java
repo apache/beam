@@ -52,7 +52,6 @@ import org.junit.rules.ExpectedException;
 /** Tests for {@link OutputAndTimeBoundedSplittableProcessElementInvoker}. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   @Rule public transient ExpectedException e = ExpectedException.none();

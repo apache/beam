@@ -58,7 +58,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -121,6 +120,7 @@ public class PCollectionViews {
    */
   @Deprecated
   public static <T, W extends BoundedWindow> PCollectionView<T> singletonViewUsingVoidKey(
+      TupleTag<MultimapView<Void, T>> tag,
       PCollection<KV<Void, T>> pCollection,
       TypeDescriptorSupplier<T> typeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy,
@@ -129,6 +129,7 @@ public class PCollectionViews {
       Coder<T> defaultValueCoder) {
     return new SimplePCollectionView<>(
         pCollection,
+        tag,
         new SingletonViewFn<>(hasDefault, defaultValue, defaultValueCoder, typeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
@@ -157,11 +158,13 @@ public class PCollectionViews {
    */
   @Deprecated
   public static <T, W extends BoundedWindow> PCollectionView<Iterable<T>> iterableViewUsingVoidKey(
+      TupleTag<MultimapView<Void, T>> tag,
       PCollection<KV<Void, T>> pCollection,
       TypeDescriptorSupplier<T> typeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
+        tag,
         new IterableViewFn<>(typeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
@@ -185,16 +188,35 @@ public class PCollectionViews {
   /**
    * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
    * provided {@link WindowingStrategy}.
+   */
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
+      PCollection<KV<Long, ValueOrMetadata<T, OffsetRange>>> pCollection,
+      TupleTag<Materializations.MultimapView<Long, ValueOrMetadata<T, OffsetRange>>> tag,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        tag,
+        new ListViewFn2<>(typeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
    *
    * @deprecated See {@link #listView}.
    */
   @Deprecated
   public static <T, W extends BoundedWindow> PCollectionView<List<T>> listViewUsingVoidKey(
+      TupleTag<MultimapView<Void, T>> tag,
       PCollection<KV<Void, T>> pCollection,
       TypeDescriptorSupplier<T> typeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
+        tag,
         new ListViewFn<>(typeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
@@ -244,12 +266,14 @@ public class PCollectionViews {
    */
   @Deprecated
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, V>> mapViewUsingVoidKey(
+      TupleTag<MultimapView<Void, KV<K, V>>> tag,
       PCollection<KV<Void, KV<K, V>>> pCollection,
       TypeDescriptorSupplier<K> keyTypeDescriptorSupplier,
       TypeDescriptorSupplier<V> valueTypeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
+        tag,
         new MapViewFn<>(keyTypeDescriptorSupplier, valueTypeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
@@ -280,12 +304,14 @@ public class PCollectionViews {
   @Deprecated
   public static <K, V, W extends BoundedWindow>
       PCollectionView<Map<K, Iterable<V>>> multimapViewUsingVoidKey(
+          TupleTag<MultimapView<Void, KV<K, V>>> tag,
           PCollection<KV<Void, KV<K, V>>> pCollection,
           TypeDescriptorSupplier<K> keyTypeDescriptorSupplier,
           TypeDescriptorSupplier<V> valueTypeDescriptorSupplier,
           WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
+        tag,
         new MultimapViewFn<>(keyTypeDescriptorSupplier, valueTypeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
@@ -313,7 +339,9 @@ public class PCollectionViews {
    * <p>{@link SingletonViewFn} is meant to be removed in the future and replaced with this class.
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  private static class SingletonViewFn2<T> extends ViewFn<IterableView<T>, T> {
+  @Internal
+  public static class SingletonViewFn2<T> extends ViewFn<IterableView<T>, T>
+      implements HasDefaultValue<T> {
     private byte @Nullable [] encodedDefaultValue;
     private transient @Nullable T defaultValue;
     private @Nullable Coder<T> valueCoder;
@@ -351,6 +379,7 @@ public class PCollectionViews {
      *
      * @throws NoSuchElementException if no default was specified.
      */
+    @Override
     public T getDefaultValue() {
       if (!hasDefault) {
         throw new NoSuchElementException("Empty PCollection accessed as a singleton view.");
@@ -394,6 +423,11 @@ public class PCollectionViews {
     }
   }
 
+  @Internal
+  public interface HasDefaultValue<T> {
+    T getDefaultValue();
+  }
+
   /**
    * Implementation which is able to adapt a multimap materialization to a {@code T}.
    *
@@ -403,7 +437,8 @@ public class PCollectionViews {
    */
   @Deprecated
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  public static class SingletonViewFn<T> extends ViewFn<MultimapView<Void, T>, T> {
+  public static class SingletonViewFn<T> extends ViewFn<MultimapView<Void, T>, T>
+      implements HasDefaultValue<T> {
     private byte @Nullable [] encodedDefaultValue;
     private transient @Nullable T defaultValue;
     private @Nullable Coder<T> valueCoder;
@@ -441,6 +476,7 @@ public class PCollectionViews {
      *
      * @throws NoSuchElementException if no default was specified.
      */
+    @Override
     public T getDefaultValue() {
       if (!hasDefault) {
         throw new NoSuchElementException("Empty PCollection accessed as a singleton view.");
@@ -494,7 +530,8 @@ public class PCollectionViews {
    * <p>{@link IterableViewFn} is meant to be removed in the future and replaced with this class.
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  private static class IterableViewFn2<T> extends ViewFn<IterableView<T>, Iterable<T>> {
+  @Internal
+  public static class IterableViewFn2<T> extends ViewFn<IterableView<T>, Iterable<T>> {
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
     public IterableViewFn2(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
@@ -560,7 +597,7 @@ public class PCollectionViews {
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   @VisibleForTesting
-  static class ListViewFn2<T>
+  public static class ListViewFn2<T>
       extends ViewFn<MultimapView<Long, ValueOrMetadata<T, OffsetRange>>, List<T>> {
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
@@ -1004,7 +1041,8 @@ public class PCollectionViews {
    * <p>{@link MultimapViewFn} is meant to be removed in the future and replaced with this class.
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  private static class MultimapViewFn2<K, V>
+  @Internal
+  public static class MultimapViewFn2<K, V>
       extends ViewFn<MultimapView<K, V>, Map<K, Iterable<V>>> {
     private TypeDescriptorSupplier<K> keyTypeDescriptorSupplier;
     private TypeDescriptorSupplier<V> valueTypeDescriptorSupplier;
@@ -1092,7 +1130,8 @@ public class PCollectionViews {
    *
    * <p>{@link MapViewFn} is meant to be removed in the future and replaced with this class.
    */
-  private static class MapViewFn2<K, V> extends ViewFn<MultimapView<K, V>, Map<K, V>> {
+  @Internal
+  public static class MapViewFn2<K, V> extends ViewFn<MultimapView<K, V>, Map<K, V>> {
     private TypeDescriptorSupplier<K> keyTypeDescriptorSupplier;
     private TypeDescriptorSupplier<V> valueTypeDescriptorSupplier;
 
@@ -1203,9 +1242,6 @@ public class PCollectionViews {
         WindowingStrategy<?, W> windowingStrategy) {
       super(pCollection.getPipeline());
       this.pCollection = pCollection;
-      if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
-        throw new IllegalArgumentException("WindowFn of PCollectionView cannot be InvalidWindows");
-      }
       this.windowMappingFn = windowMappingFn;
       this.tag = tag;
       this.windowingStrategy = windowingStrategy;
@@ -1283,7 +1319,13 @@ public class PCollectionViews {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this).add("tag", tag).toString();
+      return MoreObjects.toStringHelper(this)
+          .add("tag", tag)
+          .add("viewFn", viewFn)
+          .add("coder", coder)
+          .add("windowMappingFn", windowMappingFn)
+          .add("pCollection", pCollection)
+          .toString();
     }
 
     @Override

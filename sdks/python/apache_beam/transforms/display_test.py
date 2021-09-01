@@ -19,15 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
 from datetime import datetime
 
 # pylint: disable=ungrouped-imports
 import hamcrest as hc
 from hamcrest.core.base_matcher import BaseMatcher
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -167,7 +164,7 @@ class DisplayDataTest(unittest.TestCase):
     class MyDoFn(beam.DoFn):
       def display_data(self):
         return {
-            'unicode_string': unicode('my string'),
+            'unicode_string': 'my string',
             'unicode_literal_string': u'my literal string'
         }
 

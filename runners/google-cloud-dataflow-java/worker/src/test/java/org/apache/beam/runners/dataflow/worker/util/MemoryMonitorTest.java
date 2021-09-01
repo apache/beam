@@ -39,9 +39,6 @@ import org.junit.runners.JUnit4;
  * Test the memory monitor will block threads when the server is in a (faked) GC thrashing state.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MemoryMonitorTest {
 
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();

@@ -89,7 +89,6 @@ import org.mockito.MockitoAnnotations;
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "unchecked",
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class PartialGroupByKeyParDoFnsTest {
   @Mock private StreamingSideInputFetcher<KV<String, Integer>, BoundedWindow> mockSideInputFetcher;

@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
 
 var (
@@ -51,8 +51,8 @@ type LogicalTypeProvider = func(reflect.Type) (reflect.Type, error)
 
 // Registry retains mappings from go types to Schemas and LogicalTypes.
 type Registry struct {
-	lastShortID     int64
 	typeToSchema    map[reflect.Type]*pipepb.Schema
+	idToType        map[string]reflect.Type
 	syntheticToUser map[reflect.Type]reflect.Type
 
 	logicalTypeProviders  map[reflect.Type]LogicalTypeProvider
@@ -64,12 +64,18 @@ type Registry struct {
 	// ... why don't we treat all types as Logical types?
 	logicalTypes           map[string]LogicalType
 	logicalTypeIdentifiers map[reflect.Type]string
+
+	// toReconcile contains a list of types that have been registered
+	// but not yet processed. Registration actually happens on first
+	// call to ToType or FromType or once Initialize is called on beam.Init.
+	toReconcile []reflect.Type
 }
 
 // NewRegistry creates an initialized LogicalTypeRegistry.
 func NewRegistry() *Registry {
 	return &Registry{
 		typeToSchema:    map[reflect.Type]*pipepb.Schema{},
+		idToType:        map[string]reflect.Type{},
 		syntheticToUser: map[reflect.Type]reflect.Type{},
 
 		logicalTypes:           map[string]LogicalType{},
@@ -85,6 +91,9 @@ func (r *Registry) RegisterLogicalType(lt LogicalType) {
 	_, err := r.reflectTypeToFieldType(st)
 	if err != nil {
 		panic(fmt.Sprintf("LogicalType[%v] has an invalid StorageType %v: %v", lt.ID(), st, err))
+	}
+	if len(lt.ID()) == 0 {
+		panic(fmt.Sprintf("invalid logical type, bad id: %v -> %v", lt.GoType(), lt.StorageType()))
 	}
 	// TODO add duplication checks.
 	r.logicalTypeIdentifiers[lt.GoType()] = lt.ID()

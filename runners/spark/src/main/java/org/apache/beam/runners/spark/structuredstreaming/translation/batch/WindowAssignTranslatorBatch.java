@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -36,7 +36,7 @@ class WindowAssignTranslatorBatch<T>
 
   @Override
   public void translateTransform(
-      PTransform<PCollection<T>, PCollection<T>> transform, TranslationContext context) {
+      PTransform<PCollection<T>, PCollection<T>> transform, AbstractTranslationContext context) {
 
     Window.Assign<T> assignTransform = (Window.Assign<T>) transform;
     @SuppressWarnings("unchecked")

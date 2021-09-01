@@ -16,8 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import concurrent.futures
 import itertools
 import logging
@@ -29,12 +27,12 @@ import tempfile
 import threading
 import time
 import traceback
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import List
 from typing import Optional
 
 import grpc
+from google.protobuf import json_format
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.metrics import monitoring_infos
@@ -172,14 +170,16 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
 
 class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
-    """
+  """
   def __init__(
       self,
       worker_command_line,  # type: bytes
       control_address,
+      provision_info,
       worker_id=None):
     self._worker_command_line = worker_command_line
     self._control_address = control_address
+    self._provision_info = provision_info
     self._worker_id = worker_id
 
   def run(self):
@@ -195,11 +195,14 @@ class SubprocessSdkWorker(object):
 
     control_descriptor = text_format.MessageToString(
         endpoints_pb2.ApiServiceDescriptor(url=self._control_address))
+    pipeline_options = json_format.MessageToJson(
+        self._provision_info.provision_info.pipeline_options)
 
     env_dict = dict(
         os.environ,
         CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor,
-        LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor)
+        LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor,
+        PIPELINE_OPTIONS=pipeline_options)
     # only add worker_id when it is set.
     if self._worker_id:
       env_dict['WORKER_ID'] = self._worker_id

@@ -119,7 +119,6 @@ import org.junit.runners.Parameterized;
 /** Tests for AvroIO Read and Write transforms. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class AvroIOTest implements Serializable {
   /** Unit tests. */
@@ -476,6 +475,20 @@ public class AvroIOTest implements Serializable {
                       "ParseFilesGenericRecords",
                       AvroIO.parseFilesGenericRecords(new ParseGenericClass())
                           .withCoder(AvroCoder.of(GenericClass.class))
+                          .withUsesReshuffle(false)
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(values);
+      PAssert.that(
+              path.apply("MatchAllParseFilesGenericRecordsWithShuffle", FileIO.matchAll())
+                  .apply(
+                      "ReadMatchesParseFilesGenericRecordsWithShuffle",
+                      FileIO.readMatches()
+                          .withDirectoryTreatment(FileIO.ReadMatches.DirectoryTreatment.PROHIBIT))
+                  .apply(
+                      "ParseFilesGenericRecordsWithShuffle",
+                      AvroIO.parseFilesGenericRecords(new ParseGenericClass())
+                          .withCoder(AvroCoder.of(GenericClass.class))
+                          .withUsesReshuffle(true)
                           .withDesiredBundleSizeBytes(10)))
           .containsInAnyOrder(values);
       PAssert.that(

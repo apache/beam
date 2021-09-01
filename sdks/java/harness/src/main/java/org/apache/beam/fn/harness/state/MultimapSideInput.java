@@ -20,9 +20,8 @@ package org.apache.beam.fn.harness.state;
 import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.stream.DataStreams;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
 /**
  * An implementation of a multimap side input that utilizes the Beam Fn State API to fetch values.
@@ -71,12 +70,8 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
         .setSideInputId(sideInputId)
         .setWindow(encodedWindow);
 
-    return new LazyCachingIteratorToIterable<>(
-        new DataStreams.DataStreamDecoder(
-            keyCoder,
-            DataStreams.inbound(
-                StateFetchingIterators.readAllStartingFrom(
-                    beamFnStateClient, requestBuilder.build()))));
+    return StateFetchingIterators.readAllAndDecodeStartingFrom(
+        beamFnStateClient, requestBuilder.build(), keyCoder);
   }
 
   @Override
@@ -98,11 +93,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
         .setWindow(encodedWindow)
         .setKey(output.toByteString());
 
-    return new LazyCachingIteratorToIterable<>(
-        new DataStreams.DataStreamDecoder(
-            valueCoder,
-            DataStreams.inbound(
-                StateFetchingIterators.readAllStartingFrom(
-                    beamFnStateClient, requestBuilder.build()))));
+    return StateFetchingIterators.readAllAndDecodeStartingFrom(
+        beamFnStateClient, requestBuilder.build(), valueCoder);
   }
 }

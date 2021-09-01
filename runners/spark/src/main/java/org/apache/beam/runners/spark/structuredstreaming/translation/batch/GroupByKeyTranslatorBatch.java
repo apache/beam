@@ -22,8 +22,8 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.GroupAlsoByWindowViaOutputBufferFn;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.KVHelpers;
@@ -45,7 +45,7 @@ class GroupByKeyTranslatorBatch<K, V>
   @Override
   public void translateTransform(
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> transform,
-      TranslationContext context) {
+      AbstractTranslationContext context) {
 
     @SuppressWarnings("unchecked")
     final PCollection<KV<K, V>> inputPCollection = (PCollection<KV<K, V>>) context.getInput();

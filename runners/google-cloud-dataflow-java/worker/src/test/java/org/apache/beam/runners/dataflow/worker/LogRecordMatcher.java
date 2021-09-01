@@ -25,9 +25,6 @@ import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 
 /** Hamcrest matcher for asserts on {@link LogRecord} instances. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public final class LogRecordMatcher extends TypeSafeMatcher<LogRecord> {
   private final String substring;
   private final Matcher<Level> levelMatcher;

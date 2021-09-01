@@ -26,6 +26,7 @@ data: {
         "org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDrop"
         "org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateExternalTable"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateFunction"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
         "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
@@ -34,8 +35,10 @@ data: {
 
       # List of keywords.
       keywords: [
+        "AGGREGATE"
         "COMMENT"
         "IF"
+        "JAR"
         "LOCATION"
         "TBLPROPERTIES"
       ]
@@ -333,8 +336,10 @@ data: {
         "ZONE"
 
         # added in Beam
+        "AGGREGATE"
         "COMMENT"
         "IF"
+        "JAR"
         "LOCATION"
         "TBLPROPERTIES"
       ]
@@ -348,6 +353,7 @@ data: {
       statementParserMethods: [
         "SqlSetOptionBeam(Span.of(), null)"
         "SqlCreateExternalTable()"
+        "SqlCreateFunction()"
       ]
 
       # List of methods for parsing custom literals.

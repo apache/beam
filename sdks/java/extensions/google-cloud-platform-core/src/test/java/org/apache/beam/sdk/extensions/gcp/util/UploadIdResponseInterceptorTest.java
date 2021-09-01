@@ -32,9 +32,6 @@ import org.junit.runners.JUnit4;
 
 /** A test for {@link org.apache.beam.sdk.extensions.gcp.util.UploadIdResponseInterceptor}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class UploadIdResponseInterceptorTest {
 
   @Rule public ExpectedException expectedException = ExpectedException.none();

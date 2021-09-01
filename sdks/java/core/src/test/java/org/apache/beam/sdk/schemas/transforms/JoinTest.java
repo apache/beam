@@ -40,9 +40,6 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link org.apache.beam.sdk.schemas.transforms.Join}. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JoinTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 

@@ -23,15 +23,11 @@ service.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import numbers
 import sys
 from collections import defaultdict
-
-from future.utils import iteritems
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
@@ -197,7 +193,7 @@ class DataflowMetrics(MetricResults):
       metrics_by_name[metric_key][tentative_or_committed] = metric
 
     # Now we create the MetricResult elements.
-    for metric_key, metric in iteritems(metrics_by_name):
+    for metric_key, metric in metrics_by_name.items():
       attempted = self._get_metric_value(metric['tentative'])
       committed = self._get_metric_value(metric['committed'])
       result.append(

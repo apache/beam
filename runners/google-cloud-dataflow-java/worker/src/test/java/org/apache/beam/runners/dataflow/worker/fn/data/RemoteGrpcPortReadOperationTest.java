@@ -56,9 +56,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link RemoteGrpcPortReadOperation}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class RemoteGrpcPortReadOperationTest {
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);

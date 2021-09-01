@@ -19,16 +19,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import itertools
 import logging
+import queue
 import sys
 import threading
 import traceback
-from builtins import object
-from builtins import range
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -36,9 +33,6 @@ from typing import FrozenSet
 from typing import Optional
 from typing import Set
 from weakref import WeakValueDictionary
-
-from future.moves import queue
-from future.utils import raise_
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.runners.worker import statesampler
@@ -485,7 +479,7 @@ class _ExecutorServiceParallelExecutor(object):
     try:
       if update.exception:
         t, v, tb = update.exc_info
-        raise_(t, v, tb)
+        raise t(v).with_traceback(tb)
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()

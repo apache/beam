@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1.model.Message;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.text.ParseException;
@@ -92,9 +92,9 @@ import org.slf4j.LoggerFactory;
  * <p>Message Listing Message Listing with {@link HL7v2IO.ListHL7v2Messages} supports batch use
  * cases where you want to process all the messages in an HL7v2 store or those matching a
  * filter @see <a
- * href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters</a>
+ * href=>https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters</a>
  * This paginates through results of a Messages.List call @see <a
- * href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list</a>
+ * href=>https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list</a>
  * and outputs directly to a {@link PCollection} of {@link HL7v2Message}. In these use cases, the
  * error handling similar to above is unnecessary because we are listing from the source of truth
  * the pipeline should fail transparently if this transform fails to paginate through all the
@@ -204,7 +204,7 @@ public class HL7v2IO {
    * Read all HL7v2 Messages from a single store matching a filter.
    *
    * @see <a
-   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
+   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
    */
   public static ListHL7v2Messages readWithFilter(String hl7v2Store, String filter) {
     return new ListHL7v2Messages(
@@ -216,7 +216,7 @@ public class HL7v2IO {
    * Read all HL7v2 Messages from a single store matching a filter.
    *
    * @see <a
-   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
+   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
    */
   public static ListHL7v2Messages readWithFilter(
       ValueProvider<String> hl7v2Store, ValueProvider<String> filter) {
@@ -228,7 +228,7 @@ public class HL7v2IO {
    * Read all HL7v2 Messages from a multiple stores matching a filter.
    *
    * @see <a
-   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
+   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
    */
   public static ListHL7v2Messages readAllWithFilter(List<String> hl7v2Stores, String filter) {
     return new ListHL7v2Messages(
@@ -239,7 +239,7 @@ public class HL7v2IO {
    * Read all HL7v2 Messages from a multiple stores matching a filter.
    *
    * @see <a
-   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
+   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
    */
   public static ListHL7v2Messages readAllWithFilter(
       ValueProvider<List<String>> hl7v2Stores, ValueProvider<String> filter) {
@@ -248,7 +248,7 @@ public class HL7v2IO {
 
   /**
    * Write with Messages.Ingest method. @see <a
-   * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/ingest></a>
+   * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/ingest></a>
    *
    * @param hl7v2Store the hl 7 v 2 store
    * @return the write
@@ -264,7 +264,7 @@ public class HL7v2IO {
    * patterns would be {@link PubsubIO#readStrings()} reading a subscription on an HL7v2 Store's
    * notification channel topic or using {@link ListHL7v2Messages} to list HL7v2 message IDs with an
    * optional filter using Ingest write method. @see <a
-   * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list></a>.
+   * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list></a>.
    */
   public static class Read extends PTransform<PCollection<String>, Read.Result> {
 
@@ -410,12 +410,9 @@ public class HL7v2IO {
         }
 
         private Message fetchMessage(HealthcareApiClient client, String msgId)
-            throws IOException, ParseException, IllegalArgumentException, InterruptedException {
-          long startTime = System.currentTimeMillis();
-
+            throws IOException, ParseException, IllegalArgumentException {
           try {
-            com.google.api.services.healthcare.v1beta1.model.Message msg =
-                client.getHL7v2Message(msgId);
+            com.google.api.services.healthcare.v1.model.Message msg = client.getHL7v2Message(msgId);
             if (msg == null) {
               throw new IOException(String.format("GET request for %s returned null", msgId));
             }
@@ -641,7 +638,7 @@ public class HL7v2IO {
     public enum WriteMethod {
       /**
        * Ingest write method. @see <a
-       * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/ingest></a>
+       * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/ingest></a>
        */
       INGEST,
       /**

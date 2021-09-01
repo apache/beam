@@ -22,11 +22,8 @@ the DataflowMetrics class.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import types
 import unittest
-from builtins import object
 
 import mock
 

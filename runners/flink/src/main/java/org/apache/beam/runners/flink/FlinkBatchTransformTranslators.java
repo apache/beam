@@ -95,7 +95,6 @@ import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapOperator;
-import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.configuration.Configuration;
@@ -264,7 +263,7 @@ class FlinkBatchTransformTranslators {
         FlinkBatchTranslationContext context) {
       final WindowingStrategy<?, ?> windowingStrategy =
           context.getInput(transform).getWindowingStrategy();
-      return windowingStrategy.getWindowFn().isNonMerging()
+      return !windowingStrategy.needsMerge()
           && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW
           && windowingStrategy.getWindowFn().windowCoder().consistentWithEquals();
     }
@@ -538,7 +537,7 @@ class FlinkBatchTransformTranslators {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
       }
 
-      if (windowingStrategy.getWindowFn().isNonMerging()) {
+      if (!windowingStrategy.needsMerge()) {
         final FlinkPartialReduceFunction<K, InputT, AccumT, ?> partialReduceFunction =
             new FlinkPartialReduceFunction<>(
                 combineFn,
@@ -772,14 +771,7 @@ class FlinkBatchTransformTranslators {
                 doFnSchemaInformation,
                 sideInputMapping);
 
-        if (FlinkCapabilities.supportsOutputDuringClosing()) {
-          outputDataSet =
-              new FlatMapOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
-        } else {
-          // This can be removed once we drop support for 1.8 and 1.9 versions.
-          outputDataSet =
-              new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
-        }
+        outputDataSet = new FlatMapOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
       }
 
       transformSideInputs(sideInputs, outputDataSet, context);

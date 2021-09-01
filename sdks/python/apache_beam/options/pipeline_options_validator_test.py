@@ -19,11 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
-from builtins import object
 
 from hamcrest import assert_that
 from hamcrest import contains_string
@@ -373,6 +370,64 @@ class SetupTest(unittest.TestCase):
     errors = validator.validate()
     self.assertFalse(errors)
 
+  def test_num_workers_is_positive(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--num_workers=-1',
+        '--worker_region=us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1)
+    self.assertIn('num_workers', errors[0])
+    self.assertIn('-1', errors[0])
+
+  def test_max_num_workers_is_positive(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--max_num_workers=-1',
+        '--worker_region=us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1)
+    self.assertIn('max_num_workers', errors[0])
+    self.assertIn('-1', errors[0])
+
+  def test_num_workers_cannot_exceed_max_num_workers(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--num_workers=43',
+        '--max_num_workers=42',
+        '--worker_region=us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1)
+    self.assertIn('num_workers', errors[0])
+    self.assertIn('43', errors[0])
+    self.assertIn('max_num_workers', errors[0])
+    self.assertIn('42', errors[0])
+
+  def test_num_workers_can_equal_max_num_workers(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--num_workers=42',
+        '--max_num_workers=42',
+        '--worker_region=us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
+
   def test_zone_and_worker_region_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
     options = PipelineOptions([
@@ -479,6 +534,54 @@ class SetupTest(unittest.TestCase):
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertEqual(len(errors), 0)
+
+  def test_alias_sdk_container_to_worker_harness(self):
+    runner = MockRunners.DataflowRunner()
+    test_image = "SDK_IMAGE"
+    options = PipelineOptions([
+        '--sdk_container_image=%s' % test_image,
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
+    self.assertEqual(
+        options.view_as(WorkerOptions).worker_harness_container_image,
+        test_image)
+    self.assertEqual(
+        options.view_as(WorkerOptions).sdk_container_image, test_image)
+
+  def test_alias_worker_harness_sdk_container_image(self):
+    runner = MockRunners.DataflowRunner()
+    test_image = "WORKER_HARNESS"
+    options = PipelineOptions([
+        '--worker_harness_container_image=%s' % test_image,
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
+    self.assertEqual(
+        options.view_as(WorkerOptions).worker_harness_container_image,
+        test_image)
+    self.assertEqual(
+        options.view_as(WorkerOptions).sdk_container_image, test_image)
+
+  def test_worker_harness_sdk_container_image_mutually_exclusive(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--worker_harness_container_image=WORKER',
+        '--sdk_container_image=SDK_ONLY',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1)
+    self.assertIn('sdk_container_image', errors[0])
+    self.assertIn('worker_harness_container_image', errors[0])
 
   def test_test_matcher(self):
     def get_validator(matcher):

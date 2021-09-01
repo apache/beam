@@ -27,5 +27,5 @@ import org.apache.beam.sdk.transforms.PTransform;
 public interface TransformTranslator<TransformT extends PTransform> extends Serializable {
 
   /** Base class for translators of {@link PTransform}. */
-  void translateTransform(TransformT transform, TranslationContext context);
+  void translateTransform(TransformT transform, AbstractTranslationContext context);
 }

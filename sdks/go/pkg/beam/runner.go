@@ -19,7 +19,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // TODO(herohde) 7/6/2017: do we want to make the selected runner visible to

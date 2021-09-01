@@ -58,7 +58,7 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
   private final WindowingStrategy<?, W> strategy;
 
   public static boolean isSupported(WindowingStrategy<?, ?> strategy) {
-    if (!strategy.getWindowFn().isNonMerging()) {
+    if (strategy.needsMerge()) {
       return false;
     }
 
@@ -127,11 +127,7 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
           windows.put(window.maxTimestamp(), window);
           output.outputWindowedValue(
               KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
-              strategy
-                  .getTimestampCombiner()
-                  .assign(
-                      typedWindow,
-                      strategy.getWindowFn().getOutputTime(e.getTimestamp(), typedWindow)),
+              strategy.getTimestampCombiner().assign(typedWindow, e.getTimestamp()),
               Arrays.asList(window),
               PaneInfo.ON_TIME_AND_ONLY_FIRING);
         }

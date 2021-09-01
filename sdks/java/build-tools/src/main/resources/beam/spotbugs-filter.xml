@@ -64,6 +64,9 @@
     <Class name="~.*AutoValue_.*"/>
   </Match>
   <Match>
+    <Package name="~.*jmh_generated.*"/>
+  </Match>
+  <Match>
     <Package name="org.apache.beam.sdk.extensions.sql.impl.parser.impl"/>
   </Match>
   <Match>
@@ -71,5 +74,8 @@
   </Match>
   <Match>
     <Package name="org.apache.beam.sdk.io.clickhouse.impl.parser"/>
+  </Match>
+  <Match>
+    <Package name="org.apache.beam.sdk.io.gcp.bigquery.protos"/>
   </Match>
 </FindBugsFilter>

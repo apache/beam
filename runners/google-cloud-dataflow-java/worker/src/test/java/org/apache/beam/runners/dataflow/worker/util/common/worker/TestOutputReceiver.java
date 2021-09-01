@@ -30,9 +30,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /** An OutputReceiver that allows the output elements to be retrieved. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestOutputReceiver extends OutputReceiver {
   private static final String OBJECT_COUNTER_NAME = "-ObjectCount";
   private static final String MEAN_BYTE_COUNTER_NAME = "-MeanByteCount";

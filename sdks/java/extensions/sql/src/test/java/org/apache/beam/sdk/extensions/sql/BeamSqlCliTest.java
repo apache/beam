@@ -42,9 +42,6 @@ import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
 
 /** UnitTest for {@link BeamSqlCli}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSqlCliTest {
   @Test
   public void testExecute_createTextTable() throws Exception {

@@ -33,9 +33,6 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for {@link ReifyTimestampAndWindowsParDoFnFactory} */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ReifyTimestampAndWindowsParDoFnFactoryTest {
 
   private <K, V> void verifyReifiedIsInTheSameWindows(WindowedValue<KV<K, V>> elem)

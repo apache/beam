@@ -20,9 +20,6 @@
 # pytype: skip-file
 # mypy: check-untyped-defs
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import contextlib
 import copy
 import itertools
@@ -33,7 +30,6 @@ import subprocess
 import sys
 import threading
 import time
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict
@@ -60,6 +56,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
+from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
 from apache_beam.runners.portability.fn_api_runner import translations
@@ -123,7 +120,7 @@ class FnApiRunner(runner.PipelineRunner):
     """
     super(FnApiRunner, self).__init__()
     self._default_environment = (
-        default_environment or environments.EmbeddedPythonEnvironment())
+        default_environment or environments.EmbeddedPythonEnvironment.default())
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = progress_request_frequency
@@ -160,9 +157,10 @@ class FnApiRunner(runner.PipelineRunner):
     # This is sometimes needed if type checking is disabled
     # to enforce that the inputs (and outputs) of GroupByKey operations
     # are known to be KVs.
-    from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
-    # TODO: Move group_by_key_input_visitor() to a non-dataflow specific file.
-    pipeline.visit(DataflowRunner.group_by_key_input_visitor())
+    pipeline.visit(
+        group_by_key_input_visitor(
+            not options.view_as(pipeline_options.TypeOptions).
+            allow_non_deterministic_key_coders))
     self._bundle_repeat = self._bundle_repeat or options.view_as(
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
     pipeline_direct_num_workers = options.view_as(
@@ -176,12 +174,23 @@ class FnApiRunner(runner.PipelineRunner):
     running_mode = \
       options.view_as(pipeline_options.DirectOptions).direct_running_mode
     if running_mode == 'multi_threading':
-      self._default_environment = environments.EmbeddedPythonGrpcEnvironment()
+      self._default_environment = (
+          environments.EmbeddedPythonGrpcEnvironment.default())
     elif running_mode == 'multi_processing':
       command_string = '%s -m apache_beam.runners.worker.sdk_worker_main' \
                     % sys.executable
-      self._default_environment = environments.SubprocessSDKEnvironment(
-          command_string=command_string)
+      self._default_environment = (
+          environments.SubprocessSDKEnvironment.from_command_string(
+              command_string=command_string))
+
+    if running_mode == 'in_memory' and self._num_workers != 1:
+      _LOGGER.warning(
+          'If direct_num_workers is not equal to 1, direct_running_mode '
+          'should be `multi_processing` or `multi_threading` instead of '
+          '`in_memory` in order for it to have the desired worker parallelism '
+          'effect. direct_num_workers: %d ; running_mode: %s',
+          self._num_workers,
+          running_mode)
 
     self._profiler_factory = Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
@@ -315,7 +324,7 @@ class FnApiRunner(runner.PipelineRunner):
         phases=[
             translations.annotate_downstream_side_inputs,
             translations.fix_side_input_pcoll_coders,
-            translations.eliminate_common_key_with_none,
+            translations.pack_combiners,
             translations.lift_combiners,
             translations.expand_sdf,
             translations.expand_gbk,
@@ -494,7 +503,14 @@ class FnApiRunner(runner.PipelineRunner):
 
     This function reviews a stage that has just been run. The stage will have
     written timers to its output buffers. The function then takes the timers,
-    and adds them to the `newly_set_timers` dictionary.
+    and adds them to the `newly_set_timers` dictionary, and the
+    timer_watermark_data dictionary.
+
+    The function then returns the following two elements in a tuple:
+    - timer_watermark_data: A dictionary mapping timer family to upcoming
+        timestamp to fire.
+    - newly_set_timers: A dictionary mapping timer family to timer buffers
+        to be passed to the SDK upon firing.
     """
     timer_watermark_data = {}
     newly_set_timers: OutputTimerData = {}
@@ -520,7 +536,7 @@ class FnApiRunner(runner.PipelineRunner):
                                     timer_family_id)] = timestamp.MAX_TIMESTAMP
             timer_watermark_data[(transform_id, timer_family_id)] = min(
                 timer_watermark_data[(transform_id, timer_family_id)],
-                decoded_timer.fire_timestamp)
+                decoded_timer.hold_timestamp)
         newly_set_timers[(transform_id, timer_family_id)] = (
             ListBuffer(coder_impl=timer_coder_impl),
             timer_watermark_data[(transform_id, timer_family_id)])
@@ -558,7 +574,7 @@ class FnApiRunner(runner.PipelineRunner):
           producer_name]
       # We take the output with tag 'out' from the producer transform. The
       # producer transform is a GRPC read, and it has a single output.
-      pcolls_with_delayed_apps.add(transform.outputs['out'])
+      pcolls_with_delayed_apps.add(only_element(transform.outputs.values()))
     return pcolls_with_delayed_apps
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
@@ -769,7 +785,8 @@ class FnApiRunner(runner.PipelineRunner):
     """Builds a dictionary of PCollection (or TimerFamilyId) to timestamp.
 
     Args:
-      stage_inputs: represent the set of expected input PCollections for a stage
+      stage_inputs: represent the set of expected input PCollections for a
+        stage. These do not include timers.
       expected_timers: represent the set of TimerFamilyIds that the stage can
         expect to receive as inputs.
       pcolls_with_da: represent the set of stage input PCollections that had
@@ -792,24 +809,32 @@ class FnApiRunner(runner.PipelineRunner):
         _, pcollection_id = translations.split_buffer_id(buffer_id)
       return pcollection_id
 
+    # Any PCollections that have deferred applications should have their
+    # watermark held back.
     for pcoll in pcolls_with_da:
       updates[pcoll] = timestamp.MIN_TIMESTAMP
 
+    # Also any transforms with splits should have their input PCollection's
+    # watermark held back.
     for tr in transforms_w_splits:
       pcoll_id = get_pcoll_id(tr)
       updates[pcoll_id] = timestamp.MIN_TIMESTAMP
 
-    for timer_pcoll_id, ts in watermarks_by_transform_and_timer_family.items():
-      if timer_pcoll_id not in updates:
-        updates[timer_pcoll_id] = timestamp.MAX_TIMESTAMP
-      updates[timer_pcoll_id] = min(ts, updates[timer_pcoll_id])
-
+    # For all expected stage timers, we have two possible outcomes:
+    # 1) If the stage set a firing time for the timer, then we hold the
+    #    watermark at that time
+    # 2) If the stage did not set a firing time for the timer, then we
+    #    advance the watermark for that timer to MAX_TIMESTAMP.
     for timer_pcoll_id in expected_timers:
-      if timer_pcoll_id not in updates:
-        updates[timer_pcoll_id] = timestamp.MAX_TIMESTAMP
+      updates[timer_pcoll_id] = watermarks_by_transform_and_timer_family.get(
+          timer_pcoll_id, timestamp.MAX_TIMESTAMP)
 
-    for input in stage_inputs:
-      pcoll_id = get_pcoll_id(input)
+    # For any PCollection in the set of stage inputs, if its watermark was not
+    # held back (i.e. there weren't splits in its consumer PTransform, and there
+    # weren't delayed applications of the PCollection's elements), then the
+    # watermark should be advanced to MAX_TIMESTAMP.
+    for transform_id in stage_inputs:
+      pcoll_id = get_pcoll_id(transform_id)
       if pcoll_id not in updates:
         updates[pcoll_id] = timestamp.MAX_TIMESTAMP
     return updates
@@ -846,8 +871,8 @@ class FnApiRunner(runner.PipelineRunner):
     # - Runner-initiated deferred applications of root elements
     deferred_inputs = {}  # type: Dict[str, execution.PartitionableBuffer]
 
-    watermarks_by_transform_and_timer_family, newly_set_timers = self._collect_written_timers(
-        bundle_context_manager)
+    watermarks_by_transform_and_timer_family, newly_set_timers = (
+        self._collect_written_timers(bundle_context_manager))
 
     sdk_pcolls_with_da = self._add_sdk_delayed_applications_to_deferred_inputs(
         bundle_context_manager, result, deferred_inputs)

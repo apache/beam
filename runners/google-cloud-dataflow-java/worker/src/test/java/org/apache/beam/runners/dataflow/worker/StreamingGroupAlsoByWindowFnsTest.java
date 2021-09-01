@@ -75,7 +75,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -87,9 +87,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link StreamingGroupAlsoByWindowsDoFns}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class StreamingGroupAlsoByWindowFnsTest {
   private static final String KEY = "k";
   private static final String STATE_FAMILY = "stateFamily";
@@ -317,16 +314,13 @@ public class StreamingGroupAlsoByWindowFnsTest {
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1")),
                 equalTo(new Instant(2)),
                 equalTo(window(-10, 10))),
-
-            // For this sliding window, the minimum output timestmap was 10, since we didn't want to
-            // overlap with the previous window that was [-10, 10).
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1", "v2")),
-                equalTo(window(-10, 10).maxTimestamp().plus(1)),
+                equalTo(new Instant(2)),
                 equalTo(window(0, 20))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v2")),
-                equalTo(window(0, 20).maxTimestamp().plus(1)),
+                equalTo(new Instant(15)),
                 equalTo(window(10, 30)))));
   }
 
@@ -405,16 +399,13 @@ public class StreamingGroupAlsoByWindowFnsTest {
                 isKv(equalTo(KEY), emptyIterable()),
                 equalTo(window(-10, 10).maxTimestamp()),
                 equalTo(window(-10, 10))),
-
-            // For this sliding window, the minimum output timestmap was 10, since we didn't want to
-            // overlap with the previous window that was [-10, 10).
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1", "v2")),
-                equalTo(window(-10, 10).maxTimestamp().plus(1)),
+                equalTo(new Instant(2)),
                 equalTo(window(0, 20))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v2")),
-                equalTo(window(0, 20).maxTimestamp().plus(1)),
+                equalTo(new Instant(15)),
                 equalTo(window(10, 30)))));
 
     long droppedValues =

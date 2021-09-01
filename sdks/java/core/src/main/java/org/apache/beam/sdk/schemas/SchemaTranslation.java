@@ -37,13 +37,15 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility methods for translating schemas. */
 @Experimental(Kind.SCHEMAS)
@@ -136,6 +138,21 @@ public class SchemaTranslation {
                   .setRepresentation(
                       fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
                   .setUrn(logicalType.getIdentifier());
+        } else if (logicalType instanceof UnknownLogicalType) {
+          logicalTypeBuilder =
+              SchemaApi.LogicalType.newBuilder()
+                  .setUrn(logicalType.getIdentifier())
+                  .setPayload(ByteString.copyFrom(((UnknownLogicalType) logicalType).getPayload()))
+                  .setRepresentation(
+                      fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType));
+
+          if (logicalType.getArgumentType() != null) {
+            logicalTypeBuilder
+                .setArgumentType(
+                    fieldTypeToProto(logicalType.getArgumentType(), serializeLogicalType))
+                .setArgument(
+                    fieldValueToProto(logicalType.getArgumentType(), logicalType.getArgument()));
+          }
         } else {
           logicalTypeBuilder =
               SchemaApi.LogicalType.newBuilder()
@@ -215,7 +232,19 @@ public class SchemaTranslation {
     }
     builder.setOptions(optionsFromProto(protoSchema.getOptionsList()));
     Schema schema = builder.build();
-    schema.setEncodingPositions(encodingLocationMap);
+
+    Preconditions.checkState(encodingLocationMap.size() == schema.getFieldCount());
+    long dinstictEncodingPositions = encodingLocationMap.values().stream().distinct().count();
+    Preconditions.checkState(dinstictEncodingPositions <= schema.getFieldCount());
+    if (dinstictEncodingPositions < schema.getFieldCount() && schema.getFieldCount() > 0) {
+      // This means that encoding positions were not specified in the proto. Generally, we don't
+      // expect this to happen,
+      // but if it does happen, we expect none to be specified - in which case the should all be
+      // zero.
+      Preconditions.checkState(dinstictEncodingPositions == 1);
+    } else if (protoSchema.getEncodingPositionsSet()) {
+      schema.setEncodingPositions(encodingLocationMap);
+    }
     if (!protoSchema.getId().isEmpty()) {
       schema.setUUID(UUID.fromString(protoSchema.getId()));
     }
@@ -313,7 +342,20 @@ public class SchemaTranslation {
                   SerializableUtils.deserializeFromByteArray(
                       protoFieldType.getLogicalType().getPayload().toByteArray(), "logicalType"));
         } else {
-          throw new IllegalArgumentException("Encountered unsupported logical type URN: " + urn);
+          @Nullable FieldType argumentType = null;
+          @Nullable Object argumentValue = null;
+          if (protoFieldType.getLogicalType().hasArgumentType()) {
+            argumentType = fieldTypeFromProto(protoFieldType.getLogicalType().getArgumentType());
+            argumentValue =
+                fieldValueFromProto(argumentType, protoFieldType.getLogicalType().getArgument());
+          }
+          return FieldType.logicalType(
+              new UnknownLogicalType(
+                  urn,
+                  protoFieldType.getLogicalType().getPayload().toByteArray(),
+                  argumentType,
+                  argumentValue,
+                  fieldTypeFromProto(protoFieldType.getLogicalType().getRepresentation())));
         }
       default:
         throw new IllegalArgumentException(

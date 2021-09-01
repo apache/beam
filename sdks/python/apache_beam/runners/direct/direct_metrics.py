@@ -22,10 +22,7 @@ state consistent.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import threading
-from builtins import object
 from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterAggregator

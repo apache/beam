@@ -60,6 +60,11 @@ public class BeamAggregationRule extends RelOptRule {
   public void onMatch(RelOptRuleCall call) {
     final Aggregate aggregate = call.rel(0);
     final Project project = call.rel(1);
+
+    if (aggregate.getGroupType() != Aggregate.Group.SIMPLE) {
+      return;
+    }
+
     RelNode x = updateWindow(call, aggregate, project);
     if (x == null) {
       // Non-windowed case should be handled by the BeamBasicAggregationRule

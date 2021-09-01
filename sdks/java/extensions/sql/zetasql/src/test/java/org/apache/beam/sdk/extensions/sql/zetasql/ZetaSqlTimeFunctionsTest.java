@@ -49,9 +49,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for ZetaSQL time functions (DATE, TIME, DATETIME, and TIMESTAMP functions). */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();

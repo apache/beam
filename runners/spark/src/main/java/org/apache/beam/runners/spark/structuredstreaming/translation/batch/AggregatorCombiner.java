@@ -161,11 +161,7 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
         Tuple2<AccumT, Instant> accumAndInstant =
             new Tuple2<>(
                 accumT,
-                timestampCombiner.assign(
-                    mergedWindowForAccumulator,
-                    windowingStrategy
-                        .getWindowFn()
-                        .getOutputTime(accumulatorWv.getTimestamp(), mergedWindowForAccumulator)));
+                timestampCombiner.assign(mergedWindowForAccumulator, accumulatorWv.getTimestamp()));
         if (mergedWindowToAccumulators.get(mergedWindowForAccumulator) == null) {
           mergedWindowToAccumulators.put(
               mergedWindowForAccumulator, Lists.newArrayList(accumAndInstant));
@@ -238,7 +234,7 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
       throws Exception {
     WindowFn<InputT, W> windowFn = windowingStrategy.getWindowFn();
 
-    if (windowingStrategy.getWindowFn().isNonMerging()) {
+    if (!windowingStrategy.needsMerge()) {
       // Return an empty map, indicating that every window is not merged.
       return Collections.emptyMap();
     }

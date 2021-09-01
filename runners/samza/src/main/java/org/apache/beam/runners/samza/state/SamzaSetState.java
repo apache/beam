@@ -33,4 +33,7 @@ public interface SamzaSetState<T> extends SetState<T> {
    * @return a {@link ReadableState} of an iterator
    */
   ReadableState<Iterator<T>> readIterator();
+
+  /** Closes the iterator returned from {@link SamzaSetState#readIterator()}. */
+  void closeIterators();
 }

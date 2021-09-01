@@ -41,9 +41,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests code common to all offset-based sources. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class OffsetBasedSourceTest {
   // An offset-based source with 4 bytes per offset that yields its own current offset
   // and rounds the start and end offset to the nearest multiple of a given number,

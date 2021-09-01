@@ -20,8 +20,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import errno
 import io
 import logging
@@ -29,7 +27,6 @@ import os
 import re
 import tempfile
 import time
-from builtins import object
 
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream

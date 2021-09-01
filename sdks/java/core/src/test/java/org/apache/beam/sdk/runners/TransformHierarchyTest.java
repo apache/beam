@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -71,9 +72,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TransformHierarchy}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TransformHierarchyTest implements Serializable {
   @Rule
   public final transient TestPipeline pipeline =
@@ -84,7 +82,7 @@ public class TransformHierarchyTest implements Serializable {
 
   @Before
   public void setup() {
-    hierarchy = new TransformHierarchy();
+    hierarchy = new TransformHierarchy(ResourceHints.create());
   }
 
   @Test

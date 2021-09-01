@@ -88,31 +88,37 @@ parameter can be anything, as long as elements can be grouped by it.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import logging
 import random
 import uuid
+from collections import namedtuple
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
 from typing import DefaultDict
 from typing import Dict
+from typing import Iterable
+from typing import List
 from typing import Tuple
-
-from past.builtins import unicode
+from typing import Union
 
 import apache_beam as beam
 from apache_beam.io import filesystem
 from apache_beam.io import filesystems
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
+from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.annotations import experimental
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
@@ -121,11 +127,16 @@ __all__ = [
     'EmptyMatchTreatment',
     'MatchFiles',
     'MatchAll',
+    'MatchContinuously',
     'ReadableFile',
     'ReadMatches'
 ]
 
 _LOGGER = logging.getLogger(__name__)
+
+FileMetadata = namedtuple("FileMetadata", "mime_type compression_type")
+
+CreateFileMetadataFn = Callable[[str, str], FileMetadata]
 
 
 class EmptyMatchTreatment(object):
@@ -154,7 +165,7 @@ class _MatchAllFn(beam.DoFn):
   def __init__(self, empty_match_treatment):
     self._empty_match_treatment = empty_match_treatment
 
-  def process(self, file_pattern):
+  def process(self, file_pattern: str) -> List[filesystem.FileMetadata]:
     # TODO: Should we batch the lookups?
     match_results = filesystems.FileSystems.match([file_pattern])
     match_result = match_results[0]
@@ -175,12 +186,12 @@ class MatchFiles(beam.PTransform):
   of ``FileMetadata`` objects."""
   def __init__(
       self,
-      file_pattern,
+      file_pattern: str,
       empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD):
     self._file_pattern = file_pattern
     self._empty_match_treatment = empty_match_treatment
 
-  def expand(self, pcoll):
+  def expand(self, pcoll) -> beam.PCollection[filesystem.FileMetadata]:
     return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
 
 
@@ -192,30 +203,11 @@ class MatchAll(beam.PTransform):
   def __init__(self, empty_match_treatment=EmptyMatchTreatment.ALLOW):
     self._empty_match_treatment = empty_match_treatment
 
-  def expand(self, pcoll):
+  def expand(
+      self,
+      pcoll: beam.PCollection,
+  ) -> beam.PCollection[filesystem.FileMetadata]:
     return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
-
-
-class _ReadMatchesFn(beam.DoFn):
-  def __init__(self, compression, skip_directories):
-    self._compression = compression
-    self._skip_directories = skip_directories
-
-  def process(self, file_metadata):
-    metadata = (
-        filesystem.FileMetadata(file_metadata, 0) if isinstance(
-            file_metadata, (str, unicode)) else file_metadata)
-
-    if ((metadata.path.endswith('/') or metadata.path.endswith('\\')) and
-        self._skip_directories):
-      return
-    elif metadata.path.endswith('/') or metadata.path.endswith('\\'):
-      raise BeamIOError(
-          'Directories are not allowed in ReadMatches transform.'
-          'Found %s.' % metadata.path)
-
-    # TODO: Mime type? Other arguments? Maybe arguments passed in to transform?
-    yield ReadableFile(metadata, self._compression)
 
 
 class ReadableFile(object):
@@ -238,6 +230,82 @@ class ReadableFile(object):
     return self.open().read().decode('utf-8')
 
 
+class _ReadMatchesFn(beam.DoFn):
+  def __init__(self, compression, skip_directories):
+    self._compression = compression
+    self._skip_directories = skip_directories
+
+  def process(
+      self,
+      file_metadata: Union[str, filesystem.FileMetadata],
+  ) -> Iterable[ReadableFile]:
+    metadata = (
+        filesystem.FileMetadata(file_metadata, 0) if isinstance(
+            file_metadata, str) else file_metadata)
+
+    if ((metadata.path.endswith('/') or metadata.path.endswith('\\')) and
+        self._skip_directories):
+      return
+    elif metadata.path.endswith('/') or metadata.path.endswith('\\'):
+      raise BeamIOError(
+          'Directories are not allowed in ReadMatches transform.'
+          'Found %s.' % metadata.path)
+
+    # TODO: Mime type? Other arguments? Maybe arguments passed in to transform?
+    yield ReadableFile(metadata, self._compression)
+
+
+@experimental()
+class MatchContinuously(beam.PTransform):
+  """Checks for new files for a given pattern every interval.
+
+  This ``PTransform`` returns a ``PCollection`` of matching files in the form
+  of ``FileMetadata`` objects.
+  """
+  def __init__(
+      self,
+      file_pattern,
+      interval=360.0,
+      has_deduplication=True,
+      start_timestamp=Timestamp.now(),
+      stop_timestamp=MAX_TIMESTAMP):
+    """Initializes a MatchContinuously transform.
+
+    Args:
+      file_pattern: The file path to read from.
+      interval: Interval at which to check for files in seconds.
+      has_deduplication: Whether files already read are discarded or not.
+      start_timestamp: Timestamp for start file checking.
+      stop_timestamp: Timestamp after which no more files will be checked.
+    """
+
+    self.file_pattern = file_pattern
+    self.interval = interval
+    self.has_deduplication = has_deduplication
+    self.start_ts = start_timestamp
+    self.stop_ts = stop_timestamp
+
+  def expand(self, pcoll):
+    impulse = pcoll | PeriodicImpulse(
+        start_timestamp=self.start_ts,
+        stop_timestamp=self.stop_ts,
+        fire_interval=self.interval)
+
+    match_files = (
+        impulse
+        | 'GetFilePattern' >> beam.Map(lambda x: self.file_pattern)
+        | MatchAll())
+
+    if self.has_deduplication:
+      match_files = (
+          match_files
+          # Making a Key Value so each file has its own state.
+          | 'ToKV' >> beam.Map(lambda x: (x.path, x))
+          | 'RemoveAlreadyRead' >> beam.ParDo(_RemoveDuplicates()))
+
+    return match_files
+
+
 class ReadMatches(beam.PTransform):
   """Converts each result of MatchFiles() or MatchAll() to a ReadableFile.
 
@@ -246,7 +314,10 @@ class ReadMatches(beam.PTransform):
     self._compression = compression
     self._skip_directories = skip_directories
 
-  def expand(self, pcoll):
+  def expand(
+      self,
+      pcoll: beam.PCollection[Union[str, filesystem.FileMetadata]],
+  ) -> beam.PCollection[ReadableFile]:
     return pcoll | beam.ParDo(
         _ReadMatchesFn(self._compression, self._skip_directories))
 
@@ -263,7 +334,16 @@ class FileSink(object):
    - The ``flush`` method, which flushes any buffered state. This is most often
      called before closing a file (but not exclusively called in that
      situation). The sink is not responsible for closing the file handler.
+  A Sink class can override the following:
+   - The ``create_metadata`` method, which creates all metadata passed to
+     Filesystems.create.
    """
+  def create_metadata(
+      self, destination: str, full_file_name: str) -> FileMetadata:
+    return FileMetadata(
+        mime_type="application/octet-stream",
+        compression_type=CompressionTypes.AUTO)
+
   def open(self, fh):
     # type: (BinaryIO) -> None
     raise NotImplementedError
@@ -516,18 +596,27 @@ class WriteToFiles(beam.PTransform):
     return file_results
 
 
-def _create_writer(base_path, writer_key):
+def _create_writer(
+    base_path,
+    writer_key: Tuple[str, IntervalWindow],
+    create_metadata_fn: CreateFileMetadataFn,
+):
   try:
     filesystems.FileSystems.mkdirs(base_path)
   except IOError:
     # Directory already exists.
     pass
 
+  destination = writer_key[0]
+
   # The file name has a prefix determined by destination+window, along with
   # a random string. This allows us to retrieve orphaned files later on.
   file_name = '%s_%s' % (abs(hash(writer_key)), uuid.uuid4())
   full_file_name = filesystems.FileSystems.join(base_path, file_name)
-  return full_file_name, filesystems.FileSystems.create(full_file_name)
+  metadata = create_metadata_fn(destination, full_file_name)
+  return full_file_name, filesystems.FileSystems.create(
+      full_file_name,
+      **metadata._asdict())
 
 
 class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
@@ -608,9 +697,13 @@ class _WriteShardedRecordsFn(beam.DoFn):
     shard = destination_and_shard[1]
     records = element[1]
 
-    full_file_name, writer = _create_writer(base_path=self.base_path.get(),
-                                            writer_key=(destination, w))
     sink = self.sink_fn(destination)
+
+    full_file_name, writer = _create_writer(
+        base_path=self.base_path.get(),
+        writer_key=(destination, w),
+        create_metadata_fn=sink.create_metadata)
+
     sink.open(writer)
 
     for r in records:
@@ -705,9 +798,12 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
       return None, None
     else:
       # The writer does not exist, but we can still create a new one.
-      full_file_name, writer = _create_writer(base_path=self.base_path.get(),
-                                              writer_key=writer_key)
       sink = self.sink_fn(destination)
+
+      full_file_name, writer = _create_writer(
+          base_path=self.base_path.get(),
+          writer_key=writer_key,
+          create_metadata_fn=sink.create_metadata)
 
       sink.open(writer)
 
@@ -735,3 +831,21 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
               timestamp=key[1].start,
               windows=[key[1]]  # TODO(pabloem) HOW DO WE GET THE PANE
           ))
+
+
+class _RemoveDuplicates(beam.DoFn):
+
+  COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
+
+  def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+
+    path = element[0]
+    file_metadata = element[1]
+    counter = count_state.read()
+
+    if counter == 0:
+      count_state.add(1)
+      _LOGGER.debug('Generated entry for file %s', path)
+      yield file_metadata
+    else:
+      _LOGGER.debug('File %s was already read, seen %d times', path, counter)
