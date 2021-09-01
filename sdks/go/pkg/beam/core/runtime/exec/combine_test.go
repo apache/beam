@@ -197,6 +197,8 @@ func getCombineEdge(t *testing.T, cfn interface{}, kt reflect.Type, ac *coder.Co
 	}
 
 	g := graph.New()
+	g.Root().Label = graph.CombinePerKeyScope
+
 	var vtype reflect.Type
 	if fn.AddInputFn() != nil {
 		// This makes the assumption that the AddInput function is unkeyed.
