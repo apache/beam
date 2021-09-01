@@ -15,7 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 4,
+  "id": 2,
   "links": [],
   "panels": [
     {
@@ -551,7 +551,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "GitHub Actions Post Commit Tests Copy",
-  "uid": "BsovMmVnk",
-  "version": 1
+  "title": "GitHub Actions Post Commit Tests",
+  "uid": "dYwQFp7nk",
+  "version": 103
 }
