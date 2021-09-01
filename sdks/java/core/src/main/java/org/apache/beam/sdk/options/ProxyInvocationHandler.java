@@ -23,14 +23,15 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.beans.PropertyDescriptor;
@@ -42,6 +43,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -508,13 +510,13 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    * @return An object matching the return type of the method passed in.
    */
   private Object getValueFromJson(String propertyName, Method method) {
-    JsonNode jsonNode = jsonOptions.get(propertyName);
-    return getValueFromJson(jsonNode, method);
-  }
-
-  private static Object getValueFromJson(JsonNode node, Method method) {
     try {
-      return PipelineOptionsFactory.deserializeNode(node, method);
+      JavaType type =
+          PipelineOptionsFactory.MAPPER
+              .getTypeFactory()
+              .constructType(method.getGenericReturnType());
+      JsonNode jsonNode = jsonOptions.get(propertyName);
+      return PipelineOptionsFactory.MAPPER.readValue(jsonNode.toString(), type);
     } catch (IOException e) {
       throw new RuntimeException("Unable to parse representation", e);
     }
@@ -652,35 +654,18 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   }
 
   static class Serializer extends JsonSerializer<PipelineOptions> {
-    private void serializeEntry(
-        String name,
-        Object value,
-        JsonGenerator jgen,
-        Map<String, JsonSerializer<Object>> customSerializers)
-        throws IOException {
-
-      JsonSerializer<Object> customSerializer = customSerializers.get(name);
-      if (value == null || customSerializer == null || value instanceof JsonNode) {
-        jgen.writeObject(value);
-      } else {
-        customSerializer.serialize(value, jgen, PipelineOptionsFactory.SERIALIZER_PROVIDER);
-      }
-    }
-
     @Override
     public void serialize(PipelineOptions value, JsonGenerator jgen, SerializerProvider provider)
-        throws IOException {
+        throws IOException, JsonProcessingException {
       ProxyInvocationHandler handler = (ProxyInvocationHandler) Proxy.getInvocationHandler(value);
       synchronized (handler) {
-        PipelineOptionsFactory.Cache cache = PipelineOptionsFactory.CACHE.get();
         // We first filter out any properties that have been modified since
         // the last serialization of this PipelineOptions and then verify that
         // they are all serializable.
         Map<String, BoundValue> filteredOptions = Maps.newHashMap(handler.options);
-        Map<String, JsonSerializer<Object>> propertyToSerializer =
-            getSerializerMap(cache, handler.knownInterfaces);
+        PipelineOptionsFactory.Cache cache = PipelineOptionsFactory.CACHE.get();
         removeIgnoredOptions(cache, handler.knownInterfaces, filteredOptions);
-        ensureSerializable(cache, handler.knownInterfaces, filteredOptions, propertyToSerializer);
+        ensureSerializable(cache, handler.knownInterfaces, filteredOptions);
 
         // Now we create the map of serializable options by taking the original
         // set of serialized options (if any) and updating them with any properties
@@ -692,15 +677,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
         jgen.writeStartObject();
         jgen.writeFieldName("options");
-
-        jgen.writeStartObject();
-
-        for (Map.Entry<String, Object> entry : serializableOptions.entrySet()) {
-          jgen.writeFieldName(entry.getKey());
-          serializeEntry(entry.getKey(), entry.getValue(), jgen, propertyToSerializer);
-        }
-
-        jgen.writeEndObject();
+        jgen.writeObject(serializableOptions);
 
         List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
         DisplayData displayData = DisplayData.from(value);
@@ -715,23 +692,6 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         jgen.writeObject(serializedDisplayData);
         jgen.writeEndObject();
       }
-    }
-
-    private Map<String, JsonSerializer<Object>> getSerializerMap(
-        PipelineOptionsFactory.Cache cache, Set<Class<? extends PipelineOptions>> interfaces) {
-
-      Map<String, JsonSerializer<Object>> propertyToSerializer = Maps.newHashMap();
-      for (PropertyDescriptor descriptor : cache.getPropertyDescriptors(interfaces)) {
-        if (descriptor.getReadMethod() != null) {
-          JsonSerializer<Object> maybeSerializer =
-              PipelineOptionsFactory.getCustomSerializerForMethod(descriptor.getReadMethod());
-          if (maybeSerializer != null) {
-            propertyToSerializer.put(descriptor.getName(), maybeSerializer);
-          }
-        }
-      }
-
-      return propertyToSerializer;
     }
 
     /**
@@ -764,27 +724,27 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     private void ensureSerializable(
         PipelineOptionsFactory.Cache cache,
         Set<Class<? extends PipelineOptions>> interfaces,
-        Map<String, BoundValue> options,
-        Map<String, JsonSerializer<Object>> propertyToSerializer)
+        Map<String, BoundValue> options)
         throws IOException {
       // Construct a map from property name to the return type of the getter.
-      Map<String, Method> propertyToReadMethod = Maps.newHashMap();
+      Map<String, Type> propertyToReturnType = Maps.newHashMap();
       for (PropertyDescriptor descriptor : cache.getPropertyDescriptors(interfaces)) {
         if (descriptor.getReadMethod() != null) {
-          propertyToReadMethod.put(descriptor.getName(), descriptor.getReadMethod());
+          propertyToReturnType.put(
+              descriptor.getName(), descriptor.getReadMethod().getGenericReturnType());
         }
       }
 
       // Attempt to serialize and deserialize each property.
       for (Map.Entry<String, BoundValue> entry : options.entrySet()) {
         try {
-          Object boundValue = entry.getValue().getValue();
-          if (boundValue != null) {
-            TokenBuffer buffer = new TokenBuffer(PipelineOptionsFactory.MAPPER, false);
-            serializeEntry(entry.getKey(), boundValue, buffer, propertyToSerializer);
-            Method method = propertyToReadMethod.get(entry.getKey());
-            getValueFromJson(buffer.asParser().<JsonNode>readValueAsTree(), method);
-          }
+          String serializedValue =
+              PipelineOptionsFactory.MAPPER.writeValueAsString(entry.getValue().getValue());
+          JavaType type =
+              PipelineOptionsFactory.MAPPER
+                  .getTypeFactory()
+                  .constructType(propertyToReturnType.get(entry.getKey()));
+          PipelineOptionsFactory.MAPPER.readValue(serializedValue, type);
         } catch (Exception e) {
           throw new IOException(
               String.format(
@@ -799,7 +759,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   static class Deserializer extends JsonDeserializer<PipelineOptions> {
     @Override
     public PipelineOptions deserialize(JsonParser jp, DeserializationContext ctxt)
-        throws IOException {
+        throws IOException, JsonProcessingException {
       ObjectNode objectNode = jp.readValueAsTree();
       JsonNode rawOptionsNode = objectNode.get("options");
 
