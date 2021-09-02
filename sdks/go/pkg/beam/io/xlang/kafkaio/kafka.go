@@ -48,7 +48,6 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -131,7 +130,7 @@ func Read(s beam.Scope, addr string, servers string, topics []string, opts ...re
 	pl := beam.CrossLanguagePayload(rpl)
 	outT := beam.UnnamedOutput(typex.NewKV(typex.New(rcfg.key), typex.New(rcfg.val)))
 	out := beam.CrossLanguage(s, readURN, pl, addr, nil, outT)
-	return out[graph.UnnamedOutputTag]
+	return out[beam.UnnamedOutputTag()]
 }
 
 type readOption func(*readConfig)
