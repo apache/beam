@@ -25,9 +25,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
 @SuppressWarnings({
@@ -76,8 +76,8 @@ public interface BeamRelNode extends RelNode {
    * estimate its NodeStats, it may need NodeStat of its inputs. However, it should not call this
    * directly (because maybe its inputs are not physical yet). It should call {@link
    * org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils#getNodeStats(
-   * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode,
-   * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery)}
+   * org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode,
+   * org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery)}
    * instead.
    */
   NodeStats estimateNodeStats(RelMetadataQuery mq);

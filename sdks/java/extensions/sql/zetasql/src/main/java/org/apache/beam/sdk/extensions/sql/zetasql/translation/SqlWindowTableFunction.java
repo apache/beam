@@ -20,20 +20,20 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFieldImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelRecordType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlCallBinding;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperandCountRange;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlOperandCountRanges;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelRecordType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlCallBinding;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlFunction;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperandCountRange;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlOperandCountRanges;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.validate.SqlValidator;
 
 /** Base class for table-valued function windowing operator (TUMBLE, HOP and SESSION). */
 @SuppressWarnings({

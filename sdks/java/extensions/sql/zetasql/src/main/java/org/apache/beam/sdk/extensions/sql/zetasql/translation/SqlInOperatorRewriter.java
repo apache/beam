@@ -17,51 +17,29 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
-import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Util;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
-/**
- * Rewrites COALESCE calls as CASE ($case_no_value) calls.
- *
- * <p>Turns <code>COALESCE(a, b, c)</code> into:
- *
- * <pre><code>CASE
- *   WHEN a IS NOT NULL THEN a
- *   WHEN b IS NOT NULL THEN b
- *   ELSE c
- *   END</code></pre>
- *
- * <p>There is also a special case for the single-argument case: <code>COALESCE(a)</code> becomes
- * just <code>a</code>.
- */
-class SqlCoalesceOperatorRewriter implements SqlOperatorRewriter {
+/** Rewrites $in calls as SEARCH calls. */
+class SqlInOperatorRewriter implements SqlOperatorRewriter {
   @Override
   public RexNode apply(RexBuilder rexBuilder, List<RexNode> operands) {
     Preconditions.checkArgument(
-        operands.size() >= 1, "COALESCE should have at least one argument in function call.");
+        operands.size() >= 2, "IN should have at least two arguments in function call.");
+    final RexNode arg = operands.get(0);
+    final List<RexNode> ranges = ImmutableList.copyOf(operands.subList(1, operands.size()));
 
-    // No need for a case operator if there's only one operand
-    if (operands.size() == 1) {
-      return operands.get(0);
+    // ZetaSQL has weird behavior for NULL...
+    for (RexNode node : ranges) {
+      if (node instanceof RexLiteral && ((RexLiteral) node).isNull()) {
+        throw new UnsupportedOperationException("IN NULL unsupported");
+      }
     }
 
-    SqlOperator op = SqlStdOperatorTable.CASE;
-
-    List<RexNode> newOperands = new ArrayList<>();
-    for (RexNode operand : Util.skipLast(operands)) {
-      newOperands.add(
-          rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(operand)));
-      newOperands.add(operand);
-    }
-    newOperands.add(Util.last(operands));
-
-    return rexBuilder.makeCall(op, newOperands);
+    return rexBuilder.makeIn(arg, ranges);
   }
 }
