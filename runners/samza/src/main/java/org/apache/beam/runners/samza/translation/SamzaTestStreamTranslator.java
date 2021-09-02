@@ -50,6 +50,8 @@ import org.apache.samza.system.descriptors.GenericSystemDescriptor;
  */
 @SuppressWarnings({"rawtypes"})
 public class SamzaTestStreamTranslator<T> implements TransformTranslator<TestStream<T>> {
+  public static final String ENCODED_TEST_STREAM = "encodedTestStream";
+  public static final String TEST_STREAM_DECODER = "testStreamDecoder";
 
   @Override
   public void translate(
@@ -81,9 +83,9 @@ public class SamzaTestStreamTranslator<T> implements TransformTranslator<TestStr
 
     final Map<String, String> systemConfig =
         ImmutableMap.of(
-            "encodedTestStream",
+            ENCODED_TEST_STREAM,
             encodedTestStream,
-            "testStreamDecoder",
+            TEST_STREAM_DECODER,
             Base64Serializer.serializeUnchecked(testStreamDecoder));
     systemDescriptor.withSystemConfigs(systemConfig);
 
@@ -101,39 +103,40 @@ public class SamzaTestStreamTranslator<T> implements TransformTranslator<TestStr
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
-    final String outputId = ctx.getOutputId(transform);
-    final String escapedOutputId = SamzaPipelineTranslatorUtils.escape(outputId);
-    final GenericSystemDescriptor systemDescriptor =
-        new GenericSystemDescriptor(escapedOutputId, SamzaTestStreamSystemFactory.class.getName());
     final ByteString bytes = transform.getTransform().getSpec().getPayload();
-    final RunnerApi.TestStreamPayload payload;
     final Coder<T> coder;
 
     try {
-      payload = RunnerApi.TestStreamPayload.parseFrom(bytes);
       coder =
           (Coder<T>)
               RehydratedComponents.forComponents(pipeline.getComponents())
-                  .getCoder(payload.getCoderId());
+                  .getCoder(RunnerApi.TestStreamPayload.parseFrom(bytes).getCoderId());
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new SamzaException(e);
     }
 
     // the decoder for encodedTestStream
     SerializableFunction<String, TestStream<?>> testStreamDecoder =
         string -> {
           try {
-            return TestStreamTranslation.testStreamFromProtoPayload(payload, coder);
+            return TestStreamTranslation.testStreamFromProtoPayload(
+                RunnerApi.TestStreamPayload.parseFrom(
+                    Base64Serializer.deserializeUnchecked(string, ByteString.class)),
+                coder);
           } catch (IOException e) {
             throw new SamzaException("Could not decode TestStream.", e);
           }
         };
 
+    final String outputId = ctx.getOutputId(transform);
+    final String escapedOutputId = SamzaPipelineTranslatorUtils.escape(outputId);
+    final GenericSystemDescriptor systemDescriptor =
+        new GenericSystemDescriptor(escapedOutputId, SamzaTestStreamSystemFactory.class.getName());
     final Map<String, String> systemConfig =
         ImmutableMap.of(
-            "encodedTestStream",
+            ENCODED_TEST_STREAM,
             Base64Serializer.serializeUnchecked(bytes),
-            "testStreamDecoder",
+            TEST_STREAM_DECODER,
             Base64Serializer.serializeUnchecked(testStreamDecoder));
     systemDescriptor.withSystemConfigs(systemConfig);
 
