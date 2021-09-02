@@ -17,16 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.MetadataDef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.MetadataHandler;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Table;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.MetadataDef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.MetadataHandler;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
  * This is the implementation of NodeStatsMetadata. Methods to estimate rate and row count for
@@ -71,16 +73,15 @@ public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
     // wraps the metadata provider with CachingRelMetadataProvider. However,
     // CachingRelMetadataProvider checks timestamp before returning previous results. Therefore,
     // there wouldn't be a problem in that case.
-    List<List> keys =
-        mq.map.entrySet().stream()
+    List<Table.Cell<RelNode, List, Object>> keys =
+        mq.map.cellSet().stream()
+            .filter(entry -> entry != null)
+            .filter(entry -> entry.getValue() != null)
             .filter(entry -> entry.getValue() instanceof NodeStats)
-            .filter(entry -> ((NodeStats) entry.getValue()).isUnknown())
-            .map(Map.Entry::getKey)
+            .filter(entry -> (checkArgumentNotNull((NodeStats) entry.getValue()).isUnknown()))
             .collect(Collectors.toList());
 
-    for (List key : keys) {
-      mq.map.remove(key);
-    }
+    keys.forEach(cell -> mq.map.remove(cell.getRowKey(), cell.getColumnKey()));
 
     return rel.estimateNodeStats(mq);
   }

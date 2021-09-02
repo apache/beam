@@ -39,7 +39,7 @@ import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class BigtableTableTestUtils {
@@ -48,12 +48,12 @@ class BigtableTableTestUtils {
   static final String KEY2 = "key2";
 
   static final String BOOL_COLUMN = "boolColumn";
-  static final String LONG_COLUMN = "longColumn";
+  static final String INT_COLUMN = "intColumn";
   static final String STRING_COLUMN = "stringColumn";
   static final String DOUBLE_COLUMN = "doubleColumn";
   static final String FAMILY_TEST = "familyTest";
 
-  static final Schema LONG_COLUMN_SCHEMA =
+  static final Schema INT_COLUMN_SCHEMA =
       Schema.builder()
           .addInt64Field(VALUE)
           .addInt64Field(TIMESTAMP_MICROS)
@@ -63,7 +63,7 @@ class BigtableTableTestUtils {
   static final Schema TEST_FAMILY_SCHEMA =
       Schema.builder()
           .addBooleanField(BOOL_COLUMN)
-          .addRowField(LONG_COLUMN, LONG_COLUMN_SCHEMA)
+          .addRowField(INT_COLUMN, INT_COLUMN_SCHEMA)
           .addArrayField(STRING_COLUMN, Schema.FieldType.STRING)
           .addDoubleField(DOUBLE_COLUMN)
           .build();
@@ -75,7 +75,7 @@ class BigtableTableTestUtils {
       Schema.builder()
           .addStringField(KEY)
           .addBooleanField(BOOL_COLUMN)
-          .addInt64Field(LONG_COLUMN)
+          .addInt64Field(INT_COLUMN)
           .addStringField(STRING_COLUMN)
           .addDoubleField(DOUBLE_COLUMN)
           .build();
@@ -88,7 +88,7 @@ class BigtableTableTestUtils {
         "CREATE EXTERNAL TABLE `%s`( \n"
             + "  key VARCHAR NOT NULL, \n"
             + "  boolColumn BOOLEAN NOT NULL, \n"
-            + "  longColumn BIGINT NOT NULL, \n"
+            + "  intColumn BIGINT NOT NULL, \n"
             + "  stringColumn VARCHAR NOT NULL, \n"
             + "  doubleColumn DOUBLE NOT NULL \n"
             + ") \n"
@@ -105,7 +105,7 @@ class BigtableTableTestUtils {
             + "  key VARCHAR NOT NULL, \n"
             + "  familyTest ROW< \n"
             + "    boolColumn BOOLEAN NOT NULL, \n"
-            + "    longColumn ROW< \n"
+            + "    intColumn ROW< \n"
             + "      val BIGINT NOT NULL, \n"
             + "      timestampMicros BIGINT NOT NULL, \n"
             + "      labels ARRAY<VARCHAR> NOT NULL \n"
@@ -123,7 +123,7 @@ class BigtableTableTestUtils {
     return Schema.builder()
         .addStringField(KEY)
         .addBooleanField(BOOL_COLUMN)
-        .addInt64Field("longValue")
+        .addInt64Field("intValue")
         .addInt64Field(TIMESTAMP_MICROS)
         .addArrayField(LABELS, Schema.FieldType.STRING)
         .addArrayField(STRING_COLUMN, Schema.FieldType.STRING)
@@ -155,7 +155,7 @@ class BigtableTableTestUtils {
   }
 
   static String columnsMappingString() {
-    return "familyTest:boolColumn,familyTest:longColumn,familyTest:doubleColumn,"
+    return "familyTest:boolColumn,familyTest:intColumn,familyTest:doubleColumn,"
         + "familyTest:stringColumn";
   }
 
@@ -170,7 +170,7 @@ class BigtableTableTestUtils {
         ImmutableList.of(
             column("boolColumn", booleanToByteArray(true)),
             column("doubleColumn", doubleToByteArray(5.5)),
-            column("longColumn", Longs.toByteArray(10L)),
+            column("intColumn", Ints.toByteArray(10)),
             column("stringColumn", "stringValue".getBytes(UTF_8)));
     Family family = Family.newBuilder().setName("familyTest").addAllColumns(columns).build();
     return com.google.bigtable.v2.Row.newBuilder()
@@ -226,8 +226,8 @@ class BigtableTableTestUtils {
     clientWrapper.writeRow(key, table, FAMILY_TEST, STRING_COLUMN, "string1".getBytes(UTF_8), NOW);
     clientWrapper.writeRow(
         key, table, FAMILY_TEST, STRING_COLUMN, "string2".getBytes(UTF_8), LATER);
-    clientWrapper.writeRow(key, table, FAMILY_TEST, LONG_COLUMN, longToByteArray(1L), NOW);
-    clientWrapper.writeRow(key, table, FAMILY_TEST, LONG_COLUMN, longToByteArray(2L), LATER);
+    clientWrapper.writeRow(key, table, FAMILY_TEST, INT_COLUMN, longToByteArray(1L), NOW);
+    clientWrapper.writeRow(key, table, FAMILY_TEST, INT_COLUMN, longToByteArray(2L), LATER);
     clientWrapper.writeRow(key, table, FAMILY_TEST, DOUBLE_COLUMN, doubleToByteArray(1.10), NOW);
     clientWrapper.writeRow(key, table, FAMILY_TEST, DOUBLE_COLUMN, doubleToByteArray(2.20), LATER);
   }
