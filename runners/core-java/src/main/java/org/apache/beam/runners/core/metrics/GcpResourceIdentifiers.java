@@ -40,11 +40,10 @@ public class GcpResourceIdentifiers {
 
   public static String spannerTable(String projectId, String databaseId, String tableId) {
     return String.format(
-      "//spanner.googleapis.com/projects/%s/topics/%s/tables/%s", projectId, databaseId, tableId);
+        "//spanner.googleapis.com/projects/%s/topics/%s/tables/%s", projectId, databaseId, tableId);
   }
 
   public static String spannerQuery(String projectId, String queryName) {
-    return String.format(
-      "//spanner.googleapis.com/projects/%s/queries/%s", projectId, databaseId);
+    return String.format("//spanner.googleapis.com/projects/%s/queries/%s", projectId, queryName);
   }
 }

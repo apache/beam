@@ -113,6 +113,14 @@ public final class MonitoringInfoConstants {
       checkArgument(DATASTORE_PROJECT.equals(extractLabel(MonitoringInfoLabels.DATASTORE_PROJECT)));
       checkArgument(
           DATASTORE_NAMESPACE.equals(extractLabel(MonitoringInfoLabels.DATASTORE_NAMESPACE)));
+      checkArgument(
+          SPANNER_PROJECT_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_PROJECT_ID)));
+      checkArgument(
+          SPANNER_DATABASE_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_DATABASE_ID)));
+      checkArgument(
+          SPANNER_INSTANCE_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_INSTANCE_ID)));
+      checkArgument(
+          SPANNER_QUERY_NAME.equals(extractLabel(MonitoringInfoLabels.SPANNER_QUERY_NAME)));
     }
   }
 
