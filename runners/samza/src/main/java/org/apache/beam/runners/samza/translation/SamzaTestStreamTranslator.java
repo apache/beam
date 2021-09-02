@@ -36,7 +36,6 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.samza.SamzaException;
 import org.apache.samza.operators.KV;
 import org.apache.samza.serializers.KVSerde;
 import org.apache.samza.serializers.NoOpSerde;
@@ -60,15 +59,13 @@ public class SamzaTestStreamTranslator<T> implements TransformTranslator<TestStr
     final String outputId = ctx.getIdForPValue(output);
     final Coder<T> valueCoder = testStream.getValueCoder();
     final TestStream.TestStreamCoder<T> testStreamCoder = TestStream.TestStreamCoder.of(valueCoder);
-    final GenericSystemDescriptor systemDescriptor =
-        new GenericSystemDescriptor(outputId, SamzaTestStreamSystemFactory.class.getName());
 
     // encode testStream as a string
     final String encodedTestStream;
     try {
       encodedTestStream = CoderUtils.encodeToBase64(testStreamCoder, testStream);
     } catch (CoderException e) {
-      throw new SamzaException("Could not encode TestStream.", e);
+      throw new RuntimeException("Could not encode TestStream.", e);
     }
 
     // the decoder for encodedTestStream
@@ -77,74 +74,75 @@ public class SamzaTestStreamTranslator<T> implements TransformTranslator<TestStr
           try {
             return CoderUtils.decodeFromBase64(TestStream.TestStreamCoder.of(valueCoder), string);
           } catch (CoderException e) {
-            throw new SamzaException("Could not decode TestStream.", e);
+            throw new RuntimeException("Could not decode TestStream.", e);
           }
         };
 
-    final Map<String, String> systemConfig =
-        ImmutableMap.of(
-            ENCODED_TEST_STREAM,
-            encodedTestStream,
-            TEST_STREAM_DECODER,
-            Base64Serializer.serializeUnchecked(testStreamDecoder));
-    systemDescriptor.withSystemConfigs(systemConfig);
-
-    // The KvCoder is needed here for Samza not to crop the key.
-    final Serde<KV<?, OpMessage<byte[]>>> kvSerde = KVSerde.of(new NoOpSerde(), new NoOpSerde<>());
-    final GenericInputDescriptor<KV<?, OpMessage<byte[]>>> inputDescriptor =
-        systemDescriptor.getInputDescriptor(outputId, kvSerde);
-
-    ctx.registerInputMessageStream(output, inputDescriptor);
+    ctx.registerInputMessageStream(
+        output, createInputDescriptor(outputId, encodedTestStream, testStreamDecoder));
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public void translatePortable(
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
     final ByteString bytes = transform.getTransform().getSpec().getPayload();
-    final Coder<T> coder;
-
-    try {
-      coder =
-          (Coder<T>)
-              RehydratedComponents.forComponents(pipeline.getComponents())
-                  .getCoder(RunnerApi.TestStreamPayload.parseFrom(bytes).getCoderId());
-    } catch (IOException e) {
-      throw new SamzaException(e);
-    }
-
-    // the decoder for encodedTestStream
-    SerializableFunction<String, TestStream<?>> testStreamDecoder =
-        string -> {
-          try {
-            return TestStreamTranslation.testStreamFromProtoPayload(
-                RunnerApi.TestStreamPayload.parseFrom(
-                    Base64Serializer.deserializeUnchecked(string, ByteString.class)),
-                coder);
-          } catch (IOException e) {
-            throw new SamzaException("Could not decode TestStream.", e);
-          }
-        };
+    final SerializableFunction<String, TestStream<T>> testStreamDecoder =
+        createTestStreamDecoder(pipeline.getComponents(), bytes);
 
     final String outputId = ctx.getOutputId(transform);
     final String escapedOutputId = SamzaPipelineTranslatorUtils.escape(outputId);
-    final GenericSystemDescriptor systemDescriptor =
-        new GenericSystemDescriptor(escapedOutputId, SamzaTestStreamSystemFactory.class.getName());
+
+    ctx.registerInputMessageStream(
+        outputId,
+        createInputDescriptor(
+            escapedOutputId, Base64Serializer.serializeUnchecked(bytes), testStreamDecoder));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T> GenericInputDescriptor<KV<?, OpMessage<T>>> createInputDescriptor(
+      String id,
+      String encodedTestStream,
+      SerializableFunction<String, TestStream<T>> testStreamDecoder) {
     final Map<String, String> systemConfig =
         ImmutableMap.of(
             ENCODED_TEST_STREAM,
-            Base64Serializer.serializeUnchecked(bytes),
+            encodedTestStream,
             TEST_STREAM_DECODER,
             Base64Serializer.serializeUnchecked(testStreamDecoder));
-    systemDescriptor.withSystemConfigs(systemConfig);
+    final GenericSystemDescriptor systemDescriptor =
+        new GenericSystemDescriptor(id, SamzaTestStreamSystemFactory.class.getName())
+            .withSystemConfigs(systemConfig);
 
     // The KvCoder is needed here for Samza not to crop the key.
     final Serde<KV<?, OpMessage<T>>> kvSerde = KVSerde.of(new NoOpSerde(), new NoOpSerde<>());
-    final GenericInputDescriptor<KV<?, OpMessage<T>>> inputDescriptor =
-        systemDescriptor.getInputDescriptor(escapedOutputId, kvSerde);
+    return systemDescriptor.getInputDescriptor(id, kvSerde);
+  }
 
-    ctx.registerInputMessageStream(outputId, inputDescriptor);
+  @SuppressWarnings("unchecked")
+  private static <T> SerializableFunction<String, TestStream<T>> createTestStreamDecoder(
+      RunnerApi.Components components, ByteString payload) {
+    Coder<T> coder;
+    try {
+      coder =
+          (Coder<T>)
+              RehydratedComponents.forComponents(components)
+                  .getCoder(RunnerApi.TestStreamPayload.parseFrom(payload).getCoderId());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    // the decoder for encodedTestStream
+    return encodedTestStream -> {
+      try {
+        return TestStreamTranslation.testStreamFromProtoPayload(
+            RunnerApi.TestStreamPayload.parseFrom(
+                Base64Serializer.deserializeUnchecked(encodedTestStream, ByteString.class)),
+            coder);
+      } catch (IOException e) {
+        throw new RuntimeException("Could not decode TestStream.", e);
+      }
+    };
   }
 }
