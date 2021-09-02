@@ -93,15 +93,8 @@ func WindowSums_Lifted(s beam.Scope) {
 	WindowSums(s.Scope("Lifted"), stats.SumPerKey)
 }
 
-func validateEquals(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigger, m window.AccumulationMode, expected ...interface{}) {
-	var accumulationMode beam.AccumulationMode
-	switch m {
-	case window.Accumulating:
-		accumulationMode = beam.PanesAccumulate()
-	case window.Discarding:
-		accumulationMode = beam.PanesDiscard()
-	}
-	windowed := beam.WindowInto(s, wfn, in, beam.Trigger(tr), accumulationMode)
+func validateEquals(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigger, m beam.AccumulationMode, expected ...interface{}) {
+	windowed := beam.WindowInto(s, wfn, in, beam.Trigger(tr), m)
 	sums := stats.Sum(s, windowed)
 	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
 	passert.Equals(s, sums, expected...)
@@ -117,7 +110,7 @@ func TriggerDefault(s beam.Scope) {
 
 	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
-	validateEquals(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.TriggerDefault(), window.Discarding, 6.0, 9.0)
+	validateEquals(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.TriggerDefault(), beam.PanesDiscard(), 6.0, 9.0)
 }
 
 // TriggerAlways tests the Always trigger, it is expected to receive every input value as the output.
@@ -128,18 +121,11 @@ func TriggerAlways(s beam.Scope) {
 	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
 
-	validateEquals(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.TriggerAlways(), window.Discarding, 1.0, 2.0, 3.0)
+	validateEquals(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.TriggerAlways(), beam.PanesDiscard(), 1.0, 2.0, 3.0)
 }
 
-func validateCount(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigger, m window.AccumulationMode, expected int) {
-	var accumulationMode beam.AccumulationMode
-	switch m {
-	case window.Accumulating:
-		accumulationMode = beam.PanesAccumulate()
-	case window.Discarding:
-		accumulationMode = beam.PanesDiscard()
-	}
-	windowed := beam.WindowInto(s, wfn, in, beam.Trigger(tr), accumulationMode)
+func validateCount(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigger, m beam.AccumulationMode, expected int) {
+	windowed := beam.WindowInto(s, wfn, in, beam.Trigger(tr), m)
 	sums := stats.Sum(s, windowed)
 	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
 	passert.Count(s, sums, "total collections", expected)
@@ -161,7 +147,7 @@ func TriggerElementCount(s beam.Scope) {
 
 	// waits only for two elements to arrive and fires output after that and never fires that.
 	// For the trigger to fire every 2 elements, combine it with Repeat Trigger
-	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.TriggerAfterCount(2), window.Discarding, 2)
+	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.TriggerAfterCount(2), beam.PanesDiscard(), 2)
 }
 
 // TriggerAfterProcessingTime tests the AfterProcessingTime Trigger, it fires output panes once 't' processing time has passed
@@ -176,7 +162,7 @@ func TriggerAfterProcessingTime(s beam.Scope) {
 
 	col := teststream.Create(s, con)
 
-	validateEquals(s.Scope("Fixed"), window.NewGlobalWindows(), col, window.TriggerAfterProcessingTime(5000), window.Discarding, 6.0)
+	validateEquals(s.Scope("Global"), window.NewGlobalWindows(), col, window.TriggerAfterProcessingTime(5000), beam.PanesDiscard(), 6.0)
 }
 
 // TriggerRepeat tests the repeat trigger. As of now is it is configure to take only one trigger as a subtrigger.
@@ -191,5 +177,19 @@ func TriggerRepeat(s beam.Scope) {
 
 	col := teststream.Create(s, con)
 
-	validateCount(s.Scope("Fixed"), window.NewGlobalWindows(), col, window.TriggerRepeat(window.TriggerAfterCount(2)), window.Discarding, 3)
+	validateCount(s.Scope("Global"), window.NewGlobalWindows(), col, window.TriggerRepeat(window.TriggerAfterCount(2)), beam.PanesDiscard(), 3)
+}
+
+// TriggerAfterEndOfWindow tests the AfterEndOfWindow Trigger. With AfterCount(2) as the early firing trigger and AfterCount(1) as late firing trigger.
+// It fires two times, one with early firing when there are two elements while the third elements waits in. This third element is fired in the late firing.
+func TriggerAfterEndOfWindow(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(11000)
+
+	col := teststream.Create(s, con)
+	windowSize := 10 * time.Second
+	trigger := window.TriggerAfterEndOfWindow().EarlyFiring(window.TriggerAfterCount(2)).LateFiring(window.TriggerAfterCount(1))
+
+	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, trigger, beam.PanesDiscard(), 2)
 }

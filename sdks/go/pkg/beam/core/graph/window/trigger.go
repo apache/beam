@@ -15,11 +15,15 @@
 
 package window
 
+import "fmt"
+
 type Trigger struct {
 	Kind         string
 	SubTriggers  []Trigger
 	Delay        int64 // in milliseconds
 	ElementCount int32
+	EarlyTrigger *Trigger
+	LateTrigger  *Trigger
 }
 
 const (
@@ -36,13 +40,14 @@ const (
 	AfterSynchronizedProcessingTimeTrigger string = "Trigger_AfterSynchronizedProcessingTime_"
 )
 
-// TriggerDefault constructs a default trigger that fires after the end of window.
-// No provision for late arriving data.
+// TriggerDefault constructs a default trigger that fires once after the end of window.
+// Late Data is discarded.
 func TriggerDefault() Trigger {
 	return Trigger{Kind: DefaultTrigger}
 }
 
 // TriggerAlways constructs an always trigger that keeps firing immediately after an element is processed.
+// Equivalent to window.TriggerRepeat(window.TriggerAfterCount(1))
 func TriggerAlways() Trigger {
 	return Trigger{Kind: AlwaysTrigger}
 }
@@ -52,7 +57,7 @@ func TriggerAfterCount(count int32) Trigger {
 	return Trigger{Kind: ElementCountTrigger, ElementCount: count}
 }
 
-// TriggerAfterProcessingTime constructs a after processing time trigger that fires after 'delay' milliseconds of processing time has passed.
+// TriggerAfterProcessingTime constructs an after processing time trigger that fires after 'delay' milliseconds of processing time have passed.
 func TriggerAfterProcessingTime(delay int64) Trigger {
 	return Trigger{Kind: AfterProcessingTimeTrigger, Delay: delay}
 }
@@ -65,8 +70,26 @@ func TriggerRepeat(tr Trigger) Trigger {
 
 // TriggerAfterEndOfWindow constructs an end of window trigger that is configurable for early firing trigger(before the end of window)
 // and late firing trigger(after the end of window).
-// As of now, the values of Early firing is set to TriggerDefault and Late firing is set to TriggerAlways.
+// Default Options are: Default Trigger for EarlyFiring and No LateFiring. Override it with EarlyFiring and LateFiring methods on this trigger.
 func TriggerAfterEndOfWindow() Trigger {
-	// TODO(BEAM-3304): modify it to take parameters for early and late firing trigger
-	return Trigger{Kind: AfterEndOfWindowTrigger}
+	defaultEarly := TriggerDefault()
+	return Trigger{Kind: AfterEndOfWindowTrigger, EarlyTrigger: &defaultEarly, LateTrigger: nil}
+}
+
+// EarlyFiring configures AfterEndOfWindow trigger with an early firing trigger.
+func (tr Trigger) EarlyFiring(early Trigger) Trigger {
+	if tr.Kind != AfterEndOfWindowTrigger {
+		panic(fmt.Errorf("can't apply early firing to %s, got: %s, want: AfterEndOfWindowTrigger", tr.Kind, tr.Kind))
+	}
+	tr.EarlyTrigger = &early
+	return tr
+}
+
+// LateFiring configures AfterEndOfWindow trigger with a late firing trigger
+func (tr Trigger) LateFiring(late Trigger) Trigger {
+	if tr.Kind != AfterEndOfWindowTrigger {
+		panic(fmt.Errorf("can't apply late firing to %s, got: %s, want: AfterEndOfWindowTrigger", tr.Kind, tr.Kind))
+	}
+	tr.LateTrigger = &late
+	return tr
 }
