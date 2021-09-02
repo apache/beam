@@ -49,13 +49,18 @@ import org.joda.time.Instant;
 })
 public class TestStreamTranslation {
 
-  public static TestStream<?> testStreamFromProtoPayload(
+  public static <T> TestStream<T> testStreamFromProtoPayload(
       RunnerApi.TestStreamPayload testStreamPayload, RehydratedComponents components)
       throws IOException {
 
-    Coder<Object> coder = (Coder<Object>) components.getCoder(testStreamPayload.getCoderId());
+    Coder<T> coder = (Coder<T>) components.getCoder(testStreamPayload.getCoderId());
 
-    List<TestStream.Event<Object>> events = new ArrayList<>();
+    return testStreamFromProtoPayload(testStreamPayload, coder);
+  }
+
+  public static <T> TestStream<T> testStreamFromProtoPayload(
+      RunnerApi.TestStreamPayload testStreamPayload, Coder<T> coder) throws IOException {
+    List<TestStream.Event<T>> events = new ArrayList<>();
 
     for (RunnerApi.TestStreamPayload.Event event : testStreamPayload.getEventsList()) {
       events.add(eventFromProto(event, coder));
