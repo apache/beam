@@ -51,7 +51,7 @@
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
 # [2.34.0] - Unreleased
-
+* Add an [example](https://github.com/cometta/python-apache-beam-spark) of deploying Python Apache Beam job with Spark Cluster
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
@@ -64,6 +64,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Upgrade to Calcite 1.26.0 ([BEAM-9379](https://issues.apache.org/jira/browse/BEAM-9379)).
 
 ## Breaking Changes
 
@@ -73,6 +74,7 @@
   * Code depending on beam imports need to include v2 on the module path.
     * Fix by'v2' to the import paths, turning  `.../sdks/go/...` to `.../sdks/v2/go/...`
   * No other code change should be required to use v2.33.0 of the Go SDK.
+* SQL Rows are no longer flattened ([BEAM-5505](https://issues.apache.org/jira/browse/BEAM-5505)).
 
 ## Deprecations
 
@@ -121,40 +123,12 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-
-# [2.33.0] - Unreleased
-
-## Highlights
-
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
-
-## I/Os
-
-* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
-## New Features / Improvements
-
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
-## Breaking Changes
-
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
-## Known Issues
-
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
 # [2.32.0] - 2021-08-25
 
 ## Highlights
 * The [Beam DataFrame
   API](https://beam.apache.org/documentation/dsls/dataframes/overview/) is no
-  longer experimental! We've spent the time since the [2.32.0 preview
+  longer experimental! We've spent the time since the [2.26.0 preview
   announcement](https://beam.apache.org/blog/dataframe-api-preview-available/)
   implementing the most frequently used pandas operations
   ([BEAM-9547](https://issues.apache.org/jira/browse/BEAM-9547)), improving

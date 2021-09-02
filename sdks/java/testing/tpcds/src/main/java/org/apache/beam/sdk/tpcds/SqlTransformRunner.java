@@ -43,8 +43,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.util.SqlBasicVisitor;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 import org.apache.commons.csv.CSVFormat;
@@ -210,7 +210,7 @@ public class SqlTransformRunner {
       }
     }
     org.apache.avro.Schema schemaProjected =
-        org.apache.avro.Schema.createRecord(schema.getName() + "_projected", null, null, false);
+        org.apache.avro.Schema.createRecord(schema.getName() + "_projected", "", "", false);
     schemaProjected.setFields(projectedFields);
     return schemaProjected;
   }

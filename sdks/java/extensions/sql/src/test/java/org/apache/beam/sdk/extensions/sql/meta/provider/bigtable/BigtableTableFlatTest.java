@@ -106,7 +106,7 @@ public class BigtableTableFlatTest {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigtableTableProvider());
     sqlEnv.executeDdl(createFlatTableString(tableId, location(tableId)));
 
-    String query = "SELECT key, boolColumn, longColumn, stringColumn, doubleColumn FROM flatTable";
+    String query = "SELECT key, boolColumn, intColumn, stringColumn, doubleColumn FROM flatTable";
 
     sqlEnv.parseQuery(query);
     PCollection<Row> queryOutput =
@@ -145,7 +145,7 @@ public class BigtableTableFlatTest {
     sqlEnv.executeDdl(createFlatTableString(tableId, location(tableId)));
 
     String query =
-        "INSERT INTO beamWriteTable(key, boolColumn, longColumn, stringColumn, doubleColumn) "
+        "INSERT INTO beamWriteTable(key, boolColumn, intColumn, stringColumn, doubleColumn) "
             + "VALUES ('key', TRUE, 10, 'stringValue', 5.5)";
 
     BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(query));

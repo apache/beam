@@ -91,7 +91,7 @@ createPortableValidatesRunnerTask(
             excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
             excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
             excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
             excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
             excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
@@ -102,6 +102,22 @@ createPortableValidatesRunnerTask(
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty"
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputNotPresent'
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignUnbounded'
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerUnbounded'
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded'
+            // TODO(BEAM-10025)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
+            // TODO(BEAM-11479)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
+            // TODO(BEAM-12035)
+            excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
+            // TODO(BEAM-12036)
+            excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
+            // TODO(BEAM-12821)
+            excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage'
+            // TODO(BEAM-12822)
+            excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams'
         }
 )
 
