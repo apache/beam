@@ -78,6 +78,9 @@ func CrossLanguagePayload(pl interface{}) []byte {
 // URN identifying the desired transform, an optional payload with configuration information, and
 // input and output names. It outputs a map of named output PCollections.
 //
+// For more information on expansion services and other aspects of cross-language transforms in
+// general, refer to the Beam programming guide: https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines
+//
 // Payload
 //
 // Payloads are configuration data that some cross-language transforms require for expansion.
@@ -98,24 +101,40 @@ func CrossLanguagePayload(pl interface{}) []byte {
 // names as keys. Unnamed inputs/outputs are used when there is only one, and a map can be quickly
 // constructed with the UnnamedInput and UnnamedOutput methods.
 //
-// CrossLanguage outputs a map of PCollections with associated names. These names will match those
-// from provided named outputs. If the beam.UnnamedOutput method was used, the PCollection can be
-// retrieved with beam.UnnamedOutputTag().
+// An example of defining named inputs and outputs:
 //
-// Example
-//
-//    type stringPayload struct {
-//        Data string
-//    }
-//    encodedPl := beam.CrossLanguagePayload(stringPayload{Data: "foo"})
+//    namedInputs := map[string]beam.PCollection{"pcol1": pcol1, "pcol2": pcol2}
 //    namedOutputTypes := map[string]typex.FullType{
 //        "main": typex.New(reflectx.String),
 //        "side": typex.New(reflectx.Int64),
 //    }
-//    unnamedInput := beam.UnnamedInput(inputPcol)
-//    outputs := beam.CrossLanguage(s, "example:urn", encodedPl, "<address>:<port>", unnamedInput, namedOutputTypes)
+//
+// CrossLanguage outputs a map of PCollections with associated names. These names will match those
+// from provided named outputs. If the beam.UnnamedOutput method was used, the PCollection can be
+// retrieved with beam.UnnamedOutputTag().
+//
+// An example of retrieving named outputs from a call to CrossLanguage:
+//
+//    outputs := beam.CrossLanguage(...)
 //    mainPcol := outputs["main"]
 //    sidePcol := outputs["side"]
+//
+// Example
+//
+// This example shows using CrossLanguage to execute the Prefix cross-language transform using an
+// expansion service running on localhost:8099. Prefix requires a payload containing a prefix to
+// prepend to every input string.
+//
+//    type prefixPayload struct {
+//        Data string
+//    }
+//    encodedPl := beam.CrossLanguagePayload(prefixPayload{Data: "foo"})
+//    urn := "beam:transforms:xlang:test:prefix"
+//    expansionAddr := "localhost:8099"
+//    outputType := beam.UnnamedOutput(typex.New(reflectx.String))
+//    input := beam.UnnamedInput(inputPcol)
+//    outs := beam.CrossLanguage(s, urn, encodedPl, expansionAddr, input, outputType)
+//    outPcol := outputs[beam.UnnamedOutputTag()]
 func CrossLanguage(
 	s Scope,
 	urn string,
