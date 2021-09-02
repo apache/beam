@@ -25,6 +25,7 @@ description = "Apache Beam :: SDKs :: Go :: Examples"
 installDependencies.enabled = false
 resolveBuildDependencies.enabled = false
 resolveTestDependencies.enabled = false
+gofmt.enabled = false
 
 def getLocalPlatform = {
   String hostOs = com.github.blindpirate.gogradle.crossplatform.Os.getHostOs()
