@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static org.apache.beam.sdk.schemas.Schema.Field;
 import static org.apache.beam.sdk.schemas.Schema.FieldType;
 import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Preconditions.checkArgument;
 
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -157,15 +160,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       final RelOptPredicateList predicates = mq.getPulledUpPredicates(getInput());
       final RexSimplify simplify = new RexSimplify(rexBuilder, predicates, RexUtil.EXECUTOR);
       final RexProgram program = getProgram().normalize(rexBuilder, simplify);
+      final InputGetterImpl inputGetter = new InputGetterImpl(rowParam, upstream.getSchema());
 
       Expression condition =
           RexToLixTranslator.translateCondition(
-              program,
-              typeFactory,
-              builder,
-              new InputGetterImpl(rowParam, upstream.getSchema()),
-              null,
-              conformance);
+              program, typeFactory, builder, inputGetter, null, conformance);
 
       List<Expression> expressions =
           RexToLixTranslator.translateProjects(
@@ -175,7 +174,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               builder,
               physType,
               DataContext.ROOT,
-              new InputGetterImpl(rowParam, upstream.getSchema()),
+              inputGetter,
               null);
 
       builder.add(
@@ -192,10 +191,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               builder.toBlock().toString(),
               outputSchema,
               options.getVerifyRowValues(),
-              getJarPaths(program));
-
-      // validate generated code
-      calcFn.compile();
+              getJarPaths(program),
+              inputGetter.getFieldAccess());
 
       return upstream.apply(ParDo.of(calcFn)).setRowSchema(outputSchema);
     }
@@ -207,20 +204,29 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     private final Schema outputSchema;
     private final boolean verifyRowValues;
     private final List<String> jarPaths;
+
+    @FieldAccess("row")
+    private final FieldAccessDescriptor fieldAccess;
+
     private transient @Nullable ScriptEvaluator se = null;
 
     public CalcFn(
         String processElementBlock,
         Schema outputSchema,
         boolean verifyRowValues,
-        List<String> jarPaths) {
+        List<String> jarPaths,
+        FieldAccessDescriptor fieldAccess) {
       this.processElementBlock = processElementBlock;
       this.outputSchema = outputSchema;
       this.verifyRowValues = verifyRowValues;
       this.jarPaths = jarPaths;
+      this.fieldAccess = fieldAccess;
+
+      // validate generated code
+      compile(processElementBlock, jarPaths);
     }
 
-    ScriptEvaluator compile() {
+    private static ScriptEvaluator compile(String processElementBlock, List<String> jarPaths) {
       ScriptEvaluator se = new ScriptEvaluator();
       if (!jarPaths.isEmpty()) {
         try {
@@ -246,22 +252,22 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
     @Setup
     public void setup() {
-      this.se = compile();
+      this.se = compile(processElementBlock, jarPaths);
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(@FieldAccess("row") Row row, OutputReceiver<Row> r) {
       assert se != null;
       final Object[] v;
       try {
-        v = (Object[]) se.evaluate(new Object[] {c.element(), CONTEXT_INSTANCE});
+        v = (Object[]) se.evaluate(new Object[] {row, CONTEXT_INSTANCE});
       } catch (InvocationTargetException e) {
         throw new RuntimeException(
             "CalcFn failed to evaluate: " + processElementBlock, e.getCause());
       }
       if (v != null) {
-        Row row = toBeamRow(Arrays.asList(v), outputSchema, verifyRowValues);
-        c.output(row);
+        final Row output = toBeamRow(Arrays.asList(v), outputSchema, verifyRowValues);
+        r.output(output);
       }
     }
   }
@@ -411,14 +417,21 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
     private final Expression input;
     private final Schema inputSchema;
+    private final Set<Integer> referencedColumns;
 
     private InputGetterImpl(Expression input, Schema inputSchema) {
       this.input = input;
       this.inputSchema = inputSchema;
+      this.referencedColumns = new TreeSet<>();
+    }
+
+    FieldAccessDescriptor getFieldAccess() {
+      return FieldAccessDescriptor.withFieldIds(this.referencedColumns);
     }
 
     @Override
     public Expression field(BlockBuilder list, int index, Type storageType) {
+      this.referencedColumns.add(index);
       return getBeamField(list, index, input, inputSchema);
     }
 
@@ -431,64 +444,66 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
       final Expression expression = list.append(list.newName("current"), input);
 
-      FieldType fieldType = schema.getField(index).getType();
-      Expression value;
+      final Field field = schema.getField(index);
+      final FieldType fieldType = field.getType();
+      final Expression fieldName = Expressions.constant(field.getName());
+      final Expression value;
       switch (fieldType.getTypeName()) {
         case BYTE:
-          value = Expressions.call(expression, "getByte", Expressions.constant(index));
+          value = Expressions.call(expression, "getByte", fieldName);
           break;
         case INT16:
-          value = Expressions.call(expression, "getInt16", Expressions.constant(index));
+          value = Expressions.call(expression, "getInt16", fieldName);
           break;
         case INT32:
-          value = Expressions.call(expression, "getInt32", Expressions.constant(index));
+          value = Expressions.call(expression, "getInt32", fieldName);
           break;
         case INT64:
-          value = Expressions.call(expression, "getInt64", Expressions.constant(index));
+          value = Expressions.call(expression, "getInt64", fieldName);
           break;
         case DECIMAL:
-          value = Expressions.call(expression, "getDecimal", Expressions.constant(index));
+          value = Expressions.call(expression, "getDecimal", fieldName);
           break;
         case FLOAT:
-          value = Expressions.call(expression, "getFloat", Expressions.constant(index));
+          value = Expressions.call(expression, "getFloat", fieldName);
           break;
         case DOUBLE:
-          value = Expressions.call(expression, "getDouble", Expressions.constant(index));
+          value = Expressions.call(expression, "getDouble", fieldName);
           break;
         case STRING:
-          value = Expressions.call(expression, "getString", Expressions.constant(index));
+          value = Expressions.call(expression, "getString", fieldName);
           break;
         case DATETIME:
-          value = Expressions.call(expression, "getDateTime", Expressions.constant(index));
+          value = Expressions.call(expression, "getDateTime", fieldName);
           break;
         case BOOLEAN:
-          value = Expressions.call(expression, "getBoolean", Expressions.constant(index));
+          value = Expressions.call(expression, "getBoolean", fieldName);
           break;
         case BYTES:
-          value = Expressions.call(expression, "getBytes", Expressions.constant(index));
+          value = Expressions.call(expression, "getBytes", fieldName);
           break;
         case ARRAY:
-          value = Expressions.call(expression, "getArray", Expressions.constant(index));
+          value = Expressions.call(expression, "getArray", fieldName);
           break;
         case MAP:
-          value = Expressions.call(expression, "getMap", Expressions.constant(index));
+          value = Expressions.call(expression, "getMap", fieldName);
           break;
         case ROW:
-          value = Expressions.call(expression, "getRow", Expressions.constant(index));
+          value = Expressions.call(expression, "getRow", fieldName);
           break;
         case LOGICAL_TYPE:
           String identifier = fieldType.getLogicalType().getIdentifier();
           if (CharType.IDENTIFIER.equals(identifier)) {
-            value = Expressions.call(expression, "getString", Expressions.constant(index));
+            value = Expressions.call(expression, "getString", fieldName);
           } else if (TimeWithLocalTzType.IDENTIFIER.equals(identifier)) {
-            value = Expressions.call(expression, "getDateTime", Expressions.constant(index));
+            value = Expressions.call(expression, "getDateTime", fieldName);
           } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
             value =
                 Expressions.convert_(
                     Expressions.call(
                         expression,
                         "getLogicalTypeValue",
-                        Expressions.constant(index),
+                        fieldName,
                         Expressions.constant(LocalDate.class)),
                     LocalDate.class);
           } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
@@ -497,7 +512,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                     Expressions.call(
                         expression,
                         "getLogicalTypeValue",
-                        Expressions.constant(index),
+                        fieldName,
                         Expressions.constant(LocalTime.class)),
                     LocalTime.class);
           } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
@@ -506,7 +521,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                     Expressions.call(
                         expression,
                         "getLogicalTypeValue",
-                        Expressions.constant(index),
+                        fieldName,
                         Expressions.constant(LocalDateTime.class)),
                     LocalDateTime.class);
           } else {

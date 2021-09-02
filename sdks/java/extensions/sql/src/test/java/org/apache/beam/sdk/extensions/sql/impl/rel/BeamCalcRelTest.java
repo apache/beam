@@ -18,20 +18,34 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.math.BigDecimal;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
+import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 
 /** Tests related to {@code BeamCalcRel}. */
 public class BeamCalcRelTest extends BaseRelTest {
+
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
+
   private static final DateTime FIRST_DATE = new DateTime(1);
   private static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
 
@@ -159,5 +173,75 @@ public class BeamCalcRelTest extends BaseRelTest {
 
     Assert.assertTrue(doubleEqualEstimate.getRowCount() < equalEstimate.getRowCount());
     Assert.assertTrue(doubleEqualEstimate.getWindow() < equalEstimate.getWindow());
+  }
+
+  private static class NodeGetter extends Pipeline.PipelineVisitor.Defaults {
+
+    private final PValue target;
+    private TransformHierarchy.Node producer;
+
+    private NodeGetter(PValue target) {
+      this.target = target;
+    }
+
+    @Override
+    public void visitValue(PValue value, TransformHierarchy.Node producer) {
+      if (value == target) {
+        assert this.producer == null;
+        this.producer = producer;
+      }
+    }
+  }
+
+  @Test
+  public void testSingleFieldAccess() throws IllegalAccessException {
+    String sql = "SELECT order_id FROM ORDER_DETAILS_BOUNDED";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+
+    final NodeGetter nodeGetter = new NodeGetter(rows);
+    pipeline.traverseTopologically(nodeGetter);
+
+    ParDo.MultiOutput<Row, Row> pardo =
+        (ParDo.MultiOutput<Row, Row>) nodeGetter.producer.getTransform();
+    DoFnSignature sig = DoFnSignatures.getSignature(pardo.getFn().getClass());
+
+    Assert.assertEquals(1, sig.fieldAccessDeclarations().size());
+    DoFnSignature.FieldAccessDeclaration dec =
+        sig.fieldAccessDeclarations().values().iterator().next();
+    FieldAccessDescriptor fieldAccess = (FieldAccessDescriptor) dec.field().get(pardo.getFn());
+
+    Assert.assertTrue(fieldAccess.referencesSingleField());
+
+    fieldAccess =
+        fieldAccess.resolve(nodeGetter.producer.getInputs().values().iterator().next().getSchema());
+    Assert.assertEquals("order_id", fieldAccess.fieldNamesAccessed().iterator().next());
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testNoFieldAccess() throws IllegalAccessException {
+    String sql = "SELECT 1 FROM ORDER_DETAILS_BOUNDED";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+
+    final NodeGetter nodeGetter = new NodeGetter(rows);
+    pipeline.traverseTopologically(nodeGetter);
+
+    ParDo.MultiOutput<Row, Row> pardo =
+        (ParDo.MultiOutput<Row, Row>) nodeGetter.producer.getTransform();
+    DoFnSignature sig = DoFnSignatures.getSignature(pardo.getFn().getClass());
+
+    Assert.assertEquals(1, sig.fieldAccessDeclarations().size());
+    DoFnSignature.FieldAccessDeclaration dec =
+        sig.fieldAccessDeclarations().values().iterator().next();
+    FieldAccessDescriptor fieldAccess = (FieldAccessDescriptor) dec.field().get(pardo.getFn());
+
+    Assert.assertFalse(fieldAccess.getAllFields());
+    Assert.assertTrue(fieldAccess.getFieldsAccessed().isEmpty());
+    Assert.assertTrue(fieldAccess.getNestedFieldsAccessed().isEmpty());
+
+    pipeline.run().waitUntilFinish();
   }
 }
