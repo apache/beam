@@ -2322,6 +2322,7 @@ class BeamModulePlugin implements Plugin<Project> {
             '**/build/**',
             '**/dist/**',
             '**/target/**',
+            '**/.gogradle/**',
             '**/*.pyc',
             'sdks/python/*.egg*/**',
             'sdks/python/test-suites/**',

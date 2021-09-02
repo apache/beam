@@ -32,6 +32,7 @@ description = "Apache Beam :: SDKs :: Java :: Container"
 installDependencies.enabled = false
 resolveBuildDependencies.enabled = false
 resolveTestDependencies.enabled = false
+gofmt.enabled = false
 
 configurations {
   dockerDependency
