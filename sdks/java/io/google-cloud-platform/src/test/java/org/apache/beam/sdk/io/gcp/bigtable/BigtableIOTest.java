@@ -77,7 +77,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -1272,8 +1271,7 @@ public class BigtableIOTest {
    * A DoFn used to generate N outputs, where N is the input. Used to generate bundles of >= 1
    * element.
    */
-  private static class WriteGeneratorDoFn
-      extends DoFn<Long, KV<ByteString, Iterable<Mutation>>> {
+  private static class WriteGeneratorDoFn extends DoFn<Long, KV<ByteString, Iterable<Mutation>>> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       for (int i = 0; i < ctx.element(); i++) {
