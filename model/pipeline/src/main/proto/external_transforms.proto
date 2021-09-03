@@ -42,38 +42,20 @@ message ExternalConfigurationPayload {
   bytes payload = 2;
 }
 
-// This defines a single parameter that should be provided to a method (or a
-// constructor) of the transform class.
-// Currently we support following Parameter types.
-// * Java primitive types and Strings.
-// * Java types that can be represented by a Beam schema (if a schema has not
-//   been registered service will try to generate a schema using
-//   'JavaFieldSchema').
-// * Arrays of supported types.
-// Following are currently not supported
-// * Top level collections that are not embedded in other complex types.
-message Parameter {
-  // Name of the parameter.
-  // Optional. If available, may be used to validate the parameter’s name at
-  // runtime.
-  string name = 1;
-
-  // A schema that maps to the parameter’s type.
-  Schema schema = 2;
-
-  // A payload which can be decoded using ‘beam:coder:row:v1’ and the given
-  // schema.
-  bytes payload = 3;
-}
-
 // This represents a builder method of the transform class. This may take one
 // or more parameters. This has to return an instance of the transform.
 message BuilderMethod {
   // Name of the builder method
   string name = 1;
 
-  // Builder method parameters (in order)
-  repeated Parameter parameter = 2;
+  // A schema that describes the parameter of the constructor or the constructor
+  // method used to create the transform object.
+  // The top level fields of the schema represents the parameters in order.
+  // Top level field names map to parameter names to use.
+  Schema schema = 2;
+
+  // A payload that maps to the provided builder method schema.
+  bytes payload = 3;
 }
 
 // Defines specific expansion methods that may be used to expand cross-language
@@ -98,15 +80,20 @@ message JavaClassLookupPayload {
   // If not provided, the class's constructor will be used.
   string constructor_method = 2;
 
-  // Set of parameters to be passed to the constructor method to construct the
-  // transform object (in order).
-  repeated Parameter constructor_parameters = 3;
-
   // Set of builder methods and corresponding parameters to invoke after the
   // transform object is constructed.
   // Given builder methods will be invoked in order when constructing the
   // transform objects.
-  repeated BuilderMethod builder_methods = 4;
+  repeated BuilderMethod builder_methods = 3;
+
+  // A schema that describes the parameter of the constructor or the constructor
+  // method used to create the transform object.
+  // The top level fields of the schema represents the parameters in order.
+  // Top level field names map to parameter names to use.
+  Schema constructor_schema = 4;
+
+  // A payload that maps to the provided constructor schema.
+  bytes constructor_payload = 5;
 }
 
 

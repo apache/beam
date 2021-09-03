@@ -40,6 +40,7 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms.BuilderMethod;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
@@ -61,7 +62,6 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -98,6 +98,8 @@ public class JavaCLassLookupTransformProviderTest {
     String[] strArrayField;
     DummyComplexType complexTypeField;
     DummyComplexType[] complexTypeArrayField;
+    List<String> strListField;
+    List<DummyComplexType> complexTypeListField;
 
     private DummyDoFn(
         String strField1,
@@ -106,7 +108,9 @@ public class JavaCLassLookupTransformProviderTest {
         Double doubleWrapperField,
         String[] strArrayField,
         DummyComplexType complexTypeField,
-        DummyComplexType[] complexTypeArrayField) {
+        DummyComplexType[] complexTypeArrayField,
+        List<String> strListField,
+        List<DummyComplexType> complexTypeListField) {
       this.intField1 = intField1;
       this.strField1 = strField1;
       this.strField2 = strField2;
@@ -114,6 +118,8 @@ public class JavaCLassLookupTransformProviderTest {
       this.strArrayField = strArrayField;
       this.complexTypeField = complexTypeField;
       this.complexTypeArrayField = complexTypeArrayField;
+      this.strListField = strListField;
+      this.complexTypeListField = complexTypeListField;
     }
 
     @ProcessElement
@@ -157,6 +163,8 @@ public class JavaCLassLookupTransformProviderTest {
     String[] strArrayField;
     DummyComplexType complexTypeField;
     DummyComplexType[] complexTypeArrayField;
+    List<String> strListField;
+    List<DummyComplexType> complexTypeListField;
 
     @Override
     public PCollection<String> expand(PBegin input) {
@@ -172,7 +180,9 @@ public class JavaCLassLookupTransformProviderTest {
                       this.doubleWrapperField,
                       this.strArrayField,
                       this.complexTypeField,
-                      this.complexTypeArrayField)));
+                      this.complexTypeArrayField,
+                      this.strListField,
+                      this.complexTypeListField)));
     }
   }
 
@@ -197,6 +207,28 @@ public class JavaCLassLookupTransformProviderTest {
     public DummyTransformWithConstructorAndBuilderMethods withIntField1(int intField1) {
       this.intField1 = intField1;
       return this;
+    }
+  }
+
+  public static class DummyTransformWithMultiArgumentBuilderMethod extends DummyTransform {
+
+    public DummyTransformWithMultiArgumentBuilderMethod(String strField1) {
+      this.strField1 = strField1;
+    }
+
+    public DummyTransformWithMultiArgumentBuilderMethod withFields(
+        String strField2, int intField1) {
+      this.strField2 = strField2;
+      this.intField1 = intField1;
+      return this;
+    }
+  }
+
+  public static class DummyTransformWithMultiArgumentConstructor extends DummyTransform {
+
+    public DummyTransformWithMultiArgumentConstructor(String strField1, String strField2) {
+      this.strField1 = strField1;
+      this.strField2 = strField2;
     }
   }
 
@@ -285,6 +317,17 @@ public class JavaCLassLookupTransformProviderTest {
     }
   }
 
+  public static class DummyTransformWithList extends DummyTransform {
+    public DummyTransformWithList(String strField1) {
+      this.strField1 = strField1;
+    }
+
+    public DummyTransformWithList withStrListField(List<String> strListField) {
+      this.strListField = strListField;
+      return this;
+    }
+  }
+
   public static class DummyTransformWithComplexTypeArray extends DummyTransform {
     public DummyTransformWithComplexTypeArray(String strField1) {
       this.strField1 = strField1;
@@ -293,6 +336,18 @@ public class JavaCLassLookupTransformProviderTest {
     public DummyTransformWithComplexTypeArray withComplexTypeArrayField(
         DummyComplexType[] complexTypeArrayField) {
       this.complexTypeArrayField = complexTypeArrayField;
+      return this;
+    }
+  }
+
+  public static class DummyTransformWithComplexTypeList extends DummyTransform {
+    public DummyTransformWithComplexTypeList(String strField1) {
+      this.strField1 = strField1;
+    }
+
+    public DummyTransformWithComplexTypeList withComplexTypeListField(
+        List<DummyComplexType> complexTypeListField) {
+      this.complexTypeListField = complexTypeListField;
       return this;
     }
   }
@@ -382,13 +437,21 @@ public class JavaCLassLookupTransformProviderTest {
       verifiedFields.add("strArrayField");
     }
 
+    if (fieldsToVerify.keySet().contains("strListField")) {
+      assertEquals(doFn.strListField, (List) fieldsToVerify.get("strListField"));
+      verifiedFields.add("strListField");
+    }
+
     if (fieldsToVerify.keySet().contains("complexTypeArrayField")) {
-      Object temp1 = fieldsToVerify.get("complexTypeArrayField");
-      Object temp2 = (DummyComplexType[]) fieldsToVerify.get("complexTypeArrayField");
       assertArrayEquals(
           doFn.complexTypeArrayField,
           (DummyComplexType[]) fieldsToVerify.get("complexTypeArrayField"));
       verifiedFields.add("complexTypeArrayField");
+    }
+
+    if (fieldsToVerify.keySet().contains("complexTypeListField")) {
+      assertEquals(doFn.complexTypeListField, (List) fieldsToVerify.get("complexTypeListField"));
+      verifiedFields.add("complexTypeListField");
     }
 
     List<String> unverifiedFields = new ArrayList<>(fieldsToVerify.keySet());
@@ -405,12 +468,13 @@ public class JavaCLassLookupTransformProviderTest {
     payloadBuilder.setClassName(
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructor");
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     testClassLookupExpansionRequestConstruction(
         payloadBuilder.build(), ImmutableMap.of("strField1", "test_str_1"));
@@ -424,12 +488,13 @@ public class JavaCLassLookupTransformProviderTest {
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorMethod");
 
     payloadBuilder.setConstructorMethod("from");
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     testClassLookupExpansionRequestConstruction(
         payloadBuilder.build(), ImmutableMap.of("strField1", "test_str_1"));
@@ -442,31 +507,93 @@ public class JavaCLassLookupTransformProviderTest {
     payloadBuilder.setClassName(
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorAndBuilderMethods");
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("withStrField2");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField2", FieldType.STRING)))
-                .withFieldValue("strField2", "test_str_2")
-                .build(),
-            "strField2"));
+    Row builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("strField2", FieldType.STRING)))
+            .withFieldValue("strField2", "test_str_2")
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("withIntField1");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
-                .withFieldValue("intField1", 10)
-                .build(),
-            "intField1"));
+    builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
+            .withFieldValue("intField1", 10)
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    testClassLookupExpansionRequestConstruction(
+        payloadBuilder.build(),
+        ImmutableMap.of("strField1", "test_str_1", "strField2", "test_str_2", "intField1", 10));
+  }
+
+  @Test
+  public void testJavaClassLookupWithMultiArgumentConstructor() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithMultiArgumentConstructor");
+
+    Row constructorRow =
+        Row.withSchema(
+                Schema.of(
+                    Field.of("strField1", FieldType.STRING),
+                    Field.of("strField2", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .withFieldValue("strField2", "test_str_2")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
+
+    testClassLookupExpansionRequestConstruction(
+        payloadBuilder.build(),
+        ImmutableMap.of("strField1", "test_str_1", "strField2", "test_str_2"));
+  }
+
+  @Test
+  public void testJavaClassLookupWithMultiArgumentBuilderMethod() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithMultiArgumentBuilderMethod");
+
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
+
+    BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withFields");
+    Row builderMethodRow =
+        Row.withSchema(
+                Schema.of(
+                    Field.of("strField2", FieldType.STRING),
+                    Field.of("intField1", FieldType.INT32)))
+            .withFieldValue("strField2", "test_str_2")
+            .withFieldValue("intField1", 10)
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     testClassLookupExpansionRequestConstruction(
@@ -481,21 +608,23 @@ public class JavaCLassLookupTransformProviderTest {
     payloadBuilder.setClassName(
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithWrapperTypes");
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("withDoubleWrapperField");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("doubleWrapperField", FieldType.DOUBLE)))
-                .withFieldValue("doubleWrapperField", 123.56)
-                .build(),
-            "doubleWrapperField"));
+    Row builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("doubleWrapperField", FieldType.DOUBLE)))
+            .withFieldValue("doubleWrapperField", 123.56)
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     testClassLookupExpansionRequestConstruction(
@@ -509,12 +638,12 @@ public class JavaCLassLookupTransformProviderTest {
     payloadBuilder.setClassName(
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithComplexTypes");
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     Schema complexTypeSchema =
         Schema.builder()
@@ -524,13 +653,22 @@ public class JavaCLassLookupTransformProviderTest {
 
     BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("withComplexTypeField");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(complexTypeSchema)
-                .withFieldValue("complexTypeStrField", "complex_type_str_1")
-                .withFieldValue("complexTypeIntField", 123)
-                .build(),
-            "complexTypeField"));
+
+    Row builderMethodParamRow =
+        Row.withSchema(complexTypeSchema)
+            .withFieldValue("complexTypeStrField", "complex_type_str_1")
+            .withFieldValue("complexTypeIntField", 123)
+            .build();
+
+    Schema builderMethodSchema =
+        Schema.builder().addRowField("complexTypeField", complexTypeSchema).build();
+    Row builderMethodRow =
+        Row.withSchema(builderMethodSchema)
+            .withFieldValue("complexTypeField", builderMethodParamRow)
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     testClassLookupExpansionRequestConstruction(
@@ -545,31 +683,74 @@ public class JavaCLassLookupTransformProviderTest {
     payloadBuilder.setClassName(
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithArray");
 
-    Schema strArraySchema =
-        Schema.builder().addArrayField("strArrayField", FieldType.STRING).build();
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("withStrArrayField");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(strArraySchema)
-                .addValues((Object) ImmutableList.of("test_str_1", "test_str_2", "test_str_3"))
-                .build(),
-            "strArrayField"));
-    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    Schema builderMethodSchema =
+        Schema.builder().addArrayField("strArrayField", FieldType.STRING).build();
+
+    Row builderMethodRow =
+        Row.withSchema(builderMethodSchema)
+            .withFieldValue(
+                "strArrayField", ImmutableList.of("test_str_1", "test_str_2", "test_str_3"))
+            .build();
+
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
 
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     String[] resultArray = {"test_str_1", "test_str_2", "test_str_3"};
     testClassLookupExpansionRequestConstruction(
         payloadBuilder.build(), ImmutableMap.of("strArrayField", resultArray));
+  }
+
+  @Test
+  public void testJavaClassLookupWithSimpleListType() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithList");
+
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
+
+    BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withStrListField");
+
+    Schema builderMethodSchema =
+        Schema.builder().addIterableField("strListField", FieldType.STRING).build();
+
+    Row builderMethodRow =
+        Row.withSchema(builderMethodSchema)
+            .withFieldValue(
+                "strListField", ImmutableList.of("test_str_1", "test_str_2", "test_str_3"))
+            .build();
+
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    List<String> resultList = new ArrayList<>();
+    resultList.add("test_str_1");
+    resultList.add("test_str_2");
+    resultList.add("test_str_3");
+    testClassLookupExpansionRequestConstruction(
+        payloadBuilder.build(), ImmutableMap.of("strListField", resultList));
   }
 
   @Test
@@ -585,17 +766,18 @@ public class JavaCLassLookupTransformProviderTest {
             .addInt32Field("complexTypeIntField")
             .build();
 
-    Schema complexTypeArraySchema =
+    Schema builderMethodSchema =
         Schema.builder()
             .addArrayField("complexTypeArrayField", FieldType.row(complexTypeSchema))
             .build();
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     List<Row> complexTypeList = new ArrayList<>();
     complexTypeList.add(
@@ -616,11 +798,14 @@ public class JavaCLassLookupTransformProviderTest {
 
     BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("withComplexTypeArrayField");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(complexTypeArraySchema).addValues((Object) complexTypeList).build(),
-            "complexTypeArrayField"));
-    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    Row builderMethodRow =
+        Row.withSchema(builderMethodSchema)
+            .withFieldValue("complexTypeArrayField", complexTypeList)
+            .build();
+
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
 
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
@@ -635,6 +820,71 @@ public class JavaCLassLookupTransformProviderTest {
   }
 
   @Test
+  public void testJavaClassLookupWithComplexListType() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithComplexTypeList");
+
+    Schema complexTypeSchema =
+        Schema.builder()
+            .addStringField("complexTypeStrField")
+            .addInt32Field("complexTypeIntField")
+            .build();
+
+    Schema builderMethodSchema =
+        Schema.builder()
+            .addIterableField("complexTypeListField", FieldType.row(complexTypeSchema))
+            .build();
+
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
+
+    List<Row> complexTypeList = new ArrayList<>();
+    complexTypeList.add(
+        Row.withSchema(complexTypeSchema)
+            .withFieldValue("complexTypeStrField", "complex_type_str_1")
+            .withFieldValue("complexTypeIntField", 123)
+            .build());
+    complexTypeList.add(
+        Row.withSchema(complexTypeSchema)
+            .withFieldValue("complexTypeStrField", "complex_type_str_2")
+            .withFieldValue("complexTypeIntField", 456)
+            .build());
+    complexTypeList.add(
+        Row.withSchema(complexTypeSchema)
+            .withFieldValue("complexTypeStrField", "complex_type_str_3")
+            .withFieldValue("complexTypeIntField", 789)
+            .build());
+
+    BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withComplexTypeListField");
+
+    Row builderMethodRow =
+        Row.withSchema(builderMethodSchema)
+            .withFieldValue("complexTypeListField", complexTypeList)
+            .build();
+
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    ArrayList<DummyComplexType> resultList = new ArrayList<>();
+    resultList.add(new DummyComplexType("complex_type_str_1", 123));
+    resultList.add(new DummyComplexType("complex_type_str_2", 456));
+    resultList.add(new DummyComplexType("complex_type_str_3", 789));
+
+    testClassLookupExpansionRequestConstruction(
+        payloadBuilder.build(), ImmutableMap.of("complexTypeListField", resultList));
+  }
+
+  @Test
   public void testJavaClassLookupWithConstructorMethodAndBuilderMethods() {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
@@ -642,31 +892,36 @@ public class JavaCLassLookupTransformProviderTest {
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorMethodAndBuilderMethods");
     payloadBuilder.setConstructorMethod("from");
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("withStrField2");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField2", FieldType.STRING)))
-                .withFieldValue("strField2", "test_str_2")
-                .build(),
-            "strField2"));
+
+    Row builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("strField2", FieldType.STRING)))
+            .withFieldValue("strField2", "test_str_2")
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("withIntField1");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
-                .withFieldValue("intField1", 10)
-                .build(),
-            "intField1"));
+
+    builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
+            .withFieldValue("intField1", 10)
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     testClassLookupExpansionRequestConstruction(
@@ -682,31 +937,34 @@ public class JavaCLassLookupTransformProviderTest {
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorMethodAndBuilderMethods");
     payloadBuilder.setConstructorMethod("from");
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("strField2");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField2", FieldType.STRING)))
-                .withFieldValue("strField2", "test_str_2")
-                .build(),
-            "strField2"));
+    Row builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("strField2", FieldType.STRING)))
+            .withFieldValue("strField2", "test_str_2")
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("intField1");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
-                .withFieldValue("intField1", 10)
-                .build(),
-            "intField1"));
+    builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
+            .withFieldValue("intField1", 10)
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     testClassLookupExpansionRequestConstruction(
@@ -721,32 +979,34 @@ public class JavaCLassLookupTransformProviderTest {
     payloadBuilder.setClassName(
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithMultiLanguageAnnotations");
     payloadBuilder.setConstructorMethod("create_transform");
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("abc");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField2", FieldType.STRING)))
-                .withFieldValue("strField2", "test_str_2")
-                .build(),
-            "strField2"));
+    Row builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("strField2", FieldType.STRING)))
+            .withFieldValue("strField2", "test_str_2")
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("xyz");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
-                .withFieldValue("intField1", 10)
-                .build(),
-            "intField1"));
+    builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
+            .withFieldValue("intField1", 10)
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     testClassLookupExpansionRequestConstruction(
@@ -760,13 +1020,13 @@ public class JavaCLassLookupTransformProviderTest {
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$UnavailableClass");
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     RuntimeException thrown =
         assertThrows(
@@ -783,13 +1043,13 @@ public class JavaCLassLookupTransformProviderTest {
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructor");
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("incorrectField", FieldType.STRING)))
+            .withFieldValue("incorrectField", "test_str_1")
+            .build();
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("incorrectField", FieldType.STRING)))
-                .withFieldValue("incorrectField", "test_str_1")
-                .build(),
-            "incorrectField"));
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     RuntimeException thrown =
         assertThrows(
@@ -806,22 +1066,23 @@ public class JavaCLassLookupTransformProviderTest {
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
         "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorAndBuilderMethods");
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+            .withFieldValue("strField1", "test_str_1")
+            .build();
 
-    payloadBuilder.addConstructorParameters(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
-                .withFieldValue("strField1", "test_str_1")
-                .build(),
-            "strField1"));
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
 
     BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
     builderMethodBuilder.setName("withStrField2");
-    builderMethodBuilder.addParameter(
-        encodeRowIntoParameter(
-            Row.withSchema(Schema.of(Field.of("incorrectParam", FieldType.STRING)))
-                .withFieldValue("incorrectParam", "test_str_2")
-                .build(),
-            "incorrectParam"));
+    Row builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("incorrectParam", FieldType.STRING)))
+            .withFieldValue("incorrectParam", "test_str_2")
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
     payloadBuilder.addBuilderMethods(builderMethodBuilder);
 
     RuntimeException thrown =
@@ -833,7 +1094,11 @@ public class JavaCLassLookupTransformProviderTest {
     assertTrue(thrown.getMessage().contains("Expected to find exactly one matching method"));
   }
 
-  static ExternalTransforms.Parameter encodeRowIntoParameter(Row row, @Nullable String name) {
+  private SchemaApi.Schema getProtoSchemaFromRow(Row row) {
+    return SchemaTranslation.schemaToProto(row.getSchema(), true);
+  }
+
+  private ByteString getProtoPayloadFromRow(Row row) {
     ByteString.Output outputStream = ByteString.newOutput();
     try {
       SchemaCoder.of(row.getSchema()).encode(row, outputStream);
@@ -841,10 +1106,6 @@ public class JavaCLassLookupTransformProviderTest {
       throw new RuntimeException(e);
     }
 
-    return ExternalTransforms.Parameter.newBuilder()
-        .setName(name)
-        .setSchema(SchemaTranslation.schemaToProto(row.getSchema(), true))
-        .setPayload(outputStream.toByteString())
-        .build();
+    return outputStream.toByteString();
   }
 }

@@ -23,36 +23,43 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.BuilderMethod;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.JavaClassLookupPayload;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms.Parameter;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ClassUtils;
-import org.apache.beam.sdk.expansion.service.ExpansionService.ExternalTransformRegistrarLoader;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.service.ExpansionService.TransformProvider;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform provider that can be used to directly instantiate a transform using Java class name
@@ -111,6 +118,8 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
           (Class<PTransform<InputT, OutputT>>)
               ReflectHelpers.findClassLoader().loadClass(className);
       PTransform<PInput, POutput> transform;
+      Row constructorRow =
+          decodeRow(payload.getConstructorSchema(), payload.getConstructorPayload());
       if (payload.getConstructorMethod().isEmpty()) {
         Constructor<?>[] constructors = transformClass.getConstructors();
         Constructor<PTransform<InputT, OutputT>> constructor =
@@ -118,15 +127,15 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
         Object[] parameterValues =
             getParameterValues(
                 constructor.getParameters(),
-                payload.getConstructorParametersList().toArray(new Parameter[0]));
+                constructorRow,
+                constructor.getGenericParameterTypes());
         transform = (PTransform<PInput, POutput>) constructor.newInstance(parameterValues);
       } else {
         Method[] methods = transformClass.getMethods();
         Method method = findMappingConstructorMethod(methods, payload, allowlistClass);
         Object[] parameterValues =
             getParameterValues(
-                method.getParameters(),
-                payload.getConstructorParametersList().toArray(new Parameter[0]));
+                method.getParameters(), constructorRow, method.getGenericParameterTypes());
         transform = (PTransform<PInput, POutput>) method.invoke(null /* static */, parameterValues);
       }
       return applyBuilderMethods(transform, payload, allowlistClass);
@@ -147,21 +156,23 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     for (BuilderMethod builderMethod : payload.getBuilderMethodsList()) {
       Method method = getMethod(transform, builderMethod, allowListClass);
       try {
+        Row builderMethodRow = decodeRow(builderMethod.getSchema(), builderMethod.getPayload());
         transform =
             (PTransform<PInput, POutput>)
                 method.invoke(
                     transform,
                     getParameterValues(
                         method.getParameters(),
-                        builderMethod.getParameterList().toArray(new Parameter[0])));
+                        builderMethodRow,
+                        method.getGenericParameterTypes()));
       } catch (IllegalAccessException | InvocationTargetException e) {
         throw new IllegalArgumentException(
             "Could not invoke the builder method "
                 + builderMethod
                 + " on transform "
                 + transform
-                + " with parameters "
-                + builderMethod.getParameterList(),
+                + " with parameter schema "
+                + builderMethod.getSchema(),
             e);
       }
     }
@@ -209,14 +220,13 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       PTransform<PInput, POutput> transform,
       BuilderMethod builderMethod,
       AllowedClass allowListClass) {
+
+    Row builderMethodRow = decodeRow(builderMethod.getSchema(), builderMethod.getPayload());
+
     List<Method> matchingMethods =
         Arrays.stream(transform.getClass().getMethods())
             .filter(m -> isBuilderMethodForName(m, builderMethod.getName(), allowListClass))
-            .filter(
-                m ->
-                    parametersCompatible(
-                        m.getParameters(),
-                        builderMethod.getParameterList().toArray(new Parameter[0])))
+            .filter(m -> parametersCompatible(m.getParameters(), builderMethodRow))
             .filter(m -> PTransform.class.isAssignableFrom(m.getReturnType()))
             .collect(Collectors.toList());
 
@@ -257,14 +267,15 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
   }
 
   private boolean parametersCompatible(
-      java.lang.reflect.Parameter[] methodParameters, Parameter[] payloadParameters) {
-    if (methodParameters.length != payloadParameters.length) {
+      java.lang.reflect.Parameter[] methodParameters, Row constructorRow) {
+    Schema constructorSchema = constructorRow.getSchema();
+    if (methodParameters.length != constructorSchema.getFieldCount()) {
       return false;
     }
 
     for (int i = 0; i < methodParameters.length; i++) {
       java.lang.reflect.Parameter parameterFromReflection = methodParameters[i];
-      Parameter parameterFromPayload = payloadParameters[i];
+      Field parameterFromPayload = constructorSchema.getField(i);
 
       String paramNameFromReflection = parameterFromReflection.getName();
       if (!paramNameFromReflection.startsWith("arg")
@@ -275,43 +286,42 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       }
 
       Class<?> parameterClass = parameterFromReflection.getType();
-      Row parameterRow =
-          ExternalTransformRegistrarLoader.decodeRow(
-              parameterFromPayload.getSchema(), parameterFromPayload.getPayload());
-
       if (isPrimitiveOrWrapperOrString(parameterClass)) {
-        if (parameterRow.getFieldCount() != 1) {
-          throw new RuntimeException(
-              "Expected a row for a single primitive field but received " + parameterRow);
-        }
-      } else if (parameterClass.isArray()) {
+        continue;
+      }
+
+      // We perform additional validation for arrays and non-primitive types.
+      if (parameterClass.isArray()) {
         Class<?> arrayFieldClass = parameterClass.getComponentType();
-        if (parameterRow.getFieldCount() != 1) {
-          throw new RuntimeException(
-              "Expected a row for a single array field but received " + parameterRow);
-        }
-        if (parameterRow.getSchema().getField(0).getType().getTypeName() != TypeName.ARRAY) {
+        if (parameterFromPayload.getType().getTypeName() != TypeName.ARRAY) {
           throw new RuntimeException(
               "Expected a schema with a single array field but received "
-                  + parameterRow.getSchema());
+                  + parameterFromPayload.getType().getTypeName());
         }
+
+        // Following is a best-effort validation that may not cover all cases. Idea is to resolve
+        // ambiguities as much as possible to determine an exact match for the given set of
+        // parameters. If there are ambiguities, the expansion will fail.
         if (!isPrimitiveOrWrapperOrString(arrayFieldClass)) {
-          // Additional validation for non-primitive types.
+          @Nullable Collection<Row> values = constructorRow.getArray(i);
           Schema arrayFieldSchema = getParameterSchema(arrayFieldClass);
           if (arrayFieldSchema == null) {
             throw new RuntimeException("Could not determine a schema for type " + arrayFieldClass);
           }
-          Row firstItem = (Row) parameterRow.getArray(0).iterator().next();
-          if (!(firstItem.getSchema().assignableTo(arrayFieldSchema))) {
-            return false;
+          if (values != null) {
+            @Nullable Row firstItem = values.iterator().next();
+            if (firstItem != null && !(firstItem.getSchema().assignableTo(arrayFieldSchema))) {
+              return false;
+            }
           }
         }
-      } else {
+      } else if (constructorRow.getValue(i) instanceof Row) {
+        @Nullable Row parameterRow = constructorRow.getRow(i);
         Schema schema = getParameterSchema(parameterClass);
         if (schema == null) {
           throw new RuntimeException("Could not determine a schema for type " + parameterClass);
         }
-        if (!parameterRow.getSchema().assignableTo(schema)) {
+        if (parameterRow != null && !parameterRow.getSchema().assignableTo(schema)) {
           return false;
         }
       }
@@ -319,108 +329,79 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     return true;
   }
 
-  private Object getValueFromRow(Class<?> parameterClass, Row parameterRow) {
-    Object parameterValue = null;
-    if (isPrimitiveOrWrapperOrString(parameterClass)) {
-      parameterValue = getPrimitiveValueFromRow(parameterRow);
-    } else if (parameterClass.isArray()) {
-      Class<?> arrayComponentClass = parameterClass.getComponentType();
-      parameterValue = getArrayValueFromRow(parameterRow, arrayComponentClass);
-    } else {
+  private @Nullable Object getDecodeValueFromRow(
+      Class<?> type, Object valueFromRow, @Nullable Type genericType) {
+    if (isPrimitiveOrWrapperOrString(type)) {
+      if (!isPrimitiveOrWrapperOrString(valueFromRow.getClass())) {
+        throw new IllegalArgumentException(
+            "Expected a Java primitive value but received " + valueFromRow);
+      }
+      return valueFromRow;
+    } else if (type.isArray()) {
+      Class<?> arrayComponentClass = type.getComponentType();
+      return getDecodeArrayValueFromRow(arrayComponentClass, valueFromRow);
+    } else if (Collection.class.isAssignableFrom(type)) {
+      List<Object> originalList = (List) valueFromRow;
+      List<Object> decodedList = new ArrayList<Object>();
+      for (Object obj : originalList) {
+        if (genericType != null && genericType instanceof ParameterizedType) {
+          Class<?> elementType =
+              (Class<?>) ((ParameterizedType) genericType).getActualTypeArguments()[0];
+          decodedList.add(getDecodeValueFromRow(elementType, obj, null));
+        } else {
+          throw new RuntimeException("Could not determine the generic type of the list");
+        }
+      }
+      return decodedList;
+    } else if (valueFromRow instanceof Row) {
+      Row row = (Row) valueFromRow;
       SerializableFunction<Row, ?> fromRowFunc = null;
       try {
-        fromRowFunc = SCHEMA_REGISTRY.getFromRowFunction(parameterClass);
+        fromRowFunc = SCHEMA_REGISTRY.getFromRowFunction(type);
       } catch (NoSuchSchemaException e) {
         throw new IllegalArgumentException(
-            "Could not determine the row function for class " + parameterClass, e);
+            "Could not determine the row function for class " + type, e);
       }
-      parameterValue = fromRowFunc.apply(parameterRow);
+      return fromRowFunc.apply(row);
     }
-    return parameterValue;
+    throw new RuntimeException("Could not decode the value from Row " + valueFromRow);
   }
 
   private Object[] getParameterValues(
-      java.lang.reflect.Parameter[] parameters, Parameter[] payloadParameters) {
+      java.lang.reflect.Parameter[] parameters, Row constrtuctorRow, Type[] genericTypes) {
     ArrayList<Object> parameterValues = new ArrayList<>();
     for (int i = 0; i < parameters.length; ++i) {
       java.lang.reflect.Parameter parameter = parameters[i];
-      Parameter parameterConfig = payloadParameters[i];
       Class<?> parameterClass = parameter.getType();
-      Row parameterRow =
-          ExternalTransformRegistrarLoader.decodeRow(
-              parameterConfig.getSchema(), parameterConfig.getPayload());
-      Object parameterValue = getValueFromRow(parameterClass, parameterRow);
+      Object parameterValue =
+          getDecodeValueFromRow(parameterClass, constrtuctorRow.getValue(i), genericTypes[i]);
       parameterValues.add(parameterValue);
     }
 
     return parameterValues.toArray();
   }
 
-  private Object getPrimitiveValueFromRow(Row parameterRow) {
-    if (parameterRow.getFieldCount() != 1) {
-      throw new IllegalArgumentException(
-          "Expected a Row that contains a single field but received " + parameterRow);
+  private Object[] getDecodeArrayValueFromRow(Class<?> arrayComponentType, Object valueFromRow) {
+    List<Object> originalValues = (List<Object>) valueFromRow;
+    List<Object> decodedValues = new ArrayList<>();
+    for (Object obj : originalValues) {
+      decodedValues.add(getDecodeValueFromRow(arrayComponentType, obj, null));
     }
-
-    @NonNull Object value = parameterRow.getValue(0);
-    if (!isPrimitiveOrWrapperOrString(value.getClass())) {
-      throw new IllegalArgumentException("Expected a Java primitive value but received " + value);
+    Object valueTypeArray = Array.newInstance(arrayComponentType, decodedValues.size());
+    for (int i = 0; i < decodedValues.size(); i++) {
+      Array.set(valueTypeArray, i, arrayComponentType.cast(decodedValues.get(i)));
     }
-    return value;
-  }
-
-  private Object[] getArrayValueFromRow(Row parameterRow, Class<?> componentType) {
-    if (parameterRow.getFieldCount() != 1) {
-      throw new IllegalArgumentException(
-          "Expected a Row that contains a single field but received " + parameterRow);
-    }
-
-    Object[] arrayValues = parameterRow.getArray(0).toArray();
-    if (isPrimitiveOrWrapperOrString(componentType)) {
-      if (!isPrimitiveOrWrapperOrString(arrayValues[0].getClass())) {
-        throw new IllegalArgumentException(
-            "Expected a Java primitive value but received " + arrayValues[0]);
-      }
-
-      // We have to create an array of correct type to prevent Java from considering the array as
-      // varargs when invoking the method.
-      Object valueTypeArray = Array.newInstance(componentType, arrayValues.length);
-      for (int i = 0; i < arrayValues.length; i++) {
-        Array.set(valueTypeArray, i, componentType.cast(arrayValues[i]));
-      }
-      return (Object[]) valueTypeArray;
-    } else {
-      SerializableFunction<Row, ?> fromRowFunc = null;
-      try {
-        fromRowFunc = SCHEMA_REGISTRY.getFromRowFunction(componentType);
-      } catch (NoSuchSchemaException e) {
-        throw new IllegalArgumentException(
-            "Could not determine the row function for class " + componentType, e);
-      }
-
-      List<Object> decodedValues = new ArrayList<>();
-      for (Object rowObj : arrayValues) {
-        decodedValues.add(fromRowFunc.apply((Row) rowObj));
-      }
-
-      // We have to create an array of correct type to prevent Java from considering the array as
-      // varargs when invoking the method.
-      Object valueTypeArray = Array.newInstance(componentType, decodedValues.size());
-      for (int i = 0; i < arrayValues.length; i++) {
-        Array.set(valueTypeArray, i, componentType.cast(decodedValues.get(i)));
-      }
-      return (Object[]) valueTypeArray;
-    }
+    return (Object[]) valueTypeArray;
   }
 
   private Constructor<PTransform<InputT, OutputT>> findMappingConstructor(
       Constructor<?>[] constructors, JavaClassLookupPayload payload) {
-    Parameter[] constructorParametersFromPayload =
-        payload.getConstructorParametersList().toArray(new Parameter[0]);
+    Row constructorRow = decodeRow(payload.getConstructorSchema(), payload.getConstructorPayload());
+
     List<Constructor<?>> mappingConstructors =
         Arrays.stream(constructors)
-            .filter(c -> c.getParameterCount() == payload.getConstructorParametersCount())
-            .filter(c -> parametersCompatible(c.getParameters(), constructorParametersFromPayload))
+            .filter(c -> c.getParameterCount() == payload.getConstructorSchema().getFieldsCount())
+            .filter(c -> parametersCompatible(c.getParameters(), constructorRow))
             .collect(Collectors.toList());
     if (mappingConstructors.size() != 1) {
       throw new RuntimeException(
@@ -456,17 +437,15 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
 
   private Method findMappingConstructorMethod(
       Method[] methods, JavaClassLookupPayload payload, AllowedClass allowListClass) {
-    Parameter[] constructporMethodParametersFromPayload =
-        payload.getConstructorParametersList().toArray(new Parameter[0]);
+
+    Row constructorRow = decodeRow(payload.getConstructorSchema(), payload.getConstructorPayload());
+
     List<Method> mappingConstructorMethods =
         Arrays.stream(methods)
             .filter(
                 m -> isConstructorMethodForName(m, payload.getConstructorMethod(), allowListClass))
-            .filter(m -> m.getParameterCount() == payload.getConstructorParametersCount())
-            .filter(
-                m ->
-                    parametersCompatible(
-                        m.getParameters(), constructporMethodParametersFromPayload))
+            .filter(m -> m.getParameterCount() == payload.getConstructorSchema().getFieldsCount())
+            .filter(m -> parametersCompatible(m.getParameters(), constructorRow))
             .collect(Collectors.toList());
 
     if (mappingConstructorMethods.size() != 1) {
@@ -523,5 +502,21 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       return new AutoValue_JavaClassLookupTransformProvider_AllowedClass(
           className, allowedBuilderMethods, allowedConstructorMethods);
     }
+  }
+
+  static Row decodeRow(SchemaApi.Schema schema, ByteString payload) {
+    Schema payloadSchema = SchemaTranslation.schemaFromProto(schema);
+
+    if (payloadSchema.getFieldCount() == 0) {
+      return Row.withSchema(Schema.of()).build();
+    }
+
+    Row row;
+    try {
+      row = RowCoder.of(payloadSchema).decode(payload.newInput());
+    } catch (IOException e) {
+      throw new RuntimeException("Error decoding payload", e);
+    }
+    return row;
   }
 }

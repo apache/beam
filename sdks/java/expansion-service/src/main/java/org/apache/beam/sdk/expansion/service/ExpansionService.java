@@ -177,7 +177,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       return configurationClass;
     }
 
-    static <ConfigT> Row decodeRow(SchemaApi.Schema schema, ByteString payload) {
+    static <ConfigT> Row decodeConfigObjectRow(SchemaApi.Schema schema, ByteString payload) {
       Schema payloadSchema = SchemaTranslation.schemaFromProto(schema);
 
       if (payloadSchema.getFieldCount() == 0) {
@@ -252,7 +252,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       SerializableFunction<Row, ConfigT> fromRowFunc =
           SCHEMA_REGISTRY.getFromRowFunction(configurationClass);
 
-      Row payloadRow = decodeRow(payload.getSchema(), payload.getPayload());
+      Row payloadRow = decodeConfigObjectRow(payload.getSchema(), payload.getPayload());
 
       if (!payloadRow.getSchema().assignableTo(configSchema)) {
         throw new IllegalArgumentException(
@@ -268,7 +268,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     private static <ConfigT> ConfigT payloadToConfigSetters(
         ExternalConfigurationPayload payload, Class<ConfigT> configurationClass)
         throws ReflectiveOperationException {
-      Row configRow = decodeRow(payload.getSchema(), payload.getPayload());
+      Row configRow = decodeConfigObjectRow(payload.getSchema(), payload.getPayload());
 
       Constructor<ConfigT> constructor = configurationClass.getDeclaredConstructor();
       constructor.setAccessible(true);

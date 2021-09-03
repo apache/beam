@@ -27,6 +27,10 @@ allowedClasses:
   allowedBuilderMethods:
   - withStrField2
   - withIntField1
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithMultiArgumentConstructor
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithMultiArgumentBuilderMethod
+  allowedBuilderMethods:
+  - withFields
 - className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorMethodAndBuilderMethods
   allowedConstructorMethods:
   - from
@@ -50,8 +54,14 @@ allowedClasses:
 - className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithArray
   allowedBuilderMethods:
   - withStrArrayField
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithList
+  allowedBuilderMethods:
+  - withStrListField
 - className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithComplexTypeArray
   allowedBuilderMethods:
   - withComplexTypeArrayField
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithComplexTypeList
+  allowedBuilderMethods:
+  - withComplexTypeListField
 
 
