@@ -31,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -264,7 +265,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
             .setRowSchema(outputSchema);
       }
       org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> globally =
-          org.apache.beam.sdk.schemas.transforms.Group.globally();
+          org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsGlobally.initialCombiner();
       PTransform<PCollection<Row>, PCollection<Row>> combiner = createCombiner(globally);
       return windowedStream.apply(combiner).setRowSchema(outputSchema);
     }
@@ -272,7 +273,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     private PTransform<PCollection<Row>, PCollection<Row>> createCombiner(
         org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> initialCombiner) {
 
-      org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> combined = null;
+      org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner combined = null;
       for (FieldAggregation fieldAggregation : fieldAggregations) {
         List<Integer> inputs = fieldAggregation.inputs;
         CombineFn combineFn = fieldAggregation.combineFn;
@@ -293,22 +294,19 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         }
       }
 
-      PTransform<PCollection<Row>, PCollection<Row>> combiner =
-          (PTransform<PCollection<Row>, PCollection<Row>>) combined;
+      PTransform<PCollection<Row>, PCollection<Row>> combiner = combined;
       if (combiner == null) {
         // If no field aggregations were specified, we run a constant combiner that always returns
         // a single empty row for each key. This is used by the SELECT DISTINCT query plan - in this
         // case a group by is generated to determine unique keys, and a constant null combiner is
         // used.
         combiner =
-            (PTransform<PCollection<Row>, PCollection<Row>>)
-                initialCombiner.aggregateField(
-                    "*",
-                    AggregationCombineFnAdapter.createConstantCombineFn(),
-                    Field.of(
-                        "e",
-                        FieldType.row(AggregationCombineFnAdapter.EMPTY_SCHEMA)
-                            .withNullable(true)));
+            initialCombiner.aggregateField(
+                "*",
+                AggregationCombineFnAdapter.createConstantCombineFn(),
+                Field.of(
+                    "e",
+                    FieldType.row(AggregationCombineFnAdapter.EMPTY_SCHEMA).withNullable(true)));
         ignoreValues = true;
       }
       return combiner;

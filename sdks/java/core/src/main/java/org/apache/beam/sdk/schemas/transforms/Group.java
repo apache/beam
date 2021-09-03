@@ -149,8 +149,7 @@ public class Group {
 
   /** A {@link PTransform} for doing global aggregations on schema PCollections. */
   public static class Global<InputT>
-      extends PTransform<PCollection<InputT>, PCollection<Iterable<InputT>>>
-      implements AggregateCombiner<InputT> {
+      extends PTransform<PCollection<InputT>, PCollection<Iterable<InputT>>> {
     /**
      * Aggregate the grouped data using the specified {@link CombineFn}. The resulting {@link
      * PCollection} will have type OutputT.
@@ -218,7 +217,6 @@ public class Group {
      * <p>This method specifies an aggregation over single field of the input. The union of all
      * calls to aggregateField and aggregateFields will determine the output schema.
      */
-    @Override
     public <CombineInputT, AccumT, CombineOutputT> CombineFieldsGlobally<InputT> aggregateField(
         String inputFieldName,
         CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
@@ -241,7 +239,6 @@ public class Group {
     }
 
     /** The same as {@link #aggregateField} but using field id. */
-    @Override
     public <CombineInputT, AccumT, CombineOutputT> CombineFieldsGlobally<InputT> aggregateField(
         int inputFielId, CombineFn<CombineInputT, AccumT, CombineOutputT> fn, Field outputField) {
       return new CombineFieldsGlobally<>(
@@ -322,7 +319,6 @@ public class Group {
           FieldAccessDescriptor.withFieldNames(inputFieldNames), fn, outputField);
     }
 
-    @Override
     public <CombineInputT, AccumT, CombineOutputT>
         CombineFieldsGlobally<InputT> aggregateFieldsById(
             List<Integer> inputFieldIds,
@@ -369,19 +365,25 @@ public class Group {
     }
   }
 
-  public interface AggregateCombiner<InputT> {
-    <CombineInputT, AccumT, CombineOutputT> AggregateCombiner<InputT> aggregateField(
-        int inputFieldId, CombineFn<CombineInputT, AccumT, CombineOutputT> fn, Field outputField);
+  public abstract static class AggregateCombiner<InputT>
+      extends PTransform<PCollection<InputT>, PCollection<Row>> {
+    public abstract <CombineInputT, AccumT, CombineOutputT>
+        AggregateCombiner<InputT> aggregateField(
+            int inputFieldId,
+            CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
+            Field outputField);
 
-    <CombineInputT, AccumT, CombineOutputT> AggregateCombiner<InputT> aggregateFieldsById(
-        List<Integer> inputFieldIds,
-        CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
-        Field outputField);
+    public abstract <CombineInputT, AccumT, CombineOutputT>
+        AggregateCombiner<InputT> aggregateField(
+            String inputFieldName,
+            CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
+            Field outputField);
 
-    <CombineInputT, AccumT, CombineOutputT> AggregateCombiner<InputT> aggregateField(
-        String inputFieldName,
-        CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
-        Field outputField);
+    public abstract <CombineInputT, AccumT, CombineOutputT>
+        AggregateCombiner<InputT> aggregateFieldsById(
+            List<Integer> inputFieldIds,
+            CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
+            Field outputField);
   }
 
   /**
@@ -389,13 +391,15 @@ public class Group {
    * aggregateField and aggregateFields. The output of this transform will have a schema that is
    * determined by the output types of all the composed combiners.
    */
-  public static class CombineFieldsGlobally<InputT>
-      extends PTransform<PCollection<InputT>, PCollection<Row>>
-      implements AggregateCombiner<InputT> {
+  public static class CombineFieldsGlobally<InputT> extends AggregateCombiner<InputT> {
     private final SchemaAggregateFn.Inner schemaAggregateFn;
 
     CombineFieldsGlobally(SchemaAggregateFn.Inner schemaAggregateFn) {
       this.schemaAggregateFn = schemaAggregateFn;
+    }
+
+    public static CombineFieldsGlobally initialCombiner() {
+      return new CombineFieldsGlobally<>(null);
     }
 
     /**
@@ -457,8 +461,10 @@ public class Group {
         String inputFieldName,
         CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
         Field outputField) {
+      SchemaAggregateFn.Inner innerSchemaAggregateFn =
+          (schemaAggregateFn == null) ? SchemaAggregateFn.create() : schemaAggregateFn;
       return new CombineFieldsGlobally<>(
-          schemaAggregateFn.aggregateFields(
+          innerSchemaAggregateFn.aggregateFields(
               FieldAccessDescriptor.withFieldNames(inputFieldName), false, fn, outputField));
     }
 
@@ -475,8 +481,10 @@ public class Group {
     @Override
     public <CombineInputT, AccumT, CombineOutputT> CombineFieldsGlobally<InputT> aggregateField(
         int inputFieldId, CombineFn<CombineInputT, AccumT, CombineOutputT> fn, Field outputField) {
+      SchemaAggregateFn.Inner innerSchemaAggregateFn =
+          (schemaAggregateFn == null) ? SchemaAggregateFn.create() : schemaAggregateFn;
       return new CombineFieldsGlobally<>(
-          schemaAggregateFn.aggregateFields(
+          innerSchemaAggregateFn.aggregateFields(
               FieldAccessDescriptor.withFieldIds(inputFieldId), false, fn, outputField));
     }
 
@@ -568,8 +576,10 @@ public class Group {
         FieldAccessDescriptor fieldAccessDescriptor,
         CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
         Field outputField) {
+      SchemaAggregateFn.Inner innerSchemaAggregateFn =
+          (schemaAggregateFn == null) ? SchemaAggregateFn.create() : schemaAggregateFn;
       return new CombineFieldsGlobally<>(
-          schemaAggregateFn.aggregateFields(fieldAccessDescriptor, false, fn, outputField));
+          innerSchemaAggregateFn.aggregateFields(fieldAccessDescriptor, false, fn, outputField));
     }
 
     @Override
@@ -594,9 +604,7 @@ public class Group {
    * specified extracted fields.
    */
   @AutoValue
-  public abstract static class ByFields<InputT>
-      extends PTransform<PCollection<InputT>, PCollection<Row>>
-      implements AggregateCombiner<InputT> {
+  public abstract static class ByFields<InputT> extends AggregateCombiner<InputT> {
     abstract FieldAccessDescriptor getFieldAccessDescriptor();
 
     abstract String getKeyField();
@@ -907,9 +915,7 @@ public class Group {
    * determined by the output types of all the composed combiners.
    */
   @AutoValue
-  public abstract static class CombineFieldsByFields<InputT>
-      extends PTransform<PCollection<InputT>, PCollection<Row>>
-      implements AggregateCombiner<InputT> {
+  public abstract static class CombineFieldsByFields<InputT> extends AggregateCombiner<InputT> {
     abstract ByFields<InputT> getByFields();
 
     abstract SchemaAggregateFn.Inner getSchemaAggregateFn();
