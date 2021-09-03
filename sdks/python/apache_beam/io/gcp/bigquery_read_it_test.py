@@ -26,12 +26,14 @@ import logging
 import random
 import time
 import unittest
+import uuid
 from decimal import Decimal
 from functools import wraps
 
 import pytest
 
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.value_provider import StaticValueProvider
@@ -68,34 +70,29 @@ def skip(runners):
   return inner
 
 
-def datetime_to_utc(element):
-  for k, v in element.items():
-    if isinstance(v, (datetime.time, datetime.date)):
-      element[k] = str(v)
-    if isinstance(v, datetime.datetime) and v.tzinfo:
-      # For datetime objects, we'll
-      offset = v.utcoffset()
-      utc_dt = (v - offset).strftime('%Y-%m-%d %H:%M:%S.%f UTC')
-      element[k] = utc_dt
-  return element
-
-
 class CheckPythonTypes(beam.DoFn):
   def process(self, element):
     for key, value in element.items():
       if key == 'bool':
         isinstance(value, bool)
+      elif key == 'bytes':
+        isinstance(value, bytes)
       elif key == 'int':
         isinstance(value, int)
       elif key == 'float':
         isinstance(value, float)
       elif key == 'numeric':
         isinstance(value, Decimal)
-      elif key == 'bytes':
-        isinstance(value, bytes)
+      elif key == 'rec':
+        isinstance(value, dict)
+      elif key == 'date':
+        isinstance(value, datetime.date)
+      elif key == 'time':
+        isinstance(value, datetime.time)
+      elif key == 'timestamp':
+        isinstance(value, datetime.datetime)
       else:
-        # Includes STRING, STRUCT/RECORD, DATE, DATETIME, TIMESTAMP and
-        # GEOGRAPHY types.
+        # Includes STRING and GEOGRAPHY types.
         isinstance(value, str)
 
 
@@ -202,7 +199,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     cls.create_table(cls.table_name)
 
     table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)
-    cls.query = 'SELECT * FROM `%s`' % table_id
+    cls.query = 'SELECT * FROM %s' % table_id
 
   @classmethod
   def create_table(cls, table_name):
@@ -280,7 +277,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
         'string': 'String!',
         'date': '3000-12-31',
         'time': '23:59:59',
-        'datetime': '2018-12-31T12:44:31',
+        'datetime': '2018-12-31 12:44:31',
         'timestamp': '2018-12-31 12:44:31.744957 UTC',
         'geo': 'POINT(30 10)',
         'rec': {
@@ -304,10 +301,12 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
         'numeric': Decimal('10'),
         'bytes': base64.b64encode(byts) if native else byts,
         'string': 'String!',
-        'date': '3000-12-31',
-        'time': '23:59:59',
+        'date': '3000-12-31' if native else datetime.date(3000, 12, 31),
+        'time': '23:59:59' if native else datetime.time(23, 59, 59),
         'datetime': '2018-12-31T12:44:31',
-        'timestamp': '2018-12-31 12:44:31.744957 UTC',
+        'timestamp': '2018-12-31 12:44:31.744957 UTC'
+        if native else datetime.datetime(
+            2018, 12, 31, 12, 44, 31, 744957, tzinfo=datetime.timezone.utc),
         'geo': 'POINT(30 10)',
         'rec': {
             'string': 'Struct String!!', 'bool': False
@@ -344,8 +343,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
               query=self.query,
               use_standard_sql=True,
               project=self.project,
-              bigquery_job_labels={'launcher': 'apache_beam_tests'})
-          | beam.Map(datetime_to_utc))
+              bigquery_job_labels={'launcher': 'apache_beam_tests'}))
       assert_that(result, equal_to(self.get_expected_data(native=False)))
       result = result | beam.ParDo(CheckPythonTypes())
 
