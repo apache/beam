@@ -47,6 +47,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.Enumerat
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.prepare.RelOptTableImpl;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.TableModify.Operation;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexBuilder;
@@ -170,7 +171,7 @@ public class BeamEnumerableConverterTest {
               RelOptTableImpl.create(null, type, ImmutableList.of(), null),
               null,
               new BeamValuesRel(cluster, type, tuples, null),
-              null,
+              Operation.INSERT,
               null,
               null,
               false,

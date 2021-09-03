@@ -24,7 +24,10 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSinkRule;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.RenameFields;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -132,7 +135,8 @@ public class BeamIOSinkRel extends TableModify
           "Wrong number of inputs for %s: %s",
           BeamIOSinkRel.class.getSimpleName(),
           pinput);
-      PCollection<Row> input = pinput.get(0);
+      Schema schema = CalciteUtils.toSchema(getExpectedInputRowType(0));
+      PCollection<Row> input = pinput.get(0).apply(RenameFields.<Row>create()).setRowSchema(schema);
 
       sqlTable.buildIOWriter(input);
 
