@@ -86,7 +86,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
 
   @Override
   public PTransform<PInput, POutput> getTransform(FunctionSpec spec) {
-    JavaClassLookupPayload payload = null;
+    JavaClassLookupPayload payload;
     try {
       payload = JavaClassLookupPayload.parseFrom(spec.getPayload());
     } catch (InvalidProtocolBufferException e) {
@@ -329,7 +329,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     return true;
   }
 
-  private @Nullable Object getDecodeValueFromRow(
+  private @Nullable Object getDecodedValueFromRow(
       Class<?> type, Object valueFromRow, @Nullable Type genericType) {
     if (isPrimitiveOrWrapperOrString(type)) {
       if (!isPrimitiveOrWrapperOrString(valueFromRow.getClass())) {
@@ -339,15 +339,15 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       return valueFromRow;
     } else if (type.isArray()) {
       Class<?> arrayComponentClass = type.getComponentType();
-      return getDecodeArrayValueFromRow(arrayComponentClass, valueFromRow);
+      return getDecodedArrayValueFromRow(arrayComponentClass, valueFromRow);
     } else if (Collection.class.isAssignableFrom(type)) {
       List<Object> originalList = (List) valueFromRow;
-      List<Object> decodedList = new ArrayList<Object>();
+      List<Object> decodedList = new ArrayList<>();
       for (Object obj : originalList) {
-        if (genericType != null && genericType instanceof ParameterizedType) {
+        if (genericType instanceof ParameterizedType) {
           Class<?> elementType =
               (Class<?>) ((ParameterizedType) genericType).getActualTypeArguments()[0];
-          decodedList.add(getDecodeValueFromRow(elementType, obj, null));
+          decodedList.add(getDecodedValueFromRow(elementType, obj, null));
         } else {
           throw new RuntimeException("Could not determine the generic type of the list");
         }
@@ -355,7 +355,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       return decodedList;
     } else if (valueFromRow instanceof Row) {
       Row row = (Row) valueFromRow;
-      SerializableFunction<Row, ?> fromRowFunc = null;
+      SerializableFunction<Row, ?> fromRowFunc;
       try {
         fromRowFunc = SCHEMA_REGISTRY.getFromRowFunction(type);
       } catch (NoSuchSchemaException e) {
@@ -374,19 +374,23 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       java.lang.reflect.Parameter parameter = parameters[i];
       Class<?> parameterClass = parameter.getType();
       Object parameterValue =
-          getDecodeValueFromRow(parameterClass, constrtuctorRow.getValue(i), genericTypes[i]);
+          getDecodedValueFromRow(parameterClass, constrtuctorRow.getValue(i), genericTypes[i]);
       parameterValues.add(parameterValue);
     }
 
     return parameterValues.toArray();
   }
 
-  private Object[] getDecodeArrayValueFromRow(Class<?> arrayComponentType, Object valueFromRow) {
+  private Object[] getDecodedArrayValueFromRow(Class<?> arrayComponentType, Object valueFromRow) {
     List<Object> originalValues = (List<Object>) valueFromRow;
     List<Object> decodedValues = new ArrayList<>();
     for (Object obj : originalValues) {
-      decodedValues.add(getDecodeValueFromRow(arrayComponentType, obj, null));
+      decodedValues.add(getDecodedValueFromRow(arrayComponentType, obj, null));
     }
+
+    // We have to construct and return an array of the correct type. Otherwise Java reflection
+    // constructor/method invocations that use the returned value may consider the array as varargs
+    // (different parameters).
     Object valueTypeArray = Array.newInstance(arrayComponentType, decodedValues.size());
     for (int i = 0; i < decodedValues.size(); i++) {
       Array.set(valueTypeArray, i, arrayComponentType.cast(decodedValues.get(i)));
