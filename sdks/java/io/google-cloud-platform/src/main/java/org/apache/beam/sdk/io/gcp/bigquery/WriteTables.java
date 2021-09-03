@@ -322,36 +322,6 @@ class WriteTables<DestinationT>
       return jobService;
     }
 
-    @Teardown
-    public void onTeardown() {
-      try {
-        if (datasetService != null) {
-          datasetService.close();
-          datasetService = null;
-        }
-        if (jobService != null) {
-          jobService.close();
-          jobService = null;
-        }
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
-      if (datasetService == null) {
-        datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
-      }
-      return datasetService;
-    }
-
-    private JobService getJobService(PipelineOptions pipelineOptions) throws IOException {
-      if (jobService == null) {
-        jobService = bqServices.getJobService(pipelineOptions.as(BigQueryOptions.class));
-      }
-      return jobService;
-    }
-
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(
