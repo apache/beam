@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -247,7 +246,8 @@ public class DistinctTest {
                 Distinct.withRepresentativeValueFn(new Keys<Long>())
                     .withRepresentativeType(TypeDescriptor.of(Long.class)));
 
-    PAssert.that(distinctValues).containsInAnyOrder(KV.of(1L, "k1"), KV.of(2L, "k2"), KV.of(3L, "k3"));
+    PAssert.that(distinctValues)
+        .containsInAnyOrder(KV.of(1L, "k1"), KV.of(2L, "k2"), KV.of(3L, "k3"));
     triggeredDistinctRepresentativePipeline.run();
   }
 
