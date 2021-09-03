@@ -79,7 +79,7 @@ abstract class BatchSpannerRead
             ParDo.of(new ReadFromPartitionFn(getSpannerConfig(), txView)).withSideInputs(txView));
   }
 
-  // TODO (BEAM-12551) When @InitialRestriction and @SplitRestriction are able to access sideInputs
+  // TODO (BEAM-12522) When @InitialRestriction and @SplitRestriction are able to access sideInputs
   // this DoFn should be integrated into ReadFromPartitionFn
   @VisibleForTesting
   static class GeneratePartitionsFn extends DoFn<ReadOperation, List<Partition>> {
