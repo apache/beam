@@ -298,7 +298,9 @@ public class TestStreamTest implements Serializable {
             .advanceWatermarkToInfinity();
 
     TestStream<Long> other =
-        TestStream.create(VarLongCoder.of()).addElements(1L, 2L, 3L, 4L).advanceWatermarkToInfinity();
+        TestStream.create(VarLongCoder.of())
+            .addElements(1L, 2L, 3L, 4L)
+            .advanceWatermarkToInfinity();
 
     PCollection<String> createStrings =
         p.apply("CreateStrings", stream)

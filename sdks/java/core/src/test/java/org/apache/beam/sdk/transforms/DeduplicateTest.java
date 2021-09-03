@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -198,7 +197,8 @@ public class DeduplicateTest {
                 Deduplicate.withRepresentativeValueFn(new Keys<Long>())
                     .withRepresentativeCoder(VarLongCoder.of()));
 
-    PAssert.that(distinctValues).containsInAnyOrder(KV.of(1L, "k1"), KV.of(2L, "k2"), KV.of(3L, "k3"));
+    PAssert.that(distinctValues)
+        .containsInAnyOrder(KV.of(1L, "k1"), KV.of(2L, "k2"), KV.of(3L, "k3"));
     p.run();
   }
 
@@ -226,7 +226,8 @@ public class DeduplicateTest {
                 Deduplicate.withRepresentativeValueFn(new Keys<Long>())
                     .withRepresentativeCoder(VarLongCoder.of()));
 
-    PAssert.that(distinctValues).containsInAnyOrder(KV.of(1L, "k1"), KV.of(2L, "k2"), KV.of(3L, "k3"));
+    PAssert.that(distinctValues)
+        .containsInAnyOrder(KV.of(1L, "k1"), KV.of(2L, "k2"), KV.of(3L, "k3"));
     p.run();
   }
 
