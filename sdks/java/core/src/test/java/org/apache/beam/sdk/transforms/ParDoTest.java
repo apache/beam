@@ -4093,8 +4093,7 @@ public class ParDoTest implements Serializable {
             }
 
             @OnTimer(timerId)
-            public void onTimer(
-                @Timestamp Instant timestamp, OutputReceiver<KV<Long, Instant>> r) {
+            public void onTimer(@Timestamp Instant timestamp, OutputReceiver<KV<Long, Instant>> r) {
               r.output(KV.of(42L, timestamp));
             }
           };
@@ -4136,8 +4135,7 @@ public class ParDoTest implements Serializable {
             }
 
             @OnTimer(timerId)
-            public void onTimer(
-                @Timestamp Instant timestamp, OutputReceiver<KV<Long, Instant>> r) {
+            public void onTimer(@Timestamp Instant timestamp, OutputReceiver<KV<Long, Instant>> r) {
               r.output(KV.of(42L, timestamp));
             }
           };
@@ -5045,8 +5043,7 @@ public class ParDoTest implements Serializable {
             }
 
             @OnTimer(timerId)
-            public void onTimer(
-                OutputReceiver<Long> r, @TimerId(clearTimerId) Timer clearTimer) {
+            public void onTimer(OutputReceiver<Long> r, @TimerId(clearTimerId) Timer clearTimer) {
               r.output(42L);
               clearTimer.clear();
             }
@@ -5103,8 +5100,7 @@ public class ParDoTest implements Serializable {
             }
 
             @OnTimer(timerId)
-            public void onTimer(
-                OutputReceiver<Long> r, @TimerId(clearTimerId) Timer clearTimer) {
+            public void onTimer(OutputReceiver<Long> r, @TimerId(clearTimerId) Timer clearTimer) {
               r.output(42L);
               clearTimer.clear();
             }
