@@ -189,7 +189,7 @@ public class BeamBuiltinAggregations {
         return new BigDecimalSum0();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not supported in SUM", fieldType));
+            String.format("[%s] is not supported in SUM0", fieldType));
     }
   }
 
