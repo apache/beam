@@ -78,6 +78,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
@@ -1272,7 +1273,7 @@ public class BigtableIOTest {
    * element.
    */
   private static class WriteGeneratorDoFn
-      extends DoFn<Integer, KV<ByteString, Iterable<Mutation>>> {
+      extends DoFn<Long, KV<ByteString, Iterable<Mutation>>> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       for (int i = 0; i < ctx.element(); i++) {
@@ -1293,12 +1294,12 @@ public class BigtableIOTest {
     Instant elementTimestamp = Instant.parse("2019-06-10T00:00:00");
     Duration windowDuration = Duration.standardMinutes(1);
 
-    TestStream<Integer> input =
-        TestStream.create(VarIntCoder.of())
+    TestStream<Long> input =
+        TestStream.create(VarLongCoder.of())
             .advanceWatermarkTo(elementTimestamp)
-            .addElements(1)
+            .addElements(1L)
             .advanceWatermarkTo(elementTimestamp.plus(windowDuration))
-            .addElements(2)
+            .addElements(2L)
             .advanceWatermarkToInfinity();
 
     BoundedWindow expectedFirstWindow = new IntervalWindow(elementTimestamp, windowDuration);
