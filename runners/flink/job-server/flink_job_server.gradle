@@ -185,7 +185,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
     testFilter: {
       // TODO(BEAM-10016)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-      // TODO(EAM-12039)
+      // TODO(BEAM-12039)
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode'
       // TODO(BEAM-12038)
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
