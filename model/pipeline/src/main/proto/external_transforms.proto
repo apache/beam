@@ -66,20 +66,21 @@ message JavaClassLookupPayload {
   // constructor.
   string constructor_method = 2;
 
+  // The top level fields of the schema represent the method parameters in
+  // order.
+  // If able, top level field names are also verified against the method
+  // parameters for a match.
+  Schema constructor_schema = 3;
+
+  // A payload which can be decoded using beam:coder:row:v1 and the provided
+  // constructor schema.
+  bytes constructor_payload = 4;
+
   // Set of builder methods and corresponding parameters to apply after the
   // transform object is constructed.
   // When constructing the transform object, given builder methods will be
   // applied in order.
-  repeated BuilderMethod builder_methods = 3;
-
-  // A schema that describes the parameter of the constructor or the constructor
-  // method used to instantiate the intial transform object.
-  // The top level fields of the schema represent the parameters in order.
-  // Top level field names map to parameter names to use.
-  Schema constructor_schema = 4;
-
-  // A payload that maps to the provided constructor schema.
-  bytes constructor_payload = 5;
+  repeated BuilderMethod builder_methods = 5;
 }
 
 // This represents a builder method of the transform class that should be
@@ -90,12 +91,14 @@ message BuilderMethod {
   // Name of the builder method
   string name = 1;
 
-  // A schema that describes the parameters of the builder method.
-  // The top level fields of the schema represents the parameters in order.
-  // Top level field names map to parameter names to use.
+  // The top level fields of the schema represent the method parameters in
+  // order.
+  // If able, top level field names are also verified against the method
+  // parameters for a match.
   Schema schema = 2;
 
-  // A payload that maps to the provided builder method schema.
+  // A payload which can be decoded using beam:coder:row:v1 and the builder
+  // method schema.
   bytes payload = 3;
 }
 
