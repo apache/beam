@@ -62,7 +62,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
@@ -851,12 +850,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  private Pair<List<DataflowPackage>, RunnerApi.Pipeline> stageArtifacts(
-      RunnerApi.Pipeline pipeline) {
+  private RunnerApi.Pipeline resolveArtifacts(RunnerApi.Pipeline pipeline) {
     RunnerApi.Pipeline.Builder pipelineBuilder = pipeline.toBuilder();
     RunnerApi.Components.Builder componentsBuilder = pipelineBuilder.getComponentsBuilder();
     componentsBuilder.clearEnvironments();
-    ImmutableList.Builder<StagedFile> filesToStageBuilder = ImmutableList.builder();
     for (Map.Entry<String, RunnerApi.Environment> entry :
         pipeline.getComponents().getEnvironmentsMap().entrySet()) {
       RunnerApi.Environment.Builder environmentBuilder = entry.getValue().toBuilder();
@@ -883,9 +880,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Error parsing artifact staging_to role payload.", e);
         }
-        filesToStageBuilder.add(
-            StagedFile.of(
-                filePayload.getPath(), filePayload.getSha256(), stagingPayload.getStagedName()));
         environmentBuilder.addDependencies(
             info.toBuilder()
                 .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.URL))
@@ -903,8 +897,41 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       componentsBuilder.putEnvironments(entry.getKey(), environmentBuilder.build());
     }
-    return Pair.of(
-        options.getStager().stageFiles(filesToStageBuilder.build()), pipelineBuilder.build());
+    return pipelineBuilder.build();
+  }
+
+  private List<DataflowPackage> stageArtifacts(RunnerApi.Pipeline pipeline) {
+    ImmutableList.Builder<StagedFile> filesToStageBuilder = ImmutableList.builder();
+    for (Map.Entry<String, RunnerApi.Environment> entry :
+        pipeline.getComponents().getEnvironmentsMap().entrySet()) {
+      for (RunnerApi.ArtifactInformation info : entry.getValue().getDependenciesList()) {
+        if (!BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE).equals(info.getTypeUrn())) {
+          throw new RuntimeException(
+              String.format("unsupported artifact type %s", info.getTypeUrn()));
+        }
+        RunnerApi.ArtifactFilePayload filePayload;
+        try {
+          filePayload = RunnerApi.ArtifactFilePayload.parseFrom(info.getTypePayload());
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException("Error parsing artifact file payload.", e);
+        }
+        if (!BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO)
+            .equals(info.getRoleUrn())) {
+          throw new RuntimeException(
+              String.format("unsupported artifact role %s", info.getRoleUrn()));
+        }
+        RunnerApi.ArtifactStagingToRolePayload stagingPayload;
+        try {
+          stagingPayload = RunnerApi.ArtifactStagingToRolePayload.parseFrom(info.getRolePayload());
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException("Error parsing artifact staging_to role payload.", e);
+        }
+        filesToStageBuilder.add(
+            StagedFile.of(
+                filePayload.getPath(), filePayload.getSha256(), stagingPayload.getStagedName()));
+      }
+    }
+    return options.getStager().stageFiles(filesToStageBuilder.build());
   }
 
   private List<RunnerApi.ArtifactInformation> getDefaultArtifacts() {
@@ -976,10 +1003,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     RunnerApi.Pipeline pipelineProto =
         PipelineTranslation.toProto(pipeline, portableComponents, false);
-    Pair<List<DataflowPackage>, RunnerApi.Pipeline> packagesPipelinePair =
-        stageArtifacts(pipelineProto);
-    List<DataflowPackage> packages = packagesPipelinePair.getLeft();
-    RunnerApi.Pipeline portablePipelineProto = packagesPipelinePair.getRight();
+    List<DataflowPackage> packages = stageArtifacts(pipelineProto);
+    RunnerApi.Pipeline portablePipelineProto = resolveArtifacts(pipelineProto);
     LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
     // Stage the portable pipeline proto, retrieving the staged pipeline path, then update
     // the options on the new job
