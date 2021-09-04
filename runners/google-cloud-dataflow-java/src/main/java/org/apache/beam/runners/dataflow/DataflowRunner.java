@@ -850,7 +850,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  private RunnerApi.Pipeline resolveArtifacts(RunnerApi.Pipeline pipeline) {
+  @VisibleForTesting
+  protected RunnerApi.Pipeline resolveArtifacts(RunnerApi.Pipeline pipeline) {
     RunnerApi.Pipeline.Builder pipelineBuilder = pipeline.toBuilder();
     RunnerApi.Components.Builder componentsBuilder = pipelineBuilder.getComponentsBuilder();
     componentsBuilder.clearEnvironments();
