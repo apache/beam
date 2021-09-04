@@ -52,6 +52,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.Trunc
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
@@ -101,6 +102,15 @@ public class BigQueryUtilsTest {
 
   private static final Schema ENUM_STRING_TYPE =
       Schema.builder().addNullableField("color", Schema.FieldType.STRING).build();
+
+  private static final Schema NANOS_INSTANT_TYPE =
+      Schema.builder()
+          .addNullableField("nanos_instant", Schema.FieldType.logicalType(new NanosInstant()))
+          .build();
+
+  private static final Schema NANOS_INSTANT_DATETIME_TYPE =
+      // Beam DATETIME type is conceptually a timestamp, different from BigQuery/SQL
+      Schema.builder().addNullableField("nanos_instant", Schema.FieldType.DATETIME).build();
 
   private static final Schema MAP_TYPE =
       Schema.builder().addStringField("key").addDoubleField("value").build();
@@ -199,6 +209,11 @@ public class BigQueryUtilsTest {
 
   private static final TableFieldSchema COLOR =
       new TableFieldSchema().setName("color").setType(StandardSQLTypeName.STRING.toString());
+
+  private static final TableFieldSchema NANOS_INSTANT =
+      new TableFieldSchema()
+          .setName("nanos_instant")
+          .setType(StandardSQLTypeName.TIMESTAMP.toString());
 
   private static final TableFieldSchema IDS =
       new TableFieldSchema()
@@ -388,6 +403,22 @@ public class BigQueryUtilsTest {
 
   private static final TableRow BQ_ENUM_ROW = new TableRow().set("color", "GREEN");
 
+  private static final Row NANOS_INSTANT_ROW =
+      Row.withSchema(NANOS_INSTANT_TYPE)
+          .addValues(java.time.Instant.parse("2021-09-03T18:12:12.123456789Z"))
+          .build();
+
+  private static final Row NANOS_INSTANT_MILLISECOND_PRECISION_ROW =
+      Row.withSchema(NANOS_INSTANT_DATETIME_TYPE)
+          .addValues(
+              ISODateTimeFormat.dateHourMinuteSecondFraction()
+                  .withZoneUTC()
+                  .parseDateTime("2021-09-03T18:12:12.123"))
+          .build();
+
+  private static final TableRow BQ_NANOS_INSTANT_ROW =
+      new TableRow().set("nanos_instant", "2021-09-03 18:12:12.123456 UTC");
+
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
 
@@ -440,6 +471,9 @@ public class BigQueryUtilsTest {
                   DOUBLE));
 
   private static final TableSchema BQ_ENUM_TYPE = new TableSchema().setFields(Arrays.asList(COLOR));
+
+  private static final TableSchema BQ_NANOS_INSTANT_TYPE =
+      new TableSchema().setFields(Arrays.asList(NANOS_INSTANT));
 
   private static final TableSchema BQ_ARRAY_TYPE = new TableSchema().setFields(Arrays.asList(IDS));
 
@@ -500,6 +534,13 @@ public class BigQueryUtilsTest {
     TableSchema schema = toTableSchema(ENUM_TYPE);
 
     assertThat(schema.getFields(), containsInAnyOrder(COLOR));
+  }
+
+  @Test
+  public void testToTableSchema_nanos_instant() {
+    TableSchema schema = toTableSchema(NANOS_INSTANT_TYPE);
+
+    assertThat(schema.getFields(), containsInAnyOrder(NANOS_INSTANT));
   }
 
   @Test
@@ -624,6 +665,14 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     assertThat(row, hasEntry("color", "GREEN"));
+  }
+
+  @Test
+  public void testToTableRow_nanosInstant() {
+    TableRow row = toTableRow(true).apply(NANOS_INSTANT_ROW);
+
+    assertThat(row.size(), equalTo(1));
+    assertThat(row, hasEntry("nanos_instant", "2021-09-03 18:12:12.123456 UTC"));
   }
 
   @Test
@@ -825,6 +874,12 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testFromTableSchema_nanosInstant() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_NANOS_INSTANT_TYPE);
+    assertEquals(NANOS_INSTANT_DATETIME_TYPE, beamSchema);
+  }
+
+  @Test
   public void testFromTableSchema_array() {
     Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_ARRAY_TYPE);
     assertEquals(ARRAY_TYPE, beamSchema);
@@ -870,6 +925,12 @@ public class BigQueryUtilsTest {
   public void testToBeamRow_enum() {
     Row beamRow = BigQueryUtils.toBeamRow(ENUM_STRING_TYPE, BQ_ENUM_ROW);
     assertEquals(ENUM_STRING_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_nanos_instant() {
+    Row beamRow = BigQueryUtils.toBeamRow(NANOS_INSTANT_DATETIME_TYPE, BQ_NANOS_INSTANT_ROW);
+    assertEquals(NANOS_INSTANT_MILLISECOND_PRECISION_ROW, beamRow);
   }
 
   @Test

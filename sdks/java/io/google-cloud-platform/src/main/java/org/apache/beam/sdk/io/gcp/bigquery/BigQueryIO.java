@@ -1745,6 +1745,7 @@ public class BigQueryIO {
         .setNumStorageWriteApiStreams(0)
         .setMethod(Write.Method.DEFAULT)
         .setExtendedErrorInfo(false)
+        .setAllowTruncatedTimestamps(false)
         .setSkipInvalidRows(false)
         .setIgnoreUnknownValues(false)
         .setIgnoreInsertIds(false)
@@ -1877,6 +1878,8 @@ public class BigQueryIO {
 
     abstract boolean getExtendedErrorInfo();
 
+    abstract boolean getAllowTruncatedTimestamps();
+
     abstract Boolean getSkipInvalidRows();
 
     abstract Boolean getIgnoreUnknownValues();
@@ -1965,6 +1968,8 @@ public class BigQueryIO {
       abstract Builder<T> setCustomGcsTempLocation(ValueProvider<String> customGcsTempLocation);
 
       abstract Builder<T> setExtendedErrorInfo(boolean extendedErrorInfo);
+
+      abstract Builder<T> setAllowTruncatedTimestamps(boolean allowTruncatedTimestamps);
 
       abstract Builder<T> setSkipInvalidRows(Boolean skipInvalidRows);
 
@@ -2421,6 +2426,20 @@ public class BigQueryIO {
     }
 
     /**
+     * Controls the conversion of the logical type {@link org.apache.beam.sdk.schemas.logicaltypes.NanosInstant}.
+     *
+     * <p>Without this option, on a row by row basis if the NanosInstant contains values which are effectively
+     * microseconds precision (trailing 3 zeros), it will be truncated to a microsecond precision string when sent to
+     * BigQuery API. If the NanosInstant contains values which overflow (last 3 digits non zeroes), it will error out.
+     *
+     * <p>With this option, we always truncate the NanosInstant to microsecond precision when converting to the string
+     * format required by BigQuery API.
+     */
+    public Write<T> withAllowTruncatedTimestamps() {
+      return toBuilder().setAllowTruncatedTimestamps(true).build();
+    }
+
+    /**
      * Insert all valid rows of a request, even if invalid rows exist. This is only applicable when
      * the write method is set to {@link Method#STREAMING_INSERTS}. The default value is false,
      * which causes the entire request to fail if any invalid rows exist.
@@ -2772,7 +2791,8 @@ public class BigQueryIO {
           // If no format function set, then we will automatically convert the input type to a
           // TableRow.
           // TODO: it would be trivial to convert to avro records here instead.
-          formatFunction = BigQueryUtils.toTableRow(input.getToRowFunction());
+          formatFunction =
+              BigQueryUtils.toTableRow(input.getToRowFunction(), getAllowTruncatedTimestamps());
         }
         // Infer the TableSchema from the input Beam schema.
         TableSchema tableSchema = BigQueryUtils.toTableSchema(input.getSchema());
@@ -2893,6 +2913,7 @@ public class BigQueryIO {
                 .withInsertRetryPolicy(retryPolicy)
                 .withTestServices(getBigQueryServices())
                 .withExtendedErrorInfo(getExtendedErrorInfo())
+                .withAllowTruncatedTimestamps(getAllowTruncatedTimestamps())
                 .withSkipInvalidRows(getSkipInvalidRows())
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
                 .withIgnoreInsertIds(getIgnoreInsertIds())

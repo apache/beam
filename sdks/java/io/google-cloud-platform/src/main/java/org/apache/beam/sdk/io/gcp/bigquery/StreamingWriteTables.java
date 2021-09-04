@@ -54,6 +54,7 @@ public class StreamingWriteTables<ElementT>
   private BigQueryServices bigQueryServices;
   private InsertRetryPolicy retryPolicy;
   private boolean extendedErrorInfo;
+  private final boolean allowTruncatedTimestamps;
   private static final String FAILED_INSERTS_TAG_ID = "failedInserts";
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
@@ -69,6 +70,7 @@ public class StreamingWriteTables<ElementT>
         new BigQueryServicesImpl(),
         InsertRetryPolicy.alwaysRetry(),
         false, // extendedErrorInfo
+        false, // allowTruncatedTimestamps
         false, // skipInvalidRows
         false, // ignoreUnknownValues
         false, // ignoreInsertIds
@@ -83,6 +85,7 @@ public class StreamingWriteTables<ElementT>
       BigQueryServices bigQueryServices,
       InsertRetryPolicy retryPolicy,
       boolean extendedErrorInfo,
+      boolean allowTruncatedTimestamps,
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
@@ -94,6 +97,7 @@ public class StreamingWriteTables<ElementT>
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
     this.extendedErrorInfo = extendedErrorInfo;
+    this.allowTruncatedTimestamps = allowTruncatedTimestamps;
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
@@ -109,6 +113,7 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -124,6 +129,7 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -139,6 +145,27 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
+  }
+
+  /**
+   * Specify whether to truncate nanos precision timestamps to micros precision supported by
+   * BigQuery.
+   */
+  StreamingWriteTables<ElementT> withAllowTruncatedTimestamps(boolean allowTruncatedTimestamps) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -154,6 +181,7 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -169,6 +197,7 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -184,6 +213,7 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -199,6 +229,7 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -214,6 +245,7 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -230,6 +262,7 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -246,6 +279,7 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -262,6 +296,7 @@ public class StreamingWriteTables<ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,

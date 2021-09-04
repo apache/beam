@@ -39,6 +39,7 @@ public class StreamingInserts<DestinationT, ElementT>
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private InsertRetryPolicy retryPolicy;
   private boolean extendedErrorInfo;
+  private final boolean allowTruncatedTimestamps;
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
@@ -66,6 +67,7 @@ public class StreamingInserts<DestinationT, ElementT>
         false,
         false,
         false,
+        false,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -80,6 +82,7 @@ public class StreamingInserts<DestinationT, ElementT>
       BigQueryServices bigQueryServices,
       InsertRetryPolicy retryPolicy,
       boolean extendedErrorInfo,
+      boolean allowTruncatedTimestamps,
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
@@ -94,6 +97,7 @@ public class StreamingInserts<DestinationT, ElementT>
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
     this.extendedErrorInfo = extendedErrorInfo;
+    this.allowTruncatedTimestamps = allowTruncatedTimestamps;
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
@@ -114,6 +118,7 @@ public class StreamingInserts<DestinationT, ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -133,6 +138,31 @@ public class StreamingInserts<DestinationT, ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow,
+        deterministicRecordIdFn,
+        kmsKey);
+  }
+
+  /**
+   * Specify whether to truncate nanos precision timestamps to micros precision supported by
+   * BigQuery.
+   */
+  public StreamingInserts<DestinationT, ElementT> withAllowTruncatedTimestamps(
+      boolean allowTruncatedTimestamps) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -151,6 +181,7 @@ public class StreamingInserts<DestinationT, ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -169,6 +200,7 @@ public class StreamingInserts<DestinationT, ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -187,6 +219,7 @@ public class StreamingInserts<DestinationT, ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -205,6 +238,7 @@ public class StreamingInserts<DestinationT, ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -224,6 +258,7 @@ public class StreamingInserts<DestinationT, ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -242,6 +277,7 @@ public class StreamingInserts<DestinationT, ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -260,6 +296,7 @@ public class StreamingInserts<DestinationT, ElementT>
         bigQueryServices,
         retryPolicy,
         extendedErrorInfo,
+        allowTruncatedTimestamps,
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
@@ -285,6 +322,7 @@ public class StreamingInserts<DestinationT, ElementT>
             .withTestServices(bigQueryServices)
             .withInsertRetryPolicy(retryPolicy)
             .withExtendedErrorInfo(extendedErrorInfo)
+            .withAllowTruncatedTimestamps(allowTruncatedTimestamps)
             .withSkipInvalidRows(skipInvalidRows)
             .withIgnoreUnknownValues(ignoreUnknownValues)
             .withIgnoreInsertIds(ignoreInsertIds)

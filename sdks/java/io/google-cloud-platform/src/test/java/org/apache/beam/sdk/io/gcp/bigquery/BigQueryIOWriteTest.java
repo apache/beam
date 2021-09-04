@@ -74,6 +74,7 @@ import org.apache.avro.io.Encoder;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -94,6 +95,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -2320,6 +2322,46 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withSchema(schema)
                 .withoutValidation());
     p.run();
+  }
+
+  @Test
+  public void testWriteWithAllowTruncatedTimestamps() throws IOException, InterruptedException {
+    if (useStorageApi) {
+      // TODO: to support storage API, changes have to be made to
+      // org.apache.beam.sdk.io.gcp.bigquery.BeamRowToStorageApiProto
+      return;
+    }
+
+    final Schema schema =
+        Schema.builder()
+            .addNullableField("string_field", Schema.FieldType.STRING)
+            .addNullableField("nanos_instant", Schema.FieldType.logicalType(new NanosInstant()))
+            .build();
+
+    final String stringValue = "string-value";
+    final java.time.Instant instantValue =
+        java.time.Instant.parse("2021-09-03T18:12:12.123456789Z");
+
+    final Row row = Row.withSchema(schema).addValue(stringValue).addValue(instantValue).build();
+
+    p.apply(Create.of(row).withCoder(RowCoder.of(schema)))
+        .apply(
+            BigQueryIO.<Row>write()
+                .useBeamSchema()
+                .to("dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withTestServices(fakeBqServices)
+                .withAllowTruncatedTimestamps()
+                .withoutValidation());
+
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow()
+                .set("string_field", "string-value")
+                .set("nanos_instant", "2021-09-03 18:12:12.123456 UTC")));
   }
 
   @Test

@@ -34,6 +34,8 @@ import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,6 +61,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -157,8 +160,9 @@ public class BigQueryUtils {
       java.time.format.DateTimeFormatter.ofPattern(BIGQUERY_TIME_PATTERN);
   private static final java.time.format.DateTimeFormatter BIGQUERY_DATETIME_FORMATTER =
       java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd'T'" + BIGQUERY_TIME_PATTERN);
-
-  private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
+  private static final java.time.format.DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER =
+      java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd " + BIGQUERY_TIME_PATTERN + "' UTC'")
+          .withZone(ZoneOffset.UTC);
 
   /**
    * Native BigQuery formatter for it's timestamp format, depending on the milliseconds stored in
@@ -194,13 +198,6 @@ public class BigQueryUtils {
             .appendLiteral(" UTC")
             .toFormatter()
             .withZoneUTC();
-    BIGQUERY_TIMESTAMP_PRINTER =
-        new DateTimeFormatterBuilder()
-            .append(dateTimePart)
-            .appendLiteral('.')
-            .appendFractionOfSecond(3, 3)
-            .appendLiteral(" UTC")
-            .toFormatter();
   }
 
   private static final Map<TypeName, StandardSQLTypeName> BEAM_TO_BIGQUERY_TYPE_MAPPING =
@@ -257,7 +254,8 @@ public class BigQueryUtils {
           .put(SqlTypes.DATETIME.getIdentifier(), StandardSQLTypeName.DATETIME)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
           .put("SqlCharType", StandardSQLTypeName.STRING)
-          .put("Enum", StandardSQLTypeName.STRING)
+          .put(EnumerationType.IDENTIFIER, StandardSQLTypeName.STRING)
+          .put(NanosInstant.IDENTIFIER, StandardSQLTypeName.TIMESTAMP)
           .build();
 
   private static final String BIGQUERY_MAP_KEY_FIELD_NAME = "key";
@@ -445,37 +443,42 @@ public class BigQueryUtils {
   }
 
   private static final BigQueryIO.TypedRead.FromBeamRowFunction<TableRow>
-      TABLE_ROW_FROM_BEAM_ROW_FUNCTION = ignored -> BigQueryUtils::toTableRow;
+      TABLE_ROW_FROM_BEAM_ROW_FUNCTION = ignored -> BigQueryUtils.toTableRow();
 
   public static final BigQueryIO.TypedRead.FromBeamRowFunction<TableRow> tableRowFromBeamRow() {
     return TABLE_ROW_FROM_BEAM_ROW_FUNCTION;
   }
 
-  private static final SerializableFunction<Row, TableRow> ROW_TO_TABLE_ROW =
-      new ToTableRow<>(SerializableFunctions.identity());
+  /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
+  public static SerializableFunction<Row, TableRow> toTableRow(boolean allowTruncatedTimestamps) {
+    return toTableRow(SerializableFunctions.identity(), allowTruncatedTimestamps);
+  }
 
   /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
   public static SerializableFunction<Row, TableRow> toTableRow() {
-    return ROW_TO_TABLE_ROW;
+    return toTableRow(SerializableFunctions.identity(), false);
   }
 
   /** Convert a Beam schema type to a BigQuery {@link TableRow}. */
   public static <T> SerializableFunction<T, TableRow> toTableRow(
-      SerializableFunction<T, Row> toRow) {
-    return new ToTableRow<>(toRow);
+      SerializableFunction<T, Row> toRow, boolean allowTruncatedTimestamps) {
+    // allowTruncatedTimestamps affects the handling of Beam LogicalType NanosInstant
+    return new ToTableRow<>(toRow, allowTruncatedTimestamps);
   }
 
   /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
   private static class ToTableRow<T> implements SerializableFunction<T, TableRow> {
     private final SerializableFunction<T, Row> toRow;
+    private final boolean allowTruncatedTimestamps;
 
-    ToTableRow(SerializableFunction<T, Row> toRow) {
+    ToTableRow(SerializableFunction<T, Row> toRow, boolean allowTruncatedTimestamps) {
       this.toRow = toRow;
+      this.allowTruncatedTimestamps = allowTruncatedTimestamps;
     }
 
     @Override
     public TableRow apply(T input) {
-      return toTableRow(toRow.apply(input));
+      return toTableRow(toRow.apply(input), allowTruncatedTimestamps);
     }
   }
 
@@ -502,18 +505,28 @@ public class BigQueryUtils {
     return BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
   }
 
-  /** Convert a BigQuery TableRow to a Beam Row. */
+  /** Convert a Beam Row to a BigQuery TableRow. */
   public static TableRow toTableRow(Row row) {
+    return toTableRow(row, false);
+  }
+
+  /** Convert a Beam Row to a BigQuery TableRow. */
+  public static TableRow toTableRow(Row row, boolean allowTruncatedTimestamps) {
     TableRow output = new TableRow();
     for (int i = 0; i < row.getFieldCount(); i++) {
       Object value = row.getValue(i);
       Field schemaField = row.getSchema().getField(i);
-      output = output.set(schemaField.getName(), fromBeamField(schemaField.getType(), value));
+      output =
+          output.set(
+              schemaField.getName(),
+              fromBeamField(schemaField.getType(), value, allowTruncatedTimestamps));
     }
     return output;
   }
 
-  private static @Nullable Object fromBeamField(FieldType fieldType, Object fieldValue) {
+  /** Convert a Beam field value to a BigQuery API field value. */
+  private static @Nullable Object fromBeamField(
+      FieldType fieldType, Object fieldValue, boolean allowTruncatedTimestamps) {
     if (fieldValue == null) {
       if (!fieldType.getNullable()) {
         throw new IllegalArgumentException("Field is not nullable.");
@@ -528,7 +541,7 @@ public class BigQueryUtils {
         Iterable<?> items = (Iterable<?>) fieldValue;
         List<Object> convertedItems = Lists.newArrayListWithCapacity(Iterables.size(items));
         for (Object item : items) {
-          convertedItems.add(fromBeamField(elementType, item));
+          convertedItems.add(fromBeamField(elementType, item, allowTruncatedTimestamps));
         }
         return convertedItems;
 
@@ -540,20 +553,20 @@ public class BigQueryUtils {
         for (Map.Entry<?, ?> pair : pairs.entrySet()) {
           convertedItems.add(
               new TableRow()
-                  .set(BIGQUERY_MAP_KEY_FIELD_NAME, fromBeamField(keyElementType, pair.getKey()))
-                  .set(
-                      BIGQUERY_MAP_VALUE_FIELD_NAME,
-                      fromBeamField(valueElementType, pair.getValue())));
+                  .set(BIGQUERY_MAP_KEY_FIELD_NAME,
+                      fromBeamField(keyElementType, pair.getKey(), allowTruncatedTimestamps))
+                  .set(BIGQUERY_MAP_VALUE_FIELD_NAME,
+                      fromBeamField(valueElementType, pair.getValue(), allowTruncatedTimestamps)));
         }
         return convertedItems;
 
       case ROW:
-        return toTableRow((Row) fieldValue);
+        return toTableRow((Row) fieldValue, allowTruncatedTimestamps);
 
       case DATETIME:
-        return ((Instant) fieldValue)
-            .toDateTime(DateTimeZone.UTC)
-            .toString(BIGQUERY_TIMESTAMP_PRINTER);
+        org.joda.time.Instant jodaInstant = (org.joda.time.Instant) fieldValue;
+        java.time.Instant javaInstant = java.time.Instant.ofEpochMilli(jodaInstant.getMillis());
+        return BIGQUERY_TIMESTAMP_PRINTER.format(javaInstant);
 
       case INT16:
       case INT32:
@@ -594,10 +607,31 @@ public class BigQueryUtils {
           java.time.format.DateTimeFormatter localDateTimeFormatter =
               (0 == localDateTime.getNano()) ? ISO_LOCAL_DATE_TIME : BIGQUERY_DATETIME_FORMATTER;
           return localDateTimeFormatter.format(localDateTime);
-        } else if ("Enum".equals(identifier)) {
+        } else if (EnumerationType.IDENTIFIER.equals(identifier)) {
           return fieldType
               .getLogicalType(EnumerationType.class)
               .toString((EnumerationType.Value) fieldValue);
+        } else if (NanosInstant.IDENTIFIER.equals(identifier)) {
+          java.time.Instant javaTimeInstant = (java.time.Instant) fieldValue;
+          if (allowTruncatedTimestamps) {
+            java.time.Instant truncatedInstant = javaTimeInstant.truncatedTo(ChronoUnit.MICROS);
+            return BIGQUERY_TIMESTAMP_PRINTER.format(truncatedInstant);
+          }
+
+          // explicit nanos to micros truncation not allowed, attempt safe truncation without loss of precision
+          if (javaTimeInstant.truncatedTo(ChronoUnit.MICROS).equals(javaTimeInstant)) {
+            // trailing digits in the nanos position are all zeros, effectively micros precision
+            return BIGQUERY_TIMESTAMP_PRINTER.format(javaTimeInstant);
+          }
+
+          throw new IllegalArgumentException(
+              String.format(
+                  "Instant contained value %s with sub-microsecond precision, which BigQuery does"
+                      + " not currently support."
+                      + " You can enable truncating instants to microsecond precision"
+                      + " by using BigQueryIO.Write.withAllowTruncatedTimestamps()",
+                  javaTimeInstant));
+
         } // fall through
 
       default:
