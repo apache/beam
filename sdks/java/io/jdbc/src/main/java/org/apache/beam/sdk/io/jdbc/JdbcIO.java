@@ -1638,6 +1638,17 @@ public class JdbcIO {
                 .withMaxRetries(retryConfiguration.getMaxAttempts());
       }
 
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        spec.populateDisplayData(builder);
+        builder.addIfNotNull(
+            DisplayData.item(
+                "query", preparedStatement == null ? "null" : preparedStatement.toString()));
+        builder.addIfNotNull(
+            DisplayData.item("dataSource", dataSource == null ? "null" : dataSource.toString()));
+        builder.addIfNotNull(DisplayData.item("spec", spec == null ? "null" : spec.toString()));
+      }
+
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         T record = context.element();
