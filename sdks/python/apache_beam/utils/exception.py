@@ -15,18 +15,29 @@
 # limitations under the License.
 #
 
+from types import TracebackType
+from typing import Optional
+from typing import Tuple
+from typing import Type
+from typing import Union
 
-def raise_exception(tp, value, tb):
+
+def raise_exception(
+    error_type: Type[BaseException],
+    value: Optional[Union[Tuple, BaseException]],
+    traceback: Optional[TracebackType]):
   """
   Raise Exception from exc_info.
   Derived from `future.utils.raise_`
   """
-  if value is not None and isinstance(tp, Exception):
-    raise TypeError("instance exception may not have a separate value")
-  if value is not None:
-    exc = tp(value)
+  if isinstance(value, error_type):
+    exc = value
+  elif isinstance(value, tuple):
+    exc = error_type(*value)
+  elif value is None:
+    exc = error_type()
   else:
-    exc = tp
-  if exc.__traceback__ is not tb:
-    raise exc.with_traceback(tb)
+    exc = error_type(value)
+  if exc.__traceback__ is not traceback:
+    raise exc.with_traceback(traceback)
   raise exc
