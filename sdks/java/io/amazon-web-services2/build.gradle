@@ -39,6 +39,7 @@ dependencies {
   compile library.java.aws_java_sdk2_sdk_core
   compile library.java.aws_java_sdk2_sns
   compile library.java.aws_java_sdk2_sqs
+  compile library.java.aws_java_sdk2_sts
   compile library.java.aws_java_sdk2_s3
   compile library.java.aws_java_sdk2_http_client_spi
   compile library.java.aws_java_sdk2_regions
