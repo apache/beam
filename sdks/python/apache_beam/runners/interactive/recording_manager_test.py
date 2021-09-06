@@ -476,10 +476,10 @@ class RecordingManagerTest(unittest.TestCase):
     rm_2 = RecordingManager(p2)
     recording = rm_2.record([elems_2], max_n=3, max_duration=500)
     recording.wait_until_finish()
-
     # Assert that clearing only one recording clears that recording.
-    if rm_1.describe()['state'] != PipelineState.STOPPED \
-            and rm_2.describe()['state'] != PipelineState.STOPPED:
+    if rm_1.describe()['state'] == PipelineState.STOPPED \
+            and rm_2.describe()['state'] == PipelineState.STOPPED:
+
       self.assertGreater(rm_1.describe()['size'], 0)
       self.assertGreater(rm_2.describe()['size'], 0)
       rm_1.clear()
