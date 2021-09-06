@@ -26,4 +26,9 @@ datasources:
     access: proxy
     orgId: 1
     url: https://api.github.com/repos/apache/beam/actions/workflows/java_tests.yml/runs
+    jsonData:
+      httpHeaderName1: "accept"
+      customQueryParameters: "per_page=100"
+    secureJsonData:
+      httpHeaderValue1: "application/vnd.github.v3+json"
     editable: false
