@@ -399,7 +399,7 @@ public class Group {
     }
 
     public static CombineFieldsGlobally initialCombiner() {
-      return new CombineFieldsGlobally<>(null);
+      return new CombineFieldsGlobally<>(SchemaAggregateFn.create());
     }
 
     /**
@@ -461,10 +461,8 @@ public class Group {
         String inputFieldName,
         CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
         Field outputField) {
-      SchemaAggregateFn.Inner innerSchemaAggregateFn =
-          (schemaAggregateFn == null) ? SchemaAggregateFn.create() : schemaAggregateFn;
       return new CombineFieldsGlobally<>(
-          innerSchemaAggregateFn.aggregateFields(
+          schemaAggregateFn.aggregateFields(
               FieldAccessDescriptor.withFieldNames(inputFieldName), false, fn, outputField));
     }
 
@@ -481,10 +479,8 @@ public class Group {
     @Override
     public <CombineInputT, AccumT, CombineOutputT> CombineFieldsGlobally<InputT> aggregateField(
         int inputFieldId, CombineFn<CombineInputT, AccumT, CombineOutputT> fn, Field outputField) {
-      SchemaAggregateFn.Inner innerSchemaAggregateFn =
-          (schemaAggregateFn == null) ? SchemaAggregateFn.create() : schemaAggregateFn;
       return new CombineFieldsGlobally<>(
-          innerSchemaAggregateFn.aggregateFields(
+          schemaAggregateFn.aggregateFields(
               FieldAccessDescriptor.withFieldIds(inputFieldId), false, fn, outputField));
     }
 
@@ -576,10 +572,8 @@ public class Group {
         FieldAccessDescriptor fieldAccessDescriptor,
         CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
         Field outputField) {
-      SchemaAggregateFn.Inner innerSchemaAggregateFn =
-          (schemaAggregateFn == null) ? SchemaAggregateFn.create() : schemaAggregateFn;
       return new CombineFieldsGlobally<>(
-          innerSchemaAggregateFn.aggregateFields(fieldAccessDescriptor, false, fn, outputField));
+          schemaAggregateFn.aggregateFields(fieldAccessDescriptor, false, fn, outputField));
     }
 
     @Override
