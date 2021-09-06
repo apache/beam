@@ -31,9 +31,13 @@ from apache_beam.testing.test_pipeline import TestPipeline
 try:
   from google.cloud import spanner
   from google.api_core.exceptions import NotFound
+  from apache_beam.io.gcp import resource_identifiers
   from apache_beam.io.gcp.experimental.spannerio import WriteMutation
   from apache_beam.io.gcp.experimental.spannerio import MutationGroup
   from apache_beam.io.gcp.experimental.spannerio import WriteToSpanner
+  from apache_beam.metrics import monitoring_infos
+  from apache_beam.metrics.execution import MetricsEnvironment
+  from apache_beam.metrics.metricbase import MetricName
 except ImportError:
   spanner = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -67,6 +71,11 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
             UserId    STRING(256) NOT NULL,
             Key       STRING(1024)
         ) PRIMARY KEY (UserId)''',
+            '''CREATE TABLE Albums (
+           AlbumId    STRING(256) NOT NULL,
+           Name       STRING(1024)
+           ) PRIMARY KEY (AlbumId)
+           '''
         ])
     operation = database.create()
     _LOGGER.info('Creating database: Done! %s' % str(operation.result()))
@@ -180,6 +189,91 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
               instance_id=self.instance,
               database_id=self.TEST_DATABASE))
       p.run()
+
+  @pytest.mark.it_postcommit
+  def test_spanner_metrics_ok_call(self):
+    MetricsEnvironment.process_wide_container().reset()
+    _prefix = 'test_write_batches'
+    mutations = [
+        WriteMutation.insert(
+            'Albums', ('AlbumId', 'Name'),
+            [(_prefix + '1', _prefix + 'inset-1')]),
+        WriteMutation.insert(
+            'Albums', ('AlbumId', 'Name'),
+            [(_prefix + '2', _prefix + 'inset-2')]),
+    ]
+
+    resource = resource_identifiers.SpannerTable(
+        self.project, self.TEST_DATABASE, 'Albums')
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Write',
+        monitoring_infos.SPANNER_PROJECT_ID: self.project,
+        monitoring_infos.SPANNER_DATABASE_ID: self.TEST_DATABASE,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: 'Albums',
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+
+    p = beam.Pipeline(argv=self.args)
+    _ = (
+        p | beam.Create(mutations) | WriteToSpanner(
+            project_id=self.project,
+            instance_id=self.instance,
+            database_id=self.TEST_DATABASE))
+
+    res = p.run()
+    res.wait_until_finish()
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 1)
+
+  @pytest.mark.it_postcommit
+  def test_spanner_metrics_error_call(self):
+    MetricsEnvironment.process_wide_container().reset()
+    _prefix = 'test_write_batches'
+    mutations = [
+        WriteMutation.insert(
+            'Albums', ('AlbumId', 'Name'),
+            [(_prefix + '3', _prefix + 'inset-3')]),
+        WriteMutation.insert(
+            'Albums', ('AlbumId', 'Name'),
+            [(_prefix + '3', _prefix + 'inset-3')]),
+    ]
+
+    resource = resource_identifiers.SpannerTable(
+        self.project, self.TEST_DATABASE, 'Albums')
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Write',
+        monitoring_infos.SPANNER_PROJECT_ID: self.project,
+        monitoring_infos.SPANNER_DATABASE_ID: self.TEST_DATABASE,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: 'Albums',
+        monitoring_infos.STATUS_LABEL: '400'
+    }
+
+    with self.assertRaises(Exception):
+      p = beam.Pipeline(argv=self.args)
+      _ = (
+          p | beam.Create(mutations) | WriteToSpanner(
+              project_id=self.project,
+              instance_id=self.instance,
+              database_id=self.TEST_DATABASE))
+
+      res = p.run()
+      res.wait_until_finish()
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 1)
 
   @classmethod
   def tearDownClass(cls):

@@ -41,6 +41,10 @@ try:
   from apache_beam.io.gcp.experimental.spannerio import MutationGroup
   from apache_beam.io.gcp.experimental.spannerio import WriteToSpanner
   from apache_beam.io.gcp.experimental.spannerio import _BatchFn
+  from apache_beam.io.gcp import resource_identifiers
+  from apache_beam.metrics import monitoring_infos
+  from apache_beam.metrics.execution import MetricsEnvironment
+  from apache_beam.metrics.metricbase import MetricName
 except ImportError:
   spanner = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -374,6 +378,57 @@ class SpannerReadTest(unittest.TestCase):
     self.assertTrue("table" in dd_table)
     self.assertTrue("table" in dd_transaction)
     self.assertTrue("transaction" in dd_transaction)
+
+  def test_read_monitoring_info(
+      self, mock_batch_snapshot_class, mock_client_class):
+    database = _generate_database_name()
+    resource = resource_identifiers.SpannerTable(
+        TEST_PROJECT_ID, database, 'users')
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Read',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_PROJECT_ID: TEST_PROJECT_ID,
+        monitoring_infos.SPANNER_DATABASE_ID: database,
+        monitoring_infos.SPANNER_TABLE_ID: 'users',
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+    mock_snapshot = mock.MagicMock()
+    mock_snapshot.generate_read_batches.return_value = [{
+        'read': {
+            'table': 'users',
+            'keyset': {
+                'all': True
+            },
+            'columns': ['Key', 'Value'],
+            'index': ''
+        },
+        'partition': 'test_partition'
+    } for _ in range(3)]
+    mock_snapshot.process_read_batch.side_effect = [
+        FAKE_ROWS[0:2], FAKE_ROWS[2:4], FAKE_ROWS[4:]
+    ]
+
+    _ = [ReadOperation.table("users", ["Key", "Value"])]
+    pipeline = TestPipeline()
+
+    _ = (
+        pipeline
+        | 'read' >> ReadFromSpanner(
+            TEST_PROJECT_ID,
+            TEST_INSTANCE_ID,
+            database,
+            table="users",
+            columns=["Key", "Value"]))
+
+    pipeline.run()
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 1)
 
 
 @unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')

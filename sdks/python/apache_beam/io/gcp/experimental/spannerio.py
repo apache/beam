@@ -199,6 +199,8 @@ try:
   from google.cloud.spanner_v1 import batch
   from google.cloud.spanner_v1.database import BatchSnapshot
   from google.cloud.spanner_v1.proto.mutation_pb2 import Mutation
+  from google.api_core.exceptions import ClientError, GoogleAPICallError
+  from apitools.base.py.exceptions import HttpError
 except ImportError:
   Client = None
   KeySet = None
@@ -289,7 +291,7 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
                                             "instance",
                                             "database",
                                             "table",
-                                            "query_name"
+                                            "query_name",
                                             "credentials",
                                             "pool",
                                             "snapshot_read_timestamp",
@@ -365,25 +367,32 @@ class _NaiveSpannerReadDoFn(DoFn):
     # getting the transaction from the snapshot's session to run read operation.
     # with self._snapshot.session().transaction() as transaction:
     with self._get_session().transaction() as transaction:
+      table_id = self._spanner_configuration.table
+      query_name = self._spanner_configuration.query_name
+
       if element.is_sql is True:
         transaction_read = transaction.execute_sql
+        metric_action = self._query_metric
+        metric_id = query_name
       elif element.is_table is True:
         transaction_read = transaction.read
+        metric_action = self._table_metric
+        metric_id = table_id
       else:
         raise ValueError(
             "ReadOperation is improperly configure: %s" % str(element))
 
-      for row in transaction_read(**element.kwargs):
-        yield row
+      try:
+        for row in transaction_read(**element.kwargs):
+          yield row
 
-    table_id = self._spanner_configuration.table
-    query_name = self._spanner_configuration.query_name
-    if element.is_sql:
-      self._query_metric(query_name)
-    elif element.is_table:
-      self._table_metric(table_id)
-    else:
-      pass
+        metric_action(metric_id, 'ok')
+      except (ClientError, GoogleAPICallError) as e:
+        metric_action(metric_id, e.code.value)
+        raise
+      except HttpError as e:
+        metric_action(metric_id, e)
+        raise
 
 
 @with_input_types(ReadOperation)
@@ -556,25 +565,33 @@ class _ReadFromPartitionFn(DoFn):
     self._snapshot = BatchSnapshot.from_dict(
         self._database, element['transaction_info'])
 
+    table_id = self._spanner_configuration.table
+    query_name = self._spanner_configuration.query_name
+
     if element['is_sql'] is True:
       read_action = self._snapshot.process_query_batch
+      metric_action = self._query_metric
+      metric_id = query_name
     elif element['is_table'] is True:
       read_action = self._snapshot.process_read_batch
+      metric_action = self._table_metric
+      metric_id = table_id
     else:
       raise ValueError(
           "ReadOperation is improperly configure: %s" % str(element))
 
-    for row in read_action(element['partitions']):
-      yield row
+    try:
+      for row in read_action(element['partitions']):
+        yield row
 
-    table_id = self._spanner_configuration.table
-    query_name = self._spanner_configuration.query_name
-    if element.get('is_sql'):
-      self._query_metric(query_name)
-    elif element.get('is_table'):
-      self._table_metric(table_id)
-    else:
-      pass
+      metric_action(metric_id, 'ok')
+
+    except (ClientError, GoogleAPICallError) as e:
+      metric_action(metric_id, e.code.value)
+      raise
+    except HttpError as e:
+      metric_action(metric_id, e)
+      raise
 
   def teardown(self):
     if self._snapshot:
@@ -670,7 +687,7 @@ class ReadFromSpanner(PTransform):
                 sql=sql, params=params, param_types=param_types)
         ]
 
-  def _table_metric(self, table_id):
+  def _table_metric(self, table_id, status):
     database_id = self._configuration.database
     project_id = self._configuration.project
     resource = resource_identifiers.SpannerTable(
@@ -683,9 +700,9 @@ class ReadFromSpanner(PTransform):
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
-    service_call_metric.call('ok')
+    service_call_metric.call(str(status))
 
-  def _query_metric(self, query_name):
+  def _query_metric(self, query_name, status):
     project_id = self._configuration.project
     resource = resource_identifiers.SpannerSqlQuery(project_id, query_name)
     labels = {
@@ -696,7 +713,7 @@ class ReadFromSpanner(PTransform):
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
-    service_call_metric.call('ok')
+    service_call_metric.call(str(status))
 
   def expand(self, pbegin):
     if self._read_operations is not None and isinstance(pbegin, PBegin):
@@ -796,6 +813,8 @@ class WriteToSpanner(PTransform):
         project=project_id,
         instance=instance_id,
         database=database_id,
+        table=None,
+        query_name=None,
         credentials=credentials,
         pool=pool,
         snapshot_read_timestamp=None,
@@ -1146,7 +1165,7 @@ class _WriteToSpannerDoFn(DoFn):
         monitoring_infos.SPANNER_DATABASE_ID: spanner_configuration.database,
     }
 
-  def table_write_service_call_metric(self, table_id):
+  def _table_write_metric(self, table_id, status):
     database_id = self._spanner_configuration.database
     project_id = self._spanner_configuration.project
     resource = resource_identifiers.SpannerTable(
@@ -1160,7 +1179,7 @@ class _WriteToSpannerDoFn(DoFn):
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
-    service_call_metric.call('ok')
+    service_call_metric.call(str(status))
 
   def setup(self):
     spanner_client = Client(self._spanner_configuration.project)
@@ -1171,24 +1190,33 @@ class _WriteToSpannerDoFn(DoFn):
 
   def process(self, element):
     self.batches.inc()
-    with self._db_instance.batch() as b:
-      for m in element:
-        table_id = m.kwargs['table']
-        if m.operation == WriteMutation._OPERATION_DELETE:
-          batch_func = b.delete
-        elif m.operation == WriteMutation._OPERATION_REPLACE:
-          batch_func = b.replace
-        elif m.operation == WriteMutation._OPERATION_INSERT_OR_UPDATE:
-          batch_func = b.insert_or_update
-        elif m.operation == WriteMutation._OPERATION_INSERT:
-          batch_func = b.insert
-        elif m.operation == WriteMutation._OPERATION_UPDATE:
-          batch_func = b.update
-        else:
-          raise ValueError("Unknown operation action: %s" % m.operation)
+    try:
+      with self._db_instance.batch() as b:
+        for m in element:
+          table_id = m.kwargs['table']
+          if m.operation == WriteMutation._OPERATION_DELETE:
+            batch_func = b.delete
+          elif m.operation == WriteMutation._OPERATION_REPLACE:
+            batch_func = b.replace
+          elif m.operation == WriteMutation._OPERATION_INSERT_OR_UPDATE:
+            batch_func = b.insert_or_update
+          elif m.operation == WriteMutation._OPERATION_INSERT:
+            batch_func = b.insert
+          elif m.operation == WriteMutation._OPERATION_UPDATE:
+            batch_func = b.update
+          else:
+            raise ValueError("Unknown operation action: %s" % m.operation)
+          batch_func(**m.kwargs)
 
-        batch_func(**m.kwargs)
-        self.table_write_service_call_metric(table_id)
+      self._table_write_metric(table_id, 'ok')
+    except (ClientError, GoogleAPICallError) as e:
+      self._table_write_metric(table_id, e.code.value)
+      print('GAPI Error')
+      raise
+    except HttpError as e:
+      self._table_write_metric(table_id, e)
+      print('HTTP Error')
+      raise
 
 
 @with_input_types(typing.Union[MutationGroup, _Mutator])

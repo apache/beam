@@ -33,9 +33,13 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=unused-import
 try:
   from google.cloud import spanner
+  from apache_beam.io.gcp import resource_identifiers
   from apache_beam.io.gcp.experimental.spannerio import create_transaction
   from apache_beam.io.gcp.experimental.spannerio import ReadOperation
   from apache_beam.io.gcp.experimental.spannerio import ReadFromSpanner
+  from apache_beam.metrics import monitoring_infos
+  from apache_beam.metrics.execution import MetricsEnvironment
+  from apache_beam.metrics.metricbase import MetricName
 except ImportError:
   spanner = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -125,8 +129,20 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     assert_that(r, equal_to(self._data))
 
   @pytest.mark.it_postcommit
-  def test_transaction_read_via_table(self):
-    _LOGGER.info("Spanner Read via table")
+  def test_spanner_table_metrics_ok_call(self):
+    MetricsEnvironment.process_wide_container().reset()
+    resource = resource_identifiers.SpannerTable(
+        self.project, self.TEST_DATABASE, 'Users')
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Read',
+        monitoring_infos.SPANNER_PROJECT_ID: self.project,
+        monitoring_infos.SPANNER_DATABASE_ID: self.TEST_DATABASE,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: 'Users',
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+
     with beam.Pipeline(argv=self.args) as p:
       transaction = (
           p
@@ -138,7 +154,123 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           table="Users",
           columns=["UserId", "Key"],
           transaction=transaction)
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
     assert_that(r, equal_to(self._data))
+    self.assertEqual(metric_value, 1)
+
+  @pytest.mark.it_postcommit
+  def test_spanner_table_metrics_error_call(self):
+    MetricsEnvironment.process_wide_container().reset()
+    resource = resource_identifiers.SpannerTable(
+        self.project, self.TEST_DATABASE, 'INVALID_TABLE')
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Read',
+        monitoring_infos.SPANNER_PROJECT_ID: self.project,
+        monitoring_infos.SPANNER_DATABASE_ID: self.TEST_DATABASE,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: 'INVALID_TABLE',
+        monitoring_infos.STATUS_LABEL: '404'
+    }
+
+    with self.assertRaises(Exception):
+      p = beam.Pipeline(argv=self.args)
+      transaction = (
+          p
+          | create_transaction(self.project, self.instance, self.TEST_DATABASE))
+      _ = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          table="INVALID_TABLE",
+          columns=["UserId", "Key"],
+          transaction=transaction)
+
+      res = p.run()
+      res.wait_until_finish()
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 1)
+
+  @pytest.mark.it_postcommit
+  def test_spanner_sql_metrics_ok_call(self):
+    MetricsEnvironment.process_wide_container().reset()
+    resource = resource_identifiers.SpannerSqlQuery(self.project, 'query-1')
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Read',
+        monitoring_infos.SPANNER_PROJECT_ID: self.project,
+        monitoring_infos.SPANNER_DATABASE_ID: self.TEST_DATABASE,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_QUERY_NAME: 'query-1',
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+
+    with beam.Pipeline(argv=self.args) as p:
+      transaction = (
+          p
+          | create_transaction(self.project, self.instance, self.TEST_DATABASE))
+      r = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          sql="select * from Users",
+          query_name='query-1',
+          transaction=transaction)
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    assert_that(r, equal_to(self._data))
+    self.assertEqual(metric_value, 1)
+
+  @pytest.mark.it_postcommit
+  def test_spanner_sql_metrics_error_call(self):
+    MetricsEnvironment.process_wide_container().reset()
+    resource = resource_identifiers.SpannerSqlQuery(self.project, 'query-2')
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Read',
+        monitoring_infos.SPANNER_PROJECT_ID: self.project,
+        monitoring_infos.SPANNER_DATABASE_ID: self.TEST_DATABASE,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_QUERY_NAME: 'query-2',
+        monitoring_infos.STATUS_LABEL: '400'
+    }
+
+    with self.assertRaises(Exception):
+      p = beam.Pipeline(argv=self.args)
+      transaction = (
+          p
+          | create_transaction(self.project, self.instance, self.TEST_DATABASE))
+      _ = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          sql="select * from NonExistent",
+          query_name="query-2",
+          transaction=transaction)
+
+      res = p.run()
+      res.wait_until_finish()
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 1)
 
   @classmethod
   def tearDownClass(cls):
