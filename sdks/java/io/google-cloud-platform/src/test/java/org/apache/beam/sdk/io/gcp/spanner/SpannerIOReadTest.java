@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
@@ -38,7 +39,14 @@ import com.google.cloud.spanner.Value;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -83,6 +91,9 @@ public class SpannerIOReadTest implements Serializable {
   public void setUp() throws Exception {
     serviceFactory = new FakeServiceFactory();
     mockBatchTx = Mockito.mock(BatchReadOnlyTransaction.class);
+    // Setup the ProcessWideContainer for testing metrics are set.
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    MetricsEnvironment.setProcessWideContainer(container);
   }
 
   @Test
@@ -176,6 +187,80 @@ public class SpannerIOReadTest implements Serializable {
     PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
 
     pipeline.run();
+  }
+
+  @Test
+  public void testSpannerReadMetricIsSet() {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig =
+      SpannerConfig.create()
+        .withProjectId("test")
+        .withInstanceId("123")
+        .withDatabaseId("aaa")
+        .withServiceFactory(serviceFactory);
+
+    PCollection<Struct> one =
+      pipeline.apply(
+        "read q",
+        SpannerIO.read()
+          .withSpannerConfig(spannerConfig)
+          .withTable("users")
+          .withColumns("id", "name")
+          .withTimestampBound(timestampBound));
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runReadTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+      .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+      .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+      FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionRead(
+      any(PartitionOptions.class),
+      eq("users"),
+      eq(KeySet.all()),
+      eq(Arrays.asList("id", "name"))))
+      .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+      .thenReturn(
+        ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
+        ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
+        ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
+
+    pipeline.run();
+    verifyMetricWasSet("test", "aaa", "123", "ok", 3);
+  }
+
+  private void verifyMetricWasSet(
+    String projectId,
+    String databaseId,
+    String tableId,
+    String status,
+    long count) {
+    // Verify the metric was reported.
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    labels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
+    labels.put(MonitoringInfoConstants.Labels.METHOD, "Read");
+    labels.put(
+      MonitoringInfoConstants.Labels.RESOURCE,
+      GcpResourceIdentifiers.spannerTable(projectId, databaseId, tableId));
+    labels.put(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID, projectId);
+    labels.put(MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, databaseId);
+    labels.put(MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, tableId);
+    labels.put(MonitoringInfoConstants.Labels.STATUS, status);
+
+    MonitoringInfoMetricName name =
+      MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
+    MetricsContainerImpl container =
+      (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
+    assertEquals(count, (long) container.getCounter(name).getCumulative());
   }
 
   @Test
