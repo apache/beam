@@ -1641,12 +1641,12 @@ public class JdbcIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         spec.populateDisplayData(builder);
-        builder.addIfNotNull(
+        builder.add(
             DisplayData.item(
                 "query", preparedStatement == null ? "null" : preparedStatement.toString()));
-        builder.addIfNotNull(
+        builder.add(
             DisplayData.item("dataSource", dataSource == null ? "null" : dataSource.toString()));
-        builder.addIfNotNull(DisplayData.item("spec", spec == null ? "null" : spec.toString()));
+        builder.add(DisplayData.item("spec", spec == null ? "null" : spec.toString()));
       }
 
       @ProcessElement
