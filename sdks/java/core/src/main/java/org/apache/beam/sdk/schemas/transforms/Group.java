@@ -365,20 +365,50 @@ public class Group {
     }
   }
 
+  /**
+   * a {@link PTransform} that does a combine using an aggregation built up by calls to
+   * aggregateField and aggregateFields. The output of this transform will have a schema that is
+   * determined by the output types of all the composed combiners.
+   *
+   * @param <InputT>
+   */
   public abstract static class AggregateCombiner<InputT>
       extends PTransform<PCollection<InputT>, PCollection<Row>> {
+
+    /**
+     * Build up an aggregation function over the input elements.
+     *
+     * <p>This method specifies an aggregation over single field of the input. The union of all
+     * calls to aggregateField and aggregateFields will determine the output schema.
+     */
     public abstract <CombineInputT, AccumT, CombineOutputT>
         AggregateCombiner<InputT> aggregateField(
             int inputFieldId,
             CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
             Field outputField);
 
+    /**
+     * Build up an aggregation function over the input elements.
+     *
+     * <p>This method specifies an aggregation over single field of the input. The union of all
+     * calls to aggregateField and aggregateFields will determine the output schema.
+     */
     public abstract <CombineInputT, AccumT, CombineOutputT>
         AggregateCombiner<InputT> aggregateField(
             String inputFieldName,
             CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
             Field outputField);
 
+    /**
+     * Build up an aggregation function over the input elements by field id.
+     *
+     * <p>This method specifies an aggregation over multiple fields of the input. The union of all
+     * calls to aggregateField and aggregateFields will determine the output schema.
+     *
+     * <p>Field types in the output schema will be inferred from the provided combine function.
+     * Sometimes the field type cannot be inferred due to Java's type erasure. In that case, use the
+     * overload that allows setting the output field type explicitly.
+     */
     public abstract <CombineInputT, AccumT, CombineOutputT>
         AggregateCombiner<InputT> aggregateFieldsById(
             List<Integer> inputFieldIds,
@@ -398,7 +428,12 @@ public class Group {
       this.schemaAggregateFn = schemaAggregateFn;
     }
 
-    public static CombineFieldsGlobally initialCombiner() {
+    /**
+     * Returns a transform that does a global combine using an aggregation built up by calls to
+     * aggregateField and aggregateFields. This transform will have an unknown schema that will be
+     * determined by the output types of all the composed combiners.
+     */
+    public static CombineFieldsGlobally create() {
       return new CombineFieldsGlobally<>(SchemaAggregateFn.create());
     }
 

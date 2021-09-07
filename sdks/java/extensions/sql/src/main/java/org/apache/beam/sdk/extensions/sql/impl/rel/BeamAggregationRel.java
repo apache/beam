@@ -265,7 +265,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
             .setRowSchema(outputSchema);
       }
       org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> globally =
-          org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsGlobally.initialCombiner();
+          org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsGlobally.create();
       PTransform<PCollection<Row>, PCollection<Row>> combiner = createCombiner(globally);
       return windowedStream.apply(combiner).setRowSchema(outputSchema);
     }
