@@ -143,6 +143,10 @@ func (n *Combine) ProcessElement(ctx context.Context, value *FullValue, values .
 	}
 	first := true
 
+	if len(values) == 0 {
+		return errors.Errorf("did not get values to combine for key %v, ID %v", value.Elm, n.UID)
+	}
+
 	stream, err := values[0].Open()
 	if err != nil {
 		return n.fail(err)
