@@ -417,6 +417,10 @@ message MonitoringInfo {
     GCS_PROJECT_ID = 17 [(label_props) = { name: "GCS_PROJECT_ID"}];
     DATASTORE_PROJECT = 18 [(label_props) = { name: "DATASTORE_PROJECT" }];
     DATASTORE_NAMESPACE = 19 [(label_props) = { name: "DATASTORE_NAMESPACE" }];
+    SPANNER_PROJECT_ID = 20 [(label_props) = { name: "SPANNER_PROJECT_ID" }];
+    SPANNER_DATABASE_ID = 21 [(label_props) = { name: "SPANNER_DATABASE_ID" }];
+    SPANNER_TABLE_ID = 22 [(label_props) = { name: "SPANNER_TABLE_ID" }];
+    SPANNER_QUERY_NAME = 23 [(label_props) = { name: "SPANNER_QUERY_NAME" }];
   }
 
   // A set of key and value labels which define the scope of the metric. For
