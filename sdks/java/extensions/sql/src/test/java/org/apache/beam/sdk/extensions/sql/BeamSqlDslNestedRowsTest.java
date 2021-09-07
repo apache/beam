@@ -24,7 +24,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -48,41 +47,33 @@ public class BeamSqlDslNestedRowsTest {
             .addInt32Field("f_nestedIntPlusOne")
             .build();
 
-    Schema resultSchema =
-        Schema.builder()
-            .addInt32Field("f_int")
-            .addInt32Field("f_int2")
-            .addStringField("f_varchar")
-            .addInt32Field("f_int3")
-            .build();
-
-    Schema inputType =
+    Schema schema =
         Schema.builder().addInt32Field("f_int").addRowField("f_row", nestedSchema).build();
 
     PCollection<Row> input =
         pipeline.apply(
             Create.of(
-                    Row.withSchema(inputType)
+                    Row.withSchema(schema)
                         .addValues(
                             1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
                         .build())
-                .withRowSchema(inputType));
+                .withRowSchema(schema));
 
     PCollection<Row> result =
-        input
-            .apply(
-                SqlTransform.query(
-                    "SELECT 1 as `f_int`, ROW(3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
-            .setRowSchema(resultSchema);
+        input.apply(
+            SqlTransform.query(
+                "SELECT 1 as `f_int`, ROW(3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"));
 
     PAssert.that(result)
-        .containsInAnyOrder(Row.withSchema(resultSchema).addValues(1, 3, "BB", 2).build());
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(1, Row.withSchema(nestedSchema).addValues(3, "BB", 2).build())
+                .build());
 
     pipeline.run();
   }
 
   @Test
-  @Ignore("[BEAM-9378] This does not work because calcite flattens the row.")
   public void testRowAliasAsRow() {
     Schema nestedSchema =
         Schema.builder()
@@ -117,7 +108,6 @@ public class BeamSqlDslNestedRowsTest {
   }
 
   @Test
-  @Ignore("[BEAM-9378] This does not work because calcite flattens the row.")
   public void testRowConstructorKeywordKeepAsRow() {
     Schema nestedSchema =
         Schema.builder()
@@ -149,7 +139,7 @@ public class BeamSqlDslNestedRowsTest {
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(nestedSchema)
+            Row.withSchema(outputType)
                 .attachValues(2, Row.withSchema(nestedOutput).attachValues(312, "CC")));
 
     pipeline.run();
@@ -169,35 +159,28 @@ public class BeamSqlDslNestedRowsTest {
             .addInt32Field("f_nestedIntPlusOne")
             .build();
 
-    Schema resultSchema =
-        Schema.builder()
-            .addInt32Field("f_int")
-            .addInt32Field("f_int2")
-            .addStringField("f_varchar")
-            .addInt32Field("f_int3")
-            .build();
-
-    Schema inputType =
+    Schema schema =
         Schema.builder().addInt32Field("f_int").addRowField("f_row", nestedSchema).build();
 
     PCollection<Row> input =
         pipeline.apply(
             Create.of(
-                    Row.withSchema(inputType)
+                    Row.withSchema(schema)
                         .addValues(
                             1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
                         .build())
-                .withRowSchema(inputType));
+                .withRowSchema(schema));
 
     PCollection<Row> result =
-        input
-            .apply(
-                SqlTransform.query(
-                    "SELECT 1 as `f_int`, (3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
-            .setRowSchema(resultSchema);
+        input.apply(
+            SqlTransform.query(
+                "SELECT 1 as `f_int`, (3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"));
 
     PAssert.that(result)
-        .containsInAnyOrder(Row.withSchema(resultSchema).addValues(1, 3, "BB", 2).build());
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(1, Row.withSchema(nestedSchema).addValues(3, "BB", 2).build())
+                .build());
 
     pipeline.run();
   }

@@ -101,7 +101,7 @@ public class BigtableRowToBeamRowFlat
 
     private void setColumn(Row.FieldValueBuilder rowBuilder, Column column) {
       String columnName = column.getQualifier().toStringUtf8();
-      Schema.TypeName type = schema.getField(columnName).getType().getTypeName();
+      Schema.FieldType type = schema.getField(columnName).getType();
       rowBuilder.withFieldValue(columnName, getCellValue(getLastCell(column.getCellsList()), type));
     }
   }
