@@ -457,7 +457,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder, typ
 
 	inT := in.Type()
 	if !typex.IsCoGBK(inT) && s.Label == CombinePerKeyScope {
-		return nil, addContext(errors.Errorf("Combine Per Krequires CoGBK type: %v", inT), s)
+		return nil, addContext(errors.Errorf("CombinePerKey requires CoGBK type: %v", inT), s)
 	}
 	if len(inT.Components()) > 2 {
 		return nil, addContext(errors.Errorf("Combine cannot follow multi-input CoGBK: %v", inT), s)
