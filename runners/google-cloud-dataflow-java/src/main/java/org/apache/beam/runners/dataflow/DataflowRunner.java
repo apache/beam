@@ -1004,8 +1004,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     RunnerApi.Pipeline portablePipelineProto =
         PipelineTranslation.toProto(pipeline, portableComponents, false);
-    // Note that `stageArtifacts` has to be called before `resolveArtifact` because `resolveArtifact`
-    // updates local paths to staged paths in pipeline proto.
+    // Note that `stageArtifacts` has to be called before `resolveArtifact` because
+    // `resolveArtifact` updates local paths to staged paths in pipeline proto.
     List<DataflowPackage> packages = stageArtifacts(portablePipelineProto);
     portablePipelineProto = resolveArtifacts(portablePipelineProto);
     LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
