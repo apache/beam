@@ -1002,10 +1002,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
 
-    RunnerApi.Pipeline pipelineProto =
+    RunnerApi.Pipeline portablePipelineProto =
         PipelineTranslation.toProto(pipeline, portableComponents, false);
-    List<DataflowPackage> packages = stageArtifacts(pipelineProto);
-    RunnerApi.Pipeline portablePipelineProto = resolveArtifacts(pipelineProto);
+    // Note that `stageArtifacts` has to be called before `resolveArtifact` because `resolveArtifact`
+    // updates local paths to staged paths in pipeline proto.
+    List<DataflowPackage> packages = stageArtifacts(portablePipelineProto);
+    portablePipelineProto = resolveArtifacts(portablePipelineProto);
     LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
     // Stage the portable pipeline proto, retrieving the staged pipeline path, then update
     // the options on the new job
