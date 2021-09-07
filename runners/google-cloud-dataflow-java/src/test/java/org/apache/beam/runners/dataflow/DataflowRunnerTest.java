@@ -1179,6 +1179,97 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testResolveArtifacts() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    String stagingLocation = options.getStagingLocation().replaceFirst("/$", "");
+    RunnerApi.ArtifactInformation fooLocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath("/tmp/foo.jar")
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("foo_staged.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.ArtifactInformation barLocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath("/tmp/bar.jar")
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("bar_staged.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .addAllDependencies(
+                                ImmutableList.of(fooLocalArtifact, barLocalArtifact))
+                            .build()))
+            .build();
+
+    RunnerApi.ArtifactInformation fooStagedArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.URL))
+            .setTypePayload(
+                RunnerApi.ArtifactUrlPayload.newBuilder()
+                    .setUrl(stagingLocation + "/foo_staged.jar")
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("foo_staged.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.ArtifactInformation barStagedArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.URL))
+            .setTypePayload(
+                RunnerApi.ArtifactUrlPayload.newBuilder()
+                    .setUrl(stagingLocation + "/bar_staged.jar")
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("bar_staged.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.Pipeline expectedPipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .addAllDependencies(
+                                ImmutableList.of(fooStagedArtifact, barStagedArtifact))
+                            .build()))
+            .build();
+    assertThat(runner.resolveArtifacts(pipeline), equalTo(expectedPipeline));
+  }
+
+  @Test
   public void testGcpTempAndNoTempLocationSucceeds() throws Exception {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
