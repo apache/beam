@@ -8,7 +8,7 @@ on:
     types: [created]
   push:
     branches: ['li_trunk']
-    paths: ['runners/samza/**', 'runners/spark/**', 'sdks/java/**', 'buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy']
+    paths: ['buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy']
 
 jobs:
   build:
