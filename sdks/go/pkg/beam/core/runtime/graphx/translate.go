@@ -1061,11 +1061,15 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 			},
 		}
 	case window.AfterEndOfWindowTrigger:
+		var lateTrigger *pipepb.Trigger
+		if t.LateTrigger != nil {
+			lateTrigger = makeTrigger(*t.LateTrigger)
+		}
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterEndOfWindow_{
 				AfterEndOfWindow: &pipepb.Trigger_AfterEndOfWindow{
 					EarlyFirings: makeTrigger(*t.EarlyTrigger),
-					LateFirings:  makeTrigger(*t.LateTrigger),
+					LateFirings:  lateTrigger,
 				},
 			},
 		}
