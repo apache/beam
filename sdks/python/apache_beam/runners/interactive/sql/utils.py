@@ -28,7 +28,6 @@ from typing import NamedTuple
 
 import apache_beam as beam
 from apache_beam.runners.interactive import interactive_beam as ib
-from apache_beam.runners.interactive import interactive_environment as ie
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,17 +56,6 @@ def register_coder_for_schema(schema: NamedTuple) -> None:
         schema.__name__,
         schema.__name__)
     beam.coders.registry.register_coder(schema, beam.coders.RowCoder)
-
-
-def pcolls_by_name() -> Dict[str, beam.PCollection]:
-  """Finds all PCollections by their variable names defined in the notebook."""
-  inspectables = ie.current_env().inspector.inspectables
-  pcolls = {}
-  for _, inspectable in inspectables.items():
-    metadata = inspectable['metadata']
-    if metadata['type'] == 'pcollection':
-      pcolls[metadata['name']] = inspectable['value']
-  return pcolls
 
 
 def find_pcolls(
@@ -100,7 +88,6 @@ def find_pcolls(
             name,
             sql)
         raise
-    _LOGGER.info('Done collecting data.')
   return found
 
 
@@ -123,3 +110,12 @@ def replace_single_pcoll_token(sql: str, pcoll_name: str) -> str:
     if token_location < len(words) and words[token_location] == pcoll_name:
       words[token_location] = 'PCOLLECTION'
   return ' '.join(words)
+
+
+def pformat_namedtuple(schema: NamedTuple) -> str:
+  return '{}({})'.format(
+      schema.__name__,
+      ', '.join([
+          '{}: {}'.format(k, v.__name__) for k,
+          v in schema._field_types.items()
+      ]))

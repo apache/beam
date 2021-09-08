@@ -86,9 +86,7 @@ class AugmentedPipeline:
         if (isinstance(val, beam.pvalue.PCollection) and
             val.pipeline is self._user_pipeline and
             (not self._pcolls or val in self._pcolls)):
-          pcoll_id = self._context.pcollections.get_id(val)
           c[val] = Cacheable(
-              pcoll_id=pcoll_id,
               var=key,
               pcoll=val,
               version=str(id(val)),

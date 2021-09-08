@@ -57,10 +57,8 @@ class WriteCacheTest(unittest.TestCase):
     actual_pipeline = pipeline_proto
 
     # Write cache directly on the piepline instance.
-    label = '{}{}'.format('_cache_', key)
-    transform = write_cache._WriteCacheTransform(
-        aug_p._cache_manager, key, label)
-    _ = pcoll | 'sink' + label >> transform
+    transform = write_cache._WriteCacheTransform(aug_p._cache_manager, key)
+    _ = pcoll | 'sink_cache_' + key >> transform
     expected_pipeline = p.to_runner_api()
 
     assert_pipeline_proto_equal(self, expected_pipeline, actual_pipeline)

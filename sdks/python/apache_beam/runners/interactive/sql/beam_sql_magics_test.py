@@ -27,10 +27,13 @@ import pytest
 import apache_beam as beam
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.cache_manager import FileBasedCacheManager
+from apache_beam.runners.interactive.caching.cacheable import CacheKey
 
 try:
   from apache_beam.runners.interactive.sql.beam_sql_magics import _build_query_components
   from apache_beam.runners.interactive.sql.beam_sql_magics import _generate_output_name
+  from apache_beam.runners.interactive.sql.beam_sql_magics import cache_output
 except (ImportError, NameError):
   pass  # The test is to be skipped because [interactive] dep not installed.
 
@@ -67,11 +70,11 @@ class BeamSqlMagicsTest(unittest.TestCase):
     found = {'target': target}
 
     with patch('apache_beam.runners.interactive.sql.beam_sql_magics.'
-               'pcoll_from_file_cache',
-               lambda a,
-               b,
-               c,
-               d: target):
+               'unreify_from_cache',
+               lambda pipeline,
+               cache_key,
+               cache_manager,
+               element_type: target):
       processed_query, sql_source = _build_query_components(query, found)
 
       self.assertEqual(processed_query, 'SELECT * FROM PCOLLECTION where a=1')
@@ -86,11 +89,11 @@ class BeamSqlMagicsTest(unittest.TestCase):
     found = {'pcoll_1': pcoll_1, 'pcoll_2': pcoll_2}
 
     with patch('apache_beam.runners.interactive.sql.beam_sql_magics.'
-               'pcoll_from_file_cache',
-               lambda a,
-               b,
-               c,
-               d: pcoll_1):
+               'unreify_from_cache',
+               lambda pipeline,
+               cache_key,
+               cache_manager,
+               element_type: pcoll_1):
       processed_query, sql_source = _build_query_components(query, found)
 
       self.assertEqual(processed_query, query)
@@ -110,11 +113,25 @@ class BeamSqlMagicsTest(unittest.TestCase):
                'pcolls_from_streaming_cache',
                lambda a,
                b,
-               c,
-               d,
-               e: found):
+               c: found):
       _, sql_source = _build_query_components(query, found)
       self.assertIs(sql_source, pcoll)
+
+  def test_cache_output(self):
+    p_cache_output = beam.Pipeline()
+    pcoll_co = p_cache_output | 'Create Source' >> beam.Create([1, 2, 3])
+    cache_manager = FileBasedCacheManager()
+    ie.current_env().set_cache_manager(cache_manager, p_cache_output)
+    ib.watch(locals())
+    with patch('apache_beam.runners.interactive.display.pcoll_visualization.'
+               'visualize_computed_pcoll',
+               lambda a,
+               b: None):
+      cache_output('pcoll_co', pcoll_co)
+      self.assertIn(pcoll_co, ie.current_env().computed_pcollections)
+      self.assertTrue(
+          cache_manager.exists(
+              'full', CacheKey.from_pcoll('pcoll_co', pcoll_co).to_str()))
 
 
 if __name__ == '__main__':

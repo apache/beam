@@ -30,6 +30,7 @@ from datetime import timedelta
 
 from dateutil import tz
 
+import apache_beam as beam
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.transforms.window import GlobalWindow
@@ -234,6 +235,22 @@ def visualize(
 
     return dynamic_plotting(stream, pv, tl, include_window_info, display_facets)
   return None
+
+
+def visualize_computed_pcoll(
+    pcoll_name: str, pcoll: beam.pvalue.PCollection) -> None:
+  """A simple visualize alternative.
+
+  When the pcoll_name and pcoll pair identifies a watched and computed
+  PCollection in the current interactive environment without ambiguity, an
+  ElementStream can be built directly from cache.
+  """
+  pipeline = ie.current_env().user_pipeline(pcoll.pipeline)
+  rm = ie.current_env().get_recording_manager(pipeline, create_if_absent=True)
+  stream = rm.read(
+      pcoll_name, pcoll, max_n=float('inf'), max_duration_secs=float('inf'))
+  if stream:
+    visualize(stream, element_type=pcoll.element_type)
 
 
 class PCollectionVisualization(object):

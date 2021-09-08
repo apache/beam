@@ -24,10 +24,9 @@ from typing import NamedTuple
 from unittest.mock import patch
 
 import apache_beam as beam
-from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive.sql.utils import find_pcolls
 from apache_beam.runners.interactive.sql.utils import is_namedtuple
-from apache_beam.runners.interactive.sql.utils import pcolls_by_name
+from apache_beam.runners.interactive.sql.utils import pformat_namedtuple
 from apache_beam.runners.interactive.sql.utils import register_coder_for_schema
 from apache_beam.runners.interactive.sql.utils import replace_single_pcoll_token
 
@@ -58,14 +57,6 @@ class UtilsTest(unittest.TestCase):
     self.assertIsInstance(
         beam.coders.registry.get_coder(ANamedTuple), beam.coders.RowCoder)
 
-  def test_pcolls_by_name(self):
-    p = beam.Pipeline()
-    pcoll = p | beam.Create([1])
-    ib.watch({'p': p, 'pcoll': pcoll})
-
-    name_to_pcoll = pcolls_by_name()
-    self.assertIn('pcoll', name_to_pcoll)
-
   def test_find_pcolls(self):
     with patch('apache_beam.runners.interactive.interactive_beam.collect',
                lambda _: None):
@@ -84,6 +75,10 @@ class UtilsTest(unittest.TestCase):
     replaced_sql = replace_single_pcoll_token(sql, 'abc')
     self.assertEqual(
         replaced_sql, 'SELECT * FROM PCOLLECTION WHERE a=1 AND b=2')
+
+  def test_pformat_namedtuple(self):
+    self.assertEqual(
+        'ANamedTuple(a: int, b: str)', pformat_namedtuple(ANamedTuple))
 
 
 if __name__ == '__main__':
