@@ -187,6 +187,19 @@ def bind_type_variables(type_constraint, bindings):
   return type_constraint
 
 
+def has_any(type_constraint):
+  found = False
+
+  def visitor(tc, unused_arg):
+    if tc == Any:
+      nonlocal found
+      found = True
+
+  if isinstance(type_constraint, TypeConstraint):
+    type_constraint.visit(visitor, None)
+  return found
+
+
 class IndexableTypeConstraint(TypeConstraint):
   """An internal common base-class for all type constraints with indexing.
   E.G. SequenceTypeConstraint + Tuple's of fixed size.
