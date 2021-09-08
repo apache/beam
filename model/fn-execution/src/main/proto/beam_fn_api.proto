@@ -754,13 +754,13 @@ message StateKey {
     bytes key = 4;
   }
 
-  // Represents a request for the values of the lookup key associated with a
+  // Represents a request for the values of the map key associated with a
   // specified user key and window for a PTransform. See
   // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
   // details.
   //
   // The response data stream will be a concatenation of all V's associated
-  // with the specified user key, map key and window.
+  // with the specified map key, user key, and window.
   // See https://s.apache.org/beam-fn-api-send-and-receive-data for further
   // details.
   message MultimapUserState {
@@ -773,7 +773,7 @@ message StateKey {
     // (Required) The key of the currently executing element encoded in a
     // nested context.
     bytes key = 4;
-    // (Required) The encoded lookup key for the map encoded in a nested context.
+    // (Required) The map key encoded in a nested context.
     bytes map_key = 5;
   }
 
