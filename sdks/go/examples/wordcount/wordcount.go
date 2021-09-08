@@ -106,7 +106,6 @@ var (
 // done automatically by the starcgen code generator, or it can be done manually
 // by calling beam.RegisterFunction in an init() call.
 func init() {
-	beam.RegisterFunction(extractFn)
 	beam.RegisterFunction(formatFn)
 }
 
@@ -118,8 +117,12 @@ var (
 	lineLen           = beam.NewDistribution("extract", "lineLenDistro")
 )
 
-// extractFn is a DoFn that emits the words in a given line.
-func extractFn(ctx context.Context, line string, emit func(string)) {
+// extractFn is a DoFn that emits the words in a given line and keeps a count for small words.
+type extractFn struct {
+	SmallWordLength int `json:"min_length"`
+}
+
+func (f *extractFn) ProcessElement(ctx context.Context, line string, emit func(string)) {
 	lineLen.Update(ctx, int64(len(line)))
 	if len(strings.TrimSpace(line)) == 0 {
 		empty.Inc(ctx, 1)
@@ -127,7 +130,7 @@ func extractFn(ctx context.Context, line string, emit func(string)) {
 	for _, word := range wordRE.FindAllString(line, -1) {
 		// increment the counter for small words if length of words is
 		// less than small_word_length
-		if len(word) < *small_word_length {
+		if len(word) < f.SmallWordLength {
 			small_words.Inc(ctx, 1)
 		}
 		emit(word)
@@ -157,7 +160,7 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 	s = s.Scope("CountWords")
 
 	// Convert lines of text into individual words.
-	col := beam.ParDo(s, extractFn, lines)
+	col := beam.ParDo(s, &extractFn{SmallWordLength: *small_word_length}, lines)
 
 	// Count the number of times each word occurs.
 	return stats.Count(s, col)
