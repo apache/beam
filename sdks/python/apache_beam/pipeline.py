@@ -96,6 +96,7 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import subprocess_server
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.interactive_utils import alter_label_if_ipython
+from apache_beam.utils.interactive_utils import is_in_ipython
 
 if TYPE_CHECKING:
   from types import TracebackType
@@ -565,7 +566,9 @@ class Pipeline(object):
           shutil.rmtree(tmpdir)
       return self.runner.run_pipeline(self, self._options)
     finally:
-      shutil.rmtree(self.local_tempdir, ignore_errors=True)
+      if not is_in_ipython():
+        shutil.rmtree(self.local_tempdir, ignore_errors=True)
+      # else interactive beam handles the cleanup.
 
   def __enter__(self):
     # type: () -> Pipeline
