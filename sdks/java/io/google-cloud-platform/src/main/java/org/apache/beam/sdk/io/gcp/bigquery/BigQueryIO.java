@@ -1416,8 +1416,6 @@ public class BigQueryIO {
                       "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
                   datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
                 }
-              } catch (Exception e) {
-                throw new RuntimeException(e);
               }
             }
           };

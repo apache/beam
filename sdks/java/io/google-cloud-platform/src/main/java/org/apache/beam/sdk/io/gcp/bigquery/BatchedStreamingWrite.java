@@ -221,7 +221,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     /** The list of unique ids for each BigQuery table row. */
     private transient Map<String, List<String>> uniqueIdsForTableRows;
 
-    private @Nullable DatasetService datasetService;
+    private transient @Nullable DatasetService datasetService;
 
     private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
       if (datasetService == null) {
@@ -345,7 +345,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   // shuffling.
   private class InsertBatchedElements
       extends DoFn<KV<ShardedKey<String>, Iterable<TableRowInfo<ElementT>>>, Void> {
-    private @Nullable DatasetService datasetService;
+    private transient @Nullable DatasetService datasetService;
 
     private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
       if (datasetService == null) {
