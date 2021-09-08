@@ -482,7 +482,75 @@ func (mr Results) AllMetrics() QueryResults {
 	return QueryResults{mr.counters, mr.distributions, mr.gauges}
 }
 
-// TODO(BEAM-11217): Implement Query(Filter) and metrics filtering
+// SingleResult interface facilitates metrics query filtering methods.
+type SingleResult interface {
+	Step() string
+	Name() string
+	Namespace() string
+}
+
+func (r CounterResult) Name() string {
+	return r.Key.Name
+}
+
+func (r CounterResult) Namespace() string {
+	return r.Key.Namespace
+}
+
+func (r CounterResult) Step() string {
+	return r.Key.Step
+}
+
+func (r DistributionResult) Name() string {
+	return r.Key.Name
+}
+
+func (r DistributionResult) Namespace() string {
+	return r.Key.Namespace
+}
+
+func (r DistributionResult) Step() string {
+	return r.Key.Step
+}
+
+func (r GaugeResult) Name() string {
+	return r.Key.Name
+}
+
+func (r GaugeResult) Namespace() string {
+	return r.Key.Namespace
+}
+
+func (r GaugeResult) Step() string {
+	return r.Key.Step
+}
+
+// Query allows metrics querying with filter. The filter takes the form of predicate function.
+// Ex: qr = pr.Metrics().Query(func(sr metrics.SingleResult) bool {
+//			return sr.Namespace() == test.namespace
+// })
+func (mr Results) Query(f func(SingleResult) bool) QueryResults {
+	counters := []CounterResult{}
+	distributions := []DistributionResult{}
+	gauges := []GaugeResult{}
+
+	for _, counter := range mr.counters {
+		if f(counter) {
+			counters = append(counters, counter)
+		}
+	}
+	for _, distribution := range mr.distributions {
+		if f(distribution) {
+			distributions = append(distributions, distribution)
+		}
+	}
+	for _, gauge := range mr.gauges {
+		if f(gauge) {
+			gauges = append(gauges, gauge)
+		}
+	}
+	return QueryResults{counters, distributions, gauges}
+}
 
 // QueryResults is the result of a query. Allows accessing all of the
 // metrics that matched the filter.

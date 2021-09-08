@@ -30,9 +30,10 @@ import (
 )
 
 var (
-	wordRE  = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-	empty   = beam.NewCounter("extract", "emptyLines")
-	lineLen = beam.NewDistribution("extract", "lineLenDistro")
+	wordRE      = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+	empty       = beam.NewCounter("extract", "emptyLines")
+	lineLen     = beam.NewDistribution("extract", "lineLenDistro")
+	small_words = beam.NewCounter("extract", "smallWords")
 )
 
 // CountWords is a composite transform that counts the words of a PCollection
@@ -56,6 +57,9 @@ func extractFn(ctx context.Context, line string, emit func(string)) {
 		empty.Inc(ctx, 1)
 	}
 	for _, word := range wordRE.FindAllString(line, -1) {
+		if len(word) < 6 {
+			small_words.Inc(ctx, 1)
+		}
 		emit(word)
 	}
 }
