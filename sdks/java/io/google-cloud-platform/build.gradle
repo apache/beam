@@ -131,7 +131,7 @@ dependencies {
 
   compile "org.threeten:threetenbp:1.4.4"
 
-  testCompile "org.apache.arrow:arrow-memory-netty:4.0.0"
+  testCompile library.java.arrow_memory_netty
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntime")
