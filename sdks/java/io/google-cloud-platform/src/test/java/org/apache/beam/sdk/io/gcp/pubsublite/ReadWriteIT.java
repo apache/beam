@@ -54,6 +54,7 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -72,7 +73,7 @@ import org.slf4j.LoggerFactory;
 public class ReadWriteIT {
   private static final Logger LOG = LoggerFactory.getLogger(ReadWriteIT.class);
   private static final CloudZone ZONE = CloudZone.parse("us-central1-b");
-  private static final int MESSAGE_COUNT = 100;
+  private static final int MESSAGE_COUNT = 90;
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -150,11 +151,26 @@ public class ReadWriteIT {
     }
   }
 
+  // Workaround for BEAM-12867
+  // TODO(BEAM-12867): Remove this.
+  private static class CustomCreate extends PTransform<PCollection<Void>, PCollection<Integer>> {
+    @Override
+    public PCollection<Integer> expand(PCollection<Void> input) {
+      return input.apply(
+          "createIndexes",
+          FlatMapElements.via(
+              new SimpleFunction<Void, Iterable<Integer>>() {
+                @Override
+                public Iterable<Integer> apply(Void input) {
+                  return IntStream.range(0, MESSAGE_COUNT).boxed().collect(Collectors.toList());
+                }
+              }));
+    }
+  }
+
   public static void writeMessages(TopicPath topicPath, Pipeline pipeline) {
-    PCollection<Integer> indexes =
-        pipeline.apply(
-            "createIndexes",
-            Create.of(IntStream.range(0, MESSAGE_COUNT).boxed().collect(Collectors.toList())));
+    PCollection<Void> trigger = pipeline.apply(Create.of((Void) null));
+    PCollection<Integer> indexes = trigger.apply("createIndexes", new CustomCreate());
     PCollection<PubSubMessage> messages =
         indexes.apply(
             "createMessages",
@@ -226,7 +242,7 @@ public class ReadWriteIT {
     writeMessages(topic, pipeline);
 
     // Read some messages. They should be deduplicated by the time we see them, so there should be
-    // exactly numMessages, one for every index in [0,50).
+    // exactly numMessages, one for every index in [0,MESSAGE_COUNT).
     PCollection<SequencedMessage> messages = readMessages(subscription, pipeline);
     messages.apply("messageReceiver", collectTestQuickstart());
     pipeline.run();
@@ -240,13 +256,18 @@ public class ReadWriteIT {
       }
       LOG.info("Performing comparison round {}.\n", round);
       boolean done = true;
+      List<Integer> missing = new ArrayList<>();
       for (int id = 0; id < MESSAGE_COUNT; id++) {
         int idCount = receivedCounts.getOrDefault(id, 0);
-        if (idCount != 1) {
-          LOG.info("Still missing message {}.\n", id);
+        if (idCount == 0) {
+          missing.add(id);
           done = false;
         }
+        if (idCount > 1) {
+          fail(String.format("Failed to deduplicate message with id %s.", id));
+        }
       }
+      LOG.info("Still messing messages: {}.\n", missing);
       if (done) {
         return;
       }
