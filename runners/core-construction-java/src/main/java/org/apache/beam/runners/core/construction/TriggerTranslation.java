@@ -102,7 +102,7 @@ public class TriggerTranslation implements Serializable {
 
     private RunnerApi.Trigger convertSpecific(FromEndOfWindow v) {
       return RunnerApi.Trigger.newBuilder()
-          .setAfterEndOfWindow(RunnerApi.Trigger.AfterEndOfWindow.newBuilder())
+          .setAfterEndOfWindow(RunnerApi.Trigger.AfterEndOfWindow.getDefaultInstance())
           .build();
     }
 
