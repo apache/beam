@@ -564,11 +564,6 @@ public class JmsIO {
     }
 
     @Override
-    public long getSplitBacklogBytes() {
-      return this.autoScaler.getSplitBacklogBytes();
-    }
-
-    @Override
     public long getTotalBacklogBytes() {
       return this.autoScaler.getTotalBacklogBytes();
     }

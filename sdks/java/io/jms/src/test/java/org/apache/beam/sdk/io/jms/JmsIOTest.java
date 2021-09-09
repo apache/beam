@@ -446,11 +446,9 @@ public class JmsIOTest {
 
   @Test
   public void testCustomAutoscaler() throws IOException {
-    long excpectedSplitBacklogBytes = 1000L;
     long excpectedTotalBacklogBytes = 1111L;
 
     AutoScaler autoScaler = mock(DefaultAutoscaler.class);
-    when(autoScaler.getSplitBacklogBytes()).thenReturn(excpectedSplitBacklogBytes);
     when(autoScaler.getTotalBacklogBytes()).thenReturn(excpectedTotalBacklogBytes);
     JmsIO.Read spec =
         JmsIO.read()
@@ -466,8 +464,6 @@ public class JmsIOTest {
     // start the reader and check getSplitBacklogBytes and getTotalBacklogBytes values
     reader.start();
     verify(autoScaler, times(1)).start();
-    assertEquals(excpectedSplitBacklogBytes, reader.getSplitBacklogBytes());
-    verify(autoScaler, times(1)).getSplitBacklogBytes();
     assertEquals(excpectedTotalBacklogBytes, reader.getTotalBacklogBytes());
     verify(autoScaler, times(1)).getTotalBacklogBytes();
     reader.close();

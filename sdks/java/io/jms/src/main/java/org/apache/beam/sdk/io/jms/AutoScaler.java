@@ -18,22 +18,19 @@
 package org.apache.beam.sdk.io.jms;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.io.UnboundedSource;
 
 /**
- * Enables users to specify their own `JMS` backlog reporters enabling {@link JmsIO} to report {@link UnboundedSource#getTotalBacklogBytes}.
+ * Enables users to specify their own `JMS` backlog reporters enabling {@link JmsIO} to report
+ * {@link UnboundedSource.UnboundedReader#getTotalBacklogBytes()}.
  */
 public interface AutoScaler extends Serializable {
 
-  /**
-   * The {@link AutoScaler} is started when the {@link UnboundedJmsReader} is started.
-   */
+  /** The {@link AutoScaler} is started when the {@link JmsIO.UnboundedJmsReader} is started. */
   void start();
 
   long getTotalBacklogBytes();
 
-
-  /**
-   * The {@link AutoScaler} is stopped when the {@link UnboundedJmsReader} is closed.
-   */
+  /** The {@link AutoScaler} is stopped when the {@link JmsIO.UnboundedJmsReader} is closed. */
   void stop();
 }

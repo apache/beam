@@ -33,10 +33,5 @@ public class DefaultAutoscaler implements AutoScaler {
   }
 
   @Override
-  public long getSplitBacklogBytes() {
-    return BACKLOG_UNKNOWN;
-  }
-
-  @Override
   public void stop() {}
 }
