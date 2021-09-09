@@ -20,18 +20,20 @@ package org.apache.beam.sdk.io.jms;
 import java.io.Serializable;
 
 /**
- * An interface allowing the implementation of getBacklogBytes and getSplitBacklogBytes.
- *
- * <p>The interface also provides the following methods: - start to start the autoscaler - stop to
- * stop the autoscaler
+ * Enables users to specify their own `JMS` backlog reporters enabling {@link JmsIO} to report {@link UnboundedSource#getTotalBacklogBytes}.
  */
 public interface AutoScaler extends Serializable {
 
+  /**
+   * The {@link AutoScaler} is started when the {@link UnboundedJmsReader} is started.
+   */
   void start();
 
   long getTotalBacklogBytes();
 
-  long getSplitBacklogBytes();
 
+  /**
+   * The {@link AutoScaler} is stopped when the {@link UnboundedJmsReader} is closed.
+   */
   void stop();
 }

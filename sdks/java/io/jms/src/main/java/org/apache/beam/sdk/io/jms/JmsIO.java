@@ -348,6 +348,9 @@ public class JmsIO {
       return builder().setCoder(coder).build();
     }
 
+    /**
+     * Sets the {@link AutoScaler} to use for reporting backlog during the execution of this source.
+     */
     public Read<T> withAutoScaler(AutoScaler autoScaler) {
       checkArgument(autoScaler != null, "autoScaler can not be null");
       return builder().setAutoScaler(autoScaler).build();

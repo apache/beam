@@ -21,8 +21,7 @@ import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNK
 
 /**
  * Default implementation of {@link AutoScaler}. Returns {@link
- * org.apache.beam.sdk.io.UnboundedSource.UnboundedReader#BACKLOG_UNKNOWN} as default value for both
- * getTotalBacklogBytes and getSplitBacklogBytes.
+ * org.apache.beam.sdk.io.UnboundedSource.UnboundedReader#BACKLOG_UNKNOWN} as the default value.
  */
 public class DefaultAutoscaler implements AutoScaler {
   @Override
