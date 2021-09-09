@@ -6353,7 +6353,7 @@ Currently Python external transforms are limited to dependencies available in co
 #### 13.1.3. Creating cross-language Go transforms
 
 Go currently does not support creating cross-language transforms, only using cross-language
-transforms from other languages.
+transforms from other languages; see more at [BEAM-9923](https://issues.apache.org/jira/browse/BEAM-9923).
 
 ### 13.2. Using cross-language transforms {#use-x-lang-transforms}
 
@@ -6431,7 +6431,8 @@ function to access the transform.
 
 The Go SDK does not yet support automatically starting an expansion service. In order to use
 cross-language transforms, you must manually start any necessary expansion services on your local
-machine and ensure they are accessible to your code during pipeline construction.
+machine and ensure they are accessible to your code during pipeline construction; see more at
+[BEAM-12862](https://issues.apache.org/jira/browse/BEAM-12862).
 
 **Using an SDK wrapper**
 
@@ -6459,8 +6460,7 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
 
 1. Make sure you have the appropriate expansion service running. See the expansion service section for details.
 2. Make sure the transform you're trying to use is available and can be used by the expansion service.
-   For Java, make sure the builder and registrar for the transform are available in the classpath of
-   the expansion service.
+   Refer to [Creating cross-language transforms](#create-x-lang-transforms) for details.
 3. Use the `CrossLanguage` function in your pipeline as appropriate. Reference the URN, Payload,
    expansion service address, and define inputs and outputs. You can use the
    [CrossLanguagePayload](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguagePayload)
@@ -6475,9 +6475,9 @@ type prefixPayload struct {
 }
 urn := "beam:transforms:xlang:test:prefix"
 payload := beam.CrossLanguagePayload(prefixPayload{Data: prefix})
-expansionAddr := <Address of expansion service>
+expansionAddr := "localhost:8097"
 outT := beam.UnnamedOutput(typex.New(reflectx.String))
-res := beam.CrossLanguage(s, urn, payload, expansionAddr, beam.UnnamedInput(inputPCol))
+res := beam.CrossLanguage(s, urn, payload, expansionAddr, beam.UnnamedInput(inputPCol), outT)
    {{< /highlight >}}
 
 4. After the job has been submitted to the Beam runner, shutdown the expansion service by
