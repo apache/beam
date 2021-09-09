@@ -1368,6 +1368,7 @@ class _StreamToBigQuery(PTransform):
       schema_side_inputs,
       schema,
       batch_size,
+      batch_duration,
       create_disposition,
       write_disposition,
       kms_key,
@@ -1381,6 +1382,7 @@ class _StreamToBigQuery(PTransform):
     self.schema_side_inputs = schema_side_inputs
     self.schema = schema
     self.batch_size = batch_size
+    self.batch_duration = batch_duration
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.kms_key = kms_key
@@ -1453,7 +1455,7 @@ class _StreamToBigQuery(PTransform):
           tagged_data
           | 'WithAutoSharding' >> beam.GroupIntoBatches.WithShardedKey(
               (self.batch_size or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS),
-              DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC)
+              self.batch_duration or DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC)
           | 'DropShard' >> beam.Map(lambda kv: (kv[0].key, kv[1])))
 
     return (
@@ -1490,6 +1492,7 @@ class WriteToBigQuery(PTransform):
       write_disposition=BigQueryDisposition.WRITE_APPEND,
       kms_key=None,
       batch_size=None,
+      batch_duration=None,
       max_file_size=None,
       max_files_per_bundle=None,
       test_client=None,
@@ -1559,6 +1562,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         tables.
       batch_size (int): Number of rows to be written to BQ per streaming API
         insert. The default is 500.
+      batch_duration (float): time in seconds to wait before flushing a
+        batch to the streaming API. The default is 0.2. Only works when
+        with_auto_sharding is enabled.
       test_client: Override the default bigquery client used for testing.
       max_file_size (int): The maximum size for a file to be written and then
         loaded into BigQuery. The default value is 4TB, which is 80% of the
@@ -1644,6 +1650,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     else:
       self.schema = bigquery_tools.get_dict_table_schema(schema)
     self.batch_size = batch_size
+    self.batch_duration = batch_duration
     self.kms_key = kms_key
     self.test_client = test_client
 
@@ -1715,6 +1722,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           schema_side_inputs=self.schema_side_inputs,
           schema=self.schema,
           batch_size=self.batch_size,
+          batch_duration=self.batch_duration,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
           kms_key=self.kms_key,
@@ -1794,6 +1802,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         'write_disposition': self.write_disposition,
         'kms_key': self.kms_key,
         'batch_size': self.batch_size,
+        'batch_duration': self.batch_duration,
         'max_file_size': self.max_file_size,
         'max_files_per_bundle': self.max_files_per_bundle,
         'custom_gcs_temp_location': self.custom_gcs_temp_location,
