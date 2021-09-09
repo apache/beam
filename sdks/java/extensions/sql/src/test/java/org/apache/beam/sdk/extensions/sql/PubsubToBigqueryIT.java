@@ -31,8 +31,8 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -57,7 +57,7 @@ public class PubsubToBigqueryIT implements Serializable {
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
-            + "             id INTEGER, \n"
+            + "             id BIGINT, \n"
             + "             name VARCHAR \n"
             + "           > \n"
             + ") \n"
@@ -111,7 +111,7 @@ public class PubsubToBigqueryIT implements Serializable {
     String pubsubTableString =
         "CREATE EXTERNAL TABLE pubsub_topic (\n"
             + "event_timestamp TIMESTAMP, \n"
-            + "id INTEGER, \n"
+            + "id BIGINT, \n"
             + "name VARCHAR \n"
             + ") \n"
             + "TYPE 'pubsub' \n"

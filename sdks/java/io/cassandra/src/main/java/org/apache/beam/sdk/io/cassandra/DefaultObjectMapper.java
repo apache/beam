@@ -34,7 +34,7 @@ import java.util.concurrent.Future;
 })
 class DefaultObjectMapper<T> implements Mapper<T>, Serializable {
 
-  private transient com.datastax.driver.mapping.Mapper<T> mapper;
+  private final transient com.datastax.driver.mapping.Mapper<T> mapper;
 
   DefaultObjectMapper(com.datastax.driver.mapping.Mapper mapper) {
     this.mapper = mapper;

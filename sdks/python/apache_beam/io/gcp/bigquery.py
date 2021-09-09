@@ -1120,7 +1120,7 @@ class BigQueryWriteFn(DoFn):
         https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
       with_batched_input: Whether the input has already been batched per
         destination. If not, perform best-effort batching per destination within
-        a bunble.
+        a bundle.
     """
     self.schema = schema
     self.test_client = test_client
