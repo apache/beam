@@ -63,6 +63,7 @@
 ## New Features / Improvements
 
 * Pipeline dependencies supplied through `--requirements_file` will now be staged to the runner using binary distributions (wheels) of the PyPI packages for linux_x86_64 platform ([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)). To restore the behavior to use source distributions, set pipeline option `--requirements_cache_only_sources`. To skip staging the packages at submission time, set pipeline option `--requirements_cache=skip` (Python).
+* The Flink runner now supports Flink 1.14.x ([BEAM-13106](https://issues.apache.org/jira/browse/BEAM-13106)).
 
 ## Breaking Changes
 
@@ -70,6 +71,7 @@
 
 ## Deprecations
 
+* Beam 2.38.0 will be the last minor release to support Flink 1.11.
 * X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Bugfixes

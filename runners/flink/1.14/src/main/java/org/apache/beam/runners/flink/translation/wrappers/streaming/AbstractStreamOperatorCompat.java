@@ -57,26 +57,23 @@ public abstract class AbstractStreamOperatorCompat<OutputT>
   /** Flush all remaining buffered data. */
   abstract void flushData() throws Exception;
 
-  // Prior to Flink 1.14, dispose() releases the operator's resources, while close() flushes
-  // remaining data and then releases the operator's resources.
+  // Start with Flink 1.14, dispose() has been removed. finish() flushes remaining data, while
+  // close() no longer flushes data, close() now only releases the operator's resources.
   // https://issues.apache.org/jira/browse/FLINK-22972
 
   @Override
-  public void dispose() throws Exception {
+  public void finish() throws Exception {
     try {
-      cleanUp();
+      flushData();
     } finally {
-      // This releases all task's resources. We need to call this last
-      // to ensure that state, timers, or output buffers can still be
-      // accessed during finishing the bundle.
-      super.dispose();
+      super.finish();
     }
   }
 
   @Override
   public void close() throws Exception {
     try {
-      flushData();
+      cleanUp();
     } finally {
       super.close();
     }
