@@ -19,10 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.*;
-
 import java.util.HashMap;
 import java.util.List;
-
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -160,13 +158,15 @@ abstract class BatchSpannerRead
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      ServiceCallMetric serviceCallMetric = createServiceCallMetric(this.config.getProjectId().toString(),
-        this.config.getDatabaseId().toString(), this.config.getInstanceId().toString());
+      ServiceCallMetric serviceCallMetric =
+          createServiceCallMetric(
+              this.config.getProjectId().toString(),
+              this.config.getDatabaseId().toString(),
+              this.config.getInstanceId().toString());
       Transaction tx = c.sideInput(txView);
 
-      try {
         BatchReadOnlyTransaction batchTx =
-          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
+            spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
 
         serviceCallMetric.call("ok");
         Partition p = c.element();
@@ -175,27 +175,26 @@ abstract class BatchSpannerRead
             Struct s = resultSet.getCurrentRowAsStruct();
             c.output(s);
           }
-        }
       } catch (SpannerException e) {
         serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
-        throw e;
+                throw e;
       }
     }
 
     private ServiceCallMetric createServiceCallMetric(
-      String projectId, String databaseId, String tableId) {
+        String projectId, String databaseId, String tableId) {
       HashMap<String, String> baseLabels = new HashMap<>();
       baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
       baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
       baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Read");
       baseLabels.put(
-        MonitoringInfoConstants.Labels.RESOURCE,
-        GcpResourceIdentifiers.spannerTable(projectId, databaseId, tableId));
+          MonitoringInfoConstants.Labels.RESOURCE,
+          GcpResourceIdentifiers.spannerTable(projectId, databaseId, tableId));
       baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID, projectId);
       baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, databaseId);
       baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, tableId);
       ServiceCallMetric serviceCallMetric =
-        new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
       return serviceCallMetric;
     }
   }

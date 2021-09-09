@@ -18,34 +18,23 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
-import com.google.cloud.spanner.BatchReadOnlyTransaction;
-import com.google.cloud.spanner.BatchTransactionId;
-import com.google.cloud.spanner.FakeBatchTransactionId;
-import com.google.cloud.spanner.FakePartitionFactory;
-import com.google.cloud.spanner.KeySet;
-import com.google.cloud.spanner.Partition;
-import com.google.cloud.spanner.PartitionOptions;
-import com.google.cloud.spanner.ResultSets;
-import com.google.cloud.spanner.Statement;
-import com.google.cloud.spanner.Struct;
-import com.google.cloud.spanner.TimestampBound;
-import com.google.cloud.spanner.Type;
-import com.google.cloud.spanner.Value;
+import com.google.cloud.spanner.*;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -190,76 +179,79 @@ public class SpannerIOReadTest implements Serializable {
   }
 
   @Test
-  public void testSpannerReadMetricIsSet() {
+  public void testSpannerReadMetricIsSet() throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
     SpannerConfig spannerConfig =
-      SpannerConfig.create()
-        .withProjectId("test")
-        .withInstanceId("123")
-        .withDatabaseId("aaa")
-        .withServiceFactory(serviceFactory);
+        SpannerConfig.create()
+            .withProjectId("test")
+            .withInstanceId("123")
+            .withDatabaseId("aaa")
+            .withServiceFactory(serviceFactory);
 
     PCollection<Struct> one =
-      pipeline.apply(
-        "read q",
-        SpannerIO.read()
-          .withSpannerConfig(spannerConfig)
-          .withTable("users")
-          .withColumns("id", "name")
-          .withTimestampBound(timestampBound));
+        pipeline.apply(
+            "read q",
+            SpannerIO.read()
+                .withSpannerConfig(spannerConfig)
+                .withTable("users")
+                .withColumns("id", "name")
+                .withTimestampBound(timestampBound));
 
     FakeBatchTransactionId id = new FakeBatchTransactionId("runReadTest");
     when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
 
     when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
-      .thenReturn(mockBatchTx);
+        .thenReturn(mockBatchTx);
     when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
-      .thenReturn(mockBatchTx);
+        .thenReturn(mockBatchTx);
 
     Partition fakePartition =
-      FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("one"));
+        FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("one"));
 
     when(mockBatchTx.partitionRead(
-      any(PartitionOptions.class),
-      eq("users"),
-      eq(KeySet.all()),
-      eq(Arrays.asList("id", "name"))))
-      .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
+            any(PartitionOptions.class),
+            eq("users"),
+            eq(KeySet.all()),
+            eq(Arrays.asList("id", "name"))))
+        .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
     when(mockBatchTx.execute(any(Partition.class)))
-      .thenReturn(
-        ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
-        ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
-        ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 2"))
+        .thenReturn(
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
 
-    pipeline.run();
+    assertThrows(Pipeline.PipelineExecutionException.class, () -> pipeline.run());
+    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", 2);
     verifyMetricWasSet("test", "aaa", "123", "ok", 3);
   }
 
   private void verifyMetricWasSet(
-    String projectId,
-    String databaseId,
-    String tableId,
-    String status,
-    long count) {
+      String projectId, String databaseId, String tableId, String status, long count) {
     // Verify the metric was reported.
     HashMap<String, String> labels = new HashMap<>();
     labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
     labels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
     labels.put(MonitoringInfoConstants.Labels.METHOD, "Read");
     labels.put(
-      MonitoringInfoConstants.Labels.RESOURCE,
-      GcpResourceIdentifiers.spannerTable(projectId, databaseId, tableId));
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.spannerTable(projectId, databaseId, tableId));
     labels.put(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID, projectId);
     labels.put(MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, databaseId);
     labels.put(MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, tableId);
     labels.put(MonitoringInfoConstants.Labels.STATUS, status);
 
     MonitoringInfoMetricName name =
-      MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
     MetricsContainerImpl container =
-      (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
+        (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
     assertEquals(count, (long) container.getCounter(name).getCumulative());
   }
 
