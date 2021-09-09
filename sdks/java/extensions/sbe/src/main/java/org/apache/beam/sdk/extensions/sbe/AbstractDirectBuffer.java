@@ -10,6 +10,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import javax.annotation.Nonnull;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
@@ -275,25 +276,53 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
 
   @Override
   public long parseLongAscii(int index, int length) {
+    boundsCheck(index, length);
+
     int start = getInternalIndex(index);
-    int end = this.length - start;
-    checkLength(length, 1, end);
+    int end = start + length;
 
-    char first = buffer.getChar(start);
+    char first = (char) buffer.get(start);  // Since this is ASCII, only grab one byte
     boolean isNegative = first == MINUS_SIGN;
-    long value = isNegative ? 0 : parseCharToLong(first);
-
-    // We could read in the whole string and then parse it, but this allows parsing on a single pass
-    for (int i = start + 1; i < end; ++i) {
-      value = value * 10 + parseCharToLong(buffer.getChar(i));
+    int preRead;  // How many characters were read to set initial value
+    long value;
+    if (isNegative) {
+      checkArgument(length >= 2, "String represents a negative number. Length must be at least 2 but is %s", length);
+      value = -parseCharToLong((char) buffer.get(start + 1));
+      preRead = 2;
+    } else {
+      value = parseCharToLong(first);
+      preRead = 1;
     }
 
-    return isNegative ? -value : value;
+    // We could read in the whole string and then parse it, but this allows parsing on a single pass
+    String overflowErrorMessage = "Will overflow on index %s";
+    String underflowErrorMessage = "Will underflow on index %s";
+    for (int i = start + preRead; i < end; ++i) {
+      // TODO(zhoufek): Switch to using Math methods when fully on Java 11
+      if (!isNegative && value > Long.MAX_VALUE / 10) {
+        throw new ArithmeticException(String.format(overflowErrorMessage, i));
+      }
+      if (isNegative && value < Long.MIN_VALUE / 10) {
+        throw new ArithmeticException(String.format(underflowErrorMessage, i));
+      }
+      value *= 10;
+
+      long asLong = parseCharToLong((char) buffer.get(i));
+      if (!isNegative && value > Long.MAX_VALUE - asLong) {
+        throw new ArithmeticException(String.format(overflowErrorMessage, i));
+      }
+      if (isNegative && value < Long.MIN_VALUE + asLong) {
+        throw new ArithmeticException(String.format(underflowErrorMessage, i));
+      }
+      value = isNegative ? value - asLong : value + asLong;
+    }
+
+    return value;
   }
 
   /** Handles parsing a single char value. */
   private static long parseCharToLong(char c) {
-    return c - '0';
+    return (long) c - '0';
   }
 
   @Override
@@ -420,7 +449,7 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
 
   @Override
   public int getStringWithoutLengthAscii(int index, int length, Appendable appendable) {
-    // Though this requires two passes, it avoids dirtying the appendable.
+    // Though this requires an additional pass, it avoids dirtying the appendable.
     String str = getStringWithoutLengthAscii(index, length);
     try {
       appendable.append(str);
@@ -458,40 +487,14 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
    * @param charset {@link Charset} indicating which encoding the string is
    * @return the string
    * @throws IllegalArgumentException if {@code charset} is not ASCII or UTF-8
-   * @throws RuntimeException if {@code charset} is ASCII and a non-ASCII character is encountered
    */
   private String getStringWithoutLength(int index, int length, Charset charset) {
-    checkArgument(charset == US_ASCII || charset == UTF_8,
+    checkArgument(charset.equals(US_ASCII) || charset.equals(UTF_8),
         "Invalid charset (%s). This only supports ASCII and UTF-8", charset);
 
-    int start = getInternalIndex(index);
-    int end = start + length;
-
-    StringBuilder builder = new StringBuilder(length);
-    for (int i = start, pos = 0; i < end; ++i, ++pos) {
-      char c = buffer.getChar(i);
-      if (charset == US_ASCII) {
-        try {
-          validateAscii(c);
-        } catch (UnsupportedEncodingException e) {
-          throw new RuntimeException(String.format("Error at index %s: ", index + start - i), e);
-        }
-      }
-      builder.insert(pos, c);
-    }
-    return builder.toString();
-  }
-
-  /**
-   * Makes sure that the input char is valid ASCII.
-   *
-   * @param c the char to validate
-   * @throws UnsupportedEncodingException if the input char is invalid
-   */
-  private static void validateAscii(char c) throws UnsupportedEncodingException {
-    if (!CharMatcher.ascii().matches(c)) {
-      throw new UnsupportedEncodingException(String.format("Character (numeric value: %s) is not ASCII", (int) c));
-    }
+    byte[] rawBytes = new byte[length];
+    getBytes(index, rawBytes);
+    return new String(rawBytes, charset);
   }
 
   @Override
@@ -499,20 +502,25 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
     if (index < 0) {
       throw new IndexOutOfBoundsException(String.format("Index (%s) is negative", index));
     }
+    if (index >= this.length) {
+      throw new IndexOutOfBoundsException(String.format("Index (%s) must be less than length of buffer (%s)", index, this.length));
+    }
     if (length < 0) {
       throw new IndexOutOfBoundsException(String.format("Length (%s) is negative", length));
     }
 
-    int end = index + length;
-    if (end > length) {
+    int internalIndex = getInternalIndex(index);
+    int end = internalIndex + length;
+    int maxAllowedLength = this.length - this.offset;
+    if (end > maxAllowedLength) {
       throw new IndexOutOfBoundsException(
-          String.format("Length (%s) is too long from index (%s). Max allowed: %s", length, index, end));
+          String.format("Length (%s) is too long from index (%s). Max allowed from index: %s", length, index, maxAllowedLength));
     }
   }
 
   @Override
   @DoNotCall("Always throws UnsupportedOperationException")
-  public int wrapAdjustment() {
+  public final int wrapAdjustment() {
     throw new UnsupportedOperationException(createDoesNotSupportMethodMessage("wrapAdjustment()", UNSAFE_FOR_PCOLLECTION));
   }
 
@@ -529,19 +537,6 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
    */
   protected int getInternalIndex(int index) {
     return offset + index;
-  }
-
-  /**
-   * Performs bounds check for a length.
-   *
-   * @param length length input from user
-   * @param minAllowed minimum allowed value (inclusive)
-   * @param maxAllowed maximum allowed value (inclusive)
-   * @throws IllegalArgumentException if the length is outside the bounds
-   */
-  private void checkLength(int length, int minAllowed, int maxAllowed) {
-    checkArgument(length >= minAllowed, "Length (%s) too short. Min allowed: %s", length, minAllowed);
-    checkArgument(length <= maxAllowed, "Length (%s) too long. Max allowed: %s", length, maxAllowed);
   }
 
   /**
