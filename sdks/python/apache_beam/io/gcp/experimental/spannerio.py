@@ -302,7 +302,7 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
     return snapshot_options
 
 
-@with_input_types(ReadOperation, typing.Dict[typing.Any, typing.Any])
+@with_input_types(ReadOperation, _SPANNER_TRANSACTION)
 @with_output_types(typing.List[typing.Any])
 class _NaiveSpannerReadDoFn(DoFn):
   def __init__(self, spanner_configuration):
@@ -422,7 +422,7 @@ class _CreateReadPartitions(DoFn):
 
 
 @with_input_types(int)
-@with_output_types(typing.Dict[typing.Any, typing.Any])
+@with_output_types(_SPANNER_TRANSACTION)
 class _CreateTransactionFn(DoFn):
   """
   A DoFn to create the transaction of cloud spanner.
