@@ -152,7 +152,6 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
   Builds a payload for directly instantiating a Java transform using a
   constructor and builder methods.
   """
-
   def __init__(self, class_name):
     """
     :param class_name: fully qualified name of the transform class.
@@ -171,8 +170,11 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
       if not key:
         raise ValueError('Parameter name cannot be empty')
       if value is None:
-        raise ValueError('Received value None for key %s. None values are currently not supported' % key)
-      named_fields.append((key, convert_to_typing_type(instance_to_type(value))))
+        raise ValueError(
+            'Received value None for key %s. None values are currently not supported'
+            % key)
+      named_fields.append(
+          (key, convert_to_typing_type(instance_to_type(value))))
 
     schema_proto = named_fields_to_schema(named_fields)
     row = named_tuple_from_schema(schema_proto)(**kwargs)
@@ -208,7 +210,8 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     :param kwargs: parameter names and values of the constructor.
     """
     if self._constructor_method or self._constructor_params:
-      raise ValueError('Constructor or constructor method can only be specified once')
+      raise ValueError(
+          'Constructor or constructor method can only be specified once')
 
     self._constructor_params = kwargs
 
@@ -220,12 +223,13 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     :param kwargs: parameter names and values of the constructor method.
     """
     if self._constructor_method or self._constructor_params:
-      raise ValueError('Constructor or constructor method can only be specified once')
+      raise ValueError(
+          'Constructor or constructor method can only be specified once')
 
     self._constructor_method = method_name
     self._constructor_params = kwargs
 
-  def add_builder_method(self,  method_name, **kwargs):
+  def add_builder_method(self, method_name, **kwargs):
     """
     Specifies a Java builder method to be invoked after instantiating the Java
     transform class. Specified builder method will be applied in order.
