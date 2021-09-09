@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -25,10 +26,10 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.tasks.RegularOperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 /**
  * {@link StreamSource} utilities, that bridge incompatibilities between Flink releases.
@@ -47,7 +48,7 @@ public class StreamSources {
    * @return Input transformation.
    */
   public static Transformation<?> getOnlyInput(OneInputTransformation<?, ?> source) {
-    return source.getInput();
+    return Iterables.getOnlyElement(source.getInputs());
   }
 
   public static <OutT, SrcT extends SourceFunction<OutT>> void run(
@@ -55,37 +56,19 @@ public class StreamSources {
       Object lockingObject,
       Output<StreamRecord<OutT>> collector)
       throws Exception {
-    streamSource.run(
-        lockingObject,
-        new TestStreamStatusMaintainer(),
-        collector,
-        createOperatorChain(streamSource));
+    streamSource.run(lockingObject, collector, createOperatorChain(streamSource));
   }
 
   private static OperatorChain<?, ?> createOperatorChain(AbstractStreamOperator<?> operator) {
-    return new OperatorChain<>(
+    return new RegularOperatorChain<>(
         operator.getContainingTask(),
         StreamTask.createRecordWriterDelegate(
             operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
   }
 
-  /** StreamStatusMaintainer was removed in Flink 1.14. */
-  private static final class TestStreamStatusMaintainer implements StreamStatusMaintainer {
-    StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
-
-    @Override
-    public void toggleStreamStatus(StreamStatus streamStatus) {
-      if (!currentStreamStatus.equals(streamStatus)) {
-        currentStreamStatus = streamStatus;
-      }
-    }
-
-    @Override
-    public StreamStatus getStreamStatus() {
-      return currentStreamStatus;
-    }
-  }
-
   /** The emitWatermarkStatus method was added in Flink 1.14, so we need to wrap Output. */
-  public interface OutputWrapper<T> extends Output<T> {}
+  public interface OutputWrapper<T> extends Output<T> {
+    @Override
+    default void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
+  }
 }
