@@ -156,16 +156,20 @@ public class DataStreams {
   }
 
   /**
-   * An adapter which converts an {@link InputStream} to an {@link Iterator} of {@code T} values
-   * using the specified {@link Coder}.
+   * An adapter which converts an {@link InputStream} to a {@link PrefetchableIterator} of {@code T}
+   * values using the specified {@link Coder}.
    *
    * <p>Note that this adapter follows the Beam Fn API specification for forcing values that decode
    * consuming zero bytes to consuming exactly one byte.
    *
    * <p>Note that access to the underlying {@link InputStream} is lazy and will only be invoked on
-   * first access to {@link #next()} or {@link #hasNext()}.
+   * first access to {@link #next}, {@link #hasNext}, {@link #isReady}, and {@link #prefetch}.
+   *
+   * <p>Note that {@link #isReady} and {@link #prefetch} rely on non-empty {@link ByteString}s being
+   * returned via the underlying {@link PrefetchableIterator} otherwise the {@link #prefetch} will
+   * seemingly make zero progress yet will actually advance through the empty pages.
    */
-  public static class DataStreamDecoder<T> implements Iterator<T> {
+  public static class DataStreamDecoder<T> implements PrefetchableIterator<T> {
 
     private enum State {
       READ_REQUIRED,
@@ -173,17 +177,42 @@ public class DataStreams {
       EOF
     }
 
-    private final Iterator<ByteString> inputByteStrings;
+    private final PrefetchableIterator<ByteString> inputByteStrings;
     private final Inbound inbound;
     private final Coder<T> coder;
     private State currentState;
     private T next;
 
-    public DataStreamDecoder(Coder<T> coder, Iterator<ByteString> inputStream) {
+    public DataStreamDecoder(Coder<T> coder, PrefetchableIterator<ByteString> inputStream) {
       this.currentState = State.READ_REQUIRED;
       this.coder = coder;
       this.inputByteStrings = inputStream;
       this.inbound = new Inbound();
+    }
+
+    @Override
+    public boolean isReady() {
+      switch (currentState) {
+        case EOF:
+          return true;
+        case READ_REQUIRED:
+          try {
+            return inbound.isReady();
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        case HAS_NEXT:
+          return true;
+        default:
+          throw new IllegalStateException(String.format("Unknown state %s", currentState));
+      }
+    }
+
+    @Override
+    public void prefetch() {
+      if (!isReady()) {
+        inputByteStrings.prefetch();
+      }
     }
 
     @Override
@@ -232,8 +261,8 @@ public class DataStreams {
     private static final InputStream EMPTY_STREAM = ByteString.EMPTY.newInput();
 
     /**
-     * An input stream which concatenates multiple {@link ByteString}s. Lazily accesses the first
-     * {@link Iterator} on first access of this input stream.
+     * An input stream which concatenates multiple {@link ByteString}s. Lazily accesses the {@link
+     * Iterator} on first access of this input stream.
      *
      * <p>Closing this input stream has no effect.
      */
@@ -243,6 +272,22 @@ public class DataStreams {
 
       public Inbound() {
         this.currentStream = EMPTY_STREAM;
+      }
+
+      public boolean isReady() throws IOException {
+        // Note that ByteString#newInput is guaranteed to return the length of the entire ByteString
+        // minus the number of bytes that have been read so far and can be reliably used to tell
+        // us whether we are at the end of the stream.
+        while (currentStream.available() == 0) {
+          if (!inputByteStrings.isReady()) {
+            return false;
+          }
+          if (!inputByteStrings.hasNext()) {
+            return true;
+          }
+          currentStream = inputByteStrings.next().newInput();
+        }
+        return true;
       }
 
       public boolean isEof() throws IOException {

@@ -38,7 +38,6 @@ import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
-import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateBinder;
 import org.apache.beam.sdk.state.StateContext;
@@ -264,7 +263,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public ValueState<T> readLater() {
-                    // TODO(BEAM-12802): Support prefetching.
+                    impl.get().iterator().prefetch();
                     return this;
                   }
                 };
@@ -310,7 +309,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public BagState<T> readLater() {
-                    // TODO(BEAM-12802): Support prefetching.
+                    impl.get().iterator().prefetch();
                     return this;
                   }
 
@@ -391,6 +390,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public CombiningState<ElementT, AccumT, ResultT> readLater() {
+                    impl.get().iterator().prefetch();
                     return this;
                   }
 
@@ -412,7 +412,18 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public ReadableState<Boolean> isEmpty() {
-                    return ReadableStates.immediate(!impl.get().iterator().hasNext());
+                    return new ReadableState<Boolean>() {
+                      @Override
+                      public @Nullable Boolean read() {
+                        return !impl.get().iterator().hasNext();
+                      }
+
+                      @Override
+                      public ReadableState<Boolean> readLater() {
+                        impl.get().iterator().prefetch();
+                        return this;
+                      }
+                    };
                   }
 
                   @Override
