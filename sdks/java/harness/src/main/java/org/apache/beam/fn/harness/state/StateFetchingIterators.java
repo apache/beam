@@ -255,7 +255,7 @@ public class StateFetchingIterators {
 
     @Override
     public void prefetch() {
-      if (!isReady()) {
+      if (currentState == State.READ_REQUIRED && prefetchedResponse == null) {
         prefetchedResponse = new CompletableFuture<>();
         beamFnStateClient.handle(
             stateRequestForFirstChunk
