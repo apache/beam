@@ -38,24 +38,25 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelRecordType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLocalRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilder;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.RelFactories;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelRecordType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLocalRef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexUtil;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RelBuilder;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 @SuppressWarnings({
@@ -140,8 +141,6 @@ public class BeamIOPushDownRule extends RelOptRule {
     resolved = resolved.resolve(beamSqlTable.getSchema());
 
     if (canDropCalc(program, beamSqlTable.supportsProjects(), tableFilter)) {
-      // Tell the optimizer to not use old IO, since the new one is better.
-      call.getPlanner().setImportance(ioSourceRel, 0.0);
       call.transformTo(
           ioSourceRel.createPushDownRel(
               calc.getRowType(),
@@ -173,8 +172,6 @@ public class BeamIOPushDownRule extends RelOptRule {
         || usedFields.size() < calcInputRowType.getFieldCount()) {
       // Smaller Calc programs are indisputably better, as well as IOs with less projected fields.
       // We can consider something with the same number of filters.
-      // Tell the optimizer not to use old Calc and IO.
-      call.getPlanner().setImportance(ioSourceRel, 0);
       call.transformTo(result);
     }
   }
@@ -369,9 +366,13 @@ public class BeamIOPushDownRule extends RelOptRule {
       newProjects.add(reMapRexNodeToNewInputs(project, mapping));
     }
 
+    if (RexUtil.isIdentity(newProjects, newIoSourceRel.getRowType())) {
+      // Force a rename prior to filter for identity function.
+      relBuilder.project(newProjects, calcDataType.getFieldNames(), true);
+    }
+
     relBuilder.filter(newFilter);
-    // Force to preserve named projects.
-    relBuilder.project(newProjects, calcDataType.getFieldNames(), true);
+    relBuilder.project(newProjects, calcDataType.getFieldNames());
 
     return relBuilder.build();
   }

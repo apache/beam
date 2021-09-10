@@ -297,11 +297,11 @@ class PipelineInstrumentTest(unittest.TestCase):
 
       def visit_transform(self, transform_node):
         if transform_node.inputs:
-          input_list = list(transform_node.inputs)
-          for i in range(len(input_list)):
-            if input_list[i] == init_pcoll:
-              input_list[i] = cached_init_pcoll
-          transform_node.inputs = tuple(input_list)
+          main_inputs = dict(transform_node.main_inputs)
+          for tag in main_inputs.keys():
+            if main_inputs[tag] == init_pcoll:
+              main_inputs[tag] = cached_init_pcoll
+          transform_node.main_inputs = main_inputs
 
     v = TestReadCacheWireVisitor()
     p_origin.visit(v)

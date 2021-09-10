@@ -22,7 +22,7 @@ from __future__ import absolute_import
 import random
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -53,10 +53,11 @@ def extract_prediction(response):
   yield response[0]["results"]
 
 
-@attr('IT')
+@pytest.mark.it_postcommit
 @unittest.skipIf(
     recommendationengine is None,
     "Recommendations AI dependencies not installed.")
+@unittest.skip('https://issues.apache.org/jira/browse/BEAM-12683')
 class RecommendationAIIT(unittest.TestCase):
   def test_create_catalog_item(self):
 

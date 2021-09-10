@@ -83,12 +83,8 @@ public class StateFetchingIterators {
     return Iterables.concat(
         new LazyCachingIteratorToIterable<T>(
             new DataStreams.DataStreamDecoder<>(
-                valueCoder,
-                DataStreams.inbound(
-                    new LazySingletonIterator<>(firstPageAndRemainder::firstPage)))),
-        () ->
-            new DataStreams.DataStreamDecoder<>(
-                valueCoder, DataStreams.inbound(firstPageAndRemainder.remainder())));
+                valueCoder, new LazySingletonIterator<>(firstPageAndRemainder::firstPage))),
+        () -> new DataStreams.DataStreamDecoder<>(valueCoder, firstPageAndRemainder.remainder()));
   }
 
   /** A iterable that contains a single element, provided by a Supplier which is invoked lazily. */

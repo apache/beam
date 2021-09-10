@@ -39,6 +39,9 @@ import org.slf4j.LoggerFactory;
 /**
  * A {@link Coder} for Java classes that implement {@link Serializable}.
  *
+ * <p>{@link SerializableCoder} should be used only for objects that have proper {@link
+ * Object#equals} and {@link Object#hashCode} implementations.
+ *
  * <p>To use, specify the coder type on a PCollection:
  *
  * <pre>{@code

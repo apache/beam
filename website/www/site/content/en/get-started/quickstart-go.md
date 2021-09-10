@@ -25,7 +25,7 @@ If you're interested in contributing to the Apache Beam Go codebase, see the [Co
 
 ## Set up your environment
 
-The Beam SDK for Go requires `go` version 1.10 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.10 by running:
+The Beam SDK for Go requires `go` version 1.16 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.16 by running:
 
 {{< highlight >}}
 $ go version
@@ -85,7 +85,7 @@ $ wordcount --input <PATH_TO_INPUT_FILE> \
 ## Next Steps
 
 * Learn more about the [Beam SDK for Go](/documentation/sdks/go/)
-  and look through the [godoc](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam).
+  and look through the [godoc](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
 * Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).

@@ -67,9 +67,6 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class PTransformTest(unittest.TestCase):
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   def assertStartswith(self, msg, prefix):
     self.assertTrue(
         msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))

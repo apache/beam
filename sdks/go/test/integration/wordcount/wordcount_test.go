@@ -19,13 +19,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/samza"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/test/integration"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/memfs"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestWordCount(t *testing.T) {
@@ -84,7 +84,8 @@ func TestWordCount(t *testing.T) {
 		memfs.Write(filename, []byte(strings.Join(test.lines, "\n")))
 
 		p := WordCount(filename, test.hash, test.words)
-		if err := ptest.Run(p); err != nil {
+		_, err := ptest.RunWithMetrics(p)
+		if err != nil {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
 	}

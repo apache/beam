@@ -52,6 +52,7 @@ import org.apache.beam.sdk.io.azure.options.BlobstoreClientBuilderFactory;
 import org.apache.beam.sdk.io.azure.options.BlobstoreOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -389,8 +390,14 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   }
 
   @Override
-  protected void rename(List<AzfsResourceId> srcResourceIds, List<AzfsResourceId> destResourceIds)
+  protected void rename(
+      List<AzfsResourceId> srcResourceIds,
+      List<AzfsResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
+    if (moveOptions.length > 0) {
+      throw new UnsupportedOperationException("Support for move options is not yet implemented.");
+    }
     copy(srcResourceIds, destResourceIds);
     delete(srcResourceIds);
   }

@@ -372,7 +372,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.33.0'
+    project.version = '2.34.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -472,7 +472,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark_version = "2.4.8"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
-    def arrow_version = "4.0.0"
+    def arrow_version = "5.0.0"
     def jmh_version = "1.32"
 
     // A map of maps containing common libraries used per language. To use:
@@ -520,7 +520,7 @@ class BeamModulePlugin implements Plugin<Project> {
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.14",
-        commons_compress                            : "org.apache.commons:commons-compress:1.20",
+        commons_compress                            : "org.apache.commons:commons-compress:1.21",
         commons_csv                                 : "org.apache.commons:commons-csv:1.8",
         commons_io                                  : "commons-io:commons-io:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
@@ -538,7 +538,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20210326-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20210331-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20210408-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20210407-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20210603-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20210322-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20210127-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
@@ -662,7 +662,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_bytebuddy_1_11_0                   : "org.apache.beam:beam-vendor-bytebuddy-1_11_0:0.1",
         vendored_grpc_1_36_0                        : "org.apache.beam:beam-vendor-grpc-1_36_0:0.2",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
-        vendored_calcite_1_20_0                     : "org.apache.beam:beam-vendor-calcite-1_20_0:0.1",
+        vendored_calcite_1_26_0                     : "org.apache.beam:beam-vendor-calcite-1_26_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.4.5-2",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
@@ -1043,6 +1043,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
+          jvmArgs = ['-Xmx12g']
         }
         project.tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
           reports {
@@ -1747,7 +1748,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'base'
 
       project.apply plugin: "com.github.blindpirate.gogradle"
-      project.golang { goVersion = '1.12.7' }
+      project.golang { goVersion = '1.16.5' }
 
       project.repositories {
         golang {
@@ -2174,7 +2175,6 @@ class BeamModulePlugin implements Plugin<Project> {
           "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
           "test_opts": config.pytestOptions,
           "suite": "xlangValidateRunner",
-          "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
           "collect": config.pythonTestAttr
         ]
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
@@ -2221,7 +2221,6 @@ class BeamModulePlugin implements Plugin<Project> {
         "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
         "test_opts":  config.pytestOptions,
         "suite": "xlangSqlValidateRunner",
-        "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
         "collect": "xlang_sql_expansion_service"
       ]
       def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)

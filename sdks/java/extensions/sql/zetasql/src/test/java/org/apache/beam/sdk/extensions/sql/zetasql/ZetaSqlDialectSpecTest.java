@@ -1292,6 +1292,20 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testZetaSQLSelectFromTableOrderByNoSelectLimit() {
+    String sql = "SELECT Value FROM KeyValue ORDER BY Key DESC LIMIT 2;";
+    PCollection<Row> stream = execute(sql);
+
+    final Schema schema = Schema.builder().addStringField("field2").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues("KeyValue234").build(),
+            Row.withSchema(schema).addValues("KeyValue235").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testZetaSQLSelectFromTableOrderBy() {
     String sql = "SELECT Key, Value FROM KeyValue ORDER BY Key DESC;";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);

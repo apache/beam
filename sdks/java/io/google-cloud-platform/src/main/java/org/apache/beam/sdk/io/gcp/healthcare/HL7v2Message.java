@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.services.healthcare.v1beta1.model.Message;
-import com.google.api.services.healthcare.v1beta1.model.SchematizedData;
+import com.google.api.services.healthcare.v1.model.Message;
+import com.google.api.services.healthcare.v1.model.SchematizedData;
 import java.io.IOException;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;

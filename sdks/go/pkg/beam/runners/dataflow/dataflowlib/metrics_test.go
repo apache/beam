@@ -16,11 +16,10 @@
 package dataflowlib
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/google/go-cmp/cmp"
 	df "google.golang.org/api/dataflow/v1b3"
 )
@@ -40,12 +39,12 @@ func TestFromMetricUpdates_Counters(t *testing.T) {
 	aName := newMetricStructuredName("customCounter", "customDoFn", true)
 	attempted := df.MetricUpdate{Name: &aName, Scalar: 15.0}
 
-	job, err := newJob("main.customDoFn")
+	p, err := newPipeline("main.customDoFn")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got := FromMetricUpdates([]*df.MetricUpdate{&attempted, &committed}, &job).AllMetrics().Counters()
+	got := FromMetricUpdates([]*df.MetricUpdate{&attempted, &committed}, p).AllMetrics().Counters()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
@@ -87,12 +86,12 @@ func TestFromMetricUpdates_Distributions(t *testing.T) {
 	aName := newMetricStructuredName("customDist", "customDoFn", true)
 	attempted := df.MetricUpdate{Name: &aName, Distribution: distribution}
 
-	job, err := newJob("main.customDoFn")
+	p, err := newPipeline("main.customDoFn")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got := FromMetricUpdates([]*df.MetricUpdate{&attempted, &committed}, &job).AllMetrics().Distributions()
+	got := FromMetricUpdates([]*df.MetricUpdate{&attempted, &committed}, p).AllMetrics().Distributions()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
@@ -114,20 +113,15 @@ func newMetricStructuredName(name, namespace string, attempted bool) df.MetricSt
 	return df.MetricStructuredName{Context: context, Name: name}
 }
 
-func newJob(stepName string) (df.Job, error) {
-	stepRepr := map[string]interface{}{
-		"name": "e5",
-		"properties": map[string]string{
-			"user_name": stepName,
+func newPipeline(stepName string) (*pipepb.Pipeline, error) {
+	p := &pipepb.Pipeline{
+		Components: &pipepb.Components{
+			Transforms: map[string]*pipepb.PTransform{
+				"e5": &pipepb.PTransform{
+					UniqueName: stepName,
+				},
+			},
 		},
 	}
-	stepJson, err := json.Marshal(&stepRepr)
-	if err != nil {
-		return df.Job{}, fmt.Errorf("Could not create Step object: %v", err)
-	}
-	step := df.Step{}
-	if err := json.Unmarshal(stepJson, &step); err != nil {
-		return df.Job{}, fmt.Errorf("Could not create Step object: %v", err)
-	}
-	return df.Job{Steps: []*df.Step{&step}}, nil
+	return p, nil
 }

@@ -305,7 +305,7 @@ class DataflowRunner(PipelineRunner):
                     parent,
                     beam.Map(lambda x: (b'', x)),
                     transform_node.full_label + '/MapToVoidKey%s' % ix,
-                    (side_input.pvalue, ))
+                    {'input': side_input.pvalue})
                 new_side_input.pvalue.producer = map_to_void_key
                 map_to_void_key.add_output(new_side_input.pvalue, None)
                 parent.add_part(map_to_void_key)

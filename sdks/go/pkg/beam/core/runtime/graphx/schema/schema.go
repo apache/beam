@@ -32,11 +32,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
 )
@@ -106,7 +106,14 @@ func (r *Registry) RegisterType(ut reflect.Type) {
 }
 
 // reconcileRegistrations actually finishes the registration process.
-func (r *Registry) reconcileRegistrations() error {
+func (r *Registry) reconcileRegistrations() (deferedErr error) {
+	var ut reflect.Type
+	defer func() {
+		if r := recover(); r != nil {
+			deferedErr = errors.Errorf("panicked: %v", r)
+			deferedErr = errors.WithContextf(deferedErr, "reconciling schema registration for type %v", ut)
+		}
+	}()
 	for _, ut := range r.toReconcile {
 		check := func(ut reflect.Type) bool {
 			return coder.LookupCustomCoder(ut) != nil
