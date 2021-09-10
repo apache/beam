@@ -31,11 +31,17 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.InsertManyOptions;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.WriteModel;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -93,8 +99,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>MongoDB sink supports writing of Document (as JSON String) in a MongoDB.
  *
- * <p>To configure a MongoDB sink, you must specify a connection {@code URI}, a {@code Database}
- * name, a {@code Collection} name. For instance:
+ * <p>To configure a MongoDB sink and insert/replace, you must specify a connection {@code URI}, a
+ * {@code Database} name, a {@code Collection} name. For instance:
  *
  * <pre>{@code
  * pipeline
@@ -105,6 +111,27 @@ import org.slf4j.LoggerFactory;
  *     .withCollection("my-collection")
  *     .withNumSplits(30))
  *
+ * }</pre>
+ *
+ * *
+ *
+ * <p>To configure a MongoDB sink and update, you must specify a connection {@code URI}, a {@code
+ * Database} * name, a {@code Collection} name. It matches the key with _id in target collection.
+ * For instance: * *
+ *
+ * <pre>{@code
+ * * pipeline
+ * *   .apply(...)
+ * *   .apply(MongoDbIO.write()
+ * *     .withUri("mongodb://localhost:27017")
+ * *     .withDatabase("my-database")
+ * *     .withCollection("my-collection")
+ * *     .withUpdateConfiguration(UpdateConfiguration.create().withUpdateKey("key1")
+ * *     .withUpdateFields(UpdateField.fieldUpdate("$set", "source-field1", "dest-field1"),
+ * *                       UpdateField.fieldUpdate("$set","source-field2", "dest-field2"),
+ * *                       //pushes entire input doc to the dest field
+ * *                        UpdateField.fullUpdate("$push", "dest-field3") )));
+ * *
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
@@ -490,7 +517,6 @@ public class MongoDbIO {
               .anyMatch(s -> s.keySet().contains("$limit"))) {
             return Collections.singletonList(this);
           }
-
           splitKeys = buildAutoBuckets(mongoDatabase, spec);
 
           for (BsonDocument shardFilter : splitKeysToMatch(splitKeys)) {
@@ -744,6 +770,8 @@ public class MongoDbIO {
 
     abstract long batchSize();
 
+    abstract @Nullable UpdateConfiguration updateConfiguration();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -765,6 +793,8 @@ public class MongoDbIO {
       abstract Builder setCollection(String collection);
 
       abstract Builder setBatchSize(long batchSize);
+
+      abstract Builder setUpdateConfiguration(UpdateConfiguration updateConfiguration);
 
       abstract Write build();
     }
@@ -856,6 +886,10 @@ public class MongoDbIO {
       return builder().setBatchSize(batchSize).build();
     }
 
+    public Write withUpdateConfiguration(UpdateConfiguration updateConfiguration) {
+      return builder().setUpdateConfiguration(updateConfiguration).build();
+    }
+
     @Override
     public PDone expand(PCollection<Document> input) {
       checkArgument(uri() != null, "withUri() is required");
@@ -910,6 +944,7 @@ public class MongoDbIO {
       public void processElement(ProcessContext ctx) {
         // Need to copy the document because mongoCollection.insertMany() will mutate it
         // before inserting (will assign an id).
+
         batch.add(new Document(ctx.element()));
         if (batch.size() >= spec.batchSize()) {
           flush();
@@ -927,6 +962,15 @@ public class MongoDbIO {
         }
         MongoDatabase mongoDatabase = client.getDatabase(spec.database());
         MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
+        if (spec.updateConfiguration() == null) {
+          insertDocuments(mongoCollection);
+        } else {
+          updateDocuments(mongoCollection);
+        }
+        batch.clear();
+      }
+
+      private void insertDocuments(MongoCollection<Document> mongoCollection) {
         try {
           mongoCollection.insertMany(batch, new InsertManyOptions().ordered(spec.ordered()));
         } catch (MongoBulkWriteException e) {
@@ -934,8 +978,57 @@ public class MongoDbIO {
             throw e;
           }
         }
+      }
 
-        batch.clear();
+      private void updateDocuments(MongoCollection<Document> mongoCollection) {
+        if (batch.isEmpty()) {
+          return;
+        }
+        List<WriteModel<Document>> actions = new ArrayList<>();
+        @Nullable List<UpdateField> updateFields = spec.updateConfiguration().updateFields();
+        Map<String, List<UpdateField>> operatorFieldsMap = getOperatorFieldsMap(updateFields);
+        try {
+          for (Document doc : batch) {
+            Document updateDocument = new Document();
+            for (Map.Entry<String, List<UpdateField>> entry : operatorFieldsMap.entrySet()) {
+              Document updateSubDocument = new Document();
+              for (UpdateField field : entry.getValue()) {
+                updateSubDocument.append(
+                    field.destField(),
+                    field.sourceField() == null ? doc : doc.get(field.sourceField()));
+              }
+              updateDocument.append(entry.getKey(), updateSubDocument);
+            }
+            Document findCriteria =
+                new Document("_id", doc.get(spec.updateConfiguration().updateKey()));
+            UpdateOptions updateOptions =
+                new UpdateOptions().upsert(spec.updateConfiguration().isUpsert());
+            actions.add(new UpdateOneModel<>(findCriteria, updateDocument, updateOptions));
+          }
+          mongoCollection.bulkWrite(actions, new BulkWriteOptions().ordered(spec.ordered()));
+        } catch (MongoBulkWriteException e) {
+          if (spec.ordered()) {
+            throw e;
+          }
+        }
+      }
+
+      private static Map<String, List<UpdateField>> getOperatorFieldsMap(
+          List<UpdateField> updateFields) {
+        Map<String, List<UpdateField>> operatorFieldsMap = new HashMap<>();
+        for (UpdateField field : updateFields) {
+          String updateOperator = field.updateOperator();
+          if (operatorFieldsMap.containsKey(updateOperator)) {
+            List<UpdateField> fields = operatorFieldsMap.get(updateOperator);
+            fields.add(field);
+            operatorFieldsMap.put(updateOperator, fields);
+          } else {
+            List<UpdateField> fields = new ArrayList<>();
+            fields.add(field);
+            operatorFieldsMap.put(updateOperator, fields);
+          }
+        }
+        return operatorFieldsMap;
       }
 
       @Teardown

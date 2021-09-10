@@ -45,7 +45,7 @@ pandas is able to infer column names from the first row of the CSV data, which i
 
 In this example, the only traditional Beam type is the `Pipeline` instance. Otherwise the example is written completely with the DataFrame API. This is possible because the Beam DataFrame API includes its own IO operations (for example, `read_csv` and `to_csv`) based on the pandas native implementations. `read_*` and `to_*` operations support file patterns and any Beam-compatible file system. The grouping is accomplished with a group-by-key, and arbitrary pandas operations (in this case, `sum`) can be applied before the final write that occurs with `to_csv`.
 
-The Beam DataFrame API aims to be compatible with the native pandas implementation, with a few caveats detailed below in [Differences from standard pandas]({{< ref "#differences_from_standard_pandas" >}}).
+The Beam DataFrame API aims to be compatible with the native pandas implementation, with a few caveats detailed below in [Differences from standard pandas](/documentation/dsls/dataframes/differences-from-pandas/).
 
 ## Embedding DataFrames in a pipeline
 

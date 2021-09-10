@@ -22,32 +22,44 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-// xlang exposes an API to execute cross-language transforms within the Go SDK.
-// It is experimental and likely to change. It exposes convenient wrappers
-// around the core functions to pass in any combination of named/unnamed
-// inputs/outputs.
-
 // UnnamedInput is a helper function for passing single unnamed inputs to
-// `beam.CrossLanguage`.
+// beam.CrossLanguage.
 //
 // Example:
-//    beam.CrossLanguage(s, urn, payload, addr, UnnamedInput(input), outputs);
+//    beam.CrossLanguage(s, urn, payload, addr, UnnamedInput(input), outputs)
 func UnnamedInput(col PCollection) map[string]PCollection {
 	return map[string]PCollection{graph.UnnamedInputTag: col}
 }
 
 // UnnamedOutput is a helper function for passing single unnamed output types to
-// `beam.CrossLanguage`.
+// beam.CrossLanguage. The associated output can be accessed with beam.UnnamedOutputTag.
 //
 // Example:
-//    beam.CrossLanguage(s, urn, payload, addr, inputs, UnnamedOutput(output));
+//    resultMap := beam.CrossLanguage(s, urn, payload, addr, inputs, UnnamedOutput(output));
+//    result := resultMap[beam.UnnamedOutputTag()]
 func UnnamedOutput(t FullType) map[string]FullType {
 	return map[string]FullType{graph.UnnamedOutputTag: t}
 }
 
-// CrossLanguagePayload encodes a native Go struct into a payload for
-// cross-language transforms. To find the expected structure of a payload,
-// consult the documentation in the SDK performing the expansion.
+// UnnamedOutputTag provides the output tag used for an output passed to beam.UnnamedOutput.
+// Needed to retrieve the unnamed output PCollection from the result of beam.CrossLanguage.
+func UnnamedOutputTag() string {
+	return graph.UnnamedOutputTag
+}
+
+// CrossLanguagePayload encodes a native Go struct into a payload for cross-language transforms.
+// payloads are []byte encoded ExternalConfigurationPayload protobufs. In order to fill the
+// contents of the protobuf, the provided struct will be used to converted to a row encoded
+// representation with an accompanying schema, so the input struct must be compatible with schemas.
+//
+// See https://beam.apache.org/documentation/programming-guide/#schemas for basic information on
+// schemas, and pkg/beam/core/runtime/graphx/schema for details on schemas in the Go SDK.
+//
+// Example:
+//    type stringPayload struct {
+//        Data string
+//    }
+//    encodedPl := beam.CrossLanguagePayload(stringPayload{Data: "foo"})
 func CrossLanguagePayload(pl interface{}) []byte {
 	bytes, err := xlangx.EncodeStructPayload(pl)
 	if err != nil {
@@ -56,8 +68,73 @@ func CrossLanguagePayload(pl interface{}) []byte {
 	return bytes
 }
 
-// CrossLanguage executes a cross-language transform that uses named inputs and
-// returns named outputs.
+// CrossLanguage is a low-level transform for executing cross-language transforms written in other
+// SDKs. Because this is low-level, it is recommended to use one of the higher-level IO-specific
+// wrappers where available. These can be found in the pkg/beam/io/xlang subdirectory.
+// CrossLanguage is useful for executing cross-language transforms which do not have any existing
+// IO wrappers.
+//
+// Usage requires an address for an expansion service accessible during pipeline construction, a
+// URN identifying the desired transform, an optional payload with configuration information, and
+// input and output names. It outputs a map of named output PCollections.
+//
+// For more information on expansion services and other aspects of cross-language transforms in
+// general, refer to the Beam programming guide: https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines
+//
+// Payload
+//
+// Payloads are configuration data that some cross-language transforms require for expansion.
+// Consult the documentation of the transform in the source SDK to find out what payload data it
+// requires. If no payload is required, pass in nil.
+//
+// CrossLanguage accepts payloads as a []byte containing an encoded ExternalConfigurationPayload
+// protobuf. The helper function beam.CrossLanguagePayload is the recommended way to easily encode
+// a standard Go struct for use as a payload.
+//
+// Inputs and Outputs
+//
+// Like most transforms, any input PCollections must be provided. Unlike most transforms, output
+// types must be provided because Go cannot infer output types from external transforms.
+//
+// Inputs and outputs to a cross-language transform may be either named or unnamed. Named
+// inputs/outputs are used when there are more than one input/output, and are provided as maps with
+// names as keys. Unnamed inputs/outputs are used when there is only one, and a map can be quickly
+// constructed with the UnnamedInput and UnnamedOutput methods.
+//
+// An example of defining named inputs and outputs:
+//
+//    namedInputs := map[string]beam.PCollection{"pcol1": pcol1, "pcol2": pcol2}
+//    namedOutputTypes := map[string]typex.FullType{
+//        "main": typex.New(reflectx.String),
+//        "side": typex.New(reflectx.Int64),
+//    }
+//
+// CrossLanguage outputs a map of PCollections with associated names. These names will match those
+// from provided named outputs. If the beam.UnnamedOutput method was used, the PCollection can be
+// retrieved with beam.UnnamedOutputTag().
+//
+// An example of retrieving named outputs from a call to CrossLanguage:
+//
+//    outputs := beam.CrossLanguage(...)
+//    mainPcol := outputs["main"]
+//    sidePcol := outputs["side"]
+//
+// Example
+//
+// This example shows using CrossLanguage to execute the Prefix cross-language transform using an
+// expansion service running on localhost:8099. Prefix requires a payload containing a prefix to
+// prepend to every input string.
+//
+//    type prefixPayload struct {
+//        Data string
+//    }
+//    encodedPl := beam.CrossLanguagePayload(prefixPayload{Data: "foo"})
+//    urn := "beam:transforms:xlang:test:prefix"
+//    expansionAddr := "localhost:8099"
+//    outputType := beam.UnnamedOutput(typex.New(reflectx.String))
+//    input := beam.UnnamedInput(inputPcol)
+//    outs := beam.CrossLanguage(s, urn, encodedPl, expansionAddr, input, outputType)
+//    outPcol := outputs[beam.UnnamedOutputTag()]
 func CrossLanguage(
 	s Scope,
 	urn string,
@@ -86,7 +163,9 @@ func CrossLanguage(
 	return mapNodeToPCollection(namedOutputs)
 }
 
-// TryCrossLanguage coordinates the core functions required to execute the cross-language transform
+// TryCrossLanguage coordinates the core functions required to execute the cross-language transform.
+// This is mainly intended for internal use. For the general-use entry point, see
+// beam.CrossLanguage.
 func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inbound, outs []*graph.Outbound) (map[string]*graph.Node, error) {
 	// Adding an edge in the graph corresponding to the ExternalTransform
 	edge, isBoundedUpdater := graph.NewCrossLanguage(s.real, s.scope, ext, ins, outs)

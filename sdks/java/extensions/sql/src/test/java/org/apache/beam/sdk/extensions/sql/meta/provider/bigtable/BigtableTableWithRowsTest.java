@@ -96,9 +96,9 @@ public class BigtableTableWithRowsTest {
     String query =
         "SELECT key, \n"
             + "  bt.familyTest.boolColumn, \n"
-            + "  bt.familyTest.intColumn.val AS intValue, \n"
-            + "  bt.familyTest.intColumn.timestampMicros, \n"
-            + "  bt.familyTest.intColumn.labels, \n"
+            + "  bt.familyTest.longColumn.val AS longValue, \n"
+            + "  bt.familyTest.longColumn.timestampMicros, \n"
+            + "  bt.familyTest.longColumn.labels, \n"
             + "  bt.familyTest.stringColumn, \n"
             + "  bt.familyTest.doubleColumn \n"
             + "FROM beamTable bt";

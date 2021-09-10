@@ -227,7 +227,11 @@ def pcolls_from_streaming_cache(
       endpoint=test_stream_service.endpoint)
   sql_source = {}
   for tag, output in output_pcolls.items():
-    sql_source[tag_to_name[tag]] = output
+    name = tag_to_name[tag]
+    # Must mark the element_type to avoid introducing pickled Python coder
+    # to the Java expansion service.
+    output.element_type = name_to_pcoll[name].element_type
+    sql_source[name] = output
   return sql_source
 
 

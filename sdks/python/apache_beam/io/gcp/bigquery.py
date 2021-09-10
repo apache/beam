@@ -1593,10 +1593,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           rows with transient errors (e.g. timeouts). Rows with permanent errors
           will be output to dead letter queue under `'FailedRows'` tag.
 
-      additional_bq_parameters (callable): A function that returns a dictionary
-        with additional parameters to pass to BQ when creating / loading data
-        into a table. These can be 'timePartitioning', 'clustering', etc. They
-        are passed directly to the job load configuration. See
+      additional_bq_parameters (dict, callable): Additional parameters to pass
+        to BQ when creating / loading data into a table. If a callable, it
+        should be a function that receives a table reference indicating
+        the destination and returns a dictionary.
+        These can be 'timePartitioning', 'clustering', etc. They are passed
+        directly to the job load configuration. See
         https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
       table_side_inputs (tuple): A tuple with ``AsSideInput`` PCollections to be
         passed to the table callable (if one is provided).

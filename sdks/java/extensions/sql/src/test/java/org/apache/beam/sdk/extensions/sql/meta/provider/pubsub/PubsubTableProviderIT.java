@@ -621,16 +621,13 @@ public class PubsubTableProviderIT implements Serializable {
     String queryString =
         "INSERT INTO message "
             + "VALUES "
-            + "(TIMESTAMP '1970-01-01 00:00:00.001', 'person1', 80, TRUE), "
             + "(TIMESTAMP '1970-01-01 00:00:00.002', 'person2', 70, FALSE)";
     query(sqlEnv, pipeline, queryString);
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
     eventsTopic
-        .assertThatTopicEventuallyReceives(
-            matcherTsNameHeightKnowsJS(ts(1), "person1", 80, true),
-            matcherTsNameHeightKnowsJS(ts(2), "person2", 70, false))
+        .assertThatTopicEventuallyReceives(matcherTsNameHeightKnowsJS(ts(2), "person2", 70, false))
         .waitForUpTo(Duration.standardSeconds(40));
   }
 

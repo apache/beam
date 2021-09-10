@@ -850,7 +850,7 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
 
     LinkedList<RewriteOp> rewrites =
-        gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1), false, false);
+        gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1), false, false, false);
     assertEquals(1, rewrites.size());
 
     RewriteOp rewrite = rewrites.pop();
@@ -870,7 +870,7 @@ public class GcsUtilTest {
     gcsUtil.maxBytesRewrittenPerCall = 1337L;
 
     LinkedList<RewriteOp> rewrites =
-        gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1), false, false);
+        gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1), false, false, false);
     assertEquals(1, rewrites.size());
 
     RewriteOp rewrite = rewrites.pop();
@@ -886,21 +886,23 @@ public class GcsUtilTest {
     // Small number of files fits in 1 batch
     List<BatchInterface> batches =
         gcsUtil.makeRewriteBatches(
-            gcsUtil.makeRewriteOps(makeStrings("s", 3), makeStrings("d", 3), false, false));
+            gcsUtil.makeRewriteOps(makeStrings("s", 3), makeStrings("d", 3), false, false, false));
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(3));
 
     // 1 batch of files fits in 1 batch
     batches =
         gcsUtil.makeRewriteBatches(
-            gcsUtil.makeRewriteOps(makeStrings("s", 100), makeStrings("d", 100), false, false));
+            gcsUtil.makeRewriteOps(
+                makeStrings("s", 100), makeStrings("d", 100), false, false, false));
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(100));
 
     // A little more than 5 batches of files fits in 6 batches
     batches =
         gcsUtil.makeRewriteBatches(
-            gcsUtil.makeRewriteOps(makeStrings("s", 501), makeStrings("d", 501), false, false));
+            gcsUtil.makeRewriteOps(
+                makeStrings("s", 501), makeStrings("d", 501), false, false, false));
     assertThat(batches.size(), equalTo(6));
     assertThat(sumBatchSizes(batches), equalTo(501));
   }
@@ -911,7 +913,7 @@ public class GcsUtilTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Number of source files 3");
 
-    gcsUtil.makeRewriteOps(makeStrings("s", 3), makeStrings("d", 1), false, false);
+    gcsUtil.makeRewriteOps(makeStrings("s", 3), makeStrings("d", 1), false, false, false);
   }
 
   private class FakeBatcher implements BatchInterface {
@@ -1047,6 +1049,48 @@ public class GcsUtilTest {
 
     assertThrows(IOException.class, () -> gcsUtil.rename(makeStrings("s", 1), makeStrings("d", 1)));
     verify(mockStorageRewrite, times(1)).execute();
+  }
+
+  @Test
+  public void testRenameSkipDestinationExistsSameBucket() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Rewrite mockStorageRewrite = Mockito.mock(Storage.Objects.Rewrite.class);
+    Storage.Objects.Delete mockStorageDelete = Mockito.mock(Storage.Objects.Delete.class);
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
+        .thenReturn(mockStorageRewrite);
+    when(mockStorageRewrite.execute()).thenReturn(new RewriteResponse().setDone(true));
+    when(mockStorageObjects.delete("bucket", "s0")).thenReturn(mockStorageDelete);
+
+    gcsUtil.rename(
+        makeStrings("s", 1), makeStrings("d", 1), StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+    verify(mockStorageRewrite, times(1)).execute();
+    verify(mockStorageDelete, times(1)).execute();
+  }
+
+  @Test
+  public void testRenameSkipDestinationExistsDifferentBucket() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    assertThrows(
+        UnsupportedOperationException.class,
+        () ->
+            gcsUtil.rename(
+                Collections.singletonList("gs://bucket/source"),
+                Collections.singletonList("gs://different_bucket/dest"),
+                StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS));
   }
 
   @Test
