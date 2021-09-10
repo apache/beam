@@ -80,7 +80,9 @@ public class HL7v2Message {
     out.setCreateTime(this.getCreateTime());
     out.setData(this.getData());
     out.setSendFacility(this.getSendFacility());
-    out.setSchematizedData(new SchematizedData().setData(this.schematizedData));
+    if (this.schematizedData != null) {
+      out.setSchematizedData(new SchematizedData().setData(this.schematizedData));
+    }
     out.setLabels(this.labels);
     return out;
   }
