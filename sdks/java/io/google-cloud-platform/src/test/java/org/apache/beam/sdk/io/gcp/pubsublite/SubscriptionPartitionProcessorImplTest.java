@@ -140,7 +140,9 @@ public class SubscriptionPartitionProcessorImplTest {
     processor.start();
     subscriber.fail(new CheckedApiException(Code.OUT_OF_RANGE));
     ApiException e =
-        assertThrows(ApiException.class, () -> processor.waitForCompletion(Duration.millis(10)));
+        assertThrows(
+            // Longer wait is needed due to listener asynchrony.
+            ApiException.class, () -> processor.waitForCompletion(Duration.standardSeconds(1)));
     assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
   }
 
