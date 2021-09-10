@@ -29,7 +29,7 @@ import (
 // eliminating redundant calls to the runner during execution of ParDos
 // using side inputs.
 type SideInputCache struct {
-	cache       map[string]*exec.ReusableInput
+	cache       map[string]exec.ReusableInput
 	idsToTokens map[string]string
 	validTokens []string
 	mu          sync.Mutex
@@ -44,7 +44,7 @@ func (c *SideInputCache) Init(cap int) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache = make(map[string]*exec.ReusableInput, cap)
+	c.cache = make(map[string]exec.ReusableInput, cap)
 	c.idsToTokens = make(map[string]string)
 	return nil
 }
@@ -67,13 +67,12 @@ func (c *SideInputCache) SetValidTokens(cacheTokens ...fnpb.ProcessBundleRequest
 		// User State caching is currently not supported, so these tokens are ignored
 		if tok.GetUserState() != nil {
 			continue
-		} else {
-			s := tok.GetSideInput()
-			transformID := s.GetTransformId()
-			sideInputID := s.GetSideInputId()
-			token := string(tok.GetToken())
-			c.setValidToken(transformID, sideInputID, token)
 		}
+		s := tok.GetSideInput()
+		transformID := s.GetTransformId()
+		sideInputID := s.GetSideInputId()
+		token := string(tok.GetToken())
+		c.setValidToken(transformID, sideInputID, token)
 	}
 }
 
@@ -105,7 +104,7 @@ func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (
 // input has been cached. A query having a bad token (e.g. one that doesn't make a known
 // token or one that makes a known but currently invalid token) is treated the same as a
 // cache miss.
-func (c *SideInputCache) QueryCache(transformID, sideInputID string) *exec.ReusableInput {
+func (c *SideInputCache) QueryCache(transformID, sideInputID string) exec.ReusableInput {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
@@ -124,7 +123,7 @@ func (c *SideInputCache) QueryCache(transformID, sideInputID string) *exec.Reusa
 // with its corresponding transform ID and side input ID. If the IDs do not pair with a known, valid token
 // then we silently do not cache the input, as this is an indication that the runner is treating that input
 // as uncacheable.
-func (c *SideInputCache) SetCache(transformID, sideInputID string, input *exec.ReusableInput) error {
+func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.ReusableInput) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)

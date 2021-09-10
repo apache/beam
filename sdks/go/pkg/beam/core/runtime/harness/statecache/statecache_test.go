@@ -85,7 +85,7 @@ func TestSetCache_UncacheableCase(t *testing.T) {
 		t.Fatalf("cache init failed, got %v", err)
 	}
 	input := makeTestReusableInput("t1", "s1", 10)
-	err = s.SetCache("t1", "s1", &input)
+	err = s.SetCache("t1", "s1", input)
 	if err != nil {
 		t.Errorf("Set cache call failed, got %v", err)
 	}
@@ -106,11 +106,11 @@ func TestSetCache_CacheableCase(t *testing.T) {
 	tok := "tok1"
 	s.setValidToken(transID, sideID, tok)
 	input := makeTestReusableInput(transID, sideID, 10)
-	err = s.SetCache(transID, sideID, &input)
+	err = s.SetCache(transID, sideID, input)
 	if err != nil {
 		t.Fatalf("SetCache failed when should have succeeded, got %v", err)
 	}
-	output := *(s.QueryCache(transID, sideID))
+	output := s.QueryCache(transID, sideID)
 	if output == nil {
 		t.Fatalf("call to query cache missed when should have hit")
 	}
@@ -248,7 +248,7 @@ func TestSetCache_Eviction(t *testing.T) {
 	tokOne := makeRequest("t1", "s1", "tok1")
 	inOne := makeTestReusableInput("t1", "s1", 10)
 	s.SetValidTokens(tokOne)
-	err = s.SetCache("t1", "s1", &inOne)
+	err = s.SetCache("t1", "s1", inOne)
 	if err != nil {
 		t.Errorf("setting cache failed, got %v", err)
 	}
@@ -256,7 +256,7 @@ func TestSetCache_Eviction(t *testing.T) {
 	tokTwo := makeRequest("t2", "s2", "tok2")
 	inTwo := makeTestReusableInput("t2", "s2", 20)
 	s.SetValidTokens(tokTwo)
-	err = s.SetCache("t2", "s2", &inTwo)
+	err = s.SetCache("t2", "s2", inTwo)
 	if err != nil {
 		t.Fatalf("setting cache failed, got %v", err)
 	}
@@ -280,12 +280,12 @@ func TestSetCache_EvictionFailure(t *testing.T) {
 	inTwo := makeTestReusableInput("t2", "s2", 20)
 
 	s.SetValidTokens(tokOne, tokTwo)
-	err = s.SetCache("t1", "s1", &inOne)
+	err = s.SetCache("t1", "s1", inOne)
 	if err != nil {
 		t.Errorf("setting cache failed, got %v", err)
 	}
 	// Should fail to evict because the first token is still valid
-	err = s.SetCache("t2", "s2", &inTwo)
+	err = s.SetCache("t2", "s2", inTwo)
 	if err == nil {
 		t.Errorf("setting cache succeeded when should have failed")
 	}
