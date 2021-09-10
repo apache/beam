@@ -68,9 +68,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link JavaCLassLookupTransformProvider}. */
+/** Tests for {@link JavaClassLookupTransformProvider}. */
 @RunWith(JUnit4.class)
-public class JavaCLassLookupTransformProviderTest {
+public class JavaClassLookupTransformProviderTest {
 
   private static final String TEST_URN = "test:beam:transforms:count";
 
@@ -466,7 +466,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructor");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithConstructor");
 
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
@@ -485,7 +485,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorMethod");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithConstructorMethod");
 
     payloadBuilder.setConstructorMethod("from");
     Row constructorRow =
@@ -505,7 +505,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorAndBuilderMethods");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithConstructorAndBuilderMethods");
 
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
@@ -547,7 +547,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithMultiArgumentConstructor");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithMultiArgumentConstructor");
 
     Row constructorRow =
         Row.withSchema(
@@ -571,7 +571,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithMultiArgumentBuilderMethod");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithMultiArgumentBuilderMethod");
 
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
@@ -606,7 +606,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithWrapperTypes");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithWrapperTypes");
 
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
@@ -636,7 +636,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithComplexTypes");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithComplexTypes");
 
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
@@ -681,7 +681,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithArray");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithArray");
 
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
@@ -718,7 +718,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithList");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithList");
 
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
@@ -758,7 +758,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithComplexTypeArray");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithComplexTypeArray");
 
     Schema complexTypeSchema =
         Schema.builder()
@@ -824,7 +824,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithComplexTypeList");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithComplexTypeList");
 
     Schema complexTypeSchema =
         Schema.builder()
@@ -889,7 +889,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorMethodAndBuilderMethods");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithConstructorMethodAndBuilderMethods");
     payloadBuilder.setConstructorMethod("from");
 
     Row constructorRow =
@@ -934,7 +934,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorMethodAndBuilderMethods");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithConstructorMethodAndBuilderMethods");
     payloadBuilder.setConstructorMethod("from");
 
     Row constructorRow =
@@ -977,7 +977,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithMultiLanguageAnnotations");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithMultiLanguageAnnotations");
     payloadBuilder.setConstructorMethod("create_transform");
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
@@ -1019,7 +1019,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$UnavailableClass");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$UnavailableClass");
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
             .withFieldValue("strField1", "test_str_1")
@@ -1042,7 +1042,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructor");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithConstructor");
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("incorrectField", FieldType.STRING)))
             .withFieldValue("incorrectField", "test_str_1")
@@ -1065,7 +1065,7 @@ public class JavaCLassLookupTransformProviderTest {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
     payloadBuilder.setClassName(
-        "org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorAndBuilderMethods");
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithConstructorAndBuilderMethods");
     Row constructorRow =
         Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
             .withFieldValue("strField1", "test_str_1")

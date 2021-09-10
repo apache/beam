@@ -793,7 +793,12 @@ public class GcsUtil {
 
   public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
       throws IOException {
-    rewriteHelper(srcFilenames, destFilenames, false, false);
+    rewriteHelper(
+        srcFilenames,
+        destFilenames,
+        /*deleteSource=*/ false,
+        /*ignoreMissingSource=*/ false,
+        /*ignoreExistingDest=*/ false);
   }
 
   public void rename(
@@ -804,17 +809,22 @@ public class GcsUtil {
     Set<MoveOptions> moveOptionSet = Sets.newHashSet(moveOptions);
     final boolean ignoreMissingSrc =
         moveOptionSet.contains(StandardMoveOptions.IGNORE_MISSING_FILES);
-    rewriteHelper(srcFilenames, destFilenames, true, ignoreMissingSrc);
+    final boolean ignoreExistingDest =
+        moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+    rewriteHelper(
+        srcFilenames, destFilenames, /*deleteSource=*/ true, ignoreMissingSrc, ignoreExistingDest);
   }
 
   private void rewriteHelper(
       Iterable<String> srcFilenames,
       Iterable<String> destFilenames,
       boolean deleteSource,
-      boolean ignoreMissingSource)
+      boolean ignoreMissingSource,
+      boolean ignoreExistingDest)
       throws IOException {
     LinkedList<RewriteOp> rewrites =
-        makeRewriteOps(srcFilenames, destFilenames, deleteSource, ignoreMissingSource);
+        makeRewriteOps(
+            srcFilenames, destFilenames, deleteSource, ignoreMissingSource, ignoreExistingDest);
     org.apache.beam.sdk.util.BackOff backoff = BACKOFF_FACTORY.backoff();
     while (true) {
       List<BatchInterface> batches = makeRewriteBatches(rewrites); // Removes completed rewrite ops.
@@ -858,7 +868,8 @@ public class GcsUtil {
       Iterable<String> srcFilenames,
       Iterable<String> destFilenames,
       boolean deleteSource,
-      boolean ignoreMissingSource)
+      boolean ignoreMissingSource,
+      boolean ignoreExistingDest)
       throws IOException {
     List<String> srcList = Lists.newArrayList(srcFilenames);
     List<String> destList = Lists.newArrayList(destFilenames);
@@ -871,6 +882,10 @@ public class GcsUtil {
     for (int i = 0; i < srcList.size(); i++) {
       final GcsPath sourcePath = GcsPath.fromUri(srcList.get(i));
       final GcsPath destPath = GcsPath.fromUri(destList.get(i));
+      if (ignoreExistingDest && !sourcePath.getBucket().equals(destPath.getBucket())) {
+        throw new UnsupportedOperationException(
+            "Skipping dest existence is only supported within a bucket.");
+      }
       rewrites.addLast(new RewriteOp(sourcePath, destPath, deleteSource, ignoreMissingSource));
     }
     return rewrites;

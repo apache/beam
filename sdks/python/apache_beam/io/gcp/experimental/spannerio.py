@@ -177,7 +177,10 @@ from apache_beam import DoFn
 from apache_beam import Flatten
 from apache_beam import ParDo
 from apache_beam import Reshuffle
+from apache_beam.internal.metrics.metric import ServiceCallMetric
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import Metrics
+from apache_beam.metrics import monitoring_infos
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import PBegin
 from apache_beam.pvalue import TaggedOutput
@@ -189,10 +192,9 @@ from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.utils.annotations import experimental
 
-from apache_beam.internal.metrics.metric import ServiceCallMetric
-from apache_beam.io.gcp import resource_identifiers
-from apache_beam.metrics import monitoring_infos
-
+# Protect against environments where spanner library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+# pylint: disable=unused-import
 try:
   from google.cloud.spanner import Client
   from google.cloud.spanner import KeySet
@@ -402,7 +404,7 @@ class _NaiveSpannerReadDoFn(DoFn):
     # with self._snapshot.session().transaction() as transaction:
     with self._get_session().transaction() as transaction:
       table_id = self._spanner_configuration.table
-      query_name = self._spanner_configuration.query_name
+      query_name = self._spanner_configuration.query_name or ''
 
       if element.is_sql is True:
         transaction_read = transaction.execute_sql
@@ -634,7 +636,7 @@ class _ReadFromPartitionFn(DoFn):
         self._database, element['transaction_info'])
 
     table_id = self._spanner_configuration.table
-    query_name = self._spanner_configuration.query_name
+    query_name = self._spanner_configuration.query_name or ''
 
     if element['is_sql'] is True:
       read_action = self._snapshot.process_query_batch
@@ -1238,11 +1240,9 @@ class _WriteToSpannerDoFn(DoFn):
       self._table_write_metric(table_id, 'ok')
     except (ClientError, GoogleAPICallError) as e:
       self._table_write_metric(table_id, e.code.value)
-      print('GAPI Error')
       raise
     except HttpError as e:
       self._table_write_metric(table_id, e)
-      print('HTTP Error')
       raise
 
 
