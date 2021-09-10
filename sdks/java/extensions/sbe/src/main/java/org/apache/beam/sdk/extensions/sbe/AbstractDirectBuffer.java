@@ -44,9 +44,9 @@ import org.agrona.MutableDirectBuffer;
  * <ul>
  *   <li>Any {@code wrap} method.
  *   <li>{@link DirectBuffer#addressOffset()}
+ *   <li>{@link DirectBuffer#wrapAdjustment()}
  *   <li>{@link DirectBuffer#byteArray()}
  *   <li>{@link DirectBuffer#byteBuffer()}
- *   <li>{@link DirectBuffer#wrapAdjustment()}
  * </ul>
  *
  * <p>The last two can still be gotten via copy rather than by accessing the underlying buffer
