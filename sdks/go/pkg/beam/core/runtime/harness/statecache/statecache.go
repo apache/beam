@@ -16,6 +16,7 @@
 // Package statecache implements the state caching feature described by the
 // Beam Fn API
 //
+// The Beam State API and the intended caching behavior are described here:
 // https://docs.google.com/document/d/1BOozW0bzBuz4oHJEuZNDOHdzaV5Y56ix58Ozrqm2jFg/edit#heading=h.7ghoih5aig5m
 package statecache
 
