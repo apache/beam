@@ -41,6 +41,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -90,12 +91,7 @@ public class SpannerIOReadTest implements Serializable {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
-    SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId("test")
-            .withInstanceId("123")
-            .withDatabaseId("aaa")
-            .withServiceFactory(serviceFactory);
+    SpannerConfig spannerConfig = getSpannerConfig();
 
     PCollection<Struct> one =
         pipeline.apply(
@@ -129,17 +125,20 @@ public class SpannerIOReadTest implements Serializable {
     pipeline.run();
   }
 
+  private SpannerConfig getSpannerConfig() {
+    return SpannerConfig.create()
+        .withProjectId("test")
+        .withInstanceId("123")
+        .withDatabaseId("aaa")
+        .withServiceFactory(serviceFactory);
+  }
+
   @Test
   public void runRead() throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
-    SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId("test")
-            .withInstanceId("123")
-            .withDatabaseId("aaa")
-            .withServiceFactory(serviceFactory);
+    SpannerConfig spannerConfig = getSpannerConfig();
 
     PCollection<Struct> one =
         pipeline.apply(
@@ -179,16 +178,57 @@ public class SpannerIOReadTest implements Serializable {
   }
 
   @Test
-  public void testSpannerReadMetricIsSet() throws Exception {
+  public void testQueryMetrics() throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
-    SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId("test")
-            .withInstanceId("123")
-            .withDatabaseId("aaa")
-            .withServiceFactory(serviceFactory);
+    SpannerConfig spannerConfig = getSpannerConfig();
+
+    PCollection<Struct> one =
+        pipeline.apply(
+            "read q",
+            SpannerIO.read()
+                .withSpannerConfig(spannerConfig)
+                .withQuery("SELECT * FROM users")
+                .withQueryName("queryName")
+                .withTimestampBound(timestampBound));
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runQueryTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+        .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+        .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+        FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionQuery(
+            any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users"))))
+        .thenReturn(Arrays.asList(fakePartition, fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 2"))
+        .thenReturn(
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 6)));
+
+    pipeline.run();
+    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 2);
+    verifyMetricWasSet("test", "aaa", "123", "ok", null, 2);
+  }
+
+  @Test
+  public void testReadMetrics() throws Exception {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig = getSpannerConfig();
 
     PCollection<Struct> one =
         pipeline.apply(
@@ -228,13 +268,18 @@ public class SpannerIOReadTest implements Serializable {
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
 
-    assertThrows(Pipeline.PipelineExecutionException.class, () -> pipeline.run());
-    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", 2);
-    verifyMetricWasSet("test", "aaa", "123", "ok", 3);
+    pipeline.run();
+    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 2);
+    verifyMetricWasSet("test", "aaa", "123", "ok", null, 3);
   }
 
   private void verifyMetricWasSet(
-      String projectId, String databaseId, String tableId, String status, long count) {
+      String projectId,
+      String databaseId,
+      String tableId,
+      String status,
+      @Nullable String queryName,
+      long count) {
     // Verify the metric was reported.
     HashMap<String, String> labels = new HashMap<>();
     labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
@@ -246,6 +291,9 @@ public class SpannerIOReadTest implements Serializable {
     labels.put(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID, projectId);
     labels.put(MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, databaseId);
     labels.put(MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, tableId);
+    if (queryName != null) {
+      labels.put(MonitoringInfoConstants.Labels.SPANNER_QUERY_NAME, queryName);
+    }
     labels.put(MonitoringInfoConstants.Labels.STATUS, status);
 
     MonitoringInfoMetricName name =
@@ -260,12 +308,7 @@ public class SpannerIOReadTest implements Serializable {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
-    SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId("test")
-            .withInstanceId("123")
-            .withDatabaseId("aaa")
-            .withServiceFactory(serviceFactory);
+    SpannerConfig spannerConfig = getSpannerConfig();
 
     PCollection<Struct> one =
         pipeline.apply(
@@ -314,12 +357,7 @@ public class SpannerIOReadTest implements Serializable {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
-    SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId("test")
-            .withInstanceId("123")
-            .withDatabaseId("aaa")
-            .withServiceFactory(serviceFactory);
+    SpannerConfig spannerConfig = getSpannerConfig();
 
     PCollection<Struct> one =
         pipeline.apply(
@@ -358,12 +396,7 @@ public class SpannerIOReadTest implements Serializable {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
-    SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId("test")
-            .withInstanceId("123")
-            .withDatabaseId("aaa")
-            .withServiceFactory(serviceFactory);
+    SpannerConfig spannerConfig = getSpannerConfig();
 
     PCollectionView<Transaction> tx =
         pipeline.apply(

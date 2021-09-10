@@ -165,19 +165,18 @@ abstract class BatchSpannerRead
               this.config.getInstanceId().toString());
       Transaction tx = c.sideInput(txView);
 
-        BatchReadOnlyTransaction batchTx =
-            spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
+      BatchReadOnlyTransaction batchTx =
+          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
 
-        serviceCallMetric.call("ok");
-        Partition p = c.element();
-        try (ResultSet resultSet = batchTx.execute(p)) {
-          while (resultSet.next()) {
-            Struct s = resultSet.getCurrentRowAsStruct();
-            c.output(s);
-          }
+      serviceCallMetric.call("ok");
+      Partition p = c.element();
+      try (ResultSet resultSet = batchTx.execute(p)) {
+        while (resultSet.next()) {
+          Struct s = resultSet.getCurrentRowAsStruct();
+          c.output(s);
+        }
       } catch (SpannerException e) {
         serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
-                throw e;
       }
     }
 

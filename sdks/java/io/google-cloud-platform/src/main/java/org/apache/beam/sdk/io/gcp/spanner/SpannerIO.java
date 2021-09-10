@@ -660,6 +660,10 @@ public class SpannerIO {
       return withQuery(Statement.of(sql));
     }
 
+    public Read withQueryName(String queryName) {
+      return withReadOperation(getReadOperation().withQueryName(queryName));
+    }
+
     public Read withKeySet(KeySet keySet) {
       return withReadOperation(getReadOperation().withKeySet(keySet));
     }
