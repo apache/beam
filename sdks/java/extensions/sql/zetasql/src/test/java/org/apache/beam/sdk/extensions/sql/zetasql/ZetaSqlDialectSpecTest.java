@@ -3854,6 +3854,17 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testZetaSQLBitAndInt64() {
+    String sql = "SELECT bit_and(CAST(x as int64)) FROM (SELECT 1 x FROM (SELECT 1) WHERE false)";
+
+    PCollection<Row> stream = execute(sql);
+
+    final Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue((Long) null).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testCountEmpty() {
     String sql = "SELECT COUNT(x) FROM UNNEST([]) AS x";
 

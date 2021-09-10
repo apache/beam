@@ -575,7 +575,7 @@ public class BeamBuiltinAggregations {
    * (https://issues.apache.org/jira/browse/BEAM-10379)
    */
   static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
-    static class Accum {
+    static class Accum implements Serializable {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
       /**
