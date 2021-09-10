@@ -884,7 +884,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         shardCount = context.sideInput(numShardsView);
       } else {
         checkNotNull(getNumShardsProvider());
-        shardCount = getNumShardsProvider().get();
+        shardCount =
+            checkNotNull(getNumShardsProvider().get(), "Must have non-null number of shards.");
       }
       checkArgument(
           shardCount > 0,
