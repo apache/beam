@@ -39,22 +39,22 @@ final class SplitGenerator {
     this.partitioner = partitioner;
   }
 
-  private static BigInteger getRangeMin(String partitioner) {
+  static BigInteger getRangeMin(String partitioner) {
     if (partitioner.endsWith("RandomPartitioner")) {
       return BigInteger.ZERO;
     } else if (partitioner.endsWith("Murmur3Partitioner")) {
-      return new BigInteger("2").pow(63).negate();
+      return BigInteger.valueOf(2).pow(63).negate();
     } else {
       throw new UnsupportedOperationException(
           "Unsupported partitioner. " + "Only Random and Murmur3 are supported");
     }
   }
 
-  private static BigInteger getRangeMax(String partitioner) {
+  static BigInteger getRangeMax(String partitioner) {
     if (partitioner.endsWith("RandomPartitioner")) {
-      return new BigInteger("2").pow(127).subtract(BigInteger.ONE);
+      return BigInteger.valueOf(2).pow(127).subtract(BigInteger.ONE);
     } else if (partitioner.endsWith("Murmur3Partitioner")) {
-      return new BigInteger("2").pow(63).subtract(BigInteger.ONE);
+      return BigInteger.valueOf(2).pow(63).subtract(BigInteger.ONE);
     } else {
       throw new UnsupportedOperationException(
           "Unsupported partitioner. " + "Only Random and Murmur3 are supported");
@@ -84,7 +84,7 @@ final class SplitGenerator {
       BigInteger start = ringTokens.get(i);
       BigInteger stop = ringTokens.get((i + 1) % tokenRangeCount);
 
-      if (!inRange(start) || !inRange(stop)) {
+      if (!isInRange(start) || !isInRange(stop)) {
         throw new RuntimeException(
             String.format("Tokens (%s,%s) not in range of %s", start, stop, partitioner));
       }
@@ -127,7 +127,7 @@ final class SplitGenerator {
 
       // Append the splits between the endpoints
       for (int j = 0; j < splitCount; j++) {
-        splits.add(new RingRange(endpointTokens.get(j), endpointTokens.get(j + 1)));
+        splits.add(RingRange.of(endpointTokens.get(j), endpointTokens.get(j + 1)));
         LOG.debug("Split #{}: [{},{})", j + 1, endpointTokens.get(j), endpointTokens.get(j + 1));
       }
     }
@@ -144,7 +144,7 @@ final class SplitGenerator {
     return coalesceSplits(getTargetSplitSize(totalSplitCount), splits);
   }
 
-  private boolean inRange(BigInteger token) {
+  private boolean isInRange(BigInteger token) {
     return !(token.compareTo(rangeMin) < 0 || token.compareTo(rangeMax) > 0);
   }
 

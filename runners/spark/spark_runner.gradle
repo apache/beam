@@ -321,7 +321,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   forkEvery 1
   maxParallelForks 4
   // Increase memory heap in order to avoid OOM errors
-  jvmArgs '-Xmx4g'
+  jvmArgs '-Xmx7g'
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     // Unbounded

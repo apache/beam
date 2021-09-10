@@ -182,7 +182,10 @@ REQUIRED_TEST_PACKAGES = [
 GCP_REQUIREMENTS = [
     'cachetools>=3.1.0,<5',
     'google-apitools>=0.5.31,<0.5.32',
-    'google-auth>=1.18.0,<2',
+    # NOTE: Maintainers, please do not require google-auth>=2.x.x
+    # Until this issue is closed
+    # https://github.com/googleapis/google-cloud-python/issues/10566
+    'google-auth>=1.18.0,<3',
     'google-cloud-datastore>=1.8.0,<2',
     'google-cloud-pubsub>=0.39.0,<2',
     # GCP packages required by tests
@@ -201,7 +204,7 @@ GCP_REQUIREMENTS = [
 
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
-    'ipython>=5.8.0,<8',
+    'ipython>=7,<8',
     'ipykernel>=5.2.0,<6',
     # Skip version 6.1.13 due to
     # https://github.com/jupyter/jupyter_client/issues/637

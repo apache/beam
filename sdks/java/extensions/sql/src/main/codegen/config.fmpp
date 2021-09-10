@@ -21,10 +21,10 @@ data: {
 
       # List of import statements.
       imports: [
-        "org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ColumnStrategy"
-        "org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlCreate"
-        "org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDrop"
-        "org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName"
+        "org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.ColumnStrategy"
+        "org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlCreate"
+        "org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlDrop"
+        "org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateExternalTable"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateFunction"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
@@ -46,6 +46,7 @@ data: {
       # List of keywords from "keywords" section that are not reserved.
       nonReservedKeywords: [
         "A"
+        "ABSENT"
         "ABSOLUTE"
         "ACTION"
         "ADA"
@@ -68,11 +69,11 @@ data: {
         "CATALOG_NAME"
         "CENTURY"
         "CHAIN"
+        "CHARACTERISTICS"
+        "CHARACTERS"
         "CHARACTER_SET_CATALOG"
         "CHARACTER_SET_NAME"
         "CHARACTER_SET_SCHEMA"
-        "CHARACTERISTICS"
-        "CHARACTERS"
         "CLASS_ORIGIN"
         "COBOL"
         "COLLATION"
@@ -83,13 +84,14 @@ data: {
         "COMMAND_FUNCTION"
         "COMMAND_FUNCTION_CODE"
         "COMMITTED"
+        "CONDITIONAL"
         "CONDITION_NUMBER"
         "CONNECTION"
         "CONNECTION_NAME"
         "CONSTRAINT_CATALOG"
         "CONSTRAINT_NAME"
-        "CONSTRAINT_SCHEMA"
         "CONSTRAINTS"
+        "CONSTRAINT_SCHEMA"
         "CONSTRUCTOR"
         "CONTINUE"
         "CURSOR_NAME"
@@ -97,6 +99,7 @@ data: {
         "DATABASE"
         "DATETIME_INTERVAL_CODE"
         "DATETIME_INTERVAL_PRECISION"
+        "DAYS"
         "DECADE"
         "DEFAULTS"
         "DEFERRABLE"
@@ -116,13 +119,16 @@ data: {
         "DOY"
         "DYNAMIC_FUNCTION"
         "DYNAMIC_FUNCTION_CODE"
+        "ENCODING"
         "EPOCH"
+        "ERROR"
         "EXCEPTION"
         "EXCLUDE"
         "EXCLUDING"
         "FINAL"
         "FIRST"
         "FOLLOWING"
+        "FORMAT"
         "FORTRAN"
         "FOUND"
         "FRAC_SECOND"
@@ -134,6 +140,9 @@ data: {
         "GOTO"
         "GRANTED"
         "HIERARCHY"
+        "HOP"
+        "HOURS"
+        "IGNORE"
         "IMMEDIATE"
         "IMMEDIATELY"
         "IMPLEMENTATION"
@@ -145,8 +154,8 @@ data: {
         "INSTANTIABLE"
         "INVOKER"
         "ISODOW"
-        "ISOYEAR"
         "ISOLATION"
+        "ISOYEAR"
         "JAVA"
         "JSON"
         "K"
@@ -163,13 +172,15 @@ data: {
         "MAP"
         "MATCHED"
         "MAXVALUE"
-        "MICROSECOND"
         "MESSAGE_LENGTH"
         "MESSAGE_OCTET_LENGTH"
         "MESSAGE_TEXT"
-        "MILLISECOND"
+        "MICROSECOND"
         "MILLENNIUM"
+        "MILLISECOND"
+        "MINUTES"
         "MINVALUE"
+        "MONTHS"
         "MORE_"
         "MUMPS"
         "NAME"
@@ -198,6 +209,7 @@ data: {
         "PARAMETER_SPECIFIC_SCHEMA"
         "PARTIAL"
         "PASCAL"
+        "PASSING"
         "PASSTHROUGH"
         "PAST"
         "PATH"
@@ -214,24 +226,28 @@ data: {
         "RELATIVE"
         "REPEATABLE"
         "REPLACE"
+        "RESPECT"
         "RESTART"
         "RESTRICT"
         "RETURNED_CARDINALITY"
         "RETURNED_LENGTH"
         "RETURNED_OCTET_LENGTH"
         "RETURNED_SQLSTATE"
+        "RETURNING"
         "ROLE"
         "ROUTINE"
         "ROUTINE_CATALOG"
         "ROUTINE_NAME"
         "ROUTINE_SCHEMA"
         "ROW_COUNT"
+        "SCALAR"
         "SCALE"
         "SCHEMA"
         "SCHEMA_NAME"
         "SCOPE_CATALOGS"
         "SCOPE_NAME"
         "SCOPE_SCHEMA"
+        "SECONDS"
         "SECTION"
         "SECURITY"
         "SELF"
@@ -272,8 +288,8 @@ data: {
         "SQL_INTERVAL_YEAR"
         "SQL_INTERVAL_YEAR_TO_MONTH"
         "SQL_LONGVARBINARY"
-        "SQL_LONGVARNCHAR"
         "SQL_LONGVARCHAR"
+        "SQL_LONGVARNCHAR"
         "SQL_NCHAR"
         "SQL_NCLOB"
         "SQL_NUMERIC"
@@ -316,9 +332,11 @@ data: {
         "TRIGGER_CATALOG"
         "TRIGGER_NAME"
         "TRIGGER_SCHEMA"
+        "TUMBLE"
         "TYPE"
         "UNBOUNDED"
         "UNCOMMITTED"
+        "UNCONDITIONAL"
         "UNDER"
         "UNNAMED"
         "USAGE"
@@ -326,13 +344,17 @@ data: {
         "USER_DEFINED_TYPE_CODE"
         "USER_DEFINED_TYPE_NAME"
         "USER_DEFINED_TYPE_SCHEMA"
+        "UTF16"
+        "UTF32"
+        "UTF8"
         "VERSION"
         "VIEW"
         "WEEK"
-        "WRAPPER"
         "WORK"
+        "WRAPPER"
         "WRITE"
         "XML"
+        "YEARS"
         "ZONE"
 
         # added in Beam
@@ -344,29 +366,49 @@ data: {
         "TBLPROPERTIES"
       ]
 
+      # List of non-reserved keywords to add;
+      # items in this list become non-reserved
+      nonReservedKeywordsToAdd: [
+      ]
+
+      # List of non-reserved keywords to remove;
+      # items in this list become reserved
+      nonReservedKeywordsToRemove: [
+      ]
+
       # List of additional join types. Each is a method with no arguments.
       # Example: LeftSemiJoin()
       joinTypes: [
       ]
 
       # List of methods for parsing custom SQL statements.
+      # Return type of method implementation should be 'SqlNode'.
+      # Example: SqlShowDatabases(), SqlShowTables().
       statementParserMethods: [
         "SqlSetOptionBeam(Span.of(), null)"
-        "SqlCreateExternalTable()"
-        "SqlCreateFunction()"
       ]
 
       # List of methods for parsing custom literals.
+      # Return type of method implementation should be "SqlNode".
       # Example: ParseJsonLiteral().
       literalParserMethods: [
       ]
 
       # List of methods for parsing custom data types.
+      # Return type of method implementation should be "SqlTypeNameSpec".
+      # Example: SqlParseTimeStampZ().
       dataTypeParserMethods: [
+      ]
+
+      # List of methods for parsing builtin function calls.
+      # Return type of method implementation should be "SqlNode".
+      # Example: DateFunctionCall().
+      builtinFunctionCallMethods: [
       ]
 
       # List of methods for parsing extensions to "ALTER <scope>" calls.
       # Each must accept arguments "(SqlParserPos pos, String scope)".
+      # Example: "SqlUploadJarNode"
       alterStatementParserMethods: [
         "SqlSetOptionBeam"
       ]
@@ -374,13 +416,23 @@ data: {
       # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
       # Each must accept arguments "(SqlParserPos pos, boolean replace)".
       createStatementParserMethods: [
-        SqlCreateTableNotSupportedMessage
+        "SqlCreateExternalTable"
+        "SqlCreateFunction"
+        "SqlCreateTableNotSupportedMessage"
       ]
 
       # List of methods for parsing extensions to "DROP" calls.
       # Each must accept arguments "(SqlParserPos pos)".
       dropStatementParserMethods: [
         "SqlDropTable"
+      ]
+
+      # Binary operators tokens
+      binaryOperatorsTokens: [
+      ]
+
+      # Binary operators initialization
+      extraBinaryExpressions: [
       ]
 
       # List of files in @includes directory that have parser method
@@ -391,16 +443,14 @@ data: {
         "parserImpls.ftl"
       ]
 
-      # List of methods for parsing builtin function calls.
-      builtinFunctionCallMethods: [
-      ]
-
+      includePosixOperators: false
       includeCompoundIdentifier: true
       includeBraces: true
       includeAdditionalDeclarations: false
 
     }
 }
+
 freemarkerLinks: {
     includes: includes/
 }
