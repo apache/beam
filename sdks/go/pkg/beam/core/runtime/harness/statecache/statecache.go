@@ -43,6 +43,14 @@ type SideInputCache struct {
 	idsToTokens map[string]string
 	mu          sync.Mutex
 	capacity    int
+	metrics     CacheMetrics
+}
+
+type CacheMetrics struct {
+	Hits               int64
+	Misses             int64
+	Evictions          int64
+	InUseEvictionCalls int64
 }
 
 // Init makes the cache map and the map of IDs to cache tokens for the
@@ -117,8 +125,11 @@ func (c *SideInputCache) QueryCache(transformID, sideInputID string) exec.Reusab
 	// Check to see if cached
 	input, ok := c.cache[tok]
 	if !ok {
+		c.metrics.Misses++
 		return nil
 	}
+
+	c.metrics.Hits++
 	return input
 }
 
@@ -126,21 +137,20 @@ func (c *SideInputCache) QueryCache(transformID, sideInputID string) exec.Reusab
 // with its corresponding transform ID and side input ID. If the IDs do not pair with a known, valid token
 // then we silently do not cache the input, as this is an indication that the runner is treating that input
 // as uncacheable.
-func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.ReusableInput) error {
+func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.ReusableInput) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
 	if !ok {
-		return nil
+		return
 	}
 	if len(c.cache) >= c.capacity {
-		err := c.evictElement()
-		if err != nil {
-			return errors.Errorf("Cache at or above capacity, got %v", err)
+		evicted := c.evictElement()
+		if !evicted {
+			return
 		}
 	}
 	c.cache[tok] = input
-	return nil
 }
 
 func (c *SideInputCache) isValid(token string) bool {
@@ -154,21 +164,21 @@ func (c *SideInputCache) isValid(token string) bool {
 
 // evictElement randomly evicts a ReusableInput that is not currently valid from the cache.
 // It should only be called by a goroutine that obtained the lock in SetCache.
-func (c *SideInputCache) evictElement() error {
+func (c *SideInputCache) evictElement() bool {
 	deleted := false
 	// Select a key from the cache at random
 	for k := range c.cache {
 		// Do not evict an element if it's currently valid
 		if !c.isValid(k) {
 			delete(c.cache, k)
+			c.metrics.Evictions++
 			deleted = true
 			break
 		}
 	}
-	// Nothing is deleted if every side input is still valid, meaning that the cache size
-	// is likely too small.
+	// Nothing is deleted if every side input is still valid.
 	if !deleted {
-		return errors.Errorf("Failed to evict elements from cache, every element is currently valid")
+		c.metrics.InUseEvictionCalls++
 	}
-	return nil
+	return deleted
 }
