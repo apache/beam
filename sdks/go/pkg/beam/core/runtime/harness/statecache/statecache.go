@@ -55,7 +55,8 @@ type CacheMetrics struct {
 }
 
 // Init makes the cache map and the map of IDs to cache tokens for the
-// SideInputCache. Should only be called once.
+// SideInputCache. Should only be called once. Returns an error for
+// non-positive capacities.
 func (c *SideInputCache) Init(cap int) error {
 	if cap <= 0 {
 		return errors.Errorf("capacity must be a positive integer, got %v", cap)
