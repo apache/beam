@@ -776,6 +776,16 @@ class TestWriteToBigQuery(unittest.TestCase):
     self.assertEqual(
         original_side_input_data.view_fn, deserialized_side_input_data.view_fn)
 
+  def test_batch_duration_usage(self):
+      # batch_duration can only be used with with_auto_sharding=True
+      with self.assertRaises(ValueError):
+          beam.io.gcp.bigquery.WriteToBigQuery(
+              "dataset.table", batch_duration=5, with_auto_sharding=False
+          )
+      beam.io.gcp.bigquery.WriteToBigQuery(
+          "dataset.table", batch_duration=5, with_auto_sharding=True
+      )
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):

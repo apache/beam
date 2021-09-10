@@ -1650,6 +1650,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     else:
       self.schema = bigquery_tools.get_dict_table_schema(schema)
     self.batch_size = batch_size
+    if batch_duration is not None and not with_auto_sharding:
+        raise ValueError('batch_duration can only bet set when with_auto_sharding=True')
     self.batch_duration = batch_duration
     self.kms_key = kms_key
     self.test_client = test_client
