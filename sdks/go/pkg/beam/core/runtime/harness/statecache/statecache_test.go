@@ -100,7 +100,7 @@ func TestSetCache_CacheableCase(t *testing.T) {
 	}
 	transID := "t1"
 	sideID := "s1"
-	tok := "tok1"
+	tok := token("tok1")
 	s.setValidToken(transID, sideID, tok)
 	input := makeTestReusableInput(transID, sideID, 10)
 	s.SetCache(transID, sideID, input)
@@ -117,7 +117,7 @@ func TestSetCache_CacheableCase(t *testing.T) {
 	}
 }
 
-func makeRequest(transformID, sideInputID, token string) fnpb.ProcessBundleRequest_CacheToken {
+func makeRequest(transformID, sideInputID string, t token) fnpb.ProcessBundleRequest_CacheToken {
 	var tok fnpb.ProcessBundleRequest_CacheToken
 	var wrap fnpb.ProcessBundleRequest_CacheToken_SideInput_
 	var side fnpb.ProcessBundleRequest_CacheToken_SideInput
@@ -125,7 +125,7 @@ func makeRequest(transformID, sideInputID, token string) fnpb.ProcessBundleReque
 	side.SideInputId = sideInputID
 	wrap.SideInput = &side
 	tok.Type = &wrap
-	tok.Token = []byte(token)
+	tok.Token = []byte(t)
 	return tok
 }
 
@@ -133,7 +133,7 @@ func TestSetValidTokens(t *testing.T) {
 	inputs := []struct {
 		transformID string
 		sideInputID string
-		token       string
+		tok         token
 	}{
 		{
 			"t1",
@@ -160,8 +160,8 @@ func TestSetValidTokens(t *testing.T) {
 
 	var tokens []fnpb.ProcessBundleRequest_CacheToken
 	for _, input := range inputs {
-		tok := makeRequest(input.transformID, input.sideInputID, input.token)
-		tokens = append(tokens, tok)
+		t := makeRequest(input.transformID, input.sideInputID, input.tok)
+		tokens = append(tokens, t)
 	}
 
 	s.SetValidTokens(tokens...)
@@ -171,13 +171,13 @@ func TestSetValidTokens(t *testing.T) {
 
 	for i, input := range inputs {
 		// Check that the token is in the valid list
-		if !s.isValid(input.token) {
-			t.Errorf("error in input %v, token %v is not valid", i, input.token)
+		if !s.isValid(input.tok) {
+			t.Errorf("error in input %v, token %v is not valid", i, input.tok)
 		}
 		// Check that the mapping of IDs to tokens is correct
 		mapped := s.idsToTokens[input.transformID+input.sideInputID]
-		if mapped != input.token {
-			t.Errorf("token mismatch for input %v, expected %v, got %v", i, input.token, mapped)
+		if mapped != input.tok {
+			t.Errorf("token mismatch for input %v, expected %v, got %v", i, input.tok, mapped)
 		}
 	}
 }
@@ -186,7 +186,7 @@ func TestSetValidTokens_ClearingBetween(t *testing.T) {
 	inputs := []struct {
 		transformID string
 		sideInputID string
-		token       string
+		tk          token
 	}{
 		{
 			"t1",
@@ -212,7 +212,7 @@ func TestSetValidTokens_ClearingBetween(t *testing.T) {
 	}
 
 	for i, input := range inputs {
-		tok := makeRequest(input.transformID, input.sideInputID, input.token)
+		tok := makeRequest(input.transformID, input.sideInputID, input.tk)
 
 		s.SetValidTokens(tok)
 
@@ -221,13 +221,13 @@ func TestSetValidTokens_ClearingBetween(t *testing.T) {
 			t.Errorf("Missing token, expected 1, got %v", len(s.idsToTokens))
 		}
 		// Check that the token is in the valid list
-		if !s.isValid(input.token) {
-			t.Errorf("error in input %v, token %v is not valid", i, input.token)
+		if !s.isValid(input.tk) {
+			t.Errorf("error in input %v, token %v is not valid", i, input.tk)
 		}
 		// Check that the mapping of IDs to tokens is correct
 		mapped := s.idsToTokens[input.transformID+input.sideInputID]
-		if mapped != input.token {
-			t.Errorf("token mismatch for input %v, expected %v, got %v", i, input.token, mapped)
+		if mapped != input.tk {
+			t.Errorf("token mismatch for input %v, expected %v, got %v", i, input.tk, mapped)
 		}
 	}
 }

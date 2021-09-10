@@ -28,6 +28,8 @@ import (
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
+type token string
+
 // SideInputCache stores a cache of reusable inputs for the purposes of
 // eliminating redundant calls to the runner during execution of ParDos
 // using side inputs.
@@ -40,8 +42,8 @@ import (
 // will be re-used. In the event that the cache reaches capacity, a random,
 // currently invalid cached object will be evicted.
 type SideInputCache struct {
-	cache       map[string]exec.ReusableInput
-	idsToTokens map[string]string
+	cache       map[token]exec.ReusableInput
+	idsToTokens map[string]token
 	mu          sync.Mutex
 	capacity    int
 	metrics     CacheMetrics
@@ -63,8 +65,8 @@ func (c *SideInputCache) Init(cap int) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache = make(map[string]exec.ReusableInput, cap)
-	c.idsToTokens = make(map[string]string)
+	c.cache = make(map[token]exec.ReusableInput, cap)
+	c.idsToTokens = make(map[string]token)
 	c.capacity = cap
 	return nil
 }
@@ -72,7 +74,7 @@ func (c *SideInputCache) Init(cap int) error {
 // Completely clears the map of valid tokens. Should be called when
 // starting to handle a new request.
 func (c *SideInputCache) clearValidTokens() {
-	c.idsToTokens = make(map[string]string)
+	c.idsToTokens = make(map[string]token)
 }
 
 // SetValidTokens clears the list of valid tokens then sets new ones, also updating the mapping of
@@ -91,19 +93,19 @@ func (c *SideInputCache) SetValidTokens(cacheTokens ...fnpb.ProcessBundleRequest
 		s := tok.GetSideInput()
 		transformID := s.GetTransformId()
 		sideInputID := s.GetSideInputId()
-		token := string(tok.GetToken())
-		c.setValidToken(transformID, sideInputID, token)
+		t := token(tok.GetToken())
+		c.setValidToken(transformID, sideInputID, t)
 	}
 }
 
 // setValidToken adds a new valid token for a request into the SideInputCache struct
 // by mapping the transform ID and side input ID pairing to the cache token.
-func (c *SideInputCache) setValidToken(transformID, sideInputID, token string) {
+func (c *SideInputCache) setValidToken(transformID, sideInputID string, tok token) {
 	idKey := transformID + sideInputID
-	c.idsToTokens[idKey] = token
+	c.idsToTokens[idKey] = tok
 }
 
-func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (string, bool) {
+func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (token, bool) {
 	idKey := transformID + sideInputID
 	// Check if it's a known, valid token
 	tok, ok := c.idsToTokens[idKey]
@@ -152,9 +154,9 @@ func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.Re
 	c.cache[tok] = input
 }
 
-func (c *SideInputCache) isValid(token string) bool {
+func (c *SideInputCache) isValid(tok token) bool {
 	for _, t := range c.idsToTokens {
-		if t == token {
+		if t == tok {
 			return true
 		}
 	}
