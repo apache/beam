@@ -37,8 +37,8 @@ from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import AnnotationBasedPayloadBuilder
-from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
+from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
