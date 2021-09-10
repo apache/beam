@@ -41,7 +41,6 @@ import (
 type SideInputCache struct {
 	cache       map[string]exec.ReusableInput
 	idsToTokens map[string]string
-	validTokens []string
 	mu          sync.Mutex
 	capacity    int
 }
@@ -56,13 +55,14 @@ func (c *SideInputCache) Init(cap int) error {
 	defer c.mu.Unlock()
 	c.cache = make(map[string]exec.ReusableInput, cap)
 	c.idsToTokens = make(map[string]string)
+	c.capacity = cap
 	return nil
 }
 
-// Completely clears the list of valid tokens. Should be called when
+// Completely clears the map of valid tokens. Should be called when
 // starting to handle a new request.
 func (c *SideInputCache) clearValidTokens() {
-	c.validTokens = nil
+	c.idsToTokens = make(map[string]string)
 }
 
 // SetValidTokens clears the list of valid tokens then sets new ones, also updating the mapping of
@@ -87,27 +87,20 @@ func (c *SideInputCache) SetValidTokens(cacheTokens ...fnpb.ProcessBundleRequest
 }
 
 // setValidToken adds a new valid token for a request into the SideInputCache struct
-// and maps the transform ID and side input ID pairing to the cache token.
+// by mapping the transform ID and side input ID pairing to the cache token.
 func (c *SideInputCache) setValidToken(transformID, sideInputID, token string) {
 	idKey := transformID + sideInputID
 	c.idsToTokens[idKey] = token
-	c.validTokens = append(c.validTokens, token)
 }
 
 func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (string, bool) {
 	idKey := transformID + sideInputID
-	// Check if it's a known token
+	// Check if it's a known, valid token
 	tok, ok := c.idsToTokens[idKey]
 	if !ok {
 		return "", false
 	}
-	// Check if the known token is valid for this request
-	for _, t := range c.validTokens {
-		if t == tok {
-			return tok, true
-		}
-	}
-	return "", false
+	return tok, true
 }
 
 // QueryCache takes a transform ID and side input ID and checking if a corresponding side
@@ -140,7 +133,7 @@ func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.Re
 	if !ok {
 		return nil
 	}
-	if len(c.cache) > c.capacity {
+	if len(c.cache) >= c.capacity {
 		err := c.evictElement()
 		if err != nil {
 			return errors.Errorf("Cache at or above capacity, got %v", err)
@@ -151,7 +144,7 @@ func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.Re
 }
 
 func (c *SideInputCache) isValid(token string) bool {
-	for _, t := range c.validTokens {
+	for _, t := range c.idsToTokens {
 		if t == token {
 			return true
 		}

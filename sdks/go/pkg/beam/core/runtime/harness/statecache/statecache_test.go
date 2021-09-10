@@ -171,8 +171,8 @@ func TestSetValidTokens(t *testing.T) {
 	}
 
 	s.SetValidTokens(tokens...)
-	if len(s.validTokens) != len(inputs) {
-		t.Errorf("Missing tokens, expected %v, got %v", len(inputs), len(s.validTokens))
+	if len(s.idsToTokens) != len(inputs) {
+		t.Errorf("Missing tokens, expected %v, got %v", len(inputs), len(s.idsToTokens))
 	}
 
 	for i, input := range inputs {
@@ -223,8 +223,8 @@ func TestSetValidTokens_ClearingBetween(t *testing.T) {
 		s.SetValidTokens(tok)
 
 		// Check that only one valid token is in the pool
-		if len(s.validTokens) != 1 {
-			t.Errorf("Missing token, expected 1, got %v", len(s.validTokens))
+		if len(s.idsToTokens) != 1 {
+			t.Errorf("Missing token, expected 1, got %v", len(s.idsToTokens))
 		}
 		// Check that the token is in the valid list
 		if !s.isValid(input.token) {
