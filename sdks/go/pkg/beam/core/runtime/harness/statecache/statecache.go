@@ -15,6 +15,8 @@
 
 // Package statecache implements the state caching feature described by the
 // Beam Fn API
+//
+// https://docs.google.com/document/d/1BOozW0bzBuz4oHJEuZNDOHdzaV5Y56ix58Ozrqm2jFg/edit#heading=h.7ghoih5aig5m
 package statecache
 
 import (
@@ -28,6 +30,14 @@ import (
 // SideInputCache stores a cache of reusable inputs for the purposes of
 // eliminating redundant calls to the runner during execution of ParDos
 // using side inputs.
+//
+// A SideInputCache should be initialized when the SDK harness is initialized,
+// creating storage for side input caching. On each ProcessBundleRequest,
+// the cache will process the list of tokens for cacheable side inputs and
+// be queried when side inputs are requested in bundle execution. Once a
+// new bundle request comes in the valid tokens will be updated and the cache
+// will be re-used. In the event that the cache reaches capacity, a random,
+// currently invalid cached object will be evicted.
 type SideInputCache struct {
 	cache       map[string]exec.ReusableInput
 	idsToTokens map[string]string
