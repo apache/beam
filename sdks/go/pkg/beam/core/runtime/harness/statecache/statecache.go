@@ -42,11 +42,11 @@ type token string
 // will be re-used. In the event that the cache reaches capacity, a random,
 // currently invalid cached object will be evicted.
 type SideInputCache struct {
+	capacity    int
+	mu          sync.Mutex
 	cache       map[token]exec.ReusableInput
 	idsToTokens map[string]token
-	validTokens map[token]int8
-	mu          sync.Mutex
-	capacity    int
+	validTokens map[token]int8 // Maps tokens to active bundle counts
 	metrics     CacheMetrics
 }
 
@@ -127,7 +127,11 @@ func (c *SideInputCache) CompleteBundle(cacheTokens ...fnpb.ProcessBundleRequest
 // a bundle.
 func (c *SideInputCache) decrementTokenCount(tok token) {
 	count := c.validTokens[tok]
-	c.validTokens[tok] = count - 1
+	if count == 1 {
+		delete(c.validTokens, tok)
+	} else {
+		c.validTokens[tok] = count - 1
+	}
 }
 
 func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (token, bool) {
@@ -182,10 +186,7 @@ func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.Re
 func (c *SideInputCache) isValid(tok token) bool {
 	count, ok := c.validTokens[tok]
 	// If the token is not known or not in use, return false
-	if !ok || count <= 0 {
-		return false
-	}
-	return true
+	return ok && count > 0
 }
 
 // evictElement randomly evicts a ReusableInput that is not currently valid from the cache.
