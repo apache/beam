@@ -216,10 +216,6 @@ func TestSetValidTokens_ClearingBetween(t *testing.T) {
 
 		s.SetValidTokens(tok)
 
-		// Check that only one valid token is in the pool
-		if len(s.idsToTokens) != 1 {
-			t.Errorf("Missing token, expected 1, got %v", len(s.idsToTokens))
-		}
 		// Check that the token is in the valid list
 		if !s.isValid(input.tk) {
 			t.Errorf("error in input %v, token %v is not valid", i, input.tk)
@@ -228,6 +224,14 @@ func TestSetValidTokens_ClearingBetween(t *testing.T) {
 		mapped := s.idsToTokens[input.transformID+input.sideInputID]
 		if mapped != input.tk {
 			t.Errorf("token mismatch for input %v, expected %v, got %v", i, input.tk, mapped)
+		}
+
+		s.CompleteBundle(tok)
+	}
+
+	for k, _ := range s.validTokens {
+		if s.validTokens[k] != 0 {
+			t.Errorf("token count mismatch for token %v, expected 0, got %v", k, s.validTokens[k])
 		}
 	}
 }
@@ -243,6 +247,8 @@ func TestSetCache_Eviction(t *testing.T) {
 	inOne := makeTestReusableInput("t1", "s1", 10)
 	s.SetValidTokens(tokOne)
 	s.SetCache("t1", "s1", inOne)
+	// Mark bundle as complete, drop count for tokOne to 0
+	s.CompleteBundle(tokOne)
 
 	tokTwo := makeRequest("t2", "s2", "tok2")
 	inTwo := makeTestReusableInput("t2", "s2", 20)

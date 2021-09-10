@@ -44,6 +44,7 @@ type token string
 type SideInputCache struct {
 	cache       map[token]exec.ReusableInput
 	idsToTokens map[string]token
+	validTokens map[token]int8
 	mu          sync.Mutex
 	capacity    int
 	metrics     CacheMetrics
@@ -67,14 +68,9 @@ func (c *SideInputCache) Init(cap int) error {
 	defer c.mu.Unlock()
 	c.cache = make(map[token]exec.ReusableInput, cap)
 	c.idsToTokens = make(map[string]token)
+	c.validTokens = make(map[token]int8)
 	c.capacity = cap
 	return nil
-}
-
-// Completely clears the map of valid tokens. Should be called when
-// starting to handle a new request.
-func (c *SideInputCache) clearValidTokens() {
-	c.idsToTokens = make(map[string]token)
 }
 
 // SetValidTokens clears the list of valid tokens then sets new ones, also updating the mapping of
@@ -84,7 +80,6 @@ func (c *SideInputCache) clearValidTokens() {
 func (c *SideInputCache) SetValidTokens(cacheTokens ...fnpb.ProcessBundleRequest_CacheToken) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.clearValidTokens()
 	for _, tok := range cacheTokens {
 		// User State caching is currently not supported, so these tokens are ignored
 		if tok.GetUserState() != nil {
@@ -103,16 +98,46 @@ func (c *SideInputCache) SetValidTokens(cacheTokens ...fnpb.ProcessBundleRequest
 func (c *SideInputCache) setValidToken(transformID, sideInputID string, tok token) {
 	idKey := transformID + sideInputID
 	c.idsToTokens[idKey] = tok
+	count, ok := c.validTokens[tok]
+	if !ok {
+		c.validTokens[tok] = 1
+	} else {
+		c.validTokens[tok] = count + 1
+	}
+}
+
+// CompleteBundle takes the cache tokens passed to set the valid tokens and decrements their
+// usage count for the purposes of maintaining a valid count of whether or not a value is
+// still in use. Should be called once ProcessBundle has completed.
+func (c *SideInputCache) CompleteBundle(cacheTokens ...fnpb.ProcessBundleRequest_CacheToken) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, tok := range cacheTokens {
+		// User State caching is currently not supported, so these tokens are ignored
+		if tok.GetUserState() != nil {
+			continue
+		}
+		t := token(tok.GetToken())
+		c.decrementTokenCount(t)
+	}
+}
+
+// decrementTokenCount decrements the validTokens entry for
+// a given token by 1. Should only be called when completing
+// a bundle.
+func (c *SideInputCache) decrementTokenCount(tok token) {
+	count := c.validTokens[tok]
+	c.validTokens[tok] = count - 1
 }
 
 func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (token, bool) {
 	idKey := transformID + sideInputID
-	// Check if it's a known, valid token
+	// Check if it's a known token
 	tok, ok := c.idsToTokens[idKey]
 	if !ok {
 		return "", false
 	}
-	return tok, true
+	return tok, c.isValid(tok)
 }
 
 // QueryCache takes a transform ID and side input ID and checking if a corresponding side
@@ -155,12 +180,12 @@ func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.Re
 }
 
 func (c *SideInputCache) isValid(tok token) bool {
-	for _, t := range c.idsToTokens {
-		if t == tok {
-			return true
-		}
+	count, ok := c.validTokens[tok]
+	// If the token is not known or not in use, return false
+	if !ok || count <= 0 {
+		return false
 	}
-	return false
+	return true
 }
 
 // evictElement randomly evicts a ReusableInput that is not currently valid from the cache.
