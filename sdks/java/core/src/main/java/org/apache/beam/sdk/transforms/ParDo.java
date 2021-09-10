@@ -442,7 +442,7 @@ public class ParDo {
     if (fieldAccessDescriptor == null) {
       checkArgument(
           inputCoder instanceof KvCoder,
-          "%s requires its input to use %s in order to use state and timers.",
+          "%s requires its input to either use %s or have a schema input in order to use state and timers.",
           ParDo.class.getSimpleName(),
           KvCoder.class.getSimpleName());
 
@@ -958,6 +958,13 @@ public class ParDo {
 
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+      SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      finishSpecifyingStateSpecs(fn, coderRegistry, schemaRegistry, input.getCoder());
+      TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
+      PCollection<OutputT> res =
+          input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
+
       if (this.doFnSchemaInformation == null) {
         this.doFnSchemaInformation =
             inferDoFnSchemaInformation(
@@ -967,13 +974,6 @@ public class ParDo {
                 input.getCoder(),
                 input.getPipeline());
       }
-
-      SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
-      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
-      finishSpecifyingStateSpecs(fn, coderRegistry, schemaRegistry, input.getCoder());
-      TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
-      PCollection<OutputT> res =
-          input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
 
       TypeDescriptor<OutputT> outputTypeDescriptor = getFn().getOutputTypeDescriptor();
       try {

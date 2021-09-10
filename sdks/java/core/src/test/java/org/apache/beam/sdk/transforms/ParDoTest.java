@@ -5916,7 +5916,8 @@ public class ParDoTest implements Serializable {
     public void testKeyInOnTimerWithoutKV() throws Exception {
 
       thrown.expect(IllegalArgumentException.class);
-      thrown.expectMessage("@Key argument is expected to be use with input element of type KV.");
+      thrown.expectMessage(
+          "ParDo requires its input to either use KvCoder or have a schema input in order to use state and timers.");
 
       final String timerId = "foo";
 
