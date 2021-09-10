@@ -5,7 +5,7 @@ name: LI Runners Test
 
 on:
   pull_request:
-    branches: ['li_trunk']
+    branches: ['li_trunk', "li-release-*"]
     paths: ['runners/samza/**', 'runners/spark/**', 'buildSrc/src/main/groovy/org/apache/beam/gradle/**']
 
 jobs:

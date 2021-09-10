@@ -7,7 +7,7 @@ on:
   release:
     types: [created]
   push:
-    branches: ['li_trunk']
+    branches: ['li_trunk', "li-release-*"]
     paths: ['buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy']
 
 jobs:
