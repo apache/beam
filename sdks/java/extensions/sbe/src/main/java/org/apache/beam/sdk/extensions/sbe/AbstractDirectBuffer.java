@@ -555,26 +555,7 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
   /** Identical to {@link AbstractDirectBuffer#boundsCheckForRead(int, int)}. */
   @Override
   public void boundsCheck(int index, int length) {
-    if (index < 0) {
-      throw new IndexOutOfBoundsException(String.format("Index (%s) is negative", index));
-    }
-    if (index >= this.length) {
-      throw new IndexOutOfBoundsException(
-          String.format("Index (%s) must be less than length of buffer (%s)", index, this.length));
-    }
-    if (length < 0) {
-      throw new IndexOutOfBoundsException(String.format("Length (%s) is negative", length));
-    }
-
-    int internalIndex = getInternalIndex(index);
-    int end = internalIndex + length;
-    int maxAllowedLength = this.length - this.offset;
-    if (end > maxAllowedLength) {
-      throw new IndexOutOfBoundsException(
-          String.format(
-              "Length (%s) is too long from index (%s). Max allowed from index: %s",
-              length, index, maxAllowedLength));
-    }
+    boundsCheckForRead(index, length);
   }
 
   /**
