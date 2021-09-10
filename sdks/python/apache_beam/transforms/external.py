@@ -171,8 +171,8 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
         raise ValueError('Parameter name cannot be empty')
       if value is None:
         raise ValueError(
-            'Received value None for key %s. None values are currently not supported'
-            % key)
+            'Received value None for key %s. None values are currently not '
+            'supported' % key)
       named_fields.append(
           (key, convert_to_typing_type(instance_to_type(value))))
 
@@ -185,7 +185,8 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
 
   def build(self):
     constructor_params = self._constructor_params or {}
-    constructor_schema, constructor_payload = self._get_schema_proto_and_payload(**constructor_params)
+    constructor_schema, constructor_payload = (
+        self._get_schema_proto_and_payload(**constructor_params))
     payload = JavaClassLookupPayload(
         class_name=self._class_name,
         constructor_schema=constructor_schema,
@@ -194,7 +195,8 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
       payload.constructor_method = self._constructor_method
 
     for builder_method_name, params in self._builder_methods_and_params.items():
-      builder_method_schema, builder_method_payload = self._get_schema_proto_and_payload(**params)
+      builder_method_schema, builder_method_payload = (
+          self._get_schema_proto_and_payload(**params))
       builder_method = BuilderMethod(
           name=builder_method_name,
           schema=builder_method_schema,
