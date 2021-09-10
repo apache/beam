@@ -32,9 +32,6 @@ public interface AutoScaler extends Serializable {
   /**
    * Returns the size of the backlog of unread data in the underlying data source represented by all
    * splits of this source.
-   *
-   * <p>It should be overridden in order to allow the runner to scale the amount of resources
-   * allocated to the pipeline.
    */
   long getTotalBacklogBytes();
 
