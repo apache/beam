@@ -191,7 +191,7 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
       p.run()
 
   @pytest.mark.it_postcommit
-  def test_spanner_metrics_ok_call(self):
+  def test_metrics_ok_call(self):
     MetricsEnvironment.process_wide_container().reset()
     _prefix = 'test_write_batches'
     mutations = [
@@ -203,18 +203,6 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
             [(_prefix + '2', _prefix + 'inset-2')]),
     ]
 
-    resource = resource_identifiers.SpannerTable(
-        self.project, self.TEST_DATABASE, 'Albums')
-    labels = {
-        monitoring_infos.SERVICE_LABEL: 'Spanner',
-        monitoring_infos.METHOD_LABEL: 'Write',
-        monitoring_infos.SPANNER_PROJECT_ID: self.project,
-        monitoring_infos.SPANNER_DATABASE_ID: self.TEST_DATABASE,
-        monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: 'Albums',
-        monitoring_infos.STATUS_LABEL: 'ok'
-    }
-
     p = beam.Pipeline(argv=self.args)
     _ = (
         p | beam.Create(mutations) | WriteToSpanner(
@@ -225,15 +213,11 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
-    metric_name = MetricName(
-        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
-    metric_value = MetricsEnvironment.process_wide_container().get_counter(
-        metric_name).get_cumulative()
-
-    self.assertEqual(metric_value, 1)
+    self.verify_write_call_metric(
+        self.project, self.TEST_DATABASE, 'Albums', 'ok', 1)
 
   @pytest.mark.it_postcommit
-  def test_spanner_metrics_error_call(self):
+  def test_metrics_error_call(self):
     MetricsEnvironment.process_wide_container().reset()
     _prefix = 'test_write_batches'
     mutations = [
@@ -244,18 +228,6 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
             'Albums', ('AlbumId', 'Name'),
             [(_prefix + '3', _prefix + 'inset-3')]),
     ]
-
-    resource = resource_identifiers.SpannerTable(
-        self.project, self.TEST_DATABASE, 'Albums')
-    labels = {
-        monitoring_infos.SERVICE_LABEL: 'Spanner',
-        monitoring_infos.METHOD_LABEL: 'Write',
-        monitoring_infos.SPANNER_PROJECT_ID: self.project,
-        monitoring_infos.SPANNER_DATABASE_ID: self.TEST_DATABASE,
-        monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: 'Albums',
-        monitoring_infos.STATUS_LABEL: '400'
-    }
 
     with self.assertRaises(Exception):
       p = beam.Pipeline(argv=self.args)
@@ -268,12 +240,26 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
       res = p.run()
       res.wait_until_finish()
 
+    self.verify_write_call_metric(
+        self.project, self.TEST_DATABASE, 'Albums', '400', 1)
+
+  def verify_write_call_metric(self, project, database, table, status, count):
+    resource = resource_identifiers.SpannerTable(project, database, table)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Write',
+        monitoring_infos.SPANNER_PROJECT_ID: project,
+        monitoring_infos.SPANNER_DATABASE_ID: database,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: table,
+        monitoring_infos.STATUS_LABEL: status
+    }
     metric_name = MetricName(
         None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
     metric_value = MetricsEnvironment.process_wide_container().get_counter(
         metric_name).get_cumulative()
 
-    self.assertEqual(metric_value, 1)
+    self.assertEqual(metric_value, count)
 
   @classmethod
   def tearDownClass(cls):
