@@ -185,9 +185,10 @@ class CombineGloballyTransform(ptransform.PTransform):
 @ptransform.PTransform.register_urn(TEST_COMPK_URN, None)
 class CombinePerKeyTransform(ptransform.PTransform):
   def expand(self, pcoll):
-    return pcoll \
-           | beam.CombinePerKey(sum).with_output_types(
-               typing.Tuple[str, int])
+    output = pcoll \
+           | beam.CombinePerKey(sum)
+    output.element_type = beam.typehints.Tuple[str, int]
+    return output
 
   def to_runner_api_parameter(self, unused_context):
     return TEST_COMPK_URN, None
