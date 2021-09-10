@@ -48,10 +48,10 @@ type SideInputCache struct {
 }
 
 type CacheMetrics struct {
-	Hits               int64
-	Misses             int64
-	Evictions          int64
-	InUseEvictionCalls int64
+	Hits           int64
+	Misses         int64
+	Evictions      int64
+	InUseEvictions int64
 }
 
 // Init makes the cache map and the map of IDs to cache tokens for the
@@ -147,10 +147,7 @@ func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.Re
 		return
 	}
 	if len(c.cache) >= c.capacity {
-		evicted := c.evictElement()
-		if !evicted {
-			return
-		}
+		c.evictElement()
 	}
 	c.cache[tok] = input
 }
@@ -166,7 +163,7 @@ func (c *SideInputCache) isValid(token string) bool {
 
 // evictElement randomly evicts a ReusableInput that is not currently valid from the cache.
 // It should only be called by a goroutine that obtained the lock in SetCache.
-func (c *SideInputCache) evictElement() bool {
+func (c *SideInputCache) evictElement() {
 	deleted := false
 	// Select a key from the cache at random
 	for k := range c.cache {
@@ -178,9 +175,13 @@ func (c *SideInputCache) evictElement() bool {
 			break
 		}
 	}
-	// Nothing is deleted if every side input is still valid.
+	// Nothing is deleted if every side input is still valid. Clear
+	// out a random entry and record the in-use eviction
 	if !deleted {
-		c.metrics.InUseEvictionCalls++
+		for k := range c.cache {
+			delete(c.cache, k)
+			c.metrics.InUseEvictions++
+			break
+		}
 	}
-	return deleted
 }
