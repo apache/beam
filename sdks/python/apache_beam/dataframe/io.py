@@ -82,8 +82,10 @@ def _as_pc(df, label=None):
 
 @frame_base.with_docs_from(pd.DataFrame)
 def to_csv(df, path, transform_label=None, *args, **kwargs):
-  label_pc = f"{transform_label} - ToPCollection" if transform_label else "ToPCollection(df)"
-  label_pd = f"{transform_label} - ToPandasDataFrame" if transform_label else "ToPandasDataFrame(df)"
+  label_pc = f"{transform_label} - ToPCollection" if transform_label \
+    else f"ToPCollection(df) - {path}"
+  label_pd = f"{transform_label} - ToPandasDataFrame" if transform_label \
+    else f"WriteToPandas(df) - {path}"
   return _as_pc(df, label_pc) | label_pd >> _WriteToPandas(
       'to_csv', path, args, kwargs, incremental=True, binary=False)
 

@@ -344,21 +344,28 @@ X     , c1, c2
     self.assertEqual(len(glob.glob(f'{output}out.csv*')), 0)
 
   def test_double_write(self):
-      output = self.temp_dir()
-      with beam.Pipeline() as p:
-          pc1 = p | beam.Create({'a': '1', 'b': '2'})
-          pc2 = p | beam.Create({'a': '3', 'b': '4'})
+    output = self.temp_dir()
+    with beam.Pipeline() as p:
+      pc1 = p | 'create pc1' >> beam.Create({'a': '1', 'b': '2'})
+      pc2 = p | 'create pc2' >> beam.Create({'a': '3', 'b': '4'})
 
-          deferred_df1 = convert.to_dataframe(pc1)
-          deferred_df2 = convert.to_dataframe(pc2)
+      deferred_df1 = convert.to_dataframe(pc1)
+      deferred_df2 = convert.to_dataframe(pc2)
 
-          deferred_df1.to_csv(f'{output}out1.csv', transform_label="Writing to csv PC1", index=False)
-          deferred_df2.to_csv(f'{output}out2.csv', transform_label="Writing to csv PC2", index=False)
+      deferred_df1.to_csv(
+          f'{output}out1.csv',
+          transform_label="Writing to csv PC1",
+          index=False)
+      deferred_df2.to_csv(
+          f'{output}out2.csv',
+          transform_label="Writing to csv PC2",
+          index=False)
 
-          self.assertCountEqual(['a,b', '1,2'],
-                                set(self.read_all_lines(output + 'out1.csv*')))
-          self.assertCountEqual(['a,b', '3,4'],
-                                set(self.read_all_lines(output + 'out2.csv*')))
+      self.assertCountEqual(['a,b', '1,2'],
+                            set(self.read_all_lines(output + 'out1.csv*')))
+      self.assertCountEqual(['a,b', '3,4'],
+                            set(self.read_all_lines(output + 'out2.csv*')))
+
 
 if __name__ == '__main__':
   unittest.main()
