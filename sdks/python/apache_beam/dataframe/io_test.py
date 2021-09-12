@@ -40,6 +40,10 @@ from apache_beam.io import restriction_trackers
 from apache_beam.testing.util import assert_that
 
 
+class SimpleRow(typing.NamedTuple):
+  value: int
+
+
 class MyRow(typing.NamedTuple):
   timestamp: int
   value: int
@@ -346,8 +350,10 @@ X     , c1, c2
   def test_double_write(self):
     output = self.temp_dir()
     with beam.Pipeline() as p:
-      pc1 = p | 'create pc1' >> beam.Create({'a': '1', 'b': '2'})
-      pc2 = p | 'create pc2' >> beam.Create({'a': '3', 'b': '4'})
+      pc1 = p | 'create pc1' >> beam.Create(
+          [SimpleRow(value=i) for i in [1, 2]])
+      pc2 = p | 'create pc2' >> beam.Create(
+          [SimpleRow(value=i) for i in [3, 4]])
 
       deferred_df1 = convert.to_dataframe(pc1)
       deferred_df2 = convert.to_dataframe(pc2)
@@ -361,10 +367,10 @@ X     , c1, c2
           transform_label="Writing to csv PC2",
           index=False)
 
-      self.assertCountEqual(['a,b', '1,2'],
-                            set(self.read_all_lines(output + 'out1.csv*')))
-      self.assertCountEqual(['a,b', '3,4'],
-                            set(self.read_all_lines(output + 'out2.csv*')))
+    self.assertCountEqual(['value', '1', '2'],
+                          set(self.read_all_lines(output + 'out1.csv*')))
+    self.assertCountEqual(['value', '3', '4'],
+                          set(self.read_all_lines(output + 'out2.csv*')))
 
 
 if __name__ == '__main__':
