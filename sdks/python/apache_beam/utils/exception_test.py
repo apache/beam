@@ -53,6 +53,7 @@ class TestRaiseException(unittest.TestCase):
         tp, value, tb = sys.exc_info()
         raise_exception(tp, value, tb)
 
+  def test_custom_error_with_args(self):
     with self.assertRaises(UserDefinedErrorWithArgs) as context:
       arg1 = 'arg1'
       arg2 = 'arg2'
