@@ -37,7 +37,7 @@ import org.agrona.MutableDirectBuffer;
  * synchronize threads. If a concrete class needs to also implement {@link MutableDirectBuffer},
  * guaranteeing thread-safety is the responsibility of that class.
  *
- * <p>Everything that {@link AbstractDirectBuffer} does is considered safe for PCollections. It
+ * <p>Everything that {@link DirectByteBuffer} does is considered safe for PCollections. It
  * creates its own copy of the data and does not allow direct access to that data. For this reason,
  * the following methods are not supported:
  *
@@ -52,19 +52,18 @@ import org.agrona.MutableDirectBuffer;
  * <p>The last two can still be gotten via copy rather than by accessing the underlying buffer
  * directly.
  *
- * <p>Implementations should use {@link AbstractDirectBuffer#DEFAULT_BYTE_ORDER} to determine the
+ * <p>Implementations should use {@link DirectByteBuffer#DEFAULT_BYTE_ORDER} to determine the
  * order of bytes. If a passed-in {@link ByteOrder} is different, then the bytes should be reversed
  * before writes or after reads.
  *
- * <p>Implementations should be sure to implement {@link Object#equals(Object)} and {@link
- * Object#hashCode()}. Implementations are required to implement {@link
- * Comparable#compareTo(Object)}.
+ * <p>Implementations should implement {@link Object#equals(Object)} and {@link Object#hashCode()}.
+ * Implementations are required to implement {@link Comparable#compareTo(Object)}.
  */
-abstract class AbstractDirectBuffer implements DirectBuffer {
+public abstract class DirectByteBuffer implements DirectBuffer {
 
   protected static final String UNSAFE_FOR_PCOLLECTION = "Unsafe for PCollection";
 
-  /** Order of bytes in {@link AbstractDirectBuffer#buffer}. */
+  /** Order of bytes in {@link DirectByteBuffer#buffer}. */
   protected static final ByteOrder DEFAULT_BYTE_ORDER = ByteOrder.BIG_ENDIAN;
 
   @Nonnull protected final ByteBuffer buffer;
@@ -83,7 +82,7 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
    * @param buffer the {@link ByteBuffer} to use to set the underlying data
    * @param mode whether to copy or view {@code buffer}
    */
-  protected AbstractDirectBuffer(@Nonnull ByteBuffer buffer, CreateMode mode) {
+  protected DirectByteBuffer(@Nonnull ByteBuffer buffer, CreateMode mode) {
     if (mode == CreateMode.COPY) {
       this.buffer = createCopyOfByteBuffer(buffer);
       this.offset = 0;
@@ -104,8 +103,8 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
    * source.
    *
    * <p>{@link CreateMode#VIEW} will use the passed-in buffer as its own backing buffer. This is
-   * less safe but can provide a (likely mild) performance improvement if the input data is
-   * immutable or if a copy was already made.
+   * slightly more performant, but it is only safe if the passed-in buffer is immutable or if this
+   * is effectively taking ownership of the buffer.
    */
   protected enum CreateMode {
     COPY,
@@ -240,7 +239,7 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
   /**
    * Checks that {@code limit} is in range [0, capacity].
    *
-   * <p>Generally speaking, {@link AbstractDirectBuffer#boundsCheck(int, int)} is more useful.
+   * <p>Generally speaking, {@link DirectByteBuffer#boundsCheck(int, int)} is more useful.
    *
    * @param limit value to check
    * @throws IndexOutOfBoundsException if limit is less than zero or greater than capacity
@@ -535,7 +534,7 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
   /**
    * Handles reading a string that isn't length-prefixed from the buffer.
    *
-   * @param index index to start read relative to {@link AbstractDirectBuffer#offset}
+   * @param index index to start read relative to {@link DirectByteBuffer#offset}
    * @param length number of characters to read
    * @param charset {@link Charset} indicating which encoding the string is
    * @return the string
@@ -552,7 +551,7 @@ abstract class AbstractDirectBuffer implements DirectBuffer {
     return new String(rawBytes, charset);
   }
 
-  /** Identical to {@link AbstractDirectBuffer#boundsCheckForRead(int, int)}. */
+  /** Identical to {@link DirectByteBuffer#boundsCheckForRead(int, int)}. */
   @Override
   public void boundsCheck(int index, int length) {
     boundsCheckForRead(index, length);

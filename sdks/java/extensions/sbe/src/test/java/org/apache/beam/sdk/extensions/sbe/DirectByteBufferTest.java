@@ -33,15 +33,15 @@ import javax.annotation.Nonnull;
 import org.agrona.DirectBuffer;
 import org.agrona.ExpandableArrayBuffer;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils;
-import org.apache.beam.sdk.extensions.sbe.AbstractDirectBuffer.CreateMode;
+import org.apache.beam.sdk.extensions.sbe.DirectByteBuffer.CreateMode;
 import org.junit.Before;
 import org.junit.Test;
 
-/** Unit tests for {@link AbstractDirectBuffer}. */
-public final class AbstractDirectBufferTest {
-  /** Simple implementation for {@link AbstractDirectBuffer}. */
-  static final class TestableDirectBuffer extends AbstractDirectBuffer {
-    TestableDirectBuffer(@Nonnull ByteBuffer buffer, CreateMode mode) {
+/** Unit tests for {@link DirectByteBuffer}. */
+public final class DirectByteBufferTest {
+  /** Simple implementation for {@link DirectByteBuffer}. */
+  static final class TestableDirectByteBuffer extends DirectByteBuffer {
+    TestableDirectByteBuffer(@Nonnull ByteBuffer buffer, CreateMode mode) {
       super(buffer, mode);
     }
 
@@ -69,7 +69,7 @@ public final class AbstractDirectBufferTest {
   // Underlying data of length 10
   private static final byte[] DATA = new byte[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-  // Field to use for creating the AbstractDirectBuffer. Wraps DATA.
+  // Field to use for creating the DirectByteBuffer. Wraps DATA.
   private ByteBuffer underlying;
 
   @Before
@@ -80,7 +80,7 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testConstructor_createModeCopy() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.COPY);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.COPY);
 
     byte[] actualData = new byte[DATA.length];
     buffer.buffer().get(actualData);
@@ -99,7 +99,7 @@ public final class AbstractDirectBufferTest {
     underlying.position(offset);
     underlying.limit(limit);
 
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.COPY);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.COPY);
     byte[] actualData = new byte[length];
     buffer.buffer().get(actualData);
 
@@ -115,7 +115,7 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testConstructor_createModeView() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThat(buffer.buffer()).isSameInstanceAs(underlying);
     assertThat(buffer.offset()).isEqualTo(0);
@@ -130,7 +130,7 @@ public final class AbstractDirectBufferTest {
     underlying.position(offset);
     underlying.limit(limit);
 
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThat(buffer.buffer()).isSameInstanceAs(underlying);
     assertThat(buffer.offset()).isEqualTo(offset);
@@ -140,7 +140,7 @@ public final class AbstractDirectBufferTest {
   @Test
   @SuppressWarnings("DoNotCall") // Make sure DoNotCall methods are still throwing exceptions
   public void testWrap() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(UnsupportedOperationException.class, () -> buffer.wrap(DATA));
     assertThrows(UnsupportedOperationException.class, () -> buffer.wrap(DATA, 1, 4));
@@ -154,27 +154,27 @@ public final class AbstractDirectBufferTest {
   @Test
   @SuppressWarnings("DoNotCall")
   public void testAddressOffset() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
     assertThrows(UnsupportedOperationException.class, buffer::addressOffset);
   }
 
   @Test
   @SuppressWarnings("DoNotCall")
   public void testGetUnderlyingBuffer() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
     assertThrows(UnsupportedOperationException.class, buffer::byteArray);
     assertThrows(UnsupportedOperationException.class, buffer::byteBuffer);
   }
 
   @Test
   public void testGetCopyAsArray() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
     assertThat(buffer.getCopyAsArray()).isEqualTo(DATA);
   }
 
   @Test
   public void testGetCopyAsBuffer() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     byte[] actual = new byte[DATA.length];
     buffer.getCopyAsBuffer().get(actual);
@@ -184,8 +184,8 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testCapacity() {
-    TestableDirectBuffer copy = new TestableDirectBuffer(underlying, CreateMode.COPY);
-    TestableDirectBuffer view = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer copy = new TestableDirectByteBuffer(underlying, CreateMode.COPY);
+    TestableDirectByteBuffer view = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     int expected = underlying.capacity();
 
@@ -197,8 +197,8 @@ public final class AbstractDirectBufferTest {
   public void testCapacity_customRange() {
     underlying.position(1);
     underlying.limit(4);
-    TestableDirectBuffer copy = new TestableDirectBuffer(underlying, CreateMode.COPY);
-    TestableDirectBuffer view = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer copy = new TestableDirectByteBuffer(underlying, CreateMode.COPY);
+    TestableDirectByteBuffer view = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     int expected = underlying.capacity();
 
@@ -208,7 +208,7 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testCheckLimit_success() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     buffer.checkLimit(0);
     buffer.checkLimit(DATA.length);
@@ -216,7 +216,7 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testCheckLimit_failure() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.checkLimit(-1));
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.checkLimit(DATA.length + 1));
@@ -228,10 +228,10 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = Longs.toByteArray(value);
     byte[] valueBytesLittleEndian = Longs.toByteArray(Long.reverseBytes(value));
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getLong(0)).isEqualTo(value);
     assertThat(beBuffer.getLong(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
@@ -244,11 +244,11 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = Longs.toByteArray(value);
     byte[] valueBytesLittleEndian = Longs.toByteArray(Long.reverseBytes(value));
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getLong(1)).isEqualTo(value);
@@ -259,8 +259,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetLong_badOffset() {
     long value = 42L;
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(Longs.toByteArray(value)), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(Longs.toByteArray(value)), CreateMode.VIEW);
 
     // Indexes that are always invalid
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getLong(-1));
@@ -276,10 +276,10 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = Ints.toByteArray(value);
     byte[] valueBytesLittleEndian = Ints.toByteArray(Integer.reverseBytes(value));
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getInt(0)).isEqualTo(value);
     assertThat(beBuffer.getInt(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
@@ -292,11 +292,11 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = Ints.toByteArray(value);
     byte[] valueBytesLittleEndian = Ints.toByteArray(Integer.reverseBytes(value));
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getInt(1)).isEqualTo(value);
@@ -307,8 +307,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetInt_badOffset() {
     int value = 42;
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(Ints.toByteArray(value)), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(Ints.toByteArray(value)), CreateMode.VIEW);
 
     // Indexes that are always invalid
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getLong(-1));
@@ -322,10 +322,10 @@ public final class AbstractDirectBufferTest {
   public void testParseNaturalIntAscii() {
     int value = 42;
     byte[] strBytes = Integer.toString(value).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
-    TestableDirectBuffer wrapped =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer wrapped =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
 
     assertThat(buffer.parseNaturalIntAscii(0, 2)).isEqualTo(value);
     assertThat(wrapped.parseNaturalIntAscii(1, 2)).isEqualTo(value);
@@ -334,8 +334,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseNaturalIntAscii_maxNaturalInt() {
     byte[] strBytes = Integer.toString(Integer.MAX_VALUE).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThat(buffer.parseNaturalIntAscii(0, strBytes.length)).isEqualTo(Integer.MAX_VALUE);
   }
@@ -343,8 +343,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseNaturalIntAscii_overflow() {
     byte[] strBytes = Long.toString(((long) Integer.MAX_VALUE) + 1).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(ArithmeticException.class, () -> buffer.parseNaturalIntAscii(0, strBytes.length));
   }
@@ -352,8 +352,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseNaturalIntAscii_negative() {
     byte[] strBytes = Integer.toString(-1).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(
         NumberFormatException.class, () -> buffer.parseNaturalIntAscii(0, strBytes.length));
@@ -363,8 +363,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseNaturalIntAscii_stringTooLong() {
     byte[] strBytes = (Integer.toString(Integer.MAX_VALUE) + '0').getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(ArithmeticException.class, () -> buffer.parseNaturalIntAscii(0, strBytes.length));
   }
@@ -372,8 +372,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseNaturalIntAscii_invalidBounds() {
     byte[] strBytes = Integer.toString(42).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     // Invalid values relative to the start and end of buffer
     assertThrows(
@@ -393,10 +393,10 @@ public final class AbstractDirectBufferTest {
   public void testParseNaturalLongAscii() {
     long value = 42;
     byte[] strBytes = Long.toString(value).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
-    TestableDirectBuffer wrapped =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer wrapped =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
 
     assertThat(buffer.parseNaturalLongAscii(0, 2)).isEqualTo(value);
     assertThat(wrapped.parseNaturalLongAscii(1, 2)).isEqualTo(value);
@@ -405,8 +405,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void parseNaturalLongAscii_maxNaturalLong() {
     byte[] strBytes = Long.toString(Long.MAX_VALUE).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThat(buffer.parseNaturalLongAscii(0, strBytes.length)).isEqualTo(Long.MAX_VALUE);
   }
@@ -416,8 +416,8 @@ public final class AbstractDirectBufferTest {
     byte[] strBytes = Long.toString(Long.MAX_VALUE).getBytes(US_ASCII);
     int index = strBytes.length - 1;
     strBytes[index] = (byte) (strBytes[index] + 1);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(ArithmeticException.class, () -> buffer.parseNaturalLongAscii(0, strBytes.length));
   }
@@ -425,8 +425,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void parseNaturalLongAscii_negative() {
     byte[] strBytes = Long.toString(-1).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(
         NumberFormatException.class, () -> buffer.parseNaturalLongAscii(0, strBytes.length));
@@ -436,8 +436,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void parseNaturalLongAscii_stringTooLong() {
     byte[] strBytes = (Long.toString(Long.MAX_VALUE) + '0').getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(ArithmeticException.class, () -> buffer.parseNaturalLongAscii(0, strBytes.length));
   }
@@ -445,8 +445,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void parseNaturalLongAscii_invalidBounds() {
     byte[] strBytes = Long.toString(42).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     // Invalid values relative to the start and end of buffer
     assertThrows(
@@ -467,10 +467,10 @@ public final class AbstractDirectBufferTest {
   public void testParseIntAscii() {
     int value = 42;
     byte[] strBytes = Integer.toString(value).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
-    TestableDirectBuffer wrapped =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer wrapped =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
 
     assertThat(buffer.parseIntAscii(0, 2)).isEqualTo(value);
     assertThat(wrapped.parseIntAscii(1, 2)).isEqualTo(value);
@@ -479,8 +479,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseIntAscii_maxValue() {
     byte[] strBytes = Integer.toString(Integer.MAX_VALUE).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThat(buffer.parseIntAscii(0, strBytes.length)).isEqualTo(Integer.MAX_VALUE);
   }
@@ -488,8 +488,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseIntAscii_minValue() {
     byte[] strBytes = Integer.toString(Integer.MIN_VALUE).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThat(buffer.parseIntAscii(0, strBytes.length)).isEqualTo(Integer.MIN_VALUE);
   }
@@ -497,8 +497,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseIntAscii_overflow() {
     byte[] strBytes = Long.toString(((long) Integer.MAX_VALUE) + 1).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(ArithmeticException.class, () -> buffer.parseIntAscii(0, strBytes.length));
   }
@@ -506,8 +506,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseIntAscii_underflow() {
     byte[] strBytes = Long.toString(((long) Integer.MIN_VALUE) - 1).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(ArithmeticException.class, () -> buffer.parseIntAscii(0, strBytes.length));
   }
@@ -517,10 +517,10 @@ public final class AbstractDirectBufferTest {
   public void testParseIntAscii_stringTooLong() {
     byte[] positiveBytes = (Integer.toString(Integer.MAX_VALUE) + '0').getBytes(US_ASCII);
     byte[] negativeBytes = (Integer.toString(Integer.MIN_VALUE) + '0').getBytes(US_ASCII);
-    TestableDirectBuffer positive =
-        new TestableDirectBuffer(ByteBuffer.wrap(positiveBytes), CreateMode.VIEW);
-    TestableDirectBuffer negative =
-        new TestableDirectBuffer(ByteBuffer.wrap(negativeBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer positive =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(positiveBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer negative =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(negativeBytes), CreateMode.VIEW);
 
     assertThrows(ArithmeticException.class, () -> positive.parseIntAscii(0, positiveBytes.length));
     assertThrows(ArithmeticException.class, () -> negative.parseIntAscii(0, negativeBytes.length));
@@ -529,8 +529,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseIntAscii_invalidBounds() {
     byte[] strBytes = Integer.toString(42).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     // Invalid values relative to the start and end of buffer
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.parseIntAscii(-1, strBytes.length));
@@ -548,8 +548,8 @@ public final class AbstractDirectBufferTest {
   public void testParseIntAscii_lengthTooShortForNegative() {
     int value = -4;
     byte[] strBytes = Integer.toString(value).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     // Length of 1 means only a negative sign will be read, which is bad
     assertThat(buffer.parseIntAscii(0, 2)).isEqualTo(value);
@@ -560,10 +560,10 @@ public final class AbstractDirectBufferTest {
   public void testParseLongAscii() {
     long value = 42;
     byte[] strBytes = Long.toString(value).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
-    TestableDirectBuffer wrapped =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer wrapped =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
 
     assertThat(buffer.parseLongAscii(0, 2)).isEqualTo(value);
     assertThat(wrapped.parseLongAscii(1, 2)).isEqualTo(value);
@@ -572,8 +572,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseLongAscii_maxValue() {
     byte[] strBytes = Long.toString(Long.MAX_VALUE).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThat(buffer.parseLongAscii(0, strBytes.length)).isEqualTo(Long.MAX_VALUE);
   }
@@ -581,8 +581,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseLongAscii_minValue() {
     byte[] strBytes = Long.toString(Long.MIN_VALUE).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThat(buffer.parseLongAscii(0, strBytes.length)).isEqualTo(Long.MIN_VALUE);
   }
@@ -592,8 +592,8 @@ public final class AbstractDirectBufferTest {
     byte[] strBytes = Long.toString(Long.MAX_VALUE).getBytes(US_ASCII);
     int index = strBytes.length - 1;
     strBytes[index] = (byte) (strBytes[index] + 1);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(ArithmeticException.class, () -> buffer.parseLongAscii(0, strBytes.length));
   }
@@ -603,8 +603,8 @@ public final class AbstractDirectBufferTest {
     byte[] strBytes = Long.toString(Long.MIN_VALUE).getBytes(US_ASCII);
     int index = strBytes.length - 1;
     strBytes[index] = (byte) (strBytes[index] + 1);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(ArithmeticException.class, () -> buffer.parseLongAscii(0, strBytes.length));
   }
@@ -613,8 +613,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseLongAscii_stringTooLong() {
     byte[] strBytes = (Long.toString(Long.MAX_VALUE) + '0').getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     assertThrows(ArithmeticException.class, () -> buffer.parseLongAscii(0, strBytes.length));
   }
@@ -622,8 +622,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testParseLongAscii_invalidBounds() {
     byte[] strBytes = Long.toString(42).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     // Invalid values relative to the start and end of buffer
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.parseLongAscii(-1, strBytes.length));
@@ -641,8 +641,8 @@ public final class AbstractDirectBufferTest {
   public void testParseLongAscii_lengthTooShortForNegative() {
     long value = -4L;
     byte[] strBytes = Long.toString(value).getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     // Length of 1 means only a negative sign will be read, which is bad
     assertThat(buffer.parseLongAscii(0, 2)).isEqualTo(value);
@@ -655,10 +655,10 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = getDoubleBytes(value, /* reverse= */ false);
     byte[] valueBytesLittleEndian = getDoubleBytes(value, /* reverse= */ true);
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getDouble(0)).isEqualTo(value);
     assertThat(beBuffer.getDouble(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
@@ -671,11 +671,11 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = getDoubleBytes(value, /* reverse= */ false);
     byte[] valueBytesLittleEndian = getDoubleBytes(value, /* reverse= */ true);
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getDouble(1)).isEqualTo(value);
@@ -686,8 +686,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetDouble_badOffset() {
     double value = 42.2;
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(
             ByteBuffer.wrap(getDoubleBytes(value, /* reverse= */ false)), CreateMode.VIEW);
 
     // Indexes that are always invalid
@@ -704,10 +704,10 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = getFloatBytes(value, /* reverse= */ false);
     byte[] valueBytesLittleEndian = getFloatBytes(value, /* reverse= */ true);
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getFloat(0)).isEqualTo(value);
     assertThat(beBuffer.getFloat(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
@@ -720,11 +720,11 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = getFloatBytes(value, /* reverse= */ false);
     byte[] valueBytesLittleEndian = getFloatBytes(value, /* reverse= */ true);
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getFloat(1)).isEqualTo(value);
@@ -735,8 +735,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetFloat_badOffset() {
     float value = 42.2F;
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(
             ByteBuffer.wrap(getFloatBytes(value, /* reverse= */ false)), CreateMode.VIEW);
 
     // Indexes that are always invalid
@@ -753,10 +753,10 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = Shorts.toByteArray(value);
     byte[] valueBytesLittleEndian = Shorts.toByteArray(Short.reverseBytes(value));
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getShort(0)).isEqualTo(value);
     assertThat(beBuffer.getShort(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
@@ -769,11 +769,11 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = Shorts.toByteArray(value);
     byte[] valueBytesLittleEndian = Shorts.toByteArray(Short.reverseBytes(value));
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getShort(1)).isEqualTo(value);
@@ -784,8 +784,8 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetShort_badOffset() {
     byte[] shortBytes = Shorts.toByteArray((short) 42);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(shortBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(shortBytes), CreateMode.VIEW);
 
     // Indexes that are always invalid
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getShort(-1));
@@ -801,10 +801,10 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = getCharBytes(value, /* reverse= */ false);
     byte[] valueBytesLittleEndian = getCharBytes(value, /* reverse= */ true);
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesBigEndian), CreateMode.VIEW);
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getChar(0)).isEqualTo(value);
     assertThat(beBuffer.getChar(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
@@ -817,11 +817,11 @@ public final class AbstractDirectBufferTest {
     byte[] valueBytesBigEndian = getCharBytes(value, /* reverse= */ false);
     byte[] valueBytesLittleEndian = getCharBytes(value, /* reverse= */ true);
 
-    TestableDirectBuffer beBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer beBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesBigEndian), CreateMode.VIEW);
-    TestableDirectBuffer leBuffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer leBuffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
     assertThat(beBuffer.getChar(1)).isEqualTo(value);
@@ -831,8 +831,8 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testGetChar_badOffset() {
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(
             ByteBuffer.wrap(getCharBytes('c', /* reverse= */ false)), CreateMode.VIEW);
 
     // Indexes that are always invalid
@@ -846,31 +846,31 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetByte() {
     byte value = 42;
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(new byte[] {value}), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(new byte[] {value}), CreateMode.VIEW);
     assertThat(buffer.getByte(0)).isEqualTo(value);
   }
 
   @Test
   public void testGetByte_offset() {
     byte value = 42;
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(new byte[] {value}), CreateMode.VIEW);
     assertThat(buffer.getByte(1)).isEqualTo(value);
   }
 
   @Test
   public void testGetByte_badOffset() {
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(new byte[] {42}), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(new byte[] {42}), CreateMode.VIEW);
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getByte(-1));
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getByte(1));
   }
 
   @Test
   public void testGetBytes() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     byte[] actual = new byte[DATA.length];
     buffer.getBytes(0, actual);
@@ -880,8 +880,8 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testGetBytes_offset() {
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(DATA), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(DATA), CreateMode.VIEW);
 
     byte[] actual = new byte[DATA.length];
     buffer.getBytes(1, actual);
@@ -892,7 +892,7 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetBytes_shorterArray() {
     int newLength = DATA.length / 2;
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     byte[] actual = new byte[newLength];
     buffer.getBytes(0, actual);
@@ -905,7 +905,7 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetBytes_arrayTooLong() {
     byte[] tooLong = new byte[DATA.length + 1];
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getBytes(0, tooLong));
   }
@@ -913,7 +913,7 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetBytes_badOffset() {
     byte[] target = new byte[DATA.length];
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getBytes(-1, target));
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getBytes(DATA.length, target));
@@ -924,7 +924,7 @@ public final class AbstractDirectBufferTest {
     int sourceIndex = 1;
     int dstOffset = 0;
     int length = 4;
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     byte[] actual = new byte[length];
     buffer.getBytes(sourceIndex, actual, dstOffset, length);
@@ -941,7 +941,7 @@ public final class AbstractDirectBufferTest {
     int dstOffset = 1;
     int length = 4;
     int totalLength = length + dstOffset;
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     byte[] actual = new byte[totalLength];
     buffer.getBytes(sourceIndex, actual, dstOffset, length);
@@ -958,7 +958,7 @@ public final class AbstractDirectBufferTest {
     int dstOffset = 1;
     int length = 4;
     int totalLength = length + dstOffset;
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     byte[] actual = new byte[totalLength];
     buffer.getBytes(sourceIndex, actual, dstOffset, length);
@@ -973,7 +973,7 @@ public final class AbstractDirectBufferTest {
   public void testGetBytes_badBounds() {
     int length = DATA.length - 2;
     byte[] dst = new byte[length];
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getBytes(-1, dst, 0, length));
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getBytes(DATA.length, dst, 0, 1));
@@ -988,7 +988,7 @@ public final class AbstractDirectBufferTest {
     int dstOffset = 1;
     int length = 4;
     int totalLength = length + dstOffset;
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     ExpandableArrayBuffer actual = new ExpandableArrayBuffer();
     buffer.getBytes(sourceIndex, actual, dstOffset, length);
@@ -1010,7 +1010,7 @@ public final class AbstractDirectBufferTest {
     ByteBuffer full = ByteBuffer.wrap(new byte[DATA.length]);
     ByteBuffer partial = ByteBuffer.wrap(new byte[partialLength]);
 
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
     buffer.getBytes(0, full, DATA.length);
     buffer.getBytes(0, partial, partialLength);
 
@@ -1024,8 +1024,8 @@ public final class AbstractDirectBufferTest {
     ByteBuffer full = ByteBuffer.wrap(new byte[DATA.length]);
     ByteBuffer partial = ByteBuffer.wrap(new byte[partialLength]);
 
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(DATA), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(DATA), CreateMode.VIEW);
     buffer.getBytes(1, full, DATA.length);
     buffer.getBytes(1, partial, partialLength);
 
@@ -1036,7 +1036,7 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetBytes_badByteBufferBounds() {
     int allocate = 10;
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(
         IndexOutOfBoundsException.class,
@@ -1055,7 +1055,7 @@ public final class AbstractDirectBufferTest {
     int dstOffset = 1;
     int length = 4;
     int totalLength = length + dstOffset + 1;
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     ByteBuffer dst = ByteBuffer.wrap(new byte[totalLength]);
     buffer.getBytes(sourceIndex, dst, dstOffset, length);
@@ -1070,7 +1070,7 @@ public final class AbstractDirectBufferTest {
   public void testGetBytes_byteBufferBadBounds() {
     int length = DATA.length - 2;
     ByteBuffer dst = ByteBuffer.allocate(length);
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getBytes(-1, dst, 0, length));
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getBytes(DATA.length, dst, 0, 1));
@@ -1082,12 +1082,12 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetStringAscii() {
     String value = "This statement is false.";
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(
             ByteBuffer.wrap(getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ false)),
             CreateMode.VIEW);
-    TestableDirectBuffer reversed =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer reversed =
+        new TestableDirectByteBuffer(
             ByteBuffer.wrap(getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ true)),
             CreateMode.VIEW);
 
@@ -1100,10 +1100,10 @@ public final class AbstractDirectBufferTest {
     String value = "This statement is false.";
     byte[] rawBytes = getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ false);
     byte[] reversedBytes = getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ true);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
-    TestableDirectBuffer reversed =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer reversed =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
 
     assertThat(buffer.getStringAscii(1)).isEqualTo(value);
     assertThat(reversed.getStringAscii(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
@@ -1113,8 +1113,8 @@ public final class AbstractDirectBufferTest {
   public void testGetStringAscii_overrideLength() {
     String value = "This statement is false.";
     int customLength = 3;
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(
             ByteBuffer.wrap(getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ false)),
             CreateMode.VIEW);
     // Reverse unnecessary, since the length prefix is skipped
@@ -1129,8 +1129,8 @@ public final class AbstractDirectBufferTest {
     String value = "This statement is false.";
     byte[] rawBytes = getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ false);
     int customLength = 3;
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
     // Reverse unnecessary, since the length prefix is skipped
 
     String expected = value.substring(0, customLength);
@@ -1140,7 +1140,7 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testGetStringAscii_badBounds() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getStringAscii(-1));
     // The integer read in will be 123, which will way exceed length when trying to read string
@@ -1157,10 +1157,10 @@ public final class AbstractDirectBufferTest {
     String value = "This statement is false.";
     byte[] rawBytes = getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ false);
     byte[] reversedBytes = getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ true);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
-    TestableDirectBuffer reversed =
-        new TestableDirectBuffer(ByteBuffer.wrap(reversedBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer reversed =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(reversedBytes), CreateMode.VIEW);
 
     CharBuffer beDestination = CharBuffer.allocate(rawBytes.length);
     CharBuffer leDestination = CharBuffer.allocate(reversed.length);
@@ -1182,10 +1182,10 @@ public final class AbstractDirectBufferTest {
     String value = "This statement is false.";
     byte[] rawBytes = getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ false);
     byte[] reversedBytes = getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ true);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
-    TestableDirectBuffer reversed =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer reversed =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
 
     CharBuffer beDestination = CharBuffer.allocate(rawBytes.length);
     CharBuffer leDestination = CharBuffer.allocate(reversed.length);
@@ -1206,8 +1206,8 @@ public final class AbstractDirectBufferTest {
     String value = "This statement is false.";
     int length = 3;
     byte[] rawBytes = getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ false);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
 
     CharBuffer destination = CharBuffer.allocate(length);
     buffer.getStringAscii(0, length, destination);
@@ -1222,8 +1222,8 @@ public final class AbstractDirectBufferTest {
   public void testGetStringWithoutLengthAscii() {
     String value = "This statement is false.";
     byte[] rawBytes = value.getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
 
     assertThat(buffer.getStringWithoutLengthAscii(0, rawBytes.length)).isEqualTo(value);
   }
@@ -1232,8 +1232,8 @@ public final class AbstractDirectBufferTest {
   public void testGetStringWithoutLengthAscii_appendable() {
     String value = "This statement is false.";
     byte[] rawBytes = value.getBytes(US_ASCII);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
 
     CharBuffer destination = CharBuffer.allocate(rawBytes.length);
     buffer.getStringWithoutLengthAscii(0, rawBytes.length, destination);
@@ -1244,7 +1244,7 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testGetStringWithoutLengthAscii_badBounds() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(
         IndexOutOfBoundsException.class, () -> buffer.getStringWithoutLengthAscii(-1, DATA.length));
@@ -1257,12 +1257,12 @@ public final class AbstractDirectBufferTest {
   @Test
   public void testGetStringUtf8() {
     String value = "This statement is false.";
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(
             ByteBuffer.wrap(getLengthPrefixedUtf8StringBytes(value, /* reverseLength= */ false)),
             CreateMode.VIEW);
-    TestableDirectBuffer reversed =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer reversed =
+        new TestableDirectByteBuffer(
             ByteBuffer.wrap(getLengthPrefixedUtf8StringBytes(value, /* reverseLength= */ true)),
             CreateMode.VIEW);
 
@@ -1275,10 +1275,10 @@ public final class AbstractDirectBufferTest {
     String value = "This statement is false.";
     byte[] rawBytes = getLengthPrefixedUtf8StringBytes(value, /* reverseLength= */ false);
     byte[] reversedBytes = getLengthPrefixedUtf8StringBytes(value, /* reverseLength= */ true);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
-    TestableDirectBuffer reversed =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer reversed =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
 
     assertThat(buffer.getStringUtf8(1)).isEqualTo(value);
     assertThat(reversed.getStringUtf8(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
@@ -1288,8 +1288,8 @@ public final class AbstractDirectBufferTest {
   public void testGetStringUtf8_overrideLength() {
     String value = "This statement is false.";
     int customLength = 3;
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(
             ByteBuffer.wrap(getLengthPrefixedUtf8StringBytes(value, /* reverseLength= */ false)),
             CreateMode.VIEW);
     // Reverse unnecessary, since the length prefix is skipped
@@ -1304,8 +1304,8 @@ public final class AbstractDirectBufferTest {
     String value = "This statement is false.";
     byte[] rawBytes = getLengthPrefixedUtf8StringBytes(value, /* reverseLength= */ false);
     int customLength = 3;
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
     // Reverse unnecessary, since the length prefix is skipped
 
     String expected = value.substring(0, customLength);
@@ -1315,7 +1315,7 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testGetStringUtf8_badBounds() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.getStringUtf8(-1));
     // The integer read in will be 123, which will way exceed length when trying to read string
@@ -1331,15 +1331,15 @@ public final class AbstractDirectBufferTest {
   public void testGetStringWithoutLengthUtf8() {
     String value = "This statement is false.";
     byte[] rawBytes = value.getBytes(UTF_8);
-    TestableDirectBuffer buffer =
-        new TestableDirectBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
+    TestableDirectByteBuffer buffer =
+        new TestableDirectByteBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
 
     assertThat(buffer.getStringWithoutLengthUtf8(0, rawBytes.length)).isEqualTo(value);
   }
 
   @Test
   public void testGetStringWithoutLengthUtf8_badBounds() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(
         IndexOutOfBoundsException.class, () -> buffer.getStringWithoutLengthUtf8(-1, DATA.length));
@@ -1351,14 +1351,14 @@ public final class AbstractDirectBufferTest {
 
   @Test
   public void testCheckBounds_valid() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
     buffer.boundsCheck(0, DATA.length);
     buffer.boundsCheck(1, DATA.length - 1);
   }
 
   @Test
   public void testCheckBounds_invalid() {
-    TestableDirectBuffer buffer = new TestableDirectBuffer(underlying, CreateMode.VIEW);
+    TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.boundsCheck(-1, DATA.length));
     assertThrows(IndexOutOfBoundsException.class, () -> buffer.boundsCheck(DATA.length, 1));
