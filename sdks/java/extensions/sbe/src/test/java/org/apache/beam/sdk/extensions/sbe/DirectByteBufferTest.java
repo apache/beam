@@ -17,10 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sbe;
 
-import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -85,10 +89,11 @@ public final class DirectByteBufferTest {
     byte[] actualData = new byte[DATA.length];
     buffer.buffer().get(actualData);
 
-    assertThat(buffer.buffer()).isNotSameInstanceAs(underlying);
-    assertThat(actualData).isEqualTo(DATA);
-    assertThat(buffer.offset()).isEqualTo(0);
-    assertThat(buffer.length()).isEqualTo(DATA.length);
+    assertNotSame(underlying, buffer.buffer());
+    assertArrayEquals(DATA, actualData);
+    assertEquals(0, buffer.offset());
+    assertEquals(DATA.length, buffer.length());
+    assertEquals(underlying.capacity(), buffer.capacity());
   }
 
   @Test
@@ -106,11 +111,11 @@ public final class DirectByteBufferTest {
     byte[] expectedData = new byte[length];
     System.arraycopy(DATA, offset, expectedData, 0, length);
 
-    assertThat(buffer.buffer()).isNotSameInstanceAs(underlying);
-    assertThat(actualData).isEqualTo(expectedData);
-    assertThat(buffer.offset()).isEqualTo(0);
-    assertThat(buffer.length()).isEqualTo(length);
-    assertThat(buffer.buffer().capacity()).isEqualTo(underlying.capacity());
+    assertNotSame(underlying, buffer.buffer());
+    assertArrayEquals(expectedData, actualData);
+    assertEquals(0, buffer.offset());
+    assertEquals(length, buffer.length());
+    assertEquals(underlying.capacity(), buffer.capacity());
   }
 
   @Test
@@ -119,16 +124,17 @@ public final class DirectByteBufferTest {
 
     TestableDirectByteBuffer direct = new TestableDirectByteBuffer(buffer, CreateMode.COPY);
 
-    assertThat(direct.buffer().isDirect()).isTrue();
+    assertTrue(direct.buffer().isDirect());
   }
 
   @Test
   public void testConstructor_createModeView() {
     TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
-    assertThat(buffer.buffer()).isSameInstanceAs(underlying);
-    assertThat(buffer.offset()).isEqualTo(0);
-    assertThat(buffer.length()).isEqualTo(DATA.length);
+    assertSame(underlying, buffer.buffer());
+    assertEquals(0, buffer.offset());
+    assertEquals(DATA.length, buffer.length());
+    assertEquals(underlying.capacity(), buffer.capacity());
   }
 
   @Test
@@ -141,9 +147,10 @@ public final class DirectByteBufferTest {
 
     TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
 
-    assertThat(buffer.buffer()).isSameInstanceAs(underlying);
-    assertThat(buffer.offset()).isEqualTo(offset);
-    assertThat(buffer.length()).isEqualTo(length);
+    assertSame(underlying, buffer.buffer());
+    assertEquals(offset, buffer.offset());
+    assertEquals(length, buffer.length());
+    assertEquals(underlying.capacity(), buffer.capacity());
   }
 
   @Test
@@ -178,7 +185,7 @@ public final class DirectByteBufferTest {
   @Test
   public void testGetCopyAsArray() {
     TestableDirectByteBuffer buffer = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
-    assertThat(buffer.getCopyAsArray()).isEqualTo(DATA);
+    assertArrayEquals(DATA, buffer.getCopyAsArray());
   }
 
   @Test
@@ -188,31 +195,7 @@ public final class DirectByteBufferTest {
     byte[] actual = new byte[DATA.length];
     buffer.getCopyAsBuffer().get(actual);
 
-    assertThat(actual).isEqualTo(DATA);
-  }
-
-  @Test
-  public void testCapacity() {
-    TestableDirectByteBuffer copy = new TestableDirectByteBuffer(underlying, CreateMode.COPY);
-    TestableDirectByteBuffer view = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
-
-    int expected = underlying.capacity();
-
-    assertThat(copy.capacity()).isEqualTo(expected);
-    assertThat(view.capacity()).isEqualTo(expected);
-  }
-
-  @Test
-  public void testCapacity_customRange() {
-    underlying.position(1);
-    underlying.limit(4);
-    TestableDirectByteBuffer copy = new TestableDirectByteBuffer(underlying, CreateMode.COPY);
-    TestableDirectByteBuffer view = new TestableDirectByteBuffer(underlying, CreateMode.VIEW);
-
-    int expected = underlying.capacity();
-
-    assertThat(copy.capacity()).isEqualTo(expected);
-    assertThat(view.capacity()).isEqualTo(expected);
+    assertArrayEquals(DATA, actual);
   }
 
   @Test
@@ -242,9 +225,9 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer leBuffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getLong(0)).isEqualTo(value);
-    assertThat(beBuffer.getLong(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getLong(0, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getLong(0));
+    assertEquals(value, beBuffer.getLong(0, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, leBuffer.getLong(0, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -260,9 +243,9 @@ public final class DirectByteBufferTest {
         new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getLong(1)).isEqualTo(value);
-    assertThat(beBuffer.getLong(1, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getLong(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getLong(1));
+    assertEquals(value, beBuffer.getLong(1, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, leBuffer.getLong(1, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -290,9 +273,9 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer leBuffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getInt(0)).isEqualTo(value);
-    assertThat(beBuffer.getInt(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getInt(0, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getInt(0));
+    assertEquals(value, beBuffer.getInt(0, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, leBuffer.getInt(0, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -308,9 +291,9 @@ public final class DirectByteBufferTest {
         new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getInt(1)).isEqualTo(value);
-    assertThat(beBuffer.getInt(1, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getInt(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getInt(1));
+    assertEquals(value, beBuffer.getInt(1, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, leBuffer.getInt(1, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -336,8 +319,8 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer wrapped =
         new TestableDirectByteBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
 
-    assertThat(buffer.parseNaturalIntAscii(0, 2)).isEqualTo(value);
-    assertThat(wrapped.parseNaturalIntAscii(1, 2)).isEqualTo(value);
+    assertEquals(value, buffer.parseNaturalIntAscii(0, 2));
+    assertEquals(value, wrapped.parseNaturalIntAscii(1, 2));
   }
 
   @Test
@@ -346,7 +329,7 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
-    assertThat(buffer.parseNaturalIntAscii(0, strBytes.length)).isEqualTo(Integer.MAX_VALUE);
+    assertEquals(Integer.MAX_VALUE, buffer.parseNaturalIntAscii(0, strBytes.length));
   }
 
   @Test
@@ -407,8 +390,8 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer wrapped =
         new TestableDirectByteBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
 
-    assertThat(buffer.parseNaturalLongAscii(0, 2)).isEqualTo(value);
-    assertThat(wrapped.parseNaturalLongAscii(1, 2)).isEqualTo(value);
+    assertEquals(value, buffer.parseNaturalLongAscii(0, 2));
+    assertEquals(value, wrapped.parseNaturalLongAscii(1, 2));
   }
 
   @Test
@@ -417,7 +400,7 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
-    assertThat(buffer.parseNaturalLongAscii(0, strBytes.length)).isEqualTo(Long.MAX_VALUE);
+    assertEquals(Long.MAX_VALUE, buffer.parseNaturalLongAscii(0, strBytes.length));
   }
 
   @Test
@@ -481,8 +464,8 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer wrapped =
         new TestableDirectByteBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
 
-    assertThat(buffer.parseIntAscii(0, 2)).isEqualTo(value);
-    assertThat(wrapped.parseIntAscii(1, 2)).isEqualTo(value);
+    assertEquals(value, buffer.parseIntAscii(0, 2));
+    assertEquals(value, wrapped.parseIntAscii(1, 2));
   }
 
   @Test
@@ -491,7 +474,7 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
-    assertThat(buffer.parseIntAscii(0, strBytes.length)).isEqualTo(Integer.MAX_VALUE);
+    assertEquals(Integer.MAX_VALUE, buffer.parseIntAscii(0, strBytes.length));
   }
 
   @Test
@@ -500,7 +483,7 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
-    assertThat(buffer.parseIntAscii(0, strBytes.length)).isEqualTo(Integer.MIN_VALUE);
+    assertEquals(Integer.MIN_VALUE, buffer.parseIntAscii(0, strBytes.length));
   }
 
   @Test
@@ -561,7 +544,7 @@ public final class DirectByteBufferTest {
         new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     // Length of 1 means only a negative sign will be read, which is bad
-    assertThat(buffer.parseIntAscii(0, 2)).isEqualTo(value);
+    assertEquals(value, buffer.parseIntAscii(0, 2));
     assertThrows(IllegalArgumentException.class, () -> buffer.parseIntAscii(0, 1));
   }
 
@@ -574,8 +557,8 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer wrapped =
         new TestableDirectByteBuffer(createBufferWithSurroundingBytes(strBytes), CreateMode.VIEW);
 
-    assertThat(buffer.parseLongAscii(0, 2)).isEqualTo(value);
-    assertThat(wrapped.parseLongAscii(1, 2)).isEqualTo(value);
+    assertEquals(value, buffer.parseLongAscii(0, 2));
+    assertEquals(value, wrapped.parseLongAscii(1, 2));
   }
 
   @Test
@@ -584,7 +567,7 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
-    assertThat(buffer.parseLongAscii(0, strBytes.length)).isEqualTo(Long.MAX_VALUE);
+    assertEquals(Long.MAX_VALUE, buffer.parseLongAscii(0, strBytes.length));
   }
 
   @Test
@@ -593,7 +576,7 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
-    assertThat(buffer.parseLongAscii(0, strBytes.length)).isEqualTo(Long.MIN_VALUE);
+    assertEquals(Long.MIN_VALUE, buffer.parseLongAscii(0, strBytes.length));
   }
 
   @Test
@@ -654,7 +637,7 @@ public final class DirectByteBufferTest {
         new TestableDirectByteBuffer(ByteBuffer.wrap(strBytes), CreateMode.VIEW);
 
     // Length of 1 means only a negative sign will be read, which is bad
-    assertThat(buffer.parseLongAscii(0, 2)).isEqualTo(value);
+    assertEquals(value, buffer.parseLongAscii(0, 2));
     assertThrows(IllegalArgumentException.class, () -> buffer.parseLongAscii(0, 1));
   }
 
@@ -669,9 +652,9 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer leBuffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getDouble(0)).isEqualTo(value);
-    assertThat(beBuffer.getDouble(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getDouble(0, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getDouble(0), 0);
+    assertEquals(value, beBuffer.getDouble(0, ByteOrder.BIG_ENDIAN), 0);
+    assertEquals(value, leBuffer.getDouble(0, ByteOrder.LITTLE_ENDIAN), 0);
   }
 
   @Test
@@ -687,9 +670,9 @@ public final class DirectByteBufferTest {
         new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getDouble(1)).isEqualTo(value);
-    assertThat(beBuffer.getDouble(1, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getDouble(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getDouble(1), 0);
+    assertEquals(value, beBuffer.getDouble(1, ByteOrder.BIG_ENDIAN), 0);
+    assertEquals(value, leBuffer.getDouble(1, ByteOrder.LITTLE_ENDIAN), 0);
   }
 
   @Test
@@ -718,9 +701,9 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer leBuffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getFloat(0)).isEqualTo(value);
-    assertThat(beBuffer.getFloat(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getFloat(0, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getFloat(0), 0);
+    assertEquals(value, beBuffer.getFloat(0, ByteOrder.BIG_ENDIAN), 0);
+    assertEquals(value, leBuffer.getFloat(0, ByteOrder.LITTLE_ENDIAN), 0);
   }
 
   @Test
@@ -736,9 +719,9 @@ public final class DirectByteBufferTest {
         new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getFloat(1)).isEqualTo(value);
-    assertThat(beBuffer.getFloat(1, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getFloat(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getFloat(1), 0);
+    assertEquals(value, beBuffer.getFloat(1, ByteOrder.BIG_ENDIAN), 0);
+    assertEquals(value, leBuffer.getFloat(1, ByteOrder.LITTLE_ENDIAN), 0);
   }
 
   @Test
@@ -767,9 +750,9 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer leBuffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getShort(0)).isEqualTo(value);
-    assertThat(beBuffer.getShort(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getShort(0, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getShort(0));
+    assertEquals(value, beBuffer.getShort(0, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, leBuffer.getShort(0, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -785,9 +768,9 @@ public final class DirectByteBufferTest {
         new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getShort(1)).isEqualTo(value);
-    assertThat(beBuffer.getShort(1, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getShort(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getShort(1));
+    assertEquals(value, beBuffer.getShort(1, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, leBuffer.getShort(1, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -815,9 +798,9 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer leBuffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getChar(0)).isEqualTo(value);
-    assertThat(beBuffer.getChar(0, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getChar(0, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getChar(0));
+    assertEquals(value, beBuffer.getChar(0, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, leBuffer.getChar(0, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -833,9 +816,9 @@ public final class DirectByteBufferTest {
         new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(valueBytesLittleEndian), CreateMode.VIEW);
 
-    assertThat(beBuffer.getChar(1)).isEqualTo(value);
-    assertThat(beBuffer.getChar(1, ByteOrder.BIG_ENDIAN)).isEqualTo(value);
-    assertThat(leBuffer.getChar(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, beBuffer.getChar(1));
+    assertEquals(value, beBuffer.getChar(1, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, leBuffer.getChar(1, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -857,7 +840,7 @@ public final class DirectByteBufferTest {
     byte value = 42;
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(new byte[] {value}), CreateMode.VIEW);
-    assertThat(buffer.getByte(0)).isEqualTo(value);
+    assertEquals(value, buffer.getByte(0));
   }
 
   @Test
@@ -866,7 +849,7 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(new byte[] {value}), CreateMode.VIEW);
-    assertThat(buffer.getByte(1)).isEqualTo(value);
+    assertEquals(value, buffer.getByte(1));
   }
 
   @Test
@@ -884,7 +867,7 @@ public final class DirectByteBufferTest {
     byte[] actual = new byte[DATA.length];
     buffer.getBytes(0, actual);
 
-    assertThat(actual).isEqualTo(DATA);
+    assertArrayEquals(DATA, actual);
   }
 
   @Test
@@ -895,7 +878,7 @@ public final class DirectByteBufferTest {
     byte[] actual = new byte[DATA.length];
     buffer.getBytes(1, actual);
 
-    assertThat(actual).isEqualTo(DATA);
+    assertArrayEquals(DATA, actual);
   }
 
   @Test
@@ -908,7 +891,7 @@ public final class DirectByteBufferTest {
 
     byte[] expected = Arrays.copyOf(DATA, newLength);
 
-    assertThat(actual).isEqualTo(expected);
+    assertArrayEquals(expected, actual);
   }
 
   @Test
@@ -941,7 +924,7 @@ public final class DirectByteBufferTest {
     byte[] expected = new byte[length];
     System.arraycopy(DATA, sourceIndex, expected, dstOffset, length);
 
-    assertThat(actual).isEqualTo(expected);
+    assertArrayEquals(expected, actual);
   }
 
   @Test
@@ -958,7 +941,7 @@ public final class DirectByteBufferTest {
     byte[] expected = new byte[totalLength];
     System.arraycopy(DATA, sourceIndex, expected, dstOffset, length);
 
-    assertThat(actual).isEqualTo(expected);
+    assertArrayEquals(expected, actual);
   }
 
   @Test
@@ -975,7 +958,7 @@ public final class DirectByteBufferTest {
     byte[] expected = new byte[totalLength];
     System.arraycopy(DATA, sourceIndex, expected, dstOffset, length);
 
-    assertThat(actual).isEqualTo(expected);
+    assertArrayEquals(expected, actual);
   }
 
   @Test
@@ -1007,7 +990,7 @@ public final class DirectByteBufferTest {
     byte[] expected = new byte[totalLength];
     System.arraycopy(DATA, sourceIndex, expected, dstOffset, length);
 
-    assertThat(actualArray).isEqualTo(expected);
+    assertArrayEquals(expected, actualArray);
   }
 
   // Skipping bounds checking on MutableDirectBuffer, since it will come down in part to the
@@ -1023,8 +1006,8 @@ public final class DirectByteBufferTest {
     buffer.getBytes(0, full, DATA.length);
     buffer.getBytes(0, partial, partialLength);
 
-    assertThat(full.array()).isEqualTo(DATA);
-    assertThat(partial.array()).isEqualTo(Arrays.copyOf(DATA, partialLength));
+    assertArrayEquals(DATA, full.array());
+    assertArrayEquals(Arrays.copyOf(DATA, partialLength), partial.array());
   }
 
   @Test
@@ -1038,8 +1021,8 @@ public final class DirectByteBufferTest {
     buffer.getBytes(1, full, DATA.length);
     buffer.getBytes(1, partial, partialLength);
 
-    assertThat(full.array()).isEqualTo(DATA);
-    assertThat(partial.array()).isEqualTo(Arrays.copyOf(DATA, partialLength));
+    assertArrayEquals(DATA, full.array());
+    assertArrayEquals(Arrays.copyOf(DATA, partialLength), partial.array());
   }
 
   @Test
@@ -1072,7 +1055,7 @@ public final class DirectByteBufferTest {
     byte[] expected = new byte[totalLength];
     System.arraycopy(DATA, sourceIndex, expected, dstOffset, length);
 
-    assertThat(dst.array()).isEqualTo(expected);
+    assertArrayEquals(expected, dst.array());
   }
 
   @Test
@@ -1100,8 +1083,9 @@ public final class DirectByteBufferTest {
             ByteBuffer.wrap(getLengthPrefixedAsciiStringBytes(value, /* reverseLength= */ true)),
             CreateMode.VIEW);
 
-    assertThat(buffer.getStringAscii(0)).isEqualTo(value);
-    assertThat(reversed.getStringAscii(0, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, buffer.getStringAscii(0));
+    assertEquals(value, buffer.getStringAscii(0, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, reversed.getStringAscii(0, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -1115,8 +1099,9 @@ public final class DirectByteBufferTest {
         new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
 
-    assertThat(buffer.getStringAscii(1)).isEqualTo(value);
-    assertThat(reversed.getStringAscii(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, buffer.getStringAscii(1));
+    assertEquals(value, buffer.getStringAscii(1, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, reversed.getStringAscii(1, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -1131,7 +1116,7 @@ public final class DirectByteBufferTest {
 
     String expected = value.substring(0, customLength);
 
-    assertThat(buffer.getStringAscii(0, customLength)).isEqualTo(expected);
+    assertEquals(expected, buffer.getStringAscii(0, customLength));
   }
 
   @Test
@@ -1145,7 +1130,7 @@ public final class DirectByteBufferTest {
 
     String expected = value.substring(0, customLength);
 
-    assertThat(buffer.getStringAscii(1, customLength)).isEqualTo(expected);
+    assertEquals(expected, buffer.getStringAscii(1, customLength));
   }
 
   @Test
@@ -1183,8 +1168,8 @@ public final class DirectByteBufferTest {
     leDestination.position(0);
 
     // The destinations likely have extra content beyond the write, so startsWith is used
-    assertThat(beDestination.toString()).startsWith(value);
-    assertThat(leDestination.toString()).startsWith(value);
+    assertTrue(beDestination.toString().startsWith(value));
+    assertTrue(leDestination.toString().startsWith(value));
   }
 
   @Test
@@ -1208,8 +1193,8 @@ public final class DirectByteBufferTest {
     leDestination.position(0);
 
     // The destinations likely have extra content beyond the write, so startsWith is used
-    assertThat(beDestination.toString()).startsWith(value);
-    assertThat(leDestination.toString()).startsWith(value);
+    assertTrue(beDestination.toString().startsWith(value));
+    assertTrue(leDestination.toString().startsWith(value));
   }
 
   @Test
@@ -1226,7 +1211,7 @@ public final class DirectByteBufferTest {
 
     String expected = value.substring(0, length);
 
-    assertThat(destination.toString()).isEqualTo(expected);
+    assertEquals(expected, destination.toString());
   }
 
   @Test
@@ -1236,7 +1221,7 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
 
-    assertThat(buffer.getStringWithoutLengthAscii(0, rawBytes.length)).isEqualTo(value);
+    assertEquals(value, buffer.getStringWithoutLengthAscii(0, rawBytes.length));
   }
 
   @Test
@@ -1250,7 +1235,7 @@ public final class DirectByteBufferTest {
     buffer.getStringWithoutLengthAscii(0, rawBytes.length, destination);
     destination.position(0); // Necessary for toString to capture the actual contents
 
-    assertThat(destination.toString()).isEqualTo(value);
+    assertEquals(value, destination.toString());
   }
 
   @Test
@@ -1277,8 +1262,9 @@ public final class DirectByteBufferTest {
             ByteBuffer.wrap(getLengthPrefixedUtf8StringBytes(value, /* reverseLength= */ true)),
             CreateMode.VIEW);
 
-    assertThat(buffer.getStringUtf8(0)).isEqualTo(value);
-    assertThat(reversed.getStringUtf8(0, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, buffer.getStringUtf8(0));
+    assertEquals(value, buffer.getStringUtf8(0, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, reversed.getStringUtf8(0, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -1292,8 +1278,9 @@ public final class DirectByteBufferTest {
         new TestableDirectByteBuffer(
             createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
 
-    assertThat(buffer.getStringUtf8(1)).isEqualTo(value);
-    assertThat(reversed.getStringUtf8(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
+    assertEquals(value, buffer.getStringUtf8(1));
+    assertEquals(value, buffer.getStringUtf8(1, ByteOrder.BIG_ENDIAN));
+    assertEquals(value, reversed.getStringUtf8(1, ByteOrder.LITTLE_ENDIAN));
   }
 
   @Test
@@ -1308,7 +1295,7 @@ public final class DirectByteBufferTest {
 
     String expected = value.substring(0, customLength);
 
-    assertThat(buffer.getStringUtf8(0, customLength)).isEqualTo(expected);
+    assertEquals(expected, buffer.getStringUtf8(0, customLength));
   }
 
   @Test
@@ -1322,7 +1309,7 @@ public final class DirectByteBufferTest {
 
     String expected = value.substring(0, customLength);
 
-    assertThat(buffer.getStringUtf8(1, customLength)).isEqualTo(expected);
+    assertEquals(expected, buffer.getStringUtf8(1, customLength));
   }
 
   @Test
@@ -1346,7 +1333,7 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(ByteBuffer.wrap(rawBytes), CreateMode.VIEW);
 
-    assertThat(buffer.getStringWithoutLengthUtf8(0, rawBytes.length)).isEqualTo(value);
+    assertEquals(value, buffer.getStringWithoutLengthUtf8(0, rawBytes.length));
   }
 
   @Test
