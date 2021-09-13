@@ -123,15 +123,16 @@ public class AwsModule extends SimpleModule {
 
       if (typeName.equals(AWSStaticCredentialsProvider.class.getSimpleName())) {
         boolean isSession = asMap.containsKey(SESSION_TOKEN);
-        if (isSession)
+        if (isSession) {
           return new AWSStaticCredentialsProvider(
               new BasicSessionCredentials(
                   asMap.get(AWS_ACCESS_KEY_ID),
                   asMap.get(AWS_SECRET_KEY),
                   asMap.get(SESSION_TOKEN)));
-        else
+        } else {
           return new AWSStaticCredentialsProvider(
               new BasicAWSCredentials(asMap.get(AWS_ACCESS_KEY_ID), asMap.get(AWS_SECRET_KEY)));
+        }
       } else if (typeName.equals(PropertiesFileCredentialsProvider.class.getSimpleName())) {
         return new PropertiesFileCredentialsProvider(asMap.get(CREDENTIALS_FILE_PATH));
       } else if (typeName.equals(

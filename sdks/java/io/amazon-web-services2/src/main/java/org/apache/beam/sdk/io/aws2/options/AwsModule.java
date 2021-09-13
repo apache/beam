@@ -112,15 +112,16 @@ public class AwsModule extends SimpleModule {
       }
       if (typeName.equals(StaticCredentialsProvider.class.getSimpleName())) {
         boolean isSession = asMap.containsKey(SESSION_TOKEN);
-        if (isSession)
+        if (isSession) {
           return StaticCredentialsProvider.create(
               AwsSessionCredentials.create(
                   asMap.get(ACCESS_KEY_ID),
                   asMap.get(SECRET_ACCESS_KEY),
                   asMap.get(SESSION_TOKEN)));
-        else
+        } else {
           return StaticCredentialsProvider.create(
               AwsBasicCredentials.create(asMap.get(ACCESS_KEY_ID), asMap.get(SECRET_ACCESS_KEY)));
+        }
       } else if (typeName.equals(DefaultCredentialsProvider.class.getSimpleName())) {
         return DefaultCredentialsProvider.create();
       } else if (typeName.equals(EnvironmentVariableCredentialsProvider.class.getSimpleName())) {
