@@ -37,9 +37,8 @@ import org.agrona.MutableDirectBuffer;
  * synchronize threads. If a concrete class needs to also implement {@link MutableDirectBuffer},
  * guaranteeing thread-safety is the responsibility of that class.
  *
- * <p>Everything that {@link DirectByteBuffer} does is considered safe for PCollections. It
- * creates its own copy of the data and does not allow direct access to that data. For this reason,
- * the following methods are not supported:
+ * <p>To better guarantee PCollection safety, {@link DirectByteBuffer} does not implement the
+ * following {@link DirectBuffer} methods:
  *
  * <ul>
  *   <li>Any {@code wrap} method.
@@ -52,9 +51,9 @@ import org.agrona.MutableDirectBuffer;
  * <p>The last two can still be gotten via copy rather than by accessing the underlying buffer
  * directly.
  *
- * <p>Implementations should use {@link DirectByteBuffer#DEFAULT_BYTE_ORDER} to determine the
- * order of bytes. If a passed-in {@link ByteOrder} is different, then the bytes should be reversed
- * before writes or after reads.
+ * <p>Implementations should use {@link DirectByteBuffer#DEFAULT_BYTE_ORDER} to determine the order
+ * of bytes. If a passed-in {@link ByteOrder} is different, then the bytes should be reversed before
+ * writes or after reads.
  *
  * <p>Implementations should implement {@link Object#equals(Object)} and {@link Object#hashCode()}.
  * Implementations are required to implement {@link Comparable#compareTo(Object)}.
@@ -79,8 +78,15 @@ public abstract class DirectByteBuffer implements DirectBuffer {
    * if {@code mode} is {@link CreateMode#VIEW}, but only the data in the range [position, limit)
    * will be readable.
    *
+   * <p>If {@code mode} is {@link CreateMode#COPY}, then the underlying buffer will always be
+   * direct. If it is {@link CreateMode#VIEW}, then it will follow whatever {@code buffer} is. Note
+   * that this could lead to unexpected behavior on native I/O operations if the expectation is that
+   * this is always direct.
+   *
    * @param buffer the {@link ByteBuffer} to use to set the underlying data
    * @param mode whether to copy or view {@code buffer}
+   * @throws IllegalArgumentException if {@code mode} is {@link CreateMode#VIEW} and {@code buffer}
+   *     is neither direct nor wrapping an array
    */
   protected DirectByteBuffer(@Nonnull ByteBuffer buffer, CreateMode mode) {
     if (mode == CreateMode.COPY) {
@@ -198,9 +204,14 @@ public abstract class DirectByteBuffer implements DirectBuffer {
    * <p>This will have the same limit, capacity, and position as the underlying buffer. Data from
    * [0, limit) will also be the same, but data from [limit, capacity) may not.
    *
+   * <p>The returned buffer is always direct. No guarantees are made about whether or not it has an
+   * array.
+   *
    * @return a {@link ByteBuffer} with a copy of the data
    */
   public final ByteBuffer getCopyAsBuffer() {
+    // We could get a copy with buffer.asReadOnlyBuffer(), but this makes the returned buffer more
+    // flexible.
     return createCopyOfByteBuffer(buffer);
   }
 

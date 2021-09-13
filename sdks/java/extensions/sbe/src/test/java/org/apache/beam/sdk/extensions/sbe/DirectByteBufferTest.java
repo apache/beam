@@ -22,9 +22,6 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
-import com.google.common.primitives.Shorts;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.CharBuffer;
@@ -34,6 +31,9 @@ import org.agrona.DirectBuffer;
 import org.agrona.ExpandableArrayBuffer;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils;
 import org.apache.beam.sdk.extensions.sbe.DirectByteBuffer.CreateMode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Shorts;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -111,6 +111,15 @@ public final class DirectByteBufferTest {
     assertThat(buffer.offset()).isEqualTo(0);
     assertThat(buffer.length()).isEqualTo(length);
     assertThat(buffer.buffer().capacity()).isEqualTo(underlying.capacity());
+  }
+
+  @Test
+  public void testConstructor_createModeCopyForcesDirectness() {
+    ByteBuffer buffer = ByteBuffer.allocate(10); // Not allocated as direct
+
+    TestableDirectByteBuffer direct = new TestableDirectByteBuffer(buffer, CreateMode.COPY);
+
+    assertThat(direct.buffer().isDirect()).isTrue();
   }
 
   @Test
@@ -1103,7 +1112,8 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
     TestableDirectByteBuffer reversed =
-        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
+        new TestableDirectByteBuffer(
+            createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
 
     assertThat(buffer.getStringAscii(1)).isEqualTo(value);
     assertThat(reversed.getStringAscii(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
@@ -1185,7 +1195,8 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
     TestableDirectByteBuffer reversed =
-        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
+        new TestableDirectByteBuffer(
+            createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
 
     CharBuffer beDestination = CharBuffer.allocate(rawBytes.length);
     CharBuffer leDestination = CharBuffer.allocate(reversed.length);
@@ -1278,7 +1289,8 @@ public final class DirectByteBufferTest {
     TestableDirectByteBuffer buffer =
         new TestableDirectByteBuffer(createBufferWithSurroundingBytes(rawBytes), CreateMode.VIEW);
     TestableDirectByteBuffer reversed =
-        new TestableDirectByteBuffer(createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
+        new TestableDirectByteBuffer(
+            createBufferWithSurroundingBytes(reversedBytes), CreateMode.VIEW);
 
     assertThat(buffer.getStringUtf8(1)).isEqualTo(value);
     assertThat(reversed.getStringUtf8(1, ByteOrder.LITTLE_ENDIAN)).isEqualTo(value);
