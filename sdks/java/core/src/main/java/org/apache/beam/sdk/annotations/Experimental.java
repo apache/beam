@@ -106,5 +106,8 @@ public @interface Experimental {
 
     /** Portability related APIs. */
     PORTABILITY,
+
+    /** Extension that is experimental or still subject to breaking changes. */
+    EXTENSION,
   }
 }

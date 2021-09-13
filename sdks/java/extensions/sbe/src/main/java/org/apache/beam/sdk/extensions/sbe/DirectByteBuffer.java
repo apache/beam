@@ -29,6 +29,8 @@ import java.nio.charset.Charset;
 import javax.annotation.Nonnull;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * A default implementation for {@link DirectBuffer} that is designed for use in Beam types.
@@ -58,6 +60,7 @@ import org.agrona.MutableDirectBuffer;
  * <p>Implementations should implement {@link Object#equals(Object)} and {@link Object#hashCode()}.
  * Implementations are required to implement {@link Comparable#compareTo(Object)}.
  */
+@Experimental(Kind.EXTENSION)
 public abstract class DirectByteBuffer implements DirectBuffer {
 
   protected static final String UNSAFE_FOR_PCOLLECTION = "Unsafe for PCollection";
