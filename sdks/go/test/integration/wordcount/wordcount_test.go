@@ -16,7 +16,7 @@
 package wordcount
 
 import (
-	// "github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"strings"
 	"testing"
 
@@ -97,16 +97,16 @@ func TestWordCount(t *testing.T) {
 		memfs.Write(filename, []byte(strings.Join(test.lines, "\n")))
 
 		p := WordCount(filename, test.hash, test.words)
-		err := ptest.Run(p)
+		pr, err := ptest.RunWithMetrics(p)
 		if err != nil {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
-		// qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
-		// 	return sr.Name() == test.name
-		// })
-		// if len(qr.Counters()) != test.counters {
-		// 	t.Errorf("Metrics filtering with Name failed.\nGot %d counters \n Want %d counters", len(qr.Counters()), test.counters)
-		// }
+		qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
+			return sr.Name() == test.name
+		})
+		if len(qr.Counters()) != test.counters {
+			t.Errorf("Metrics filtering with Name failed.\nGot %d counters \n Want %d counters", len(qr.Counters()), test.counters)
+		}
 	}
 }
 
