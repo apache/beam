@@ -9,7 +9,6 @@ ext.summary = "Add support to Beam for FIX SBE"
 dependencies {
     implementation 'org.agrona:agrona:1.12.0'
     compile project(path: ":sdks:java:core", configuration: "shadow")
-    testImplementation "com.google.truth:truth:1.1.3"
     testImplementation "junit:junit:4.13"
     testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
 }
