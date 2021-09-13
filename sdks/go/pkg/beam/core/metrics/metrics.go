@@ -489,42 +489,6 @@ type SingleResult interface {
 	Namespace() string
 }
 
-func (r CounterResult) Name() string {
-	return r.Key.Name
-}
-
-func (r CounterResult) Namespace() string {
-	return r.Key.Namespace
-}
-
-func (r CounterResult) Step() string {
-	return r.Key.Step
-}
-
-func (r DistributionResult) Name() string {
-	return r.Key.Name
-}
-
-func (r DistributionResult) Namespace() string {
-	return r.Key.Namespace
-}
-
-func (r DistributionResult) Step() string {
-	return r.Key.Step
-}
-
-func (r GaugeResult) Name() string {
-	return r.Key.Name
-}
-
-func (r GaugeResult) Namespace() string {
-	return r.Key.Namespace
-}
-
-func (r GaugeResult) Step() string {
-	return r.Key.Step
-}
-
 // Query allows metrics querying with filter. The filter takes the form of predicate function.
 // Ex: qr = pr.Metrics().Query(func(sr metrics.SingleResult) bool {
 //			return sr.Namespace() == test.namespace
@@ -597,6 +561,21 @@ func (r CounterResult) Result() int64 {
 	return r.Attempted
 }
 
+// Name returns the Name value from the Key field.
+func (r CounterResult) Name() string {
+	return r.Key.Name
+}
+
+// Namespace returns the Namespace value from the Key field.
+func (r CounterResult) Namespace() string {
+	return r.Key.Namespace
+}
+
+// Step returns the Step value from the Key field.
+func (r CounterResult) Step() string {
+	return r.Key.Step
+}
+
 // MergeCounters combines counter metrics that share a common key.
 func MergeCounters(
 	attempted map[StepKey]int64,
@@ -639,6 +618,21 @@ func (r DistributionResult) Result() DistributionValue {
 	return r.Attempted
 }
 
+// Name returns the Name value from the Key field.
+func (r DistributionResult) Name() string {
+	return r.Key.Name
+}
+
+// Namespace returns the Namespace value from the Key field.
+func (r DistributionResult) Namespace() string {
+	return r.Key.Namespace
+}
+
+// Step returns the Step value from the Key field.
+func (r DistributionResult) Step() string {
+	return r.Key.Step
+}
+
 // MergeDistributions combines distribution metrics that share a common key.
 func MergeDistributions(
 	attempted map[StepKey]DistributionValue,
@@ -679,6 +673,21 @@ func (r GaugeResult) Result() GaugeValue {
 		return r.Committed
 	}
 	return r.Attempted
+}
+
+// Name returns the Name value from the Key field.
+func (r GaugeResult) Name() string {
+	return r.Key.Name
+}
+
+// Namespace returns the Namespace value from the Key field.
+func (r GaugeResult) Namespace() string {
+	return r.Key.Namespace
+}
+
+// Step returns the Step value from the Key field.
+func (r GaugeResult) Step() string {
+	return r.Key.Step
 }
 
 // StepKey uniquely identifies a metric within a pipeline graph.

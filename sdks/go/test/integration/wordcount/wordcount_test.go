@@ -16,6 +16,7 @@
 package wordcount
 
 import (
+	// "github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"strings"
 	"testing"
 
@@ -30,9 +31,11 @@ import (
 
 func TestWordCount(t *testing.T) {
 	tests := []struct {
-		lines []string
-		words int
-		hash  string
+		lines    []string
+		words    int
+		hash     string
+		name     string
+		counters int
 	}{
 		{
 			[]string{
@@ -40,6 +43,8 @@ func TestWordCount(t *testing.T) {
 			},
 			1,
 			"6zZtmVTet7aIhR3wmPE8BA==",
+			"smallWords",
+			1,
 		},
 		{
 			[]string{
@@ -49,6 +54,8 @@ func TestWordCount(t *testing.T) {
 			},
 			1,
 			"jAk8+k4BOH7vQDUiUZdfWg==",
+			"smallWords",
+			1,
 		},
 		{
 			[]string{
@@ -56,6 +63,8 @@ func TestWordCount(t *testing.T) {
 			},
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==",
+			"smallWords",
+			1,
 		},
 		{
 			[]string{
@@ -63,6 +72,8 @@ func TestWordCount(t *testing.T) {
 			},
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==", // ordering doesn't matter: same hash as above
+			"smallWords",
+			1,
 		},
 		{
 			[]string{
@@ -75,6 +86,8 @@ func TestWordCount(t *testing.T) {
 			},
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==", // whitespace doesn't matter: same hash as above
+			"smallWords",
+			1,
 		},
 	}
 
@@ -84,10 +97,16 @@ func TestWordCount(t *testing.T) {
 		memfs.Write(filename, []byte(strings.Join(test.lines, "\n")))
 
 		p := WordCount(filename, test.hash, test.words)
-		_, err := ptest.RunWithMetrics(p)
+		err := ptest.Run(p)
 		if err != nil {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
+		// qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
+		// 	return sr.Name() == test.name
+		// })
+		// if len(qr.Counters()) != test.counters {
+		// 	t.Errorf("Metrics filtering with Name failed.\nGot %d counters \n Want %d counters", len(qr.Counters()), test.counters)
+		// }
 	}
 }
 
