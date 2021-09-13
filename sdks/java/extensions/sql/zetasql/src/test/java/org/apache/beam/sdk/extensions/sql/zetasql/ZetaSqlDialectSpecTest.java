@@ -3840,6 +3840,20 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testZetaSQLBitOrNull() {
+    String sql =
+        "SELECT bit_or(CAST(x as int64)) FROM "
+            + "(SELECT NULL x UNION ALL SELECT 5 UNION ALL SELECT 6);";
+
+    PCollection<Row> stream = execute(sql);
+
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(7L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testZetaSQLBitAnd() {
     String sql = "SELECT BIT_AND(row_id) FROM table_all_types GROUP BY bool_col";
 
@@ -3861,6 +3875,19 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue((Long) null).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testZetaSQLBitAndNulls() {
+    String sql =
+        "SELECT bit_and(CAST(x as int64)) FROM "
+            + "(SELECT NULL x UNION ALL SELECT 5 UNION ALL SELECT 6)";
+
+    PCollection<Row> stream = execute(sql);
+
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(4L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -3903,6 +3930,18 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addArray(1L, (Long) null, 3L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testArrayAggEmpty() {
+    String sql = "SELECT ARRAY_AGG(x) FROM UNNEST([]) AS x";
+
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue((Long) null).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -3968,6 +4007,28 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     Schema schema = Schema.builder().addInt64Field("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(4860L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testZetaSQLBitXorEmpty() {
+    String sql = "SELECT bit_xor(CAST(x as int64)) FROM (SELECT 1 x FROM (SELECT 1) WHERE false);";
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue((Long) null).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testZetaSQLBitXorNull() {
+    String sql = "SELECT bit_xor(x) FROM (SELECT CAST(NULL AS int64) x);";
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue((Long) null).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

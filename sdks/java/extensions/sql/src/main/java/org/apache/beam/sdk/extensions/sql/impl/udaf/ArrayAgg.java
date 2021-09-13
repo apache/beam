@@ -48,6 +48,9 @@ public class ArrayAgg {
 
     @Override
     public List<T> extractOutput(List<T> accumulator) {
+      if (accumulator.isEmpty()) {
+        return null;
+      }
       return accumulator;
     }
   }

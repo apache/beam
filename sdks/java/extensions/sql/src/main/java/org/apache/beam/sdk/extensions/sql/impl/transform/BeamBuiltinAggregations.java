@@ -66,10 +66,16 @@ public class BeamBuiltinAggregations {
               .put(
                   "$SUM0", typeName -> new DropNullFn(BeamBuiltinAggregations.createSum0(typeName)))
               .put("AVG", typeName -> new DropNullFn(BeamBuiltinAggregations.createAvg(typeName)))
-              .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
-              .put("BIT_XOR", BeamBuiltinAggregations::createBitXOr)
+              .put(
+                  "BIT_OR",
+                  typeName -> new DropNullFn(BeamBuiltinAggregations.createBitOr(typeName)))
+              .put(
+                  "BIT_XOR",
+                  typeName -> new DropNullFn(BeamBuiltinAggregations.createBitXOr(typeName)))
               // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
-              .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
+              .put(
+                  "BIT_AND",
+                  typeName -> new DropNullFn(BeamBuiltinAggregations.createBitAnd(typeName)))
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
@@ -515,11 +521,6 @@ public class BeamBuiltinAggregations {
     static class Accum implements Serializable {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
-      /**
-       * True if any null inputs have been seen. If we see a single null value, the end result is
-       * null, so if isNull is true, isEmpty and bitOr are ignored.
-       */
-      boolean isNull = false;
       /** The bitwise-or of the inputs seen so far. */
       long bitOr = 0L;
     }
@@ -531,13 +532,6 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Accum addInput(Accum accum, T input) {
-      if (accum.isNull) {
-        return accum;
-      }
-      if (input == null) {
-        accum.isNull = true;
-        return accum;
-      }
       accum.isEmpty = false;
       accum.bitOr |= input.longValue();
       return accum;
@@ -547,9 +541,6 @@ public class BeamBuiltinAggregations {
     public Accum mergeAccumulators(Iterable<Accum> accums) {
       Accum merged = createAccumulator();
       for (Accum accum : accums) {
-        if (accum.isNull) {
-          return accum;
-        }
         if (accum.isEmpty) {
           continue;
         }
@@ -561,7 +552,7 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Long extractOutput(Accum accum) {
-      if (accum.isEmpty || accum.isNull) {
+      if (accum.isEmpty) {
         return null;
       }
       return accum.bitOr;
@@ -578,11 +569,6 @@ public class BeamBuiltinAggregations {
     static class Accum implements Serializable {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
-      /**
-       * True if any null inputs have been seen. If we see a single null value, the end result is
-       * null, so if isNull is true, isEmpty and bitAnd are ignored.
-       */
-      boolean isNull = false;
       /** The bitwise-and of the inputs seen so far. */
       long bitAnd = -1L;
     }
@@ -594,13 +580,6 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Accum addInput(Accum accum, T input) {
-      if (accum.isNull) {
-        return accum;
-      }
-      if (input == null) {
-        accum.isNull = true;
-        return accum;
-      }
       accum.isEmpty = false;
       accum.bitAnd &= input.longValue();
       return accum;
@@ -610,9 +589,6 @@ public class BeamBuiltinAggregations {
     public Accum mergeAccumulators(Iterable<Accum> accums) {
       Accum merged = createAccumulator();
       for (Accum accum : accums) {
-        if (accum.isNull) {
-          return accum;
-        }
         if (accum.isEmpty) {
           continue;
         }
@@ -624,41 +600,53 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Long extractOutput(Accum accum) {
-      if (accum.isEmpty || accum.isNull) {
+      if (accum.isEmpty) {
         return null;
       }
       return accum.bitAnd;
     }
   }
 
-  public static class BitXOr<T extends Number> extends CombineFn<T, Long, Long> {
+  public static class BitXOr<T extends Number> extends CombineFn<T, BitXOr.Accum, Long> {
 
-    @Override
-    public Long createAccumulator() {
-      return 0L;
+    static class Accum implements Serializable {
+      /** True if no inputs have been seen yet. */
+      boolean isEmpty = true;
+      /** The bitwise-and of the inputs seen so far. */
+      long bitXOr = -1L;
     }
 
     @Override
-    public Long addInput(Long mutableAccumulator, T input) {
-      if (input != null) {
-        return mutableAccumulator ^ input.longValue();
-      } else {
-        return 0L;
-      }
+    public Accum createAccumulator() {
+      return new Accum();
     }
 
     @Override
-    public Long mergeAccumulators(Iterable<Long> accumulators) {
-      Long merged = createAccumulator();
-      for (Long accum : accumulators) {
-        merged = merged ^ accum;
+    public Accum addInput(Accum mutableAccumulator, T input) {
+      mutableAccumulator.isEmpty = false;
+      mutableAccumulator.bitXOr ^= input.longValue();
+      return mutableAccumulator;
+    }
+
+    @Override
+    public Accum mergeAccumulators(Iterable<Accum> accumulators) {
+      Accum merged = createAccumulator();
+      for (Accum accum : accumulators) {
+        if (accum.isEmpty) {
+          continue;
+        }
+        merged.isEmpty = false;
+        merged.bitXOr ^= accum.bitXOr;
       }
       return merged;
     }
 
     @Override
-    public Long extractOutput(Long accumulator) {
-      return accumulator;
+    public Long extractOutput(Accum accumulator) {
+      if (accumulator.isEmpty) {
+        return null;
+      }
+      return accumulator.bitXOr;
     }
   }
 }
