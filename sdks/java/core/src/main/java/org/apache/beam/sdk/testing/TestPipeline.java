@@ -97,7 +97,7 @@ import org.junit.runners.model.Statement;
  * <p>For pipeline runners, it is required that they must throw an {@link AssertionError} containing
  * the message from the {@link PAssert} that failed.
  *
- * <p>See also the <a href="https://beam.apache.org/contribute/testing/">Testing</a> documentation
+ * <p>See also the <a href="https://beam.apache.org/documentation/pipelines/test-your-pipeline/">Testing</a> documentation
  * section.
  */
 @SuppressWarnings({
