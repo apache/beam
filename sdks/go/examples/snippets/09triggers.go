@@ -23,12 +23,8 @@
 package snippets
 
 import (
-	"time"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
 // [START after_window_trigger]
@@ -37,19 +33,8 @@ trigger := window.TriggerAfterEndOfWindow()
 					.LateFiring(window.TriggerRepeat(window.TriggerAfterCount(1)))
 // [END after_window_trigger]
 
-// TriggerAlways tests the Always trigger, it is expected to receive every input value as the output.
-func TriggerAlways(s beam.Scope) beam.PCollection {
-	con := teststream.NewConfig()
-	con.AddElements(1000, 1.0, 2.0, 3.0)
-	con.AdvanceWatermark(11000)
-	pCollection := teststream.Create(s, con)
-	windowSize := 10 * time.Second
 
-	// [START always_trigger]
-	// define an always trigger
-	tr := window.Trigger{Kind: window.AlwaysTrigger}
-	windowed := beam.WindowInto(s, window.NewFixedWindows(windowSize), pCollection, beam.WindowTrigger{Name: tr}, beam.AccumulationMode{Mode: window.Discarding})
-	// [END always_trigger]
-	sums := stats.Sum(s, windowed)
-	return sums
-}
+// [START always_trigger]
+trigger := window.TriggerAlways()
+beam.WindowInto(s, window.NewFixedWindows(windowSize), pCollection, beam.Trigger(trigger), beam.PanesDiscard())
+// [END always_trigger]

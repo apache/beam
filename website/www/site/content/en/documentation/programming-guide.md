@@ -4652,9 +4652,9 @@ sets the window's **accumulation mode**.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-You set the trigger(s) for a `PCollection` by passing in the `beam.WindowTrigger` parameter
+You set the trigger(s) for a `PCollection` by passing in the `beam.Trigger` parameter
 when you use the `beam.WindowInto` transform. This code sample sets an Always
-trigger for a `PCollection`, which emits results every time an element in that window has been processed. The `AccumulationMode` parameter
+trigger for a `PCollection`, which emits results every time an element in that window has been processed. The `beam.AccumulationMode` parameter
 sets the window's **accumulation mode**.
 {{< /paragraph >}}
 
@@ -4700,9 +4700,9 @@ trigger. To set a window to discard fired panes, set `accumulation_mode` to
 
 {{< paragraph class="language-go" >}}
 To set a window to accumulate the panes that are produced when the trigger
-fires, set the `AccumulationMode{Mode:}` parameter to `AccumulationMode_ACCUMULATING` when you set the
-trigger. To set a window to discard fired panes, set `AccumulationMode{Mode:}` to
-`AccumulationMode_DISCARDING`.
+fires, set the `beam.AccumulationMode` parameter to `beam.PanesAccumulate()` when you set the
+trigger. To set a window to discard fired panes, set `beam.AccumulationMode` to
+`beam.PanesDiscard()`.
 {{< /paragraph >}}
 
 Let's look an example that uses a `PCollection` with fixed-time windowing and a
