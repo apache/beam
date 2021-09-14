@@ -1,5 +1,4 @@
 from apache_beam.utils.proto_utils import pack_Any, unpack_Any, to_Timestamp
-import pytest
 import unittest
 
 from google.protobuf import timestamp_pb2
