@@ -58,6 +58,7 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -72,6 +73,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
@@ -454,8 +458,31 @@ public class GcsUtil {
   @VisibleForTesting
   SeekableByteChannel open(GcsPath path, GoogleCloudStorageReadOptions readOptions)
       throws IOException {
-    return googleCloudStorage.open(
-        new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
+    HashMap<String, String> baseLabels = new HashMap<>();
+    baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
+    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "GcsGet");
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.cloudStorageBucket(path.getBucket()));
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.GCS_PROJECT_ID, googleCloudStorageOptions.getProjectId());
+    baseLabels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, path.getBucket());
+
+    ServiceCallMetric serviceCallMetric =
+        new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+    try {
+      SeekableByteChannel channel =
+          googleCloudStorage.open(
+              new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
+      serviceCallMetric.call("ok");
+      return channel;
+    } catch (IOException e) {
+      if (e.getCause() instanceof GoogleJsonResponseException) {
+        serviceCallMetric.call(((GoogleJsonResponseException) e.getCause()).getDetails().getCode());
+      }
+      throw e;
+    }
   }
 
   /**
@@ -487,9 +514,35 @@ public class GcsUtil {
     GoogleCloudStorage gcpStorage =
         new GoogleCloudStorageImpl(
             newGoogleCloudStorageOptions, this.storageClient, this.credentials);
-    return gcpStorage.create(
-        new StorageResourceId(path.getBucket(), path.getObject()),
-        CreateObjectOptions.builder().setOverwriteExisting(true).setContentType(type).build());
+    HashMap<String, String> baseLabels = new HashMap<>();
+    baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
+    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "GcsInsert");
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.cloudStorageBucket(path.getBucket()));
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.GCS_PROJECT_ID, googleCloudStorageOptions.getProjectId());
+    baseLabels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, path.getBucket());
+
+    ServiceCallMetric serviceCallMetric =
+        new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+    try {
+      WritableByteChannel channel =
+          gcpStorage.create(
+              new StorageResourceId(path.getBucket(), path.getObject()),
+              CreateObjectOptions.builder()
+                  .setOverwriteExisting(true)
+                  .setContentType(type)
+                  .build());
+      serviceCallMetric.call("ok");
+      return channel;
+    } catch (IOException e) {
+      if (e.getCause() instanceof GoogleJsonResponseException) {
+        serviceCallMetric.call(((GoogleJsonResponseException) e.getCause()).getDetails().getCode());
+      }
+      throw e;
+    }
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */

@@ -58,7 +58,11 @@ import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
+import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
+import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -71,6 +75,7 @@ import java.nio.file.AccessDeniedException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -78,6 +83,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.BatchInterface;
@@ -85,10 +94,12 @@ import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.RewriteOp;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -100,6 +111,13 @@ import org.mockito.Mockito;
 @RunWith(JUnit4.class)
 public class GcsUtilTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Before
+  public void setUp() {
+    // Setup the ProcessWideContainer for testing metrics are set.
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    MetricsEnvironment.setProcessWideContainer(container);
+  }
 
   private static GcsOptions gcsOptionsWithTestCredential() {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
@@ -783,6 +801,68 @@ public class GcsUtilTest {
         gcsUtil.open(GcsPath.fromComponents("testbucket", "testobject"), readOptions);
     channel.close();
     channel.close();
+  }
+
+  @Test
+  public void testGCSReadMetricsIsSet() {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+    gcsUtil.setCloudStorageImpl(
+        GoogleCloudStorageOptions.builder()
+            .setAppName("Beam")
+            .setGrpcEnabled(true)
+            .setProjectId("my_project")
+            .build());
+    GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(true).build();
+    assertThrows(
+        IOException.class,
+        () -> gcsUtil.open(GcsPath.fromComponents("testbucket", "testbucket"), readOptions));
+    verifyMetricWasSet("my_project", "testbucket", "GcsGet", "permission_denied", 1);
+  }
+
+  @Test
+  public void testGCSWriteMetricsIsSet() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+    GoogleCloudStorage mockStorage = Mockito.mock(GoogleCloudStorage.class);
+    gcsUtil.setCloudStorageImpl(
+        GoogleCloudStorageOptions.builder()
+            .setAppName("Beam")
+            .setGrpcEnabled(true)
+            .setProjectId("my_project")
+            .build());
+    when(mockStorage.create(
+            new StorageResourceId("testbucket", "testobject"),
+            CreateObjectOptions.builder()
+                .setOverwriteExisting(true)
+                .setContentType("type")
+                .build()))
+        .thenThrow(IOException.class);
+    GcsPath gcsPath = GcsPath.fromComponents("testbucket", "testobject");
+    assertThrows(IOException.class, () -> gcsUtil.create(gcsPath, ""));
+    verifyMetricWasSet("my_project", "testbucket", "GcsInsert", "permission_denied", 1);
+  }
+
+  private void verifyMetricWasSet(
+      String projectId, String bucketId, String method, String status, long count) {
+    // Verify the metric as reported.
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    labels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
+    labels.put(MonitoringInfoConstants.Labels.METHOD, method);
+    labels.put(MonitoringInfoConstants.Labels.GCS_PROJECT_ID, projectId);
+    labels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, bucketId);
+    labels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.cloudStorageBucket(bucketId));
+    labels.put(MonitoringInfoConstants.Labels.STATUS, status);
+
+    MonitoringInfoMetricName name =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
+    assertEquals(count, (long) container.getCounter(name).getCumulative());
   }
 
   /** Builds a fake GoogleJsonResponseException for testing API error handling. */
