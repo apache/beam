@@ -20,10 +20,11 @@ package org.apache.beam.sdk.extensions.sql.impl.udaf;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.Combine;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ArrayAgg {
 
-  public static class ArrayAggArray<T> extends Combine.CombineFn<T, List<T>, List<T>> {
+  public static class ArrayAggArray<T> extends Combine.CombineFn<T, List<T>, @Nullable List<T>> {
     @Override
     public List<T> createAccumulator() {
       return new ArrayList<>();
@@ -47,7 +48,7 @@ public class ArrayAgg {
     }
 
     @Override
-    public List<T> extractOutput(List<T> accumulator) {
+    public @Nullable List<T> extractOutput(List<T> accumulator) {
       if (accumulator.isEmpty()) {
         return null;
       }
