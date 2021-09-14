@@ -474,11 +474,6 @@ func (n *GlobalCombine) StartBundle(ctx context.Context, id string, data DataCon
 	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
 		return err
 	}
-	a, err := n.newAccum(ctx, nil)
-	if err != nil {
-		return err
-	}
-	n.accumulator = a
 	return nil
 }
 
@@ -488,6 +483,11 @@ func (n *GlobalCombine) ProcessElement(ctx context.Context, value *FullValue, va
 	first := false
 	if n.firstWindows == nil {
 		first = true
+		a, err := n.newAccum(ctx, nil)
+		if err != nil {
+			return err
+		}
+		n.accumulator = a
 		n.firstTimestamp = value.Timestamp
 		n.firstWindows = value.Windows
 	}
@@ -502,6 +502,11 @@ func (n *GlobalCombine) ProcessElement(ctx context.Context, value *FullValue, va
 // FinishBundle extracts the value from the accumulator, sends it to the output node,
 // and clears the accumulator before calling FinishBundle for Combine.
 func (n *GlobalCombine) FinishBundle(ctx context.Context) error {
+	// If nothing to process, finish the bundle immediately
+	if n.accumulator == nil {
+		return n.Combine.FinishBundle(ctx)
+	}
+	// Extract value from accumulator, pass to next node
 	a, err := n.extract(ctx, n.accumulator)
 	if err != nil {
 		return err
@@ -510,6 +515,7 @@ func (n *GlobalCombine) FinishBundle(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// Clean up
 	err = n.Combine.FinishBundle(ctx)
 	if err != nil {
 		return err
