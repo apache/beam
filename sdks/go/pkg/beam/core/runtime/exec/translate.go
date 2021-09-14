@@ -495,7 +495,12 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				case urnPerKeyCombineConvert:
 					u = &ConvertToAccumulators{Combine: cn}
 				default: // For unlifted combines
-					u = cn
+					if op == graph.CombineGlobally {
+						gc := &GlobalCombine{Combine: cn}
+						u = gc
+					} else {
+						u = cn
+					}
 				}
 			default:
 				panic(fmt.Sprintf("Opcode should be one of ParDo or Combine, but it is: %v", op))

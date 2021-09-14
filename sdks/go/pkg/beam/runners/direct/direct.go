@@ -23,7 +23,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -286,35 +285,15 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 		return b.links[id], nil
 
 	case graph.CombineGlobally:
-		edge.Input[0].From.Coder.Components = append(edge.Input[0].From.Coder.Components, coder.NewVarInt())
-
-		// Drop fixed key
-		d := &DropKey{UID: b.idgen.New(), Out: out[0]}
-		b.units = append(b.units, d)
-
-		// Run combine on global group
 		c := &exec.Combine{
 			UID:     b.idgen.New(),
 			Fn:      edge.CombineFn,
 			UsesKey: false,
-			Out:     d,
+			Out:     out[0],
 			PID:     path.Base(edge.CombineFn.Name()),
 		}
-		b.units = append(b.units, c)
 
-		// Group inputs by the fixed key.
-		g := &CoGBK{UID: b.idgen.New(), Edge: edge, Out: c}
-		b.units = append(b.units, g)
-
-		n := &Inject{UID: b.idgen.New(), N: 0, Out: g}
-		b.units = append(b.units, n)
-
-		// Add a fixed key to the inputs.
-		a := &AddFixedKey{UID: b.idgen.New(), Out: n}
-		b.units = append(b.units, a)
-
-		b.links[id] = a
-		return a, nil
+		u = &exec.GlobalCombine{Combine: c}
 
 	case graph.Combine:
 		usesKey := typex.IsKV(edge.Input[0].Type)

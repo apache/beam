@@ -24,6 +24,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
@@ -446,6 +447,89 @@ func (n *LiftedCombine) Down(ctx context.Context) error {
 	}
 	n.cache = nil
 	return nil
+}
+
+// GlobalCombine is an executor for running a combine operation across a PCollection.
+// Differs from a Combine node in that a GBK is not required beforehand.
+type GlobalCombine struct {
+	*Combine
+	accumulator    interface{}
+	firstTimestamp typex.EventTime
+	firstWindows   []typex.Window
+}
+
+// Up initializes the GlobalCombine.
+func (n *GlobalCombine) Up(ctx context.Context) error {
+	if err := n.Combine.Up(ctx); err != nil {
+		return err
+	}
+	n.accumulator = nil
+	n.firstWindows = nil
+	n.firstTimestamp = mtime.ZeroTimestamp
+	return nil
+}
+
+// StartBundle calls the Combine StartBundle.
+func (n *GlobalCombine) StartBundle(ctx context.Context, id string, data DataContext) error {
+	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ProcessElement combines elements given to it using the CombineFn and stores the results in an
+// accumulator between calls.
+func (n *GlobalCombine) ProcessElement(ctx context.Context, value *FullValue, values ...ReStream) error {
+	first := false
+	if n.accumulator == nil {
+		first = true
+		a, err := n.newAccum(ctx, nil)
+		if err != nil {
+			return err
+		}
+		n.accumulator = a
+		n.firstTimestamp = value.Timestamp
+		n.firstWindows = value.Windows
+	}
+	b, err := n.addInput(ctx, n.accumulator, nil, value.Elm, value.Timestamp, first)
+	if err != nil {
+		return err
+	}
+	n.accumulator = b
+	return nil
+}
+
+// FinishBundle extracts the value from the accumulator, sends it to the output node,
+// and clears the accumulator before calling FinishBundle for Combine.
+func (n *GlobalCombine) FinishBundle(ctx context.Context) error {
+	a, err := n.extract(ctx, n.accumulator)
+	if err != nil {
+		return err
+	}
+	err = n.Out.ProcessElement(ctx, &FullValue{Elm: a, Elm2: nil, Windows: n.firstWindows, Timestamp: n.firstTimestamp})
+	if err != nil {
+		return err
+	}
+	err = n.Combine.FinishBundle(ctx)
+	if err != nil {
+		return err
+	}
+	n.accumulator = nil
+	n.firstWindows = nil
+	n.firstTimestamp = mtime.ZeroTimestamp
+	return nil
+}
+
+// Down clears out the GlobalCombine accumulator and associated values.
+func (n *GlobalCombine) Down(ctx context.Context) error {
+	n.accumulator = nil
+	n.firstWindows = nil
+	n.firstTimestamp = mtime.ZeroTimestamp
+	return nil
+}
+
+func (n *GlobalCombine) String() string {
+	return fmt.Sprintf("CombineGlobally[%v] Out:%v", path.Base(n.Fn.Name()), n.Out.ID())
 }
 
 // MergeAccumulators is an executor for merging accumulators from a lifted combine.
