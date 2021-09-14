@@ -26,7 +26,10 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MetadataCoderV2;
 
-/** A {@link Coder} for {@link FileIO.ReadableFile} that includes {@link Metadata#lastModifiedMillis()}. */
+/**
+ * A {@link Coder} for {@link FileIO.ReadableFile} that includes {@link
+ * Metadata#lastModifiedMillis()}.
+ */
 public class ReadableFileCoderV2 extends AtomicCoder<FileIO.ReadableFile> {
   private static final ReadableFileCoderV2 INSTANCE = new ReadableFileCoderV2();
 
