@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import collections
+import collections.abc
 import logging
 import queue
 import threading

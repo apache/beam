@@ -23,6 +23,7 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 
 import collections
+import collections.abc
 import inspect
 import sys
 import types

@@ -23,6 +23,7 @@ Triggers control when in processing time windows get emitted.
 # pytype: skip-file
 
 import collections
+import collections.abc
 import copy
 import logging
 import numbers

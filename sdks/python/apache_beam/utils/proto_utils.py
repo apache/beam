@@ -40,13 +40,13 @@ message_types = (message.Message, )
 @overload
 def pack_Any(msg):
   # type: (message.Message) -> any_pb2.Any
-  pass
+  ...
 
 
 @overload
 def pack_Any(msg):
   # type: (None) -> None
-  pass
+  ...
 
 
 def pack_Any(msg):
@@ -65,13 +65,13 @@ def pack_Any(msg):
 @overload
 def unpack_Any(any_msg, msg_class):
   # type: (any_pb2.Any, Type[MessageT]) -> MessageT
-  pass
+  ...
 
 
 @overload
 def unpack_Any(any_msg, msg_class):
   # type: (any_pb2.Any, None) -> None
-  pass
+  ...
 
 
 def unpack_Any(any_msg, msg_class):
@@ -89,13 +89,13 @@ def unpack_Any(any_msg, msg_class):
 @overload
 def parse_Bytes(serialized_bytes, msg_class):
   # type: (bytes, Type[MessageT]) -> MessageT
-  pass
+  ...
 
 
 @overload
 def parse_Bytes(serialized_bytes, msg_class):
   # type: (bytes, Union[Type[bytes], None]) -> bytes
-  pass
+  ...
 
 
 def parse_Bytes(serialized_bytes, msg_class):

@@ -21,6 +21,7 @@
 
 import atexit
 import collections
+import collections.abc
 import logging
 import random
 import time
