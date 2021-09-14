@@ -1002,7 +1002,7 @@ class GrpcStateHandler(StateHandler):
     )  # type: queue.Queue[Union[beam_fn_api_pb2.StateRequest, Sentinel]]
     self._responses_by_id = {}  # type: Dict[str, _Future]
     self._last_id = 0
-    self._exception = None
+    self._exception = None  # type: Optional[Exception]
     self._context = threading.local()
     self.start()
 

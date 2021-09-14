@@ -428,7 +428,7 @@ class _GrpcDataChannel(DataChannel):
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
     self._closed = False
-    self._exception = None
+    self._exception = None  # type: Optional[Exception]
 
   def close(self):
     # type: () -> None
