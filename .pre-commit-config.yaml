@@ -42,3 +42,8 @@ repos:
         args: ["--rcfile=sdks/python/.pylintrc"]
         files: ^sdks/python/apache_beam/
         exclude: *exclude
+  - repo: https://github.com/pycqa/isort
+    rev: 5.8.0
+    hooks:
+      - id: isort
+        name: isort (python)

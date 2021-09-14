@@ -1,7 +1,9 @@
 import unittest
 from google.protobuf import timestamp_pb2
 
-from apache_beam.utils.proto_utils import pack_Any, to_Timestamp, unpack_Any
+from apache_beam.utils.proto_utils import pack_Any
+from apache_beam.utils.proto_utils import to_Timestamp
+from apache_beam.utils.proto_utils import unpack_Any
 
 
 class ProtoUtilsTest(unittest.TestCase):
