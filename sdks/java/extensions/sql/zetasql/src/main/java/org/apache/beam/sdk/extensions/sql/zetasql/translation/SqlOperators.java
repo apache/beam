@@ -161,7 +161,7 @@ public class SqlOperators {
   public static final SqlOperator BIT_XOR =
       createUdafOperator(
           "BIT_XOR",
-          x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
+          x -> NULLABLE_BIGINT,
           new UdafImpl<>(new BeamBuiltinAggregations.BitXOr<Number>()));
 
   public static final SqlOperator COUNTIF =

@@ -613,7 +613,7 @@ public class BeamBuiltinAggregations {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
       /** The bitwise-and of the inputs seen so far. */
-      long bitXOr = -1L;
+      long bitXOr = 0L;
     }
 
     @Override
@@ -623,8 +623,10 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Accum addInput(Accum mutableAccumulator, T input) {
-      mutableAccumulator.isEmpty = false;
-      mutableAccumulator.bitXOr ^= input.longValue();
+      if (input != null) {
+        mutableAccumulator.isEmpty = false;
+        mutableAccumulator.bitXOr ^= input.longValue();
+      }
       return mutableAccumulator;
     }
 
