@@ -24,7 +24,6 @@ import abc
 import collections
 import logging
 import queue
-import sys
 import threading
 import time
 from types import TracebackType
@@ -497,7 +496,8 @@ class _GrpcDataChannel(DataChannel):
             raise RuntimeError('Channel closed prematurely.')
           if abort_callback():
             return
-          raise self._exception
+          if self._exception:
+            raise self._exception
         else:
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             if element.is_last:

@@ -23,7 +23,6 @@ import collections
 import itertools
 import logging
 import queue
-import sys
 import threading
 import traceback
 from typing import TYPE_CHECKING
