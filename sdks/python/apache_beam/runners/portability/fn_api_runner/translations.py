@@ -25,8 +25,8 @@ import functools
 import itertools
 import logging
 from builtins import object
-from typing import Callable
 from typing import TYPE_CHECKING
+from typing import Callable
 from typing import Container
 from typing import DefaultDict
 from typing import Dict
@@ -98,12 +98,6 @@ SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
 # understood by the runner when deserializing.
 SafeCoderMapping = Dict[str, str]
 
-# A map from a PCollection coder ID to a Safe Coder ID
-# A safe coder is a coder that can be used on the runner-side of the FnApi.
-# A safe coder receives a byte string, and returns a type that can be
-# understood by the runner when deserializing.
-SafeCoderMapping = Dict[str, str]
-
 # DataSideInput maps SideInputIds to a tuple of the encoded bytes of the side
 # input content, and a payload specification regarding the type of side input
 # (MultiMap / Iterable).
@@ -125,8 +119,8 @@ BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
 
 # TODO(pabloem): Change tha name to a more representative one
 class DataInput(NamedTuple):
-  data: Optional[Dict[str, 'ListBuffer']]
-  timers: Optional[Dict[TimerFamilyId, 'ListBuffer']]
+  data: Optional[Dict[str, 'PartitionableBuffer']]
+  timers: Optional[Dict[TimerFamilyId, 'PartitionableBuffer']]
 
 
 class Stage(object):

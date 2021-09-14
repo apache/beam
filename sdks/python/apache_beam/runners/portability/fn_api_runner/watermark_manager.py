@@ -71,10 +71,11 @@ class WatermarkManager(object):
 
     def __str__(self):
       return 'StageNode<inputs=%s,side_inputs=%s' % (
-          ['%s(%s, upstream:%s)' %
-           (i.name, i.watermark(), i.upstream_watermark())
-           for i in self.inputs],
-          ['%s(%s)' % (i.name, i.watermark()) for i in self.side_inputs])
+          [
+              '%s(%s, upstream:%s)' %
+              (i.name, i.watermark(), i.upstream_watermark())
+              for i in self.inputs
+          ], ['%s(%s)' % (i.name, i.watermark()) for i in self.side_inputs])
 
     def output_watermark(self):
       if not self.inputs:

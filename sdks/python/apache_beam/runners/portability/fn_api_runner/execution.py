@@ -23,14 +23,14 @@ import collections
 import copy
 import itertools
 import logging
-from collections import defaultdict
-from typing import Generic
+import typing
 import uuid
 import weakref
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import DefaultDict
 from typing import Dict
+from typing import Generic
 from typing import Iterable
 from typing import Iterator
 from typing import List
@@ -40,8 +40,6 @@ from typing import Set
 from typing import Tuple
 from typing import TypeVar
 
-from apache_beam.runners.direct.clock import RealClock
-from apache_beam.runners.direct.clock import TestClock
 from typing_extensions import Protocol
 
 from apache_beam import coders
@@ -55,12 +53,12 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.direct.clock import RealClock
+from apache_beam.runners.direct.clock import TestClock
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner.translations import DataInput
-from apache_beam.runners.portability.fn_api_runner.translations import \
-  DataOutput
-from apache_beam.runners.portability.fn_api_runner.translations import \
-  OutputTimers
+from apache_beam.runners.portability.fn_api_runner.translations import DataOutput
+from apache_beam.runners.portability.fn_api_runner.translations import OutputTimers
 from apache_beam.runners.portability.fn_api_runner.translations import Stage
 from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
@@ -73,10 +71,10 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
-from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
   from apache_beam.coders.coder_impl import CoderImpl, WindowedValueCoderImpl
@@ -136,7 +134,7 @@ class ListBuffer:
     self._grouped_output = None  # type: Optional[List[List[bytes]]]
     self.cleared = False
 
-  def extend(self, extra: 'ListBuffer'):
+  def extend(self, extra: 'ListBuffer') -> None:
     if self.cleared:
       raise RuntimeError('Trying to append to a cleared ListBuffer.')
     if self._grouped_output:
@@ -392,9 +390,9 @@ class _ProcessingQueueManager(object):
        and inputs are dictionaries mapping PCollection name to data buffers.
   """
   class KeyedQueue(Generic[QUEUE_KEY_TYPE]):
-    def __init__(self):
-      self._q = collections.deque()
-      self._keyed_elements = {}
+    def __init__(self) -> None:
+      self._q: typing.Deque[DataInput] = collections.deque()
+      self._keyed_elements: MutableMapping[QUEUE_KEY_TYPE, DataInput] = {}
 
     def enque(self, elm: Tuple[QUEUE_KEY_TYPE, DataInput]) -> None:
       key = elm[0]
@@ -406,11 +404,11 @@ class _ProcessingQueueManager(object):
             existing_inputs.data[pcoll].extend(incoming_inputs.data[pcoll])
           elif incoming_inputs.data[pcoll]:
             existing_inputs.data[pcoll] = incoming_inputs.data[pcoll]
-        for timer_family in incoming_inputs.timers:
+        for timer_family in (incoming_inputs.timers or []):
           if incoming_inputs.timers[
               timer_family] and timer_family in existing_inputs.timers:
             existing_inputs.timers[timer_family].extend(
-                incoming_inputs.data[timer_family])
+                incoming_inputs.timers[timer_family])
           elif incoming_inputs.timers[timer_family]:
             existing_inputs.timers[timer_family] = incoming_inputs.timers[
                 timer_family]
@@ -424,17 +422,17 @@ class _ProcessingQueueManager(object):
       del self._keyed_elements[key]
       return elm
 
-    def __len__(self):
+    def __len__(self) -> int:
       return len(self._q)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
       return '<%s at 0x%x>' % (str(self), id(self))
 
-    def __str__(self):
+    def __str__(self) -> str:
       return '<%s len: %s %s>' % (
           self.__class__.__name__, len(self), list(self._q))
 
-  def __init__(self):
+  def __init__(self) -> None:
     # For time-pending and watermark-pending inputs, the key type is
     # STAGE+TIMESTAMP, while for the ready inputs, the key type is only STAGE.
     self.time_pending_inputs = _ProcessingQueueManager.KeyedQueue[Tuple[
@@ -443,7 +441,7 @@ class _ProcessingQueueManager(object):
         str, Timestamp]]()
     self.ready_inputs = _ProcessingQueueManager.KeyedQueue[str]()
 
-  def __str__(self):
+  def __str__(self) -> str:
     return '_ProcessingQueueManager(%s)' % self.__dict__
 
 
@@ -697,21 +695,24 @@ class FnApiRunnerExecutionContext(object):
     self.data_channel_coders = data_channel_coders
     self.num_workers = num_workers
     # TODO(pabloem): Move Clock classes out of DirectRunner and into FnApiRnr
-    self.clock = TestClock() if uses_teststream else RealClock()
+    self.clock: Union[TestClock, RealClock] = (TestClock()
+                                               if uses_teststream
+                                               else RealClock())
     self.queues = _ProcessingQueueManager()
 
     # The following set of dictionaries hold information mapping relationships
     # between various pipeline elements.
-    self.input_transform_to_buffer_id = {}
-    self.pcollection_to_producer_transform = {}
+    self.input_transform_to_buffer_id: MutableMapping[str, bytes] = {}
+    self.pcollection_to_producer_transform: MutableMapping[str, str] = {}
     # Map of buffer_id to its consumers. A consumer is the pair of
     # Stage name + Ptransform name that consume that buffer.
     self.buffer_id_to_consumer_pairs: Dict[bytes, Set[Tuple[str, str]]] = {}
     self._compute_pipeline_dictionaries()
 
     self.watermark_manager = WatermarkManager(stages)
-    from apache_beam.runners.portability.fn_api_runner import visualization_tools
-    visualization_tools.show_watermark_manager(self.watermark_manager)
+    # from apache_beam.runners.portability.fn_api_runner import \
+    #     visualization_tools
+    # visualization_tools.show_watermark_manager(self.watermark_manager)
     self.pipeline_context = pipeline_context.PipelineContext(
         self.pipeline_components,
         iterable_state_write=self._iterable_state_write)
@@ -724,13 +725,13 @@ class FnApiRunnerExecutionContext(object):
     self._stage_managers = {}
 
   def bundle_manager_for(
-      self, stage: Stage, num_workers: int = None) -> 'BundleContextManager':
+      self, stage: Stage, num_workers: Optional[int] = None) -> 'BundleContextManager':
     if stage.name not in self._stage_managers:
       self._stage_managers[stage.name] = BundleContextManager(
           self, stage, num_workers or self.num_workers)
     return self._stage_managers[stage.name]
 
-  def _compute_pipeline_dictionaries(self):
+  def _compute_pipeline_dictionaries(self) -> None:
     for s in self.stages.values():
       for t in s.transforms:
         buffer_id = t.spec.payload
@@ -757,10 +758,9 @@ class FnApiRunnerExecutionContext(object):
           _, output_pcoll = split_buffer_id(buffer_id)
           self.pcollection_to_producer_transform[output_pcoll] = t.unique_name
         elif t.spec.urn in translations.PAR_DO_URNS:
-          payload = proto_utils.parse_Bytes(
-              t.spec.payload, beam_runner_api_pb2.ParDoPayload)
+          pass
 
-  def setup(self):
+  def setup(self) -> None:
     """This sets up the pipeline to begin running.
 
     1. This function enqueues all initial pipeline bundles to be executed.
@@ -770,7 +770,7 @@ class FnApiRunnerExecutionContext(object):
     for stage in self.stages.values():
       self._enqueue_stage_initial_inputs(stage)
 
-  def _enqueue_stage_initial_inputs(self, stage):
+  def _enqueue_stage_initial_inputs(self, stage) -> None:
     """Sets up IMPULSE inputs for a stage, and the data GRPC API endpoint."""
     data_input = {}  # type: Dict[str, ListBuffer]
     ready_to_schedule = True
@@ -992,7 +992,7 @@ class BundleContextManager(object):
     self.stage_timer_outputs: OutputTimers = {}
     self._compute_expected_outputs()
 
-  def _compute_expected_outputs(self):
+  def _compute_expected_outputs(self) -> None:
     for transform in self.stage.transforms:
       if transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
         buffer_id = transform.spec.payload

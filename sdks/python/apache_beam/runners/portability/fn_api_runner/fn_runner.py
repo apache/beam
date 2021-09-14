@@ -61,13 +61,10 @@ from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner.execution import ListBuffer
-from apache_beam.runners.portability.fn_api_runner.translations import \
-  BundleProcessResult
+from apache_beam.runners.portability.fn_api_runner.translations import BundleProcessResult
 from apache_beam.runners.portability.fn_api_runner.translations import DataInput
-from apache_beam.runners.portability.fn_api_runner.translations import \
-  DataOutput
-from apache_beam.runners.portability.fn_api_runner.translations import \
-  OutputTimerData
+from apache_beam.runners.portability.fn_api_runner.translations import DataOutput
+from apache_beam.runners.portability.fn_api_runner.translations import OutputTimerData
 from apache_beam.runners.portability.fn_api_runner.translations import OutputTimers
 from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
@@ -85,7 +82,6 @@ if TYPE_CHECKING:
   from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandler
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.DEBUG)
 
 T = TypeVar('T')
 
@@ -124,7 +120,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = progress_request_frequency
-    self._profiler_factory = None  # type: Optional[Callable[[...], Profile]]
+    self._profiler_factory: Optional[Callable[[...], Profile]] = None
     self._use_state_iterables = use_state_iterables
     self._is_drain = is_drain
     self._provision_info = provision_info or ExtendedProvisionInfo(
@@ -357,7 +353,8 @@ class FnApiRunner(runner.PipelineRunner):
     """
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
-    monitoring_infos_by_stage = {}
+    monitoring_infos_by_stage: Mapping[str,
+                                       List[metrics_pb2.MonitoringInfo]] = {}
 
     runner_execution_context = execution.FnApiRunnerExecutionContext(
         stages,
@@ -402,8 +399,8 @@ class FnApiRunner(runner.PipelineRunner):
                         bundle_results.process_bundle.monitoring_infos,
                         monitoring_infos_by_stage[consuming_stage_name]))
           else:
-            monitoring_infos_by_stage[
-                consuming_stage_name] = bundle_results.process_bundle.monitoring_infos
+            monitoring_infos_by_stage[consuming_stage_name
+                ] = bundle_results.process_bundle.monitoring_infos
 
           # TODO(pabloem): This should work either way.
           if len(runner_execution_context.queues.ready_inputs) == 0:
@@ -412,9 +409,10 @@ class FnApiRunner(runner.PipelineRunner):
       assert len(runner_execution_context.queues.ready_inputs) == 0, (
               'A total of %d ready bundles did not execute.'
               % len(runner_execution_context.queues.ready_inputs))
-      assert len(runner_execution_context.queues.watermark_pending_inputs) == 0, (
-              'A total of %d watermark-pending bundles did not execute.'
-              % len(runner_execution_context.queues.watermark_pending_inputs))
+      assert len(
+          runner_execution_context.queues.watermark_pending_inputs) == 0, \
+        ('A total of %d watermark-pending bundles did not execute.'
+         % len(runner_execution_context.queues.watermark_pending_inputs))
       assert len(runner_execution_context.queues.time_pending_inputs) == 0, (
               'A total of %d time-pending bundles did not execute.'
               % len(runner_execution_context.queues.time_pending_inputs))
@@ -429,8 +427,8 @@ class FnApiRunner(runner.PipelineRunner):
       (stage_name, bundle_watermark), data_input = (
               runner_execution_context.queues.watermark_pending_inputs.deque())
       current_watermark = (
-              runner_execution_context.watermark_manager.get_stage_node(
-                  stage_name).input_watermark())
+          runner_execution_context.watermark_manager.get_stage_node(
+              stage_name).input_watermark())
       if current_watermark >= bundle_watermark:
         _LOGGER.debug(
             'Watermark: %s. Enqueuing bundle scheduled for (%s) for stage %s',
@@ -733,8 +731,9 @@ class FnApiRunner(runner.PipelineRunner):
     runner_execution_context.commit_side_inputs_to_state(data_side_input)
 
     for _, buffer_id in bundle_context_manager.stage_data_outputs.items():
-      for consuming_stage_name, consuming_transform in \
-          runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id, []):
+      for (consuming_stage_name, consuming_transform) in \
+          runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id,
+                                                                   []):
         if buffer_id not in runner_execution_context.pcoll_buffers:
           # TODO(pabloem): Why can this happen?
           continue
@@ -756,11 +755,13 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_context_manager: execution.BundleContextManager,
       fired_timers: translations.OutputTimerData):
     current_time = runner_execution_context.clock.time()
-    current_watermark = runner_execution_context.watermark_manager.get_stage_node(
+    current_watermark = \
+      runner_execution_context.watermark_manager.get_stage_node(
         bundle_context_manager.stage.name).input_watermark()
     for unique_timer_family in fired_timers:
       timer_data, target_timestamp = fired_timers[unique_timer_family]
-      _, time_domain = bundle_context_manager.stage_timer_outputs[unique_timer_family]
+      _, time_domain = bundle_context_manager.stage_timer_outputs[
+        unique_timer_family]
       if time_domain == beam_runner_api_pb2.TimeDomain.PROCESSING_TIME:
         if current_time >= target_timestamp:
           runner_execution_context.queues.ready_inputs.enque((
