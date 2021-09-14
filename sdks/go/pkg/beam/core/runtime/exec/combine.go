@@ -474,6 +474,11 @@ func (n *GlobalCombine) StartBundle(ctx context.Context, id string, data DataCon
 	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
 		return err
 	}
+	a, err := n.newAccum(ctx, nil)
+	if err != nil {
+		return err
+	}
+	n.accumulator = a
 	return nil
 }
 
@@ -481,13 +486,8 @@ func (n *GlobalCombine) StartBundle(ctx context.Context, id string, data DataCon
 // accumulator between calls.
 func (n *GlobalCombine) ProcessElement(ctx context.Context, value *FullValue, values ...ReStream) error {
 	first := false
-	if n.accumulator == nil {
+	if n.firstWindows == nil {
 		first = true
-		a, err := n.newAccum(ctx, nil)
-		if err != nil {
-			return err
-		}
-		n.accumulator = a
 		n.firstTimestamp = value.Timestamp
 		n.firstWindows = value.Windows
 	}
