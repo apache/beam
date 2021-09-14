@@ -1002,7 +1002,7 @@ class GrpcStateHandler(StateHandler):
     )  # type: queue.Queue[Union[beam_fn_api_pb2.StateRequest, Sentinel]]
     self._responses_by_id = {}  # type: Dict[str, _Future]
     self._last_id = 0
-    self._exc_info = None  # type: Optional[OptExcInfo]
+    self._exception = None
     self._context = threading.local()
     self.start()
 
@@ -1041,8 +1041,8 @@ class GrpcStateHandler(StateHandler):
           future.set(response)
           if self._done:
             break
-      except:  # pylint: disable=bare-except
-        self._exc_info = sys.exc_info()
+      except Exception as e:
+        self._exception = e
         raise
 
     reader = threading.Thread(target=pull_responses, name='read_state')
@@ -1099,10 +1099,8 @@ class GrpcStateHandler(StateHandler):
     # type: (beam_fn_api_pb2.StateRequest) -> beam_fn_api_pb2.StateResponse
     req_future = self._request(request)
     while not req_future.wait(timeout=1):
-      if self._exc_info:
-        t, v, tb = self._exc_info
-        if t and v and tb:
-          raise t(v).with_traceback(tb)
+      if self._exception:
+        raise self._exception
       elif self._done:
         raise RuntimeError()
     response = req_future.get()
