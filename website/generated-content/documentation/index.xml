@@ -1616,7 +1616,8 @@ limitations under the License.
 &lt;p>To configure an &lt;code>HCatalog&lt;/code> sink, you must specify a metastore URI and a table name. Other
 optional parameters are database, partition and batchsize.
 The destination table should exist beforehand as the transform will not create a new table if missing.&lt;/p>
-&lt;p>For example:
+&lt;p>For example:&lt;/p>
+&lt;p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1634,7 +1635,6 @@ The destination table should exist beforehand as the transform will not create a
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">withBatchSize&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1024L&lt;/span>&lt;span class="o">))&lt;/span> &lt;span class="o">//&lt;/span>&lt;span class="n">optional&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">assumes&lt;/span> &lt;span class="n">a&lt;/span> &lt;span class="k">default&lt;/span> &lt;span class="n">batch&lt;/span> &lt;span class="n">size&lt;/span> &lt;span class="n">of&lt;/span> &lt;span class="n">1024&lt;/span> &lt;span class="k">if&lt;/span> &lt;span class="n">none&lt;/span> &lt;span class="n">specified&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1643,6 +1643,7 @@ The destination table should exist beforehand as the transform will not create a
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py"> &lt;span class="c1"># The Beam SDK for Python does not support HCatalogIO.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;/p>
 &lt;h3 id="using-older-versions-of-hcatalog-1x">Using older versions of HCatalog (1.x)&lt;/h3>
 &lt;p>&lt;code>HCatalogIO&lt;/code> is built for Apache HCatalog versions 2 and up and will not work out of the box for older versions of HCatalog.
 The following illustrates a workaround to work with Hive 1.1.&lt;/p>
