@@ -198,12 +198,6 @@ class _CoGBKImpl(PTransform):
       if self.pipeline:
         assert pcoll.pipeline == self.pipeline
 
-    def print_and_return(label):
-      def _par(x):
-        print(label, x)
-        return x
-
-      return _par
     tags = list(pcolls.keys())
 
     def add_tag(tag):
@@ -221,7 +215,6 @@ class _CoGBKImpl(PTransform):
         for (tag, pcoll) in pcolls.items()
     ]
             | Flatten(pipeline=self.pipeline)
-            | Map(print_and_return('afterflatteinias'))
             | GroupByKey()
             | MapTuple(collect_values))
 

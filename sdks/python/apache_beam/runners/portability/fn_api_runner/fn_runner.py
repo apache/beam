@@ -409,9 +409,15 @@ class FnApiRunner(runner.PipelineRunner):
           if len(runner_execution_context.queues.ready_inputs) == 0:
             self._schedule_ready_bundles(runner_execution_context)
 
-      assert len(runner_execution_context.queues.ready_inputs) == 0, 'A total of %d ready bundles did not execute.' % len(runner_execution_context.queues.ready_inputs)
-      assert len(runner_execution_context.queues.watermark_pending_inputs) == 0, 'A total of %d watermark-pending bundles did not execute.' % len(runner_execution_context.queues.watermark_pending_inputs)
-      assert len(runner_execution_context.queues.time_pending_inputs) == 0, 'A total of %d time-pending bundles did not execute.' % len(runner_execution_context.queues.time_pending_inputs)
+      assert len(runner_execution_context.queues.ready_inputs) == 0, (
+              'A total of %d ready bundles did not execute.'
+              % len(runner_execution_context.queues.ready_inputs))
+      assert len(runner_execution_context.queues.watermark_pending_inputs) == 0, (
+              'A total of %d watermark-pending bundles did not execute.'
+              % len(runner_execution_context.queues.watermark_pending_inputs))
+      assert len(runner_execution_context.queues.time_pending_inputs) == 0, (
+              'A total of %d time-pending bundles did not execute.'
+              % len(runner_execution_context.queues.time_pending_inputs))
     finally:
       worker_handler_manager.close_all()
     return RunnerResult(runner.PipelineState.DONE, monitoring_infos_by_stage)
@@ -420,25 +426,35 @@ class FnApiRunner(runner.PipelineRunner):
       self, runner_execution_context: execution.FnApiRunnerExecutionContext):
     to_add_watermarks = []
     while len(runner_execution_context.queues.watermark_pending_inputs) > 0:
-      (stage_name, bundle_watermark), data_input = runner_execution_context.queues.watermark_pending_inputs.deque()
-      current_watermark = runner_execution_context.watermark_manager.get_node(
-          stage_name).input_watermark()
+      (stage_name, bundle_watermark), data_input = (
+              runner_execution_context.queues.watermark_pending_inputs.deque())
+      current_watermark = (
+              runner_execution_context.watermark_manager.get_stage_node(
+                  stage_name).input_watermark())
       if current_watermark >= bundle_watermark:
         _LOGGER.debug(
             'Watermark: %s. Enqueuing bundle scheduled for (%s) for stage %s',
             current_watermark,
             bundle_watermark,
             stage_name)
+        _LOGGER.debug(
+            'Stage info:\n\t:%s\n',
+            runner_execution_context.watermark_manager.get_stage_node(
+                stage_name))
         runner_execution_context.queues.ready_inputs.enque(
             (stage_name, data_input))
       else:
         _LOGGER.debug(
             'Unable to add bundle for stage %s\n'
             '\tStage input watermark: %s\n'
-            '\tBundle schedule watermark: %s\n',
+            '\tBundle schedule watermark: %s',
             stage_name,
             current_watermark,
             bundle_watermark)
+        _LOGGER.debug(
+            'Stage info:\n\t:%s\n',
+            runner_execution_context.watermark_manager.get_stage_node(
+                stage_name))
         to_add_watermarks.append(((stage_name, bundle_watermark), data_input))
 
     for elm in to_add_watermarks:
@@ -447,7 +463,8 @@ class FnApiRunner(runner.PipelineRunner):
     to_add_real_time = []
     while len(runner_execution_context.queues.time_pending_inputs) > 0:
       current_time = runner_execution_context.clock.time()
-      (stage_name, work_timestamp), data_input = runner_execution_context.queues.time_pending_inputs.deque()
+      (stage_name, work_timestamp), data_input = (
+              runner_execution_context.queues.time_pending_inputs.deque())
       if current_time >= work_timestamp:
         _LOGGER.debug(
             'Time: %s. Enqueuing bundle scheduled for (%s) for stage %s',
@@ -526,6 +543,7 @@ class FnApiRunner(runner.PipelineRunner):
           for decoded_timer in timer_coder_impl.decode_all(elements_timers):
             timers_by_key_and_window[decoded_timer.user_key,
                                      decoded_timer.windows[0]] = decoded_timer
+        timer_cleared = False
         out = create_OutputStream()
         for decoded_timer in timers_by_key_and_window.values():
           # Only add not cleared timer to fired timers.
@@ -537,6 +555,12 @@ class FnApiRunner(runner.PipelineRunner):
             timer_watermark_data[(transform_id, timer_family_id)] = min(
                 timer_watermark_data[(transform_id, timer_family_id)],
                 decoded_timer.hold_timestamp)
+          else:
+            # Timer was cleared, so we must skip setting it below.
+            timer_cleared = True
+            continue
+        if timer_cleared:
+          continue
         newly_set_timers[(transform_id, timer_family_id)] = (
             ListBuffer(coder_impl=timer_coder_impl),
             timer_watermark_data[(transform_id, timer_family_id)])
@@ -685,15 +709,15 @@ class FnApiRunner(runner.PipelineRunner):
             bundle_manager))
 
     for pc_name, watermark in watermark_updates.items():
-      runner_execution_context.watermark_manager.set_watermark(
+      runner_execution_context.watermark_manager.set_pcoll_watermark(
           pc_name, watermark)
 
     if deferred_inputs:
-      assert (runner_execution_context.watermark_manager.get_node(
+      assert (runner_execution_context.watermark_manager.get_stage_node(
           bundle_context_manager.stage.name).output_watermark()
               < timestamp.MAX_TIMESTAMP), (
           'wrong timestamp for %s. '
-          % runner_execution_context.watermark_manager.get_node(
+          % runner_execution_context.watermark_manager.get_stage_node(
           bundle_context_manager.stage.name))
       runner_execution_context.queues.ready_inputs.enque(
           (bundle_context_manager.stage.name, DataInput(deferred_inputs, {})))
@@ -701,9 +725,19 @@ class FnApiRunner(runner.PipelineRunner):
     self._enqueue_set_timers(
         runner_execution_context, bundle_context_manager, newly_set_timers)
 
+    # Store the required downstream side inputs into state so it is accessible
+    # for the worker when it runs bundles that consume this stage's output.
+    data_side_input = (
+        runner_execution_context.side_input_descriptors_by_stage.get(
+            bundle_context_manager.stage.name, {}))
+    runner_execution_context.commit_side_inputs_to_state(data_side_input)
+
     for _, buffer_id in bundle_context_manager.stage_data_outputs.items():
       for consuming_stage_name, consuming_transform in \
-          runner_execution_context.buffer_id_to_consumer_pairs[buffer_id]:
+          runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id, []):
+        if buffer_id not in runner_execution_context.pcoll_buffers:
+          # TODO(pabloem): Why can this happen?
+          continue
         # We enqueue all of the pending output buffers to be scheduled at the
         # MAX_TIMESTAMP for the downstream stage.
         runner_execution_context.queues.watermark_pending_inputs.enque(
@@ -714,13 +748,6 @@ class FnApiRunner(runner.PipelineRunner):
              }, {})))
         del runner_execution_context.pcoll_buffers[buffer_id]
 
-    # Store the required downstream side inputs into state so it is accessible
-    # for the worker when it runs bundles that consume this stage's output.
-    data_side_input = (
-        runner_execution_context.side_input_descriptors_by_stage.get(
-            bundle_context_manager.stage.name, {}))
-    runner_execution_context.commit_side_inputs_to_state(data_side_input)
-
     return last_result
 
   def _enqueue_set_timers(
@@ -729,7 +756,7 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_context_manager: execution.BundleContextManager,
       fired_timers: translations.OutputTimerData):
     current_time = runner_execution_context.clock.time()
-    current_watermark = runner_execution_context.watermark_manager.get_node(
+    current_watermark = runner_execution_context.watermark_manager.get_stage_node(
         bundle_context_manager.stage.name).input_watermark()
     for unique_timer_family in fired_timers:
       timer_data, target_timestamp = fired_timers[unique_timer_family]
@@ -1197,7 +1224,7 @@ class BundleManager(object):
           with BundleManager._lock:
             timer_buffer = self.bundle_context_manager.get_buffer(
                 expected_output_timers[(
-                    output.transform_id, output.timer_family_id)],
+                    output.transform_id, output.timer_family_id)][0],
                 output.transform_id)
             if timer_buffer.cleared:
               timer_buffer.reset()
