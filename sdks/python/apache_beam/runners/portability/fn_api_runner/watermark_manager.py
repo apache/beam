@@ -77,10 +77,6 @@ class WatermarkManager(object):
           ['%s(%s)' % (i.name, i.watermark()) for i in self.side_inputs])
 
     def output_watermark(self):
-      # if not self.outputs:
-      #   return self.input_watermark()
-      # else:
-      #   return min(o.watermark() for o in self.outputs)
       if not self.inputs:
         return timestamp.MAX_TIMESTAMP
       return min(i.watermark() for i in self.inputs)
