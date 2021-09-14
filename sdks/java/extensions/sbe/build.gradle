@@ -7,7 +7,9 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: SBE"
 ext.summary = "Add support to Beam for FIX SBE"
 
 dependencies {
+    implementation 'com.google.errorprone:error_prone_annotations:2.3.4'
     implementation 'org.agrona:agrona:1.12.0'
+    implementation 'org.apache.beam:beam-vendor-guava-26_0-jre:0.1'
     compile project(path: ":sdks:java:core", configuration: "shadow")
     testImplementation "junit:junit:4.13"
     testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
