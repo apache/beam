@@ -497,7 +497,7 @@ class _GrpcDataChannel(DataChannel):
           if abort_callback():
             return
           if self._exception:
-            raise self._exception
+            raise self._exception from None
         else:
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             if element.is_last:
