@@ -205,7 +205,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
       payload.builder_methods.append(builder_method)
     return payload
 
-  def add_constructor(self, **kwargs):
+  def with_constructor(self, **kwargs):
     """
     Specifies the Java constructor to use.
 
@@ -217,7 +217,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
 
     self._constructor_params = kwargs
 
-  def add_constructor_method(self, method_name, **kwargs):
+  def with_constructor_method(self, method_name, **kwargs):
     """
     Specifies the Java constructor method to use.
 
