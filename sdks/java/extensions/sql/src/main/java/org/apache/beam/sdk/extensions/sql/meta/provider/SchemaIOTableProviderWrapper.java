@@ -136,14 +136,12 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
       }
       if (!fieldNames.isEmpty()) {
         if (readerTransform instanceof PushdownProjector) {
-          PushdownProjector pushdownProjector = (PushdownProjector) readerTransform;
-          FieldAccessDescriptor fieldAccessDescriptor =
-              FieldAccessDescriptor.withFieldNames(fieldNames);
           // The pushdown must return a PTransform that can be applied to a PBegin, or this cast
           // will fail.
-          readerTransform =
-              (PTransform<PBegin, PCollection<Row>>)
-                  pushdownProjector.withProjectionPushdown(fieldAccessDescriptor);
+          PushdownProjector<PBegin> pushdownProjector = (PushdownProjector<PBegin>) readerTransform;
+          FieldAccessDescriptor fieldAccessDescriptor =
+              FieldAccessDescriptor.withFieldNames(fieldNames);
+          readerTransform = pushdownProjector.withProjectionPushdown(fieldAccessDescriptor);
         } else {
           throw new UnsupportedOperationException(
               String.format("%s does not support projection pushdown.", this.getClass()));

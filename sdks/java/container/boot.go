@@ -27,13 +27,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/provision"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/syscallx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/syscallx"
 	"github.com/golang/protobuf/proto"
 )
 

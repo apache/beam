@@ -23,52 +23,50 @@ import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.MessageMetadata;
-import com.google.cloud.pubsublite.internal.CloseableMonitor;
 import com.google.cloud.pubsublite.internal.Publisher;
+import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.util.HashMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /** A map of working publishers by PublisherOptions. */
-class PublisherCache {
-  private final CloseableMonitor monitor = new CloseableMonitor();
-
-  private final Executor listenerExecutor = Executors.newSingleThreadExecutor();
-
-  @GuardedBy("monitor.monitor")
+class PublisherCache implements AutoCloseable {
+  @GuardedBy("this")
   private final HashMap<PublisherOptions, Publisher<MessageMetadata>> livePublishers =
       new HashMap<>();
 
-  Publisher<MessageMetadata> get(PublisherOptions options) throws ApiException {
+  private synchronized void evict(PublisherOptions options) {
+    livePublishers.remove(options);
+  }
+
+  synchronized Publisher<MessageMetadata> get(PublisherOptions options) throws ApiException {
     checkArgument(options.usesCache());
-    try (CloseableMonitor.Hold h = monitor.enter()) {
-      Publisher<MessageMetadata> publisher = livePublishers.get(options);
-      if (publisher != null) {
-        return publisher;
-      }
-      publisher = Publishers.newPublisher(options);
-      livePublishers.put(options, publisher);
-      publisher.addListener(
-          new Listener() {
-            @Override
-            public void failed(State s, Throwable t) {
-              try (CloseableMonitor.Hold h = monitor.enter()) {
-                livePublishers.remove(options);
-              }
-            }
-          },
-          listenerExecutor);
-      publisher.startAsync().awaitRunning();
+    Publisher<MessageMetadata> publisher = livePublishers.get(options);
+    if (publisher != null) {
       return publisher;
     }
+    publisher = Publishers.newPublisher(options);
+    livePublishers.put(options, publisher);
+    publisher.addListener(
+        new Listener() {
+          @Override
+          public void failed(State s, Throwable t) {
+            evict(options);
+          }
+        },
+        SystemExecutors.getFuturesExecutor());
+    publisher.startAsync().awaitRunning();
+    return publisher;
   }
 
   @VisibleForTesting
-  void set(PublisherOptions options, Publisher<MessageMetadata> toCache) {
-    try (CloseableMonitor.Hold h = monitor.enter()) {
-      livePublishers.put(options, toCache);
-    }
+  synchronized void set(PublisherOptions options, Publisher<MessageMetadata> toCache) {
+    livePublishers.put(options, toCache);
+  }
+
+  @Override
+  public synchronized void close() {
+    livePublishers.forEach(((options, publisher) -> publisher.stopAsync()));
+    livePublishers.clear();
   }
 }

@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -61,24 +58,6 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
     }
   }
 
-  public void onTimer(KeyedTimerData keyedTimerData, BoundedWindow window) {
-    setKeyedInternals(keyedTimerData);
-
-    try {
-      final TimerInternals.TimerData timer = keyedTimerData.getTimerData();
-      onTimer(
-          timer.getTimerId(),
-          timer.getTimerFamilyId(),
-          keyedTimerData.getKey(),
-          window,
-          timer.getTimestamp(),
-          timer.getOutputTimestamp(),
-          timer.getDomain());
-    } finally {
-      clearKeyedInternals();
-    }
-  }
-
   @Override
   public <KeyT> void onTimer(
       String timerId,
@@ -88,9 +67,16 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
       Instant timestamp,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
-    checkState(keyedInternals.getKey() != null, "Key is not set for timer");
+    // Note: wrap with KV.of(key, null) as a special use case of setKeyedInternals() to set key
+    // directly.
+    setKeyedInternals(KV.of(key, null));
 
-    underlying.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+    try {
+      underlying.onTimer(
+          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+    } finally {
+      clearKeyedInternals();
+    }
   }
 
   @Override
@@ -108,7 +94,6 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
     return underlying.getFn();
   }
 
-  @SuppressWarnings("unchecked")
   private void setKeyedInternals(Object value) {
     if (value instanceof KeyedWorkItem) {
       keyedInternals.setKey(((KeyedWorkItem<?, ?>) value).key());
@@ -117,8 +102,12 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
       if (key != null) {
         keyedInternals.setKey(key);
       }
-    } else {
+    } else if (value instanceof KV) {
       keyedInternals.setKey(((KV<?, ?>) value).getKey());
+    } else {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s is not supported in %s", value.getClass(), DoFnRunnerWithKeyedInternals.class));
     }
   }
 

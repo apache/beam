@@ -54,14 +54,16 @@ configurations {
 }
 
 dependencies {
+    compile library.java.avro
     compile library.java.vendored_guava_26_0_jre
-    compile library.java.vendored_calcite_1_20_0
+    compile library.java.vendored_calcite_1_26_0
     compile library.java.commons_csv
     compile library.java.slf4j_api
     compile "com.googlecode.json-simple:json-simple:1.1.1"
     compile "com.alibaba:fastjson:1.2.69"
     compile project(":sdks:java:extensions:sql")
     compile project(":sdks:java:extensions:sql:zetasql")
+    compile project(":sdks:java:io:parquet")
     compile project(path: ":runners:google-cloud-dataflow-java")
     compile project(path: ":sdks:java:core", configuration: "shadow")
     testRuntimeClasspath library.java.slf4j_jdk14

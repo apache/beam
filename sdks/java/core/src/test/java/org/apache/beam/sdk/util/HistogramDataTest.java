@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThrows;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -120,6 +119,9 @@ public class HistogramDataTest {
     HistogramData histogramData = HistogramData.linear(0, 0.2, 50);
     histogramData.record(-1, -2, -3, -4, -5, 0, 1, 2, 3, 4);
     assertThat(histogramData.p50(), equalTo(Double.NEGATIVE_INFINITY));
+    assertThat(
+        histogramData.getPercentileString("meows", "cats"),
+        equalTo("Total number of meows: 10, P99: 4 cats, P90: 3 cats, P50: -Infinity cats"));
   }
 
   @Test
@@ -127,12 +129,16 @@ public class HistogramDataTest {
     HistogramData histogramData = HistogramData.linear(0, 0.2, 50);
     histogramData.record(6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
     assertThat(histogramData.p50(), equalTo(Double.POSITIVE_INFINITY));
+    assertThat(
+        histogramData.getPercentileString("meows", "cats"),
+        equalTo(
+            "Total number of meows: 10, P99: Infinity cats, P90: Infinity cats, P50: Infinity cats"));
   }
 
   @Test
   public void testEmptyP99() {
     HistogramData histogramData = HistogramData.linear(0, 0.2, 50);
-    assertThrows(RuntimeException.class, histogramData::p99);
+    assertThat(histogramData.p99(), equalTo(Double.NaN));
   }
 
   @Test

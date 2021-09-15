@@ -794,7 +794,8 @@ class _CustomBigQuerySource(BoundedSource):
         bq.clean_up_temporary_dataset(self._get_project())
 
     for source in self.split_result:
-      yield SourceBundle(1.0, source, None, None)
+      yield SourceBundle(
+          weight=1.0, source=source, start_position=None, stop_position=None)
 
   def get_range_tracker(self, start_position, stop_position):
     class CustomBigQuerySourceRangeTracker(RangeTracker):
@@ -812,6 +813,9 @@ class _CustomBigQuerySource(BoundedSource):
 
   @check_accessible(['query'])
   def _setup_temporary_dataset(self, bq):
+    if self.temp_dataset:
+      # Temp dataset was provided by the user so we can just return.
+      return
     location = bq.get_query_location(
         self._get_project(), self.query.get(), self.use_legacy_sql)
     bq.create_temporary_dataset(self._get_project(), location)
@@ -1116,7 +1120,7 @@ class BigQueryWriteFn(DoFn):
         https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
       with_batched_input: Whether the input has already been batched per
         destination. If not, perform best-effort batching per destination within
-        a bunble.
+        a bundle.
     """
     self.schema = schema
     self.test_client = test_client
@@ -1589,10 +1593,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           rows with transient errors (e.g. timeouts). Rows with permanent errors
           will be output to dead letter queue under `'FailedRows'` tag.
 
-      additional_bq_parameters (callable): A function that returns a dictionary
-        with additional parameters to pass to BQ when creating / loading data
-        into a table. These can be 'timePartitioning', 'clustering', etc. They
-        are passed directly to the job load configuration. See
+      additional_bq_parameters (dict, callable): Additional parameters to pass
+        to BQ when creating / loading data into a table. If a callable, it
+        should be a function that receives a table reference indicating
+        the destination and returns a dictionary.
+        These can be 'timePartitioning', 'clustering', etc. They are passed
+        directly to the job load configuration. See
         https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
       table_side_inputs (tuple): A tuple with ``AsSideInput`` PCollections to be
         passed to the table callable (if one is provided).
@@ -1900,10 +1906,15 @@ class ReadFromBigQuery(PTransform):
       https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
               #avro_conversions
     temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.\
-DatasetReference``):
-        The dataset in which to create temporary tables when performing file
-        loads. By default, a new dataset is created in the execution project for
-        temporary tables.
+        DatasetReference``):
+        Temporary dataset reference to use when reading from BigQuery using a
+        query. When reading using a query, BigQuery source will create a
+        temporary dataset and a temporary table to store the results of the
+        query. With this option, you can set an existing dataset to create the
+        temporary table in. BigQuery source will create a temporary table in
+        that dataset, and will remove it once it is not needed. Job needs access
+        to create and delete tables within the given dataset. Dataset name
+        should *not* start with the reserved prefix `beam_temp_dataset_`.
    """
 
   COUNTER = 0
@@ -1915,17 +1926,14 @@ DatasetReference``):
             '%s: gcs_location must be of type string'
             ' or ValueProvider; got %r instead' %
             (self.__class__.__name__, type(gcs_location)))
-
       if isinstance(gcs_location, str):
         gcs_location = StaticValueProvider(str, gcs_location)
 
     self.gcs_location = gcs_location
-
     self._args = args
     self._kwargs = kwargs
 
   def expand(self, pcoll):
-    # TODO(BEAM-11115): Make ReadFromBQ rely on ReadAllFromBQ implementation.
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name

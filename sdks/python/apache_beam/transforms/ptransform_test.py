@@ -67,9 +67,6 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class PTransformTest(unittest.TestCase):
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   def assertStartswith(self, msg, prefix):
     self.assertTrue(
         msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
@@ -2336,9 +2333,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertStartswith(
         e.exception.args[0],
-        "Type hint violation for 'CombinePerKey(TopCombineFn)': "
-        "requires Tuple[TypeVariable[K], TypeVariable[T]] "
-        "but got {} for element".format(int))
+        "Input type hint violation at TopMod: expected Tuple[TypeVariable[K], "
+        "TypeVariable[V]], got {}".format(int))
 
   def test_per_key_pipeline_checking_satisfied(self):
     d = (
@@ -2495,10 +2491,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertStartswith(
         e.exception.args[0],
-        "Type hint violation for 'CombinePerKey': "
-        "requires "
-        "Tuple[TypeVariable[K], Tuple[TypeVariable[K], TypeVariable[V]]] "
-        "but got Tuple[None, int] for element")
+        "Input type hint violation at ToDict: expected Tuple[TypeVariable[K], "
+        "TypeVariable[V]], got {}".format(int))
 
   def test_to_dict_pipeline_check_satisfied(self):
     d = (

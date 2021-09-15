@@ -45,10 +45,10 @@
 #                      using this flag.
 #
 # Test related flags:
-#     test_opts     -> List of space separated options to configure Nose test
-#                      during execution. Commonly used options like `--attr`,
-#                      `--tests`, `--nologcapture`. More can be found in
-#                      https://nose.readthedocs.io/en/latest/man.html#options
+#     test_opts     -> List of space separated options to configure Pytest test
+#                      during execution. Commonly used options like `--capture=no`
+#                      `--collect-only`. More can be found in
+#                      https://docs.pytest.org/en/latest/reference.html#command-line-flags
 #     suite         -> Namespace for this run of tests. Required if running
 #                      under Jenkins. Used to differentiate runs of the same
 #                      tests with different interpreters/dependencies/etc.
@@ -58,7 +58,7 @@
 #     `$ ./run_integration_test.sh`
 #
 #     - Run single integration test with default pipeline options:
-#     `$ ./run_integration_test.sh --test_opts --tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it`
+#     `$ ./run_integration_test.sh --test_opts apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it`
 #
 #     - Run full set of PostCommit tests with customized pipeline options:
 #     `$ ./run_integration_test.sh --project my-project --gcs_location gs://my-location`
@@ -80,10 +80,10 @@ KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cry
 SUITE=""
 COLLECT_MARKERS=
 
-# Default test (nose) options.
+# Default test (pytest) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
 # provided.
-TEST_OPTS="--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it --nocapture"
+TEST_OPTS="apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it"
 
 while [[ $# -gt 0 ]]
 do
@@ -164,11 +164,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --pytest)
-      PYTEST="$2"
-      shift # past argument
-      shift # past value
-      ;;
     --collect)
       COLLECT_MARKERS="-m=$2"
       shift # past argument
@@ -185,7 +180,6 @@ if [[ "$JENKINS_HOME" != "" && "$SUITE" == "" ]]; then
     echo "Argument --suite is required in a Jenkins environment."
     exit 1
 fi
-XUNIT_FILE="nosetests-$SUITE.xml"
 
 set -o errexit
 
@@ -281,23 +275,12 @@ fi
 # Run tests and validate that jobs finish successfully.
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
-if [[ "$PYTEST" = true ]]; then
-  echo ">>>   pytest options: $TEST_OPTS"
-  echo ">>>   collect markers: $COLLECT_MARKERS"
-  ARGS="-o junit_suite_name=$SUITE --junitxml=pytest_$SUITE.xml $TEST_OPTS"
-  # Handle markers as an independient argument from $TEST_OPTS to prevent errors in space separeted flags
-  if [ -z "$COLLECT_MARKERS" ]; then
-    pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS"
-  else
-    pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS" "$COLLECT_MARKERS"
-  fi
+echo ">>>   pytest options: $TEST_OPTS"
+echo ">>>   collect markers: $COLLECT_MARKERS"
+ARGS="-o junit_suite_name=$SUITE --junitxml=pytest_$SUITE.xml $TEST_OPTS"
+# Handle markers as an independient argument from $TEST_OPTS to prevent errors in space separeted flags
+if [ -z "$COLLECT_MARKERS" ]; then
+  pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS"
 else
-  echo ">>>   test options: $TEST_OPTS"
-  # TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't
-  #   support suite names.
-  python setup.py nosetests \
-    --test-pipeline-options="$PIPELINE_OPTS" \
-    --with-xunitmp --xunitmp-file=$XUNIT_FILE \
-    --ignore-files '.*py3\d?\.py$' \
-    $TEST_OPTS
+  pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS" "$COLLECT_MARKERS"
 fi

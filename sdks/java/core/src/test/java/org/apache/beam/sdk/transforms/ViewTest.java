@@ -44,6 +44,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -156,30 +157,30 @@ public class ViewTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testWindowedSideInputNotPresent() {
-    PCollection<KV<Integer, Integer>> input =
+    PCollection<KV<Long, Long>> input =
         pipeline.apply(
-            TestStream.create(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()))
+            TestStream.create(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
                 .advanceWatermarkTo(new Instant(0))
-                .addElements(TimestampedValue.of(KV.of(1000, 1000), new Instant(1000)))
+                .addElements(TimestampedValue.of(KV.of(1000L, 1000L), new Instant(1000L)))
                 .advanceWatermarkTo(new Instant(20000))
                 .advanceWatermarkToInfinity());
 
-    final PCollectionView<Integer> view =
+    final PCollectionView<Long> view =
         input
             .apply(Values.create())
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.standardSeconds(100))))
-            .apply("ViewCombine", Combine.globally(Sum.ofIntegers()).withoutDefaults())
+            .apply("ViewCombine", Combine.globally(Sum.ofLongs()).withoutDefaults())
             .apply("Rewindow", Window.into(FixedWindows.of(Duration.standardSeconds(10))))
-            .apply(View.<Integer>asSingleton().withDefaultValue(0));
+            .apply(View.<Long>asSingleton().withDefaultValue(0L));
 
-    PCollection<Integer> output =
+    PCollection<Long> output =
         input
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.standardSeconds(10))))
             .apply(GroupByKey.create())
             .apply(
                 "OutputSideInputs",
                 ParDo.of(
-                        new DoFn<KV<Integer, Iterable<Integer>>, Integer>() {
+                        new DoFn<KV<Long, Iterable<Long>>, Long>() {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             c.output(c.sideInput(view));
@@ -189,7 +190,7 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output)
         .inWindow(new IntervalWindow(new Instant(0), new Instant(10000)))
-        .containsInAnyOrder(0);
+        .containsInAnyOrder(0L);
 
     pipeline.run();
   }

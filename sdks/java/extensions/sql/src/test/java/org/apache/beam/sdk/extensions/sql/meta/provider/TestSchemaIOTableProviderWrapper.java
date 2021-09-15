@@ -30,17 +30,14 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A mock {@link org.apache.beam.sdk.extensions.sql.meta.provider.SchemaIOTableProviderWrapper} that
  * reads in-memory data for testing.
  */
-@VisibleForTesting
 public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapper {
   private static final List<Row> rows = new ArrayList<>();
 
@@ -109,7 +106,7 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
    * {@link Select}.
    */
   private class TestPushdownProjector extends PTransform<PBegin, PCollection<Row>>
-      implements PushdownProjector {
+      implements PushdownProjector<PBegin> {
     /** The schema of the input data. */
     private final Schema schema;
     /** The fields to be projected. */
@@ -121,7 +118,7 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
     }
 
     @Override
-    public PTransform<? extends PInput, PCollection<Row>> withProjectionPushdown(
+    public PTransform<PBegin, PCollection<Row>> withProjectionPushdown(
         FieldAccessDescriptor fieldAccessDescriptor) {
       return new TestPushdownProjector(schema, fieldAccessDescriptor);
     }

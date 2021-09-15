@@ -27,7 +27,7 @@
 // putting the types and functions used in a separate package from pipeline construction.
 // Then, the tool can be used as follows:
 //
-//   //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//   //go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
 //   //go:generate starcgen --package=<mypackagename>
 //   //go:generate go fmt
 //
@@ -37,7 +37,7 @@
 // Alternatively, it's possible to specify the specific input files and identifiers within
 // the package for generation.
 //
-//   //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//   //go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
 //   //go:generate starcgen --package=<mypackagename> --inputs=foo.go --identifiers=myFn,myStructFn --output=custom.shims.go
 //   //go:generate go fmt
 //
@@ -56,7 +56,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/util/starcgenx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/starcgenx"
 )
 
 var (

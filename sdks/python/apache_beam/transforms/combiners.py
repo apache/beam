@@ -21,6 +21,7 @@
 
 import copy
 import heapq
+import itertools
 import operator
 import random
 from typing import Any
@@ -168,7 +169,8 @@ class Top(object):
   """Combiners for obtaining extremal elements."""
 
   # pylint: disable=no-self-argument
-
+  @with_input_types(T)
+  @with_output_types(List[T])
   class Of(CombinerWithoutDefaults):
     """Obtain a list of the compare-most N elements in a PCollection.
 
@@ -202,10 +204,12 @@ class Top(object):
         # This is a more efficient global algorithm.
         top_per_bundle = pcoll | core.ParDo(
             _TopPerBundle(self._n, self._key, self._reverse))
-        # If pcoll is empty, we can't guerentee that top_per_bundle
+        # If pcoll is empty, we can't guarantee that top_per_bundle
         # won't be empty, so inject at least one empty accumulator
-        # so that downstream is guerenteed to produce non-empty output.
-        empty_bundle = pcoll.pipeline | core.Create([(None, [])])
+        # so that downstream is guaranteed to produce non-empty output.
+        empty_bundle = (
+            pcoll.pipeline | core.Create([(None, [])]).with_output_types(
+                top_per_bundle.element_type))
         return ((top_per_bundle, empty_bundle) | core.Flatten()
                 | core.GroupByKey()
                 | core.ParDo(
@@ -219,6 +223,8 @@ class Top(object):
               TopCombineFn(self._n, self._key,
                            self._reverse)).without_defaults()
 
+  @with_input_types(Tuple[K, V])
+  @with_output_types(Tuple[K, List[V]])
   class PerKey(ptransform.PTransform):
     """Identifies the compare-most N elements associated with each key.
 
@@ -524,6 +530,8 @@ class Sample(object):
 
   # pylint: disable=no-self-argument
 
+  @with_input_types(T)
+  @with_output_types(List[T])
   class FixedSizeGlobally(CombinerWithoutDefaults):
     """Sample n elements from the input PCollection without replacement."""
     def __init__(self, n):
@@ -543,6 +551,8 @@ class Sample(object):
     def default_label(self):
       return 'FixedSizeGlobally(%d)' % self._n
 
+  @with_input_types(Tuple[K, V])
+  @with_output_types(Tuple[K, List[V]])
   class FixedSizePerKey(ptransform.PTransform):
     """Sample n elements associated with each key without replacement."""
     def __init__(self, n):
@@ -597,16 +607,25 @@ class SampleCombineFn(core.CombineFn):
 
 
 class _TupleCombineFnBase(core.CombineFn):
-  def __init__(self, *combiners):
+  def __init__(self, *combiners, merge_accumulators_batch_size=None):
     self._combiners = [core.CombineFn.maybe_from_callable(c) for c in combiners]
     self._named_combiners = combiners
+    # If the `merge_accumulators_batch_size` value is not specified, we chose a
+    # bounded default that is inversely proportional to the number of
+    # accumulators in merged tuples.
+    num_combiners = max(1, len(combiners))
+    self._merge_accumulators_batch_size = (
+        merge_accumulators_batch_size or max(10, 1000 // num_combiners))
 
   def display_data(self):
     combiners = [
         c.__name__ if hasattr(c, '__name__') else c.__class__.__name__
         for c in self._named_combiners
     ]
-    return {'combiners': str(combiners)}
+    return {
+        'combiners': str(combiners),
+        'merge_accumulators_batch_size': self._merge_accumulators_batch_size
+    }
 
   def setup(self, *args, **kwargs):
     for c in self._combiners:
@@ -616,10 +635,22 @@ class _TupleCombineFnBase(core.CombineFn):
     return [c.create_accumulator(*args, **kwargs) for c in self._combiners]
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
-    return [
-        c.merge_accumulators(a, *args, **kwargs) for c,
-        a in zip(self._combiners, zip(*accumulators))
-    ]
+    # Make sure that `accumulators` is an iterator (so that the position is
+    # remembered).
+    accumulators = iter(accumulators)
+    result = next(accumulators)
+    while True:
+      # Load accumulators into memory and merge in batches to decrease peak
+      # memory usage.
+      accumulators_batch = [result] + list(
+          itertools.islice(accumulators, self._merge_accumulators_batch_size))
+      if len(accumulators_batch) == 1:
+        break
+      result = [
+          c.merge_accumulators(a, *args, **kwargs) for c,
+          a in zip(self._combiners, zip(*accumulators_batch))
+      ]
+    return result
 
   def compact(self, accumulator, *args, **kwargs):
     return [
@@ -670,6 +701,8 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
     ]
 
 
+@with_input_types(T)
+@with_output_types(List[T])
 class ToList(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single list."""
   def expand(self, pcoll):
@@ -698,6 +731,8 @@ class ToListCombineFn(core.CombineFn):
     return accumulator
 
 
+@with_input_types(Tuple[K, V])
+@with_output_types(Dict[K, V])
 class ToDict(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single dict.
 
@@ -735,6 +770,8 @@ class ToDictCombineFn(core.CombineFn):
     return accumulator
 
 
+@with_input_types(T)
+@with_output_types(Set[T])
 class ToSet(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a set."""
   def expand(self, pcoll):

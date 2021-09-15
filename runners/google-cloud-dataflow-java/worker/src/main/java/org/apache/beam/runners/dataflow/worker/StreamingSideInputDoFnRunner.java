@@ -48,6 +48,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   @Override
   public void startBundle() {
     simpleDoFnRunner.startBundle();
+    sideInputFetcher.prefetchBlockedMap();
 
     // Find the set of ready windows.
     Set<W> readyWindows = sideInputFetcher.getReadyWindows();

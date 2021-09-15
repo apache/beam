@@ -37,3 +37,8 @@ def BigQueryTable(project_id, dataset_id, table_id):
 
 def GoogleCloudStorageBucket(bucket_id):
   return '//storage.googleapis.com/buckets/%s' % bucket_id
+
+
+def DatastoreNamespace(project_id, namespace_id):
+  return '//bigtable.googleapis.com/projects/%s/namespaces/%s' % (
+      project_id, namespace_id)

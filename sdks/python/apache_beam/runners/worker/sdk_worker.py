@@ -31,7 +31,6 @@ import threading
 import time
 import traceback
 from concurrent import futures
-from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -45,7 +44,6 @@ from typing import List
 from typing import MutableMapping
 from typing import Optional
 from typing import Tuple
-from typing import Type
 from typing import TypeVar
 from typing import Union
 
@@ -72,9 +70,6 @@ from apache_beam.utils.sentinel import Sentinel
 if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
   from apache_beam.utils.profiler import Profile
-
-ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
 
 T = TypeVar('T')
 _KT = TypeVar('_KT')
@@ -592,6 +587,7 @@ class SdkWorker(object):
     self.log_lull_timeout_ns = (
         log_lull_timeout_ns or DEFAULT_LOG_LULL_TIMEOUT_NS)
     self._last_full_thread_dump_secs = 0.0
+    self._last_lull_logged_secs = 0.0
 
   def do_instruction(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
@@ -686,7 +682,8 @@ class SdkWorker(object):
   def _log_lull_sampler_info(self, sampler_info):
     # type: (statesampler.StateSamplerInfo) -> None
     if (sampler_info and sampler_info.time_since_transition and
-        sampler_info.time_since_transition > self.log_lull_timeout_ns):
+        sampler_info.time_since_transition > self.log_lull_timeout_ns and
+        self._passed_lull_timeout_since_last_log()):
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
       lull_seconds = sampler_info.time_since_transition / 1e9
@@ -711,6 +708,14 @@ class SdkWorker(object):
 
       if self._should_log_full_thread_dump(lull_seconds):
         self._log_full_thread_dump()
+
+  def _passed_lull_timeout_since_last_log(self) -> bool:
+    if (time.time() - self._last_lull_logged_secs >
+        self.log_lull_timeout_ns / 1e9):
+      self._last_lull_logged_secs = time.time()
+      return True
+    else:
+      return False
 
   def _should_log_full_thread_dump(self, lull_seconds):
     # type: (float) -> bool
@@ -992,7 +997,7 @@ class GrpcStateHandler(StateHandler):
     )  # type: queue.Queue[Union[beam_fn_api_pb2.StateRequest, Sentinel]]
     self._responses_by_id = {}  # type: Dict[str, _Future]
     self._last_id = 0
-    self._exc_info = None  # type: Optional[OptExcInfo]
+    self._exception = None  # type: Optional[Exception]
     self._context = threading.local()
     self.start()
 
@@ -1031,8 +1036,8 @@ class GrpcStateHandler(StateHandler):
           future.set(response)
           if self._done:
             break
-      except:  # pylint: disable=bare-except
-        self._exc_info = sys.exc_info()
+      except Exception as e:
+        self._exception = e
         raise
 
     reader = threading.Thread(target=pull_responses, name='read_state')
@@ -1089,10 +1094,8 @@ class GrpcStateHandler(StateHandler):
     # type: (beam_fn_api_pb2.StateRequest) -> beam_fn_api_pb2.StateResponse
     req_future = self._request(request)
     while not req_future.wait(timeout=1):
-      if self._exc_info:
-        t, v, tb = self._exc_info
-        if t and v and tb:
-          raise t(v).with_traceback(tb)
+      if self._exception:
+        raise self._exception
       elif self._done:
         raise RuntimeError()
     response = req_future.get()

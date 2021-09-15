@@ -300,6 +300,7 @@ class Pipeline(object):
               original_transform_node.full_label,
               original_transform_node.main_inputs)
 
+          # TODO(BEAM-12854): Merge rather than override.
           replacement_transform_node.resource_hints = (
               original_transform_node.resource_hints)
 

@@ -95,7 +95,10 @@ class S3TestUtils {
         "arn:aws:kms:eu-west-1:123456789012:key/dc123456-7890-ABCD-EF01-234567890ABC";
     SSEAwsKeyManagementParams sseAwsKeyManagementParams =
         new SSEAwsKeyManagementParams(awsKmsKeyId);
-    return configBuilder(scheme).setSSEAwsKeyManagementParams(sseAwsKeyManagementParams).build();
+    return configBuilder(scheme)
+        .setSSEAwsKeyManagementParams(sseAwsKeyManagementParams)
+        .setBucketKeyEnabled(true)
+        .build();
   }
 
   static S3Options s3OptionsWithSSEAwsKeyManagementParams() {
@@ -105,6 +108,7 @@ class S3TestUtils {
     SSEAwsKeyManagementParams sseAwsKeyManagementParams =
         new SSEAwsKeyManagementParams(awsKmsKeyId);
     options.setSSEAwsKeyManagementParams(sseAwsKeyManagementParams);
+    options.setBucketKeyEnabled(true);
     return options;
   }
 
