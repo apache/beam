@@ -34,6 +34,7 @@ try:
   from apache_beam.runners.interactive.sql.beam_sql_magics import _build_query_components
   from apache_beam.runners.interactive.sql.beam_sql_magics import _generate_output_name
   from apache_beam.runners.interactive.sql.beam_sql_magics import cache_output
+  from apache_beam.runners.interactive.sql.beam_sql_magics import BeamSqlParser
 except (ImportError, NameError):
   pass  # The test is to be skipped because [interactive] dep not installed.
 
@@ -132,6 +133,19 @@ class BeamSqlMagicsTest(unittest.TestCase):
       self.assertTrue(
           cache_manager.exists(
               'full', CacheKey.from_pcoll('pcoll_co', pcoll_co).to_str()))
+
+  def test_parser_with_all_inputs(self):
+    parsed = BeamSqlParser().parse(
+        '-o output_name -v SELECT * FROM abc'.split())
+    self.assertTrue(parsed.verbose)
+    self.assertEqual('output_name', parsed.output_name)
+    self.assertEqual('SELECT * FROM abc', ' '.join(parsed.query))
+
+  def test_parser_with_no_input(self):
+    parsed = BeamSqlParser().parse([])
+    self.assertFalse(parsed.verbose)
+    self.assertIsNone(parsed.output_name)
+    self.assertFalse(parsed.query)
 
 
 if __name__ == '__main__':
