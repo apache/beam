@@ -308,6 +308,14 @@ To learn more, see:
 * [Overview](/documentation/programming-guide/#overview)
 * [Transforms](/documentation/programming-guide/#transforms)
 
+## Resource hints
+
+A Beam feature that lets you provide information to a runner about the compute resource requirements of your pipeline. You can use resource hints to define requirements for specific transforms or for an entire pipeline. For example, you could use a resource hint to specify the minimum amount of memory to allocate to workers. The runner is responsible for interpreting resource hints, and runners can ignore unsupported hints.
+
+To learn more, see:
+
+* [Resource hints](/documentation/runtime/resource-hints)
+
 ## Runner
 
 A runner runs a pipeline on a specific platform. Most runners are translators or adapters to massively parallel big data processing systems. Other runners exist for local testing and debugging. Among the supported runners are Google Cloud Dataflow, Apache Spark, Apache Samza, Apache Flink, the Interactive Runner, and the Direct Runner.
