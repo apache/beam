@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
-import java.util.Collections;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
