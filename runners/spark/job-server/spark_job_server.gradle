@@ -59,7 +59,8 @@ dependencies {
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
   runtime project(":sdks:java:extensions:google-cloud-platform-core")
-//  TODO: Enable AWS and HDFS file system.
+  runtime project(":sdks:java:io:amazon-web-services2")
+//  TODO: Enable HDFS file system.
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
