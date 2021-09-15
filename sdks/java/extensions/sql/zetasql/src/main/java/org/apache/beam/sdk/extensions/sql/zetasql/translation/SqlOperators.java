@@ -48,6 +48,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlSyntax;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.ArraySqlType;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.FamilyOperandTypeChecker;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.InferTypes;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.OperandTypes;
@@ -89,8 +90,8 @@ public class SqlOperators {
   public static final SqlOperator ARRAY_AGG_FN =
       createUdafOperator(
           "array_agg",
-          x -> createTypeFactory().createArrayType(x.getOperandType(0), -1),
-          new UdafImpl<>(new ArrayAgg.ArrayAggArray()));
+          x -> new ArraySqlType(x.getOperandType(0), true),
+          new UdafImpl<>(new ArrayAgg.ArrayAggArray<>()));
 
   public static final SqlOperator START_WITHS =
       createUdfOperator(
@@ -161,7 +162,7 @@ public class SqlOperators {
   public static final SqlOperator BIT_XOR =
       createUdafOperator(
           "BIT_XOR",
-          x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
+          x -> NULLABLE_BIGINT,
           new UdafImpl<>(new BeamBuiltinAggregations.BitXOr<Number>()));
 
   public static final SqlOperator COUNTIF =

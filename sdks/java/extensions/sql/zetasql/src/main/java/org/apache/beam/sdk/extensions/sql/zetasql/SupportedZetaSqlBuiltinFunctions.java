@@ -412,11 +412,9 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_SUM_DOUBLE, // sum
           FunctionSignatureId.FN_SUM_NUMERIC, // sum
           // FunctionSignatureId.FN_SUM_BIGNUMERIC, // sum
-          // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
-          // FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
+          FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
           FunctionSignatureId.FN_BIT_OR_INT64, // bit_or
-          // TODO(BEAM-10379) Re-enable when nulls are handled properly.
-          // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
+          FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
           // FunctionSignatureId.FN_LOGICAL_AND, // logical_and
           // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
           // Approximate aggregate functions.
