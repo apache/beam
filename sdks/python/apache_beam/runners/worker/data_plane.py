@@ -59,9 +59,6 @@ if TYPE_CHECKING:
 else:
   OutputStream = type(coder_impl.create_OutputStream())
 
-ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
-
 # This module is experimental. No backwards-compatibility guarantees.
 
 _LOGGER = logging.getLogger(__name__)

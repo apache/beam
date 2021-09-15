@@ -73,9 +73,6 @@ if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
   from apache_beam.utils.profiler import Profile
 
-ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
-
 T = TypeVar('T')
 _KT = TypeVar('_KT')
 _VT = TypeVar('_VT')
