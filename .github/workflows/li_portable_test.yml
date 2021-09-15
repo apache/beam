@@ -1,11 +1,11 @@
 # This workflow will build a package using Gradle and then publish it to GitHub packages when a release is created
 # For more information see: https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#Publishing-using-gradle
 
-name: LI Runners Test
+name: LI Portable Runners Test
 
 on:
   pull_request:
-    branches: ['li_trunk', "li-release-*"]
+    branches: ['li_trunk']
     paths: ['runners/samza/**', 'runners/spark/**', 'buildSrc/src/main/groovy/org/apache/beam/gradle/**']
 
 jobs:
@@ -26,8 +26,5 @@ jobs:
         server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
-    - name: Validate Samza runner
-      run: ./gradlew :runners:samza:build :runners:samza:validatesRunner
-
-    - name: Validate Spark runner
-      run: ./gradlew :runners:spark:build :runners:spark:validatesRunner
+    - name: Validate Portable runner
+      run: ./gradlew :runners:samza:job-server:validatesPortableRunner
