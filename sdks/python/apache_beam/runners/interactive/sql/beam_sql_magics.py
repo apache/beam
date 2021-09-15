@@ -20,10 +20,12 @@
 Only works within an IPython kernel.
 """
 
+import argparse
 import importlib
 import keyword
 import logging
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -49,23 +51,22 @@ from apache_beam.testing import test_stream
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 from apache_beam.transforms.sql import SqlTransform
 from IPython.core.magic import Magics
-from IPython.core.magic import cell_magic
+from IPython.core.magic import line_cell_magic
 from IPython.core.magic import magics_class
 
 _LOGGER = logging.getLogger(__name__)
 
-_EXAMPLE_USAGE = """Usage:
-    %%%%beam_sql [output_name]
-    Calcite SQL statement
-    Syntax: https://beam.apache.org/documentation/dsls/sql/calcite/query-syntax/
-    Please make sure that there is no conflicts between your variable names and
-    the SQL keywords, such as "SELECT", "FROM", "WHERE" and etc.
-
-    output_name is optional. If not supplied, a variable name is automatically
-    assigned to the output of the magic.
-
-    The output of the magic is usually a PCollection or similar PValue,
-    depending on the SQL statement executed.
+_EXAMPLE_USAGE = """beam_sql magic to execute Beam SQL in notebooks
+---------------------------------------------------------
+%%beam_sql [-o OUTPUT_NAME] query
+---------------------------------------------------------
+Or
+---------------------------------------------------------
+%%%%beam_sql [-o OUTPUT_NAME] query-line#1
+query-line#2
+...
+query-line#N
+---------------------------------------------------------
 """
 
 _NOT_SUPPORTED_MSG = """The query was valid and successfully applied.
@@ -82,38 +83,107 @@ _NOT_SUPPORTED_MSG = """The query was valid and successfully applied.
 """
 
 
+class BeamSqlParser:
+  """A parser to parse beam_sql inputs."""
+  def __init__(self):
+    self._parser = argparse.ArgumentParser(usage=_EXAMPLE_USAGE)
+    self._parser.add_argument(
+        '-o',
+        '--output-name',
+        dest='output_name',
+        help=(
+            'The output variable name of the magic, usually a PCollection. '
+            'Auto-generated if omitted.'))
+    self._parser.add_argument(
+        '-v',
+        '--verbose',
+        action='store_true',
+        help='Display more details about the magic execution.')
+    self._parser.add_argument(
+        'query',
+        type=str,
+        nargs='*',
+        help=(
+            'The Beam SQL query to execute. '
+            'Syntax: https://beam.apache.org/documentation/dsls/sql/calcite/'
+            'query-syntax/. '
+            'Please make sure that there is no conflict between your variable '
+            'names and the SQL keywords, such as "SELECT", "FROM", "WHERE" and '
+            'etc.'))
+
+  def parse(self, args: List[str]) -> Optional[argparse.Namespace]:
+    """Parses a list of string inputs.
+
+    The parsed namespace contains these attributes:
+      output_name: Optional[str], the output variable name.
+      verbose: bool, whether to display more details of the magic execution.
+      query: Optional[List[str]], the beam SQL query to execute.
+
+    Returns:
+      The parsed args or None if fail to parse.
+    """
+    try:
+      return self._parser.parse_args(args)
+    except KeyboardInterrupt:
+      raise
+    except:  # pylint: disable=bare-except
+      # -h or --help results in SystemExit 0. Do not raise.
+      return None
+
+  def print_help(self) -> None:
+    self._parser.print_help()
+
+
 def on_error(error_msg, *args):
   """Logs the error and the usage example."""
   _LOGGER.error(error_msg, *args)
-  _LOGGER.info(_EXAMPLE_USAGE)
+  BeamSqlParser().print_help()
 
 
 @magics_class
 class BeamSqlMagics(Magics):
-  @cell_magic
-  def beam_sql(self, line: str, cell: str) -> Union[None, PValue]:
-    """The beam_sql cell magic that executes a Beam SQL.
+  def __init__(self, shell):
+    super().__init__(shell)
+    # Eagerly initializes the environment.
+    _ = ie.current_env()
+    self._parser = BeamSqlParser()
+
+  @line_cell_magic
+  def beam_sql(self, line: str, cell: Optional[str] = None) -> Optional[PValue]:
+    """The beam_sql line/cell magic that executes a Beam SQL.
 
     Args:
-      line: (optional) the string on the same line after the beam_sql magic.
-          Used as the output variable name in the __main__ module.
-      cell: everything else in the same notebook cell as a string. Used as a
-          Beam SQL query.
+      line: the string on the same line after the beam_sql magic.
+      cell: everything else in the same notebook cell as a string. If None,
+        beam_sql is used as line magic. Otherwise, cell magic.
 
     Returns None if running into an error, otherwise a PValue as if a
     SqlTransform is applied.
     """
-    if line and not line.strip().isidentifier() or keyword.iskeyword(
-        line.strip()):
+    input_str = line
+    if cell:
+      input_str += ' ' + cell
+    parsed = self._parser.parse(input_str.strip().split())
+    if not parsed:
+      # Failed to parse inputs, let the parser handle the exit.
+      return
+    output_name = parsed.output_name
+    verbose = parsed.verbose
+    query = parsed.query
+
+    if output_name and not output_name.isidentifier() or keyword.iskeyword(
+        output_name):
       on_error(
           'The output_name "%s" is not a valid identifier. Please supply a '
           'valid identifier that is not a Python keyword.',
           line)
       return
-    if not cell or cell.isspace():
-      on_error('Please supply the sql to be executed.')
+    if not query:
+      on_error('Please supply the SQL query to be executed.')
       return
-    found = find_pcolls(cell, pcoll_by_name())
+    query = ' '.join(query)
+
+    found = find_pcolls(query, pcoll_by_name(), verbose=verbose)
     for _, pcoll in found.items():
       if not is_namedtuple(pcoll.element_type):
         on_error(
@@ -123,9 +193,9 @@ class BeamSqlMagics(Magics):
             pcoll,
             pcoll.element_type)
         return
-      register_coder_for_schema(pcoll.element_type)
+      register_coder_for_schema(pcoll.element_type, verbose=verbose)
 
-    output_name, output = apply_sql(cell, line, found)
+    output_name, output = apply_sql(query, output_name, found)
     cache_output(output_name, output)
     return output
 
@@ -249,7 +319,8 @@ def _build_query_components(
     PCollection, or the pipeline to execute the query.
   """
   if found:
-    user_pipeline = next(iter(found.values())).pipeline
+    user_pipeline = ie.current_env().user_pipeline(
+        next(iter(found.values())).pipeline)
     sql_pipeline = beam.Pipeline(options=user_pipeline._options)
     ie.current_env().add_derived_pipeline(user_pipeline, sql_pipeline)
     sql_source = {}
@@ -295,7 +366,8 @@ def cache_output(output_name: str, output: PValue) -> None:
     _LOGGER.warning(_NOT_SUPPORTED_MSG, e, output.pipeline.runner)
     return
   ie.current_env().mark_pcollection_computed([output])
-  visualize_computed_pcoll(output_name, output)
+  visualize_computed_pcoll(
+      output_name, output, max_n=float('inf'), max_duration_secs=float('inf'))
 
 
 def load_ipython_extension(ipython):

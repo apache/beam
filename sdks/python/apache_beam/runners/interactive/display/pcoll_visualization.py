@@ -27,6 +27,7 @@ import datetime
 import html
 import logging
 from datetime import timedelta
+from typing import Optional
 
 from dateutil import tz
 
@@ -238,19 +239,42 @@ def visualize(
 
 
 def visualize_computed_pcoll(
-    pcoll_name: str, pcoll: beam.pvalue.PCollection) -> None:
+    pcoll_name: str,
+    pcoll: beam.pvalue.PCollection,
+    max_n: int,
+    max_duration_secs: float,
+    dynamic_plotting_interval: Optional[int] = None,
+    include_window_info: bool = False,
+    display_facets: bool = False) -> None:
   """A simple visualize alternative.
 
   When the pcoll_name and pcoll pair identifies a watched and computed
   PCollection in the current interactive environment without ambiguity, an
-  ElementStream can be built directly from cache.
+  ElementStream can be built directly from cache. Returns immediately, the
+  visualization is asynchronous, but guaranteed to end in the near future.
+
+  Args:
+    pcoll_name: the variable name of the PCollection.
+    pcoll: the PCollection to be visualized.
+    max_n: the maximum number of elements to visualize.
+    max_duration_secs: max duration of elements to read in seconds.
+    dynamic_plotting_interval: the interval in seconds between visualization
+      updates if provided; otherwise, no dynamic plotting.
+    include_window_info: whether to include windowing info in the elements.
+    display_facets: whether to display the facets widgets.
   """
   pipeline = ie.current_env().user_pipeline(pcoll.pipeline)
   rm = ie.current_env().get_recording_manager(pipeline, create_if_absent=True)
+
   stream = rm.read(
-      pcoll_name, pcoll, max_n=float('inf'), max_duration_secs=float('inf'))
+      pcoll_name, pcoll, max_n=max_n, max_duration_secs=max_duration_secs)
   if stream:
-    visualize(stream, element_type=pcoll.element_type)
+    visualize(
+        stream,
+        dynamic_plotting_interval=dynamic_plotting_interval,
+        include_window_info=include_window_info,
+        display_facets=display_facets,
+        element_type=pcoll.element_type)
 
 
 class PCollectionVisualization(object):

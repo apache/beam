@@ -120,7 +120,9 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show(pcoll)
     self.assertTrue(pcoll in ie.current_env().computed_pcollections)
 
-  @patch('apache_beam.runners.interactive.interactive_beam.visualize')
+  @patch((
+      'apache_beam.runners.interactive.interactive_beam.'
+      'visualize_computed_pcoll'))
   def test_show_handles_dict_of_pcolls(self, mocked_visualize):
     p = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
@@ -133,7 +135,9 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show({'pcoll': pcoll})
     mocked_visualize.assert_called_once()
 
-  @patch('apache_beam.runners.interactive.interactive_beam.visualize')
+  @patch((
+      'apache_beam.runners.interactive.interactive_beam.'
+      'visualize_computed_pcoll'))
   def test_show_handles_iterable_of_pcolls(self, mocked_visualize):
     p = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
@@ -159,7 +163,9 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show(deferred)
     mocked_visualize.assert_called_once()
 
-  @patch('apache_beam.runners.interactive.interactive_beam.visualize')
+  @patch((
+      'apache_beam.runners.interactive.interactive_beam.'
+      'visualize_computed_pcoll'))
   def test_show_noop_when_pcoll_container_is_invalid(self, mocked_visualize):
     class SomeRandomClass:
       def __init__(self, pcoll):
