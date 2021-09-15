@@ -117,7 +117,14 @@ tasks.rat {
     "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock",
 
     // Sample text file for Java quickstart
-    "sdks/java/maven-archetypes/examples/sample.txt"
+    "sdks/java/maven-archetypes/examples/sample.txt",
+
+    // Files from Delta Lake Standalone Reader https://github.com/delta-io/connectors/tree/master/standalone/src
+    "sdks/java/io/deltalake/src/main/java/io/**/*",
+    "sdks/java/io/deltalake/src/main/scala/**/*",
+
+    // Delta Lake example data
+    "sdks/java/examples/deltalake/data/**/*"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
