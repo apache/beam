@@ -89,14 +89,13 @@ public abstract class DirectByteBuffer implements DirectBuffer {
    * @param mode how {@code buffer} should be used to set the underlying data
    */
   protected DirectByteBuffer(@Nonnull ByteBuffer buffer, CreateMode mode) {
+    this.length = buffer.limit() - buffer.position();
     if (mode == CreateMode.COPY) {
-      this.buffer = createCopyOfByteBuffer(buffer);
+      this.buffer = createCopyOfByteBuffer(buffer, buffer.position(), this.length);
       this.offset = 0;
-      this.length = this.buffer.limit();
     } else {
       this.buffer = buffer;
       this.offset = buffer.position();
-      this.length = buffer.limit() - buffer.position();
     }
     this.capacity = this.buffer.capacity();
   }
@@ -197,8 +196,8 @@ public abstract class DirectByteBuffer implements DirectBuffer {
   /**
    * Gets a copy of the underlying buffer as a {@link ByteBuffer}.
    *
-   * <p>This will have the same limit, capacity, and position as the underlying buffer. Data from
-   * [0, limit) will also be the same, but data from [limit, capacity) may not.
+   * <p>This will have the same capacity as the underlying buffer. It will contain the data in range
+   * [offset, offset + length) in its range [0, length).
    *
    * <p>The returned buffer is always direct. No guarantees are made about whether or not it has an
    * array.
@@ -208,30 +207,28 @@ public abstract class DirectByteBuffer implements DirectBuffer {
   public final ByteBuffer getCopyAsBuffer() {
     // We could get a copy with buffer.asReadOnlyBuffer(), but this makes the returned buffer more
     // flexible.
-    return createCopyOfByteBuffer(buffer);
+    return createCopyOfByteBuffer(buffer, offset, length);
   }
 
   /**
    * Creates a copy of {@code buffer}.
    *
-   * <p>The returned {@link ByteBuffer} will have the same capacity as {@code buffer}, but it will
-   * only contain the data in range [{@link ByteBuffer#position()}, {@link ByteBuffer#limit()}), and
-   * the data will start at absolute position zero. In other words, the data in ranges [0, {@link
-   * ByteBuffer#position()}) and [{@link ByteBuffer#limit()}, {@link ByteBuffer#capacity()}) will be
-   * lost.
+   * <p>The returned {@link ByteBuffer} will have the same capacity as {@code buffer}, and will copy
+   * the data from [start, start + length) from {@code buffer} to [0, length) in the copy.
    *
    * <p>The returned {@link ByteBuffer} buffer will always be direct.
    *
    * @param buffer {@link ByteBuffer} to copy
+   * @param start the index to start reading from
+   * @param length the number of bytes to copy
    * @return a new {@link ByteBuffer} with the data as specified above
    */
-  private static ByteBuffer createCopyOfByteBuffer(@Nonnull ByteBuffer buffer) {
+  private static ByteBuffer createCopyOfByteBuffer(
+      @Nonnull ByteBuffer buffer, int start, int length) {
     ByteBuffer copy = ByteBuffer.allocateDirect(buffer.capacity());
 
-    int offset = buffer.position();
-    int length = buffer.limit() - offset;
     for (int i = 0; i < length; ++i) {
-      copy.put(i, buffer.get(offset + i));
+      copy.put(i, buffer.get(start + i));
     }
     copy.limit(length);
 
