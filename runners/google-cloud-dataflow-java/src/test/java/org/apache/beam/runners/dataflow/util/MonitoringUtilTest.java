@@ -45,9 +45,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for MonitoringUtil. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MonitoringUtilTest {
   private static final String PROJECT_ID = "someProject";
   private static final String REGION_ID = "thatRegion";

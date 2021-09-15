@@ -54,17 +54,18 @@ public interface AggregateFn<
    * Returns an accumulator representing the accumulation of all the input values accumulated in the
    * merging accumulators.
    *
-   * @param accumulators only the first accumulator may be modified and returned for efficiency; the
-   *     other accumulators should not be mutated, because they may be shared with other code and
-   *     mutating them could lead to incorrect results or data corruption.
+   * @param mutableAccumulator This accumulator may be modified and returned for efficiency.
+   * @param immutableAccumulators These other accumulators should not be mutated, because they may
+   *     be shared with other code and mutating them could lead to incorrect results or data
+   *     corruption.
    */
-  AccumT mergeAccumulators(Iterable<AccumT> accumulators);
+  AccumT mergeAccumulators(AccumT mutableAccumulator, Iterable<AccumT> immutableAccumulators);
 
   /**
    * Returns the output value that is the result of combining all the input values represented by
    * the given accumulator.
    *
-   * @param accumulator can be modified for efficiency
+   * @param mutableAccumulator can be modified for efficiency
    */
-  OutputT extractOutput(AccumT accumulator);
+  OutputT extractOutput(AccumT mutableAccumulator);
 }

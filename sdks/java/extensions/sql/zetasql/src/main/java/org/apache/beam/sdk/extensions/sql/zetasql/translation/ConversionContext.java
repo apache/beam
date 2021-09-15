@@ -23,9 +23,9 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.zetasql.QueryTrait;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.FrameworkConfig;
 
 /** Conversion context, some rules need this data to convert the nodes. */
 @Internal
@@ -79,7 +79,7 @@ public class ConversionContext {
   }
 
   Map<List<String>, ResolvedNode> getUserDefinedTableValuedFunctions() {
-    return getExpressionConverter().userFunctionDefinitions.sqlTableValuedFunctions;
+    return getExpressionConverter().userFunctionDefinitions.sqlTableValuedFunctions();
   }
 
   Map<String, RexNode> getFunctionArgumentRefMapping() {

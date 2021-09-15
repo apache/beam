@@ -50,9 +50,6 @@ import org.junit.runners.JUnit4;
  * combination with {@link TableRowParser} to generate output in {@link TableRow} form.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryIOStorageReadTableRowIT {
 
   private static final String DATASET_ID = "big_query_import_export";

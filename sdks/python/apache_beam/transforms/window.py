@@ -49,18 +49,13 @@ WindowFn.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import abc
-from builtins import object
-from builtins import range
 from functools import total_ordering
 from typing import Any
 from typing import Iterable
 from typing import List
 from typing import Optional
 
-from future.utils import with_metaclass
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
@@ -121,7 +116,7 @@ class TimestampCombiner(object):
       raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
-class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):  # type: ignore[misc]
+class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
   """An abstract windowing function defining a basic assign and merge."""
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
@@ -304,9 +299,6 @@ class TimestampedValue(object):
   def __hash__(self):
     return hash((self.value, self.timestamp))
 
-  def __ne__(self, other):
-    return not self == other
-
   def __lt__(self, other):
     if type(self) != type(other):
       return type(self).__name__ < type(other).__name__
@@ -337,9 +329,6 @@ class GlobalWindow(BoundedWindow):
   def __eq__(self, other):
     # Global windows are always and only equal to each other.
     return self is other or type(self) is type(other)
-
-  def __ne__(self, other):
-    return not self == other
 
   @property
   def start(self):
@@ -390,9 +379,6 @@ class GlobalWindows(NonMergingWindowFn):
   def __eq__(self, other):
     # Global windowfn is always and only equal to each other.
     return self is other or type(self) is type(other)
-
-  def __ne__(self, other):
-    return not self == other
 
   def to_runner_api_parameter(self, context):
     return common_urns.global_windows.urn, None
@@ -453,9 +439,6 @@ class FixedWindows(NonMergingWindowFn):
 
   def __hash__(self):
     return hash((self.size, self.offset))
-
-  def __ne__(self, other):
-    return not self == other
 
   def to_runner_api_parameter(self, context):
     return (
@@ -524,9 +507,6 @@ class SlidingWindows(NonMergingWindowFn):
       return (
           self.size == other.size and self.offset == other.offset and
           self.period == other.period)
-
-  def __ne__(self, other):
-    return not self == other
 
   def __hash__(self):
     return hash((self.offset, self.period))
@@ -603,9 +583,6 @@ class Sessions(WindowFn):
   def __eq__(self, other):
     if type(self) == type(other) == Sessions:
       return self.gap_size == other.gap_size
-
-  def __ne__(self, other):
-    return not self == other
 
   def __hash__(self):
     return hash(self.gap_size)

@@ -43,7 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
@@ -151,13 +151,13 @@ public final class PipelineTranslatorUtils {
     Timer<?> timerValue =
         Timer.of(
             currentTimerKey,
-            "",
+            timer.getTimerId(),
             Collections.singletonList(window),
             timestamp,
             outputTimestamp,
             PaneInfo.NO_FIRING);
     KV<String, String> transformAndTimerId =
-        TimerReceiverFactory.decodeTimerDataTimerId(timer.getTimerId());
+        TimerReceiverFactory.decodeTimerDataTimerId(timer.getTimerFamilyId());
     FnDataReceiver<Timer> fnTimerReceiver = timerReceivers.get(transformAndTimerId);
     Preconditions.checkNotNull(
         fnTimerReceiver, "No FnDataReceiver found for %s", transformAndTimerId);

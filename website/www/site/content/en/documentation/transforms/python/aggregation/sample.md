@@ -34,7 +34,7 @@ Then, we get a random sample of elements in different ways.
 
 We use `Sample.FixedSizeGlobally()` to get a fixed-size random sample of elements from the *entire* `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" sample_fixed_size_globally >}}
 {{< /highlight >}}
 
@@ -46,14 +46,11 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample_test.py" sample >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" >}}
-
 ### Example 2: Sample elements for each key
 
 We use `Sample.FixedSizePerKey()` to get fixed-size random samples for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" sample_fixed_size_per_key >}}
 {{< /highlight >}}
 
@@ -64,9 +61,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample_test.py" samples_per_key >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" >}}
 
 ## Related transforms
 

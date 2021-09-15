@@ -25,8 +25,6 @@ checked directly on the last PCollection produced.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 

@@ -15,8 +15,6 @@
 """Setup dependencies for local and cloud deployment."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import setuptools
 
 TF_VERSION = '1.14.0'

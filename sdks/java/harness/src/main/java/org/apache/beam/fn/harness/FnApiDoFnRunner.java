@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
@@ -43,6 +44,9 @@ import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
+import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
+import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.Modifications;
+import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.TimerInfo;
 import org.apache.beam.fn.harness.state.SideInputSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
@@ -111,8 +115,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
@@ -121,6 +125,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
@@ -233,6 +238,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final String mainInputId;
   private final FnApiStateAccessor<?> stateAccessor;
   private Map<String, BeamFnTimerClient.TimerHandler<?>> timerHandlers;
+  private FnApiTimerBundleTracker timerBundleTracker;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContextBase processContext;
@@ -252,6 +258,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   // The member variables below are only valid for the lifetime of certain methods.
   /** Only valid during {@code processElement...} methods, null otherwise. */
   private WindowedValue<InputT> currentElement;
+
+  private Object currentKey;
 
   /**
    * Only valud during {@link
@@ -644,7 +652,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalStateException("Unknown urn: " + pTransform.getSpec().getUrn());
     }
     pCollectionConsumerRegistry.register(
-        pTransform.getInputsOrThrow(mainInput), pTransformId, (FnDataReceiver) mainInputConsumer);
+        pTransform.getInputsOrThrow(mainInput),
+        pTransformId,
+        (FnDataReceiver) mainInputConsumer,
+        inputCoder);
 
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
     switch (pTransform.getSpec().getUrn()) {
@@ -707,26 +718,33 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             beamFnStateClient,
             keyCoder,
             windowCoder,
-            () -> {
-              if (currentElement != null) {
-                checkState(
-                    currentElement.getValue() instanceof KV,
-                    "Accessing state in unkeyed context. Current element is not a KV: %s.",
-                    currentElement.getValue());
-                return ((KV) currentElement.getValue()).getKey();
-              } else if (currentTimer != null) {
-                return currentTimer.getUserKey();
-              }
-              return null;
-            },
+            this::getCurrentKey,
             () -> currentWindow);
   }
 
+  private Object getCurrentKey() {
+    if (currentKey != null) {
+      return currentKey;
+    }
+    // TODO: Maybe memoize the key?
+    if (currentElement != null) {
+      checkState(
+          currentElement.getValue() instanceof KV,
+          "Accessing state in unkeyed context. Current element is not a KV: %s.",
+          currentElement.getValue());
+      return ((KV) currentElement.getValue()).getKey();
+    } else if (currentTimer != null) {
+      return currentTimer.getUserKey();
+    }
+    return null;
+  }
+
   private void startBundle() {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     // Register as a consumer for each timer.
     timerHandlers = new HashMap<>();
+    timerBundleTracker =
+        new FnApiTimerBundleTracker(
+            keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
     for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
         timerFamilyInfos.entrySet()) {
       String localName = timerFamilyInfo.getKey();
@@ -744,8 +762,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void processElementForParDo(WindowedValue<InputT> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem;
     try {
       doFnInvoker.invokeProcessElement(processContext);
@@ -755,8 +771,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void processElementForWindowObservingParDo(WindowedValue<InputT> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem;
     try {
       Iterator<BoundedWindow> windowIterator =
@@ -772,8 +786,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void processElementForPairWithRestriction(WindowedValue<InputT> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem;
     try {
       currentRestriction = doFnInvoker.invokeGetInitialRestriction(processContext);
@@ -796,8 +808,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void processElementForWindowObservingPairWithRestriction(WindowedValue<InputT> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem;
     try {
       Iterator<BoundedWindow> windowIterator =
@@ -830,8 +840,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForSplitRestriction(
       WindowedValue<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem.withValue(elem.getValue().getKey());
     currentRestriction = elem.getValue().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
@@ -860,8 +868,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForWindowObservingSplitRestriction(
       WindowedValue<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem.withValue(elem.getValue().getKey());
     currentRestriction = elem.getValue().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
@@ -896,8 +902,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForTruncateRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     currentRestriction = elem.getValue().getKey().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
@@ -930,8 +934,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForWindowObservingTruncateRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     try {
       windowCurrentIndex = -1;
@@ -1029,8 +1031,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForWindowObservingSizedElementAndRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     try {
       windowCurrentIndex = -1;
@@ -1519,11 +1519,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setElement(bytesOut.toByteString());
       // We don't want to change the output watermarks or set the checkpoint resume time since
       // that applies to the current window.
-      Map<String, org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp>
+      Map<String, org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp>
           outputWatermarkMapForUnprocessedWindows = new HashMap<>();
       if (!initialWatermark.equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp outputWatermark =
-            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+        org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp.newBuilder()
                 .setSeconds(initialWatermark.getMillis() / 1000)
                 .setNanos((int) (initialWatermark.getMillis() % 1000) * 1000000)
                 .build();
@@ -1563,11 +1563,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setTransformId(pTransformId)
               .setInputId(mainInputId)
               .setElement(residualBytes.toByteString());
-      Map<String, org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp>
+      Map<String, org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp>
           outputWatermarkMap = new HashMap<>();
       if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp outputWatermark =
-            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+        org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp.newBuilder()
                 .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
                 .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
                 .build();
@@ -1641,38 +1641,93 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private <K> void processTimer(
       String timerIdOrTimerFamilyId, TimeDomain timeDomain, Timer<K> timer) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
-    currentTimer = timer;
-    currentTimeDomain = timeDomain;
-    // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or timerFamilyId
-    // from timer family declaration.
-    String timerId =
-        timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-            ? ""
-            : timerIdOrTimerFamilyId;
-    String timerFamilyId =
-        timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-            ? timerIdOrTimerFamilyId
-            : "";
     try {
+      currentKey = timer.getUserKey();
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
+        Modifications bundleModifications = timerBundleTracker.getBundleModifications();
+        Table<String, String, Timer<K>> modifiedTimerIds =
+            bundleModifications.getModifiedTimerIds();
+        NavigableSet<TimerInfo<K>> earlierTimers =
+            bundleModifications
+                .getModifiedTimersOrdered(timeDomain)
+                .headSet(TimerInfo.of(timer, "", timeDomain), true);
+        while (!earlierTimers.isEmpty()) {
+          TimerInfo<K> insertedTimer = earlierTimers.pollFirst();
+          if (timerModified(
+              modifiedTimerIds, insertedTimer.getTimerFamilyOrId(), insertedTimer.getTimer())) {
+            continue;
+          }
+
+          String timerId =
+              insertedTimer.getTimer().getDynamicTimerTag().isEmpty()
+                  ? insertedTimer.getTimerFamilyOrId()
+                  : insertedTimer.getTimer().getDynamicTimerTag();
+          String timerFamily =
+              insertedTimer.getTimer().getDynamicTimerTag().isEmpty()
+                  ? ""
+                  : insertedTimer.getTimerFamilyOrId();
+
+          // If this timer was created previously in the bundle as an overwrite of a previous timer,
+          // we must make sure
+          // to clear the old timer. Since we are firing the timer inline, the runner doesn't know
+          // that the old timer
+          // was overwritten, and will otherwise fire it - causing a spurious timer fire.
+          modifiedTimerIds.put(
+              insertedTimer.getTimerFamilyOrId(),
+              insertedTimer.getTimer().getDynamicTimerTag(),
+              Timer.cleared(
+                  insertedTimer.getTimer().getUserKey(),
+                  insertedTimer.getTimer().getDynamicTimerTag(),
+                  insertedTimer.getTimer().getWindows()));
+          // It's important to call processTimer after inserting the above deletion, otherwise the
+          // above line
+          // would overwrite any looping timer with a deletion.
+          processTimerDirect(
+              timerFamily, timerId, insertedTimer.getTimeDomain(), insertedTimer.getTimer());
+        }
+
+        if (!timerModified(modifiedTimerIds, timerIdOrTimerFamilyId, timer)) {
+          // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or
+          // timerFamilyId
+          // from timer family declaration.
+          String timerId =
+              timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
+                  ? ""
+                  : timerIdOrTimerFamilyId;
+          String timerFamilyId =
+              timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
+                  ? timerIdOrTimerFamilyId
+                  : "";
+          processTimerDirect(timerFamilyId, timerId, timeDomain, timer);
+        }
       }
     } finally {
+      currentKey = null;
       currentTimer = null;
       currentTimeDomain = null;
       currentWindow = null;
     }
   }
 
-  private void finishBundle() throws Exception {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
+  private <K> boolean timerModified(
+      Table<String, String, Timer<K>> modifiedTimerIds, String timerFamilyOrId, Timer<K> timer) {
+    @Nullable
+    Timer<K> modifiedTimer = modifiedTimerIds.get(timerFamilyOrId, timer.getDynamicTimerTag());
+    return modifiedTimer != null && !modifiedTimer.equals(timer);
+  }
 
+  private <K> void processTimerDirect(
+      String timerFamilyId, String timerId, TimeDomain timeDomain, Timer<K> timer) {
+    currentTimer = timer;
+    currentTimeDomain = timeDomain;
+    doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
+  }
+
+  private void finishBundle() throws Exception {
+    timerBundleTracker.outputTimers(timerFamilyOrId -> timerHandlers.get(timerFamilyOrId));
     for (TimerHandler timerHandler : timerHandlers.values()) {
       timerHandler.awaitCompletion();
     }
@@ -1687,8 +1742,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void tearDown() {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     doFnInvoker.invokeTeardown();
   }
 
@@ -1709,7 +1762,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private class FnApiTimer<K> implements org.apache.beam.sdk.state.Timer {
-    private final String timerId;
+    private final String timerIdOrFamily;
     private final K userKey;
     private final String dynamicTimerTag;
     private final TimeDomain timeDomain;
@@ -1724,7 +1777,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     private Duration offset = Duration.ZERO;
 
     FnApiTimer(
-        String timerId,
+        String timerIdOrFamily,
         K userKey,
         String dynamicTimerTag,
         BoundedWindow boundedWindow,
@@ -1732,7 +1785,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant elementTimestampOrTimerFireTimestamp,
         PaneInfo paneInfo,
         TimeDomain timeDomain) {
-      this.timerId = timerId;
+      this.timerIdOrFamily = timerIdOrFamily;
       this.userKey = userKey;
       this.dynamicTimerTag = dynamicTimerTag;
       this.elementTimestampOrTimerHoldTimestamp = elementTimestampOrTimerHoldTimestamp;
@@ -1745,13 +1798,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           fireTimestamp = elementTimestampOrTimerFireTimestamp;
           break;
         case PROCESSING_TIME:
-          fireTimestamp = new Instant(DateTimeUtils.currentTimeMillis());
-          break;
-        case SYNCHRONIZED_PROCESSING_TIME:
+          // TODO: This should use an injected clock when using TestStream.
           fireTimestamp = new Instant(DateTimeUtils.currentTimeMillis());
           break;
         default:
-          throw new IllegalArgumentException(String.format("Unknown time domain %s", timeDomain));
+          throw new IllegalArgumentException(
+              String.format("Unknown or unsupported time domain %s", timeDomain));
       }
 
       try {
@@ -1763,18 +1815,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 .getAllowedLateness();
       } catch (IOException e) {
         throw new IllegalArgumentException(
-            String.format("Unable to get allowed lateness for timer %s", timerId));
+            String.format("Unable to get allowed lateness for timer %s", timerIdOrFamily));
       }
     }
 
     @Override
     public void set(Instant absoluteTime) {
-      // Verifies that the time domain of this timer is acceptable for absolute timers.
-      if (!TimeDomain.EVENT_TIME.equals(timeDomain)) {
-        throw new IllegalArgumentException(
-            "Can only set relative timers in processing time domain. Use #setRelative()");
-      }
-
       // Ensures that the target time is reasonable. For event time timers this means that the time
       // should be prior to window GC time.
       if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
@@ -1786,8 +1832,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             absoluteTime,
             windowExpiry);
       }
-
-      output(absoluteTime);
+      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(absoluteTime));
     }
 
     @Override
@@ -1803,7 +1848,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 : fireTimestamp.plus(period).minus(millisSinceStart);
       }
       target = minTargetAndGcTime(target);
-      output(target);
+      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(target));
+    }
+
+    @Override
+    public void clear() {
+      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getClearedTimer());
     }
 
     @Override
@@ -1823,6 +1873,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       this.outputTimestamp = outputTime;
       return this;
     }
+
+    @Override
+    public Instant getCurrentRelativeTime() {
+      return fireTimestamp;
+    }
+
     /**
      * For event time timers the target time should be prior to window GC time. So it returns
      * min(time to set, GC Time of window).
@@ -1837,7 +1893,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       return target;
     }
 
-    private void output(Instant scheduledTime) {
+    private Timer<K> getClearedTimer() {
+      return Timer.cleared(userKey, dynamicTimerTag, Collections.singletonList(boundedWindow));
+    }
+
+    private Timer<K> getTimerForTime(Instant scheduledTime) {
       if (outputTimestamp != null) {
         checkArgument(
             !outputTimestamp.isBefore(elementTimestampOrTimerHoldTimestamp),
@@ -1883,20 +1943,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             outputTimestamp,
             windowExpiry);
       }
-
-      TimerHandler<K> consumer = (TimerHandler) timerHandlers.get(timerId);
-      try {
-        consumer.accept(
-            Timer.of(
-                userKey,
-                dynamicTimerTag,
-                Collections.singletonList(boundedWindow),
-                scheduledTime,
-                outputTimestamp,
-                paneInfo));
-      } catch (Throwable t) {
-        throw UserCodeException.wrap(t);
-      }
+      return Timer.of(
+          userKey,
+          dynamicTimerTag,
+          Collections.singletonList(boundedWindow),
+          scheduledTime,
+          outputTimestamp,
+          paneInfo);
     }
   }
 
@@ -2613,8 +2666,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         return TimeDomain.EVENT_TIME;
       case PROCESSING_TIME:
         return TimeDomain.PROCESSING_TIME;
-      case SYNCHRONIZED_PROCESSING_TIME:
-        return TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
       default:
         throw new IllegalArgumentException("Unknown time domain");
     }

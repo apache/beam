@@ -41,7 +41,7 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Test;
@@ -51,9 +51,6 @@ import org.mockito.Mock;
 
 /** Unit tests for {@link PortablePipelineJarCreator}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PortablePipelineJarCreatorTest implements Serializable {
 
   @Mock private JarFile inputJar;

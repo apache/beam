@@ -55,9 +55,6 @@ The following options must be provided to run this pipeline in read-write mode:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import argparse
 import logging
 import re
@@ -66,7 +63,6 @@ from typing import Iterable
 from typing import Optional
 from typing import Text
 import uuid
-from builtins import object
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText

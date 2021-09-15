@@ -150,7 +150,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     LZOP(Compression.LZOP),
 
     /** @see Compression#DEFLATE */
-    DEFLATE(Compression.DEFLATE);
+    DEFLATE(Compression.DEFLATE),
+
+    /** @see Compression#SNAPPY */
+    SNAPPY(Compression.SNAPPY);
 
     private final Compression canonical;
 
@@ -201,6 +204,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
         case DEFLATE:
           return DEFLATE;
+
+        case SNAPPY:
+          return SNAPPY;
 
         default:
           throw new UnsupportedOperationException("Unsupported compression type: " + canonical);
@@ -764,8 +770,15 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
       // During a failure case, files may have been deleted in an earlier step. Thus
       // we ignore missing files here.
-      FileSystems.rename(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES);
-      removeTemporaryFiles(srcFiles);
+      FileSystems.rename(
+          srcFiles,
+          dstFiles,
+          StandardMoveOptions.IGNORE_MISSING_FILES,
+          StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+
+      // The rename ensures that the source files are deleted.  However we may still need to clean
+      // up the directory or orphaned files.
+      removeTemporaryFiles(Collections.emptyList());
     }
 
     /**

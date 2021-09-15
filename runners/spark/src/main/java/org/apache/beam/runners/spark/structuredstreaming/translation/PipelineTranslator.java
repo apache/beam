@@ -19,8 +19,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import java.util.Collections;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.resources.PipelineResources;
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
@@ -45,27 +43,11 @@ import org.slf4j.LoggerFactory;
 public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   private int depth = 0;
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslator.class);
-  protected TranslationContext translationContext;
+  protected AbstractTranslationContext translationContext;
 
   // --------------------------------------------------------------------------------------------
   //  Pipeline preparation methods
   // --------------------------------------------------------------------------------------------
-  /**
-   * Local configurations work in the same JVM and have no problems with improperly formatted files
-   * on classpath (eg. directories with .class files or empty directories). Prepare files for
-   * staging only when using remote cluster (passing the master address explicitly).
-   */
-  public static void prepareFilesToStageForRemoteClusterExecution(
-      SparkStructuredStreamingPipelineOptions options) {
-    if (!PipelineTranslator.isLocalSparkMaster(options)) {
-      options.setFilesToStage(
-          PipelineResources.prepareFilesForStaging(
-              options.getFilesToStage(), options.getTempLocation()));
-    } else {
-      options.setFilesToStage(Collections.emptyList());
-    }
-  }
-
   public static void replaceTransforms(Pipeline pipeline, StreamingOptions options) {
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(options.isStreaming()));
   }
@@ -139,11 +121,6 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
       builder.append("|   ");
     }
     return builder.toString();
-  }
-
-  /** Detects if the pipeline is run in local spark mode. */
-  public static boolean isLocalSparkMaster(SparkStructuredStreamingPipelineOptions options) {
-    return options.getSparkMaster().matches("local\\[?\\d*]?");
   }
 
   /** Get a {@link TransformTranslator} for the given {@link TransformHierarchy.Node}. */
@@ -220,7 +197,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
     applyTransformTranslator(node, transformTranslator);
   }
 
-  public TranslationContext getTranslationContext() {
+  public AbstractTranslationContext getTranslationContext() {
     return translationContext;
   }
 }

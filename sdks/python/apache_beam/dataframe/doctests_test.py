@@ -14,11 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import doctest
 import os
-import sys
 import tempfile
 import unittest
 
@@ -146,7 +143,6 @@ and someting that'll fail (due to fake vs. real pandas)
 '''
 
 
-@unittest.skipIf(sys.version_info <= (3, ), 'Requires contextlib.ExitStack.')
 class DoctestTest(unittest.TestCase):
   def test_good(self):
     result = doctests.teststring(SAMPLE_DOCTEST, report=False)

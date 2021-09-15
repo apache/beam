@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics2;
@@ -85,9 +85,6 @@ import org.junit.runners.model.Statement;
 
 /** Tests for {@link BigQueryIO#read}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryIOReadTest implements Serializable {
   private transient PipelineOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -108,6 +105,10 @@ public class BigQueryIOReadTest implements Serializable {
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions();
                   options.as(BigQueryOptions.class).setProject("project-id");
+                  if (description.getAnnotations().stream()
+                      .anyMatch(a -> a.annotationType().equals(ProjectOverride.class))) {
+                    options.as(BigQueryOptions.class).setBigQueryProject("bigquery-project-id");
+                  }
                   options
                       .as(BigQueryOptions.class)
                       .setTempLocation(testFolder.getRoot().getAbsolutePath());
@@ -127,6 +128,64 @@ public class BigQueryIOReadTest implements Serializable {
       new FakeBigQueryServices()
           .withDatasetService(fakeDatasetService)
           .withJobService(fakeJobService);
+
+  private void checkSetsProject(String projectId) throws Exception {
+    fakeDatasetService.createDataset(projectId, "dataset-id", "", "", null);
+    String tableId = "sometable";
+    TableReference tableReference =
+        new TableReference().setProjectId(projectId).setDatasetId("dataset-id").setTableId(tableId);
+
+    fakeDatasetService.createTable(
+        new Table()
+            .setTableReference(tableReference)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER")))));
+
+    FakeBigQueryServices fakeBqServices =
+        new FakeBigQueryServices()
+            .withJobService(new FakeJobService())
+            .withDatasetService(fakeDatasetService);
+
+    List<TableRow> expected =
+        ImmutableList.of(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L),
+            new TableRow().set("name", "d").set("number", 4L),
+            new TableRow().set("name", "e").set("number", 5L),
+            new TableRow().set("name", "f").set("number", 6L));
+    fakeDatasetService.insertAll(tableReference, expected, null);
+
+    TableReference tableRef = new TableReference().setDatasetId("dataset-id").setTableId(tableId);
+
+    PCollection<KV<String, Long>> output =
+        p.apply(BigQueryIO.read().from(tableRef).withTestServices(fakeBqServices))
+            .apply(
+                ParDo.of(
+                    new DoFn<TableRow, KV<String, Long>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        c.output(
+                            KV.of(
+                                (String) c.element().get("name"),
+                                Long.valueOf((String) c.element().get("number"))));
+                      }
+                    }));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(
+                KV.of("a", 1L),
+                KV.of("b", 2L),
+                KV.of("c", 3L),
+                KV.of("d", 4L),
+                KV.of("e", 5L),
+                KV.of("f", 6L)));
+    p.run();
+  }
 
   private void checkReadTableObject(
       BigQueryIO.Read read, String project, String dataset, String table) {
@@ -235,63 +294,14 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   @Test
+  @ProjectOverride
+  public void testValidateReadSetsBigQueryProject() throws Exception {
+    checkSetsProject("bigquery-project-id");
+  }
+
+  @Test
   public void testValidateReadSetsDefaultProject() throws Exception {
-    String tableId = "sometable";
-    TableReference tableReference =
-        new TableReference()
-            .setProjectId("project-id")
-            .setDatasetId("dataset-id")
-            .setTableId(tableId);
-    fakeDatasetService.createTable(
-        new Table()
-            .setTableReference(tableReference)
-            .setSchema(
-                new TableSchema()
-                    .setFields(
-                        ImmutableList.of(
-                            new TableFieldSchema().setName("name").setType("STRING"),
-                            new TableFieldSchema().setName("number").setType("INTEGER")))));
-
-    FakeBigQueryServices fakeBqServices =
-        new FakeBigQueryServices()
-            .withJobService(new FakeJobService())
-            .withDatasetService(fakeDatasetService);
-
-    List<TableRow> expected =
-        ImmutableList.of(
-            new TableRow().set("name", "a").set("number", 1L),
-            new TableRow().set("name", "b").set("number", 2L),
-            new TableRow().set("name", "c").set("number", 3L),
-            new TableRow().set("name", "d").set("number", 4L),
-            new TableRow().set("name", "e").set("number", 5L),
-            new TableRow().set("name", "f").set("number", 6L));
-    fakeDatasetService.insertAll(tableReference, expected, null);
-
-    TableReference tableRef = new TableReference().setDatasetId("dataset-id").setTableId(tableId);
-
-    PCollection<KV<String, Long>> output =
-        p.apply(BigQueryIO.read().from(tableRef).withTestServices(fakeBqServices))
-            .apply(
-                ParDo.of(
-                    new DoFn<TableRow, KV<String, Long>>() {
-                      @ProcessElement
-                      public void processElement(ProcessContext c) throws Exception {
-                        c.output(
-                            KV.of(
-                                (String) c.element().get("name"),
-                                Long.valueOf((String) c.element().get("number"))));
-                      }
-                    }));
-    PAssert.that(output)
-        .containsInAnyOrder(
-            ImmutableList.of(
-                KV.of("a", 1L),
-                KV.of("b", 2L),
-                KV.of("c", 3L),
-                KV.of("d", 4L),
-                KV.of("e", 5L),
-                KV.of("f", 6L)));
-    p.run();
+    checkSetsProject("project-id");
   }
 
   @Test

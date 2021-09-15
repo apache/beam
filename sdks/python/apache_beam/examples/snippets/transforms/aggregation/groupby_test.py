@@ -21,11 +21,6 @@
 # Wrapping hurts the readability of the docs.
 # pylint: disable=line-too-long
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import sys
 import typing
 import unittest
 
@@ -120,7 +115,6 @@ class GroupByTest(unittest.TestCase):
       ]
       assert_that(grouped | beam.MapTuple(normalize_kv), equal_to(expected))
 
-  @unittest.skipIf(sys.version_info[0] < 3, 'bad comparison op')
   def test_group_by_attr(self):
     # [START groupby_attr]
     with beam.Pipeline() as p:
@@ -145,7 +139,6 @@ class GroupByTest(unittest.TestCase):
       ]
       assert_that(grouped | beam.MapTuple(normalize_kv), equal_to(expected))
 
-  @unittest.skipIf(sys.version_info[0] < 3, 'bad comparison op')
   def test_group_by_attr_expr(self):
     # [START groupby_attr_expr]
     with beam.Pipeline() as p:

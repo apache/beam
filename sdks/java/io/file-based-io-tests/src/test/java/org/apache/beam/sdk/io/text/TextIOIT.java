@@ -77,9 +77,6 @@ import org.slf4j.LoggerFactory;
  * performance testing framework.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TextIOIT {
   private static final Logger LOG = LoggerFactory.getLogger(TextIOIT.class);
 

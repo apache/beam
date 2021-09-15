@@ -641,8 +641,10 @@ public class DoFnOperator<InputT, OutputT>
   @Override
   public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord) {
     checkInvokeStartBundle();
+    long oldHold = keyCoder != null ? keyedStateInternals.minWatermarkHoldMs() : -1L;
     doFnRunner.processElement(streamRecord.getValue());
     checkInvokeFinishBundleByCount();
+    emitWatermarkIfHoldChanged(oldHold);
   }
 
   @Override
@@ -739,9 +741,12 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     currentInputWatermark = mark.getTimestamp();
+    processInputWatermark(true);
+  }
 
+  private void processInputWatermark(boolean advanceInputWatermark) throws Exception {
     long inputWatermarkHold = applyInputWatermarkHold(getEffectiveInputWatermark());
-    if (keyCoder != null) {
+    if (keyCoder != null && advanceInputWatermark) {
       timeServiceManagerCompat.advanceWatermark(new Watermark(inputWatermarkHold));
     }
 
@@ -992,7 +997,23 @@ public class DoFnOperator<InputT, OutputT>
 
   // allow overriding this in ExecutableStageDoFnOperator to set the key context
   protected void fireTimerInternal(ByteBuffer key, TimerData timerData) {
+    long oldHold = keyCoder != null ? keyedStateInternals.minWatermarkHoldMs() : -1L;
     fireTimer(timerData);
+    emitWatermarkIfHoldChanged(oldHold);
+  }
+
+  void emitWatermarkIfHoldChanged(long currentWatermarkHold) {
+    if (keyCoder != null) {
+      long newWatermarkHold = keyedStateInternals.minWatermarkHoldMs();
+      if (newWatermarkHold > currentWatermarkHold) {
+        try {
+          processInputWatermark(false);
+        } catch (Exception ex) {
+          // should not happen
+          throw new IllegalStateException(ex);
+        }
+      }
+    }
   }
 
   // allow overriding this in WindowDoFnOperator
@@ -1391,6 +1412,10 @@ public class DoFnOperator<InputT, OutputT>
       return timer.getOutputTimestamp().isBefore(timer.getTimestamp());
     }
 
+    private String constructTimerId(String timerFamilyId, String timerId) {
+      return timerFamilyId + "+" + timerId;
+    }
+
     @Override
     public void setTimer(
         StateNamespace namespace,
@@ -1416,7 +1441,10 @@ public class DoFnOperator<InputT, OutputT>
             timer.getTimerId(),
             timer.getTimestamp().getMillis(),
             timer.getOutputTimestamp().getMillis());
-        String contextTimerId = getContextTimerId(timer.getTimerId(), timer.getNamespace());
+        String contextTimerId =
+            getContextTimerId(
+                constructTimerId(timer.getTimerFamilyId(), timer.getTimerId()),
+                timer.getNamespace());
         @Nullable final TimerData oldTimer = pendingTimersById.get(contextTimerId);
         if (!timer.equals(oldTimer)) {
           // Only one timer can exist at a time for a given timer id and context.
@@ -1479,7 +1507,10 @@ public class DoFnOperator<InputT, OutputT>
      */
     void onFiredOrDeletedTimer(TimerData timer) {
       try {
-        pendingTimersById.remove(getContextTimerId(timer.getTimerId(), timer.getNamespace()));
+        pendingTimersById.remove(
+            getContextTimerId(
+                constructTimerId(timer.getTimerFamilyId(), timer.getTimerId()),
+                timer.getNamespace()));
         if (timer.getDomain() == TimeDomain.EVENT_TIME
             || StateAndTimerBundleCheckpointHandler.isSdfTimer(timer.getTimerId())) {
           if (timerUsesOutputTimestamp(timer)) {
@@ -1499,7 +1530,8 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+    public void deleteTimer(
+        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
       try {
         cancelPendingTimerById(getContextTimerId(timerId, namespace));
       } catch (Exception e) {
@@ -1511,7 +1543,11 @@ public class DoFnOperator<InputT, OutputT>
     @Override
     @Deprecated
     public void deleteTimer(TimerData timer) {
-      deleteTimer(timer.getNamespace(), timer.getTimerId(), timer.getDomain());
+      deleteTimer(
+          timer.getNamespace(),
+          constructTimerId(timer.getTimerFamilyId(), timer.getTimerId()),
+          timer.getTimerFamilyId(),
+          timer.getDomain());
     }
 
     void deleteTimerInternal(TimerData timer) {

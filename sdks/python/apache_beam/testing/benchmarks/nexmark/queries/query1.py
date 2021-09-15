@@ -25,8 +25,6 @@ It illustrates a simple map.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
@@ -34,7 +32,7 @@ from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 USD_TO_EURO = 0.89
 
 
-def load(events, query_args=None):
+def load(events, metadata=None, pipeline_options=None):
   return (
       events
       | nexmark_query_util.JustBids()

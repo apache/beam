@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 import unittest
@@ -217,6 +215,7 @@ class PipelineOptionsTest(unittest.TestCase):
       parser.add_argument(
           '--fake_multi_option', action='append', help='fake multi option')
 
+  @unittest.skip("TODO(BEAM-12515): Flaky test.")
   def test_display_data(self):
     for case in PipelineOptionsTest.TEST_CASES:
       options = PipelineOptions(flags=case['flags'])
@@ -622,6 +621,31 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(['--transform_name_mapping={\"from\":\"to\"}'])
     mapping = options.view_as(GoogleCloudOptions).transform_name_mapping
     self.assertEqual(mapping['from'], 'to')
+
+  def test_dataflow_service_options(self):
+    options = PipelineOptions([
+        '--dataflow_service_option',
+        'whizz=bang',
+        '--dataflow_service_option',
+        'beep=boop'
+    ])
+    self.assertEqual(
+        sorted(options.get_all_options()['dataflow_service_options']),
+        ['beep=boop', 'whizz=bang'])
+
+    options = PipelineOptions([
+        '--dataflow_service_options',
+        'whizz=bang',
+        '--dataflow_service_options',
+        'beep=boop'
+    ])
+    self.assertEqual(
+        sorted(options.get_all_options()['dataflow_service_options']),
+        ['beep=boop', 'whizz=bang'])
+
+    options = PipelineOptions(flags=[''])
+    self.assertEqual(
+        options.get_all_options()['dataflow_service_options'], None)
 
 
 if __name__ == '__main__':

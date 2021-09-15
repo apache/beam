@@ -35,8 +35,10 @@ import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -64,10 +66,8 @@ public class MetricsContainerStepMap implements Serializable {
       // TODO(BEAM-6538): Disallow this in the future, some tests rely on an empty step name today.
       return getUnboundContainer();
     }
-    if (!metricsContainers.containsKey(stepName)) {
-      metricsContainers.put(stepName, new MetricsContainerImpl(stepName));
-    }
-    return metricsContainers.get(stepName);
+    return metricsContainers.computeIfAbsent(
+        stepName, (String name) -> new MetricsContainerImpl(name));
   }
 
   /**
@@ -176,6 +176,16 @@ public class MetricsContainerStepMap implements Serializable {
     return monitoringInfos;
   }
 
+  /** Return the cumulative values for any metrics in this container as MonitoringInfo data. */
+  public Map<String, ByteString> getMonitoringData(ShortIdMap shortIds) {
+    // Extract user metrics and store as MonitoringInfos.
+    ImmutableMap.Builder<String, ByteString> builder = ImmutableMap.builder();
+    for (MetricsContainerImpl container : getMetricsContainers()) {
+      builder.putAll(container.getMonitoringData(shortIds));
+    }
+    return builder.build();
+  }
+
   @Override
   public String toString() {
     JobApi.MetricResults results =
@@ -200,12 +210,15 @@ public class MetricsContainerStepMap implements Serializable {
       BiFunction<T, T, T> combine) {
     for (MetricUpdate<T> metricUpdate : updates) {
       MetricKey key = metricUpdate.getKey();
-      MetricResult<T> current = metricResultMap.get(key);
-      if (current == null) {
-        metricResultMap.put(key, MetricResult.attempted(key, metricUpdate.getUpdate()));
-      } else {
-        metricResultMap.put(key, current.addAttempted(metricUpdate.getUpdate(), combine));
-      }
+      metricResultMap.compute(
+          key,
+          (k, current) -> {
+            if (current == null) {
+              return MetricResult.attempted(key, metricUpdate.getUpdate());
+            } else {
+              return current.addAttempted(metricUpdate.getUpdate(), combine);
+            }
+          });
     }
   }
 
@@ -215,14 +228,14 @@ public class MetricsContainerStepMap implements Serializable {
       BiFunction<T, T, T> combine) {
     for (MetricUpdate<T> metricUpdate : updates) {
       MetricKey key = metricUpdate.getKey();
-      MetricResult<T> current = metricResultMap.get(key);
-      if (current == null) {
+      if (metricResultMap.computeIfPresent(
+              key, ((k, current) -> current.addCommitted(metricUpdate.getUpdate(), combine)))
+          == null) {
         throw new IllegalStateException(
             String.format(
                 "%s: existing 'attempted' result not found for 'committed' value %s",
                 key, metricUpdate.getUpdate()));
       }
-      metricResultMap.put(key, current.addCommitted(metricUpdate.getUpdate(), combine));
     }
   }
 }

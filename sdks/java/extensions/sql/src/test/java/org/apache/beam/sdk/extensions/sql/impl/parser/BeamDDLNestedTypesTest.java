@@ -32,7 +32,7 @@ import org.apache.beam.sdk.extensions.sql.utils.QuickCheckGenerators.AnyFieldTyp
 import org.apache.beam.sdk.extensions.sql.utils.QuickCheckGenerators.PrimitiveTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParseException;
 import org.junit.runner.RunWith;
 
 /**
@@ -43,9 +43,6 @@ import org.junit.runner.RunWith;
  * <p>By default quick check runs this test 100 times.
  */
 @RunWith(JUnitQuickcheck.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamDDLNestedTypesTest {
 
   @Property

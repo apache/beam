@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 func clearRegistry() {
@@ -131,7 +131,6 @@ func TestRegisterCoder(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			defer func() {
 				if p := recover(); p != nil {
-					t.Log(p)
 					return
 				}
 				t.Fatalf("RegisterCoder(%v, %T, %T): want panic", msType, test.enc, test.dec)

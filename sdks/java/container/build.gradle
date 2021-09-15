@@ -18,7 +18,7 @@
 
 plugins {
   id 'org.apache.beam.module'
-  id 'com.github.jk1.dependency-license-report' version '1.13'
+  id 'com.github.jk1.dependency-license-report' version '1.16'
 }
 
 applyGoNature()
@@ -28,15 +28,14 @@ evaluationDependsOn(":sdks:java:io:kafka")
 
 description = "Apache Beam :: SDKs :: Java :: Container"
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
+// Disable gogradle's dependency resolution so it uses Go modules instead.
+installDependencies.enabled = false
+resolveBuildDependencies.enabled = false
+resolveTestDependencies.enabled = false
 
 configurations {
   dockerDependency
   sdkHarnessLauncher
-  pulledLicenses
 }
 
 dependencies {
@@ -56,7 +55,7 @@ dependencies {
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/java/boot'
+  packagePath = 'github.com/apache/beam/sdks/v2/java/container'
   goBuild {
     // TODO(herohde): build local platform + linux-amd64, if possible.
     targetPlatform = ['linux-amd64']
@@ -85,7 +84,17 @@ task pullLicenses(type: Exec) {
   outputs.dir('build/target/java_third_party_licenses')
 }
 
+task downloadCloudProfilerAgent(type: Exec) {
+  executable "sh"
+  args "-c", "wget -q -O- https://storage.googleapis.com/cloud-profiler/java/latest/profiler_java_agent.tar.gz | tar xzv -C build/target/profiler/"
+  outputs.dir('build/target/profiler')
+}
+
 artifacts {
   sdkHarnessLauncher file: file('./build/target'), builtBy: goBuild
-  pulledLicenses file: file('./build/target'), builtBy: pullLicenses
+}
+
+task pushAll {
+  dependsOn ":sdks:java:container:java8:dockerPush"
+  dependsOn ":sdks:java:container:java11:dockerPush"
 }

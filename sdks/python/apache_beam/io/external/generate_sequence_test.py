@@ -19,15 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import logging
 import os
 import re
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -35,7 +32,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
-@attr('UsesCrossLanguageTransforms')
+@pytest.mark.xlang_transforms
 @unittest.skipUnless(
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")

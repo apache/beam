@@ -15,12 +15,11 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-
 import datetime
 import logging
 import random
 import string
+import typing
 import unittest
 
 import mock
@@ -338,7 +337,10 @@ class SpannerReadTest(unittest.TestCase):
       self, mock_batch_snapshot_class, mock_client_class):
     with self.assertRaises(ValueError):
       p = TestPipeline()
-      transaction = (p | beam.Create([{"invalid": "transaction"}]))
+      transaction = (
+          p | beam.Create([{
+              "invalid": "transaction"
+          }]).with_output_types(typing.Any))
       _ = (
           p | 'with query' >> ReadFromSpanner(
               project_id=TEST_PROJECT_ID,

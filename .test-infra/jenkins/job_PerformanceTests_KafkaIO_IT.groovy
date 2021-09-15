@@ -24,7 +24,8 @@ String jobName = "beam_PerformanceTests_Kafka_IO"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate, 'H */6 * * *')
+  // TODO(BEAM-9482): Re-enable once fixed.
+  // common.setAutoJob(delegate, 'H */6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java KafkaIO Performance Test',
@@ -74,7 +75,8 @@ job(jobName) {
     kafkaTopic                   : 'beam-runnerv2',
     bigQueryTable                : 'kafkaioit_results_sdf_wrapper',
     influxMeasurement            : 'kafkaioit_results_sdf_wrapper',
-    experiments                  : 'beam_fn_api,use_runner_v2,use_unified_worker',
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    experiments                  : 'use_runner_v2,shuffle_mode=appliance,use_unified_worker',
   ]
 
   Map dataflowRunnerV2SdfPipelineOptions = pipelineOptions + [
@@ -88,7 +90,8 @@ job(jobName) {
     kafkaTopic                   : 'beam-sdf',
     bigQueryTable                : 'kafkaioit_results_runner_v2',
     influxMeasurement            : 'kafkaioit_results_runner_v2',
-    experiments                  : 'beam_fn_api,use_runner_v2,use_unified_worker,use_sdf_kafka_read',
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    experiments                  : 'use_runner_v2,shuffle_mode=appliance,use_unified_worker',
   ]
 
   steps {

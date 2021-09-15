@@ -19,25 +19,20 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import json
 import os.path
 import pickle
 import random
 import unittest
-from builtins import range
-from builtins import zip
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import yaml
 
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.direct.clock import TestClock
@@ -45,6 +40,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import WindowInto
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import trigger
 from apache_beam.transforms.core import Windowing
@@ -56,6 +52,7 @@ from apache_beam.transforms.trigger import AfterEach
 from apache_beam.transforms.trigger import AfterProcessingTime
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.transforms.trigger import Always
+from apache_beam.transforms.trigger import DataLossReason
 from apache_beam.transforms.trigger import DefaultTrigger
 from apache_beam.transforms.trigger import GeneralTriggerDriver
 from apache_beam.transforms.trigger import InMemoryUnmergedState
@@ -63,6 +60,7 @@ from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.trigger import TriggerFn
 from apache_beam.transforms.trigger import _Never
 from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import TimestampCombiner
@@ -439,6 +437,128 @@ class TriggerTest(unittest.TestCase):
           pickle.loads(pickle.dumps(unwindowed)).value, list(range(10)))
 
 
+class MayLoseDataTest(unittest.TestCase):
+  def _test(self, trigger, lateness, expected):
+    windowing = WindowInto(
+        GlobalWindows(),
+        trigger=trigger,
+        accumulation_mode=AccumulationMode.ACCUMULATING,
+        allowed_lateness=lateness).windowing
+    self.assertEqual(trigger.may_lose_data(windowing), expected)
+
+  def test_default_trigger(self):
+    self._test(DefaultTrigger(), 0, DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_processing_time(self):
+    self._test(AfterProcessingTime(), 0, DataLossReason.MAY_FINISH)
+
+  def test_always(self):
+    self._test(Always(), 0, DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_never(self):
+    self._test(_Never(), 0, DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_watermark_no_allowed_lateness(self):
+    self._test(AfterWatermark(), 0, DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_watermark_late_none(self):
+    self._test(AfterWatermark(), 60, DataLossReason.MAY_FINISH)
+
+  def test_after_watermark_no_allowed_lateness_safe_late(self):
+    self._test(
+        AfterWatermark(late=DefaultTrigger()),
+        0,
+        DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_watermark_safe_late(self):
+    self._test(
+        AfterWatermark(late=DefaultTrigger()),
+        60,
+        DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_watermark_no_allowed_lateness_may_finish_late(self):
+    self._test(
+        AfterWatermark(late=AfterProcessingTime()),
+        0,
+        DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_watermark_may_finish_late(self):
+    self._test(
+        AfterWatermark(late=AfterProcessingTime()),
+        60,
+        DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_watermark_no_allowed_lateness_condition_late(self):
+    self._test(
+        AfterWatermark(late=AfterCount(5)), 0, DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_watermark_condition_late(self):
+    self._test(
+        AfterWatermark(late=AfterCount(5)),
+        60,
+        DataLossReason.CONDITION_NOT_GUARANTEED)
+
+  def test_after_count_one(self):
+    self._test(AfterCount(1), 0, DataLossReason.MAY_FINISH)
+
+  def test_after_count_gt_one(self):
+    self._test(
+        AfterCount(2),
+        0,
+        DataLossReason.MAY_FINISH | DataLossReason.CONDITION_NOT_GUARANTEED)
+
+  def test_repeatedly_safe_underlying(self):
+    self._test(
+        Repeatedly(DefaultTrigger()), 0, DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_repeatedly_may_finish_underlying(self):
+    self._test(Repeatedly(AfterCount(1)), 0, DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_repeatedly_condition_underlying(self):
+    self._test(
+        Repeatedly(AfterCount(2)), 0, DataLossReason.CONDITION_NOT_GUARANTEED)
+
+  def test_after_any_some_unsafe(self):
+    self._test(
+        AfterAny(AfterCount(1), DefaultTrigger()),
+        0,
+        DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_any_same_reason(self):
+    self._test(
+        AfterAny(AfterCount(1), AfterProcessingTime()),
+        0,
+        DataLossReason.MAY_FINISH)
+
+  def test_after_any_different_reasons(self):
+    self._test(
+        AfterAny(Repeatedly(AfterCount(2)), AfterProcessingTime()),
+        0,
+        DataLossReason.MAY_FINISH | DataLossReason.CONDITION_NOT_GUARANTEED)
+
+  def test_after_all_some_unsafe(self):
+    self._test(
+        AfterAll(AfterCount(1), DefaultTrigger()), 0, DataLossReason.MAY_FINISH)
+
+  def test_after_all_safe(self):
+    self._test(
+        AfterAll(Repeatedly(AfterCount(1)), DefaultTrigger()),
+        0,
+        DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_each_some_unsafe(self):
+    self._test(
+        AfterEach(AfterCount(1), DefaultTrigger()),
+        0,
+        DataLossReason.MAY_FINISH)
+
+  def test_after_each_all_safe(self):
+    self._test(
+        AfterEach(Repeatedly(AfterCount(1)), DefaultTrigger()),
+        0,
+        DataLossReason.NO_POTENTIAL_LOSS)
+
+
 class RunnerApiTest(unittest.TestCase):
   def test_trigger_encoding(self):
     for trigger_fn in (DefaultTrigger(),
@@ -457,7 +577,8 @@ class RunnerApiTest(unittest.TestCase):
 
 class TriggerPipelineTest(unittest.TestCase):
   def test_after_count(self):
-    with TestPipeline() as p:
+    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    with TestPipeline(options=test_options) as p:
 
       def construct_timestamped(k_t):
         return TimestampedValue((k_t[0], k_t[1]), k_t[1])
@@ -1067,6 +1188,7 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
     with TestPipeline() as p:
       # TODO(BEAM-8601): Pass this during pipeline construction.
       p._options.view_as(StandardOptions).streaming = True
+      p._options.view_as(TypeOptions).allow_unsafe_triggers = True
 
       # We can have at most one test stream per pipeline, so we share it.
       inputs_and_expected = p | read_test_stream

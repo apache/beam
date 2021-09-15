@@ -39,9 +39,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Rule;
 import org.junit.Test;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigtableRowToBeamRowTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();

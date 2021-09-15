@@ -98,7 +98,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
      * Current backlog, as estimated number of event bytes we are behind, or null if unknown.
      * Reported to callers.
      */
-    private @Nullable Long backlogBytes;
+    private long backlogBytes;
 
     /** Wallclock time (ms since epoch) we last reported the backlog, or -1 if never reported. */
     private long lastReportedBacklogWallclock;
@@ -127,6 +127,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
       lastReportedBacklogWallclock = -1;
       pendingEventWallclockTime = -1;
       timestampAtLastReportedBacklogMs = -1;
+      updateBacklog(System.currentTimeMillis(), 0);
     }
 
     public EventReader(GeneratorConfig config) {
@@ -146,9 +147,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
       while (pendingEvent == null) {
         if (!generator.hasNext() && heldBackEvents.isEmpty()) {
           // No more events, EVER.
-          if (isRateLimited) {
-            updateBacklog(System.currentTimeMillis(), 0);
-          }
+          updateBacklog(System.currentTimeMillis(), 0);
           if (watermark < BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
             watermark = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
             LOG.trace("stopped unbounded generator {}", generator);
@@ -177,9 +176,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
           }
         } else {
           // Waiting for held-back event to fire.
-          if (isRateLimited) {
-            updateBacklog(now, 0);
-          }
+          updateBacklog(now, 0);
           return false;
         }
 
@@ -199,6 +196,8 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
           return false;
         }
         updateBacklog(now, now - pendingEventWallclockTime);
+      } else {
+        updateBacklog(now, 0);
       }
 
       // This event is ready to fire.
@@ -210,20 +209,26 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
     private void updateBacklog(long now, long newBacklogDurationMs) {
       backlogDurationMs = newBacklogDurationMs;
       long interEventDelayUs = generator.currentInterEventDelayUs();
-      if (interEventDelayUs != 0) {
+      if (isRateLimited && interEventDelayUs > 0) {
         long backlogEvents = (backlogDurationMs * 1000 + interEventDelayUs - 1) / interEventDelayUs;
         backlogBytes = generator.getCurrentConfig().estimatedBytesForEvents(backlogEvents);
+      } else {
+        double fractionRemaining = 1.0 - generator.getFractionConsumed();
+        backlogBytes =
+            Math.max(
+                0L,
+                (long) (generator.getCurrentConfig().getEstimatedSizeBytes() * fractionRemaining));
       }
       if (lastReportedBacklogWallclock < 0
           || now - lastReportedBacklogWallclock > BACKLOG_PERIOD.getMillis()) {
-        double timeDialation = Double.NaN;
+        double timeDilation = Double.NaN;
         if (pendingEvent != null
             && lastReportedBacklogWallclock >= 0
             && timestampAtLastReportedBacklogMs >= 0) {
           long wallclockProgressionMs = now - lastReportedBacklogWallclock;
           long eventTimeProgressionMs =
               pendingEvent.getTimestamp().getMillis() - timestampAtLastReportedBacklogMs;
-          timeDialation = (double) eventTimeProgressionMs / (double) wallclockProgressionMs;
+          timeDilation = (double) eventTimeProgressionMs / (double) wallclockProgressionMs;
         }
         LOG.debug(
             "unbounded generator backlog now {}ms ({} bytes) at {}us interEventDelay "
@@ -231,7 +236,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
             backlogDurationMs,
             backlogBytes,
             interEventDelayUs,
-            timeDialation);
+            timeDilation);
         lastReportedBacklogWallclock = now;
         if (pendingEvent != null) {
           timestampAtLastReportedBacklogMs = pendingEvent.getTimestamp().getMillis();
@@ -277,7 +282,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
 
     @Override
     public long getSplitBacklogBytes() {
-      return backlogBytes == null ? BACKLOG_UNKNOWN : backlogBytes;
+      return backlogBytes;
     }
 
     @Override

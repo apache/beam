@@ -20,8 +20,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -41,10 +41,63 @@ type justAType struct {
 	C    int
 }
 
+type myInt int
+
+type anotherStruct struct {
+	Q myInt
+}
+
 func init() {
 	runtime.RegisterType(reflect.TypeOf((*registeredType)(nil)))
-	RegisterType(reflect.TypeOf((*sRegisteredType)(nil)))
 }
+
+type testInterface interface {
+	hidden()
+}
+
+type unexportedFields struct {
+	d uint64
+}
+
+func (unexportedFields) hidden() {}
+
+type exportedFunc struct {
+	e int16
+	F func()
+}
+
+func (*exportedFunc) hidden() {}
+
+type Exported struct {
+	G myInt
+}
+
+type hasEmbedded struct {
+	Exported
+}
+
+type hasEmbeddedPtr struct {
+	*Exported
+}
+
+type hasMap struct {
+	Cypher map[bool]float32 `beam:"cypher"`
+}
+
+type nonRegisteredLogical struct {
+	k int32
+}
+
+var (
+	unexportedFieldsType     = reflect.TypeOf((*unexportedFields)(nil)).Elem()
+	exportedFuncType         = reflect.TypeOf((*exportedFunc)(nil))
+	anotherType              = reflect.TypeOf((*anotherStruct)(nil)).Elem()
+	exportedType             = reflect.TypeOf((*Exported)(nil)).Elem()
+	hasEmbeddedType          = reflect.TypeOf((*hasEmbedded)(nil)).Elem()
+	hasEmbeddedPtrType       = reflect.TypeOf((*hasEmbeddedPtr)(nil)).Elem()
+	hasMapType               = reflect.TypeOf((*hasMap)(nil)).Elem()
+	nonRegisteredLogicalType = reflect.TypeOf((*nonRegisteredLogical)(nil)).Elem()
+)
 
 func TestSchemaConversion(t *testing.T) {
 	tests := []struct {
@@ -117,9 +170,7 @@ func TestSchemaConversion(t *testing.T) {
 					},
 				},
 			},
-			rt: reflect.TypeOf(struct {
-				Cypher map[bool]float32 `beam:"cypher"`
-			}{}),
+			rt: hasMapType,
 		}, {
 			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
@@ -353,12 +404,353 @@ func TestSchemaConversion(t *testing.T) {
 						},
 					},
 				},
-				Options: []*pipepb.Option{{
-					Name: optGoNillable,
-				}},
+				Options: []*pipepb.Option{optGoNillable()},
 			},
 			rt: reflect.TypeOf(&struct {
 				SuperNES int16
+			}{}),
+		}, {
+			st: &pipepb.Schema{
+				Options: []*pipepb.Option{
+					logicalOption("schema.unexportedFields"),
+				},
+				Fields: []*pipepb.Field{
+					{
+						Name: "D",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "uint64",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_AtomicType{
+											AtomicType: pipepb.AtomicType_INT64,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: unexportedFieldsType,
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "G",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.unexportedFields",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "D",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "uint64",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: reflect.TypeOf(struct{ G unexportedFields }{}),
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "H",
+						Type: &pipepb.FieldType{
+							Nullable: true,
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.unexportedFields",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "D",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "uint64",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: reflect.TypeOf(struct{ H *unexportedFields }{}),
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "E",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT16,
+							},
+						},
+					},
+				},
+				Options: []*pipepb.Option{optGoNillable(), logicalOption("*schema.exportedFunc")},
+			},
+			rt: exportedFuncType,
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "Q",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.myInt",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_LogicalType{
+											LogicalType: &pipepb.LogicalType{
+												Urn: "int",
+												Representation: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_AtomicType{
+														AtomicType: pipepb.AtomicType_INT64,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: anotherType,
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name:    "Exported",
+						Options: []*pipepb.Option{optGoEmbedded()},
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_RowType{
+								RowType: &pipepb.RowType{
+									Schema: &pipepb.Schema{
+										Fields: []*pipepb.Field{
+											{
+												Name: "G",
+												Type: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_LogicalType{
+														LogicalType: &pipepb.LogicalType{
+															Urn: "schema.myInt",
+															Representation: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "int",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: hasEmbeddedType,
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name:    "Exported",
+						Options: []*pipepb.Option{optGoEmbedded()},
+						Type: &pipepb.FieldType{
+							Nullable: true,
+							TypeInfo: &pipepb.FieldType_RowType{
+								RowType: &pipepb.RowType{
+									Schema: &pipepb.Schema{
+										Fields: []*pipepb.Field{
+											{
+												Name: "G",
+												Type: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_LogicalType{
+														LogicalType: &pipepb.LogicalType{
+															Urn: "schema.myInt",
+															Representation: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "int",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: hasEmbeddedPtrType,
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "T",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_STRING,
+							},
+						},
+					},
+				},
+				Options: []*pipepb.Option{optGoNillable()},
+			},
+			rt: reflect.TypeOf(&struct {
+				myInt
+				T string
+				i int
+			}{}),
+		}, {
+			st: &pipepb.Schema{
+				Options: []*pipepb.Option{
+					logicalOption("schema.exportedFunc"),
+				},
+				Fields: []*pipepb.Field{
+					{
+						Name: "V",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT16,
+							},
+						},
+					},
+				},
+			},
+			rt: reflect.TypeOf(exportedFunc{}),
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "U",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.exportedFunc",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "V",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_AtomicType{
+																	AtomicType: pipepb.AtomicType_INT16,
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: reflect.TypeOf(struct {
+				U exportedFunc
+			}{}),
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "U",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.nonRegisteredLogical",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "K",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_AtomicType{
+																	AtomicType: pipepb.AtomicType_INT32,
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: reflect.TypeOf(struct {
+				U nonRegisteredLogical
 			}{}),
 		},
 	}
@@ -366,12 +758,37 @@ func TestSchemaConversion(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(fmt.Sprintf("%v", test.rt), func(t *testing.T) {
+			reg := NewRegistry()
+			preRegLogicalTypes(reg)
+			reg.RegisterLogicalType(ToLogicalType(exportedFuncType.Elem().String(), exportedFuncType.Elem(), reflect.TypeOf(struct{ V int16 }{})))
+			reg.RegisterLogicalType(ToLogicalType(nonRegisteredLogicalType.String(), nonRegisteredLogicalType, reflect.TypeOf(struct{ K int32 }{})))
+			reg.RegisterType(reflect.TypeOf((*sRegisteredType)(nil)))
+			reg.RegisterLogicalTypeProvider(reflect.TypeOf((*testInterface)(nil)).Elem(), func(t reflect.Type) (reflect.Type, error) {
+				switch t {
+				case unexportedFieldsType:
+					return reflect.TypeOf(struct{ D uint64 }{}), nil
+				case exportedFuncType:
+					return reflect.TypeOf(struct{ E int16 }{}), nil
+				}
+				return nil, nil
+			})
+			reg.RegisterType(unexportedFieldsType)
+			reg.RegisterType(exportedFuncType)
+			reg.RegisterType(anotherType)
+			reg.RegisterType(exportedType)
+			reg.RegisterType(hasEmbeddedType)
+			reg.RegisterType(hasEmbeddedPtrType)
+			reg.RegisterType(hasMapType)
+
 			{
-				got, err := ToType(test.st)
+				got, err := reg.ToType(test.st)
 				if err != nil {
 					t.Fatalf("error ToType(%v) = %v", test.st, err)
 				}
-				if !test.rt.AssignableTo(got) {
+				// We can't validate that synthetic types from Schemas with embedded fields are
+				// assignable, as the anonymous struct field won't be equivalent to the
+				// real embedded type.
+				if !hasEmbeddedField(test.rt) && !test.rt.AssignableTo(got) {
 					t.Errorf("%v not assignable to %v", test.rt, got)
 					if d := cmp.Diff(reflect.New(test.rt).Elem().Interface(), reflect.New(got).Elem().Interface()); d != "" {
 						t.Errorf("diff (-want, +got): %v", d)
@@ -379,7 +796,7 @@ func TestSchemaConversion(t *testing.T) {
 				}
 			}
 			{
-				got, err := FromType(test.rt)
+				got, err := reg.FromType(test.rt)
 				if err != nil {
 					t.Fatalf("error FromType(%v) = %v", test.rt, err)
 				}
@@ -393,4 +810,19 @@ func TestSchemaConversion(t *testing.T) {
 			}
 		})
 	}
+}
+
+func hasEmbeddedField(t reflect.Type) bool {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return false
+	}
+	for i := 0; i < t.NumField(); i++ {
+		if t.Field(i).Anonymous {
+			return true
+		}
+	}
+	return false
 }

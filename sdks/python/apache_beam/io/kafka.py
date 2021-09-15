@@ -80,11 +80,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import typing
-
-from past.builtins import unicode
 
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
@@ -92,15 +88,12 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
-    [
-        ('consumer_config', typing.Mapping[unicode, unicode]),
-        ('topics', typing.List[unicode]),
-        ('key_deserializer', unicode),
-        ('value_deserializer', unicode),
-        ('start_read_time', typing.Optional[int]),
-        ('max_num_records', typing.Optional[int]),
-        ('max_read_time', typing.Optional[int]),
-    ])
+    [('consumer_config', typing.Mapping[str, str]),
+     ('topics', typing.List[str]), ('key_deserializer', str),
+     ('value_deserializer', str), ('start_read_time', typing.Optional[int]),
+     ('max_num_records', typing.Optional[int]),
+     ('max_read_time', typing.Optional[int]),
+     ('commit_offset_in_finalize', bool), ('timestamp_policy', str)])
 
 
 def default_io_expansion_service():
@@ -120,7 +113,12 @@ class ReadFromKafka(ExternalTransform):
   byte_array_deserializer = (
       'org.apache.kafka.common.serialization.ByteArrayDeserializer')
 
-  URN = 'beam:external:java:kafka:read:v1'
+  processing_time_policy = 'ProcessingTime'
+  create_time_policy = 'CreateTime'
+  log_append_time = 'LogAppendTime'
+
+  URN_WITH_METADATA = 'beam:external:java:kafkaio:externalwithmetadata:v1'
+  URN_WITHOUT_METADATA = 'beam:external:java:kafkaio:typedwithoutmetadata:v1'
 
   def __init__(
       self,
@@ -131,6 +129,9 @@ class ReadFromKafka(ExternalTransform):
       start_read_time=None,
       max_num_records=None,
       max_read_time=None,
+      commit_offset_in_finalize=False,
+      timestamp_policy=processing_time_policy,
+      with_metadata=False,
       expansion_service=None,
   ):
     """
@@ -152,10 +153,26 @@ class ReadFromKafka(ExternalTransform):
         for tests and demo applications.
     :param max_read_time: Maximum amount of time in seconds the transform
         executes. Mainly used for tests and demo applications.
+    :param commit_offset_in_finalize: Whether to commit offsets when finalizing.
+    :param timestamp_policy: The built-in timestamp policy which is used for
+        extracting timestamp from KafkaRecord.
+    :param with_metadata: whether the returned PCollection should contain
+        Kafka related metadata or not. If False (default), elements of the
+        returned PCollection will be of type 'bytes' if True, elements of the
+        returned PCollection will be of the type 'Row'. Note that, currently
+        this only works when using default key and value deserializers where
+        Java Kafka Reader reads keys and values as 'byte[]'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
+    if timestamp_policy not in [ReadFromKafka.processing_time_policy,
+                                ReadFromKafka.create_time_policy,
+                                ReadFromKafka.log_append_time]:
+      raise ValueError(
+          'timestamp_policy should be one of '
+          '[ProcessingTime, CreateTime, LogAppendTime]')
+
     super(ReadFromKafka, self).__init__(
-        self.URN,
+        self.URN_WITH_METADATA if with_metadata else self.URN_WITHOUT_METADATA,
         NamedTupleBasedPayloadBuilder(
             ReadFromKafkaSchema(
                 consumer_config=consumer_config,
@@ -165,17 +182,18 @@ class ReadFromKafka(ExternalTransform):
                 max_num_records=max_num_records,
                 max_read_time=max_read_time,
                 start_read_time=start_read_time,
-            )),
+                commit_offset_in_finalize=commit_offset_in_finalize,
+                timestamp_policy=timestamp_policy)),
         expansion_service or default_io_expansion_service())
 
 
 WriteToKafkaSchema = typing.NamedTuple(
     'WriteToKafkaSchema',
     [
-        ('producer_config', typing.Mapping[unicode, unicode]),
-        ('topic', unicode),
-        ('key_serializer', unicode),
-        ('value_serializer', unicode),
+        ('producer_config', typing.Mapping[str, str]),
+        ('topic', str),
+        ('key_serializer', str),
+        ('value_serializer', str),
     ])
 
 

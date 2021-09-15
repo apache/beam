@@ -23,10 +23,12 @@ capability-matrix-snapshot:
   categories:
     - description: What is being computed?
       anchor: what
-      color-b: "ca1"
-      color-y: "ec3"
-      color-p: "fe5"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: ParDo
           values:
@@ -202,10 +204,12 @@ capability-matrix-snapshot:
 
     - description: Where in event time?
       anchor: where
-      color-b: "37d"
-      color-y: "59f"
-      color-p: "8cf"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Global windows
           values:
@@ -342,10 +346,12 @@ capability-matrix-snapshot:
 
     - description: When in processing time?
       anchor: when
-      color-b: "6a4"
-      color-y: "8c6"
-      color-p: "ae8"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Configurable triggering
           values:
@@ -503,10 +509,12 @@ capability-matrix-snapshot:
 
     - description: How do refinements relate?
       anchor: how
-      color-b: "b55"
-      color-y: "d77"
-      color-p: "faa"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Discarding
           values:

@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import requests
 
 BASE_METADATA_URL = "http://metadata/computeMetadata/v1/"

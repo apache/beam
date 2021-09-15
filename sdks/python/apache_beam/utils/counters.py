@@ -17,6 +17,7 @@
 
 # cython: profile=False
 # cython: overflowcheck=True
+# cython: language_level=3
 
 """Counters collect the progress of the Worker for reporting to the service.
 
@@ -25,11 +26,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import threading
-from builtins import hex
-from builtins import object
 from collections import namedtuple
 from typing import TYPE_CHECKING
 from typing import Dict

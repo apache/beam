@@ -21,18 +21,18 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
 
 	// Importing to get the side effect of the remote execution hook. See init().
-	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/extworker"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/vet"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/init"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal/extworker"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal/runnerlib"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/vet"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -79,17 +79,17 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		getEnvCfg = srv.EnvironmentConfig
 	}
 
-	enviroment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
-	if err != nil {
-		return nil, errors.WithContextf(err, "generating model pipeline")
-	}
-	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
-	if err != nil {
-		return nil, errors.WithContextf(err, "generating model pipeline")
-	}
-
 	// Fetch all dependencies for cross-language transforms
-	xlangx.ResolveArtifacts(ctx, edges, pipeline)
+	xlangx.ResolveArtifacts(ctx, edges, nil)
+
+	environment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
+	if err != nil {
+		return nil, errors.WithContextf(err, "generating model pipeline")
+	}
+	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	if err != nil {
+		return nil, errors.WithContextf(err, "generating model pipeline")
+	}
 
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 

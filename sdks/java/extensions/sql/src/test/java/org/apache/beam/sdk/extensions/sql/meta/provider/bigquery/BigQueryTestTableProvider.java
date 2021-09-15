@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.MoreObjects.firstNonNull;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,9 +27,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A test table provider for BigQueryRowCountIT. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryTestTableProvider extends BigQueryTableProvider {
 
   private Map<String, Table> tableSpecMap;

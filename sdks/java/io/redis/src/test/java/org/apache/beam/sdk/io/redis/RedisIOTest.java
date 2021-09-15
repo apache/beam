@@ -43,9 +43,6 @@ import redis.embedded.RedisServer;
 
 /** Test on the Redis IO. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class RedisIOTest {
 
   private static final String REDIS_HOST = "localhost";

@@ -20,8 +20,8 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableChecker: false,
-  automaticModuleName: 'org.apache.beam.sdk.io.aws2')
+  automaticModuleName: 'org.apache.beam.sdk.io.aws2',
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -39,26 +39,31 @@ dependencies {
   compile library.java.aws_java_sdk2_sdk_core
   compile library.java.aws_java_sdk2_sns
   compile library.java.aws_java_sdk2_sqs
+  compile library.java.aws_java_sdk2_s3
+  compile library.java.aws_java_sdk2_http_client_spi
+  compile library.java.aws_java_sdk2_regions
+  compile library.java.aws_java_sdk2_utils
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
-  compile library.java.jackson_dataformat_cbor
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile "software.amazon.kinesis:amazon-kinesis-client:2.2.5"
+  compile "software.amazon.kinesis:amazon-kinesis-client:2.3.4"
   compile "commons-lang:commons-lang:2.6"
+  compile library.java.commons_lang3
+  compile library.java.http_core
+  compile library.java.commons_codec
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:io:kinesis", configuration: "testRuntime")
+  testCompile "io.findify:s3mock_2.12:0.2.6"
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
-  testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
   testCompile library.java.hamcrest_library
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito
-  testCompile library.java.testcontainers_localstack
   testCompile "org.assertj:assertj-core:3.11.1"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

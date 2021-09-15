@@ -18,10 +18,10 @@
 """Tests for apache_beam.runners.interactive.display.pcoll_visualization."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import sys
 import unittest
+from unittest.mock import ANY
+from unittest.mock import PropertyMock
+from unittest.mock import patch
 
 import pytz
 
@@ -38,13 +38,6 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
 
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch, ANY, PropertyMock
-except ImportError:
-  from mock import patch, ANY, PropertyMock  # type: ignore[misc]
-
 try:
   import timeloop
 except ImportError:
@@ -54,8 +47,6 @@ except ImportError:
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class PCollectionVisualizationTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -30,6 +30,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -63,6 +64,7 @@ public class CommittedResultTest implements Serializable {
               throw new IllegalArgumentException("Should never be applied");
             }
           },
+          ResourceHints.create(),
           p);
   private transient BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 

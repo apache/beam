@@ -24,6 +24,7 @@ import org.apache.beam.examples.complete.kafkatopubsub.avro.AvroDataClassKafkaAv
 import org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.SslConsumerFactoryFn;
 import org.apache.beam.examples.complete.kafkatopubsub.options.KafkaToPubsubOptions;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -66,9 +67,9 @@ public class FormatTransform {
         .withBootstrapServers(bootstrapServers)
         .withTopics(topicsList)
         .withKeyDeserializerAndCoder(
-            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()).getValueCoder())
+            StringDeserializer.class, (Coder<String>) NullableCoder.of(StringUtf8Coder.of()))
         .withValueDeserializerAndCoder(
-            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()).getValueCoder())
+            StringDeserializer.class, (Coder<String>) NullableCoder.of(StringUtf8Coder.of()))
         .withConsumerConfigUpdates(kafkaConfig)
         .withConsumerFactoryFn(new SslConsumerFactoryFn(sslConfig))
         .withoutMetadata();
@@ -91,7 +92,7 @@ public class FormatTransform {
         .withBootstrapServers(bootstrapServers)
         .withTopics(topicsList)
         .withKeyDeserializerAndCoder(
-            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()).getValueCoder())
+            StringDeserializer.class, (Coder<String>) NullableCoder.of(StringUtf8Coder.of()))
         .withValueDeserializerAndCoder(
             AvroDataClassKafkaAvroDeserializer.class, AvroCoder.of(AvroDataClass.class))
         .withConsumerConfigUpdates(config)

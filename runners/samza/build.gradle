@@ -21,8 +21,11 @@ import groovy.json.JsonOutput
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   exportJavadoc: false,
-  enableChecker: false,
-  automaticModuleName: 'org.apache.beam.runners.samza')
+  classesTriggerCheckerBugs: [
+    'GroupWithoutRepartition': 'https://github.com/typetools/checker-framework/issues/3791',
+  ],
+  automaticModuleName: 'org.apache.beam.runners.samza',
+)
 
 description = "Apache Beam :: Runners :: Samza"
 
@@ -60,29 +63,20 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.args4j
-  compile library.java.commons_lang3
   compile library.java.commons_io
-  compile "javax.servlet:javax.servlet-api:3.1.0"
-  compile "io.dropwizard.metrics:metrics-core:3.1.2"
-  compile "org.rocksdb:rocksdbjni:6.15.2"
-  compile "org.apache.commons:commons-collections4:4.0"
-  compile "org.scala-lang:scala-library:2.11.8"
+  runtimeOnly "org.rocksdb:rocksdbjni:6.15.2"
+  runtimeOnly "org.scala-lang:scala-library:2.11.8"
   compile "org.apache.samza:samza-api:$samza_version"
   compile "org.apache.samza:samza-core_2.11:$samza_version"
   runtimeOnly "org.apache.samza:samza-kafka_2.11:$samza_version"
-  compile "org.apache.samza:samza-kv_2.11:$samza_version"
+  runtimeOnly "org.apache.samza:samza-kv_2.11:$samza_version"
   compile "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
   compile "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
-  // Pin scalatra version to avoid samza-yarn transitively pulling in an unsafe version
-  compile "org.scalatra:scalatra_2.11:2.7.1"
-  compile "org.scalatra:scalatra-scalate_2.11:2.7.1"
-  compile "org.scalatra:scalatra-common_2.11:2.7.1"
-  compile "log4j:log4j:1.2.17"
   compile ("org.apache.samza:samza-yarn_2.11:$samza_version") {
     exclude group: 'org.scalatra'
   }
   runtimeOnly "org.apache.kafka:kafka-clients:2.0.1"
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   compile project(path: ":model:fn-execution", configuration: "shadow")
   compile project(path: ":model:job-management", configuration: "shadow")
   compile project(path: ":model:pipeline", configuration: "shadow")
@@ -113,7 +107,10 @@ task validatesRunner(type: Test) {
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.NeedsRunner'
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
     excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
@@ -124,12 +121,42 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
   filter {
     // TODO(BEAM-10025)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
     // TODO(BEAM-11479)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
+    // TODO(BEAM-11479)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testRelativeTimerWithOutputTimestamp'
+    // TODO(BEAM-12035)
+    excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
+    // TODO(BEAM-12036)
+    excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
+    // TODO(BEAM-12743)
+    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingNPException'
+    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException'
+    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException'
+    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException'
+    // TODO(BEAM-12744)
+    excludeTestsMatching 'org.apache.beam.sdk.PipelineTest.testEmptyPipeline'
+    // TODO(BEAM-12745)
+    excludeTestsMatching 'org.apache.beam.sdk.io.AvroIOTest*'
+    // TODO(BEAM-12746)
+    excludeTestsMatching 'org.apache.beam.sdk.io.FileIOTest*'
+    // TODO(BEAM-12747)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsBackwardsInTimeShouldThrow'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsWithNullTimestampShouldThrow'
+    // TODO(BEAM-12748)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput'
+    // TODO(BEAM-12749)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.MapElementsTest.testMapSimpleFunction'
+    // TODO(BEAM-12750)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSizeFn'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow'
 
     // These tests fail since there is no support for side inputs in Samza's unbounded splittable DoFn integration
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputWithCheckpointsUnbounded'

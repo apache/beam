@@ -25,7 +25,7 @@ import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardDisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
@@ -34,16 +34,15 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class DisplayDataTranslation {
-  public static final String LABELLED_STRING = "beam:display_data:labelled_string:v1";
+  public static final String LABELLED = "beam:display_data:labelled:v1";
 
   static {
-    checkState(
-        LABELLED_STRING.equals(BeamUrns.getUrn(StandardDisplayData.DisplayData.LABELLED_STRING)));
+    checkState(LABELLED.equals(BeamUrns.getUrn(StandardDisplayData.DisplayData.LABELLED)));
   }
 
   private static final Map<String, Function<DisplayData.Item, ByteString>>
       WELL_KNOWN_URN_TRANSLATORS =
-          ImmutableMap.of(LABELLED_STRING, DisplayDataTranslation::translateStringUtf8);
+          ImmutableMap.of(LABELLED, DisplayDataTranslation::translateStringUtf8);
 
   public static List<RunnerApi.DisplayData> toProto(DisplayData displayData) {
     ImmutableList.Builder<RunnerApi.DisplayData> builder = ImmutableList.builder();
@@ -54,7 +53,7 @@ public class DisplayDataTranslation {
       if (translator != null) {
         urn = item.getKey();
       } else {
-        urn = LABELLED_STRING;
+        urn = LABELLED;
         translator = DisplayDataTranslation::translateStringUtf8;
       }
       builder.add(
@@ -69,9 +68,9 @@ public class DisplayDataTranslation {
   private static ByteString translateStringUtf8(DisplayData.Item item) {
     String value = String.valueOf(item.getValue() == null ? item.getShortValue() : item.getValue());
     String label = item.getLabel() == null ? item.getKey() : item.getLabel();
-    return RunnerApi.LabelledStringPayload.newBuilder()
+    return RunnerApi.LabelledPayload.newBuilder()
         .setLabel(label)
-        .setValue(value)
+        .setStringValue(value)
         .build()
         .toByteString();
   }

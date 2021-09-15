@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import math
 import random
@@ -29,12 +26,8 @@ import re
 import time
 import unittest
 import warnings
-from builtins import object
-from builtins import range
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam import GroupByKey
@@ -45,6 +38,8 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.pvalue import AsList
+from apache_beam.pvalue import AsSingleton
 from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
@@ -550,7 +545,7 @@ class ReshuffleTest(unittest.TestCase):
       assert_that(
           after_reshuffle, equal_to(expected_data), label='after reshuffle')
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
 
@@ -634,6 +629,30 @@ class WithKeysTest(unittest.TestCase):
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys(lambda x: x * x)
     assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
+
+  @staticmethod
+  def _test_args_kwargs_fn(x, multiply, subtract):
+    return x * multiply - subtract
+
+  def test_args_kwargs_k(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      with_keys = pc | util.WithKeys(
+          WithKeysTest._test_args_kwargs_fn, 2, subtract=1)
+    assert_that(with_keys, equal_to([(1, 1), (3, 2), (5, 3)]))
+
+  def test_sideinputs(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      si1 = AsList(p | "side input 1" >> beam.Create([1, 2, 3]))
+      si2 = AsSingleton(p | "side input 2" >> beam.Create([10]))
+      with_keys = pc | util.WithKeys(
+          lambda x,
+          the_list,
+          the_singleton: x + sum(the_list) + the_singleton,
+          si1,
+          the_singleton=si2)
+    assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
 
 
 class GroupIntoBatchesTest(unittest.TestCase):
@@ -720,8 +739,8 @@ class GroupIntoBatchesTest(unittest.TestCase):
               max_buffering_duration_secs,
               fake_clock)
           | "count elements in batch" >> Map(lambda x: (None, len(x[1])))
-          | "global window" >> WindowInto(GlobalWindows())
           | GroupByKey()
+          | "global window" >> WindowInto(GlobalWindows())
           | FlatMapTuple(lambda k, vs: vs))
 
       # Window duration is 6 and batch size is 5, so output batch size
@@ -815,7 +834,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
 
     transform_from_proto = (
         transform.__class__.from_runner_api_parameter(None, payload, None))
-    self.assertTrue(isinstance(transform_from_proto, transform.__class__))
+    self.assertIsInstance(transform_from_proto, transform.__class__)
     self.assertEqual(transform.params, transform_from_proto.params)
 
   def test_runner_api(self):

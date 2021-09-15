@@ -17,15 +17,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import collections
 import os
-import sys
 import tempfile
-import urllib
+from urllib.parse import quote
+from urllib.parse import unquote_to_bytes
 
 import apache_beam as beam
 from apache_beam import coders
@@ -33,14 +29,6 @@ from apache_beam.io import filesystems
 from apache_beam.io import textio
 from apache_beam.io import tfrecordio
 from apache_beam.transforms import combiners
-from apache_beam.runners.interactive.samza_cache_manager import SamzaFileBasedCacheManager
-
-if sys.version_info[0] > 2:
-  unquote_to_bytes = urllib.parse.unquote_to_bytes
-  quote = urllib.parse.quote
-else:
-  unquote_to_bytes = urllib.unquote  # pylint: disable=deprecated-urllib-function
-  quote = urllib.quote  # pylint: disable=deprecated-urllib-function
 
 
 class CacheManager(object):
@@ -177,7 +165,7 @@ class FileBasedCacheManager(CacheManager):
       self._cache_dir = cache_dir
     else:
       self._cache_dir = tempfile.mkdtemp(
-          prefix='it-', dir=os.environ.get('TEST_TMPDIR', None))
+          prefix='ib-', dir=os.environ.get('TEST_TMPDIR', None))
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
     self.cache_format = cache_format
 
@@ -219,9 +207,11 @@ class FileBasedCacheManager(CacheManager):
     self._saved_pcoders[self._path(*labels)] = pcoder
 
   def load_pcoder(self, *labels):
-    return (
-        self._default_pcoder if self._default_pcoder is not None else
-        self._saved_pcoders[self._path(*labels)])
+    saved_pcoder = self._saved_pcoders.get(self._path(*labels), None)
+    if saved_pcoder is None or isinstance(saved_pcoder,
+                                          coders.FastPrimitivesCoder):
+      return self._default_pcoder
+    return saved_pcoder
 
   def read(self, *labels, **args):
     # Return an iterator to an empty list if it doesn't exist.
@@ -237,11 +227,22 @@ class FileBasedCacheManager(CacheManager):
     return reader, version
 
   def write(self, values, *labels):
-    sink = self.sink(labels)._sink
-    path = self._path(*labels)
+    """Imitates how a WriteCache tranform works without running a pipeline.
 
-    init_result = sink.initialize_write()
-    writer = sink.open_writer(init_result, path)
+    For testing and cache manager development, not for production usage because
+    the write is not sharded and does not use Beam execution model.
+    """
+    pcoder = coders.registry.get_coder(type(values[0]))
+    # Save the pcoder for the actual labels.
+    self.save_pcoder(pcoder, *labels)
+    single_shard_labels = [*labels[:-1], '-00000-of-00001']
+    # Save the pcoder for the labels that imitates the sharded cache file name
+    # suffix.
+    self.save_pcoder(pcoder, *single_shard_labels)
+    # Put a '-%05d-of-%05d' suffix to the cache file.
+    sink = self.sink(single_shard_labels)._sink
+    path = self._path(*labels[:-1])
+    writer = sink.open_writer(path, labels[-1])
     for v in values:
       writer.write(v)
     writer.close()
@@ -266,7 +267,7 @@ class FileBasedCacheManager(CacheManager):
     self._saved_pcoders = {}
 
   def _glob_path(self, *labels):
-    return self._path(*labels) + '-*-of-*'
+    return self._path(*labels) + '*-*-of-*'
 
   def _path(self, *labels):
     return filesystems.FileSystems.join(self._cache_dir, *labels)
@@ -296,17 +297,6 @@ class FileBasedCacheManager(CacheManager):
         self.current_timestamp = timestamp
       return self.current_version
 
-class ProcessTimestamp(beam.DoFn):
-  """ A DoFn for providing the runner with accurate timestamp information for a
-  cached element. Preserving the timestamp information allows for deterministic
-  windowing and aggregation, i.e. windows will contain the same elements regardless
-  of which pcollections are cached. Only used by SamzaFileBasedCacheManager.
-  """
-
-  def process(self, timestamped_element):
-    # Meant to be applied to an element after it's read from a cache.
-    element, timestamp = timestamped_element
-    yield beam.window.TimestampedValue(element, timestamp)
 
 class ReadCache(beam.PTransform):
   """A PTransform that reads the PCollections from the cache."""
@@ -316,13 +306,6 @@ class ReadCache(beam.PTransform):
 
   def expand(self, pbegin):
     # pylint: disable=expression-not-assigned
-
-    if self._cache_manager.__class__.__name__ == SamzaFileBasedCacheManager.__class__.__name__:
-      return (pbegin
-              | 'Read' >> beam.io.Read(
-                self._cache_manager.source('full', self._label))
-              | 'ProcessTimestamp' >> beam.ParDo(ProcessTimestamp()))
-
     return pbegin | 'Read' >> self._cache_manager.source('full', self._label)
 
 
@@ -351,40 +334,12 @@ class WriteCache(beam.PTransform):
         coders.registry.get_coder(pcoll.element_type), prefix, self._label)
 
     if self._sample:
-      # todo: LISAMZA-13429 implement a samza supported sampling transform
-      if self._cache_manager.__class__.__name__ == 'SamzaFileBasedCacheManager':
-        return pcoll | 'Sample' >> beam.io.Write(
-          self._cache_manager.sink(prefix, self._label))
-
-      # 'Sample.FixedSizeGlobally', like all global combine transforms,
-      # isn't currently supported by samza.
       pcoll |= 'Sample' >> (
           combiners.Sample.FixedSizeGlobally(self._sample_size)
           | beam.FlatMap(lambda sample: sample))
     # pylint: disable=expression-not-assigned
     return pcoll | 'Write' >> self._cache_manager.sink(
         (prefix, self._label), is_capture=self._is_capture)
-
-
-class CacheWithTimestamp(beam.PTransform):
-  """A caching transform that groups elements together with their corresponding
-  timestamps then writes to disk. This timestamp information is preserved so that
-  the correct timestamps can be added to elements after they're read from cache
-  """
-
-  class InsertTimestamp(beam.DoFn):
-    def process(self, element, timestamp=beam.DoFn.TimestampParam):
-      timestamped_element = element, float(timestamp)
-      yield timestamped_element
-
-  def __init__(self, cache_manager, cache_label):
-    self.cache_manager = cache_manager
-    self.cache_label = cache_label
-
-  def expand(self, pcoll):
-    return (pcoll
-            | beam.ParDo(self.InsertTimestamp())
-            | WriteCache(self.cache_manager, self.cache_label))
 
 
 class SafeFastPrimitivesCoder(coders.Coder):

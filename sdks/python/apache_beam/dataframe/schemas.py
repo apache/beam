@@ -27,37 +27,28 @@ with :mod:`apache_beam.typehints.schemas`), and common pandas dtypes::
                              \--- np.float{32,64}
   Not supported           <------ Optional[bytes]
   np.bool                 <-----> np.bool
+  np.dtype('S')           <-----> bytes
+  pd.BooleanDType()       <-----> Optional[bool]
+  pd.StringDType()        <-----> Optional[str]
+                             \--- str
+  np.object               <-----> Any
 
   * int, float, bool are treated the same as np.int64, np.float64, np.bool
 
-Any unknown or unsupported types are treated as :code:`Any` and shunted to
-:code:`np.object`::
+Note that when converting to pandas dtypes, any types not specified here are
+shunted to ``np.object``.
 
-  np.object               <-----> Any
-
-bytes, unicode strings and nullable Booleans are handled differently when using
-pandas 0.x vs. 1.x. pandas 0.x has no mapping for these types, so they are
-shunted to :code:`np.object`.
-
-pandas 1.x Only::
-
-  np.dtype('S')     <-----> bytes
-  pd.BooleanDType() <-----> Optional[bool]
-  pd.StringDType()  <-----> Optional[str]
-                       \--- str
+Similarly when converting from pandas to Python types, types that aren't
+otherwise specified here are shunted to ``Any``. Notably, this includes
+``np.datetime64``.
 
 Pandas does not support hierarchical data natively. Currently, all structured
-types (:code:`Sequence`, :code:`Mapping`, nested :code:`NamedTuple` types), are
-shunted to :code:`np.object` like all other unknown types. In the future these
+types (``Sequence``, ``Mapping``, nested ``NamedTuple`` types), are
+shunted to ``np.object`` like all other unknown types. In the future these
 types may be given special consideration.
 """
 
 # pytype: skip-file
-
-#TODO: Mapping for date/time types
-#https://pandas.pydata.org/docs/user_guide/timeseries.html#overview
-
-from __future__ import absolute_import
 
 from typing import Any
 from typing import NamedTuple
@@ -87,11 +78,9 @@ __all__ = (
 
 T = TypeVar('T', bound=NamedTuple)
 
-PD_MAJOR = int(pd.__version__.split('.')[0])
-
 # Generate type map (presented visually in the docstring)
 _BIDIRECTIONAL = [
-    (np.bool, np.bool),
+    (bool, bool),
     (np.int8, np.int8),
     (np.int16, np.int16),
     (np.int32, np.int32),
@@ -102,14 +91,10 @@ _BIDIRECTIONAL = [
     (pd.Int64Dtype(), Optional[np.int64]),
     (np.float32, Optional[np.float32]),
     (np.float64, Optional[np.float64]),
-    (np.object, Any),
+    (object, Any),
+    (pd.StringDtype(), Optional[str]),
+    (pd.BooleanDtype(), Optional[bool]),
 ]
-
-if PD_MAJOR >= 1:
-  _BIDIRECTIONAL.extend([
-      (pd.StringDtype(), Optional[str]),
-      (pd.BooleanDtype(), Optional[np.bool]),
-  ])
 
 PANDAS_TO_BEAM = {
     pd.Series([], dtype=dtype).dtype: fieldtype
@@ -121,10 +106,7 @@ BEAM_TO_PANDAS = {fieldtype: dtype for dtype, fieldtype in _BIDIRECTIONAL}
 # Shunt non-nullable Beam types to the same pandas types as their non-nullable
 # equivalents for FLOATs, DOUBLEs, and STRINGs. pandas has no non-nullable dtype
 # for these.
-OPTIONAL_SHUNTS = [np.float32, np.float64]
-
-if PD_MAJOR >= 1:
-  OPTIONAL_SHUNTS.append(str)
+OPTIONAL_SHUNTS = [np.float32, np.float64, str]
 
 for typehint in OPTIONAL_SHUNTS:
   BEAM_TO_PANDAS[typehint] = BEAM_TO_PANDAS[Optional[typehint]]
@@ -182,7 +164,7 @@ def generate_proxy(element_type):
     for name, typehint in fields:
       # Default to np.object. This is lossy, we won't be able to recover
       # the type at the output.
-      dtype = BEAM_TO_PANDAS.get(typehint, np.object)
+      dtype = BEAM_TO_PANDAS.get(typehint, object)
       proxy[name] = proxy[name].astype(dtype)
 
     return proxy
@@ -292,7 +274,8 @@ def _unbatch_transform(proxy, include_indexes):
     ctor = element_type_from_dataframe(proxy, include_indexes=include_indexes)
 
     return beam.ParDo(
-        _UnbatchWithIndex(ctor) if include_indexes else _UnbatchNoIndex(ctor))
+        _UnbatchWithIndex(ctor) if include_indexes else _UnbatchNoIndex(ctor)
+    ).with_output_types(ctor)
   elif isinstance(proxy, pd.Series):
     # Raise a TypeError if proxy has an unknown type
     output_type = _dtype_to_fieldtype(proxy.dtype)
@@ -322,7 +305,7 @@ def _dtype_to_fieldtype(dtype):
   elif dtype.kind == 'S':
     return bytes
   else:
-    raise TypeError("Unsupported dtype in proxy: '%s'" % dtype)
+    return Any
 
 
 @typehints.with_input_types(Union[pd.DataFrame, pd.Series])

@@ -15,9 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-from __future__ import division
-
 import math
 import time
 
@@ -37,6 +34,11 @@ from apache_beam.utils.timestamp import Timestamp
 class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
   def initial_restriction(self, element):
     start, end, interval = element
+    if isinstance(start, Timestamp):
+      start = start.micros / 1000000
+    if isinstance(end, Timestamp):
+      end = end.micros / 1000000
+
     assert start <= end
     assert interval > 0
     total_outputs = math.ceil((end - start) / interval)
@@ -80,6 +82,9 @@ class ImpulseSeqGenDoFn(beam.DoFn):
       target output timestamp for the element.
     '''
     start, _, interval = element
+
+    if isinstance(start, Timestamp):
+      start = start.micros / 1000000
 
     assert isinstance(restriction_tracker, sdf_utils.RestrictionTrackerView)
 

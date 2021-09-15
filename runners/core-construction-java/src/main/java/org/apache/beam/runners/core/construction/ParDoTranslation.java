@@ -77,8 +77,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -179,7 +179,7 @@ public class ParDoTranslation {
               .setUrn(PAR_DO_TRANSFORM_URN)
               .setPayload(payload.toByteString())
               .build());
-      builder.setEnvironmentId(components.getOnlyEnvironmentId());
+      builder.setEnvironmentId(components.getEnvironmentIdFor(appliedParDo.getResourceHints()));
 
       return builder.build();
     }
@@ -673,7 +673,10 @@ public class ParDoTranslation {
       case PROCESSING_TIME:
         return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
       case SYNCHRONIZED_PROCESSING_TIME:
-        return RunnerApi.TimeDomain.Enum.SYNCHRONIZED_PROCESSING_TIME;
+        throw new IllegalArgumentException(
+            String.format(
+                "%s is not permitted for user timers",
+                TimeDomain.SYNCHRONIZED_PROCESSING_TIME.name()));
       default:
         throw new IllegalArgumentException("Unknown time domain");
     }

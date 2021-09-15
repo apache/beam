@@ -20,14 +20,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import os
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 from mock import patch
 
 import apache_beam as beam

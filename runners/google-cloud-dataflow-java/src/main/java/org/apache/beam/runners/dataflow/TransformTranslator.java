@@ -49,11 +49,6 @@ public interface TransformTranslator<TransformT extends PTransform> {
    * including reading and writing the values of {@link PCollection}s and side inputs.
    */
   interface TranslationContext {
-    default boolean isFnApi() {
-      List<String> experiments = getPipelineOptions().getExperiments();
-      return experiments != null && experiments.contains("beam_fn_api");
-    }
-
     default boolean isStreamingEngine() {
       List<String> experiments = getPipelineOptions().getExperiments();
       return experiments != null

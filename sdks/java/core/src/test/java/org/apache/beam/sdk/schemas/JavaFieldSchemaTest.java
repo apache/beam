@@ -43,7 +43,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -80,15 +80,12 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for the {@link JavaFieldSchema} schema provider. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JavaFieldSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final Instant INSTANT = DateTime.parse("1979-03-15").toInstant();
-  static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
+  static final byte[] BYTE_ARRAY = "bytearray".getBytes(StandardCharsets.UTF_8);
   static final ByteBuffer BYTE_BUFFER =
-      ByteBuffer.wrap("byteBuffer".getBytes(Charset.defaultCharset()));
+      ByteBuffer.wrap("byteBuffer".getBytes(StandardCharsets.UTF_8));
 
   private SimplePOJO createSimple(String name) {
     return new SimplePOJO(

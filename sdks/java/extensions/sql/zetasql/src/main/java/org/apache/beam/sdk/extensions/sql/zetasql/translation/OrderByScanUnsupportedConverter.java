@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 
 /**
  * Always throws exception, represents the case when order by is used without limit.

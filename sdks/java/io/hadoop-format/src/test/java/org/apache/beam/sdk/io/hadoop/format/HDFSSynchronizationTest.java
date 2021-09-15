@@ -39,9 +39,6 @@ import org.mockito.Mockito;
 
 /** Tests functionality of {@link HDFSSynchronization} class. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class HDFSSynchronizationTest {
   private static final String DEFAULT_JOB_ID = String.valueOf(1);
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();

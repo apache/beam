@@ -29,6 +29,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValu
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verifyNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
@@ -37,7 +38,6 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.bigtable.v2.Cell;
@@ -77,7 +77,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
@@ -126,9 +126,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link BigtableIO}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigtableIOTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -1274,8 +1271,7 @@ public class BigtableIOTest {
    * A DoFn used to generate N outputs, where N is the input. Used to generate bundles of >= 1
    * element.
    */
-  private static class WriteGeneratorDoFn
-      extends DoFn<Integer, KV<ByteString, Iterable<Mutation>>> {
+  private static class WriteGeneratorDoFn extends DoFn<Long, KV<ByteString, Iterable<Mutation>>> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       for (int i = 0; i < ctx.element(); i++) {
@@ -1296,12 +1292,12 @@ public class BigtableIOTest {
     Instant elementTimestamp = Instant.parse("2019-06-10T00:00:00");
     Duration windowDuration = Duration.standardMinutes(1);
 
-    TestStream<Integer> input =
-        TestStream.create(VarIntCoder.of())
+    TestStream<Long> input =
+        TestStream.create(VarLongCoder.of())
             .advanceWatermarkTo(elementTimestamp)
-            .addElements(1)
+            .addElements(1L)
             .advanceWatermarkTo(elementTimestamp.plus(windowDuration))
-            .addElements(2)
+            .addElements(2L)
             .advanceWatermarkToInfinity();
 
     BoundedWindow expectedFirstWindow = new IntervalWindow(elementTimestamp, windowDuration);

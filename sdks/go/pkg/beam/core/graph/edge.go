@@ -20,12 +20,12 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Opcode represents a primitive Beam instruction kind.
@@ -137,6 +137,13 @@ func (o *Outbound) String() string {
 type Payload struct {
 	URN  string
 	Data []byte
+
+	// Optional fields mapping tags to inputs. If present, will override
+	// the default IO tagging for the transform's input PCollections.
+	InputsMap map[string]int
+	// Optional fields mapping tags to outputs. If present, will override
+	// the default IO tagging for the transform's output PCollections.
+	OutputsMap map[string]int
 }
 
 // MultiEdge represents a primitive data processing operation. Each non-user
@@ -289,9 +296,12 @@ func NewCrossLanguage(g *Graph, s *Scope, ext *ExternalTransform, ins []*Inbound
 	edge.Op = External
 	edge.External = ext
 
-	windowingStrategy := inputWindow([]*Node{ins[0].From})
+	ws := window.DefaultWindowingStrategy()
+	if len(ins) > 0 {
+		ws = inputWindow([]*Node{ins[0].From})
+	}
 	for _, o := range outs {
-		o.To.w = windowingStrategy
+		o.To.w = ws
 	}
 
 	isBoundedUpdater := func(n *Node, bounded bool) {
@@ -366,6 +376,31 @@ func NewExternal(g *Graph, s *Scope, payload *Payload, in []*Node, out []typex.F
 		n := g.NewNode(t, inputWindow(in), bounded)
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: t})
 	}
+	return edge
+}
+
+// NewTaggedExternal inserts an External transform with tagged inbound and
+// outbound connections. The system makes no assumptions about what this
+// transform might do.
+func NewTaggedExternal(g *Graph, s *Scope, payload *Payload, ins []*Inbound, outs []*Outbound, bounded bool) *MultiEdge {
+	edge := g.NewEdge(s)
+	edge.Op = External
+	edge.Payload = payload
+
+	var windowingStrategy *window.WindowingStrategy
+	if len(ins) == 0 {
+		windowingStrategy = window.DefaultWindowingStrategy()
+	} else {
+		windowingStrategy = inputWindow([]*Node{ins[0].From})
+	}
+
+	for _, o := range outs {
+		o.To.w = windowingStrategy
+		o.To.bounded = bounded
+	}
+
+	edge.Input = ins
+	edge.Output = outs
 	return edge
 }
 
@@ -498,13 +533,13 @@ func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 }
 
 // NewWindowInto inserts a new WindowInto edge into the graph.
-func NewWindowInto(g *Graph, s *Scope, wfn *window.Fn, in *Node) *MultiEdge {
-	n := g.NewNode(in.Type(), &window.WindowingStrategy{Fn: wfn}, in.Bounded())
+func NewWindowInto(g *Graph, s *Scope, ws *window.WindowingStrategy, in *Node) *MultiEdge {
+	n := g.NewNode(in.Type(), ws, in.Bounded())
 	n.Coder = in.Coder
 
 	edge := g.NewEdge(s)
 	edge.Op = WindowInto
-	edge.WindowFn = wfn
+	edge.WindowFn = ws.Fn
 	edge.Input = []*Inbound{{Kind: Main, From: in, Type: in.Type()}}
 	edge.Output = []*Outbound{{To: n, Type: in.Type()}}
 	return edge

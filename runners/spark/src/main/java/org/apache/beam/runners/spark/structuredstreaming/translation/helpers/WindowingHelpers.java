@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
 import java.util.Collection;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -41,7 +41,7 @@ public final class WindowingHelpers {
    */
   @SuppressWarnings("unchecked")
   public static <T, W extends BoundedWindow> boolean skipAssignWindows(
-      Window.Assign<T> transform, TranslationContext context) {
+      Window.Assign<T> transform, AbstractTranslationContext context) {
     WindowFn<? super T, W> windowFnToApply = (WindowFn<? super T, W>) transform.getWindowFn();
     PCollection<T> input = (PCollection<T>) context.getInput();
     WindowFn<?, ?> windowFnOfInput = input.getWindowingStrategy().getWindowFn();

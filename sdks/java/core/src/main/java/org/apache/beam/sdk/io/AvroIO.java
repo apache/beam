@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
+import static org.apache.beam.sdk.io.ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
@@ -43,16 +43,16 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileIO.MatchConfiguration;
+import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -61,7 +61,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
@@ -72,7 +71,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-
 
 /**
  * {@link PTransform}s for reading and writing Avro files.
@@ -201,7 +199,7 @@ import org.joda.time.Duration;
  *
  * <pre>{@code
  * PCollection<AvroAutoGenClass> records =
- *     p.apply(AvroIO.read(...).from(...).withBeamSchemas(true);
+ *     p.apply(AvroIO.read(...).from(...).withBeamSchemas(true));
  * }</pre>
  *
  * <h3>Inferring Beam schemas from Avro PCollections</h3>
@@ -340,8 +338,8 @@ public class AvroIO {
    * <p>The schema must be specified using one of the {@code withSchema} functions.
    */
   public static <T> Read<T> read(Class<T> recordClass) {
-    return new AutoValue_AvroIO_Read.Builder<T>().setMatchConfiguration(
-        MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
+    return new AutoValue_AvroIO_Read.Builder<T>()
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setInferBeamSchema(false)
@@ -350,17 +348,20 @@ public class AvroIO {
   }
 
   /**
-   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link
-   * FileIO.ReadableFile}, returned by {@link FileIO#readMatches}.
+   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link ReadableFile},
+   * returned by {@link FileIO#readMatches}.
    *
    * <p>You can read {@link GenericRecord} by using {@code #readFiles(GenericRecord.class)} or
    * {@code #readFiles(new Schema.Parser().parse(schema))} if the schema is a String.
    */
   public static <T> ReadFiles<T> readFiles(Class<T> recordClass) {
-    return new AutoValue_AvroIO_ReadFiles.Builder<T>().setRecordClass(recordClass)
+    return new AutoValue_AvroIO_ReadFiles.Builder<T>()
+        .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
+        .setFileExceptionHandler(new ReadFileRangesFnExceptionHandler())
         .build();
   }
 
@@ -373,8 +374,8 @@ public class AvroIO {
    */
   @Deprecated
   public static <T> ReadAll<T> readAll(Class<T> recordClass) {
-    return new AutoValue_AvroIO_ReadAll.Builder<T>().setMatchConfiguration(
-        MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+    return new AutoValue_AvroIO_ReadAll.Builder<T>()
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setInferBeamSchema(false)
@@ -384,8 +385,8 @@ public class AvroIO {
 
   /** Reads Avro file(s) containing records of the specified schema. */
   public static Read<GenericRecord> readGenericRecords(Schema schema) {
-    return new AutoValue_AvroIO_Read.Builder<GenericRecord>().setMatchConfiguration(
-        MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
+    return new AutoValue_AvroIO_Read.Builder<GenericRecord>()
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
         .setInferBeamSchema(false)
@@ -395,19 +396,22 @@ public class AvroIO {
 
   /**
    * Like {@link #readGenericRecords(Schema)}, but for a {@link PCollection} of {@link
-   * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
+   * ReadableFile}, for example, returned by {@link FileIO#readMatches}.
    */
   public static ReadFiles<GenericRecord> readFilesGenericRecords(Schema schema) {
-    return new AutoValue_AvroIO_ReadFiles.Builder<GenericRecord>().setRecordClass(GenericRecord.class)
+    return new AutoValue_AvroIO_ReadFiles.Builder<GenericRecord>()
+        .setRecordClass(GenericRecord.class)
         .setSchema(schema)
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
+        .setFileExceptionHandler(new ReadFileRangesFnExceptionHandler())
         .build();
   }
 
   /**
    * Like {@link #readGenericRecords(Schema)}, but for a {@link PCollection} of {@link
-   * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
+   * ReadableFile}, for example, returned by {@link FileIO#readMatches}.
    *
    * @deprecated You can achieve The functionality of {@link #readAllGenericRecords(Schema)} using
    *     {@link FileIO} matching plus {@link #readFilesGenericRecords(Schema)}. This is the
@@ -416,8 +420,8 @@ public class AvroIO {
    */
   @Deprecated
   public static ReadAll<GenericRecord> readAllGenericRecords(Schema schema) {
-    return new AutoValue_AvroIO_ReadAll.Builder<GenericRecord>().setMatchConfiguration(
-        MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+    return new AutoValue_AvroIO_ReadAll.Builder<GenericRecord>()
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
         .setInferBeamSchema(false)
@@ -433,7 +437,7 @@ public class AvroIO {
     return readGenericRecords(new Schema.Parser().parse(schema));
   }
 
-  /** Like {@link #readGenericRecords(String)}, but for {@link FileIO.ReadableFile} collections. */
+  /** Like {@link #readGenericRecords(String)}, but for {@link ReadableFile} collections. */
   public static ReadFiles<GenericRecord> readFilesGenericRecords(String schema) {
     return readFilesGenericRecords(new Schema.Parser().parse(schema));
   }
@@ -457,20 +461,24 @@ public class AvroIO {
    * custom type.
    */
   public static <T> Parse<T> parseGenericRecords(SerializableFunction<GenericRecord, T> parseFn) {
-    return new AutoValue_AvroIO_Parse.Builder<T>().setMatchConfiguration(
-        MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
+    return new AutoValue_AvroIO_Parse.Builder<T>()
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .setParseFn(parseFn)
         .setHintMatchesManyFiles(false)
         .build();
   }
 
   /**
-   * Like {@link #parseGenericRecords(SerializableFunction)}, but reads each {@link
-   * FileIO.ReadableFile} in the input {@link PCollection}.
+   * Like {@link #parseGenericRecords(SerializableFunction)}, but reads each {@link ReadableFile} in
+   * the input {@link PCollection}.
    */
-  public static <T> ParseFiles<T> parseFilesGenericRecords(SerializableFunction<GenericRecord, T> parseFn) {
-    return new AutoValue_AvroIO_ParseFiles.Builder<T>().setParseFn(parseFn)
+  public static <T> ParseFiles<T> parseFilesGenericRecords(
+      SerializableFunction<GenericRecord, T> parseFn) {
+    return new AutoValue_AvroIO_ParseFiles.Builder<T>()
+        .setParseFn(parseFn)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
+        .setFileExceptionHandler(new ReadFileRangesFnExceptionHandler())
         .build();
   }
 
@@ -485,9 +493,10 @@ public class AvroIO {
    *     future version of Beam.
    */
   @Deprecated
-  public static <T> ParseAll<T> parseAllGenericRecords(SerializableFunction<GenericRecord, T> parseFn) {
-    return new AutoValue_AvroIO_ParseAll.Builder<T>().setMatchConfiguration(
-        MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+  public static <T> ParseAll<T> parseAllGenericRecords(
+      SerializableFunction<GenericRecord, T> parseFn) {
+    return new AutoValue_AvroIO_ParseAll.Builder<T>()
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setParseFn(parseFn)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .build();
@@ -498,15 +507,20 @@ public class AvroIO {
    * pattern).
    */
   public static <T> Write<T> write(Class<T> recordClass) {
-    return new Write<>(AvroIO.<T, T>defaultWriteBuilder().setGenericRecords(false)
-        .setSchema(ReflectData.get().getSchema(recordClass))
-        .build());
+    return new Write<>(
+        AvroIO.<T, T>defaultWriteBuilder()
+            .setGenericRecords(false)
+            .setSchema(ReflectData.get().getSchema(recordClass))
+            .build());
   }
 
   /** Writes Avro records of the specified schema. */
   public static Write<GenericRecord> writeGenericRecords(Schema schema) {
     return new Write<>(
-        AvroIO.<GenericRecord, GenericRecord>defaultWriteBuilder().setGenericRecords(true).setSchema(schema).build());
+        AvroIO.<GenericRecord, GenericRecord>defaultWriteBuilder()
+            .setGenericRecords(true)
+            .setSchema(schema)
+            .build());
   }
 
   /**
@@ -550,7 +564,8 @@ public class AvroIO {
   }
 
   private static <UserT, OutputT> TypedWrite.Builder<UserT, Void, OutputT> defaultWriteBuilder() {
-    return new AutoValue_AvroIO_TypedWrite.Builder<UserT, Void, OutputT>().setFilenameSuffix(null)
+    return new AutoValue_AvroIO_TypedWrite.Builder<UserT, Void, OutputT>()
+        .setFilenameSuffix(null)
         .setShardTemplate(null)
         .setNumShards(0)
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
@@ -560,15 +575,9 @@ public class AvroIO {
   }
 
   @Experimental(Kind.SCHEMAS)
-  private static <T> PCollection<T> setBeamSchema(PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
-    org.apache.beam.sdk.schemas.Schema beamSchema =
-        org.apache.beam.sdk.schemas.utils.AvroUtils.getSchema(clazz, schema);
-    if (beamSchema != null) {
-      pc.setSchema(beamSchema, TypeDescriptor.of(clazz),
-          org.apache.beam.sdk.schemas.utils.AvroUtils.getToRowFunction(clazz, schema),
-          org.apache.beam.sdk.schemas.utils.AvroUtils.getFromRowFunction(clazz));
-    }
-    return pc;
+  private static <T> PCollection<T> setBeamSchema(
+      PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
+    return pc.setCoder(AvroUtils.schemaCoder(clazz, schema));
   }
 
   /**
@@ -596,8 +605,7 @@ public class AvroIO {
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<T>
-        implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<T>> {
+    abstract static class Builder<T> {
       abstract Builder<T> setFilepattern(ValueProvider<String> filepattern);
 
       abstract Builder<T> setMatchConfiguration(MatchConfiguration matchConfiguration);
@@ -611,43 +619,6 @@ public class AvroIO {
       abstract Builder<T> setHintMatchesManyFiles(boolean hintManyFiles);
 
       abstract Read<T> build();
-
-      @Override
-      public PTransform<PBegin, PCollection<T>> buildExternal(External.Configuration config) {
-
-        Schema schema = new Schema.Parser().parse(config.schema);
-        setFilepattern(StaticValueProvider.of(config.filepattern));
-        setSchema(schema);
-
-        return build();
-      }
-    }
-
-    @Experimental
-    @AutoService(ExternalTransformRegistrar.class)
-    public static class External implements ExternalTransformRegistrar {
-
-      public static final String URN = "beam:external:java:avro:read:v1";
-
-      @Override
-      public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
-        return ImmutableMap.of(URN,
-            (Class<? extends ExternalTransformBuilder<?, ?, ?>>) (Class<?>) AutoValue_AvroIO_Read.Builder.class);
-      }
-
-      /** Parameters class to expose the Read transform to an external SDK. */
-      public static class Configuration {
-        private String filepattern;
-        private String schema;
-
-        public void setFilepattern(String filepattern) {
-          this.filepattern = filepattern;
-        }
-
-        public void setSchema(String schema) {
-          this.schema = schema;
-        }
-      }
     }
 
     /**
@@ -718,42 +689,62 @@ public class AvroIO {
       checkNotNull(getSchema(), "schema");
 
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
-        PCollection<T> read = input.apply("Read", org.apache.beam.sdk.io.Read.from(
-            createSource(getFilepattern(), getMatchConfiguration().getEmptyMatchTreatment(), getRecordClass(),
-                getSchema(), null)));
+        PCollection<T> read =
+            input.apply(
+                "Read",
+                org.apache.beam.sdk.io.Read.from(
+                    createSource(
+                        getFilepattern(),
+                        getMatchConfiguration().getEmptyMatchTreatment(),
+                        getRecordClass(),
+                        getSchema(),
+                        null)));
         return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
       }
 
       // All other cases go through FileIO + ReadFiles
       ReadFiles<T> readFiles =
-          (getRecordClass() == GenericRecord.class) ? (ReadFiles<T>) readFilesGenericRecords(getSchema())
+          (getRecordClass() == GenericRecord.class)
+              ? (ReadFiles<T>) readFilesGenericRecords(getSchema())
               : readFiles(getRecordClass());
-      return input.apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+      return input
+          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
           .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
-          .apply("Read Matches", FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply(
+              "Read Matches",
+              FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
           .apply("Via ReadFiles", readFiles);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("inferBeamSchema", getInferBeamSchema()).withLabel("Infer Beam Schema"))
+      builder
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
           .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
           .addIfNotNull(DisplayData.item("recordClass", getRecordClass()).withLabel("Record Class"))
-          .addIfNotNull(DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
+          .addIfNotNull(
+              DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
           .include("matchConfiguration", getMatchConfiguration());
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> AvroSource<T> createSource(ValueProvider<String> filepattern,
-        EmptyMatchTreatment emptyMatchTreatment, Class<T> recordClass, Schema schema,
+    private static <T> AvroSource<T> createSource(
+        ValueProvider<String> filepattern,
+        EmptyMatchTreatment emptyMatchTreatment,
+        Class<T> recordClass,
+        Schema schema,
         AvroSource.@Nullable DatumReaderFactory<T> readerFactory) {
-      AvroSource<?> source = AvroSource.from(filepattern).withEmptyMatchTreatment(emptyMatchTreatment);
+      AvroSource<?> source =
+          AvroSource.from(filepattern).withEmptyMatchTreatment(emptyMatchTreatment);
 
       if (readerFactory != null) {
         source = source.withDatumReaderFactory(readerFactory);
       }
-      return recordClass == GenericRecord.class ? (AvroSource<T>) source.withSchema(schema)
+      return recordClass == GenericRecord.class
+          ? (AvroSource<T>) source.withSchema(schema)
           : source.withSchema(recordClass);
     }
   }
@@ -762,11 +753,16 @@ public class AvroIO {
 
   /** Implementation of {@link #readFiles}. */
   @AutoValue
-  public abstract static class ReadFiles<T> extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
+  public abstract static class ReadFiles<T>
+      extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
 
     abstract @Nullable Class<T> getRecordClass();
 
     abstract @Nullable Schema getSchema();
+
+    abstract boolean getUsesReshuffle();
+
+    abstract ReadFileRangesFnExceptionHandler getFileExceptionHandler();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -782,6 +778,11 @@ public class AvroIO {
 
       abstract Builder<T> setSchema(Schema schema);
 
+      abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
+
+      abstract Builder<T> setFileExceptionHandler(
+          ReadFileRangesFnExceptionHandler exceptionHandler);
+
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract Builder<T> setInferBeamSchema(boolean infer);
@@ -794,6 +795,19 @@ public class AvroIO {
     @VisibleForTesting
     ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    /** Specifies if a Reshuffle should run before file reads occur. */
+    @Experimental(Kind.FILESYSTEM)
+    public ReadFiles<T> withUsesReshuffle(boolean usesReshuffle) {
+      return toBuilder().setUsesReshuffle(usesReshuffle).build();
+    }
+
+    /** Specifies if exceptions should be logged only for streaming pipelines. */
+    @Experimental(Kind.FILESYSTEM)
+    public ReadFiles<T> withFileExceptionHandler(
+        ReadFileRangesFnExceptionHandler exceptionHandler) {
+      return toBuilder().setFileExceptionHandler(exceptionHandler).build();
     }
 
     /**
@@ -810,21 +824,31 @@ public class AvroIO {
     }
 
     @Override
-    public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
+    public PCollection<T> expand(PCollection<ReadableFile> input) {
       checkNotNull(getSchema(), "schema");
-      PCollection<T> read = input.apply("Read all via FileBasedSource",
-          new ReadAllViaFileBasedSource<>(getDesiredBundleSizeBytes(),
-              new CreateSourceFn<>(getRecordClass(), getSchema().toString(), getDatumReaderFactory()),
-              AvroCoder.of(getRecordClass(), getSchema())));
+      PCollection<T> read =
+          input.apply(
+              "Read all via FileBasedSource",
+              new ReadAllViaFileBasedSource<>(
+                  getDesiredBundleSizeBytes(),
+                  new CreateSourceFn<>(
+                      getRecordClass(), getSchema().toString(), getDatumReaderFactory()),
+                  AvroCoder.of(getRecordClass(), getSchema()),
+                  getUsesReshuffle(),
+                  getFileExceptionHandler()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("inferBeamSchema", getInferBeamSchema()).withLabel("Infer Beam Schema"))
+      builder
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
           .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
-          .addIfNotNull(DisplayData.item("recordClass", getRecordClass()).withLabel("Record Class"));
+          .addIfNotNull(
+              DisplayData.item("recordClass", getRecordClass()).withLabel("Record Class"));
     }
   }
 
@@ -899,37 +923,50 @@ public class AvroIO {
     @Override
     public PCollection<T> expand(PCollection<String> input) {
       checkNotNull(getSchema(), "schema");
-      PCollection<T> read = input.apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
-          .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-          .apply(readFiles(getRecordClass()));
+      PCollection<T> read =
+          input
+              .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
+              .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+              .apply(readFiles(getRecordClass()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("inferBeamSchema", getInferBeamSchema()).withLabel("Infer Beam Schema"))
+      builder
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
           .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
           .addIfNotNull(DisplayData.item("recordClass", getRecordClass()).withLabel("Record Class"))
           .include("matchConfiguration", getMatchConfiguration());
     }
   }
 
-  private static class CreateSourceFn<T> implements SerializableFunction<String, FileBasedSource<T>> {
+  private static class CreateSourceFn<T>
+      implements SerializableFunction<String, FileBasedSource<T>> {
     private final Class<T> recordClass;
     private final Supplier<Schema> schemaSupplier;
     private final AvroSource.DatumReaderFactory<T> readerFactory;
 
-    CreateSourceFn(Class<T> recordClass, String jsonSchema, AvroSource.DatumReaderFactory<T> readerFactory) {
+    CreateSourceFn(
+        Class<T> recordClass, String jsonSchema, AvroSource.DatumReaderFactory<T> readerFactory) {
       this.recordClass = recordClass;
-      this.schemaSupplier = Suppliers.memoize(Suppliers.compose(new JsonToSchema(), Suppliers.ofInstance(jsonSchema)));
+      this.schemaSupplier =
+          Suppliers.memoize(
+              Suppliers.compose(new JsonToSchema(), Suppliers.ofInstance(jsonSchema)));
       this.readerFactory = readerFactory;
     }
 
     @Override
     public FileBasedSource<T> apply(String input) {
-      return Read.createSource(StaticValueProvider.of(input), EmptyMatchTreatment.DISALLOW, recordClass,
-          schemaSupplier.get(), readerFactory);
+      return Read.createSource(
+          StaticValueProvider.of(input),
+          EmptyMatchTreatment.DISALLOW,
+          recordClass,
+          schemaSupplier.get(),
+          readerFactory);
     }
 
     private static class JsonToSchema implements Function<String, Schema>, Serializable {
@@ -1017,18 +1054,24 @@ public class AvroIO {
 
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
         return input.apply(
-            org.apache.beam.sdk.io.Read.from(AvroSource.from(getFilepattern()).withParseFn(getParseFn(), coder)));
+            org.apache.beam.sdk.io.Read.from(
+                AvroSource.from(getFilepattern()).withParseFn(getParseFn(), coder)));
       }
 
       // All other cases go through FileIO + ParseFilesGenericRecords.
-      return input.apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+      return input
+          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
           .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
-          .apply("Read Matches", FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply(
+              "Read Matches",
+              FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
           .apply("Via ParseFiles", parseFilesGenericRecords(getParseFn()).withCoder(coder));
     }
 
-    private static <T> Coder<T> inferCoder(@Nullable Coder<T> explicitCoder,
-        SerializableFunction<GenericRecord, T> parseFn, CoderRegistry coderRegistry) {
+    private static <T> Coder<T> inferCoder(
+        @Nullable Coder<T> explicitCoder,
+        SerializableFunction<GenericRecord, T> parseFn,
+        CoderRegistry coderRegistry) {
       if (explicitCoder != null) {
         return explicitCoder;
       }
@@ -1037,14 +1080,17 @@ public class AvroIO {
         return coderRegistry.getCoder(TypeDescriptors.outputOf(parseFn));
       } catch (CannotProvideCoderException e) {
         throw new IllegalArgumentException(
-            "Unable to infer coder for output of parseFn. Specify it explicitly using withCoder().", e);
+            "Unable to infer coder for output of parseFn. Specify it explicitly using withCoder().",
+            e);
       }
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.addIfNotNull(DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
+      builder
+          .addIfNotNull(
+              DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
           .add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"))
           .include("matchConfiguration", getMatchConfiguration());
     }
@@ -1054,10 +1100,15 @@ public class AvroIO {
 
   /** Implementation of {@link #parseFilesGenericRecords}. */
   @AutoValue
-  public abstract static class ParseFiles<T> extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
+  public abstract static class ParseFiles<T>
+      extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
     abstract @Nullable Coder<T> getCoder();
+
+    abstract boolean getUsesReshuffle();
+
+    abstract ReadFileRangesFnExceptionHandler getFileExceptionHandler();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -1069,6 +1120,11 @@ public class AvroIO {
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
+      abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
+
+      abstract Builder<T> setFileExceptionHandler(
+          ReadFileRangesFnExceptionHandler exceptionHandler);
+
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ParseFiles<T> build();
@@ -1079,18 +1135,39 @@ public class AvroIO {
       return toBuilder().setCoder(coder).build();
     }
 
+    /** Specifies if a Reshuffle should run before file reads occur. */
+    @Experimental(Kind.FILESYSTEM)
+    public ParseFiles<T> withUsesReshuffle(boolean usesReshuffle) {
+      return toBuilder().setUsesReshuffle(usesReshuffle).build();
+    }
+
+    /** Specifies if exceptions should be logged only for streaming pipelines. */
+    @Experimental(Kind.FILESYSTEM)
+    public ParseFiles<T> withFileExceptionHandler(
+        ReadFileRangesFnExceptionHandler exceptionHandler) {
+      return toBuilder().setFileExceptionHandler(exceptionHandler).build();
+    }
+
     @VisibleForTesting
     ParseFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
     @Override
-    public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
-      final Coder<T> coder = Parse.inferCoder(getCoder(), getParseFn(), input.getPipeline().getCoderRegistry());
+    public PCollection<T> expand(PCollection<ReadableFile> input) {
+      final Coder<T> coder =
+          Parse.inferCoder(getCoder(), getParseFn(), input.getPipeline().getCoderRegistry());
       final SerializableFunction<GenericRecord, T> parseFn = getParseFn();
-      final SerializableFunction<String, FileBasedSource<T>> createSource = new CreateParseSourceFn<>(parseFn, coder);
-      return input.apply("Parse Files via FileBasedSource",
-          new ReadAllViaFileBasedSource<>(getDesiredBundleSizeBytes(), createSource, coder));
+      final SerializableFunction<String, FileBasedSource<T>> createSource =
+          new CreateParseSourceFn<>(parseFn, coder);
+      return input.apply(
+          "Parse Files via FileBasedSource",
+          new ReadAllViaFileBasedSource<>(
+              getDesiredBundleSizeBytes(),
+              createSource,
+              coder,
+              getUsesReshuffle(),
+              getFileExceptionHandler()));
     }
 
     @Override
@@ -1099,7 +1176,8 @@ public class AvroIO {
       builder.add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"));
     }
 
-    private static class CreateParseSourceFn<T> implements SerializableFunction<String, FileBasedSource<T>> {
+    private static class CreateParseSourceFn<T>
+        implements SerializableFunction<String, FileBasedSource<T>> {
       private final SerializableFunction<GenericRecord, T> parseFn;
       private final Coder<T> coder;
 
@@ -1177,15 +1255,19 @@ public class AvroIO {
 
     @Override
     public PCollection<T> expand(PCollection<String> input) {
-      return input.apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
+      return input
+          .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-          .apply("Parse all via FileBasedSource", parseFilesGenericRecords(getParseFn()).withCoder(getCoder()));
+          .apply(
+              "Parse all via FileBasedSource",
+              parseFilesGenericRecords(getParseFn()).withCoder(getCoder()));
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"))
+      builder
+          .add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"))
           .include("matchConfiguration", getMatchConfiguration());
     }
   }
@@ -1222,7 +1304,8 @@ public class AvroIO {
 
     abstract @Nullable FilenamePolicy getFilenamePolicy();
 
-    abstract @Nullable DynamicAvroDestinations<UserT, DestinationT, OutputT> getDynamicDestinations();
+    abstract @Nullable DynamicAvroDestinations<UserT, DestinationT, OutputT>
+        getDynamicDestinations();
 
     abstract AvroSink.@Nullable DatumWriterFactory<OutputT> getDatumWriterFactory();
 
@@ -1231,7 +1314,6 @@ public class AvroIO {
      * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
      */
     abstract SerializableAvroCodecFactory getCodec();
-
     /** Avro file metadata. */
     abstract ImmutableMap<String, Object> getMetadata();
 
@@ -1242,15 +1324,19 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setFormatFunction(
           @Nullable SerializableFunction<UserT, OutputT> formatFunction);
 
-      abstract Builder<UserT, DestinationT, OutputT> setFilenamePrefix(ValueProvider<ResourceId> filenamePrefix);
+      abstract Builder<UserT, DestinationT, OutputT> setFilenamePrefix(
+          ValueProvider<ResourceId> filenamePrefix);
 
-      abstract Builder<UserT, DestinationT, OutputT> setFilenameSuffix(@Nullable String filenameSuffix);
+      abstract Builder<UserT, DestinationT, OutputT> setFilenameSuffix(
+          @Nullable String filenameSuffix);
 
-      abstract Builder<UserT, DestinationT, OutputT> setTempDirectory(ValueProvider<ResourceId> tempDirectory);
+      abstract Builder<UserT, DestinationT, OutputT> setTempDirectory(
+          ValueProvider<ResourceId> tempDirectory);
 
       abstract Builder<UserT, DestinationT, OutputT> setNumShards(int numShards);
 
-      abstract Builder<UserT, DestinationT, OutputT> setShardTemplate(@Nullable String shardTemplate);
+      abstract Builder<UserT, DestinationT, OutputT> setShardTemplate(
+          @Nullable String shardTemplate);
 
       abstract Builder<UserT, DestinationT, OutputT> setGenericRecords(boolean genericRecords);
 
@@ -1260,11 +1346,13 @@ public class AvroIO {
 
       abstract Builder<UserT, DestinationT, OutputT> setNoSpilling(boolean noSpilling);
 
-      abstract Builder<UserT, DestinationT, OutputT> setFilenamePolicy(FilenamePolicy filenamePolicy);
+      abstract Builder<UserT, DestinationT, OutputT> setFilenamePolicy(
+          FilenamePolicy filenamePolicy);
 
       abstract Builder<UserT, DestinationT, OutputT> setCodec(SerializableAvroCodecFactory codec);
 
-      abstract Builder<UserT, DestinationT, OutputT> setMetadata(ImmutableMap<String, Object> metadata);
+      abstract Builder<UserT, DestinationT, OutputT> setMetadata(
+          ImmutableMap<String, Object> metadata);
 
       abstract Builder<UserT, DestinationT, OutputT> setDynamicDestinations(
           DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations);
@@ -1313,7 +1401,8 @@ public class AvroIO {
       return toResource(StaticValueProvider.of(outputPrefix));
     }
 
-    private static class OutputPrefixToResourceId implements SerializableFunction<String, ResourceId> {
+    private static class OutputPrefixToResourceId
+        implements SerializableFunction<String, ResourceId> {
       @Override
       public ResourceId apply(String input) {
         return FileBasedSink.convertToFileResourceIfPossible(input);
@@ -1322,15 +1411,18 @@ public class AvroIO {
 
     /** Like {@link #to(String)}. */
     public TypedWrite<UserT, DestinationT, OutputT> to(ValueProvider<String> outputPrefix) {
-      return toResource(NestedValueProvider.of(outputPrefix,
-          // The function cannot be created as an anonymous class here since the enclosed class
-          // may contain unserializable members.
-          new OutputPrefixToResourceId()));
+      return toResource(
+          NestedValueProvider.of(
+              outputPrefix,
+              // The function cannot be created as an anonymous class here since the enclosed class
+              // may contain unserializable members.
+              new OutputPrefixToResourceId()));
     }
 
     /** Like {@link #to(ResourceId)}. */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT, DestinationT, OutputT> toResource(ValueProvider<ResourceId> outputPrefix) {
+    public TypedWrite<UserT, DestinationT, OutputT> toResource(
+        ValueProvider<ResourceId> outputPrefix) {
       return toBuilder().setFilenamePrefix(outputPrefix).build();
     }
 
@@ -1354,7 +1446,9 @@ public class AvroIO {
     @Deprecated
     public <NewDestinationT> TypedWrite<UserT, NewDestinationT, OutputT> to(
         DynamicAvroDestinations<UserT, NewDestinationT, OutputT> dynamicDestinations) {
-      return toBuilder().setDynamicDestinations((DynamicAvroDestinations) dynamicDestinations).build();
+      return toBuilder()
+          .setDynamicDestinations((DynamicAvroDestinations) dynamicDestinations)
+          .build();
     }
 
     /**
@@ -1377,7 +1471,8 @@ public class AvroIO {
 
     /** Set the base directory used to generate temporary files. */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT, DestinationT, OutputT> withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
+    public TypedWrite<UserT, DestinationT, OutputT> withTempDirectory(
+        ValueProvider<ResourceId> tempDirectory) {
       return toBuilder().setTempDirectory(tempDirectory).build();
     }
 
@@ -1480,40 +1575,60 @@ public class AvroIO {
           badKeys.put(entry.getKey(), v.getClass().getSimpleName());
         }
       }
-      checkArgument(badKeys.isEmpty(), "Metadata value type must be one of String, Long, or byte[]. Found {}", badKeys);
+      checkArgument(
+          badKeys.isEmpty(),
+          "Metadata value type must be one of String, Long, or byte[]. Found {}",
+          badKeys);
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
 
     DynamicAvroDestinations<UserT, DestinationT, OutputT> resolveDynamicDestinations() {
-      DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations = getDynamicDestinations();
+      DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations =
+          getDynamicDestinations();
       if (dynamicDestinations == null) {
         // In this case DestinationT is Void.
         FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
         if (usedFilenamePolicy == null) {
           usedFilenamePolicy =
-              DefaultFilenamePolicy.fromStandardParameters(getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(),
+              DefaultFilenamePolicy.fromStandardParameters(
+                  getFilenamePrefix(),
+                  getShardTemplate(),
+                  getFilenameSuffix(),
                   getWindowedWrites());
         }
         dynamicDestinations =
-            (DynamicAvroDestinations<UserT, DestinationT, OutputT>) constantDestinations(usedFilenamePolicy,
-                getSchema(), getMetadata(), getCodec().getCodec(), getFormatFunction(), getDatumWriterFactory());
+            (DynamicAvroDestinations<UserT, DestinationT, OutputT>)
+                constantDestinations(
+                    usedFilenamePolicy,
+                    getSchema(),
+                    getMetadata(),
+                    getCodec().getCodec(),
+                    getFormatFunction(),
+                    getDatumWriterFactory());
       }
       return dynamicDestinations;
     }
 
     @Override
     public WriteFilesResult<DestinationT> expand(PCollection<UserT> input) {
-      checkArgument(getFilenamePrefix() != null || getTempDirectory() != null,
-          "Need to set either the filename prefix or the tempDirectory of a AvroIO.Write " + "transform.");
+      checkArgument(
+          getFilenamePrefix() != null || getTempDirectory() != null,
+          "Need to set either the filename prefix or the tempDirectory of a AvroIO.Write "
+              + "transform.");
       if (getFilenamePolicy() != null) {
-        checkArgument(getShardTemplate() == null && getFilenameSuffix() == null,
-            "shardTemplate and filenameSuffix should only be used with the default " + "filename policy");
+        checkArgument(
+            getShardTemplate() == null && getFilenameSuffix() == null,
+            "shardTemplate and filenameSuffix should only be used with the default "
+                + "filename policy");
       }
       if (getDynamicDestinations() != null) {
-        checkArgument(getFormatFunction() == null, "A format function should not be specified "
-            + "with DynamicDestinations. Use DynamicDestinations.formatRecord instead");
+        checkArgument(
+            getFormatFunction() == null,
+            "A format function should not be specified "
+                + "with DynamicDestinations. Use DynamicDestinations.formatRecord instead");
       } else {
-        checkArgument(getSchema() != null, "Unless using DynamicDestinations, .withSchema() is required.");
+        checkArgument(
+            getSchema() != null, "Unless using DynamicDestinations, .withSchema() is required.");
       }
 
       ValueProvider<ResourceId> tempDirectory = getTempDirectory();
@@ -1521,7 +1636,8 @@ public class AvroIO {
         tempDirectory = getFilenamePrefix();
       }
       WriteFiles<UserT, DestinationT, OutputT> write =
-          WriteFiles.to(new AvroSink<>(tempDirectory, resolveDynamicDestinations(), getGenericRecords()));
+          WriteFiles.to(
+              new AvroSink<>(tempDirectory, resolveDynamicDestinations(), getGenericRecords()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -1538,9 +1654,12 @@ public class AvroIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       resolveDynamicDestinations().populateDisplayData(builder);
-      builder.addIfNotDefault(DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"), 0)
+      builder
+          .addIfNotDefault(
+              DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"), 0)
           .addIfNotNull(
-              DisplayData.item("tempDirectory", getTempDirectory()).withLabel("Directory for temporary files"));
+              DisplayData.item("tempDirectory", getTempDirectory())
+                  .withLabel("Directory for temporary files"));
     }
   }
 
@@ -1551,8 +1670,7 @@ public class AvroIO {
    * This class exists for backwards compatibility, and will be removed in Beam 3.0.
    */
   public static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @VisibleForTesting
-    final TypedWrite<T, ?, T> inner;
+    @VisibleForTesting final TypedWrite<T, ?, T> inner;
 
     Write(TypedWrite<T, ?, T> inner) {
       this.inner = inner;
@@ -1560,30 +1678,36 @@ public class AvroIO {
 
     /** See {@link TypedWrite#to(String)}. */
     public Write<T> to(String outputPrefix) {
-      return new Write<>(inner.to(FileBasedSink.convertToFileResourceIfPossible(outputPrefix))
-          .withFormatFunction(SerializableFunctions.identity()));
+      return new Write<>(
+          inner
+              .to(FileBasedSink.convertToFileResourceIfPossible(outputPrefix))
+              .withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(ResourceId)} . */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> to(ResourceId outputPrefix) {
-      return new Write<>(inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
+      return new Write<>(
+          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(ValueProvider)}. */
     public Write<T> to(ValueProvider<String> outputPrefix) {
-      return new Write<>(inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
+      return new Write<>(
+          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(ResourceId)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> toResource(ValueProvider<ResourceId> outputPrefix) {
-      return new Write<>(inner.toResource(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
+      return new Write<>(
+          inner.toResource(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(FilenamePolicy)}. */
     public Write<T> to(FilenamePolicy filenamePolicy) {
-      return new Write<>(inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.identity()));
+      return new Write<>(
+          inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /**
@@ -1600,7 +1724,6 @@ public class AvroIO {
     public Write<T> withSchema(Schema schema) {
       return new Write<>(inner.withSchema(schema));
     }
-
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
@@ -1684,7 +1807,10 @@ public class AvroIO {
    * schema, metadata, and codec.
    */
   public static <UserT, OutputT> DynamicAvroDestinations<UserT, Void, OutputT> constantDestinations(
-      FilenamePolicy filenamePolicy, Schema schema, Map<String, Object> metadata, CodecFactory codec,
+      FilenamePolicy filenamePolicy,
+      Schema schema,
+      Map<String, Object> metadata,
+      CodecFactory codec,
       SerializableFunction<UserT, OutputT> formatFunction) {
     return constantDestinations(filenamePolicy, schema, metadata, codec, formatFunction, null);
   }
@@ -1694,10 +1820,14 @@ public class AvroIO {
    * schema, metadata, and codec.
    */
   public static <UserT, OutputT> DynamicAvroDestinations<UserT, Void, OutputT> constantDestinations(
-      FilenamePolicy filenamePolicy, Schema schema, Map<String, Object> metadata, CodecFactory codec,
+      FilenamePolicy filenamePolicy,
+      Schema schema,
+      Map<String, Object> metadata,
+      CodecFactory codec,
       SerializableFunction<UserT, OutputT> formatFunction,
       AvroSink.@Nullable DatumWriterFactory<OutputT> datumWriterFactory) {
-    return new ConstantAvroDestination<>(filenamePolicy, schema, metadata, codec, formatFunction, datumWriterFactory);
+    return new ConstantAvroDestination<>(
+        filenamePolicy, schema, metadata, codec, formatFunction, datumWriterFactory);
   }
   /////////////////////////////////////////////////////////////////////////////
 
@@ -1717,7 +1847,8 @@ public class AvroIO {
    * elements of the given generated class, like {@link #write(Class)}.
    */
   public static <ElementT> Sink<ElementT> sink(final Class<ElementT> clazz) {
-    return new AutoValue_AvroIO_Sink.Builder<ElementT>().setJsonSchema(ReflectData.get().getSchema(clazz).toString())
+    return new AutoValue_AvroIO_Sink.Builder<ElementT>()
+        .setJsonSchema(ReflectData.get().getSchema(clazz).toString())
         .setMetadata(ImmutableMap.of())
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .build();
@@ -1738,7 +1869,8 @@ public class AvroIO {
    */
   @Experimental(Kind.SOURCE_SINK)
   public static <ElementT extends IndexedRecord> Sink<ElementT> sink(String jsonSchema) {
-    return new AutoValue_AvroIO_Sink.Builder<ElementT>().setJsonSchema(jsonSchema)
+    return new AutoValue_AvroIO_Sink.Builder<ElementT>()
+        .setJsonSchema(jsonSchema)
         .setMetadata(ImmutableMap.of())
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .build();
@@ -1752,8 +1884,10 @@ public class AvroIO {
    * @deprecated RecordFormatter will be removed in future versions.
    */
   @Deprecated
-  public static <ElementT> Sink<ElementT> sinkViaGenericRecords(Schema schema, RecordFormatter<ElementT> formatter) {
-    return new AutoValue_AvroIO_Sink.Builder<ElementT>().setRecordFormatter(formatter)
+  public static <ElementT> Sink<ElementT> sinkViaGenericRecords(
+      Schema schema, RecordFormatter<ElementT> formatter) {
+    return new AutoValue_AvroIO_Sink.Builder<ElementT>()
+        .setRecordFormatter(formatter)
         .setJsonSchema(schema.toString())
         .setMetadata(ImmutableMap.of())
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
@@ -1827,7 +1961,8 @@ public class AvroIO {
           writer.setMeta(entry.getKey(), (byte[]) v);
         } else {
           throw new IllegalStateException(
-              "Metadata value type must be one of String, Long, or byte[]. Found " + v.getClass().getSimpleName());
+              "Metadata value type must be one of String, Long, or byte[]. Found "
+                  + v.getClass().getSimpleName());
         }
       }
       writer.create(schema, Channels.newOutputStream(channel));
@@ -1849,6 +1984,5 @@ public class AvroIO {
   }
 
   /** Disallow construction of utility class. */
-  private AvroIO() {
-  }
+  private AvroIO() {}
 }

@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import logging
 import re
@@ -46,7 +44,7 @@ class WordCountMinimalTest(unittest.TestCase):
     expected_words = collections.defaultdict(int)
     for word in re.findall(r'\w+', self.SAMPLE_TEXT):
       expected_words[word] += 1
-    wordcount_minimal.run(
+    wordcount_minimal.main(
         ['--input=%s*' % temp_path, '--output=%s.result' % temp_path],
         save_main_session=False)
     # Parse result file and compare.

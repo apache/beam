@@ -35,8 +35,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
@@ -44,9 +44,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Unit Tests for ComplexTypes, including nested ROW etc. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamComplexTypeTest {
   private static final Schema innerRowSchema =
       Schema.builder().addStringField("string_field").addInt64Field("long_field").build();
@@ -83,16 +80,6 @@ public class BeamComplexTypeTest {
           .addStringField("field1")
           .addInt64Field("field2")
           .addArrayField("field3", FieldType.INT64)
-          .build();
-
-  private static final Schema flattenedRowSchema =
-      Schema.builder()
-          .addStringField("field1")
-          .addStringField("field2")
-          .addInt64Field("field3")
-          .addInt64Field("field4")
-          .addStringField("field5")
-          .addInt64Field("field6")
           .build();
 
   private static final ReadOnlyTableProvider readOnlyTableProvider =
@@ -134,10 +121,18 @@ public class BeamComplexTypeTest {
     PCollection<Row> stream =
         BeamSqlRelUtils.toPCollection(
             pipeline, sqlEnv.parseQuery("SELECT nestedRowTestTable.col FROM nestedRowTestTable"));
+    Schema outputSchema = Schema.builder().addRowField("col", nestedRowSchema).build();
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(flattenedRowSchema)
-                .addValues("str", "inner_str_one", 1L, 2L, "inner_str_two", 3L)
+            Row.withSchema(outputSchema)
+                .addValues(
+                    Row.withSchema(nestedRowSchema)
+                        .addValues(
+                            "str",
+                            Row.withSchema(innerRowSchema).addValues("inner_str_one", 1L).build(),
+                            2L,
+                            Row.withSchema(innerRowSchema).addValues("inner_str_two", 3L).build())
+                        .build())
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
@@ -149,8 +144,12 @@ public class BeamComplexTypeTest {
         BeamSqlRelUtils.toPCollection(
             pipeline,
             sqlEnv.parseQuery("SELECT arrayWithRowTestTable.col[1] FROM arrayWithRowTestTable"));
+    Schema outputSchema = Schema.builder().addRowField("col", innerRowSchema).build();
     PAssert.that(stream)
-        .containsInAnyOrder(Row.withSchema(innerRowSchema).addValues("str", 1L).build());
+        .containsInAnyOrder(
+            Row.withSchema(outputSchema)
+                .addValues(Row.withSchema(innerRowSchema).addValues("str", 1L).build())
+                .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
@@ -176,8 +175,12 @@ public class BeamComplexTypeTest {
     PCollection<Row> stream =
         BeamSqlRelUtils.toPCollection(
             pipeline, sqlEnv.parseQuery("SELECT col FROM basicRowTestTable"));
+    Schema outputSchema = Schema.builder().addRowField("col", innerRowSchema).build();
     PAssert.that(stream)
-        .containsInAnyOrder(Row.withSchema(innerRowSchema).addValues("innerStr", 1L).build());
+        .containsInAnyOrder(
+            Row.withSchema(outputSchema)
+                .addValues(Row.withSchema(innerRowSchema).addValues("innerStr", 1L).build())
+                .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
@@ -242,6 +245,7 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-12782")
   @Test
   public void testNestedBytes() {
     byte[] bytes = new byte[] {-70, -83, -54, -2};
@@ -266,6 +270,7 @@ public class BeamComplexTypeTest {
     pipeline.run();
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-12782")
   @Test
   public void testNestedArrayOfBytes() {
     byte[] bytes = new byte[] {-70, -83, -54, -2};
@@ -297,18 +302,26 @@ public class BeamComplexTypeTest {
     PCollection<Row> stream =
         BeamSqlRelUtils.toPCollection(
             pipeline, sqlEnv.parseQuery("SELECT ROW(1, ROW(2, 3), 'str', ROW('str2', 'str3'))"));
+    Schema intRow = Schema.builder().addInt32Field("field2").addInt32Field("field3").build();
+    Schema strRow = Schema.builder().addStringField("field5").addStringField("field6").build();
+    Schema innerRow =
+        Schema.builder()
+            .addInt32Field("field1")
+            .addRowField("intRow", intRow)
+            .addStringField("field4")
+            .addRowField("strRow", strRow)
+            .build();
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(
-                    Schema.builder()
-                        .addInt32Field("field1")
-                        .addInt32Field("field2")
-                        .addInt32Field("field3")
-                        .addStringField("field4")
-                        .addStringField("field5")
-                        .addStringField("field6")
+            Row.withSchema(Schema.builder().addRowField("row", innerRow).build())
+                .addValues(
+                    Row.withSchema(innerRow)
+                        .addValues(
+                            1,
+                            Row.withSchema(intRow).addValues(2, 3).build(),
+                            "str",
+                            Row.withSchema(strRow).addValues("str2", "str3").build())
                         .build())
-                .addValues(1, 2, 3, "str", "str2", "str3")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
@@ -389,7 +402,10 @@ public class BeamComplexTypeTest {
             .setRowSchema(dateTimeFieldSchema)
             .apply(
                 SqlTransform.query(
-                    "select EXTRACT(YEAR from dateTimeField) as yyyy, "
+                    "select "
+                        + " dateTimeField, "
+                        + " nullableDateTimeField, "
+                        + " EXTRACT(YEAR from dateTimeField) as yyyy, "
                         + " EXTRACT(YEAR from nullableDateTimeField) as year_with_null, "
                         + " EXTRACT(MONTH from dateTimeField) as mm, "
                         + " EXTRACT(MONTH from nullableDateTimeField) as month_with_null "
@@ -397,6 +413,8 @@ public class BeamComplexTypeTest {
 
     Schema outputRowSchema =
         Schema.builder()
+            .addField("dateTimeField", FieldType.DATETIME)
+            .addNullableField("nullableDateTimeField", FieldType.DATETIME)
             .addField("yyyy", FieldType.INT64)
             .addNullableField("year_with_null", FieldType.INT64)
             .addField("mm", FieldType.INT64)
@@ -405,7 +423,9 @@ public class BeamComplexTypeTest {
 
     PAssert.that(outputRow)
         .containsInAnyOrder(
-            Row.withSchema(outputRowSchema).addValues(2019L, null, 06L, null).build());
+            Row.withSchema(outputRowSchema)
+                .addValues(current, null, 2019L, null, 06L, null)
+                .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
@@ -427,7 +447,10 @@ public class BeamComplexTypeTest {
             .setRowSchema(dateTimeFieldSchema)
             .apply(
                 SqlTransform.query(
-                    "select EXTRACT(DAY from dateTypeField) as dd, "
+                    "select "
+                        + " dateTypeField, "
+                        + " nullableDateTypeField, "
+                        + " EXTRACT(DAY from dateTypeField) as dd, "
                         + " EXTRACT(DAY from nullableDateTypeField) as day_with_null, "
                         + " dateTypeField + interval '1' day as date_with_day_added, "
                         + " nullableDateTypeField + interval '1' day as day_added_with_null "
@@ -435,6 +458,8 @@ public class BeamComplexTypeTest {
 
     Schema outputRowSchema =
         Schema.builder()
+            .addField("dateTypeField", FieldType.logicalType(SqlTypes.DATE))
+            .addNullableField("nullableDateTypeField", FieldType.logicalType(SqlTypes.DATE))
             .addField("dd", FieldType.INT64)
             .addNullableField("day_with_null", FieldType.INT64)
             .addField("date_with_day_added", FieldType.logicalType(SqlTypes.DATE))
@@ -444,7 +469,8 @@ public class BeamComplexTypeTest {
     PAssert.that(outputRow)
         .containsInAnyOrder(
             Row.withSchema(outputRowSchema)
-                .addValues(27L, null, LocalDate.of(2019, 6, 28), null)
+                .addValues(
+                    LocalDate.of(2019, 6, 27), null, 27L, null, LocalDate.of(2019, 6, 28), null)
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
@@ -467,7 +493,10 @@ public class BeamComplexTypeTest {
             .setRowSchema(dateTimeFieldSchema)
             .apply(
                 SqlTransform.query(
-                    "select timeTypeField + interval '1' hour as time_with_hour_added, "
+                    "select "
+                        + " timeTypeField, "
+                        + " nullableTimeTypeField, "
+                        + " timeTypeField + interval '1' hour as time_with_hour_added, "
                         + " nullableTimeTypeField + interval '1' hour as hour_added_with_null, "
                         + " timeTypeField - INTERVAL '60' SECOND as time_with_seconds_added, "
                         + " nullableTimeTypeField - INTERVAL '60' SECOND as seconds_added_with_null "
@@ -475,6 +504,8 @@ public class BeamComplexTypeTest {
 
     Schema outputRowSchema =
         Schema.builder()
+            .addField("timeTypeField", FieldType.logicalType(SqlTypes.TIME))
+            .addNullableField("nullableTimeTypeField", FieldType.logicalType(SqlTypes.TIME))
             .addField("time_with_hour_added", FieldType.logicalType(SqlTypes.TIME))
             .addNullableField("hour_added_with_null", FieldType.logicalType(SqlTypes.TIME))
             .addField("time_with_seconds_added", FieldType.logicalType(SqlTypes.TIME))
@@ -484,7 +515,13 @@ public class BeamComplexTypeTest {
     PAssert.that(outputRow)
         .containsInAnyOrder(
             Row.withSchema(outputRowSchema)
-                .addValues(LocalTime.of(2, 0, 0), null, LocalTime.of(0, 59, 0), null)
+                .addValues(
+                    LocalTime.of(1, 0, 0),
+                    null,
+                    LocalTime.of(2, 0, 0),
+                    null,
+                    LocalTime.of(0, 59, 0),
+                    null)
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
@@ -509,7 +546,10 @@ public class BeamComplexTypeTest {
             .setRowSchema(dateTimeFieldSchema)
             .apply(
                 SqlTransform.query(
-                    "select EXTRACT(YEAR from dateTimeField) as yyyy, "
+                    "select "
+                        + " dateTimeField, "
+                        + " nullableDateTimeField, "
+                        + " EXTRACT(YEAR from dateTimeField) as yyyy, "
                         + " EXTRACT(YEAR from nullableDateTimeField) as year_with_null, "
                         + " EXTRACT(MONTH from dateTimeField) as mm, "
                         + " EXTRACT(MONTH from nullableDateTimeField) as month_with_null, "
@@ -525,6 +565,8 @@ public class BeamComplexTypeTest {
 
     Schema outputRowSchema =
         Schema.builder()
+            .addField("dateTimeField", FieldType.logicalType(SqlTypes.DATETIME))
+            .addNullableField("nullableDateTimeField", FieldType.logicalType(SqlTypes.DATETIME))
             .addField("yyyy", FieldType.INT64)
             .addNullableField("year_with_null", FieldType.INT64)
             .addField("mm", FieldType.INT64)
@@ -543,6 +585,8 @@ public class BeamComplexTypeTest {
         .containsInAnyOrder(
             Row.withSchema(outputRowSchema)
                 .addValues(
+                    LocalDateTime.of(2008, 12, 25, 15, 30, 0),
+                    null,
                     2008L,
                     null,
                     12L,

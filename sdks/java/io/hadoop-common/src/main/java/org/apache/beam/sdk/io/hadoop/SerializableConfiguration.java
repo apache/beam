@@ -86,6 +86,17 @@ public class SerializableConfiguration implements Externalizable {
     }
   }
 
+  /** Returns a new configuration instance using provided flags. */
+  public static SerializableConfiguration fromMap(Map<String, String> entries) {
+    Configuration hadoopConfiguration = new Configuration();
+
+    for (Map.Entry<String, String> entry : entries.entrySet()) {
+      hadoopConfiguration.set(entry.getKey(), entry.getValue());
+    }
+
+    return new SerializableConfiguration(hadoopConfiguration);
+  }
+
   /** Returns new populated {@link Configuration} object. */
   public static Configuration newConfiguration(@Nullable SerializableConfiguration conf) {
     if (conf == null) {

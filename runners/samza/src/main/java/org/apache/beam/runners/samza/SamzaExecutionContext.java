@@ -19,13 +19,13 @@ package org.apache.beam.runners.samza;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.UUID;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.vendor.grpc.v1p26p0.io.netty.util.internal.StringUtil;
+import org.apache.beam.vendor.grpc.v1p36p0.io.netty.util.internal.StringUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.samza.context.ApplicationContainerContext;
 import org.apache.samza.context.ApplicationContainerContextFactory;
@@ -68,7 +68,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
       LOG.info("Fs token file already exists. Will override.");
     }
     Files.setPosixFilePermissions(file.toPath(), PosixFilePermissions.fromString("rw-------"));
-    FileUtils.writeStringToFile(file, token, Charset.defaultCharset());
+    FileUtils.writeStringToFile(file, token, StandardCharsets.UTF_8);
   }
 
   @Override

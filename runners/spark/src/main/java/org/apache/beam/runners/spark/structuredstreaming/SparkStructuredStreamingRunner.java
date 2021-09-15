@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,8 +29,8 @@ import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetri
 import org.apache.beam.runners.spark.structuredstreaming.metrics.CompositeSource;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.SparkBeamMetricSource;
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
@@ -109,23 +109,8 @@ public final class SparkStructuredStreamingRunner
    * @return A pipeline runner that will execute with specified options.
    */
   public static SparkStructuredStreamingRunner fromOptions(PipelineOptions options) {
-    SparkStructuredStreamingPipelineOptions sparkOptions =
-        PipelineOptionsValidator.validate(SparkStructuredStreamingPipelineOptions.class, options);
-
-    if (sparkOptions.getFilesToStage() == null
-        && !PipelineTranslator.isLocalSparkMaster(sparkOptions)) {
-      sparkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(
-              SparkStructuredStreamingRunner.class.getClassLoader(), options));
-      LOG.info(
-          "PipelineOptions.filesToStage was not specified. "
-              + "Defaulting to files from the classpath: will stage {} files. "
-              + "Enable logging at DEBUG level to see which files will be staged.",
-          sparkOptions.getFilesToStage().size());
-      LOG.debug("Classpath elements: {}", sparkOptions.getFilesToStage());
-    }
-
-    return new SparkStructuredStreamingRunner(sparkOptions);
+    return new SparkStructuredStreamingRunner(
+        PipelineOptionsValidator.validate(SparkStructuredStreamingPipelineOptions.class, options));
   }
 
   /**
@@ -150,7 +135,7 @@ public final class SparkStructuredStreamingRunner
     AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
 
-    final TranslationContext translationContext = translatePipeline(pipeline);
+    final AbstractTranslationContext translationContext = translatePipeline(pipeline);
 
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
     final Future<?> submissionFuture =
@@ -183,20 +168,18 @@ public final class SparkStructuredStreamingRunner
     return result;
   }
 
-  private TranslationContext translatePipeline(Pipeline pipeline) {
+  private AbstractTranslationContext translatePipeline(Pipeline pipeline) {
     PipelineTranslator.detectTranslationMode(pipeline, options);
 
-    // Default to using the primitive versions of Read.Bounded and Read.Unbounded if we are
-    // executing an unbounded pipeline or the user specifically requested it.
-    if (options.isStreaming()
-        || ExperimentalOptions.hasExperiment(
-            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
-        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
-      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
+    // Default to using the primitive versions of Read.Bounded and Read.Unbounded for non-portable
+    // execution.
+    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }
 
     PipelineTranslator.replaceTransforms(pipeline, options);
-    PipelineTranslator.prepareFilesToStageForRemoteClusterExecution(options);
+    prepareFilesToStage(options);
     PipelineTranslator pipelineTranslator =
         options.isStreaming()
             ? new PipelineTranslatorStreaming(options)

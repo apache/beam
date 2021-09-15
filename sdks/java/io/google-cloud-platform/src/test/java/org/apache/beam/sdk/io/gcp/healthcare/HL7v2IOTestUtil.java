@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.client.util.Base64;
 import com.google.api.client.util.Sleeper;
-import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1.model.Message;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -35,9 +35,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class HL7v2IOTestUtil {
   public static final long HL7V2_INDEXING_TIMEOUT_MINUTES = 10L;
   /** Google Cloud Healthcare Dataset in Apache Beam integration test project. */

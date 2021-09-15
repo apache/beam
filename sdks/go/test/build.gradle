@@ -22,10 +22,10 @@ applyPythonNature()
 
 description = "Apache Beam :: SDKs :: Go :: Test"
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
+// Disable gogradle's dependency resolution so it uses Go modules instead.
+installDependencies.enabled = false
+resolveBuildDependencies.enabled = false
+resolveTestDependencies.enabled = false
 
 clean.dependsOn cleanVendor
 
@@ -39,28 +39,29 @@ dependencies {
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/go/test'
+  packagePath = 'github.com/apache/beam/sdks/v2/go/test'
   goBuild {
     // Build the linux-amd64 worker. The native version is built in the parent to
     // have a fixed name, which is not possible with multiple target platforms. The
     // script would otherwise have to figure out which arch/platform binary to invoke.
 
     targetPlatform = ['linux-amd64']
-    go 'build -o ./build/bin/linux-amd64/worker github.com/apache/beam/sdks/go/test/integration'
+    go 'build -o ./build/bin/linux-amd64/worker github.com/apache/beam/sdks/v2/go/test/integration/driver'
   }
 }
 
-// ValidatesRunner tests for Flink using an updated framework that supports
-// cross-language tests.
-// TODO(BEAM-11415): Merge this into existing ValidatesRunner gradle rules.
-task flinkXlangValidatesRunner {
-  dependsOn ":runners:flink:1.10:job-server:shadowJar"
+// ValidatesRunner tests for Dataflow. Runs tests in the integration directory
+// with Dataflow to validate that the runner behaves as expected.
+task dataflowValidatesRunner() {
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+
   doLast {
     def options = [
-            "--runner flink",
-            "--flink_job_server_jar ${project(":runners:flink:1.10:job-server").shadowJar.archivePath}",
-            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+            "--runner dataflow",
+            "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     exec {
       executable "sh"
@@ -69,47 +70,90 @@ task flinkXlangValidatesRunner {
   }
 }
 
+// ValidatesRunner tests for Flink. Runs tests in the integration directory
+// with Flink to validate that the runner behaves as expected.
 task flinkValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":runners:flink:1.10:job-server:shadowJar"
+  dependsOn ":sdks:go:container:docker"
+  dependsOn ":sdks:java:container:java8:docker"
+  dependsOn ":sdks:java:container:java11:docker"
+  dependsOn ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
     def options = [
             "--runner flink",
-            "--parallel 1", // prevent memory overuse
-            "--flink_job_server_jar ${project(":runners:flink:1.10:job-server").shadowJar.archivePath}",
+            "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     exec {
       executable "sh"
-      args "-c", "./run_integration_tests.sh ${options.join(' ')}"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
   }
 }
 
+// ValidatesRunner tests for Samza. Runs tests in the integration directory
+// with Samza to validate that the runner behaves as expected.
+task samzaValidatesRunner {
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:go:container:docker"
+  dependsOn ":sdks:java:container:java8:docker"
+  dependsOn ":sdks:java:container:java11:docker"
+  dependsOn ":runners:samza:job-server:shadowJar"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+  doLast {
+    def options = [
+            "--runner samza",
+            "--samza_job_server_jar ${project(":runners:samza:job-server").shadowJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
+// ValidatesRunner tests for Spark. Runs tests in the integration directory
+// with Spark to validate that the runner behaves as expected.
 task sparkValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":runners:spark:job-server:shadowJar"
+  dependsOn ":sdks:java:container:java8:docker"
+  dependsOn ":sdks:java:container:java11:docker"
+  dependsOn ":runners:spark:2:job-server:shadowJar"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
     def options = [
             "--runner spark",
-            "--parallel 1", // prevent memory overuse
-            "--spark_job_server_jar ${project(":runners:spark:job-server").shadowJar.archivePath}",
+            "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     exec {
       executable "sh"
-      args "-c", "./run_integration_tests.sh ${options.join(' ')}"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
   }
 }
 
-
+// ValidatesRunner tests for the Python Portable runner (aka. ULR). Runs tests
+// in the integration directory with the ULR to validate that the runner behaves
+// as expected.
+//
+// The ULR can exhibit strange behavior when containers are built with outdated
+// vendored directories. For best results use the clean task, like so:
+//   ./gradlew clean :sdks:go:test:ulrValidatesRunner
 task ulrValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
+  dependsOn ":sdks:java:container:java8:docker"
+  dependsOn ":sdks:java:container:java11:docker"
   dependsOn "setupVirtualenv"
   dependsOn ":sdks:python:buildPython"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
     def options = [
-            "--runner universal",
+            "--runner portable",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     exec {
       executable "sh"
@@ -118,8 +162,7 @@ task ulrValidatesRunner {
     }
     exec {
       executable "sh"
-      args "-c", ". ${envdir}/bin/activate && ./run_integration_tests.sh ${options.join(' ')}"
+      args "-c", ". ${envdir}/bin/activate && ./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
   }
 }
-

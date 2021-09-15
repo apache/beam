@@ -19,14 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import abc
 import io
 import os
-from builtins import object
-
-from future.utils import with_metaclass
 
 __all__ = [
     'Downloader',
@@ -37,7 +32,7 @@ __all__ = [
 ]
 
 
-class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class Downloader(metaclass=abc.ABCMeta):
   """Download interface for a single file.
 
   Implementations should support random access reads.
@@ -63,7 +58,7 @@ class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
     """
 
 
-class Uploader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class Uploader(metaclass=abc.ABCMeta):
   """Upload interface for a single file."""
   @abc.abstractmethod
   def put(self, data):

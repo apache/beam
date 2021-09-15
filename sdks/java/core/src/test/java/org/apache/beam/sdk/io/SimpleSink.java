@@ -29,9 +29,6 @@ import org.apache.beam.sdk.util.MimeTypes;
 /**
  * A simple {@link FileBasedSink} that writes {@link String} values as lines with header and footer.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, String> {
   public SimpleSink(
       ResourceId tempDirectory,

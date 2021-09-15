@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import io
@@ -30,24 +28,25 @@ import time
 import unittest
 
 import fastavro
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import,ungrouped-imports
 import mock
 import pytz
-from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
+from apache_beam.io.gcp.bigquery_tools import check_schema_equal
 from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
 from apache_beam.io.gcp.bigquery_tools import parse_table_reference
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import StaticValueProvider
 
@@ -55,9 +54,14 @@ from apache_beam.options.value_provider import StaticValueProvider
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+  from google.api_core.exceptions import ClientError, DeadlineExceeded
+  from google.api_core.exceptions import InternalServerError
 except ImportError:
+  ClientError = None
+  DeadlineExceeded = None
   HttpError = None
   HttpForbiddenError = None
+  InternalServerError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -123,6 +127,17 @@ class TestTableReferenceParser(unittest.TestCase):
     projectId = 'test_project'
     datasetId = 'test_dataset'
     tableId = 'test_table'
+    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
+    parsed_ref = parse_table_reference(fully_qualified_table)
+    self.assertIsInstance(parsed_ref, bigquery.TableReference)
+    self.assertEqual(parsed_ref.projectId, projectId)
+    self.assertEqual(parsed_ref.datasetId, datasetId)
+    self.assertEqual(parsed_ref.tableId, tableId)
+
+  def test_calling_with_hyphened_table_ref(self):
+    projectId = 'test_project'
+    datasetId = 'test_dataset'
+    tableId = 'test-table'
     fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
     parsed_ref = parse_table_reference(fully_qualified_table)
     self.assertIsInstance(parsed_ref, bigquery.TableReference)
@@ -385,6 +400,91 @@ class TestBigQueryWrapper(unittest.TestCase):
     location = wrapper.get_query_location(
         project_id="second_project_id", query=query, use_legacy_sql=False)
     self.assertEqual("US", location)
+
+  def test_perform_load_job_source_mutual_exclusivity(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    # Both source_uri and source_stream specified.
+    with self.assertRaises(ValueError):
+      wrapper.perform_load_job(
+          destination=parse_table_reference('project:dataset.table'),
+          job_id='job_id',
+          source_uris=['gs://example.com/*'],
+          source_stream=io.BytesIO())
+
+    # Neither source_uri nor source_stream specified.
+    with self.assertRaises(ValueError):
+      wrapper.perform_load_job(destination='P:D.T', job_id='J')
+
+  def test_perform_load_job_with_source_stream(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    wrapper.perform_load_job(
+        destination=parse_table_reference('project:dataset.table'),
+        job_id='job_id',
+        source_stream=io.BytesIO(b'some,data'))
+
+    client.jobs.Insert.assert_called_once()
+    upload = client.jobs.Insert.call_args[1]["upload"]
+    self.assertEqual(b'some,data', upload.stream.read())
+
+  def verify_write_call_metric(
+      self, project_id, dataset_id, table_id, status, count):
+    """Check if an metric was recorded for the BQ IO write API call."""
+    process_wide_monitoring_infos = list(
+        MetricsEnvironment.process_wide_container().
+        to_runner_api_monitoring_infos(None).values())
+    resource = resource_identifiers.BigQueryTable(
+        project_id, dataset_id, table_id)
+    labels = {
+        # TODO(ajamato): Add Ptransform label.
+        monitoring_infos.SERVICE_LABEL: 'BigQuery',
+        # Refer to any method which writes elements to BigQuery in batches
+        # as "BigQueryBatchWrite". I.e. storage API's insertAll, or future
+        # APIs introduced.
+        monitoring_infos.METHOD_LABEL: 'BigQueryBatchWrite',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.BIGQUERY_PROJECT_ID_LABEL: project_id,
+        monitoring_infos.BIGQUERY_DATASET_LABEL: dataset_id,
+        monitoring_infos.BIGQUERY_TABLE_LABEL: table_id,
+        monitoring_infos.STATUS_LABEL: status,
+    }
+    expected_mi = monitoring_infos.int64_counter(
+        monitoring_infos.API_REQUEST_COUNT_URN, count, labels=labels)
+    expected_mi.ClearField("start_time")
+
+    found = False
+    for actual_mi in process_wide_monitoring_infos:
+      actual_mi.ClearField("start_time")
+      if expected_mi == actual_mi:
+        found = True
+        break
+    self.assertTrue(
+        found, "Did not find write call metric with status: %s" % status)
+
+  @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
+  def test_insert_rows_sets_metric_on_failure(self):
+    MetricsEnvironment.process_wide_container().reset()
+    client = mock.Mock()
+    client.insert_rows_json = mock.Mock(
+        # Fail a few times, then succeed.
+        side_effect=[
+            DeadlineExceeded("Deadline Exceeded"),
+            InternalServerError("Internal Error"),
+            [],
+        ])
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
+
+    # Expect two failing calls, then a success (i.e. two retries).
+    self.verify_write_call_metric(
+        "my_project", "my_dataset", "my_table", "deadline_exceeded", 1)
+    self.verify_write_call_metric(
+        "my_project", "my_dataset", "my_table", "internal", 1)
+    self.verify_write_call_metric(
+        "my_project", "my_dataset", "my_table", "ok", 1)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -814,9 +914,7 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tables.Get.return_value = table
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
-    insert_response = mock.Mock()
-    insert_response.insertErrors = []
-    client.tabledata.InsertAll.return_value = insert_response
+    client.insert_rows_json.return_value = []
 
     with beam.io.BigQuerySink(
         'project:dataset.table',
@@ -824,24 +922,11 @@ class TestBigQueryWriter(unittest.TestCase):
       writer.Write({'i': 1, 'b': True, 's': 'abc', 'f': 3.14})
 
     sample_row = {'i': 1, 'b': True, 's': 'abc', 'f': 3.14}
-    expected_rows = []
-    json_object = bigquery.JsonObject()
-    for k, v in iteritems(sample_row):
-      json_object.additionalProperties.append(
-          bigquery.JsonObject.AdditionalProperty(key=k, value=to_json_value(v)))
-    expected_rows.append(
-        bigquery.TableDataInsertAllRequest.RowsValueListEntry(
-            insertId='_1',  # First row ID generated with prefix ''
-            json=json_object))
-    client.tabledata.InsertAll.assert_called_with(
-        bigquery.BigqueryTabledataInsertAllRequest(
-            projectId='project',
-            datasetId='dataset',
-            tableId='table',
-            tableDataInsertAllRequest=bigquery.TableDataInsertAllRequest(
-                rows=expected_rows,
-                skipInvalidRows=False,
-            )))
+    client.insert_rows_json.assert_called_with(
+        '%s.%s.%s' % ('project', 'dataset', 'table'),
+        json_rows=[sample_row],
+        row_ids=['_1'],
+        skip_invalid_rows=True)
 
   def test_table_schema_without_project(self):
     # Writer should pick executing project by default.
@@ -982,6 +1067,88 @@ class TestBQJobNames(unittest.TestCase):
     job_name = generate_bq_job_name(
         "beamapp-job-test", "abcd", BigQueryJobTypes.COPY)
     self.assertRegex(job_name, base_pattern)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestCheckSchemaEqual(unittest.TestCase):
+  def test_simple_schemas(self):
+    schema1 = bigquery.TableSchema(fields=[])
+    self.assertTrue(check_schema_equal(schema1, schema1))
+
+    schema2 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(name="a", mode="NULLABLE", type="INT64")
+        ])
+    self.assertTrue(check_schema_equal(schema2, schema2))
+    self.assertFalse(check_schema_equal(schema1, schema2))
+
+    schema3 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="b",
+                mode="REPEATED",
+                type="RECORD",
+                fields=[
+                    bigquery.TableFieldSchema(
+                        name="c", mode="REQUIRED", type="BOOL")
+                ])
+        ])
+    self.assertTrue(check_schema_equal(schema3, schema3))
+    self.assertFalse(check_schema_equal(schema2, schema3))
+
+  def test_field_order(self):
+    """Test that field order is ignored when ignore_field_order=True."""
+    schema1 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="a", mode="REQUIRED", type="FLOAT64"),
+            bigquery.TableFieldSchema(name="b", mode="REQUIRED", type="INT64"),
+        ])
+
+    schema2 = bigquery.TableSchema(fields=list(reversed(schema1.fields)))
+
+    self.assertFalse(check_schema_equal(schema1, schema2))
+    self.assertTrue(
+        check_schema_equal(schema1, schema2, ignore_field_order=True))
+
+  def test_descriptions(self):
+    """
+        Test that differences in description are ignored
+        when ignore_descriptions=True.
+        """
+    schema1 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="a",
+                mode="REQUIRED",
+                type="FLOAT64",
+                description="Field A",
+            ),
+            bigquery.TableFieldSchema(
+                name="b",
+                mode="REQUIRED",
+                type="INT64",
+            ),
+        ])
+
+    schema2 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="a",
+                mode="REQUIRED",
+                type="FLOAT64",
+                description="Field A is for Apple"),
+            bigquery.TableFieldSchema(
+                name="b",
+                mode="REQUIRED",
+                type="INT64",
+                description="Field B",
+            ),
+        ])
+
+    self.assertFalse(check_schema_equal(schema1, schema2))
+    self.assertTrue(
+        check_schema_equal(schema1, schema2, ignore_descriptions=True))
 
 
 if __name__ == '__main__':

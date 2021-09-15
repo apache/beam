@@ -1124,14 +1124,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public void set(Instant target) {
       this.target = target;
-      verifyAbsoluteTimeDomain();
       setAndVerifyOutputTimestamp();
       setUnderlyingTimer();
     }
 
     @Override
     public void setRelative() {
-      Instant now = getCurrentTime();
+      Instant now = getCurrentRelativeTime();
       if (period.equals(Duration.ZERO)) {
         target = now.plus(offset);
       } else {
@@ -1142,6 +1141,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
       setAndVerifyOutputTimestamp();
       setUnderlyingTimer();
+    }
+
+    @Override
+    public void clear() {
+      timerInternals.deleteTimer(namespace, timerId, timerFamilyId, spec.getTimeDomain());
     }
 
     @Override
@@ -1174,14 +1178,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Timer withOutputTimestamp(Instant outputTimestamp) {
       this.outputTimestamp = outputTimestamp;
       return this;
-    }
-
-    /** Verifies that the time domain of this timer is acceptable for absolute timers. */
-    private void verifyAbsoluteTimeDomain() {
-      if (!TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
-        throw new IllegalStateException(
-            "Cannot only set relative timers in processing time domain." + " Use #setRelative()");
-      }
     }
 
     /**
@@ -1219,11 +1215,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         checkArgument(
-            !outputTimestamp.isAfter(target),
+            !outputTimestamp.isAfter(windowExpiry),
             "Attempted to set an event-time timer with an output timestamp of %s that is"
-                + " after the timer firing timestamp %s",
+                + " after the expiration of window %s",
             outputTimestamp,
-            target);
+            windowExpiry);
         checkArgument(
             !target.isAfter(windowExpiry),
             "Attempted to set an event-time timer with a firing timestamp of %s that is"
@@ -1250,8 +1246,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           namespace, timerId, timerFamilyId, target, outputTimestamp, spec.getTimeDomain());
     }
 
-    private Instant getCurrentTime() {
-      switch (spec.getTimeDomain()) {
+    @Override
+    public Instant getCurrentRelativeTime() {
+      return getCurrentTime(spec.getTimeDomain());
+    }
+
+    private Instant getCurrentTime(TimeDomain timeDomain) {
+      switch (timeDomain) {
         case EVENT_TIME:
           return timerInternals.currentInputWatermarkTime();
         case PROCESSING_TIME:

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.nexmark;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;

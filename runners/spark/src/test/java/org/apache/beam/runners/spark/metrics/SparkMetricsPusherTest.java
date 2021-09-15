@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.core.metrics.TestMetricsSink;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
@@ -116,7 +116,7 @@ public class SparkMetricsPusherTest {
 
   @Category(UsesMetricsPusher.class)
   @Test
-  public void testInSBatchMode() throws Exception {
+  public void testInBatchMode() throws Exception {
     pipeline.apply(Create.of(1, 2, 3, 4, 5, 6)).apply(ParDo.of(new CountingDoFn()));
 
     pipeline.run();

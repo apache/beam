@@ -19,7 +19,7 @@ package org.apache.beam.sdk.fn.windowing;
 
 import org.apache.beam.sdk.fn.windowing.EncodedBoundedWindow.Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

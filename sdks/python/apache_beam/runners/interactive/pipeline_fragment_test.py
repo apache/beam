@@ -16,9 +16,8 @@
 #
 
 """Tests for apache_beam.runners.interactive.pipeline_fragment."""
-from __future__ import absolute_import
-
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import StandardOptions
@@ -30,13 +29,6 @@ from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipytho
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_equal
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
 from apache_beam.testing.test_stream import TestStream
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 
 @unittest.skipIf(
@@ -92,10 +84,10 @@ class PipelineFragmentTest(unittest.TestCase):
     # calling locals().
     ib.watch({'init': init, 'square': square, 'cube': cube})
     user_pipeline_proto_before_deducing_fragment = p.to_runner_api(
-        return_context=False, use_fake_coders=True)
+        return_context=False)
     _ = pf.PipelineFragment([square]).deduce_fragment()
     user_pipeline_proto_after_deducing_fragment = p.to_runner_api(
-        return_context=False, use_fake_coders=True)
+        return_context=False)
     assert_pipeline_proto_equal(
         self,
         user_pipeline_proto_before_deducing_fragment,

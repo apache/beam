@@ -47,9 +47,6 @@ import org.mockito.stubbing.Answer;
 
 /** Tests {@link ShardReadersPool}. */
 @RunWith(MockitoJUnitRunner.Silent.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ShardReadersPoolTest {
 
   private static final int TIMEOUT_IN_MILLIS = (int) TimeUnit.SECONDS.toMillis(10);
@@ -72,8 +69,10 @@ public class ShardReadersPoolTest {
     when(c.getShardId()).thenReturn("shard2");
     when(d.getShardId()).thenReturn("shard2");
     when(firstCheckpoint.getShardId()).thenReturn("shard1");
+    when(firstCheckpoint.getStreamName()).thenReturn("testStream");
     when(secondCheckpoint.getShardId()).thenReturn("shard2");
     when(firstIterator.getShardId()).thenReturn("shard1");
+    when(firstIterator.getStreamName()).thenReturn("testStream");
     when(firstIterator.getCheckpoint()).thenReturn(firstCheckpoint);
     when(secondIterator.getShardId()).thenReturn("shard2");
     when(secondIterator.getCheckpoint()).thenReturn(secondCheckpoint);
@@ -276,8 +275,10 @@ public class ShardReadersPoolTest {
     when(firstIterator.findSuccessiveShardRecordIterators()).thenReturn(emptyList);
 
     shardReadersPool.start();
-    verify(shardReadersPool).startReadingShards(ImmutableList.of(firstIterator, secondIterator));
-    verify(shardReadersPool, timeout(TIMEOUT_IN_MILLIS)).startReadingShards(emptyList);
+    verify(shardReadersPool)
+        .startReadingShards(ImmutableList.of(firstIterator, secondIterator), "testStream");
+    verify(shardReadersPool, timeout(TIMEOUT_IN_MILLIS))
+        .startReadingShards(emptyList, "testStream");
 
     KinesisReaderCheckpoint checkpointMark = shardReadersPool.getCheckpointMark();
     assertThat(checkpointMark.iterator())

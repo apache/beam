@@ -57,9 +57,6 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigtableTableFlatTest {
 
   @ClassRule
@@ -149,7 +146,7 @@ public class BigtableTableFlatTest {
 
     String query =
         "INSERT INTO beamWriteTable(key, boolColumn, longColumn, stringColumn, doubleColumn) "
-            + "VALUES ('key', TRUE, 10, 'stringValue', 5.5)";
+            + "VALUES ('key', TRUE, CAST(10 AS bigint), 'stringValue', 5.5)";
 
     BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(query));
     writePipeline.run().waitUntilFinish();

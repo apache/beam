@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.api.client.util.ArrayMap;
@@ -27,6 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -45,7 +48,6 @@ import org.slf4j.LoggerFactory;
 /** Implementation of {@link MetricResults} for the Dataflow Runner. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class DataflowMetrics extends MetricResults {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowMetrics.class);
@@ -64,7 +66,7 @@ class DataflowMetrics extends MetricResults {
    * After the job has finished running, Metrics no longer will change, so their results are cached
    * here.
    */
-  private JobMetrics cachedMetricResults = null;
+  private @Nullable JobMetrics cachedMetricResults = null;
 
   /**
    * Constructor for the DataflowMetrics class.
@@ -91,7 +93,7 @@ class DataflowMetrics extends MetricResults {
   }
 
   @Override
-  public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
+  public MetricQueryResults queryMetrics(MetricsFilter filter) {
     List<MetricUpdate> metricUpdates;
     ImmutableList<MetricResult<Long>> counters = ImmutableList.of();
     ImmutableList<MetricResult<DistributionResult>> distributions = ImmutableList.of();
@@ -243,25 +245,71 @@ class DataflowMetrics extends MetricResults {
     }
 
     /**
+     * Returns the user step name for a given internal step name.
+     *
+     * @param internalStepName internal step name used by Dataflow
+     * @return user step name used to identify the metric
+     */
+    private @Nullable String getUserStepName(String internalStepName) {
+      @Nullable String portableUserStepName = getPortableUserStepName(internalStepName);
+      if (portableUserStepName != null) {
+        return portableUserStepName;
+      } else {
+        return getNonPortableUserStepName(internalStepName);
+      }
+    }
+
+    private @Nullable String getPortableUserStepName(String internalStepName) {
+      RunnerApi.@Nullable Pipeline pipelineProto = dataflowPipelineJob.getPipelineProto();
+      if (pipelineProto == null) {
+        return null;
+      }
+
+      RunnerApi.@Nullable PTransform transform =
+          pipelineProto.getComponents().getTransformsMap().get(internalStepName);
+      if (transform == null) {
+        return null;
+      }
+
+      return transform.getUniqueName();
+    }
+
+    private @Nullable String getNonPortableUserStepName(String internalStepName) {
+      // If we can't translate internal step names to user step names, we just skip them altogether.
+      if (dataflowPipelineJob.transformStepNames == null) {
+        return null;
+      }
+
+      @Nullable
+      AppliedPTransform<?, ?, ?> appliedPTransform =
+          dataflowPipelineJob.transformStepNames.inverse().get(internalStepName);
+      if (appliedPTransform == null) {
+        return null;
+      }
+
+      return appliedPTransform.getFullName();
+    }
+
+    /**
      * Build an {@link MetricKey} that serves as a hash key for a metric update.
      *
      * @return a {@link MetricKey} that can be hashed and used to identify a metric.
      */
-    private MetricKey getMetricHashKey(MetricUpdate metricUpdate) {
-      String fullStepName = metricUpdate.getName().getContext().get("step");
-      if (dataflowPipelineJob.transformStepNames == null
-          || !dataflowPipelineJob.transformStepNames.inverse().containsKey(fullStepName)) {
-        // If we can't translate internal step names to user step names, we just skip them
-        // altogether.
+    private @Nullable MetricKey getMetricHashKey(MetricUpdate metricUpdate) {
+      @Nullable String internalStepName = metricUpdate.getName().getContext().get("step");
+      checkArgumentNotNull(
+          internalStepName, "MetricUpdate has null internal step name: %s", metricUpdate);
+
+      @Nullable String namespace = metricUpdate.getName().getContext().get("namespace");
+      checkArgumentNotNull(namespace, "MetricUpdate has null namespace: %s", metricUpdate);
+
+      @Nullable String userStepName = getUserStepName(internalStepName);
+      if (userStepName == null) {
         return null;
       }
-      fullStepName =
-          dataflowPipelineJob.transformStepNames.inverse().get(fullStepName).getFullName();
+
       return MetricKey.create(
-          fullStepName,
-          MetricName.named(
-              metricUpdate.getName().getContext().get("namespace"),
-              metricUpdate.getName().getName()));
+          userStepName, MetricName.named(namespace, metricUpdate.getName().getName()));
     }
 
     private void buildMetricsIndex() {
@@ -275,7 +323,7 @@ class DataflowMetrics extends MetricResults {
           continue;
         }
 
-        MetricKey updateKey = getMetricHashKey(update);
+        @Nullable MetricKey updateKey = getMetricHashKey(update);
         if (updateKey == null || !MetricFiltering.matches(filter, updateKey)) {
           // Skip unmatched metrics early.
           continue;

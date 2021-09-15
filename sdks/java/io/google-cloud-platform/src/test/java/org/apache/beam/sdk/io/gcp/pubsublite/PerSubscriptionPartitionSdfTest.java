@@ -25,10 +25,10 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -45,17 +45,16 @@ import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -63,31 +62,31 @@ import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.stubbing.Answer;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
 public class PerSubscriptionPartitionSdfTest {
   private static final Duration MAX_SLEEP_TIME =
       Duration.standardMinutes(10).plus(Duration.millis(10));
-  private static final OffsetRange RESTRICTION = new OffsetRange(1, Long.MAX_VALUE);
+  private static final OffsetByteRange RESTRICTION =
+      OffsetByteRange.of(new OffsetRange(1, Long.MAX_VALUE), 0);
   private static final SubscriptionPartition PARTITION =
       SubscriptionPartition.of(example(SubscriptionPath.class), example(Partition.class));
 
   @Mock SerializableFunction<SubscriptionPartition, InitialOffsetReader> offsetReaderFactory;
 
+  @Mock ManagedBacklogReaderFactory backlogReaderFactory;
+  @Mock TopicBacklogReader backlogReader;
+
   @Mock
-  SerializableBiFunction<
-          SubscriptionPartition, OffsetRange, RestrictionTracker<OffsetRange, OffsetByteProgress>>
-      trackerFactory;
+  SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress> trackerFactory;
 
   @Mock SubscriptionPartitionProcessorFactory processorFactory;
   @Mock SerializableFunction<SubscriptionPartition, Committer> committerFactory;
 
   @Mock InitialOffsetReader initialOffsetReader;
-  @Spy RestrictionTracker<OffsetRange, OffsetByteProgress> tracker;
+  @Spy TrackerWithProgress tracker;
   @Mock OutputReceiver<SequencedMessage> output;
-  @Mock BundleFinalizer finalizer;
   @Mock SubscriptionPartitionProcessor processor;
 
   abstract static class FakeCommitter extends FakeApiService implements Committer {}
@@ -104,9 +103,11 @@ public class PerSubscriptionPartitionSdfTest {
     when(trackerFactory.apply(any(), any())).thenReturn(tracker);
     when(committerFactory.apply(any())).thenReturn(committer);
     when(tracker.currentRestriction()).thenReturn(RESTRICTION);
+    when(backlogReaderFactory.newReader(any())).thenReturn(backlogReader);
     sdf =
         new PerSubscriptionPartitionSdf(
             MAX_SLEEP_TIME,
+            backlogReaderFactory,
             offsetReaderFactory,
             trackerFactory,
             processorFactory,
@@ -116,9 +117,10 @@ public class PerSubscriptionPartitionSdfTest {
   @Test
   public void getInitialRestrictionReadSuccess() {
     when(initialOffsetReader.read()).thenReturn(example(Offset.class));
-    OffsetRange range = sdf.getInitialRestriction(PARTITION);
-    assertEquals(example(Offset.class).value(), range.getFrom());
-    assertEquals(Long.MAX_VALUE, range.getTo());
+    OffsetByteRange range = sdf.getInitialRestriction(PARTITION);
+    assertEquals(example(Offset.class).value(), range.getRange().getFrom());
+    assertEquals(Long.MAX_VALUE, range.getRange().getTo());
+    assertEquals(0, range.getByteCount());
     verify(offsetReaderFactory).apply(PARTITION);
   }
 
@@ -131,7 +133,13 @@ public class PerSubscriptionPartitionSdfTest {
   @Test
   public void newTrackerCallsFactory() {
     assertSame(tracker, sdf.newTracker(PARTITION, RESTRICTION));
-    verify(trackerFactory).apply(PARTITION, RESTRICTION);
+    verify(trackerFactory).apply(backlogReader, RESTRICTION);
+  }
+
+  @Test
+  public void tearDownClosesBacklogReaderFactory() {
+    sdf.teardown();
+    verify(backlogReaderFactory).close();
   }
 
   @Test
@@ -148,28 +156,15 @@ public class PerSubscriptionPartitionSdfTest {
               assertFalse(wrapped.tryClaim(OffsetByteProgress.of(Offset.of(333333), 123)));
               return processor;
             });
-    AtomicReference<BundleFinalizer.Callback> callbackRef = new AtomicReference<>(null);
-    doAnswer(
-            (Answer<Void>)
-                args -> {
-                  callbackRef.set(args.getArgument(1));
-                  return null;
-                })
-        .when(finalizer)
-        .afterBundleCommit(any(), any());
     doReturn(Optional.of(example(Offset.class))).when(processor).lastClaimed();
-    assertEquals(
-        ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output, finalizer));
+    when(committer.commitOffset(any())).thenReturn(ApiFutures.immediateFuture(null));
+    assertEquals(ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output));
     verify(processorFactory).newProcessor(eq(PARTITION), any(), eq(output));
     InOrder order = inOrder(processor);
     order.verify(processor).start();
     order.verify(processor).waitForCompletion(MAX_SLEEP_TIME);
     order.verify(processor).lastClaimed();
     order.verify(processor).close();
-    verify(finalizer).afterBundleCommit(eq(Instant.ofEpochMilli(Long.MAX_VALUE)), any());
-    assertTrue(callbackRef.get() != null);
-    when(committer.commitOffset(any())).thenReturn(ApiFutures.immediateFuture(null));
-    callbackRef.get().onBundleSuccess();
     InOrder order2 = inOrder(committerFactory, committer);
     order2.verify(committer).startAsync();
     order2.verify(committer).awaitRunning();
@@ -178,12 +173,48 @@ public class PerSubscriptionPartitionSdfTest {
     order2.verify(committer).awaitTerminated();
   }
 
+  private static final class NoopManagedBacklogReaderFactory
+      implements ManagedBacklogReaderFactory {
+    @Override
+    public TopicBacklogReader newReader(SubscriptionPartition subscriptionPartition) {
+      return null;
+    }
+
+    @Override
+    public void close() {}
+  }
+
   @Test
   @SuppressWarnings("return.type.incompatible")
   public void dofnIsSerializable() throws Exception {
     ObjectOutputStream output = new ObjectOutputStream(new ByteArrayOutputStream());
     output.writeObject(
         new PerSubscriptionPartitionSdf(
-            MAX_SLEEP_TIME, x -> null, (x, y) -> null, (x, y, z) -> null, (x) -> null));
+            MAX_SLEEP_TIME,
+            new NoopManagedBacklogReaderFactory(),
+            x -> null,
+            (x, y) -> null,
+            (x, y, z) -> null,
+            (x) -> null));
+  }
+
+  @Test
+  public void getProgressUnboundedRangeDelegates() {
+    Progress progress = Progress.from(0, 0.2);
+    when(tracker.getProgress()).thenReturn(progress);
+    assertTrue(
+        DoubleMath.fuzzyEquals(
+            progress.getWorkRemaining(), sdf.getSize(PARTITION, RESTRICTION), .0001));
+    verify(tracker).getProgress();
+  }
+
+  @Test
+  public void getProgressBoundedReturnsBytes() {
+    assertTrue(
+        DoubleMath.fuzzyEquals(
+            123.0,
+            sdf.getSize(PARTITION, OffsetByteRange.of(new OffsetRange(87, 8000), 123)),
+            .0001));
+    verifyNoInteractions(tracker);
   }
 }

@@ -28,17 +28,13 @@ Mostly for internal use.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-from six import with_metaclass
-
 from apache_beam import coders
 from apache_beam.typehints import typehints
 from apache_beam.utils.sharded_key import ShardedKey
 
 
-class ShardedKeyTypeConstraint(with_metaclass(typehints.GetitemConstructor,
-                                              typehints.TypeConstraint)):
+class ShardedKeyTypeConstraint(typehints.TypeConstraint,
+                               metaclass=typehints.GetitemConstructor):
   def __init__(self, key_type):
     typehints.validate_composite_type_param(
         key_type, error_msg_prefix='Parameter to ShardedKeyType hint')

@@ -43,9 +43,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link ClickHouseIO}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ClickHouseIOTest extends BaseClickHouseTest {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();

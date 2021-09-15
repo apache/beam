@@ -35,7 +35,6 @@ import org.junit.runners.model.Statement;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "FutureReturnValueIgnored",
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class TestExecutorsTest {
   @Test

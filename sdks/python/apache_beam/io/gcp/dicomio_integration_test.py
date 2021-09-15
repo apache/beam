@@ -25,14 +25,11 @@ in order to check if the connectors are functioning correctly.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import random
 import string
-import sys
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.io import fileio
@@ -136,7 +133,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     # clean up the temp Dicom store
     delete_dicom_store(self.project, DATA_SET_ID, REGION, self.temp_dicom_store)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_dicom_search_instances(self):
     # Search and compare the metadata of a persistent DICOM store.
     # Both refine and comprehensive search will be tested.
@@ -186,7 +183,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
           equal_to([expected_dict_refine]),
           label='refine search assert')
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_dicom_store_instance_from_gcs(self):
     # Store DICOM files to a empty DICOM store from a GCS bucket,
     # then check if the store metadata match.
@@ -217,10 +214,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     self.assertEqual(status_code, 200)
 
     # List comparison based on different version of python
-    if sys.version_info.major == 3:
-      self.assertCountEqual(result, self.expected_output_all_metadata)
-    else:
-      self.assertItemsEqual(result, self.expected_output_all_metadata)
+    self.assertCountEqual(result, self.expected_output_all_metadata)
 
 
 if __name__ == '__main__':

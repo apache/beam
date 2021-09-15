@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.auto.value.AutoValue;
@@ -51,7 +51,6 @@ import org.junit.runners.Parameterized;
 @RunWith(Enclosed.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SchemaCoderTest {
 

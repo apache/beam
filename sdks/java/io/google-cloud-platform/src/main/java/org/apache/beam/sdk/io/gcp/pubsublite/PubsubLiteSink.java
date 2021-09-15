@@ -24,20 +24,18 @@ import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Message;
-import com.google.cloud.pubsublite.PublishMetadata;
+import com.google.cloud.pubsublite.MessageMetadata;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.Publisher;
+import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOrError.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 
 /** A sink which publishes messages to Pub/Sub Lite. */
 @SuppressWarnings({
@@ -56,15 +54,13 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
   @GuardedBy("this")
   private transient Deque<CheckedApiException> errorsSinceLastFinish;
 
-  private static final Executor executor = Executors.newCachedThreadPool();
-
   PubsubLiteSink(PublisherOptions options) {
     this.options = options;
   }
 
   @Setup
   public void setup() throws ApiException {
-    Publisher<PublishMetadata> publisher;
+    Publisher<MessageMetadata> publisher;
     if (options.usesCache()) {
       publisher = PerServerPublisherCache.PUBLISHER_CACHE.get(options);
     } else {
@@ -89,7 +85,7 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
             onFailure.accept(t);
           }
         },
-        MoreExecutors.directExecutor());
+        SystemExecutors.getFuturesExecutor());
     if (!options.usesCache()) {
       publisher.startAsync();
     }
@@ -107,7 +103,7 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
     if (publisherOrError.getKind() == Kind.ERROR) {
       throw publisherOrError.error();
     }
-    ApiFuture<PublishMetadata> future =
+    ApiFuture<MessageMetadata> future =
         publisherOrError.publisher().publish(Message.fromProto(message));
     // cannot declare in inner class since 'this' means something different.
     Consumer<Throwable> onFailure =
@@ -119,9 +115,9 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
         };
     ApiFutures.addCallback(
         future,
-        new ApiFutureCallback<PublishMetadata>() {
+        new ApiFutureCallback<MessageMetadata>() {
           @Override
-          public void onSuccess(PublishMetadata publishMetadata) {
+          public void onSuccess(MessageMetadata messageMetadata) {
             decrementOutstanding();
           }
 
@@ -130,7 +126,7 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
             onFailure.accept(t);
           }
         },
-        executor);
+        SystemExecutors.getFuturesExecutor());
   }
 
   // Intentionally don't flush on bundle finish to allow multi-sink client reuse.

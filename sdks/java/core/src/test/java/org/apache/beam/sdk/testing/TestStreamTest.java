@@ -78,38 +78,35 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestStream}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestStreamTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testLateDataAccumulating() {
     Instant instant = new Instant(0);
-    TestStream<Integer> source =
-        TestStream.create(VarIntCoder.of())
+    TestStream<Long> source =
+        TestStream.create(VarLongCoder.of())
             .addElements(
-                TimestampedValue.of(1, instant),
-                TimestampedValue.of(2, instant),
-                TimestampedValue.of(3, instant))
+                TimestampedValue.of(1L, instant),
+                TimestampedValue.of(2L, instant),
+                TimestampedValue.of(3L, instant))
             .advanceWatermarkTo(instant.plus(Duration.standardMinutes(6)))
             // These elements are late but within the allowed lateness
-            .addElements(TimestampedValue.of(4, instant), TimestampedValue.of(5, instant))
+            .addElements(TimestampedValue.of(4L, instant), TimestampedValue.of(5L, instant))
             .advanceWatermarkTo(instant.plus(Duration.standardMinutes(20)))
             // These elements are droppably late
             .addElements(
-                TimestampedValue.of(-1, instant),
-                TimestampedValue.of(-2, instant),
-                TimestampedValue.of(-3, instant))
+                TimestampedValue.of(-1L, instant),
+                TimestampedValue.of(-2L, instant),
+                TimestampedValue.of(-3L, instant))
             .advanceWatermarkToInfinity();
 
-    PCollection<Integer> windowed =
+    PCollection<Long> windowed =
         p.apply(source)
             .apply(
-                Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
+                Window.<Long>into(FixedWindows.of(Duration.standardMinutes(5)))
                     .triggering(
                         AfterWatermark.pastEndOfWindow()
                             .withEarlyFirings(
@@ -118,19 +115,19 @@ public class TestStreamTest implements Serializable {
                             .withLateFirings(AfterPane.elementCountAtLeast(1)))
                     .accumulatingFiredPanes()
                     .withAllowedLateness(Duration.standardMinutes(5), ClosingBehavior.FIRE_ALWAYS));
-    PCollection<Integer> triggered =
+    PCollection<Long> triggered =
         windowed
             .apply(WithKeys.of(1))
             .apply(GroupByKey.create())
             .apply(Values.create())
             .apply(Flatten.iterables());
     PCollection<Long> count =
-        windowed.apply(Combine.globally(Count.<Integer>combineFn()).withoutDefaults());
-    PCollection<Integer> sum = windowed.apply(Sum.integersGlobally().withoutDefaults());
+        windowed.apply(Combine.globally(Count.<Long>combineFn()).withoutDefaults());
+    PCollection<Long> sum = windowed.apply(Sum.longsGlobally().withoutDefaults());
 
     IntervalWindow window = new IntervalWindow(instant, instant.plus(Duration.standardMinutes(5L)));
-    PAssert.that(triggered).inFinalPane(window).containsInAnyOrder(1, 2, 3, 4, 5);
-    PAssert.that(triggered).inOnTimePane(window).containsInAnyOrder(1, 2, 3);
+    PAssert.that(triggered).inFinalPane(window).containsInAnyOrder(1L, 2L, 3L, 4L, 5L);
+    PAssert.that(triggered).inOnTimePane(window).containsInAnyOrder(1L, 2L, 3L);
     PAssert.that(count)
         .inWindow(window)
         .satisfies(
@@ -144,8 +141,8 @@ public class TestStreamTest implements Serializable {
         .inWindow(window)
         .satisfies(
             input -> {
-              for (Integer sum1 : input) {
-                assertThat(sum1, allOf(greaterThanOrEqualTo(6), lessThanOrEqualTo(15)));
+              for (Long sum1 : input) {
+                assertThat(sum1, allOf(greaterThanOrEqualTo(6L), lessThanOrEqualTo(15L)));
               }
               return null;
             });
@@ -154,7 +151,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
+  @Category({ValidatesRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testProcessingTimeTrigger() {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())
@@ -185,7 +182,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testDiscardingMode() {
     TestStream<String> stream =
         TestStream.create(StringUtf8Coder.of())
@@ -234,7 +231,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testFirstElementLate() {
     Instant lateElementTimestamp = new Instant(-1_000_000);
     TestStream<String> stream =
@@ -267,7 +264,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testElementsAtAlmostPositiveInfinity() {
     Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
     TestStream<String> stream =
@@ -293,15 +290,17 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testMultipleStreams() {
     TestStream<String> stream =
         TestStream.create(StringUtf8Coder.of())
             .addElements("foo", "bar")
             .advanceWatermarkToInfinity();
 
-    TestStream<Integer> other =
-        TestStream.create(VarIntCoder.of()).addElements(1, 2, 3, 4).advanceWatermarkToInfinity();
+    TestStream<Long> other =
+        TestStream.create(VarLongCoder.of())
+            .addElements(1L, 2L, 3L, 4L)
+            .advanceWatermarkToInfinity();
 
     PCollection<String> createStrings =
         p.apply("CreateStrings", stream)
@@ -312,15 +311,15 @@ public class TestStreamTest implements Serializable {
                     .withAllowedLateness(Duration.ZERO)
                     .accumulatingFiredPanes());
     PAssert.that(createStrings).containsInAnyOrder("foo", "bar");
-    PCollection<Integer> createInts =
+    PCollection<Long> createInts =
         p.apply("CreateInts", other)
             .apply(
                 "WindowInts",
-                Window.<Integer>configure()
+                Window.<Long>configure()
                     .triggering(AfterPane.elementCountAtLeast(4))
                     .withAllowedLateness(Duration.ZERO)
                     .accumulatingFiredPanes());
-    PAssert.that(createInts).containsInAnyOrder(1, 2, 3, 4);
+    PAssert.that(createInts).containsInAnyOrder(1L, 2L, 3L, 4L);
 
     p.run();
   }
@@ -352,7 +351,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
+  @Category({ValidatesRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testEarlyPanesOfWindow() {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())

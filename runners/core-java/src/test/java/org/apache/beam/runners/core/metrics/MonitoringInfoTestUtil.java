@@ -25,7 +25,6 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class MonitoringInfoTestUtil {
   /** @return A basic MonitoringInfoMetricName to test. */

@@ -18,16 +18,30 @@
 """Utilities to be used in  Interactive Beam.
 """
 
-from __future__ import absolute_import
-
+import functools
 import hashlib
 import json
 import logging
 
 import pandas as pd
 
+from apache_beam.dataframe.convert import to_pcollection
+from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.runners.interactive.caching.expression_cache import ExpressionCache
 from apache_beam.testing.test_stream import WindowedValueHolder
+from apache_beam.typehints.schemas import named_fields_from_element_type
+
+_LOGGER = logging.getLogger(__name__)
+
+# Add line breaks to the IPythonLogHandler's HTML output.
+_INTERACTIVE_LOG_STYLE = """
+  <style>
+    div.alert {
+      white-space: pre-line;
+    }
+  </style>
+"""
 
 
 def to_element_list(
@@ -76,8 +90,8 @@ def to_element_list(
       count += 1
 
 
-def elements_to_df(elements, include_window_info=False):
-  # type: (List[WindowedValue], bool) -> DataFrame
+def elements_to_df(elements, include_window_info=False, element_type=None):
+  # type: (List[WindowedValue], bool, Any) -> DataFrame
 
   """Parses the given elements into a Dataframe.
 
@@ -86,6 +100,12 @@ def elements_to_df(elements, include_window_info=False):
   True, then it will concatenate the windowing information onto the elements
   DataFrame.
   """
+  try:
+    columns_names = [
+        name for name, _ in named_fields_from_element_type(element_type)
+    ]
+  except TypeError:
+    columns_names = None
 
   rows = []
   windowed_info = []
@@ -94,8 +114,14 @@ def elements_to_df(elements, include_window_info=False):
     if include_window_info:
       windowed_info.append([e.timestamp.micros, e.windows, e.pane_info])
 
-  rows_df = pd.DataFrame(rows)
-  if include_window_info:
+  using_dataframes = isinstance(element_type, pd.DataFrame)
+  using_series = isinstance(element_type, pd.Series)
+  if using_dataframes or using_series:
+    rows_df = pd.concat(rows)
+  else:
+    rows_df = pd.DataFrame(rows, columns=columns_names)
+
+  if include_window_info and not using_series:
     windowed_info_df = pd.DataFrame(
         windowed_info, columns=['event_time', 'windows', 'pane_info'])
     final_df = pd.concat([rows_df, windowed_info_df], axis=1)
@@ -152,6 +178,7 @@ class IPythonLogHandler(logging.Handler):
       from html import escape
       from IPython.core.display import HTML
       from IPython.core.display import display
+      display(HTML(_INTERACTIVE_LOG_STYLE))
       display(
           HTML(
               self.log_template.format(
@@ -197,8 +224,10 @@ class ProgressIndicator(object):
         display(HTML(self.spinner_template.format(id=self._id)))
       else:
         display(self._enter_text)
-    except ImportError:
-      pass  # NOOP when dependencies are not available.
+    except ImportError as e:
+      _LOGGER.error(
+          'Please use interactive Beam features in an IPython'
+          'or notebook environment: %s' % e)
 
   def __exit__(self, exc_type, exc_value, traceback):
     try:
@@ -214,8 +243,10 @@ class ProgressIndicator(object):
                     customized_script=script)))
       else:
         display(self._exit_text)
-    except ImportError:
-      pass  # NOOP when dependencies are not avaialble.
+    except ImportError as e:
+      _LOGGER.error(
+          'Please use interactive Beam features in an IPython'
+          'or notebook environment: %s' % e)
 
 
 def progress_indicated(func):
@@ -223,6 +254,7 @@ def progress_indicated(func):
 
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
+  @functools.wraps(func)
   def run_within_progress_indicator(*args, **kwargs):
     with ProgressIndicator('Processing...', 'Done.'):
       return func(*args, **kwargs)
@@ -248,3 +280,17 @@ def as_json(func):
       return str(return_value)
 
   return return_as_json
+
+
+def deferred_df_to_pcollection(df):
+  assert isinstance(df, DeferredBase), '{} is not a DeferredBase'.format(df)
+
+  # The proxy is used to output a DataFrame with the correct columns.
+  #
+  # TODO(BEAM-11064): Once type hints are implemented for pandas, use those
+  # instead of the proxy.
+  cache = ExpressionCache()
+  cache.replace_with_cached(df._expr)
+
+  proxy = df._expr.proxy()
+  return to_pcollection(df, yield_elements='pandas', label=str(df._expr)), proxy

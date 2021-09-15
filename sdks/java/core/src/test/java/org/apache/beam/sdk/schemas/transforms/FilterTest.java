@@ -37,9 +37,6 @@ import org.junit.runners.JUnit4;
 /** Test for {@link Filter}. * */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FilterTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();

@@ -28,9 +28,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
  * original classes definition and is useful for testing code which needs to validate usage with
  * multiple classloaders..
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class InterceptingUrlClassLoader extends ClassLoader {
   private final Predicate<String> test;
 

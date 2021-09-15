@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -62,9 +63,6 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PTransformTranslation}. */
 @RunWith(Parameterized.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PTransformTranslationTest {
 
   @Parameters(name = "{index}: {0}")
@@ -172,6 +170,7 @@ public class PTransformTranslationTest {
         PValues.expandInput(pipeline.begin()),
         PValues.expandOutput(pcollection),
         sequence,
+        ResourceHints.create(),
         pipeline);
   }
 
@@ -183,6 +182,7 @@ public class PTransformTranslationTest {
         PValues.expandInput(pipeline.begin()),
         PValues.expandOutput(pcollection),
         transform,
+        ResourceHints.create(),
         pipeline);
   }
 
@@ -204,6 +204,7 @@ public class PTransformTranslationTest {
         PValues.expandInput(pipeline.begin()),
         PValues.expandOutput(PDone.in(pipeline)),
         rawPTransform,
+        ResourceHints.create(),
         pipeline);
   }
 
@@ -224,6 +225,11 @@ public class PTransformTranslationTest {
 
     return AppliedPTransform
         .<PCollection<Long>, PCollectionTuple, ParDo.MultiOutput<Long, KV<Long, String>>>of(
-            "MultiParDoInAndOut", inputs, PValues.expandOutput(output), parDo, pipeline);
+            "MultiParDoInAndOut",
+            inputs,
+            PValues.expandOutput(output),
+            parDo,
+            ResourceHints.create(),
+            pipeline);
   }
 }

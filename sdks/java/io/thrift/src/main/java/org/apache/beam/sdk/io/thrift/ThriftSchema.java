@@ -21,14 +21,18 @@ import static java.util.Collections.unmodifiableMap;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Map.Entry;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -44,6 +48,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.thrift.TBase;
 import org.apache.thrift.TEnum;
 import org.apache.thrift.TFieldIdEnum;
+import org.apache.thrift.TFieldRequirementType;
 import org.apache.thrift.TUnion;
 import org.apache.thrift.meta_data.EnumMetaData;
 import org.apache.thrift.meta_data.FieldMetaData;
@@ -90,17 +95,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *       parameter exists.
  *   <li>All non-union types have a corresponding java field with the same name for every field in
  *       the original thrift source file.
- *   <li>The underlying {@link FieldMetaData#getStructMetaDataMap(Class) metadata maps} are {@link
- *       java.util.EnumMap enum maps}, so the natural order of the field keys is preserved.
  * </ul>
  *
  * <p>Thrift typedefs for container types (and possibly others) do not preserve the full type
  * information. For this reason, this class allows for {@link #custom() manual registration} of such
  * "lossy" typedefs with their corresponding beam types.
  *
- * <p>Note: upon restoring the same thrift object from a Beam {@link
- * org.apache.beam.sdk.values.Row}, the {@link TBase#isSet(TFieldIdEnum) isSet flag} will be {@code
- * true} for all fields, except for non-primitive types with no default values.
+ * <p>Note: Thrift encoding and decoding are not fully symmetrical, i.e. the {@link
+ * TBase#isSet(TFieldIdEnum) isSet} flag may not be preserved upon converting a thrift object to a
+ * beam row and back. On encoding, we extract all thrift values, no matter if the fields are set or
+ * not. On decoding, we set all non-{@code null} beam row values to the corresponding thrift fields,
+ * leaving the rest unset.
  */
 @Experimental(Experimental.Kind.SCHEMAS)
 public final class ThriftSchema extends GetterBasedSchemaProvider {
@@ -183,7 +188,15 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
   private Schema.Field beamField(FieldMetaData fieldDescriptor) {
     try {
       final FieldType type = beamType(fieldDescriptor.valueMetaData);
-      return Schema.Field.nullable(fieldDescriptor.fieldName, type);
+      switch (fieldDescriptor.requirementType) {
+        case TFieldRequirementType.REQUIRED:
+          return Schema.Field.of(fieldDescriptor.fieldName, type);
+        case TFieldRequirementType.DEFAULT:
+          // aka "opt-in, req-out", so it's safest to fall through to nullable
+        case TFieldRequirementType.OPTIONAL:
+        default:
+          return Schema.Field.nullable(fieldDescriptor.fieldName, type);
+      }
     } catch (Exception e) {
       throw new IllegalStateException(
           "Could not infer beam type for thrift field: " + fieldDescriptor.fieldName, e);
@@ -194,7 +207,7 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
   @Override
   public @NonNull List<FieldValueGetter> fieldValueGetters(
       @NonNull Class<?> targetClass, @NonNull Schema schema) {
-    return thriftFieldDescriptors(targetClass).keySet().stream()
+    return schemaFieldDescriptors(targetClass, schema).keySet().stream()
         .map(FieldExtractor::new)
         .collect(Collectors.toList());
   }
@@ -202,13 +215,13 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
   @Override
   public @NonNull List<FieldValueTypeInformation> fieldValueTypeInformations(
       @NonNull Class<?> targetClass, @NonNull Schema schema) {
-    return thriftFieldDescriptors(targetClass).values().stream()
+    return schemaFieldDescriptors(targetClass, schema).values().stream()
         .map(descriptor -> fieldValueTypeInfo(targetClass, descriptor.fieldName))
         .collect(Collectors.toList());
   }
 
   @SuppressWarnings("unchecked")
-  private static <FieldT extends Enum<FieldT> & TFieldIdEnum, T extends TBase<T, FieldT>>
+  private static <FieldT extends TFieldIdEnum, T extends TBase<T, FieldT>>
       Map<FieldT, FieldMetaData> thriftFieldDescriptors(Class<?> targetClass) {
     return (Map<FieldT, FieldMetaData>) FieldMetaData.getStructMetaDataMap((Class<T>) targetClass);
   }
@@ -243,19 +256,43 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
   @Override
   public @NonNull SchemaUserTypeCreator schemaTypeCreator(
       @NonNull Class<?> targetClass, @NonNull Schema schema) {
-    return params -> restoreThriftObject(targetClass, params);
+    final Map<TFieldIdEnum, FieldMetaData> fieldDescriptors =
+        schemaFieldDescriptors(targetClass, schema);
+    return params -> restoreThriftObject(targetClass, fieldDescriptors, params);
   }
 
-  private <FieldT extends Enum<FieldT> & TFieldIdEnum, T extends TBase<T, FieldT>>
-      T restoreThriftObject(Class<?> targetClass, Object[] params) {
+  @SuppressWarnings("nullness")
+  private Map<TFieldIdEnum, FieldMetaData> schemaFieldDescriptors(
+      Class<?> targetClass, Schema schema) {
+    final Map<TFieldIdEnum, FieldMetaData> fieldDescriptors = thriftFieldDescriptors(targetClass);
+    final Map<String, TFieldIdEnum> fields =
+        fieldDescriptors.keySet().stream()
+            .collect(Collectors.toMap(TFieldIdEnum::getFieldName, Function.identity()));
+
+    return schema.getFields().stream()
+        .map(Schema.Field::getName)
+        .map(fields::get)
+        .collect(
+            Collectors.toMap(
+                Function.identity(),
+                fieldDescriptors::get,
+                ThriftSchema::throwingCombiner,
+                LinkedHashMap::new));
+  }
+
+  private <FieldT extends TFieldIdEnum, T extends TBase<T, FieldT>> T restoreThriftObject(
+      Class<?> targetClass, Map<FieldT, FieldMetaData> fields, Object[] params) {
+    if (params.length != fields.size()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "The parameter list: %s does not match the expected fields: %s",
+              Arrays.toString(params), fields.keySet()));
+    }
     try {
       @SuppressWarnings("unchecked")
       final T thrift = (T) targetClass.getDeclaredConstructor().newInstance();
-      final Map<FieldT, FieldMetaData> fieldMap = thriftFieldDescriptors(targetClass);
-      // the underlying Map is an EnumMap, so it's safe to rely on the order of its keys
-      fieldMap.forEach(
-          (field, descriptor) ->
-              setThriftField(thrift, field, descriptor, params[field.ordinal()]));
+      final Iterator<Entry<FieldT, FieldMetaData>> iter = fields.entrySet().iterator();
+      Stream.of(params).forEach(param -> setThriftField(thrift, iter.next(), param));
       return thrift;
     } catch (Exception e) {
       throw new IllegalStateException(e);
@@ -263,17 +300,16 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
   }
 
   private <FieldT extends TFieldIdEnum, T extends TBase<T, FieldT>> void setThriftField(
-      T thrift, FieldT field, FieldMetaData descriptor, Object value) {
+      T thrift, Entry<FieldT, FieldMetaData> fieldDescriptor, Object value) {
+    final FieldT field = fieldDescriptor.getKey();
+    final FieldMetaData descriptor = fieldDescriptor.getValue();
     if (value != null) {
       final Object actualValue;
       switch (descriptor.valueMetaData.type) {
         case TType.SET:
-          final Set<Object> set = new HashSet<>();
-          final Iterable<@NonNull ?> iterable = (Iterable<@NonNull ?>) value;
-          for (@NonNull Object elem : iterable) {
-            set.add(elem);
-          }
-          actualValue = set;
+          actualValue =
+              StreamSupport.stream(((Iterable<?>) value).spliterator(), false)
+                  .collect(Collectors.toSet());
           break;
         case TType.ENUM:
           final Class<? extends TEnum> enumClass =
@@ -286,8 +322,6 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
           actualValue = value;
       }
       thrift.setFieldValue(field, actualValue);
-    } else if (!TUnion.class.isInstance(thrift)) {
-      thrift.setFieldValue(field, value); // nullness checks don't allow setting null here
     }
   }
 
@@ -349,7 +383,7 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
 
     @Override
     public @Nullable Object get(T thrift) {
-      if (!TUnion.class.isInstance(thrift) || thrift.isSet(field)) {
+      if (!(thrift instanceof TUnion) || thrift.isSet(field)) {
         final Object value = thrift.getFieldValue(field);
         if (value instanceof Enum<?>) {
           return ((Enum<?>) value).ordinal();

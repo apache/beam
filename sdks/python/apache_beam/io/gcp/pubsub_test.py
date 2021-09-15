@@ -20,14 +20,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
-from builtins import object
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 
@@ -829,6 +824,7 @@ class TestWriteToPubSub(unittest.TestCase):
 
   def test_write_messages_deprecated(self, mock_pubsub):
     data = 'data'
+    data_bytes = b'data'
     payloads = [data]
 
     options = PipelineOptions([])
@@ -839,7 +835,7 @@ class TestWriteToPubSub(unittest.TestCase):
           | Create(payloads)
           | WriteStringsToPubSub('projects/fakeprj/topics/a_topic'))
     mock_pubsub.return_value.publish.assert_has_calls(
-        [mock.call(mock.ANY, data)])
+        [mock.call(mock.ANY, data_bytes)])
 
   def test_write_messages_with_attributes_success(self, mock_pubsub):
     data = b'data'

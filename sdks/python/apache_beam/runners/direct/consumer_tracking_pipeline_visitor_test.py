@@ -18,8 +18,6 @@
 """Tests for consumer_tracking_pipeline_visitor."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 
@@ -45,10 +43,6 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = Pipeline(DirectRunner())
     self.visitor = ConsumerTrackingPipelineVisitor()
-    try:  # Python 2
-      self.assertCountEqual = self.assertItemsEqual
-    except AttributeError:  # Python 3
-      pass
 
   def test_root_transforms(self):
     root_read = beam.Impulse()

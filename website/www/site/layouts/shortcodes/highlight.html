@@ -12,20 +12,50 @@
 
 {{ $content := (trim .Inner "\n\r") | htmlUnescape | safeHTML }}
 {{ $ctx := . }}
-{{ with (.Get "class") }}
-    <div class={{ . }}>
-        {{ with ($ctx.Get "lang") }}
-            {{ highlight $content . "" }}
-        {{ else }}
-            {{ highlight $content "" "" }}
-        {{ end }}
-    </div>
-{{ else }}
-    {{ with (.Get 0) }}
-        <div class={{ printf "language-%s" . }}>
+{{ $language := .Get 0 }}
+{{ $file := .Get "file" }}
+{{ $notebook := .Get "notebook" }}
+{{ with (.Get "language") }}
+    <div class='{{ printf "language-%s" . }} snippet'>
+        <div class="notebook-skip code-snippet">
+            {{ with $file }}
+                {{ with $notebook }}
+                    <a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/{{ $ctx.Site.Params.branch_repo }}/{{ $ctx.Get `notebook` }}-py.ipynb">
+                        <img src="/images/run-icon.svg"/>
+                    </a>
+                {{ end }}
+                <a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/{{ $ctx.Site.Params.branch_repo }}/{{ $ctx.Get `file` }}">
+                    <img src="/images/code-icon.svg"/>
+                </a>
+                <a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+                    <img src="/images/copy-icon.svg"/>
+                </a>
+            {{ else }}
+                <a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+                    <img src="/images/copy-icon.svg"/>
+                </a>
+            {{ end }}
             {{ highlight $content . "" }}
         </div>
+    </div>
+{{ else }}
+    {{ with $language }}
+        <div class='{{ printf "language-%s" . }} snippet'>
+            <div class="notebook-skip code-snippet">
+                <a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+                    <img src="/images/copy-icon.svg"/>
+                </a>
+                {{ highlight $content . "" }}
+            </div>
+        </div>
     {{ else }}
-        {{ highlight $content "" "" }}
+        <div class="snippet">
+            <div class="notebook-skip code-snippet without_switcher">
+                <a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+                    <img src="/images/copy-icon.svg"/>
+                </a>
+                {{ highlight $content "" "" }}
+            </div>
+        </div>
     {{ end }}
 {{ end }}

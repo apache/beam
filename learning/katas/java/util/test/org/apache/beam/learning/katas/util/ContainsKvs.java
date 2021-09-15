@@ -22,7 +22,7 @@ import static com.google.common.collect.Iterables.toArray;
 import static org.apache.beam.learning.katas.util.KvMatcher.isKv;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;

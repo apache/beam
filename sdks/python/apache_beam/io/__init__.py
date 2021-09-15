@@ -18,16 +18,14 @@
 """A package defining several input sources and output sinks."""
 
 # pylint: disable=wildcard-import
-from __future__ import absolute_import
-
 from apache_beam.io.avroio import *
 from apache_beam.io.filebasedsink import *
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Sink
 from apache_beam.io.iobase import Write
 from apache_beam.io.iobase import Writer
-# from apache_beam.io.mongodbio import *
-# from apache_beam.io.parquetio import *
+from apache_beam.io.mongodbio import *
+from apache_beam.io.parquetio import *
 from apache_beam.io.textio import *
 from apache_beam.io.tfrecordio import *
 from apache_beam.io.range_trackers import *

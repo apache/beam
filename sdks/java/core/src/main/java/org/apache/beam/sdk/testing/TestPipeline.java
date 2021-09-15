@@ -334,6 +334,51 @@ public class TestPipeline extends Pipeline implements TestRule {
     return run(getOptions());
   }
 
+  /**
+   * Runs this {@link TestPipeline} with additional cmd pipeline option args.
+   *
+   * <p>This is useful when using {@link PipelineOptions#as(Class)} directly introduces circular
+   * dependency.
+   *
+   * <p>Most of logic is similar to {@link #testingPipelineOptions}.
+   */
+  public PipelineResult runWithAdditionalOptionArgs(List<String> additionalArgs) {
+    try {
+      @Nullable
+      String beamTestPipelineOptions = System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
+      PipelineOptions options;
+      if (Strings.isNullOrEmpty(beamTestPipelineOptions)) {
+        options = PipelineOptionsFactory.create();
+      } else {
+        List<String> args = MAPPER.readValue(beamTestPipelineOptions, List.class);
+        args.addAll(additionalArgs);
+        String[] newArgs = new String[args.size()];
+        newArgs = args.toArray(newArgs);
+        options = PipelineOptionsFactory.fromArgs(newArgs).as(TestPipelineOptions.class);
+      }
+
+      // If no options were specified, set some reasonable defaults
+      if (Strings.isNullOrEmpty(beamTestPipelineOptions)) {
+        // If there are no provided options, check to see if a dummy runner should be used.
+        String useDefaultDummy = System.getProperty(PROPERTY_USE_DEFAULT_DUMMY_RUNNER);
+        if (!Strings.isNullOrEmpty(useDefaultDummy) && Boolean.valueOf(useDefaultDummy)) {
+          options.setRunner(CrashingRunner.class);
+        }
+      }
+      options.setStableUniqueNames(CheckEnabled.ERROR);
+
+      FileSystems.setDefaultPipelineOptions(options);
+      return run(options);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          "Unable to instantiate test options from system property "
+              + PROPERTY_BEAM_TEST_PIPELINE_OPTIONS
+              + ":"
+              + System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS),
+          e);
+    }
+  }
+
   /** Like {@link #run} but with the given potentially modified options. */
   @Override
   public PipelineResult run(PipelineOptions options) {

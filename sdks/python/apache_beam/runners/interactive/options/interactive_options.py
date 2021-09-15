@@ -22,8 +22,6 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from dateutil import tz
 
 from apache_beam.runners.interactive.options import capture_control

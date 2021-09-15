@@ -18,17 +18,17 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.unnest;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.volcano.RelSubset;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.SingleRel;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Correlate;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCorrelate;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexFieldAccess;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.SingleRel;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Correlate;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.JoinRelType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalCorrelate;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexFieldAccess;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
@@ -58,10 +58,6 @@ public class BeamZetaSqlUnnestRule extends RelOptRule {
     RelNode outer = call.rel(1);
     RelNode uncollect = call.rel(2);
 
-    if (correlate.getCorrelationId().getId() != 0) {
-      // Only one level of correlation nesting is supported
-      return;
-    }
     if (correlate.getRequiredColumns().cardinality() != 1) {
       // can only unnest a single column
       return;
@@ -113,7 +109,7 @@ public class BeamZetaSqlUnnestRule extends RelOptRule {
         new BeamZetaSqlUnnestRel(
             correlate.getCluster(),
             correlate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-            outer,
+            convert(outer, outer.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
             call.rel(2).getRowType(),
             fieldAccessIndices.build()));
   }

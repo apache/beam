@@ -16,18 +16,17 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
+from tempfile import TemporaryDirectory
 
 import hamcrest as hc
 import pandas
+import pytest
 from parameterized import param
 from parameterized import parameterized
 
@@ -48,8 +47,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-# TODO(BEAM-8371): Use tempfile.TemporaryDirectory.
-from apache_beam.utils.subprocess_server_test import TemporaryDirectory
 
 try:
   import pyarrow as pa
@@ -62,13 +59,8 @@ except ImportError:
 
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
+@pytest.mark.uses_pyarrow
 class TestParquet(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -102,14 +94,19 @@ class TestParquet(unittest.TestCase):
                         'name': 'Percy',
                         'favorite_number': 6,
                         'favorite_color': 'Green'
+                    },
+                    {
+                        'name': 'Peter',
+                        'favorite_number': 3,
+                        'favorite_color': None
                     }]
 
-    self.SCHEMA = pa.schema([('name', pa.string()),
-                             ('favorite_number', pa.int64()),
+    self.SCHEMA = pa.schema([('name', pa.string(), False),
+                             ('favorite_number', pa.int64(), False),
                              ('favorite_color', pa.string())])
 
-    self.SCHEMA96 = pa.schema([('name', pa.string()),
-                               ('favorite_number', pa.timestamp('ns')),
+    self.SCHEMA96 = pa.schema([('name', pa.string(), False),
+                               ('favorite_number', pa.timestamp('ns'), False),
                                ('favorite_color', pa.string())])
 
   def tearDown(self):
@@ -121,6 +118,7 @@ class TestParquet(unittest.TestCase):
       column = []
       for r in records:
         column.append(r[n])
+
       col_list.append(column)
     return col_list
 
@@ -137,7 +135,7 @@ class TestParquet(unittest.TestCase):
       data.append(self.RECORDS[i % len_records])
     col_data = self._record_to_columns(data, schema)
     col_array = [pa.array(c, schema.types[cn]) for cn, c in enumerate(col_data)]
-    return pa.Table.from_arrays(col_array, schema.names)
+    return pa.Table.from_arrays(col_array, schema=schema)
 
   def _write_data(
       self,
@@ -162,13 +160,16 @@ class TestParquet(unittest.TestCase):
 
       return f.name
 
-  def _write_pattern(self, num_files):
+  def _write_pattern(self, num_files, with_filename=False):
     assert num_files > 0
     temp_dir = tempfile.mkdtemp(dir=self.temp_dir)
 
+    file_list = []
     for _ in range(num_files):
-      self._write_data(directory=temp_dir, prefix='mytemp')
+      file_list.append(self._write_data(directory=temp_dir, prefix='mytemp'))
 
+    if with_filename:
+      return (temp_dir + os.path.sep + 'mytemp*', file_list)
     return temp_dir + os.path.sep + 'mytemp*'
 
   def _run_parquet_test(
@@ -414,7 +415,7 @@ class TestParquet(unittest.TestCase):
         count=120, row_group_size=20, schema=self.SCHEMA96)
     orig = self._records_as_arrow(count=120, schema=self.SCHEMA96)
     expected_result = [
-        pa.Table.from_batches([batch])
+        pa.Table.from_batches([batch], schema=self.SCHEMA96)
         for batch in orig.to_batches(chunksize=20)
     ]
     self._run_parquet_test(file_name, None, None, False, expected_result)
@@ -450,8 +451,12 @@ class TestParquet(unittest.TestCase):
   def test_selective_columns(self):
     file_name = self._write_data()
     orig = self._records_as_arrow()
+    name_column = self.SCHEMA.field('name')
     expected_result = [
-        pa.Table.from_arrays([orig.column('name')], names=['name'])
+        pa.Table.from_arrays(
+            [orig.column('name')],
+            schema=pa.schema([('name', name_column.type, name_column.nullable)
+                              ]))
     ]
     self._run_parquet_test(file_name, ['name'], None, False, expected_result)
 
@@ -531,6 +536,16 @@ class TestParquet(unittest.TestCase):
           | Create([file_pattern1, file_pattern2, file_pattern3]) \
           | ReadAllFromParquetBatched(),
           equal_to([self._records_as_arrow()] * 10))
+
+  def test_read_all_from_parquet_with_filename(self):
+    file_pattern, file_paths = self._write_pattern(3, with_filename=True)
+    result = [(path, record) for path in file_paths for record in self.RECORDS]
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([file_pattern]) \
+          | ReadAllFromParquet(with_filename=True),
+          equal_to(result))
 
 
 if __name__ == '__main__':

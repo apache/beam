@@ -44,7 +44,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest(ConsumerSpEL.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ProducerRecordCoderTest {
   @Test

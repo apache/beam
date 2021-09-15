@@ -38,9 +38,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 /** Tests {@link KinesisReader}. */
 @RunWith(MockitoJUnitRunner.Silent.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class KinesisReaderTest {
 
   @Mock private SimplifiedKinesisClient kinesis;

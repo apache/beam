@@ -23,12 +23,12 @@ import (
 
 	"bytes"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // NOTE(herohde) 4/30/2017: The main complication is CoGBK results, which have
@@ -121,6 +121,9 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 		return &wrappedWindowEncoder{
 			enc: MakeWindowEncoder(c.Window),
 		}
+
+	case coder.PaneInfo:
+		return &paneEncoder{}
 
 	case coder.Iterable:
 		return &iterableEncoder{
@@ -227,6 +230,9 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 		return &wrappedWindowDecoder{
 			dec: MakeWindowDecoder(c.Window),
 		}
+
+	case coder.PaneInfo:
+		return &paneDecoder{}
 
 	// Note: Iterables in CoGBK are handled in datasource.go instead.
 	case coder.Iterable:
@@ -749,10 +755,11 @@ func (c *arrayDecoder) Decode(r io.Reader) (*FullValue, error) {
 type windowedValueEncoder struct {
 	elm ElementEncoder
 	win WindowEncoder
+	// need to add pane encoder here
 }
 
 func (e *windowedValueEncoder) Encode(val *FullValue, w io.Writer) error {
-	if err := EncodeWindowedValueHeader(e.win, val.Windows, val.Timestamp, w); err != nil {
+	if err := EncodeWindowedValueHeader(e.win, val.Windows, val.Timestamp, val.Pane, w); err != nil {
 		return err
 	}
 	return e.elm.Encode(val, w)
@@ -765,7 +772,7 @@ type windowedValueDecoder struct {
 
 func (d *windowedValueDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	// Encoding: beam utf8 string (length prefix + run of bytes)
-	w, et, err := DecodeWindowedValueHeader(d.win, r)
+	w, et, pn, err := DecodeWindowedValueHeader(d.win, r)
 	if err != nil {
 		return err
 	}
@@ -774,6 +781,7 @@ func (d *windowedValueDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	}
 	fv.Windows = w
 	fv.Timestamp = et
+	fv.Pane = pn
 	return nil
 }
 
@@ -835,6 +843,31 @@ func (d *timerDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 }
 
 func (d *timerDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
+type paneEncoder struct{}
+
+func (*paneEncoder) Encode(val *FullValue, w io.Writer) error {
+	return coder.EncodePane(val.Pane, w)
+}
+
+type paneDecoder struct{}
+
+func (*paneDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	data, err := coder.DecodePane(r)
+	if err != nil {
+		return err
+	}
+	*fv = FullValue{Pane: data}
+	return nil
+}
+
+func (d *paneDecoder) Decode(r io.Reader) (*FullValue, error) {
 	fv := &FullValue{}
 	if err := d.DecodeTo(r, fv); err != nil {
 		return nil, err
@@ -1076,10 +1109,8 @@ func (*intervalWindowDecoder) DecodeSingle(r io.Reader) (typex.Window, error) {
 	return window.IntervalWindow{Start: mtime.FromMilliseconds(end.Milliseconds() - int64(duration)), End: end}, nil
 }
 
-var paneNoFiring = []byte{0xf}
-
 // EncodeWindowedValueHeader serializes a windowed value header.
-func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.EventTime, w io.Writer) error {
+func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.EventTime, p typex.PaneInfo, w io.Writer) error {
 	// Encoding: Timestamp, Window, Pane (header) + Element
 
 	if err := coder.EncodeEventTime(t, w); err != nil {
@@ -1088,25 +1119,30 @@ func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.Eve
 	if err := enc.Encode(ws, w); err != nil {
 		return err
 	}
-	_, err := w.Write(paneNoFiring)
+	err := coder.EncodePane(p, w)
 	return err
 }
 
 // DecodeWindowedValueHeader deserializes a windowed value header.
-func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, typex.EventTime, error) {
+func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, typex.EventTime, typex.PaneInfo, error) {
 	// Encoding: Timestamp, Window, Pane (header) + Element
+
+	onError := func(err error) ([]typex.Window, typex.EventTime, typex.PaneInfo, error) {
+		return nil, mtime.ZeroTimestamp, typex.NoFiringPane(), err
+	}
 
 	t, err := coder.DecodeEventTime(r)
 	if err != nil {
-		return nil, mtime.ZeroTimestamp, err
+		return onError(err)
 	}
 	ws, err := dec.Decode(r)
 	if err != nil {
-		return nil, mtime.ZeroTimestamp, err
+		return onError(err)
 	}
-	var data [1]byte
-	if err := ioutilx.ReadNBufUnsafe(r, data[:]); err != nil { // NO_FIRING pane
-		return nil, mtime.ZeroTimestamp, err
+	pn, err := coder.DecodePane(r)
+	if err != nil {
+		return onError(err)
 	}
-	return ws, t, nil
+
+	return ws, t, pn, nil
 }

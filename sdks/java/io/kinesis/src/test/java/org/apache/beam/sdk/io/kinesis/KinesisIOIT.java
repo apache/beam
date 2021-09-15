@@ -57,9 +57,6 @@ import org.testcontainers.utility.DockerImageName;
  * when no options are provided an instance of localstack is used.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class KinesisIOIT implements Serializable {
   private static final String LOCALSTACK_VERSION = "0.11.4";
 

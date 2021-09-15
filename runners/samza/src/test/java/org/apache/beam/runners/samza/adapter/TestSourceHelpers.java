@@ -35,9 +35,6 @@ import org.apache.samza.system.SystemStreamPartition;
 import org.joda.time.Instant;
 
 /** Helper classes and functions to build source for testing. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestSourceHelpers {
 
   private TestSourceHelpers() {}

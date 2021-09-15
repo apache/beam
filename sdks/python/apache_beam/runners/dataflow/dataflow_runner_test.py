@@ -19,32 +19,28 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
-import sys
 import unittest
-from builtins import object
-from builtins import range
 from datetime import datetime
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
 from apache_beam.coders import BytesCoder
-from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
+from apache_beam.runners import common
 from apache_beam.runners import create_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
@@ -207,9 +203,29 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertTrue(
         isinstance(create_runner('TestDataflowRunner'), TestDataflowRunner))
 
-  def test_environment_override_translation(self):
+  def test_environment_override_translation_legacy_worker_harness_image(self):
     self.default_properties.append('--experiments=beam_fn_api')
-    self.default_properties.append('--worker_harness_container_image=FOO')
+    self.default_properties.append('--worker_harness_container_image=LEGACY')
+    remote_runner = DataflowRunner()
+    with Pipeline(remote_runner,
+                  options=PipelineOptions(self.default_properties)) as p:
+      (  # pylint: disable=expression-not-assigned
+          p | ptransform.Create([1, 2, 3])
+          | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
+          | ptransform.GroupByKey())
+    self.assertEqual(
+        list(remote_runner.proto_pipeline.components.environments.values()),
+        [
+            beam_runner_api_pb2.Environment(
+                urn=common_urns.environments.DOCKER.urn,
+                payload=beam_runner_api_pb2.DockerPayload(
+                    container_image='LEGACY').SerializeToString(),
+                capabilities=environments.python_sdk_capabilities())
+        ])
+
+  def test_environment_override_translation_sdk_container_image(self):
+    self.default_properties.append('--experiments=beam_fn_api')
+    self.default_properties.append('--sdk_container_image=FOO')
     remote_runner = DataflowRunner()
     with Pipeline(remote_runner,
                   options=PipelineOptions(self.default_properties)) as p:
@@ -332,9 +348,10 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     pcoll2.element_type = typehints.Any
     pcoll3.element_type = typehints.KV[typehints.Any, typehints.Any]
     for pcoll in [pcoll1, pcoll2, pcoll3]:
-      applied = AppliedPTransform(None, beam.GroupByKey(), "label", [pcoll])
+      applied = AppliedPTransform(
+          None, beam.GroupByKey(), "label", {'pcoll': pcoll})
       applied.outputs[None] = PCollection(None)
-      DataflowRunner.group_by_key_input_visitor().visit_transform(applied)
+      common.group_by_key_input_visitor().visit_transform(applied)
       self.assertEqual(
           pcoll.element_type, typehints.KV[typehints.Any, typehints.Any])
 
@@ -350,16 +367,16 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         "Found .*")
     for pcoll in [pcoll1, pcoll2]:
       with self.assertRaisesRegex(ValueError, err_msg):
-        DataflowRunner.group_by_key_input_visitor().visit_transform(
-            AppliedPTransform(None, beam.GroupByKey(), "label", [pcoll]))
+        common.group_by_key_input_visitor().visit_transform(
+            AppliedPTransform(None, beam.GroupByKey(), "label", {'in': pcoll}))
 
   def test_group_by_key_input_visitor_for_non_gbk_transforms(self):
     p = TestPipeline()
     pcoll = PCollection(p)
     for transform in [beam.Flatten(), beam.Map(lambda x: x)]:
       pcoll.element_type = typehints.Any
-      DataflowRunner.group_by_key_input_visitor().visit_transform(
-          AppliedPTransform(None, transform, "label", [pcoll]))
+      common.group_by_key_input_visitor().visit_transform(
+          AppliedPTransform(None, transform, "label", {'in': pcoll}))
       self.assertEqual(pcoll.element_type, typehints.Any)
 
   def test_flatten_input_with_visitor_with_single_input(self):
@@ -371,11 +388,11 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   def _test_flatten_input_visitor(self, input_type, output_type, num_inputs):
     p = TestPipeline()
-    inputs = []
-    for _ in range(num_inputs):
+    inputs = {}
+    for ix in range(num_inputs):
       input_pcoll = PCollection(p)
       input_pcoll.element_type = input_type
-      inputs.append(input_pcoll)
+      inputs[str(ix)] = input_pcoll
     output_pcoll = PCollection(p)
     output_pcoll.element_type = output_type
 
@@ -383,7 +400,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     flatten.add_output(output_pcoll, None)
     DataflowRunner.flatten_input_visitor().visit_transform(flatten)
     for _ in range(num_inputs):
-      self.assertEqual(inputs[0].element_type, output_type)
+      self.assertEqual(inputs['0'].element_type, output_type)
 
   def test_gbk_then_flatten_input_visitor(self):
     p = TestPipeline(
@@ -398,7 +415,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     # to make sure the check below is not vacuous.
     self.assertNotIsInstance(flat.element_type, typehints.TupleConstraint)
 
-    p.visit(DataflowRunner.group_by_key_input_visitor())
+    p.visit(common.group_by_key_input_visitor())
     p.visit(DataflowRunner.flatten_input_visitor())
 
     # The dataflow runner requires gbk input to be tuples *and* flatten
@@ -426,7 +443,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         z: (x, y, z),
         beam.pvalue.AsSingleton(pc),
         beam.pvalue.AsMultiMap(pc))
-    applied_transform = AppliedPTransform(None, transform, "label", [pc])
+    applied_transform = AppliedPTransform(None, transform, "label", {'pc': pc})
     DataflowRunner.side_input_visitor(
         use_fn_api=True).visit_transform(applied_transform)
     self.assertEqual(2, len(applied_transform.side_inputs))
@@ -503,8 +520,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
       p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
 
-    self.assertEqual(
-        sys.version_info[0] > 2,
+    self.assertTrue(
         remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
             'use_fastavro', False))
 
@@ -518,23 +534,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     debug_options = remote_runner.job.options.view_as(DebugOptions)
 
     self.assertFalse(debug_options.lookup_experiment('use_fastavro', False))
-
-  def test_unsupported_fnapi_features(self):
-    remote_runner = DataflowRunner()
-    self.default_properties.append('--experiment=beam_fn_api')
-    self.default_properties.append('--experiment=use_runner_v2')
-
-    with self.assertRaisesRegex(RuntimeError, 'Unsupported merging'):
-      with Pipeline(remote_runner,
-                    options=PipelineOptions(self.default_properties)) as p:
-        # pylint: disable=expression-not-assigned
-        p | beam.Create([]) | beam.WindowInto(CustomMergingWindowFn())
-
-    with self.assertRaisesRegex(RuntimeError, 'Unsupported window coder'):
-      with Pipeline(remote_runner,
-                    options=PipelineOptions(self.default_properties)) as p:
-        # pylint: disable=expression-not-assigned
-        p | beam.Create([]) | beam.WindowInto(CustomWindowTypeWindowFn())
 
   @mock.patch('os.environ.get', return_value=None)
   @mock.patch('apache_beam.utils.processes.check_output', return_value=b'')
@@ -791,8 +790,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def _run_group_into_batches_and_get_step_properties(
       self, with_sharded_key, additional_properties):
     self.default_properties.append('--streaming')
-    self.default_properties.append(
-        '--experiment=enable_streaming_auto_sharding')
     for property in additional_properties:
       self.default_properties.append(property)
 
@@ -815,58 +812,98 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   def test_group_into_batches_translation(self):
     properties = self._run_group_into_batches_and_get_step_properties(
-        True, ['--enable_streaming_engine', '--experiment=use_runner_v2'])
+        True, ['--enable_streaming_engine', '--experiments=use_runner_v2'])
     self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
     self.assertEqual(properties[PropertyNames.ALLOWS_SHARDABLE_STATE], u'true')
     self.assertEqual(properties[PropertyNames.PRESERVES_KEYS], u'true')
 
-  def test_group_into_batches_translation_non_se(self):
-    properties = self._run_group_into_batches_and_get_step_properties(
-        True, ['--experiment=use_runner_v2'])
-    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertFalse(PropertyNames.ALLOWS_SHARDABLE_STATE in properties)
-    self.assertFalse(PropertyNames.PRESERVES_KEYS in properties)
-
   def test_group_into_batches_translation_non_sharded(self):
     properties = self._run_group_into_batches_and_get_step_properties(
-        False, ['--enable_streaming_engine', '--experiment=use_runner_v2'])
+        False, ['--enable_streaming_engine', '--experiments=use_runner_v2'])
     self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertFalse(PropertyNames.ALLOWS_SHARDABLE_STATE in properties)
-    self.assertFalse(PropertyNames.PRESERVES_KEYS in properties)
+    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
+
+  def test_group_into_batches_translation_non_se(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Runner determined sharding not available in Dataflow for '
+        'GroupIntoBatches for non-Streaming-Engine jobs'):
+      _ = self._run_group_into_batches_and_get_step_properties(
+          True, ['--experiments=use_runner_v2'])
 
   def test_group_into_batches_translation_non_unified_worker(self):
     # non-portable
-    properties = self._run_group_into_batches_and_get_step_properties(
-        True, ['--enable_streaming_engine'])
-    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertFalse(PropertyNames.ALLOWS_SHARDABLE_STATE in properties)
-    self.assertFalse(PropertyNames.PRESERVES_KEYS in properties)
+    with self.assertRaisesRegex(
+        ValueError,
+        'Runner determined sharding not available in Dataflow for '
+        'GroupIntoBatches for jobs not using Runner V2'):
+      _ = self._run_group_into_batches_and_get_step_properties(
+          True, ['--enable_streaming_engine'])
 
     # JRH
-    properties = self._run_group_into_batches_and_get_step_properties(
-        True, ['--enable_streaming_engine', '--experiment=beam_fn_api'])
-    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertFalse(PropertyNames.ALLOWS_SHARDABLE_STATE in properties)
-    self.assertFalse(PropertyNames.PRESERVES_KEYS in properties)
+    with self.assertRaisesRegex(
+        ValueError,
+        'Runner determined sharding not available in Dataflow for '
+        'GroupIntoBatches for jobs not using Runner V2'):
+      _ = self._run_group_into_batches_and_get_step_properties(
+          True, ['--enable_streaming_engine', '--experiments=beam_fn_api'])
 
+  def test_pack_combiners(self):
+    class PackableCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
 
-class CustomMergingWindowFn(window.WindowFn):
-  def assign(self, assign_context):
-    return []
+      def expand(self, pcoll):
+        _ = pcoll | 'PackableMin' >> beam.CombineGlobally(min)
+        _ = pcoll | 'PackableMax' >> beam.CombineGlobally(max)
 
-  def merge(self, merge_context):
-    pass
+    runner = DataflowRunner()
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      _ = p | beam.Create([10, 20, 30]) | PackableCombines()
 
-  def get_window_coder(self):
-    return coders.IntervalWindowCoder()
+    unpacked_minimum_step_name = (
+        'PackableCombines/PackableMin/CombinePerKey/Combine')
+    unpacked_maximum_step_name = (
+        'PackableCombines/PackableMax/CombinePerKey/Combine')
+    packed_step_name = (
+        'PackableCombines/Packed[PackableMin_CombinePerKey, '
+        'PackableMax_CombinePerKey]/Pack')
+    transform_names = set(
+        transform.unique_name
+        for transform in runner.proto_pipeline.components.transforms.values())
+    self.assertNotIn(unpacked_minimum_step_name, transform_names)
+    self.assertNotIn(unpacked_maximum_step_name, transform_names)
+    self.assertIn(packed_step_name, transform_names)
 
+  @parameterized.expand([
+      param(memory_hint='min_ram'),
+      param(memory_hint='minRam'),
+  ])
+  def test_resource_hints_translation(self, memory_hint):
+    runner = DataflowRunner()
+    self.default_properties.append('--resource_hint=accelerator=some_gpu')
+    self.default_properties.append(f'--resource_hint={memory_hint}=20GB')
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      # pylint: disable=expression-not-assigned
+      (
+          p
+          | beam.Create([1])
+          | 'MapWithHints' >> beam.Map(lambda x: x + 1).with_resource_hints(
+              min_ram='10GB',
+              accelerator='type:nvidia-tesla-k80;count:1;install-nvidia-drivers'
+          ))
 
-class CustomWindowTypeWindowFn(window.NonMergingWindowFn):
-  def assign(self, assign_context):
-    return []
-
-  def get_window_coder(self):
-    return coders.BytesCoder()
+    step = self._find_step(runner.job, 'MapWithHints')
+    self.assertEqual(
+        step['properties']['resource_hints'],
+        {
+            'beam:resources:min_ram_bytes:v1': '20000000000',
+            'beam:resources:accelerator:v1': \
+                'type%3Anvidia-tesla-k80%3Bcount%3A1%3Binstall-nvidia-drivers'
+        })
 
 
 if __name__ == '__main__':

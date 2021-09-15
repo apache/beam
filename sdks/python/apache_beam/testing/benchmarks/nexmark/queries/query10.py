@@ -22,8 +22,6 @@ Every window_size_sec, save all events from the last period into
 2*max_workers log files.
 """
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
@@ -31,7 +29,7 @@ from apache_beam.transforms import window
 from apache_beam.utils.timestamp import Duration
 
 NUM_SHARD_PER_WORKER = 5
-LATE_BATCHING_PERIOD = Duration.of(10)
+LATE_BATCHING_PERIOD = 10
 
 output_path = None
 max_num_workers = 5
@@ -78,7 +76,7 @@ def index_path_for(window):
     return None
 
 
-def load(events, pipeline_options, metadata=None):
+def load(events, metadata=None, pipeline_options=None):
   return (
       events
       | 'query10_shard_events' >> beam.ParDo(ShardEventsDoFn())

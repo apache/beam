@@ -39,6 +39,7 @@ unassigned. Most P1 bugs should block release.
  - data loss error
  - important component is nonfunctional for important use cases
  - major performance regression
+ - security related issues (CVEs)
  - failing postcommit test
  - flaky test
 

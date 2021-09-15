@@ -409,6 +409,7 @@ examples:
   "\x01\x00\x00\x00\x00\x02\x03foo\x01\xa9F\x03bar\x01\xff\xff\xff\xff\xff\xff\xff\xff\x7f": {f_map: {"foo": 9001, "bar": 9223372036854775807}}
   "\x01\x00\x00\x00\x00\x04\neverything\x00\x02is\x00\x05null!\x00\r\xc2\xaf\\_(\xe3\x83\x84)_/\xc2\xaf\x00": {f_map: {"everything": null, "is": null, "null!": null, "¯\\_(ツ)_/¯": null}}
 
+---
 
 coder:
   urn: "beam:coder:row:v1"
@@ -440,3 +441,25 @@ examples:
     shardId: "",
     key: "key"
   }
+
+---
+
+# Java code snippet to generate example bytes:
+#  TimestampPrefixingWindowCoder<IntervalWindow> coder = TimestampPrefixingWindowCoder.of(IntervalWindowCoder.of());
+#  Instant end = new Instant(-9223372036854410L);
+#  Duration span = Duration.millis(365L);
+#  IntervalWindow window = new IntervalWindow(end.minus(span), span);
+#  byte[] bytes = CoderUtils.encodeToByteArray(coder, window);
+#  String str = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+#  String example = "";
+#  for(int i = 0; i < str.length(); i++){
+#    example += CharUtils.unicodeEscaped(str.charAt(i));
+#  }
+#  System.out.println(example);
+coder:
+  urn: "beam:coder:custom_window:v1"
+  components: [{urn: "beam:coder:interval_window:v1"}]
+
+examples:
+  "\u0080\u0000\u0001\u0052\u009a\u00a4\u009b\u0067\u0080\u0000\u0001\u0052\u009a\u00a4\u009b\u0068\u0080\u00dd\u00db\u0001" : {window: {end: 1454293425000, span: 3600000}}
+  "\u007f\u00df\u003b\u0064\u005a\u001c\u00ad\u0075\u007f\u00df\u003b\u0064\u005a\u001c\u00ad\u0076\u00ed\u0002" : {window: {end: -9223372036854410, span: 365}}

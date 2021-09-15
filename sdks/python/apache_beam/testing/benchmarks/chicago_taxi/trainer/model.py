@@ -15,10 +15,6 @@
 """Defines the model used to predict who will tip in the Chicago Taxi demo."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow as tf
 
 import tensorflow_model_analysis as tfma

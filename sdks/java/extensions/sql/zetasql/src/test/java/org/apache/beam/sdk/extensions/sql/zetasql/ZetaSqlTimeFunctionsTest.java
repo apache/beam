@@ -49,9 +49,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for ZetaSQL time functions (DATE, TIME, DATETIME, and TIMESTAMP functions). */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -84,7 +81,9 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   public void testDateColumn() {
-    String sql = "SELECT FORMAT_DATE('%b-%d-%Y', date_field) FROM table_with_date";
+    // NOTE: Do not use textual format parameters (%b or %h: The abbreviated month name) as these
+    // are locale dependent.
+    String sql = "SELECT FORMAT_DATE('%m-%d-%Y', date_field) FROM table_with_date";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -93,10 +92,10 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addStringField("f_date_str").build())
-                .addValues("Dec-25-2008")
+                .addValues("12-25-2008")
                 .build(),
             Row.withSchema(Schema.builder().addStringField("f_date_str").build())
-                .addValues("Apr-07-2020")
+                .addValues("04-07-2020")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -393,7 +392,9 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   public void testFormatDate() {
-    String sql = "SELECT FORMAT_DATE('%b-%d-%Y', DATE '2008-12-25')";
+    // NOTE: Do not use textual format parameters (%b or %h: The abbreviated month name) as these
+    // are locale dependent.
+    String sql = "SELECT FORMAT_DATE('%m-%d-%Y', DATE '2008-12-25')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -402,7 +403,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addStringField("f_date_str").build())
-                .addValues("Dec-25-2008")
+                .addValues("12-25-2008")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

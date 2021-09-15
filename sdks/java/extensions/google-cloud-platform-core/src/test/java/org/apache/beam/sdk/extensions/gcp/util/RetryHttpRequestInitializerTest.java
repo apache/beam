@@ -17,14 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -40,14 +42,17 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.client.util.NanoClock;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.Storage.Objects.Get;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.security.PrivateKey;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.hamcrest.Matchers;
@@ -64,9 +69,6 @@ import org.mockito.stubbing.Answer;
 
 /** Tests for RetryHttpRequestInitializer. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class RetryHttpRequestInitializerTest {
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(RetryHttpRequestInitializer.class);
@@ -91,6 +93,17 @@ public class RetryHttpRequestInitializerTest {
     public long nanoTime() {
       return timesMs[i++ / 2] * 1000000L;
     }
+  }
+
+  MockLowLevelHttpResponse[] createMockResponseWithStatusCode(int... statusCodes) {
+    MockLowLevelHttpResponse[] responses = new MockLowLevelHttpResponse[statusCodes.length];
+
+    for (int i = 0; i < statusCodes.length; ++i) {
+      MockLowLevelHttpResponse response = mock(MockLowLevelHttpResponse.class);
+      when(response.getStatusCode()).thenReturn(statusCodes[i]);
+      responses[i] = response;
+    }
+    return responses;
   }
 
   @Before
@@ -141,17 +154,19 @@ public class RetryHttpRequestInitializerTest {
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest).execute();
-    verify(mockLowLevelResponse).getStatusCode();
+    verify(mockLowLevelResponse, atLeastOnce()).getStatusCode();
     expectedLogs.verifyNotLogged("Request failed");
   }
 
   /** Tests that a non-retriable error is not retried. */
   @Test
   public void testErrorCodeForbidden() throws IOException {
-    when(mockLowLevelRequest.execute()).thenReturn(mockLowLevelResponse);
-    when(mockLowLevelResponse.getStatusCode())
-        .thenReturn(403) // Non-retryable error.
-        .thenReturn(200); // Shouldn't happen.
+    MockLowLevelHttpResponse[] responses =
+        createMockResponseWithStatusCode(
+            403, // Non-retryable error.
+            200); // Shouldn't happen.
+
+    when(mockLowLevelRequest.execute()).thenReturn(responses[0], responses[1]);
 
     try {
       Storage.Buckets.Get result = storage.buckets().get("test");
@@ -166,21 +181,21 @@ public class RetryHttpRequestInitializerTest {
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest).execute();
-    verify(mockLowLevelResponse).getStatusCode();
+    verify(responses[0], atLeastOnce()).getStatusCode();
+    verify(responses[1], never()).getStatusCode();
     expectedLogs.verifyWarn("Request failed with code 403");
   }
 
   /** Tests that a retriable error is retried. */
   @Test
   public void testRetryableError() throws IOException {
+    MockLowLevelHttpResponse[] mockResponses =
+        createMockResponseWithStatusCode(
+            503, // Retryable
+            429, // We also retry on 429 Too Many Requests.
+            200);
     when(mockLowLevelRequest.execute())
-        .thenReturn(mockLowLevelResponse)
-        .thenReturn(mockLowLevelResponse)
-        .thenReturn(mockLowLevelResponse);
-    when(mockLowLevelResponse.getStatusCode())
-        .thenReturn(503) // Retryable
-        .thenReturn(429) // We also retry on 429 Too Many Requests.
-        .thenReturn(200);
+        .thenReturn(mockResponses[0], mockResponses[1], mockResponses[2]);
 
     Storage.Buckets.Get result = storage.buckets().get("test");
     HttpResponse response = result.executeUnparsed();
@@ -191,7 +206,11 @@ public class RetryHttpRequestInitializerTest {
     verify(mockLowLevelRequest, times(3)).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest, times(3)).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest, times(3)).execute();
-    verify(mockLowLevelResponse, times(3)).getStatusCode();
+
+    // It reads the status code of all responses
+    for (MockLowLevelHttpResponse mockResponse : mockResponses) {
+      verify(mockResponse, atLeastOnce()).getStatusCode();
+    }
     expectedLogs.verifyDebug("Request failed with code 503");
   }
 
@@ -212,23 +231,30 @@ public class RetryHttpRequestInitializerTest {
     verify(mockLowLevelRequest, times(2)).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest, times(2)).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest, times(2)).execute();
-    verify(mockLowLevelResponse).getStatusCode();
+    verify(mockLowLevelResponse, atLeastOnce()).getStatusCode();
     expectedLogs.verifyDebug("Request failed with IOException");
   }
 
   /** Tests that a retryable error is retried enough times. */
   @Test
   public void testRetryableErrorRetryEnoughTimes() throws IOException {
-    when(mockLowLevelRequest.execute()).thenReturn(mockLowLevelResponse);
+    List<MockLowLevelHttpResponse> responses = new ArrayList<>();
     final int retries = 10;
-    when(mockLowLevelResponse.getStatusCode())
+
+    // The underlying http library calls getStatusCode method of a response multiple times. For a
+    // response, the method should return the same value. Therefore this test cannot rely on
+    // `mockLowLevelResponse` variable that are reused across responses.
+    when(mockLowLevelRequest.execute())
         .thenAnswer(
-            new Answer<Integer>() {
+            new Answer<MockLowLevelHttpResponse>() {
               int n = 0;
 
               @Override
-              public Integer answer(InvocationOnMock invocation) {
-                return n++ < retries ? 503 : 9999;
+              public MockLowLevelHttpResponse answer(InvocationOnMock invocation) throws Throwable {
+                MockLowLevelHttpResponse response = mock(MockLowLevelHttpResponse.class);
+                responses.add(response);
+                when(response.getStatusCode()).thenReturn(n++ < retries ? 503 : 9999);
+                return response;
               }
             });
 
@@ -244,7 +270,10 @@ public class RetryHttpRequestInitializerTest {
     verify(mockLowLevelRequest, times(retries + 1)).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest, times(retries + 1)).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest, times(retries + 1)).execute();
-    verify(mockLowLevelResponse, times(retries + 1)).getStatusCode();
+    assertThat(responses, Matchers.hasSize(retries + 1));
+    for (MockLowLevelHttpResponse response : responses) {
+      verify(response, atLeastOnce()).getStatusCode();
+    }
     expectedLogs.verifyWarn("performed 10 retries due to unsuccessful status codes");
   }
 

@@ -48,8 +48,8 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Parser;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Parser;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -152,6 +152,10 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     }
 
     return readyWindows;
+  }
+
+  public void prefetchBlockedMap() {
+    stepContext.stateInternals().state(StateNamespaces.global(), blockedMapAddr).readLater();
   }
 
   public Iterable<BagState<WindowedValue<InputT>>> prefetchElements(Iterable<W> readyWindows) {

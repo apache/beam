@@ -50,9 +50,6 @@ import org.slf4j.LoggerFactory;
 
 /** Integration test for BigqueryIO with DataflowRunner and DirectRunner. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQuerySchemaUpdateOptionsIT {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySchemaUpdateOptionsIT.class);
   private static String project;

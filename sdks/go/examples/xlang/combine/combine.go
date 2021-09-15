@@ -29,15 +29,15 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/examples/xlang"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/examples/xlang"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 
 	// Imports to enable correct filesystem access and runner setup in LOOPBACK mode
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/universal"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
 )
 
 var (

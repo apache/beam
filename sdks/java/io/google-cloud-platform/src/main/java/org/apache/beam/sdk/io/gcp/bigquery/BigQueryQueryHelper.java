@@ -70,7 +70,9 @@ class BigQueryQueryHelper {
           bqServices
               .getJobService(options)
               .dryRunQuery(
-                  options.getProject(),
+                  options.getBigQueryProject() == null
+                      ? options.getProject()
+                      : options.getBigQueryProject(),
                   createBasicQueryConfig(query, flattenResults, useLegacySql),
                   location);
       dryRunJobStats.compareAndSet(null, jobStatistics);
@@ -109,7 +111,10 @@ class BigQueryQueryHelper {
               .getReferencedTables();
       if (referencedTables != null && !referencedTables.isEmpty()) {
         TableReference referencedTable = referencedTables.get(0);
-        effectiveLocation = tableService.getTable(referencedTable).getLocation();
+        effectiveLocation =
+            tableService
+                .getDataset(referencedTable.getProjectId(), referencedTable.getDatasetId())
+                .getLocation();
       }
     }
 
@@ -119,7 +124,12 @@ class BigQueryQueryHelper {
         BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY);
     Optional<String> queryTempDatasetOpt = Optional.ofNullable(queryTempDatasetId);
     TableReference queryResultTable =
-        createTempTableReference(options.getProject(), queryJobId, queryTempDatasetOpt);
+        createTempTableReference(
+            options.getBigQueryProject() == null
+                ? options.getProject()
+                : options.getBigQueryProject(),
+            queryJobId,
+            queryTempDatasetOpt);
 
     boolean beamToCreateTempDataset = !queryTempDatasetOpt.isPresent();
     // Create dataset only if it has not been set by the user
@@ -153,7 +163,10 @@ class BigQueryQueryHelper {
 
     JobReference jobReference =
         new JobReference()
-            .setProjectId(options.getProject())
+            .setProjectId(
+                options.getBigQueryProject() == null
+                    ? options.getProject()
+                    : options.getBigQueryProject())
             .setLocation(effectiveLocation)
             .setJobId(queryJobId);
 

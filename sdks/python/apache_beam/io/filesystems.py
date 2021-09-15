@@ -19,13 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import re
-from builtins import object
 from typing import BinaryIO  # pylint: disable=unused-import
-
-from past.builtins import unicode
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
@@ -40,11 +35,6 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 # pylint: disable=wrong-import-position, unused-import
 try:
   from apache_beam.io.hadoopfilesystem import HadoopFileSystem
-except ImportError:
-  pass
-
-try:
-  from apache_beam.io.hadoopfilesystem_pyarrow import HadoopFileSystem as Hdfs
 except ImportError:
   pass
 
@@ -344,7 +334,7 @@ class FileSystems(object):
     Raises:
       ``BeamIOError``: if any of the delete operations fail
     """
-    if isinstance(paths, (str, unicode)):
+    if isinstance(paths, str):
       raise BeamIOError(
           'Delete passed string argument instead of list: %s' % paths)
     if len(paths) == 0:

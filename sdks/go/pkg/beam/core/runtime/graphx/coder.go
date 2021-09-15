@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
-	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -70,7 +70,7 @@ func knownStandardCoders() []string {
 		urnWindowedValueCoder,
 		urnGlobalWindow,
 		urnIntervalWindow,
-		// TODO(BEAM-9615): Add urnRowCoder once finalized.
+		urnRowCoder,
 		// TODO(BEAM-10660): Add urnTimerCoder once finalized.
 	}
 }
@@ -263,6 +263,11 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			return nil, err
 		}
 
+		// No payload means this coder was length prefixed by the runner
+		// but is likely self describing - AKA a beam coder.
+		if len(sub.GetSpec().GetPayload()) == 0 {
+			return b.makeCoder(components[0], sub)
+		}
 		// TODO(lostluck) 2018/10/17: Make this strict again, once dataflow can use
 		// the portable pipeline model directly (BEAM-2885)
 		switch u := sub.GetSpec().GetUrn(); u {
@@ -364,11 +369,11 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		}
 		return coder.NewR(typex.New(t)), nil
 
-	// Special handling for window coders so they can be treated as
-	// a general coder. Generally window coders are not used outside of
-	// specific contexts, but this enables improved testing.
-	// Window types are not permitted to be fulltypes, so
-	// we use assignably equivalent anonymous struct types.
+		// Special handling for window coders so they can be treated as
+		// a general coder. Generally window coders are not used outside of
+		// specific contexts, but this enables improved testing.
+		// Window types are not permitted to be fulltypes, so
+		// we use assignably equivalent anonymous struct types.
 	case urnIntervalWindow:
 		w, err := b.WindowCoder(id)
 		if err != nil {

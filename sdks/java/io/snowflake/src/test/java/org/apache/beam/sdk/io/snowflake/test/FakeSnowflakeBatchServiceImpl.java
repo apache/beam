@@ -32,9 +32,6 @@ import org.apache.beam.sdk.io.snowflake.services.SnowflakeBatchServiceConfig;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 
 /** Fake implementation of {@link SnowflakeService} used in tests. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FakeSnowflakeBatchServiceImpl
     implements SnowflakeService<SnowflakeBatchServiceConfig> {
 

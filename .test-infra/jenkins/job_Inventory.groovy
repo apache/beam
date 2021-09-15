@@ -18,6 +18,8 @@
 
 import CommonJobProperties as commonJobProperties
 
+import static PythonTestProperties.ALL_SUPPORTED_VERSIONS
+
 // These jobs list details about each beam runner, to clarify what software
 // is on each machine.
 def nums = 1..16
@@ -59,16 +61,17 @@ nums.each {
       shell('ls /home/jenkins/tools/*')
       shell('python --version || echo "python not found"')
       shell('python3 --version || echo "python3 not found"')
-      shell('python3.6 --version || echo "python3.6 not found"')
-      shell('python3.7 --version || echo "python3.7 not found"')
-      shell('python3.8 --version || echo "python3.8 not found"')
+      ALL_SUPPORTED_VERSIONS.each { version ->
+        shell("python${version} --version || echo \"python${version} not found\"")
+      }
       shell('/home/jenkins/tools/maven/latest/mvn -v || echo "mvn not found"')
       shell('/home/jenkins/tools/gradle4.3/gradle -v || echo "gradle not found"')
       shell('gcloud -v || echo "gcloud not found"')
       shell('kubectl version || echo "kubectl not found"')
-      shell('virtualenv -p python3.6 test36 && . ./test36/bin/activate && python --version && deactivate || echo "python 3.6 not found"')
-      shell('virtualenv -p python3.7 test37 && . ./test37/bin/activate && python --version && deactivate || echo "python 3.7 not found"')
-      shell('virtualenv -p python3.8 test38 && . ./test38/bin/activate && python --version && deactivate || echo "python 3.8 not found"')
+      ALL_SUPPORTED_VERSIONS.each { version ->
+        def versionSuffix = version.replace('.', '')
+        shell("virtualenv -p python${version} test${versionSuffix} && . ./test${versionSuffix}/bin/activate && python --version && deactivate || echo \"python ${version} not found\"")
+      }
       shell('echo "Maven home $MAVEN_HOME"')
       shell('env')
       shell('docker system prune --all --filter until=24h --force')
