@@ -51,10 +51,7 @@ public class AggregationCombineFnAdapter<T> {
 
     @Override
     public Object addInput(Object accumulator, T input) {
-      T processedInput = getInput(input);
-      return (processedInput == null)
-          ? accumulator
-          : combineFn.addInput(accumulator, getInput(input));
+      return combineFn.addInput(accumulator, getInput(input));
     }
 
     @Override

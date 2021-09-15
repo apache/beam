@@ -31,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -216,6 +217,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     private WindowFn<Row, IntervalWindow> windowFn;
     private int windowFieldIndex;
     private List<FieldAggregation> fieldAggregations;
+    private final int groupSetCount;
+    private boolean ignoreValues;
 
     private Transform(
         WindowFn<Row, IntervalWindow> windowFn,
@@ -227,6 +230,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       this.windowFieldIndex = windowFieldIndex;
       this.fieldAggregations = fieldAggregations;
       this.outputSchema = outputSchema;
+      this.groupSetCount = groupSet.asList().size();
+      this.ignoreValues = false;
       this.keyFieldsIds =
           groupSet.asList().stream().filter(i -> i != windowFieldIndex).collect(toList());
     }
@@ -243,39 +248,60 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       if (windowFn != null) {
         windowedStream = assignTimestampsAndWindow(upstream);
       }
-
       validateWindowIsSupported(windowedStream);
+      // Check if have fields to be grouped
+      if (groupSetCount > 0) {
+        org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> byFields =
+            org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(keyFieldsIds);
+        PTransform<PCollection<Row>, PCollection<Row>> combiner = createCombiner(byFields);
+        boolean verifyRowValues =
+            pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
+        return windowedStream
+            .apply(combiner)
+            .apply(
+                "mergeRecord",
+                ParDo.of(
+                    mergeRecord(outputSchema, windowFieldIndex, ignoreValues, verifyRowValues)))
+            .setRowSchema(outputSchema);
+      }
+      org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> globally =
+          org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsGlobally.create();
+      PTransform<PCollection<Row>, PCollection<Row>> combiner = createCombiner(globally);
+      return windowedStream.apply(combiner).setRowSchema(outputSchema);
+    }
 
-      org.apache.beam.sdk.schemas.transforms.Group.ByFields<Row> byFields =
-          org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(keyFieldsIds);
-      org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsByFields<Row> combined = null;
+    private PTransform<PCollection<Row>, PCollection<Row>> createCombiner(
+        org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> initialCombiner) {
+
+      org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner combined = null;
       for (FieldAggregation fieldAggregation : fieldAggregations) {
         List<Integer> inputs = fieldAggregation.inputs;
         CombineFn combineFn = fieldAggregation.combineFn;
-        if (inputs.size() > 1 || inputs.isEmpty()) {
-          // In this path we extract a Row (an empty row if inputs.isEmpty).
-          combined =
-              (combined == null)
-                  ? byFields.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField)
-                  : combined.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField);
-        } else {
+        if (inputs.size() == 1) {
           // Combining over a single field, so extract just that field.
           combined =
               (combined == null)
-                  ? byFields.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField)
+                  ? initialCombiner.aggregateField(
+                      inputs.get(0), combineFn, fieldAggregation.outputField)
                   : combined.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField);
+        } else {
+          // In this path we extract a Row (an empty row if inputs.isEmpty).
+          combined =
+              (combined == null)
+                  ? initialCombiner.aggregateFieldsById(
+                      inputs, combineFn, fieldAggregation.outputField)
+                  : combined.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField);
         }
       }
 
       PTransform<PCollection<Row>, PCollection<Row>> combiner = combined;
-      boolean ignoreValues = false;
       if (combiner == null) {
         // If no field aggregations were specified, we run a constant combiner that always returns
         // a single empty row for each key. This is used by the SELECT DISTINCT query plan - in this
         // case a group by is generated to determine unique keys, and a constant null combiner is
         // used.
         combiner =
-            byFields.aggregateField(
+            initialCombiner.aggregateField(
                 "*",
                 AggregationCombineFnAdapter.createConstantCombineFn(),
                 Field.of(
@@ -283,15 +309,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                     FieldType.row(AggregationCombineFnAdapter.EMPTY_SCHEMA).withNullable(true)));
         ignoreValues = true;
       }
-
-      boolean verifyRowValues =
-          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
-      return windowedStream
-          .apply(combiner)
-          .apply(
-              "mergeRecord",
-              ParDo.of(mergeRecord(outputSchema, windowFieldIndex, ignoreValues, verifyRowValues)))
-          .setRowSchema(outputSchema);
+      return combiner;
     }
 
     /** Extract timestamps from the windowFieldIndex, then window into windowFns. */
@@ -349,7 +367,6 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
           if (!ignoreValues) {
             fieldValues.addAll(kvRow.getRow(1).getValues());
           }
-
           if (windowStartFieldIndex != -1) {
             fieldValues.add(windowStartFieldIndex, ((IntervalWindow) window).start());
           }
