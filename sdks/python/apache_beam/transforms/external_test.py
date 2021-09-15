@@ -422,7 +422,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
   def test_build_payload_with_constructor(self):
     payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
 
-    payload_builder.add_constructor(str_field='abc', int_field=123)
+    payload_builder.with_constructor(str_field='abc', int_field=123)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
         payload_bytes, JavaClassLookupPayload)
@@ -435,7 +435,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
   def test_build_payload_with_constructor_method(self):
     payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
-    payload_builder.add_constructor_method(
+    payload_builder.with_constructor_method(
         'dummy_constructor_method', str_field='abc', int_field=123)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
@@ -451,7 +451,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
   def test_build_payload_with_builder_methods(self):
     payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
-    payload_builder.add_constructor(str_field='abc', int_field=123)
+    payload_builder.with_constructor(str_field='abc', int_field=123)
     payload_builder.add_builder_method(
         'builder_method1', str_field1='abc1', int_field1=1234)
     payload_builder.add_builder_method(
