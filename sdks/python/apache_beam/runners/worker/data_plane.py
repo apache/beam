@@ -26,7 +26,6 @@ import logging
 import queue
 import threading
 import time
-from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -40,7 +39,6 @@ from typing import Mapping
 from typing import Optional
 from typing import Set
 from typing import Tuple
-from typing import Type
 from typing import Union
 
 import grpc
