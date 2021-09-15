@@ -76,20 +76,16 @@ public abstract class DirectByteBuffer implements DirectBuffer {
   /**
    * Creates a new instance that handles {@code buffer} according to {@code mode}.
    *
-   * <p>If {@code mode} is {@link CreateMode#COPY}, then the underlying buffer may not preserve the
-   * data outside the range [position, limit) in relation to the buffer. This data will be preserved
-   * if {@code mode} is {@link CreateMode#VIEW}, but only the data in the range [position, limit)
-   * will be readable.
+   * <p>If {@code mode} is {@link CreateMode#COPY}, then {@code buffer} will be copied to a new
+   * collection. If {@code mode} is {@link CreateMode#VIEW}, then the instance will be backed by
+   * {@code buffer}, and changes made to one will be reflected in the other.
    *
-   * <p>If {@code mode} is {@link CreateMode#COPY}, then the underlying buffer will always be
-   * direct. If it is {@link CreateMode#VIEW}, then it will follow whatever {@code buffer} is. Note
-   * that this could lead to unexpected behavior on native I/O operations if the expectation is that
-   * this is always direct.
+   * <p>If {@code mode} is {@link CreateMode#COPY}, then the underlying buffer may not preserve the
+   * data outside the range [position, limit) for {@code buffer}. Furthermore, this will always
+   * behave as a direct buffer.
    *
    * @param buffer the {@link ByteBuffer} to use to set the underlying data
-   * @param mode whether to copy or view {@code buffer}
-   * @throws IllegalArgumentException if {@code mode} is {@link CreateMode#VIEW} and {@code buffer}
-   *     is neither direct nor wrapping an array
+   * @param mode how {@code buffer} should be used to set the underlying data
    */
   protected DirectByteBuffer(@Nonnull ByteBuffer buffer, CreateMode mode) {
     if (mode == CreateMode.COPY) {
@@ -104,19 +100,15 @@ public abstract class DirectByteBuffer implements DirectBuffer {
     this.capacity = this.buffer.capacity();
   }
 
-  /**
-   * Indicates how to handle the passed-in buffer.
-   *
-   * <p>{@link CreateMode#COPY} will copy the passed-in buffer to one owned by this instance. This
-   * should be the preferred method when the source of the data comes from a mutable, external
-   * source.
-   *
-   * <p>{@link CreateMode#VIEW} will use the passed-in buffer as its own backing buffer. This is
-   * slightly more performant, but it is only safe if the passed-in buffer is immutable or if this
-   * is effectively taking ownership of the buffer.
-   */
+  /** Indicates how to handle the passed-in buffer. */
   protected enum CreateMode {
+    /** Copy the incoming data to a new collection that will back the buffer. */
     COPY,
+
+    /**
+     * Back the buffer with the passed-in collection so that changes made to it will be reflected in
+     * the buffer.
+     */
     VIEW
   };
 
