@@ -23,6 +23,7 @@ import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.che
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.AdminClient;
 import com.google.cloud.pubsublite.AdminClientSettings;
+import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.wire.Committer;
@@ -31,8 +32,6 @@ import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -54,10 +53,11 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
     checkArgument(subscriptionPartition.subscription().equals(options.subscriptionPath()));
   }
 
-  private Subscriber newSubscriber(Partition partition, Consumer<List<SequencedMessage>> consumer) {
+  private Subscriber newSubscriber(
+      Partition partition, Offset initialOffset, Consumer<List<SequencedMessage>> consumer) {
     try {
       return options
-          .getSubscriberFactory(partition)
+          .getSubscriberFactory(partition, initialOffset)
           .newSubscriber(
               messages ->
                   consumer.accept(
@@ -71,23 +71,31 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
 
   private SubscriptionPartitionProcessor newPartitionProcessor(
       SubscriptionPartition subscriptionPartition,
-      RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
+      RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker,
       OutputReceiver<SequencedMessage> receiver)
       throws ApiException {
     checkSubscription(subscriptionPartition);
     return new SubscriptionPartitionProcessorImpl(
         tracker,
         receiver,
-        consumer -> newSubscriber(subscriptionPartition.partition(), consumer),
+        consumer ->
+            newSubscriber(
+                subscriptionPartition.partition(),
+                Offset.of(tracker.currentRestriction().getRange().getFrom()),
+                consumer),
         options.flowControlSettings());
   }
 
-  private RestrictionTracker<OffsetRange, OffsetByteProgress> newRestrictionTracker(
-      SubscriptionPartition subscriptionPartition, OffsetRange initial) {
+  private TopicBacklogReader newBacklogReader(SubscriptionPartition subscriptionPartition) {
     checkSubscription(subscriptionPartition);
+    return options.getBacklogReader(subscriptionPartition.partition());
+  }
+
+  private TrackerWithProgress newRestrictionTracker(
+      TopicBacklogReader backlogReader, OffsetByteRange initial) {
     return new OffsetByteRangeTracker(
         initial,
-        options.getBacklogReader(subscriptionPartition.partition()),
+        backlogReader,
         Stopwatch.createUnstarted(),
         options.minBundleTimeout(),
         LongMath.saturatedMultiply(options.flowControlSettings().bytesOutstanding(), 10));
@@ -107,7 +115,7 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
     try (AdminClient admin =
         AdminClient.create(
             AdminClientSettings.newBuilder()
-                .setRegion(options.subscriptionPath().location().region())
+                .setRegion(options.subscriptionPath().location().extractRegion())
                 .build())) {
       return TopicPath.parse(admin.getSubscription(options.subscriptionPath()).get().getTopic());
     } catch (Throwable t) {
@@ -118,25 +126,15 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
   @Override
   public PCollection<SequencedMessage> expand(PBegin input) {
     PCollection<SubscriptionPartition> subscriptionPartitions;
-    if (options.partitions().isEmpty()) {
-      subscriptionPartitions =
-          input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
-    } else {
-      subscriptionPartitions =
-          input.apply(
-              Create.of(
-                  options.partitions().stream()
-                      .map(
-                          partition ->
-                              SubscriptionPartition.of(options.subscriptionPath(), partition))
-                      .collect(Collectors.toList())));
-    }
+    subscriptionPartitions =
+        input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
 
     return subscriptionPartitions.apply(
         ParDo.of(
             new PerSubscriptionPartitionSdf(
                 // Ensure we read for at least 5 seconds more than the bundle timeout.
                 options.minBundleTimeout().plus(Duration.standardSeconds(5)),
+                new ManagedBacklogReaderFactoryImpl(this::newBacklogReader),
                 this::newInitialOffsetReader,
                 this::newRestrictionTracker,
                 this::newPartitionProcessor,

@@ -33,11 +33,26 @@ type WindowTrigger struct {
 
 func (t WindowTrigger) windowIntoOption() {}
 
+// Trigger applies `tr` trigger to the window.
+func Trigger(tr window.Trigger) WindowTrigger {
+	return WindowTrigger{Name: tr}
+}
+
 type AccumulationMode struct {
 	Mode window.AccumulationMode
 }
 
 func (m AccumulationMode) windowIntoOption() {}
+
+// PanesAccumulate applies an Accumulating AccumulationMode to the window.
+func PanesAccumulate() AccumulationMode {
+	return AccumulationMode{Mode: window.Accumulating}
+}
+
+// PanesDiscard applies a Discarding AccumulationMode to the window.
+func PanesDiscard() AccumulationMode {
+	return AccumulationMode{Mode: window.Discarding}
+}
 
 // WindowInto applies the windowing strategy to each element.
 func WindowInto(s Scope, ws *window.Fn, col PCollection, opts ...WindowIntoOption) PCollection {

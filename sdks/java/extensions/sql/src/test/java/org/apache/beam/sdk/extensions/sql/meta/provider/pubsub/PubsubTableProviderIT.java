@@ -69,10 +69,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteConnection;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -621,16 +621,13 @@ public class PubsubTableProviderIT implements Serializable {
     String queryString =
         "INSERT INTO message "
             + "VALUES "
-            + "(TIMESTAMP '1970-01-01 00:00:00.001', 'person1', 80, TRUE), "
             + "(TIMESTAMP '1970-01-01 00:00:00.002', 'person2', 70, FALSE)";
     query(sqlEnv, pipeline, queryString);
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
     eventsTopic
-        .assertThatTopicEventuallyReceives(
-            matcherTsNameHeightKnowsJS(ts(1), "person1", 80, true),
-            matcherTsNameHeightKnowsJS(ts(2), "person2", 70, false))
+        .assertThatTopicEventuallyReceives(matcherTsNameHeightKnowsJS(ts(2), "person2", 70, false))
         .waitForUpTo(Duration.standardSeconds(40));
   }
 

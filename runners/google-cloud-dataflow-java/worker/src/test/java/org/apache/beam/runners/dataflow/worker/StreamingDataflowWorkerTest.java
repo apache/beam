@@ -794,7 +794,8 @@ public class StreamingDataflowWorkerTest {
 
     final int numIters = 2000;
     for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(makeInput(i, 0, "key", DEFAULT_SHARDING_KEY));
+      server.addWorkToOffer(
+          makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
@@ -829,7 +830,8 @@ public class StreamingDataflowWorkerTest {
 
     final int numIters = 2000;
     for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(makeInput(i, 0, "key", DEFAULT_SHARDING_KEY));
+      server.addWorkToOffer(
+          makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);

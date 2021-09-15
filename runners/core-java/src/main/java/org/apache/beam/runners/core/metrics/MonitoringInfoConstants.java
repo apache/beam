@@ -80,6 +80,11 @@ public final class MonitoringInfoConstants {
     public static final String BIGQUERY_QUERY_NAME = "BIGQUERY_QUERY_NAME";
     public static final String DATASTORE_PROJECT = "DATASTORE_PROJECT";
     public static final String DATASTORE_NAMESPACE = "DATASTORE_NAMESPACE";
+    public static final String BIGTABLE_PROJECT_ID = "BIGTABLE_PROJECT_ID";
+    public static final String INSTANCE_ID = "INSTANCE_ID";
+    public static final String TABLE_ID = "TABLE_ID";
+    public static final String GCS_BUCKET = "GCS_BUCKET";
+    public static final String GCS_PROJECT_ID = "GCS_PROJECT_ID";
 
     static {
       // Note: One benefit of defining these strings above, instead of pulling them in from
@@ -109,6 +114,12 @@ public final class MonitoringInfoConstants {
       checkArgument(DATASTORE_PROJECT.equals(extractLabel(MonitoringInfoLabels.DATASTORE_PROJECT)));
       checkArgument(
           DATASTORE_NAMESPACE.equals(extractLabel(MonitoringInfoLabels.DATASTORE_NAMESPACE)));
+      checkArgument(
+          BIGTABLE_PROJECT_ID.equals(extractLabel(MonitoringInfoLabels.BIGTABLE_PROJECT_ID)));
+      checkArgument(INSTANCE_ID.equals(extractLabel(MonitoringInfoLabels.INSTANCE_ID)));
+      checkArgument(TABLE_ID.equals(extractLabel(MonitoringInfoLabels.TABLE_ID)));
+      checkArgument(GCS_BUCKET.equals(extractLabel(MonitoringInfoLabels.GCS_BUCKET)));
+      checkArgument(GCS_PROJECT_ID.equals(extractLabel(MonitoringInfoLabels.GCS_PROJECT_ID)));
     }
   }
 

@@ -33,6 +33,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.ContainerCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
@@ -68,6 +69,20 @@ public class AwsModuleTest {
     assertEquals(
         credentialsProvider.resolveCredentials().secretAccessKey(),
         deserializedCredentialsProvider.resolveCredentials().secretAccessKey());
+
+    AwsSessionCredentials sessionCredentials =
+        AwsSessionCredentials.create("key-id", "secret-key", "session-token");
+    credentialsProvider = StaticCredentialsProvider.create(sessionCredentials);
+    serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
+    deserializedCredentialsProvider =
+        objectMapper.readValue(serializedCredentialsProvider, AwsCredentialsProvider.class);
+
+    assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
+    AwsSessionCredentials deserializedCredentials =
+        (AwsSessionCredentials) deserializedCredentialsProvider.resolveCredentials();
+    assertEquals(sessionCredentials.accessKeyId(), deserializedCredentials.accessKeyId());
+    assertEquals(sessionCredentials.secretAccessKey(), deserializedCredentials.secretAccessKey());
+    assertEquals(sessionCredentials.sessionToken(), deserializedCredentials.sessionToken());
   }
 
   @Test

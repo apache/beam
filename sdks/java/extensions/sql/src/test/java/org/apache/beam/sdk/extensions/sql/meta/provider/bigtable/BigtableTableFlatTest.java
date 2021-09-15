@@ -146,7 +146,7 @@ public class BigtableTableFlatTest {
 
     String query =
         "INSERT INTO beamWriteTable(key, boolColumn, longColumn, stringColumn, doubleColumn) "
-            + "VALUES ('key', TRUE, 10, 'stringValue', 5.5)";
+            + "VALUES ('key', TRUE, CAST(10 AS bigint), 'stringValue', 5.5)";
 
     BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(query));
     writePipeline.run().waitUntilFinish();

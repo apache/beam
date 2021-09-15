@@ -31,7 +31,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.api.core.ApiFutures;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.Offset;
@@ -40,7 +39,6 @@ import com.google.cloud.pubsublite.internal.testing.FakeApiService;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
-import com.google.cloud.pubsublite.proto.SeekRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
@@ -64,7 +62,7 @@ import org.mockito.Spy;
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
 public class SubscriptionPartitionProcessorImplTest {
-  @Spy RestrictionTracker<OffsetRange, OffsetByteProgress> tracker;
+  @Spy RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> receiver;
   @Mock Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory;
 
@@ -81,6 +79,10 @@ public class SubscriptionPartitionProcessorImplTest {
         .setPublishTime(Timestamps.fromMillis(10000 + offset))
         .setSizeBytes(1024)
         .build();
+  }
+
+  private OffsetByteRange initialRange() {
+    return OffsetByteRange.of(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
   }
 
   @Before
@@ -100,17 +102,10 @@ public class SubscriptionPartitionProcessorImplTest {
 
   @Test
   public void lifecycle() throws Exception {
-    when(tracker.currentRestriction())
-        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
-    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
+    when(tracker.currentRestriction()).thenReturn(initialRange());
     processor.start();
     verify(subscriber).startAsync();
     verify(subscriber).awaitRunning();
-    verify(subscriber)
-        .seek(
-            SeekRequest.newBuilder()
-                .setCursor(Cursor.newBuilder().setOffset(example(Offset.class).value()))
-                .build());
     verify(subscriber)
         .allowFlow(
             FlowControlRequest.newBuilder()
@@ -123,29 +118,15 @@ public class SubscriptionPartitionProcessorImplTest {
   }
 
   @Test
-  public void lifecycleSeekThrows() throws Exception {
-    when(tracker.currentRestriction())
-        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
-    when(subscriber.seek(any()))
-        .thenReturn(ApiFutures.immediateFailedFuture(new CheckedApiException(Code.OUT_OF_RANGE)));
+  public void lifecycleFlowControlThrows() throws Exception {
+    when(tracker.currentRestriction()).thenReturn(initialRange());
     doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
     assertThrows(CheckedApiException.class, () -> processor.start());
   }
 
   @Test
-  public void lifecycleFlowControlThrows() {
-    when(tracker.currentRestriction())
-        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
-    when(subscriber.seek(any()))
-        .thenReturn(ApiFutures.immediateFailedFuture(new CheckedApiException(Code.OUT_OF_RANGE)));
-    assertThrows(CheckedApiException.class, () -> processor.start());
-  }
-
-  @Test
   public void lifecycleSubscriberAwaitThrows() throws Exception {
-    when(tracker.currentRestriction())
-        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
-    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
+    when(tracker.currentRestriction()).thenReturn(initialRange());
     processor.start();
     doThrow(new CheckedApiException(Code.INTERNAL).underlying).when(subscriber).awaitTerminated();
     assertThrows(ApiException.class, () -> processor.close());
@@ -155,21 +136,19 @@ public class SubscriptionPartitionProcessorImplTest {
 
   @Test
   public void subscriberFailureFails() throws Exception {
-    when(tracker.currentRestriction())
-        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
-    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
+    when(tracker.currentRestriction()).thenReturn(initialRange());
     processor.start();
     subscriber.fail(new CheckedApiException(Code.OUT_OF_RANGE));
     ApiException e =
-        assertThrows(ApiException.class, () -> processor.waitForCompletion(Duration.ZERO));
+        assertThrows(
+            // Longer wait is needed due to listener asynchrony.
+            ApiException.class, () -> processor.waitForCompletion(Duration.standardSeconds(1)));
     assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
   }
 
   @Test
   public void allowFlowFailureFails() throws Exception {
-    when(tracker.currentRestriction())
-        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
-    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
+    when(tracker.currentRestriction()).thenReturn(initialRange());
     processor.start();
     when(tracker.tryClaim(any())).thenReturn(true);
     doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
