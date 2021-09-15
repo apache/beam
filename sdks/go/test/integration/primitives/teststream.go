@@ -21,17 +21,31 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 )
 
+func lengthPrefixStrings(input []string) []string {
+	var output []string
+	for _, entry := range input {
+		length := byte(len(entry))
+		prefixed := string([]byte{length}) + entry
+		output = append(output, prefixed)
+	}
+	return output
+}
+
 // TestStreamSequence tests the TestStream primitive by inserting string elements
 // then advancing the watermark past the point where they were inserted.
 func TestStreamStrings() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 	con := teststream.NewConfig()
-	con.AddElements(100, "a", "b", "c")
+	eles := []string{"a", "b", "c"}
+	con.AddElementList(100, eles)
 	con.AdvanceWatermarkToInfinity()
 
 	col := teststream.Create(s, con)
 
-	passert.Count(s, col, "teststream strings", 3)
+	// TestStream adds extra length prefixing to strings
+	prefixed := lengthPrefixStrings(eles)
+
+	passert.EqualsList(s, col, prefixed)
 
 	return p
 }
@@ -45,7 +59,6 @@ func TestStreamByteSliceSequence() *beam.Pipeline {
 	con.AddElements(1, b)
 	con.AdvanceWatermarkToInfinity()
 	col := teststream.Create(s, con)
-	passert.Count(s, col, "teststream byte", 1)
 	passert.Equals(s, col, append([]byte{3}, b...))
 	return p
 }
@@ -61,7 +74,6 @@ func TestStreamInt64Sequence() *beam.Pipeline {
 
 	col := teststream.Create(s, con)
 
-	passert.Count(s, col, "teststream int64", 3)
 	passert.EqualsList(s, col, ele)
 	return p
 }
@@ -80,7 +92,6 @@ func TestStreamTwoInt64Sequences() *beam.Pipeline {
 
 	col := teststream.Create(s, con)
 
-	passert.Count(s, col, "teststream int64", 6)
 	passert.EqualsList(s, col, append(eo, et...))
 	return p
 }
@@ -96,7 +107,6 @@ func TestStreamFloat64Sequence() *beam.Pipeline {
 
 	col := teststream.Create(s, con)
 
-	passert.Count(s, col, "teststream float64", 3)
 	passert.EqualsList(s, col, ele)
 	return p
 }
@@ -115,7 +125,6 @@ func TestStreamTwoFloat64Sequences() *beam.Pipeline {
 
 	col := teststream.Create(s, con)
 
-	passert.Count(s, col, "teststream float64", 6)
 	passert.EqualsList(s, col, append(eo, et...))
 	return p
 }
@@ -131,7 +140,6 @@ func TestStreamBoolSequence() *beam.Pipeline {
 
 	col := teststream.Create(s, con)
 
-	passert.Count(s, col, "teststream bool", 3)
 	passert.EqualsList(s, col, ele)
 	return p
 }
@@ -150,7 +158,6 @@ func TestStreamTwoBoolSequences() *beam.Pipeline {
 
 	col := teststream.Create(s, con)
 
-	passert.Count(s, col, "teststream bool", 6)
 	passert.EqualsList(s, col, append(eo, et...))
 	return p
 }
