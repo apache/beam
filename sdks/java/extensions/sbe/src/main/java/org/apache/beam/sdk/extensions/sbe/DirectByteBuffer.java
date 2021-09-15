@@ -53,6 +53,14 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * <p>The last two can still be gotten via copy rather than by accessing the underlying buffer
  * directly.
  *
+ * <p>Instances can be created in either copy mode or view mode. Copy mode will copy any passed-in
+ * data to an internal buffer, and view mode will be backed directly by the passed-in data.
+ * Regardless of the mode, the 0 index of all reads and writes will be {@link ByteBuffer#position()}
+ * value at the time of instance creation. This offset will not change even if the position is
+ * changed externally while in view mode. Reads are allowed in the range [0, limit), and writes are
+ * allowed in the range [0, capacity) regardless of mode. The limit can change if the implementation
+ * allows writing. The capacity is always the same as the passed-in {@link ByteBuffer}.
+ *
  * <p>Implementations should use {@link DirectByteBuffer#DEFAULT_BYTE_ORDER} to determine the order
  * of bytes. If a passed-in {@link ByteOrder} is different, then the bytes should be reversed before
  * writes or after reads.
@@ -75,14 +83,6 @@ public abstract class DirectByteBuffer implements DirectBuffer {
 
   /**
    * Creates a new instance that handles {@code buffer} according to {@code mode}.
-   *
-   * <p>If {@code mode} is {@link CreateMode#COPY}, then {@code buffer} will be copied to a new
-   * collection. If {@code mode} is {@link CreateMode#VIEW}, then the instance will be backed by
-   * {@code buffer}, and changes made to one will be reflected in the other.
-   *
-   * <p>If {@code mode} is {@link CreateMode#COPY}, then the underlying buffer may not preserve the
-   * data outside the range [position, limit) for {@code buffer}. Furthermore, this will always
-   * behave as a direct buffer.
    *
    * @param buffer the {@link ByteBuffer} to use to set the underlying data
    * @param mode how {@code buffer} should be used to set the underlying data
