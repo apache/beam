@@ -55,11 +55,12 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * <p>Instances can be created in either copy mode or view mode. Copy mode will copy any passed-in
  * data to an internal buffer, and view mode will be backed directly by the passed-in data.
- * Regardless of the mode, the 0 index of all reads and writes will be {@link ByteBuffer#position()}
- * value at the time of instance creation. This offset will not change even if the position is
- * changed externally while in view mode. Reads are allowed in the range [0, limit), and writes are
- * allowed in the range [0, capacity) regardless of mode. The limit can change if the implementation
- * allows writing. The capacity is always the same as the passed-in {@link ByteBuffer}.
+ * Regardless of the mode, the 0 index of all reads and writes will be the {@link
+ * ByteBuffer#position()} value at the time of instance creation. This offset will not change even
+ * if the position is changed externally while in view mode. Reads are allowed in the range [0,
+ * limit), and writes are allowed in the range [0, capacity) regardless of mode. The limit can
+ * change if the implementation allows writing. The capacity is always the same as the passed-in
+ * {@link ByteBuffer}.
  *
  * <p>Implementations should use {@link DirectByteBuffer#DEFAULT_BYTE_ORDER} to determine the order
  * of bytes. If a passed-in {@link ByteOrder} is different, then the bytes should be reversed before
