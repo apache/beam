@@ -82,6 +82,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandler
 
 _LOGGER = logging.getLogger(__name__)
+# _LOGGER.setLevel('DEBUG')
 
 T = TypeVar('T')
 
@@ -354,7 +355,7 @@ class FnApiRunner(runner.PipelineRunner):
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
     monitoring_infos_by_stage: Mapping[str,
-                                       List[metrics_pb2.MonitoringInfo]] = {}
+                                       List['metrics_pb2.MonitoringInfo']] = {}
 
     runner_execution_context = execution.FnApiRunnerExecutionContext(
         stages,
@@ -386,7 +387,10 @@ class FnApiRunner(runner.PipelineRunner):
           bundle_context_manager = runner_execution_context.bundle_manager_for(
               stage)
           _LOGGER.debug(
-              'Running bundle for stage %s', bundle_context_manager.stage.name)
+              'Running bundle for stage %s\n\tExpected outputs: %s timers: %s',
+              bundle_context_manager.stage.name,
+              bundle_context_manager.stage_data_outputs,
+              bundle_context_manager.stage_timer_outputs)
           assert consuming_stage_name == bundle_context_manager.stage.name
 
           bundle_results = self._execute_bundle(
@@ -399,8 +403,8 @@ class FnApiRunner(runner.PipelineRunner):
                         bundle_results.process_bundle.monitoring_infos,
                         monitoring_infos_by_stage[consuming_stage_name]))
           else:
-            monitoring_infos_by_stage[consuming_stage_name
-                ] = bundle_results.process_bundle.monitoring_infos
+            monitoring_infos_by_stage[consuming_stage_name] = \
+              bundle_results.process_bundle.monitoring_infos
 
           # TODO(pabloem): This should work either way.
           if len(runner_execution_context.queues.ready_inputs) == 0:
@@ -557,7 +561,8 @@ class FnApiRunner(runner.PipelineRunner):
             # Timer was cleared, so we must skip setting it below.
             timer_cleared = True
             continue
-        if timer_cleared:
+        if timer_cleared or (transform_id,
+                             timer_family_id) not in timer_watermark_data:
           continue
         newly_set_timers[(transform_id, timer_family_id)] = (
             ListBuffer(coder_impl=timer_coder_impl),
@@ -721,7 +726,10 @@ class FnApiRunner(runner.PipelineRunner):
           (bundle_context_manager.stage.name, DataInput(deferred_inputs, {})))
 
     self._enqueue_set_timers(
-        runner_execution_context, bundle_context_manager, newly_set_timers)
+        runner_execution_context,
+        bundle_context_manager,
+        newly_set_timers,
+        bundle_input)
 
     # Store the required downstream side inputs into state so it is accessible
     # for the worker when it runs bundles that consume this stage's output.
@@ -734,18 +742,15 @@ class FnApiRunner(runner.PipelineRunner):
       for (consuming_stage_name, consuming_transform) in \
           runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id,
                                                                    []):
-        if buffer_id not in runner_execution_context.pcoll_buffers:
-          # TODO(pabloem): Why can this happen?
-          continue
+        buffer = runner_execution_context.pcoll_buffers.get(buffer_id, [])
+
+        if buffer_id in runner_execution_context.pcoll_buffers:
+          del runner_execution_context.pcoll_buffers[buffer_id]
         # We enqueue all of the pending output buffers to be scheduled at the
         # MAX_TIMESTAMP for the downstream stage.
         runner_execution_context.queues.watermark_pending_inputs.enque(
             ((consuming_stage_name, timestamp.MAX_TIMESTAMP),
-             DataInput({
-                 consuming_transform: runner_execution_context.
-                 pcoll_buffers[buffer_id]
-             }, {})))
-        del runner_execution_context.pcoll_buffers[buffer_id]
+             DataInput({consuming_transform: buffer}, {})))
 
     return last_result
 
@@ -753,7 +758,10 @@ class FnApiRunner(runner.PipelineRunner):
       self,
       runner_execution_context: execution.FnApiRunnerExecutionContext,
       bundle_context_manager: execution.BundleContextManager,
-      fired_timers: translations.OutputTimerData):
+      fired_timers: translations.OutputTimerData,
+      previous_bundle_input: DataInput):
+
+    empty_data_input = {k: [] for k in previous_bundle_input.data.keys()}
     current_time = runner_execution_context.clock.time()
     current_watermark = \
       runner_execution_context.watermark_manager.get_stage_node(
@@ -766,21 +774,21 @@ class FnApiRunner(runner.PipelineRunner):
         if current_time >= target_timestamp:
           runner_execution_context.queues.ready_inputs.enque((
               bundle_context_manager.stage.name,
-              DataInput({}, {unique_timer_family: timer_data})))
+              DataInput(empty_data_input, {unique_timer_family: timer_data})))
         else:
           runner_execution_context.queues.time_pending_inputs.enque(
               ((bundle_context_manager.stage.name, target_timestamp),
-               DataInput({}, {unique_timer_family: timer_data})))
+               DataInput(empty_data_input, {unique_timer_family: timer_data})))
       else:
         assert time_domain == beam_runner_api_pb2.TimeDomain.EVENT_TIME
         if current_watermark >= target_timestamp:
           runner_execution_context.queues.ready_inputs.enque((
               bundle_context_manager.stage.name,
-              DataInput({}, {unique_timer_family: timer_data})))
+              DataInput(empty_data_input, {unique_timer_family: timer_data})))
         else:
           runner_execution_context.queues.watermark_pending_inputs.enque(
               ((bundle_context_manager.stage.name, target_timestamp),
-               DataInput({}, {unique_timer_family: timer_data})))
+               DataInput(empty_data_input, {unique_timer_family: timer_data})))
 
   def _get_bundle_manager(
       self, bundle_context_manager: execution.BundleContextManager):
@@ -1236,7 +1244,6 @@ class BundleManager(object):
                 expected_outputs[output.transform_id],
                 output.transform_id).append(output.data)
 
-      _LOGGER.debug('Wait for the bundle %s to finish.' % process_bundle_id)
       result = result_future.get()  # type: beam_fn_api_pb2.InstructionResponse
 
     if result.error:

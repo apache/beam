@@ -695,9 +695,8 @@ class FnApiRunnerExecutionContext(object):
     self.data_channel_coders = data_channel_coders
     self.num_workers = num_workers
     # TODO(pabloem): Move Clock classes out of DirectRunner and into FnApiRnr
-    self.clock: Union[TestClock, RealClock] = (TestClock()
-                                               if uses_teststream
-                                               else RealClock())
+    self.clock: Union[TestClock, RealClock] = (
+        TestClock() if uses_teststream else RealClock())
     self.queues = _ProcessingQueueManager()
 
     # The following set of dictionaries hold information mapping relationships
@@ -725,7 +724,9 @@ class FnApiRunnerExecutionContext(object):
     self._stage_managers = {}
 
   def bundle_manager_for(
-      self, stage: Stage, num_workers: Optional[int] = None) -> 'BundleContextManager':
+      self,
+      stage: Stage,
+      num_workers: Optional[int] = None) -> 'BundleContextManager':
     if stage.name not in self._stage_managers:
       self._stage_managers[stage.name] = BundleContextManager(
           self, stage, num_workers or self.num_workers)
