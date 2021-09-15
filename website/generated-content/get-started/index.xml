@@ -1231,7 +1231,9 @@ MinimalWordCount.java WordCount.java&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;p>For a detailed introduction to the Beam concepts used in these examples, see the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>. Here, we&amp;rsquo;ll just focus on executing &lt;code>WordCount.java&lt;/code>.&lt;/p>
 &lt;h2 id="optional-convert-from-maven-to-gradle-project">Optional: Convert from Maven to Gradle Project&lt;/h2>
-&lt;p>Ensure you are in the same directory as the &lt;code>pom.xml&lt;/code> file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
+&lt;p>The steps below explain how to convert the build for the Direct Runner from Maven to Gradle. Converting the builds for the other runners is a more involved process and is out of scope for this guide. For additional guidance, see &lt;a href="https://docs.gradle.org/current/userguide/migrating_from_maven.html">Migrating Builds From Apache Maven&lt;/a>.&lt;/p>
+&lt;ol>
+&lt;li>Ensure you are in the same directory as the &lt;code>pom.xml&lt;/code> file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1240,11 +1242,8 @@ MinimalWordCount.java WordCount.java&lt;/code>&lt;/pre>
 &lt;pre>&lt;code>$ gradle init&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;/p>
-&lt;p>You&amp;rsquo;ll be asked if you want to generate a Gradle build. Enter &lt;strong>yes&lt;/strong>. You&amp;rsquo;ll also be prompted to choose a DSL (Groovy or Kotlin). This tutorial uses Groovy, so select that if you don&amp;rsquo;t have a preference.&lt;/p>
-&lt;p>After you have converted the project to Gradle:&lt;/p>
-&lt;ol>
-&lt;li>In the generated &lt;code>build.gradle&lt;/code> file, in the &lt;code>repositories&lt;/code> block, replace &lt;code>mavenLocal()&lt;/code> with &lt;code>mavenCentral()&lt;/code>:
+You&amp;rsquo;ll be asked if you want to generate a Gradle build. Enter &lt;strong>yes&lt;/strong>. You&amp;rsquo;ll also be prompted to choose a DSL (Groovy or Kotlin). This tutorial uses Groovy, so select that if you don&amp;rsquo;t have a preference.&lt;/li>
+&lt;li>After you&amp;rsquo;ve converted the project to Gradle, open the generated &lt;code>build.gradle&lt;/code> file, and, in the &lt;code>repositories&lt;/code> block, replace &lt;code>mavenLocal()&lt;/code> with &lt;code>mavenCentral()&lt;/code>:
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
