@@ -68,6 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.util.UniqueIdGenerator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -536,7 +537,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     private static class TemporaryDirectoryBuilder
         implements SerializableFunction<ResourceId, ResourceId> {
-      private final UUID tempUUID = UUID.randomUUID();
+      private final UUID tempUUID = UniqueIdGenerator.getUniqueId();
 
       @Override
       public ResourceId apply(ResourceId tempDirectory) {
