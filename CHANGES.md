@@ -89,6 +89,8 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Fixed error while writing multiple DeferredFrames to csv (Python)
+([BEAM-12701](https://issues.apache.org/jira/browse/BEAM-12701)).
 
 ## Known Issues
 
