@@ -768,9 +768,9 @@ def _group_stages_by_key(stages, get_stage_key):
 
 
 def _group_stages_with_limit(stages, get_limit):
-  # type: (Iterable[Stage], Callable[[[str], int]]) -> Iterable[Iterable[Stage]]
+  # type: (Iterable[Stage], Callable[[str], int]) -> Iterable[Collection[Stage]]
   stages_with_limit = [(stage, get_limit(stage.name)) for stage in stages]
-  group = []
+  group: List[Stage] = []
   group_limit = 0
   for stage, limit in sorted(stages_with_limit, key=operator.itemgetter(1)):
     if limit < 1:
@@ -1103,7 +1103,7 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
 def pack_combiners(stages, context, can_pack=None):
   # type: (Iterable[Stage], TransformContext, Optional[Callable[[str], Union[bool, int]]]) -> Iterator[Stage]
   if can_pack is None:
-    can_pack_names = {}  # type: Dict[str, bool]
+    can_pack_names = {}  # type: Dict[str, Union[bool, int]]
     parents = context.parents_map()
 
     def can_pack_fn(name: str) -> Union[bool, int]:
