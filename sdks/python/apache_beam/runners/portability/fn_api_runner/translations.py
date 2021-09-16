@@ -841,7 +841,7 @@ def _eliminate_common_key_with_none(stages, context, can_pack=lambda s: True):
   # elimination, and group eligible KeyWithNone stages by parent and
   # environment.
   def get_stage_key(stage):
-    if len(stage.transforms) == 1 and int(can_pack(stage.name)) > 0:
+    if len(stage.transforms) == 1 and can_pack(stage.name):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.primitives.PAR_DO.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
@@ -955,7 +955,7 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
   # Partition stages by whether they are eligible for CombinePerKey packing
   # and group eligible CombinePerKey stages by parent and environment.
   def get_stage_key(stage):
-    if (len(stage.transforms) == 1 and int(can_pack(stage.name)) > 0 and
+    if (len(stage.transforms) == 1 and can_pack(stage.name) and
         stage.environment is not None and python_urns.PACKED_COMBINE_FN in
         context.components.environments[stage.environment].capabilities):
       transform = only_transform(stage.transforms)
