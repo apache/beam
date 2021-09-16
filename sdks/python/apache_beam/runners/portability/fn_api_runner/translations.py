@@ -26,6 +26,7 @@ import itertools
 import logging
 import operator
 from typing import Callable
+from typing import Collection
 from typing import Container
 from typing import DefaultDict
 from typing import Dict
