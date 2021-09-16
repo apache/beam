@@ -60,7 +60,11 @@ the API, guided by your
 &lt;li>ListShards (with DescribeStreamSummary) is used instead of DescribeStream to list shards in Kinesis streams. Due to this change, as mentioned in &lt;a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_ListShards.html">AWS documentation&lt;/a>, for fine-grained IAM policies it is required to update them to allow calls to ListShards and DescribeStreamSummary APIs. For more information, see &lt;a href="https://docs.aws.amazon.com/streams/latest/dev/controlling-access.html">Controlling Access to Amazon Kinesis Data Streams&lt;/a> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12225">BEAM-12225&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="deprecations">Deprecations&lt;/h2>
-&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Python GBK will stop supporting unbounded PCollections that have global windowing and a default trigger in Beam 2.33. This can be overriden with &lt;code>--allow_unsafe_triggers&lt;/code>. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
+&lt;li>Python GBK will start requiring safe triggers or the &lt;code>--allow_unsafe_triggers&lt;/code> flag starting with Beam 2.33. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
 &lt;ul>
 &lt;li>Fixed race condition in RabbitMqIO causing duplicate acks (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6516">BEAM-6516&lt;/a>))&lt;/li>
 &lt;/ul>
