@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn.MergeContext;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /**
@@ -154,7 +155,13 @@ public abstract class WindowMergingFnRunner<T, W extends BoundedWindow> {
       for (KV<W, Collection<W>> mergedWindow : mergedWindows) {
         currentWindows.removeAll(mergedWindow.getValue());
       }
-      return KV.of(windowsToMerge.getKey(), KV.of(currentWindows, (Iterable) mergedWindows));
+      KV<T, KV<Iterable<W>, Iterable<KV<W, Iterable<W>>>>> result =
+          KV.of(
+              windowsToMerge.getKey(),
+              KV.of(Sets.newHashSet(currentWindows), (Iterable) Lists.newArrayList(mergedWindows)));
+      currentWindows.clear();
+      mergedWindows.clear();
+      return result;
     }
   }
 }

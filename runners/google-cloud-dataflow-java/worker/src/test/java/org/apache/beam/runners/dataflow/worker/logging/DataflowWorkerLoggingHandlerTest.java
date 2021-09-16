@@ -35,7 +35,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.junit.After;
 import org.junit.Before;
@@ -47,9 +47,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link DataflowWorkerLoggingHandler}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataflowWorkerLoggingHandlerTest {
   @Rule public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
 

@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.xml;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedWriter;
@@ -58,9 +58,6 @@ import org.junit.runners.JUnit4;
  * XmlIOTest}.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class XmlSourceTest {
 
   @Rule public TestPipeline p = TestPipeline.create();

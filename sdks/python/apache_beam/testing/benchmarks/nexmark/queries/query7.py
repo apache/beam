@@ -29,14 +29,12 @@ implement this using a side-input in order to exercise that functionality.
 (A combiner, as used in Query 5, is a more efficient approach.).
 """
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.transforms import window
 
 
-def load(events, metadata=None):
+def load(events, metadata=None, pipeline_options=None):
   # window bids into fixed window
   sliding_bids = (
       events

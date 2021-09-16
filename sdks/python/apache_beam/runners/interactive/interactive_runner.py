@@ -22,10 +22,6 @@ This module is experimental. No backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import logging
 
 import apache_beam as beam
@@ -35,7 +31,6 @@ from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive import background_caching_job
-from apache_beam.runners.interactive import samza_cache_manager as samza_cache
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.interactive.utils import to_element_list
@@ -191,7 +186,7 @@ class InteractiveRunner(runners.PipelineRunner):
 
     if not self._skip_display:
       a_pipeline_graph = pipeline_graph.PipelineGraph(
-          pipeline_instrument.original_pipeline,
+          pipeline_instrument.original_pipeline_proto,
           render_option=self._render_option)
       a_pipeline_graph.display_graph()
 
@@ -201,13 +196,10 @@ class InteractiveRunner(runners.PipelineRunner):
     # outer scopes are also recommended since the user_pipeline might not be
     # available from within this scope.
     if user_pipeline:
-        ie.current_env().set_pipeline_result(user_pipeline, main_job_result)
+      ie.current_env().set_pipeline_result(user_pipeline, main_job_result)
 
     if self._blocking:
-        if self._underlying_runner.__class__.__name__ == 'SamzaPortableRunner':
-            main_job_result.wait_until_finish(exit_on_finish=True)
-        else:
-            main_job_result.wait_until_finish()
+      main_job_result.wait_until_finish()
 
     if main_job_result.state is beam.runners.runner.PipelineState.DONE:
       # pylint: disable=dict-values-not-iterating

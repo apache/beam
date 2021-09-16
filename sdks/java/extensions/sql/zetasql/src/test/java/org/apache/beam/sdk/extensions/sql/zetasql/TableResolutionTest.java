@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Table;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -34,9 +34,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link TableResolution}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TableResolutionTest {
 
   // A simple in-memory SchemaPlus would be fine

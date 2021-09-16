@@ -16,36 +16,23 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import json
 import logging
 import math
 import os
 import tempfile
 import unittest
-from builtins import range
 from typing import List
-import sys
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 
 import avro
 import avro.datafile
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
+from avro.schema import Parse
 from fastavro.schema import parse_schema
 from fastavro import writer
-
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:
-  from avro.schema import Parse  # avro-python3 library for python3
-except ImportError:
-  from avro.schema import parse as Parse  # avro library for python2
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 import apache_beam as beam
 from apache_beam import Create
@@ -102,12 +89,6 @@ class AvroBase(object):
           }
           '''
 
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -122,16 +103,20 @@ class AvroBase(object):
   def _write_data(self, directory, prefix, codec, count, sync_interval):
     raise NotImplementedError
 
-  def _write_pattern(self, num_files):
+  def _write_pattern(self, num_files, return_filenames=False):
     assert num_files > 0
     temp_dir = tempfile.mkdtemp()
 
     file_name = None
+    file_list = []
     for _ in range(num_files):
       file_name = self._write_data(directory=temp_dir, prefix='mytemp')
+      file_list.append(file_name)
 
     assert file_name
     file_name_prefix = file_name[:file_name.rfind(os.path.sep)]
+    if return_filenames:
+      return (file_name_prefix + os.path.sep + 'mytemp*', file_list)
     return file_name_prefix + os.path.sep + 'mytemp*'
 
   def _run_avro_test(
@@ -407,6 +392,17 @@ class AvroBase(object):
           | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
           equal_to(self.RECORDS * 10))
 
+  def test_read_all_from_avro_with_filename(self):
+    file_pattern, file_paths = self._write_pattern(3, return_filenames=True)
+    result = [(path, record) for path in file_paths for record in self.RECORDS]
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([file_pattern]) \
+          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro,
+                                   with_filename=True),
+          equal_to(result))
+
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
@@ -446,7 +442,7 @@ class AvroBase(object):
 
 
 @unittest.skipIf(
-    sys.version_info[0] == 3 and os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
     'This test requires that Beam depends on avro-python3>=1.9 or newer. '
     'See: BEAM-6522.')
 class TestAvro(AvroBase, unittest.TestCase):

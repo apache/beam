@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Date;
@@ -25,25 +26,22 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
-import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableBiMap;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlTypeNameSpec;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
 /** Utility methods for Calcite related operations. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class CalciteUtils {
   private static final long UNLIMITED_ARRAY_SIZE = -1L;
 
@@ -75,7 +73,9 @@ public class CalciteUtils {
     }
 
     if (fieldType.getTypeName().isLogicalType()) {
-      String logicalId = fieldType.getLogicalType().getIdentifier();
+      Schema.LogicalType logicalType = fieldType.getLogicalType();
+      Preconditions.checkArgumentNotNull(logicalType);
+      String logicalId = logicalType.getIdentifier();
       return logicalId.equals(SqlTypes.DATE.getIdentifier())
           || logicalId.equals(SqlTypes.TIME.getIdentifier())
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
@@ -90,7 +90,9 @@ public class CalciteUtils {
     }
 
     if (fieldType.getTypeName().isLogicalType()) {
-      String logicalId = fieldType.getLogicalType().getIdentifier();
+      Schema.LogicalType logicalType = fieldType.getLogicalType();
+      Preconditions.checkArgumentNotNull(logicalType);
+      String logicalId = logicalType.getIdentifier();
       return logicalId.equals(CharType.IDENTIFIER);
     }
     return false;
@@ -185,15 +187,6 @@ public class CalciteUtils {
       case MAP:
         return SqlTypeName.MAP;
       default:
-        if (type.getTypeName().isLogicalType()) {
-          String logicalTypeId = type.getLogicalType().getIdentifier();
-          if (logicalTypeId.equals(FixedBytes.IDENTIFIER)) {
-            return SqlTypeName.VARBINARY;
-          } else if (logicalTypeId.equals(EnumerationType.IDENTIFIER)) {
-            return SqlTypeName.VARCHAR;
-          }
-        }
-
         SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type.withNullable(false));
         if (typeName == null) {
           // This will happen e.g. if looking up a STRING type, and metadata isn't set to say which
@@ -209,6 +202,10 @@ public class CalciteUtils {
     }
   }
 
+  public static FieldType toFieldType(SqlTypeNameSpec sqlTypeName) {
+    return toFieldType(SqlTypeName.get(sqlTypeName.getTypeName().getSimple()));
+  }
+
   public static FieldType toFieldType(SqlTypeName sqlTypeName) {
     switch (sqlTypeName) {
       case MAP:
@@ -221,7 +218,12 @@ public class CalciteUtils {
                     + "so it cannot be converted to a %s",
                 sqlTypeName, Schema.FieldType.class.getSimpleName()));
       default:
-        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName);
+        FieldType fieldType = CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName);
+        if (fieldType == null) {
+          throw new IllegalArgumentException(
+              "Cannot find a matching Beam FieldType for Calcite type: " + sqlTypeName);
+        }
+        return fieldType;
     }
   }
 
@@ -245,7 +247,12 @@ public class CalciteUtils {
         return FieldType.row(toSchema(calciteType));
 
       default:
-        return toFieldType(calciteType.getSqlTypeName());
+        try {
+          return toFieldType(calciteType.getSqlTypeName()).withNullable(calciteType.isNullable());
+        } catch (IllegalArgumentException e) {
+          throw new IllegalArgumentException(
+              "Cannot find a matching Beam FieldType for Calcite type: " + calciteType, e);
+        }
     }
   }
 
@@ -265,16 +272,22 @@ public class CalciteUtils {
     switch (fieldType.getTypeName()) {
       case ARRAY:
       case ITERABLE:
+        FieldType collectionElementType = fieldType.getCollectionElementType();
+        Preconditions.checkArgumentNotNull(collectionElementType);
         return dataTypeFactory.createArrayType(
-            toRelDataType(dataTypeFactory, fieldType.getCollectionElementType()),
-            UNLIMITED_ARRAY_SIZE);
+            toRelDataType(dataTypeFactory, collectionElementType), UNLIMITED_ARRAY_SIZE);
       case MAP:
-        RelDataType componentKeyType = toRelDataType(dataTypeFactory, fieldType.getMapKeyType());
-        RelDataType componentValueType =
-            toRelDataType(dataTypeFactory, fieldType.getMapValueType());
+        FieldType mapKeyType = fieldType.getMapKeyType();
+        FieldType mapValueType = fieldType.getMapValueType();
+        Preconditions.checkArgumentNotNull(mapKeyType);
+        Preconditions.checkArgumentNotNull(mapValueType);
+        RelDataType componentKeyType = toRelDataType(dataTypeFactory, mapKeyType);
+        RelDataType componentValueType = toRelDataType(dataTypeFactory, mapValueType);
         return dataTypeFactory.createMapType(componentKeyType, componentValueType);
       case ROW:
-        return toCalciteRowType(fieldType.getRowSchema(), dataTypeFactory);
+        Schema schema = fieldType.getRowSchema();
+        Preconditions.checkArgumentNotNull(schema);
+        return toCalciteRowType(schema, dataTypeFactory);
       default:
         return dataTypeFactory.createSqlType(toSqlTypeName(fieldType));
     }
@@ -291,7 +304,8 @@ public class CalciteUtils {
   /**
    * SQL-Java type mapping, with specified Beam rules: <br>
    * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it. <br>
-   * 2. For a list, the component type is needed to create a Sql array type.
+   * 2. For a list, the component type is needed to create a Sql array type. <br>
+   * 3. For a Map, the component type is needed to create a Sql map type.
    *
    * @param type
    * @return Calcite RelDataType
@@ -302,13 +316,25 @@ public class CalciteUtils {
       return typeFactory.createJavaType(Date.class);
     } else if (type instanceof Class && ByteString.class.isAssignableFrom((Class<?>) type)) {
       return typeFactory.createJavaType(byte[].class);
-    } else if (type instanceof ParameterizedType
-        && java.util.List.class.isAssignableFrom(
-            (Class<?>) ((ParameterizedType) type).getRawType())) {
+    } else if (type instanceof ParameterizedType) {
       ParameterizedType parameterizedType = (ParameterizedType) type;
-      Class<?> genericType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
-      RelDataType collectionElementType = typeFactory.createJavaType(genericType);
-      return typeFactory.createArrayType(collectionElementType, UNLIMITED_ARRAY_SIZE);
+      if (java.util.List.class.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
+        RelDataType elementType =
+            sqlTypeWithAutoCast(typeFactory, parameterizedType.getActualTypeArguments()[0]);
+        return typeFactory.createArrayType(elementType, UNLIMITED_ARRAY_SIZE);
+      } else if (java.util.Map.class.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
+        RelDataType mapElementKeyType =
+            sqlTypeWithAutoCast(typeFactory, parameterizedType.getActualTypeArguments()[0]);
+        RelDataType mapElementValueType =
+            sqlTypeWithAutoCast(typeFactory, parameterizedType.getActualTypeArguments()[1]);
+        return typeFactory.createMapType(mapElementKeyType, mapElementValueType);
+      }
+    } else if (type instanceof GenericArrayType) {
+      throw new IllegalArgumentException(
+          "Cannot infer types from "
+              + type
+              + ". This is currently unsupported, use List instead "
+              + "of Array.");
     }
     return typeFactory.createJavaType((Class) type);
   }

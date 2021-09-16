@@ -21,8 +21,8 @@ import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
-import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1.model.ListMessagesResponse;
+import com.google.api.services.healthcare.v1.model.Message;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -37,9 +37,6 @@ import org.mockito.Mockito;
 
 /** The type HL7v2 message id pages test. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class HL7V2MessagePagesTest {
 
   /** The Healthcare API. */

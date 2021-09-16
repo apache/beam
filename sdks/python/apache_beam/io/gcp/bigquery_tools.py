@@ -27,8 +27,6 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import io
@@ -38,17 +36,16 @@ import re
 import sys
 import time
 import uuid
-from builtins import object
+from json.decoder import JSONDecodeError
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
 
 import fastavro
-from future.utils import iteritems
-from future.utils import raise_with_traceback
-from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
-from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import MetricLogger
 from apache_beam.internal.metrics.metric import Metrics
@@ -69,23 +66,35 @@ from apache_beam.utils.histogram import LinearBucket
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from apitools.base.py.transfer import Upload
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+  from google.api_core.exceptions import ClientError, GoogleAPICallError
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
+  gcp_bigquery = None
   pass
 
 try:
-  # TODO(pabloem): Remove this workaround after Python 2.7 support ends.
-  from json.decoder import JSONDecodeError
+  from orjson import dumps as fast_json_dumps
+  from orjson import loads as fast_json_loads
 except ImportError:
-  JSONDecodeError = ValueError
+  fast_json_dumps = json.dumps
+  fast_json_loads = json.loads
 
 # pylint: enable=wrong-import-order, wrong-import-position
 
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+except ImportError:
+  TableReference = None
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+
 _LOGGER = logging.getLogger(__name__)
 
-MAX_RETRIES = 3
-
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
+MAX_RETRIES = 3
+UNKNOWN_MIME_TYPE = 'application/octet-stream'
 
 
 class FileFormat(object):
@@ -130,11 +139,30 @@ def get_hashable_destination(destination):
     A string representing the destination containing
     'PROJECT:DATASET.TABLE'.
   """
-  if isinstance(destination, bigquery.TableReference):
+  if isinstance(destination, TableReference):
     return '%s:%s.%s' % (
         destination.projectId, destination.datasetId, destination.tableId)
   else:
     return destination
+
+
+V = TypeVar('V')
+
+
+def to_hashable_table_ref(
+    table_ref_elem_kv: Tuple[Union[str, TableReference], V]) -> Tuple[str, V]:
+  """Turns the key of the input tuple to its string representation. The key
+  should be either a string or a TableReference.
+
+  Args:
+    table_ref_elem_kv: A tuple of table reference and element.
+
+  Returns:
+    A tuple of string representation of input table and input element.
+  """
+  table_ref = table_ref_elem_kv[0]
+  hashable_table_ref = get_hashable_destination(table_ref)
+  return (hashable_table_ref, table_ref_elem_kv[1])
 
 
 def parse_table_schema_from_json(schema_string):
@@ -183,10 +211,10 @@ def parse_table_reference(table, dataset=None, project=None):
 
   Args:
     table: The ID of the table. The ID must contain only letters
-      (a-z, A-Z), numbers (0-9), or underscores (_). If dataset argument is None
+      (a-z, A-Z), numbers (0-9), connectors (-_). If dataset argument is None
       then the table argument must contain the entire table reference:
       'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'. This argument can be a
-      bigquery.TableReference instance in which case dataset and project are
+      TableReference instance in which case dataset and project are
       ignored and the reference is returned as a result.  Additionally, for date
       partitioned tables, appending '$YYYYmmdd' to the table name is supported,
       e.g. 'DATASET.TABLE$YYYYmmdd'.
@@ -206,8 +234,8 @@ def parse_table_reference(table, dataset=None, project=None):
       format.
   """
 
-  if isinstance(table, bigquery.TableReference):
-    return bigquery.TableReference(
+  if isinstance(table, TableReference):
+    return TableReference(
         projectId=table.projectId,
         datasetId=table.datasetId,
         tableId=table.tableId)
@@ -216,13 +244,13 @@ def parse_table_reference(table, dataset=None, project=None):
   elif isinstance(table, value_provider.ValueProvider):
     return table
 
-  table_reference = bigquery.TableReference()
+  table_reference = TableReference()
   # If dataset argument is not specified, the expectation is that the
   # table argument will contain a full table reference instead of just a
   # table name.
   if dataset is None:
     match = re.match(
-        r'^((?P<project>.+):)?(?P<dataset>\w+)\.(?P<table>[\w\$]+)$', table)
+        r'^((?P<project>.+):)?(?P<dataset>\w+)\.(?P<table>[-\w\$]+)$', table)
     if not match:
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
@@ -264,8 +292,10 @@ class BigQueryWrapper(object):
   (e.g., find and create tables, query a table, etc.).
   """
 
-  TEMP_TABLE = 'temp_table_'
-  TEMP_DATASET = 'temp_dataset_'
+  # If updating following names, also update the corresponding pydocs in
+  # bigquery.py.
+  TEMP_TABLE = 'beam_temp_table_'
+  TEMP_DATASET = 'beam_temp_dataset_'
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
@@ -273,7 +303,8 @@ class BigQueryWrapper(object):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
         credentials=auth.get_service_credentials(),
-        response_encoding=None if sys.version_info[0] < 3 else 'utf8')
+        response_encoding='utf8')
+    self.gcp_bq_client = client or gcp_bigquery.Client()
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
@@ -284,7 +315,12 @@ class BigQueryWrapper(object):
         'latency_histogram_ms',
         LinearBucket(0, 20, 3000),
         BigQueryWrapper.HISTOGRAM_METRIC_LOGGER)
+    if temp_dataset_id and temp_dataset_id.startswith(self.TEMP_DATASET):
+      raise ValueError(
+          'User provided temp dataset ID cannot start with %r' %
+          self.TEMP_DATASET)
     self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
+    self.created_temp_dataset = False
 
   @property
   def unique_row_id(self):
@@ -407,13 +443,29 @@ class BigQueryWrapper(object):
       project_id,
       job_id,
       table_reference,
-      source_uris,
+      source_uris=None,
+      source_stream=None,
       schema=None,
       write_disposition=None,
       create_disposition=None,
       additional_load_parameters=None,
       source_format=None,
       job_labels=None):
+
+    if not source_uris and not source_stream:
+      raise ValueError(
+          'Either a non-empty list of fully-qualified source URIs must be '
+          'provided via the source_uris parameter or an open file object must '
+          'be provided via the source_stream parameter. Got neither.')
+
+    if source_uris and source_stream:
+      raise ValueError(
+          'Only one of source_uris and source_stream may be specified. '
+          'Got both.')
+
+    if source_uris is None:
+      source_uris = []
+
     additional_load_parameters = additional_load_parameters or {}
     job_schema = None if schema == 'SCHEMA_AUTODETECT' else schema
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
@@ -435,20 +487,28 @@ class BigQueryWrapper(object):
             ),
             jobReference=reference,
         ))
-    return self._start_job(request).jobReference
+    return self._start_job(request, stream=source_stream).jobReference
 
   def _start_job(
       self,
-      request  # type: bigquery.BigqueryJobsInsertRequest
+      request,  # type: bigquery.BigqueryJobsInsertRequest
+      stream=None,
   ):
     """Inserts a BigQuery job.
 
     If the job exists already, it returns it.
+
+    Args:
+      request (bigquery.BigqueryJobsInsertRequest): An insert job request.
+      stream (IO[bytes]): A bytes IO object open for reading.
     """
     try:
-      response = self.client.jobs.Insert(request)
+      upload = None
+      if stream:
+        upload = Upload.FromStream(stream, mime_type=UNKNOWN_MIME_TYPE)
+      response = self.client.jobs.Insert(request, upload=upload)
       _LOGGER.info(
-          "Stated BigQuery job: %s\n "
+          "Started BigQuery job: %s\n "
           "bq show -j --format=prettyjson --project_id=%s %s",
           response.jobReference,
           response.jobReference.projectId,
@@ -553,7 +613,13 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def _insert_all_rows(
-      self, project_id, dataset_id, table_id, rows, skip_invalid_rows=False):
+      self,
+      project_id,
+      dataset_id,
+      table_id,
+      rows,
+      insert_ids,
+      skip_invalid_rows=False):
     """Calls the insertAll BigQuery API endpoint.
 
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
@@ -561,15 +627,6 @@ class BigQueryWrapper(object):
     # The rows argument is a list of
     # bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
     # required by the InsertAll() method.
-    request = bigquery.BigqueryTabledataInsertAllRequest(
-        projectId=project_id,
-        datasetId=dataset_id,
-        tableId=table_id,
-        tableDataInsertAllRequest=bigquery.TableDataInsertAllRequest(
-            skipInvalidRows=skip_invalid_rows,
-            # TODO(silviuc): Should have an option for ignoreUnknownValues?
-            rows=rows))
-
     resource = resource_identifiers.BigQueryTable(
         project_id, dataset_id, table_id)
 
@@ -590,22 +647,31 @@ class BigQueryWrapper(object):
         base_labels=labels)
 
     started_millis = int(time.time() * 1000)
-    response = None
     try:
-      response = self.client.tabledata.InsertAll(request)
-      if not response.insertErrors:
+      table_ref_str = '%s.%s.%s' % (project_id, dataset_id, table_id)
+      errors = self.gcp_bq_client.insert_rows_json(
+          table_ref_str,
+          json_rows=rows,
+          row_ids=insert_ids,
+          skip_invalid_rows=True)
+      if not errors:
         service_call_metric.call('ok')
-      for insert_error in response.insertErrors:
-        for error in insert_error.errors:
-          service_call_metric.call(error.reason)
+      else:
+        for insert_error in errors:
+          service_call_metric.call(insert_error['errors'][0])
+    except (ClientError, GoogleAPICallError) as e:
+      # e.code.value contains the numeric http status code.
+      service_call_metric.call(e.code.value)
+      # Re-reise the exception so that we re-try appropriately.
+      raise
     except HttpError as e:
       service_call_metric.call(e)
+      # Re-reise the exception so that we re-try appropriately.
+      raise
     finally:
       self._latency_histogram_metric.update(
           int(time.time() * 1000) - started_millis)
-    if response:
-      return not response.insertErrors, response.insertErrors
-    return False, []
+    return not errors, errors
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -648,7 +714,7 @@ class BigQueryWrapper(object):
 
     additional_parameters = additional_parameters or {}
     table = bigquery.Table(
-        tableReference=bigquery.TableReference(
+        tableReference=TableReference(
             projectId=project_id, datasetId=dataset_id, tableId=table_id),
         schema=schema,
         **additional_parameters)
@@ -668,6 +734,7 @@ class BigQueryWrapper(object):
       dataset = self.client.datasets.Get(
           bigquery.BigqueryDatasetsGetRequest(
               projectId=project_id, datasetId=dataset_id))
+      self.created_temp_dataset = False
       return dataset
     except HttpError as exn:
       if exn.status_code == 404:
@@ -679,6 +746,7 @@ class BigQueryWrapper(object):
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)
+        self.created_temp_dataset = True
         # The response is a bigquery.Dataset instance.
         return response
       else:
@@ -737,18 +805,22 @@ class BigQueryWrapper(object):
     table = self.get_table(project_id, dataset_id, table_id)
     return table.location
 
+  # Returns true if the temporary dataset was provided by the user.
+  def is_user_configured_dataset(self):
+    return (
+        self.temp_dataset_id and
+        not self.temp_dataset_id.startswith(self.TEMP_DATASET))
+
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def create_temporary_dataset(self, project_id, location):
-    is_user_configured_dataset = \
-      not self.temp_dataset_id.startswith(self.TEMP_DATASET)
     # Check if dataset exists to make sure that the temporary id is unique
     try:
       self.client.datasets.Get(
           bigquery.BigqueryDatasetsGetRequest(
               projectId=project_id, datasetId=self.temp_dataset_id))
-      if project_id is not None and not is_user_configured_dataset:
+      if project_id is not None and not self.is_user_configured_dataset():
         # Unittests don't pass projectIds so they can be run without error
         # User configured datasets are allowed to pre-exist.
         raise RuntimeError(
@@ -784,7 +856,14 @@ class BigQueryWrapper(object):
       else:
         raise
     try:
-      self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+      # We do not want to delete temporary datasets configured by the user hence
+      # we just delete the temporary table in that case.
+      if not self.is_user_configured_dataset():
+        self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+      else:
+        self._delete_table(
+            temp_table.projectId, temp_table.datasetId, temp_table.tableId)
+      self.created_temp_dataset = False
     except HttpError as exn:
       if exn.status_code == 403:
         _LOGGER.warning(
@@ -809,8 +888,9 @@ class BigQueryWrapper(object):
   def perform_load_job(
       self,
       destination,
-      files,
       job_id,
+      source_uris=None,
+      source_stream=None,
       schema=None,
       write_disposition=None,
       create_disposition=None,
@@ -822,11 +902,23 @@ class BigQueryWrapper(object):
     Returns:
       bigquery.JobReference with the information about the job that was started.
     """
+    if not source_uris and not source_stream:
+      raise ValueError(
+          'Either a non-empty list of fully-qualified source URIs must be '
+          'provided via the source_uris parameter or an open file object must '
+          'be provided via the source_stream parameter. Got neither.')
+
+    if source_uris and source_stream:
+      raise ValueError(
+          'Only one of source_uris and source_stream may be specified. '
+          'Got both.')
+
     return self._insert_load_job(
         destination.projectId,
         job_id,
         destination,
-        files,
+        source_uris=source_uris,
+        source_stream=source_stream,
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
@@ -930,8 +1022,8 @@ class BigQueryWrapper(object):
       # specified.
       if write_disposition == BigQueryDisposition.WRITE_TRUNCATE:
         self._delete_table(project_id, dataset_id, table_id)
-      elif (not self._is_table_empty(project_id, dataset_id, table_id) and
-            write_disposition == BigQueryDisposition.WRITE_EMPTY):
+      elif (write_disposition == BigQueryDisposition.WRITE_EMPTY and
+            not self._is_table_empty(project_id, dataset_id, table_id)):
         raise RuntimeError(
             'Table %s:%s.%s is not empty but write disposition is WRITE_EMPTY.'
             % (project_id, dataset_id, table_id))
@@ -1056,28 +1148,18 @@ class BigQueryWrapper(object):
     # BigQuery will do a best-effort if unique IDs are provided. This situation
     # can happen during retries on failures.
     # TODO(silviuc): Must add support to writing TableRow's instead of dicts.
-    final_rows = []
-    for i, row in enumerate(rows):
-      json_row = self._convert_to_json_row(row)
-      insert_id = str(self.unique_row_id) if not insert_ids else insert_ids[i]
-      final_rows.append(
-          bigquery.TableDataInsertAllRequest.RowsValueListEntry(
-              insertId=insert_id, json=json_row))
-    result, errors = self._insert_all_rows(
-        project_id, dataset_id, table_id, final_rows, skip_invalid_rows)
-    return result, errors
+    insert_ids = [
+        str(self.unique_row_id) if not insert_ids else insert_ids[i] for i,
+        _ in enumerate(rows)
+    ]
+    rows = [
+        fast_json_loads(fast_json_dumps(r, default=default_encoder))
+        for r in rows
+    ]
 
-  def _convert_to_json_row(self, row):
-    json_object = bigquery.JsonObject()
-    for k, v in iteritems(row):
-      if isinstance(v, decimal.Decimal):
-        # decimal values are converted into string because JSON does not
-        # support the precision that decimal supports. BQ is able to handle
-        # inserts into NUMERIC columns by receiving JSON with string attrs.
-        v = str(v)
-      json_object.additionalProperties.append(
-          bigquery.JsonObject.AdditionalProperty(key=k, value=to_json_value(v)))
-    return json_object
+    result, errors = self._insert_all_rows(
+        project_id, dataset_id, table_id, rows, insert_ids)
+    return result, errors
 
   def _convert_cell_value_to_dict(self, value, field):
     if field.type == 'STRING':
@@ -1239,8 +1321,10 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
-    self.client.create_temporary_dataset(
-        self.executing_project, location=self._get_source_location())
+    if not self.client.is_user_configured_dataset():
+      # Temp dataset was provided by the user so we do not have to create one.
+      self.client.create_temporary_dataset(
+          self.executing_project, location=self._get_source_location())
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
@@ -1448,10 +1532,10 @@ class AvroRowWriter(io.IOBase):
     try:
       self._avro_writer.write(row)
     except (TypeError, ValueError) as ex:
-      raise_with_traceback(
-          ex.__class__(
-              "Error writing row to Avro: {}\nSchema: {}\nRow: {}".format(
-                  ex, self._avro_writer.schema, row)))
+      _, _, tb = sys.exc_info()
+      raise ex.__class__(
+          "Error writing row to Avro: {}\nSchema: {}\nRow: {}".format(
+              ex, self._avro_writer.schema, row)).with_traceback(tb)
 
 
 class RetryStrategy(object):
@@ -1578,7 +1662,7 @@ bigquery_v2_messages.TableSchema):
   if (isinstance(schema, (dict, value_provider.ValueProvider)) or
       callable(schema) or schema is None):
     return schema
-  elif isinstance(schema, (str, unicode)):
+  elif isinstance(schema, str):
     table_schema = get_table_schema_from_string(schema)
     return table_schema_to_dict(table_schema)
   elif isinstance(schema, bigquery.TableSchema):
@@ -1620,3 +1704,75 @@ def generate_bq_job_name(job_name, step_id, job_type, random=None):
       job_id=job_name.replace("-", ""),
       step_id=step_id,
       random=random)
+
+
+def check_schema_equal(
+    left, right, *, ignore_descriptions=False, ignore_field_order=False):
+  # type: (Union[bigquery.TableSchema, bigquery.TableFieldSchema], Union[bigquery.TableSchema, bigquery.TableFieldSchema], bool, bool) -> bool
+
+  """Check whether schemas are equivalent.
+
+  This comparison function differs from using == to compare TableSchema
+  because it ignores categories, policy tags, descriptions (optionally), and
+  field ordering (optionally).
+
+  Args:
+    left (~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.\
+bigquery.bigquery_v2_messages.TableFieldSchema):
+      One schema to compare.
+    right (~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.\
+bigquery.bigquery_v2_messages.TableFieldSchema):
+      The other schema to compare.
+    ignore_descriptions (bool): (optional) Whether or not to ignore field
+      descriptions when comparing. Defaults to False.
+    ignore_field_order (bool): (optional) Whether or not to ignore struct field
+      order when comparing. Defaults to False.
+
+  Returns:
+    bool: True if the schemas are equivalent, False otherwise.
+  """
+  if type(left) != type(right) or not isinstance(
+      left, (bigquery.TableSchema, bigquery.TableFieldSchema)):
+    return False
+
+  if isinstance(left, bigquery.TableFieldSchema):
+    if left.name != right.name:
+      return False
+
+    if left.type != right.type:
+      # Check for type aliases
+      if sorted(
+          (left.type, right.type)) not in (["BOOL", "BOOLEAN"], ["FLOAT",
+                                                                 "FLOAT64"],
+                                           ["INT64", "INTEGER"], ["RECORD",
+                                                                  "STRUCT"]):
+        return False
+
+    if left.mode != right.mode:
+      return False
+
+    if not ignore_descriptions and left.description != right.description:
+      return False
+
+  if isinstance(left,
+                bigquery.TableSchema) or left.type in ("RECORD", "STRUCT"):
+    if len(left.fields) != len(right.fields):
+      return False
+
+    if ignore_field_order:
+      left_fields = sorted(left.fields, key=lambda field: field.name)
+      right_fields = sorted(right.fields, key=lambda field: field.name)
+    else:
+      left_fields = left.fields
+      right_fields = right.fields
+
+    for left_field, right_field in zip(left_fields, right_fields):
+      if not check_schema_equal(left_field,
+                                right_field,
+                                ignore_descriptions=ignore_descriptions,
+                                ignore_field_order=ignore_field_order):
+        return False
+
+  return True

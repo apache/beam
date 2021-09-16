@@ -17,91 +17,107 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- * Get and check the TpcdsOptions' parameters, throw exceptions when user input is invalid
- */
+/** Get and check the TpcdsOptions' parameters, throw exceptions when user input is invalid. */
 public class TpcdsParametersReader {
-    /** The data sizes that have been supported. */
-    private static final Set<String> supportedDataSizes = Stream.of("1G", "10G", "100G").collect(Collectors.toCollection(HashSet::new));
 
-    /**
-     * Get and check dataSize entered by user. This dataSize has to have been supported.
-     *
-     * @param tpcdsOptions TpcdsOptions object constructed from user input
-     * @return The dateSize user entered, if it is contained in supportedDataSizes set.
-     * @throws Exception
-     */
-    public static String getAndCheckDataSize(TpcdsOptions tpcdsOptions) throws Exception {
-        String dataSize = tpcdsOptions.getDataSize();
+  /** The data sizes that have been supported. */
+  private static final Set<String> supportedDataSizes =
+      Stream.of("1G", "10G", "100G").collect(Collectors.toCollection(HashSet::new));
 
-        if (!supportedDataSizes.contains(dataSize)) {
-            throw new Exception("The data size you entered has not been supported.");
-        }
+  private static final String QUERY_PREFIX = "query";
 
-        return dataSize;
+  public static final List<String> ALL_QUERY_NAMES = getAllQueryNames();
+
+  /**
+   * Get and check dataSize entered by user. This dataSize has to have been supported.
+   *
+   * @param tpcdsOptions TpcdsOptions object constructed from user input
+   * @return The dateSize user entered, if it is contained in supportedDataSizes set.
+   * @throws Exception
+   */
+  public static String getAndCheckDataSize(TpcdsOptions tpcdsOptions) throws Exception {
+    String dataSize = tpcdsOptions.getDataSize();
+
+    if (!supportedDataSizes.contains(dataSize)) {
+      throw new Exception("The data size you entered has not been supported.");
     }
 
-    /**
-     * Get and check queries entered by user. This has to be a string of numbers separated by commas or "all" which means run all 99 queiries.
-     * All query numbers have to be between 1 and 99.
-     *
-     * @param tpcdsOptions TpcdsOptions object constructed from user input
-     * @return An array of query names, for example "1,2,7" will be output as "query1,query2,query7"
-     * @throws Exception
-     */
-    public static String[] getAndCheckQueryNameArray(TpcdsOptions tpcdsOptions) throws Exception {
-        String queryNums = tpcdsOptions.getQueries();
+    return dataSize;
+  }
 
-        String[] queryNumArr;
-        if (queryNums.toLowerCase().equals("all")) {
-            // All 99 TPC-DS queries need to be executed.
-            queryNumArr = new String[99];
-            for (int i = 0; i < 99; i++) {
-                queryNumArr[i] = Integer.toString(i + 1);
-            }
-        } else {
-            // Split user input queryNums by spaces and commas, get an array of all query numbers.
-            queryNumArr = queryNums.split("[\\s,]+");
-
-            for (String queryNumStr : queryNumArr) {
-                try {
-                    int queryNum = Integer.parseInt(queryNumStr);
-                    if (queryNum < 1 || queryNum > 99) {
-                        throw new Exception("The queries you entered contains invalid query number, please provide integers between 1 and 99.");
-                    }
-                } catch (NumberFormatException e) {
-                    System.out.println("The queries you entered should be integers, please provide integers between 1 and 99.");
+  /**
+   * Get and check queries entered by user. This has to be a string of numbers separated by commas
+   * or "all" which means run all 99 queries. All query numbers have to be between 1 and 99. Some
+   * queries (14, 23, 24 and 39) may contain suffixes "a" or "b", e.g. "14a" and "14b".
+   *
+   * @param tpcdsOptions TpcdsOptions object constructed from user input
+   * @return An array of query names, for example "1,2,14b" will be output as
+   *     "query1,query2,query14b"
+   * @throws Exception
+   */
+  public static String[] getAndCheckQueryNames(TpcdsOptions tpcdsOptions) {
+    if (tpcdsOptions.getQueries().equalsIgnoreCase("all")) {
+      // All TPC-DS queries need to be executed.
+      return ALL_QUERY_NAMES.toArray(new String[0]);
+    } else {
+      List<String> queries = new ArrayList<>();
+      Arrays.stream(tpcdsOptions.getQueries().split("[\\s,]+", -1))
+          .map(s -> QUERY_PREFIX + s)
+          .forEach(
+              query -> {
+                if (!ALL_QUERY_NAMES.contains(query)) {
+                  throw new IllegalArgumentException(
+                      "The query \"" + query + "\" is not supported.");
                 }
-            }
-        }
+                queries.add(query);
+              });
+      return queries.toArray(new String[0]);
+    }
+  }
 
-        String[] queryNameArr = new String[queryNumArr.length];
-        for (int i = 0; i < queryNumArr.length; i++) {
-            queryNameArr[i] = "query" + queryNumArr[i];
-        }
+  private static List<String> getAllQueryNames() {
+    List<String> queries = new ArrayList<>();
 
-        return queryNameArr;
+    for (int i = 1; i <= 99; i++) {
+      switch (i) {
+        case 14:
+        case 23:
+        case 24:
+        case 39:
+          queries.add(QUERY_PREFIX + i + "a");
+          queries.add(QUERY_PREFIX + i + "b");
+          break;
+        default:
+          queries.add(QUERY_PREFIX + i);
+          break;
+      }
+    }
+    return queries;
+  }
+
+  /**
+   * Get and check TpcParallel entered by user. This has to be an integer between 1 and 99.
+   *
+   * @param tpcdsOptions TpcdsOptions object constructed from user input.
+   * @return The TpcParallel user entered.
+   * @throws Exception
+   */
+  public static int getAndCheckTpcParallel(TpcdsOptions tpcdsOptions) throws Exception {
+    int nThreads = tpcdsOptions.getTpcParallel();
+
+    if (nThreads < 1 || nThreads > 99) {
+      throw new Exception(
+          "The TpcParallel your entered is invalid, please provide an integer between 1 and 99.");
     }
 
-    /**
-     * Get and check TpcParallel entered by user. This has to be an integer between 1 and 99.
-     *
-     * @param tpcdsOptions TpcdsOptions object constructed from user input.
-     * @return The TpcParallel user entered.
-     * @throws Exception
-     */
-    public static int getAndCheckTpcParallel(TpcdsOptions tpcdsOptions) throws Exception {
-        int nThreads = tpcdsOptions.getTpcParallel();
-
-        if (nThreads < 1 || nThreads > 99) {
-            throw new Exception("The TpcParallel your entered is invalid, please provide an integer between 1 and 99.");
-        }
-
-        return nThreads;
-    }
+    return nThreads;
+  }
 }

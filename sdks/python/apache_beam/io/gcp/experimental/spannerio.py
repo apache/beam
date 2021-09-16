@@ -168,8 +168,6 @@ size is not larger than the "max_batch_size_bytes", after this process, all the
 mutation groups together to process. If the Mutation references a table or
 column does not exits, it will cause a exception and fails the entire pipeline.
 """
-from __future__ import absolute_import
-
 import typing
 from collections import deque
 from collections import namedtuple
@@ -304,7 +302,7 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
     return snapshot_options
 
 
-@with_input_types(ReadOperation, typing.Dict[typing.Any, typing.Any])
+@with_input_types(ReadOperation, _SPANNER_TRANSACTION)
 @with_output_types(typing.List[typing.Any])
 class _NaiveSpannerReadDoFn(DoFn):
   def __init__(self, spanner_configuration):
@@ -424,7 +422,7 @@ class _CreateReadPartitions(DoFn):
 
 
 @with_input_types(int)
-@with_output_types(typing.Dict[typing.Any, typing.Any])
+@with_output_types(_SPANNER_TRANSACTION)
 class _CreateTransactionFn(DoFn):
   """
   A DoFn to create the transaction of cloud spanner.

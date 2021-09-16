@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerFamilySpec;
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerFamilySpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
@@ -41,6 +40,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -175,7 +175,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       final DoFn<?, ?> doFn = parDo.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
-      if (!hasExperiment(transform.getPipeline().getOptions(), "beam_fn_api")) {
+      if (!DataflowRunner.useUnifiedWorker(
+          transform.getPipeline().getOptions().as(DataflowPipelineOptions.class))) {
         checkArgument(
             !signature.processElement().isSplittable(),
             String.format(

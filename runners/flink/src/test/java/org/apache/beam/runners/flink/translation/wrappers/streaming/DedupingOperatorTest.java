@@ -18,8 +18,8 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.flink.translation.wrappers.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
-import static org.junit.Assert.assertThat;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

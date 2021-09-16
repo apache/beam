@@ -20,14 +20,14 @@ package org.apache.beam.sdk.tpcds;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** {@link AutoService} registrar for {@link TpcdsOptions}. */
 @AutoService(PipelineOptionsRegistrar.class)
-public class TpcdsOptionsRegistrar implements PipelineOptionsRegistrar{
+public class TpcdsOptionsRegistrar implements PipelineOptionsRegistrar {
 
-    @Override
-    public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-        return ImmutableList.of(TpcdsOptions.class);
-    }
+  @Override
+  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+    return ImmutableList.of(TpcdsOptions.class);
+  }
 }

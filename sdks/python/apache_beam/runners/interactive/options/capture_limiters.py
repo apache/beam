@@ -20,14 +20,15 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-from __future__ import absolute_import
-
 import threading
+
+import pandas as pd
 
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 class Limiter:
@@ -107,7 +108,12 @@ class CountLimiter(ElementLimiter):
     # Otherwise, count everything else but the header of the file since it is
     # not an element.
     elif not isinstance(e, TestStreamFileHeader):
-      self._count += 1
+      # When elements are DataFrames, we want the output to be constrained by
+      # how many rows we have read, not how many DataFrames we have read.
+      if isinstance(e, WindowedValue) and isinstance(e.value, pd.DataFrame):
+        self._count += len(e.value)
+      else:
+        self._count += 1
 
   def is_triggered(self):
     return self._count >= self._max_count

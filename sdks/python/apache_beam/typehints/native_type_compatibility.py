@@ -19,13 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import logging
 import sys
 import typing
-from builtins import next
 
 from apache_beam.typehints import typehints
 
@@ -56,17 +53,6 @@ def _get_args(typ):
   except AttributeError:
     if isinstance(typ, typing.TypeVar):
       return (typ.__name__, )
-    # On Python versions < 3.5.3, the Tuple and Union type from typing do
-    # not have an __args__ attribute, but a __tuple_params__, and a
-    # __union_params__ argument respectively.
-    if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
-      if getattr(typ, '__tuple_params__', None) is not None:
-        if typ.__tuple_use_ellipsis__:
-          return typ.__tuple_params__ + (Ellipsis, )
-        else:
-          return typ.__tuple_params__
-      elif getattr(typ, '__union_params__', None) is not None:
-        return typ.__union_params__
     return ()
 
 
@@ -118,7 +104,7 @@ def _match_is_exactly_iterable(user_type):
   return getattr(user_type, '__origin__', None) is expected_origin
 
 
-def _match_is_named_tuple(user_type):
+def match_is_named_tuple(user_type):
   return (
       _safe_issubclass(user_type, typing.Tuple) and
       hasattr(user_type, '_field_types'))
@@ -144,12 +130,6 @@ def _match_is_union(user_type):
   # For non-subscripted unions (Python 2.7.14+ with typing 3.64)
   if user_type is typing.Union:
     return True
-
-  try:  # Python 3.5.2
-    if isinstance(user_type, typing.UnionMeta):
-      return True
-  except AttributeError:
-    pass
 
   try:  # Python 3.5.4+, or Python 2.7.14+ with typing 3.64
     return user_type.__origin__ is typing.Union
@@ -245,7 +225,7 @@ def convert_to_beam_type(typ):
       # We just convert it to Any for now.
       # This MUST appear before the entry for the normal Tuple.
       _TypeMapEntry(
-          match=_match_is_named_tuple, arity=0, beam_type=typehints.Any),
+          match=match_is_named_tuple, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_issubclass(typing.Tuple),
           arity=-1,

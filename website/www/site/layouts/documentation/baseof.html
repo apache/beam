@@ -31,8 +31,9 @@
       {{ .TableOfContents }}
     </nav>
 
-    <div class="body__contained body__section-nav">
+    <div class="body__contained body__section-nav arrow-list">
       {{ .Content }}
+      {{ partial "feedback.html" . }}
     </div>
   </div>
 {{ partial "footer.html" . }}

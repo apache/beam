@@ -53,8 +53,14 @@ public class SslConsumerFactoryFn
   @SuppressWarnings("nullness")
   @Override
   public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
+    String truststoreLocation = sslConfig.get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+    String keystoreLocation = sslConfig.get(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG);
+    if (truststoreLocation == null || keystoreLocation == null) {
+      LOG.warn("Not enough information to configure SSL");
+      return new KafkaConsumer<>(config);
+    }
+
     try {
-      String truststoreLocation = sslConfig.get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
       if (truststoreLocation.startsWith("gs://")) {
         getGcsFileAsLocal(truststoreLocation, TRUSTSTORE_LOCAL_PATH);
         sslConfig.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, TRUSTSTORE_LOCAL_PATH);
@@ -62,7 +68,6 @@ public class SslConsumerFactoryFn
         checkFileExists(truststoreLocation);
       }
 
-      String keystoreLocation = sslConfig.get(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG);
       if (keystoreLocation.startsWith("gs://")) {
         getGcsFileAsLocal(keystoreLocation, KEYSTORE_LOCAL_PATH);
         sslConfig.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, KEYSTORE_LOCAL_PATH);

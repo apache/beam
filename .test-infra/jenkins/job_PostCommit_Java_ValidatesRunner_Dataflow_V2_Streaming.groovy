@@ -27,7 +27,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_VR_Dataflow_V2_Streamin
 
       description('Runs Java ValidatesRunner suite on the Dataflow runner V2 forcing streaming mode.')
 
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 330)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 450)
 
       // Publish all test results to Jenkins
       publishers {

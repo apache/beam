@@ -20,9 +20,7 @@ package org.apache.beam.sdk.io.aws2.options;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.core.type.WritableTypeId;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
@@ -40,9 +38,12 @@ import java.time.Duration;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.ContainerCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
@@ -65,6 +66,7 @@ import software.amazon.awssdk.utils.AttributeMap;
 public class AwsModule extends SimpleModule {
   private static final String ACCESS_KEY_ID = "accessKeyId";
   private static final String SECRET_ACCESS_KEY = "secretAccessKey";
+  private static final String SESSION_TOKEN = "sessionToken";
   public static final String CONNECTION_ACQUIRE_TIMEOUT = "connectionAcquisitionTimeout";
   public static final String CONNECTION_MAX_IDLE_TIMEOUT = "connectionMaxIdleTime";
   public static final String CONNECTION_TIMEOUT = "connectionTimeout";
@@ -77,6 +79,7 @@ public class AwsModule extends SimpleModule {
     setMixInAnnotation(AwsCredentialsProvider.class, AwsCredentialsProviderMixin.class);
     setMixInAnnotation(ProxyConfiguration.class, ProxyConfigurationMixin.class);
     setMixInAnnotation(AttributeMap.class, AttributeMapMixin.class);
+    setMixInAnnotation(SSECustomerKey.class, SSECustomerKeyMixin.class);
   }
 
   /** A mixin to add Jackson annotations to {@link AwsCredentialsProvider}. */
@@ -107,10 +110,18 @@ public class AwsModule extends SimpleModule {
         throw new IOException(
             String.format("AWS credentials provider type name key '%s' not found", typeNameKey));
       }
-
       if (typeName.equals(StaticCredentialsProvider.class.getSimpleName())) {
-        return StaticCredentialsProvider.create(
-            AwsBasicCredentials.create(asMap.get(ACCESS_KEY_ID), asMap.get(SECRET_ACCESS_KEY)));
+        boolean isSession = asMap.containsKey(SESSION_TOKEN);
+        if (isSession) {
+          return StaticCredentialsProvider.create(
+              AwsSessionCredentials.create(
+                  asMap.get(ACCESS_KEY_ID),
+                  asMap.get(SECRET_ACCESS_KEY),
+                  asMap.get(SESSION_TOKEN)));
+        } else {
+          return StaticCredentialsProvider.create(
+              AwsBasicCredentials.create(asMap.get(ACCESS_KEY_ID), asMap.get(SECRET_ACCESS_KEY)));
+        }
       } else if (typeName.equals(DefaultCredentialsProvider.class.getSimpleName())) {
         return DefaultCredentialsProvider.create();
       } else if (typeName.equals(EnvironmentVariableCredentialsProvider.class.getSimpleName())) {
@@ -155,19 +166,25 @@ public class AwsModule extends SimpleModule {
         SerializerProvider serializer,
         TypeSerializer typeSerializer)
         throws IOException {
-      WritableTypeId typeId =
-          typeSerializer.writeTypePrefix(
-              jsonGenerator, typeSerializer.typeId(credentialsProvider, JsonToken.START_OBJECT));
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
+      typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
       if (credentialsProvider.getClass().equals(StaticCredentialsProvider.class)) {
-        jsonGenerator.writeStringField(
-            ACCESS_KEY_ID, credentialsProvider.resolveCredentials().accessKeyId());
-        jsonGenerator.writeStringField(
-            SECRET_ACCESS_KEY, credentialsProvider.resolveCredentials().secretAccessKey());
+        AwsCredentials credentials = credentialsProvider.resolveCredentials();
+        if (credentials.getClass().equals(AwsSessionCredentials.class)) {
+          AwsSessionCredentials sessionCredentials = (AwsSessionCredentials) credentials;
+          jsonGenerator.writeStringField(ACCESS_KEY_ID, sessionCredentials.accessKeyId());
+          jsonGenerator.writeStringField(SECRET_ACCESS_KEY, sessionCredentials.secretAccessKey());
+          jsonGenerator.writeStringField(SESSION_TOKEN, sessionCredentials.sessionToken());
+        } else {
+          jsonGenerator.writeStringField(ACCESS_KEY_ID, credentials.accessKeyId());
+          jsonGenerator.writeStringField(SECRET_ACCESS_KEY, credentials.secretAccessKey());
+        }
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(credentialsProvider.getClass())) {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
       }
-      typeSerializer.writeTypeSuffix(jsonGenerator, typeId);
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
+      typeSerializer.writeTypeSuffixForObject(credentialsProvider, jsonGenerator);
     }
   }
 
@@ -299,6 +316,23 @@ public class AwsModule extends SimpleModule {
             String.valueOf(attributeMap.get(SdkHttpConfigurationOption.READ_TIMEOUT)));
       }
       jsonGenerator.writeEndObject();
+    }
+  }
+
+  @JsonDeserialize(using = SSECustomerKeyDeserializer.class)
+  private static class SSECustomerKeyMixin {}
+
+  private static class SSECustomerKeyDeserializer extends JsonDeserializer<SSECustomerKey> {
+
+    @Override
+    public SSECustomerKey deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException {
+      Map<String, String> asMap = parser.readValueAs(new TypeReference<Map<String, String>>() {});
+
+      final String key = asMap.getOrDefault("key", null);
+      final String algorithm = asMap.getOrDefault("algorithm", null);
+      final String md5 = asMap.getOrDefault("md5", null);
+      return SSECustomerKey.builder().key(key).algorithm(algorithm).md5(md5).build();
     }
   }
 }

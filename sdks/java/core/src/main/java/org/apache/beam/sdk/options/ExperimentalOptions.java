@@ -36,6 +36,8 @@ public interface ExperimentalOptions extends PipelineOptions {
 
   String STATE_CACHE_SIZE = "state_cache_size";
 
+  String STATE_SAMPLING_PERIOD_MILLIS = "state_sampling_period_millis";
+
   @Description(
       "[Experimental] Apache Beam provides a number of experimental features that can "
           + "be enabled with this flag. If executing against a managed service, please contact the "

@@ -58,6 +58,7 @@ COMMENTS_TO_ADD = [
     "Run XVR_Direct PostCommit",
     "Run XVR_Flink PostCommit",
     "Run XVR_Spark PostCommit",
+    "Run XVR_Spark3 PostCommit",
 ]
 
 
@@ -110,7 +111,7 @@ def postComments(accessToken, subjectId):
 
   for commentBody in COMMENTS_TO_ADD:
     jsonData = fetchGHData(accessToken, subjectId, commentBody)
-  print(jsonData)
+    print(jsonData)
 
 
 def probeGitHubIsUp():

@@ -27,9 +27,6 @@ import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 /** Mock class to test a failed publish of a msg. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SnsClientMockErrors implements SnsClient {
 
   @Override

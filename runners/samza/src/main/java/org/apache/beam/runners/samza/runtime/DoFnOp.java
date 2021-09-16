@@ -31,7 +31,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
@@ -39,18 +38,15 @@ import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.util.FutureUtils;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -110,7 +106,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient PushbackSideInputDoFnRunner<InT, FnOutT> pushbackFnRunner;
   private transient SideInputHandler sideInputHandler;
   private transient DoFnInvoker<InT, FnOutT> doFnInvoker;
-  // Mapping from side input id to a view
   private transient SamzaPipelineOptions samzaPipelineOptions;
 
   // This is derivable from pushbackValues which is persisted to a store.
@@ -127,9 +122,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient List<WindowedValue<InT>> pushbackValues;
   private transient ExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
-  private DoFnSchemaInformation doFnSchemaInformation;
   private transient boolean bundleDisabled;
-  private Map<?, PCollectionView<?>> sideInputMapping;
+
+  private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<?, PCollectionView<?>> sideInputMapping;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
@@ -177,6 +173,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public void open(
       Config config,
       Context context,
@@ -194,8 +191,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
     final String stateId = "pardo-" + transformId;
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
-        SamzaStoreStateInternals.createStateInternalFactory(
-            stateId, null, context.getTaskContext(), samzaPipelineOptions, signature);
+        SamzaStoreStateInternals.createNonKeyedStateInternalsFactory(
+            stateId, context.getTaskContext(), samzaPipelineOptions);
     final FutureCollector<OutT> outputFutureCollector = createFutureCollector();
 
     this.bundleManager =
@@ -221,26 +218,22 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
         new SideInputHandler(sideInputs, nonKeyedStateInternalsFactory.stateInternalsForKey(null));
 
     if (isPortable) {
-      // storing events within a bundle in states
-      final BagState<WindowedValue<InT>> bundledEventsBagState =
-          nonKeyedStateInternalsFactory
-              .stateInternalsForKey(null)
-              .state(StateNamespaces.global(), StateTags.bag(bundleStateId, windowedValueCoder));
       final ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
       stageContext = SamzaExecutableStageContextFactory.getInstance().get(jobInfo);
       stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
-      final StateRequestHandler stateRequestHandler =
-          SamzaStateRequestHandlers.of(
-              executableStage,
-              (Map<SideInputId, PCollectionView<?>>) sideInputMapping,
-              sideInputHandler);
       this.fnRunner =
           SamzaDoFnRunners.createPortable(
+              transformId,
+              bundleStateId,
+              windowedValueCoder,
+              executableStage,
+              sideInputMapping,
+              sideInputHandler,
+              nonKeyedStateInternalsFactory,
+              timerInternalsFactory,
               samzaPipelineOptions,
-              bundledEventsBagState,
               outputManagerFactory.create(emitter, outputFutureCollector),
               stageBundleFactory,
-              stateRequestHandler,
               mainOutputTag,
               idToTupleTagMap,
               context,
@@ -281,14 +274,14 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     }
   }
 
-  /*package private*/ FutureCollector<OutT> createFutureCollector() {
+  FutureCollector<OutT> createFutureCollector() {
     return new FutureCollectorImpl<>();
   }
 
   private String getTimerStateId(DoFnSignature signature) {
     final StringBuilder builder = new StringBuilder("timer");
     if (signature.usesTimers()) {
-      signature.timerDeclarations().keySet().forEach(key -> builder.append(key));
+      signature.timerDeclarations().keySet().forEach(builder::append);
     }
     return builder.toString();
   }
@@ -389,6 +382,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public void processTimer(KeyedTimerData<Void> keyedTimerData, OpEmitter<OutT> emitter) {
     // this is internal timer in processing time to check whether a bundle should be closed
     if (bundleCheckTimerId.equals(keyedTimerData.getTimerData().getTimerId())) {
@@ -422,19 +416,14 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     // NOTE: not sure why this is safe, but DoFnOperator makes this assumption
     final BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
 
-    if (fnRunner instanceof DoFnRunnerWithKeyedInternals) {
-      // Need to pass in the keyed TimerData here
-      ((DoFnRunnerWithKeyedInternals) fnRunner).onTimer(keyedTimerData, window);
-    } else {
-      pushbackFnRunner.onTimer(
-          timer.getTimerId(),
-          timer.getTimerFamilyId(),
-          null,
-          window,
-          timer.getTimestamp(),
-          timer.getOutputTimestamp(),
-          timer.getDomain());
-    }
+    fnRunner.onTimer(
+        timer.getTimerId(),
+        timer.getTimerFamilyId(),
+        keyedTimerData.getKey(),
+        window,
+        timer.getTimestamp(),
+        timer.getOutputTimestamp(),
+        timer.getDomain());
   }
 
   // todo: should this go through bundle manager to start and finish the bundle?
@@ -488,7 +477,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   static class FutureCollectorImpl<OutT> implements FutureCollector<OutT> {
     private final List<CompletionStage<WindowedValue<OutT>>> outputFutures;
-    private AtomicBoolean collectorSealed;
+    private final AtomicBoolean collectorSealed;
 
     FutureCollectorImpl() {
       /*

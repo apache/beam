@@ -39,8 +39,6 @@ For extra spiciness our implementation differs slightly from the above:
   window_size_sec and period window_period_sec.
 """
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.queries import winning_bids
@@ -48,7 +46,7 @@ from apache_beam.testing.benchmarks.nexmark.queries.nexmark_query_util import Re
 from apache_beam.transforms import window
 
 
-def load(events, metadata=None):
+def load(events, metadata=None, pipeline_options=None):
   # find winning bids for each closed auction
   all_winning_bids = (
       events

@@ -14,7 +14,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
-grpcio-tools==1.30.0
+grpcio-tools==1.37.0
 future==0.18.2
 mypy-protobuf==1.18
 

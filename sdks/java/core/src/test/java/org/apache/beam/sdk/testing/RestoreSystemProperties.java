@@ -24,9 +24,6 @@ import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
 /** Saves and restores the current system properties for tests. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class RestoreSystemProperties extends ExternalResource implements TestRule {
   private byte[] originalProperties;
 

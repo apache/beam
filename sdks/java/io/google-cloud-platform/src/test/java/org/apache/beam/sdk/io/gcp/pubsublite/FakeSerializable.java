@@ -26,9 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * static map. It is useful in the presence of in-process serialization, but not out of process
  * serialization.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 final class FakeSerializable {
   private static final AtomicInteger idCounter = new AtomicInteger(0);
   private static final ConcurrentHashMap<Integer, Object> map = new ConcurrentHashMap<>();

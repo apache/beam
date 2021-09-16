@@ -71,6 +71,5 @@ $(document).ready(function() {
     }
   }
 
-  FixMenu({"classNameMenu":"section-nav"}).init();
   FixMenu({ "classNameMenu":"page-nav" }).init();
 });

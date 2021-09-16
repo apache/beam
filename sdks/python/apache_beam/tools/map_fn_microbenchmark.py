@@ -32,14 +32,8 @@ Run as
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import logging
 import time
-from builtins import range
-from builtins import zip
 
 import apache_beam as beam
 from apache_beam.tools import utils

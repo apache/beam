@@ -27,6 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -87,7 +88,7 @@ public abstract class Trigger implements Serializable {
   }
 
   public List<Trigger> subTriggers() {
-    return subTriggers;
+    return MoreObjects.firstNonNull(subTriggers, Collections.emptyList());
   }
 
   /**

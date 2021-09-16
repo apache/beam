@@ -19,20 +19,15 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import logging
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 from hamcrest import all_of
 from hamcrest import assert_that
 from hamcrest import has_entry
 
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_status
 
@@ -52,7 +47,6 @@ class SdkWorkerMainTest(unittest.TestCase):
           '--m_m_option', action='append', help='mock multi option')
 
   def test_status_server(self):
-
     # Wrapping the method to see if it appears in threadump
     def wrapped_method_for_test():
       threaddump = worker_status.thread_dump()
@@ -94,6 +88,16 @@ class SdkWorkerMainTest(unittest.TestCase):
             '{"options": {"eam:option:m_option:v":"mock_val"}}').
         get_all_options(),
         has_entry('eam:option:m_option:v', 'mock_val'))
+
+  def test_runtime_values(self):
+    test_runtime_provider = RuntimeValueProvider('test_param', int, None)
+    sdk_worker_main.create_harness({
+        'CONTROL_API_SERVICE_DESCRIPTOR': '',
+        'PIPELINE_OPTIONS': '{"test_param": 37}',
+    },
+                                   dry_run=True)
+    self.assertTrue(test_runtime_provider.is_accessible())
+    self.assertEqual(test_runtime_provider.get(), 37)
 
 
 if __name__ == '__main__':

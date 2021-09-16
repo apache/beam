@@ -57,6 +57,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -75,9 +76,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for DataflowPipelineJob. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataflowPipelineJobTest {
   private static final String PROJECT_ID = "some-project";
   private static final String REGION_ID = "some-region-2b";
@@ -380,7 +378,12 @@ public class DataflowPipelineJobTest {
     PInput input = mock(PInput.class);
     when(input.getPipeline()).thenReturn(p);
     return AppliedPTransform.of(
-        fullName, Collections.emptyMap(), Collections.emptyMap(), transform, p);
+        fullName,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        transform,
+        ResourceHints.create(),
+        p);
   }
 
   private static class FastNanoClockAndFuzzySleeper implements NanoClock, Sleeper {

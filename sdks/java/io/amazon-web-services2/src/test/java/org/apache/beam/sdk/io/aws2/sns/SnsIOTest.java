@@ -41,9 +41,6 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
 /** Tests to verify writes to Sns. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({PublishResponse.class, GetTopicAttributesResponse.class})
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SnsIOTest implements Serializable {
 
   private static final String topicArn = "arn:aws:sns:us-west-2:5880:topic-FMFEHJ47NRFO";

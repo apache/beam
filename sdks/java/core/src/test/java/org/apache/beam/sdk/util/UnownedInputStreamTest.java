@@ -30,9 +30,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link UnownedInputStream}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class UnownedInputStreamTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   private ByteArrayInputStream bais;

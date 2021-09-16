@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.io.aws.options;
 
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.auth.ClasspathPropertiesFileCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
@@ -34,9 +36,7 @@ import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.core.type.WritableTypeId;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
@@ -68,6 +68,7 @@ public class AwsModule extends SimpleModule {
 
   private static final String AWS_ACCESS_KEY_ID = "awsAccessKeyId";
   private static final String AWS_SECRET_KEY = "awsSecretKey";
+  private static final String SESSION_TOKEN = "sessionToken";
   private static final String CREDENTIALS_FILE_PATH = "credentialsFilePath";
   public static final String CLIENT_EXECUTION_TIMEOUT = "clientExecutionTimeout";
   public static final String CONNECTION_MAX_IDLE_TIME = "connectionMaxIdleTime";
@@ -121,8 +122,17 @@ public class AwsModule extends SimpleModule {
       }
 
       if (typeName.equals(AWSStaticCredentialsProvider.class.getSimpleName())) {
-        return new AWSStaticCredentialsProvider(
-            new BasicAWSCredentials(asMap.get(AWS_ACCESS_KEY_ID), asMap.get(AWS_SECRET_KEY)));
+        boolean isSession = asMap.containsKey(SESSION_TOKEN);
+        if (isSession) {
+          return new AWSStaticCredentialsProvider(
+              new BasicSessionCredentials(
+                  asMap.get(AWS_ACCESS_KEY_ID),
+                  asMap.get(AWS_SECRET_KEY),
+                  asMap.get(SESSION_TOKEN)));
+        } else {
+          return new AWSStaticCredentialsProvider(
+              new BasicAWSCredentials(asMap.get(AWS_ACCESS_KEY_ID), asMap.get(AWS_SECRET_KEY)));
+        }
       } else if (typeName.equals(PropertiesFileCredentialsProvider.class.getSimpleName())) {
         return new PropertiesFileCredentialsProvider(asMap.get(CREDENTIALS_FILE_PATH));
       } else if (typeName.equals(
@@ -177,15 +187,20 @@ public class AwsModule extends SimpleModule {
         SerializerProvider serializers,
         TypeSerializer typeSerializer)
         throws IOException {
-      WritableTypeId typeId =
-          typeSerializer.writeTypePrefix(
-              jsonGenerator, typeSerializer.typeId(credentialsProvider, JsonToken.START_OBJECT));
-      if (credentialsProvider.getClass().equals(AWSStaticCredentialsProvider.class)) {
-        jsonGenerator.writeStringField(
-            AWS_ACCESS_KEY_ID, credentialsProvider.getCredentials().getAWSAccessKeyId());
-        jsonGenerator.writeStringField(
-            AWS_SECRET_KEY, credentialsProvider.getCredentials().getAWSSecretKey());
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
+      typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
 
+      if (credentialsProvider.getClass().equals(AWSStaticCredentialsProvider.class)) {
+        AWSCredentials credentials = credentialsProvider.getCredentials();
+        if (credentials.getClass().equals(BasicSessionCredentials.class)) {
+          BasicSessionCredentials sessionCredentials = (BasicSessionCredentials) credentials;
+          jsonGenerator.writeStringField(AWS_ACCESS_KEY_ID, sessionCredentials.getAWSAccessKeyId());
+          jsonGenerator.writeStringField(AWS_SECRET_KEY, sessionCredentials.getAWSSecretKey());
+          jsonGenerator.writeStringField(SESSION_TOKEN, sessionCredentials.getSessionToken());
+        } else {
+          jsonGenerator.writeStringField(AWS_ACCESS_KEY_ID, credentials.getAWSAccessKeyId());
+          jsonGenerator.writeStringField(AWS_SECRET_KEY, credentials.getAWSSecretKey());
+        }
       } else if (credentialsProvider.getClass().equals(PropertiesFileCredentialsProvider.class)) {
         try {
           PropertiesFileCredentialsProvider specificProvider =
@@ -239,7 +254,8 @@ public class AwsModule extends SimpleModule {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
       }
-      typeSerializer.writeTypeSuffix(jsonGenerator, typeId);
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
+      typeSerializer.writeTypeSuffixForObject(credentialsProvider, jsonGenerator);
     }
   }
 
@@ -300,7 +316,7 @@ public class AwsModule extends SimpleModule {
         clientConfiguration.setProxyHost((String) map.get(PROXY_HOST));
       }
       if (map.containsKey(PROXY_PORT)) {
-        clientConfiguration.setProxyPort((Integer) map.get(PROXY_PORT));
+        clientConfiguration.setProxyPort(((Number) map.get(PROXY_PORT)).intValue());
       }
       if (map.containsKey(PROXY_USERNAME)) {
         clientConfiguration.setProxyUsername((String) map.get(PROXY_USERNAME));
@@ -309,27 +325,28 @@ public class AwsModule extends SimpleModule {
         clientConfiguration.setProxyPassword((String) map.get(PROXY_PASSWORD));
       }
       if (map.containsKey(CLIENT_EXECUTION_TIMEOUT)) {
-        clientConfiguration.setClientExecutionTimeout((Integer) map.get(CLIENT_EXECUTION_TIMEOUT));
+        clientConfiguration.setClientExecutionTimeout(
+            ((Number) map.get(CLIENT_EXECUTION_TIMEOUT)).intValue());
       }
       if (map.containsKey(CONNECTION_MAX_IDLE_TIME)) {
         clientConfiguration.setConnectionMaxIdleMillis(
             ((Number) map.get(CONNECTION_MAX_IDLE_TIME)).longValue());
       }
       if (map.containsKey(CONNECTION_TIMEOUT)) {
-        clientConfiguration.setConnectionTimeout((Integer) map.get(CONNECTION_TIMEOUT));
+        clientConfiguration.setConnectionTimeout(((Number) map.get(CONNECTION_TIMEOUT)).intValue());
       }
       if (map.containsKey(CONNECTION_TIME_TO_LIVE)) {
         clientConfiguration.setConnectionTTL(
             ((Number) map.get(CONNECTION_TIME_TO_LIVE)).longValue());
       }
       if (map.containsKey(MAX_CONNECTIONS)) {
-        clientConfiguration.setMaxConnections((Integer) map.get(MAX_CONNECTIONS));
+        clientConfiguration.setMaxConnections(((Number) map.get(MAX_CONNECTIONS)).intValue());
       }
       if (map.containsKey(REQUEST_TIMEOUT)) {
-        clientConfiguration.setRequestTimeout((Integer) map.get(REQUEST_TIMEOUT));
+        clientConfiguration.setRequestTimeout(((Number) map.get(REQUEST_TIMEOUT)).intValue());
       }
       if (map.containsKey(SOCKET_TIMEOUT)) {
-        clientConfiguration.setSocketTimeout((Integer) map.get(SOCKET_TIMEOUT));
+        clientConfiguration.setSocketTimeout(((Number) map.get(SOCKET_TIMEOUT)).intValue());
       }
       return clientConfiguration;
     }

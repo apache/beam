@@ -32,9 +32,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * Test helper for {@link DoFnInvokersTest}, which needs to test package-private access to DoFns in
  * other packages.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DoFnInvokersTestHelper {
 
   private static class StaticPrivateDoFn extends DoFn<String, String> {

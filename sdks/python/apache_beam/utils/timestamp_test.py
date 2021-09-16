@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import pytz
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2

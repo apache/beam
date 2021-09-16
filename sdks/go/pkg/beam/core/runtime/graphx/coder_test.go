@@ -19,12 +19,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -98,6 +98,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 		{
 			"CoGBK<foo,bar,baz>",
 			coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
+		},
+		{
+			name: "R[graphx.registeredNamedTypeForTest]",
+			c:    coder.NewR(typex.New(reflect.TypeOf((*registeredNamedTypeForTest)(nil)).Elem())),
 		},
 		{
 			name: "R[*graphx.registeredNamedTypeForTest]",

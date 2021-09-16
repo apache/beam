@@ -44,7 +44,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:nexmark:run')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-Pnexmark.runner=":runners:spark"' +
+          switches('-Pnexmark.runner=":runners:spark:2"' +
               ' -Pnexmark.args="' +
               [
                 commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
@@ -62,7 +62,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:nexmark:run')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-Pnexmark.runner=":runners:spark"' +
+          switches('-Pnexmark.runner=":runners:spark:2"' +
               ' -Pnexmark.args="' +
               [
                 commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
@@ -81,7 +81,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:nexmark:run')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-Pnexmark.runner=":runners:spark"' +
+          switches('-Pnexmark.runner=":runners:spark:2"' +
               ' -Pnexmark.args="' +
               [
                 commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
@@ -101,7 +101,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:nexmark:run')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-Pnexmark.runner=":runners:spark"' +
+          switches('-Pnexmark.runner=":runners:spark:2"' +
               ' -Pnexmark.args="' +
               [
                 commonJobProperties.mapToArgString(nexmarkBigQueryArgs),

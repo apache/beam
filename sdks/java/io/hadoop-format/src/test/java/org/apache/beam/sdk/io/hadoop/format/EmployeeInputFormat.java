@@ -40,9 +40,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * whether the {@linkplain HadoopFormatIO } source returns immutable records in the scenario when
  * RecordReader creates new key and value objects every time it reads data.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class EmployeeInputFormat extends InputFormat<Text, Employee> {
 
   public EmployeeInputFormat() {}

@@ -69,9 +69,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests {@link HadoopFormatIO} output with batch and stream pipeline. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class HadoopFormatIOSequenceFileTest {
 
   private static final Instant START_TIME = new Instant(0);

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
@@ -25,7 +26,6 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.util.Collection;
 import java.util.Map;
@@ -317,13 +317,13 @@ public class QueryablePipelineTest {
     String impulseOutputName =
         getOnlyElement(
             PipelineNode.pTransform(
-                    "BoundedRead/Impulse", components.getTransformsOrThrow("BoundedRead/Impulse"))
+                    "BoundedRead-Impulse", components.getTransformsOrThrow("BoundedRead-Impulse"))
                 .getTransform()
                 .getOutputsMap()
                 .values());
     PTransformNode impulseProducer =
         PipelineNode.pTransform(
-            "BoundedRead/Impulse", components.getTransformsOrThrow("BoundedRead/Impulse"));
+            "BoundedRead-Impulse", components.getTransformsOrThrow("BoundedRead-Impulse"));
     PCollectionNode impulseOutput =
         PipelineNode.pCollection(
             impulseOutputName, components.getPcollectionsOrThrow(impulseOutputName));
@@ -355,7 +355,7 @@ public class QueryablePipelineTest {
 
     PTransformNode environmentalTransform =
         PipelineNode.pTransform(
-            "ParDo/ParMultiDo(Test)", components.getTransformsOrThrow("ParDo/ParMultiDo(Test)"));
+            "ParDo-ParMultiDo-Test-", components.getTransformsOrThrow("ParDo-ParMultiDo-Test-"));
     PTransformNode nonEnvironmentalTransform =
         PipelineNode.pTransform("groupByKey", components.getTransformsOrThrow("groupByKey"));
 

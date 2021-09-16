@@ -22,9 +22,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 
 /** No-op {@link OnceTrigger} implementation for testing. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 abstract class StubTrigger extends Trigger.OnceTrigger {
   /**
    * Create a stub {@link Trigger} instance which returns the specified name on {@link #toString()}.

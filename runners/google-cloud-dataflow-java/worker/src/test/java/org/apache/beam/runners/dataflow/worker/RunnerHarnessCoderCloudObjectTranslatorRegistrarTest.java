@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;

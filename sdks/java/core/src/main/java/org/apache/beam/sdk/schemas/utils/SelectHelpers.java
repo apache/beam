@@ -447,8 +447,15 @@ public class SelectHelpers {
       Map<String, String> fieldsSelected) {
     for (Field field : schema.getFields()) {
       nameComponents.add(field.getName());
-      if (field.getType().getTypeName().isCompositeType()) {
-        allLeafFields(field.getType().getRowSchema(), nameComponents, nameFn, fieldsSelected);
+
+      FieldType fieldType = field.getType();
+      FieldType collectionElementType = fieldType.getCollectionElementType();
+
+      if (fieldType.getTypeName().isCompositeType()) {
+        allLeafFields(fieldType.getRowSchema(), nameComponents, nameFn, fieldsSelected);
+      } else if (collectionElementType != null
+          && collectionElementType.getTypeName().isCompositeType()) {
+        allLeafFields(collectionElementType.getRowSchema(), nameComponents, nameFn, fieldsSelected);
       } else {
         String newName = nameFn.apply(nameComponents);
         fieldsSelected.put(String.join(".", nameComponents), newName);

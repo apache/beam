@@ -51,8 +51,6 @@ This setup will result in a table of 1MB size.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 
 from apache_beam import Map

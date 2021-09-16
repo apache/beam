@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import json
 import logging
-from builtins import list
-from builtins import object
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -414,19 +410,48 @@ class StandardOptions(PipelineOptions):
 
   DEFAULT_RUNNER = 'DirectRunner'
 
+  ALL_KNOWN_RUNNERS = (
+      'apache_beam.runners.dataflow.dataflow_runner.DataflowRunner',
+      'apache_beam.runners.direct.direct_runner.BundleBasedDirectRunner',
+      'apache_beam.runners.direct.direct_runner.DirectRunner',
+      'apache_beam.runners.direct.direct_runner.SwitchingDirectRunner',
+      'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
+      'apache_beam.runners.portability.flink_runner.FlinkRunner',
+      'apache_beam.runners.portability.portable_runner.PortableRunner',
+      'apache_beam.runners.portability.spark_runner.SparkRunner',
+      'apache_beam.runners.test.TestDirectRunner',
+      'apache_beam.runners.test.TestDataflowRunner',
+  )
+
+  KNOWN_RUNNER_NAMES = [path.split('.')[-1] for path in ALL_KNOWN_RUNNERS]
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--runner',
         help=(
             'Pipeline runner used to execute the workflow. Valid values are '
-            'DirectRunner, DataflowRunner.'))
+            'one of %s, or the fully qualified name of a PipelineRunner '
+            'subclass. If unspecified, defaults to %s.' %
+            (', '.join(cls.KNOWN_RUNNER_NAMES), cls.DEFAULT_RUNNER)))
     # Whether to enable streaming mode.
     parser.add_argument(
         '--streaming',
         default=False,
         action='store_true',
         help='Whether to enable streaming mode.')
+
+    parser.add_argument(
+        '--resource_hint',
+        '--resource_hints',
+        dest='resource_hints',
+        action='append',
+        default=[],
+        help=(
+            'Resource hint to set in the pipeline execution environment.'
+            'Hints specified via this option override hints specified '
+            'at transform level. Interpretation of hints is defined by '
+            'Beam runners.'))
 
 
 class CrossLanguageOptions(PipelineOptions):
@@ -499,6 +524,23 @@ class TypeOptions(PipelineOptions):
         help='Enable faster type checking via sampling at pipeline execution '
         'time. NOTE: only supported with portable runners '
         '(including the DirectRunner)')
+    parser.add_argument(
+        '--allow_non_deterministic_key_coders',
+        default=False,
+        action='store_true',
+        help='Use non-deterministic coders (such as pickling) for key-grouping '
+        'operations such as GropuByKey.  This is unsafe, as runners may group '
+        'keys based on their encoded bytes, but is available for backwards '
+        'compatibility. See BEAM-11719.')
+    parser.add_argument(
+        '--allow_unsafe_triggers',
+        default=False,
+        action='store_true',
+        help='Allow the use of unsafe triggers. Unsafe triggers have the '
+        'potential to cause data loss due to finishing and/or never having '
+        'their condition met. Some operations, such as GroupByKey, disallow '
+        'this. This exists for cases where such loss is acceptable and for '
+        'backwards compatibility. See BEAM-9487.')
 
   def validate(self, unused_validator):
     errors = []
@@ -648,10 +690,31 @@ class GoogleCloudOptions(PipelineOptions):
         help='Set a Google Cloud KMS key name to be used in '
         'Dataflow state operations (GBK, Streaming).')
     parser.add_argument(
+        '--create_from_snapshot',
+        default=None,
+        help='The snapshot from which the job should be created.')
+    parser.add_argument(
         '--flexrs_goal',
         default=None,
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
+    parser.add_argument(
+        '--dataflow_service_option',
+        '--dataflow_service_options',
+        dest='dataflow_service_options',
+        action='append',
+        default=None,
+        help=(
+            'Options to configure the Dataflow service. These '
+            'options decouple service side feature availbility '
+            'from the Apache Beam release cycle.'))
+    parser.add_argument(
+        '--enable_hot_key_logging',
+        default=False,
+        action='store_true',
+        help='When true, will enable the direct logging of any detected hot '
+        'keys into Cloud Logging. Warning: this will log the literal key as an '
+        'unobfuscated string.')
 
   def _create_default_gcs_bucket(self):
     try:
@@ -817,9 +880,20 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=(
             'Docker registry location of container image to use for the '
-            'worker harness. Default is the container for the version of the '
-            'SDK. Note: currently, only approved Google Cloud Dataflow '
-            'container images may be used here.'))
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. Note: This flag is deprecated and only supports '
+            'approved Google Cloud Dataflow container images. To provide a '
+            'custom container image, use sdk_container_image instead.'))
+    parser.add_argument(
+        '--sdk_container_image',
+        default=None,
+        help=(
+            'Docker registry location of container image to use for the '
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. If set for a non-portable pipeline, only official '
+            'Google Cloud Dataflow container images may be used here.'))
     parser.add_argument(
         '--sdk_harness_container_image_overrides',
         action='append',
@@ -857,9 +931,10 @@ class WorkerOptions(PipelineOptions):
 
   def validate(self, validator):
     errors = []
+    errors.extend(validator.validate_sdk_container_image_options(self))
+
     if validator.is_service_runner():
-      errors.extend(
-          validator.validate_optional_argument_positive(self, 'num_workers'))
+      errors.extend(validator.validate_num_workers(self))
       errors.extend(validator.validate_worker_region_zone(self))
     return errors
 
@@ -1019,7 +1094,6 @@ class SetupOptions(PipelineOptions):
             'the command line.'))
     parser.add_argument(
         '--prebuild_sdk_container_engine',
-        choices=['local_docker', 'cloud_build'],
         help=(
             'Prebuild sdk worker container image before job submission. If '
             'enabled, SDK invokes the boot sequence in SDK worker '
@@ -1028,7 +1102,9 @@ class SetupOptions(PipelineOptions):
             'environment. This may speed up pipeline execution. To enable, '
             'select the Docker build engine: local_docker using '
             'locally-installed Docker or cloud_build for using Google Cloud '
-            'Build (requires a GCP project with Cloud Build API enabled).'))
+            'Build (requires a GCP project with Cloud Build API enabled). You '
+            'can also subclass SdkContainerImageBuilder and use that to build '
+            'in other environments.'))
     parser.add_argument(
         '--prebuild_sdk_container_base_image',
         default=None,
@@ -1164,16 +1240,19 @@ class JobServerOptions(PipelineOptions):
     parser.add_argument(
         '--job_port',
         default=0,
+        type=int,
         help='Port to use for the job service. 0 to use a '
         'dynamic port.')
     parser.add_argument(
         '--artifact_port',
         default=0,
+        type=int,
         help='Port to use for artifact staging. 0 to use a '
         'dynamic port.')
     parser.add_argument(
         '--expansion_port',
         default=0,
+        type=int,
         help='Port to use for artifact staging. 0 to use a '
         'dynamic port.')
     parser.add_argument(
@@ -1182,11 +1261,19 @@ class JobServerOptions(PipelineOptions):
         help='The Java Application Launcher executable file to use for '
         'starting a Java job server. If unset, `java` from the '
         'environment\'s $PATH is used.')
+    parser.add_argument(
+        '--job_server_jvm_properties',
+        '--job_server_jvm_property',
+        dest='job_server_jvm_properties',
+        action='append',
+        default=[],
+        help='JVM properties to pass to a Java job server.')
 
 
 class FlinkRunnerOptions(PipelineOptions):
 
-  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9', '1.10']
+  # These should stay in sync with gradle.properties.
+  PUBLISHED_FLINK_VERSIONS = ['1.10', '1.11', '1.12', '1.13']
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -1227,7 +1314,8 @@ class SparkRunnerOptions(PipelineOptions):
         'the execution.')
     parser.add_argument(
         '--spark_job_server_jar',
-        help='Path or URL to a Beam Spark jobserver jar.')
+        help='Path or URL to a Beam Spark job server jar. '
+        'Overrides --spark_version.')
     parser.add_argument(
         '--spark_submit_uber_jar',
         default=False,
@@ -1238,7 +1326,13 @@ class SparkRunnerOptions(PipelineOptions):
     parser.add_argument(
         '--spark_rest_url',
         help='URL for the Spark REST endpoint. '
-        'Only required when using spark_submit_uber_jar.')
+        'Only required when using spark_submit_uber_jar. '
+        'For example, http://hostname:6066')
+    parser.add_argument(
+        '--spark_version',
+        default='2',
+        choices=['2', '3'],
+        help='Spark major version to use.')
 
 
 class TestOptions(PipelineOptions):

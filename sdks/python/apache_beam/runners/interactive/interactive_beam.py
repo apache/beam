@@ -31,18 +31,18 @@ this module in your notebook or application code.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 from datetime import timedelta
 
 import pandas as pd
 
 import apache_beam as beam
+from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.options import interactive_options
+from apache_beam.runners.interactive.utils import deferred_df_to_pcollection
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import progress_indicated
 from apache_beam.runners.runner import PipelineState
@@ -361,12 +361,14 @@ def watch(watchable):
   ie.current_env().watch(watchable)
 
 
-# TODO(BEAM-8288): Change the signature of this function to
-# `show(*pcolls, include_window_info=False, visualize_data=False)` once Python 2
-# is completely deprecated from Beam.
 @progress_indicated
-def show(*pcolls, **configs):
-  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], **bool) -> None
+def show(
+    *pcolls,
+    include_window_info=False,
+    visualize_data=False,
+    n='inf',
+    duration='inf'):
+  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], bool, bool, Union[int, str], Union[int, str]) -> None
 
   """Shows given PCollections in an interactive exploratory way if used within
   a notebook, or prints a heading sampled data if used within an ipython shell.
@@ -434,7 +436,7 @@ def show(*pcolls, **configs):
   for pcoll_container in pcolls:
     if isinstance(pcoll_container, dict):
       flatten_pcolls.extend(pcoll_container.values())
-    elif isinstance(pcoll_container, beam.pvalue.PCollection):
+    elif isinstance(pcoll_container, (beam.pvalue.PCollection, DeferredBase)):
       flatten_pcolls.append(pcoll_container)
     else:
       try:
@@ -443,20 +445,31 @@ def show(*pcolls, **configs):
         raise ValueError(
             'The given pcoll %s is not a dict, an iterable or a PCollection.' %
             pcoll_container)
-  pcolls = flatten_pcolls
-  assert len(pcolls) > 0, (
-      'Need at least 1 PCollection to show data visualization.')
-  for pcoll in pcolls:
+
+  # Iterate through the given PCollections and convert any deferred DataFrames
+  # or Series into PCollections.
+  pcolls = []
+
+  # The element type is used to help visualize the given PCollection. For the
+  # deferred DataFrame/Series case it is the proxy of the frame.
+  element_types = {}
+  for pcoll in flatten_pcolls:
+    if isinstance(pcoll, DeferredBase):
+      pcoll, element_type = deferred_df_to_pcollection(pcoll)
+      watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
+    else:
+      element_type = pcoll.element_type
+
+    element_types[pcoll] = element_type
+
+    pcolls.append(pcoll)
     assert isinstance(pcoll, beam.pvalue.PCollection), (
         '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
-  user_pipeline = pcolls[0].pipeline
 
-  # TODO(BEAM-8288): Remove below pops and assertion once Python 2 is
-  # deprecated from Beam.
-  include_window_info = configs.pop('include_window_info', False)
-  visualize_data = configs.pop('visualize_data', False)
-  n = configs.pop('n', 'inf')
-  duration = configs.pop('duration', 'inf')
+  assert len(pcolls) > 0, (
+      'Need at least 1 PCollection to show data visualization.')
+
+  user_pipeline = pcolls[0].pipeline
 
   if isinstance(n, str):
     assert n == 'inf', (
@@ -475,12 +488,6 @@ def show(*pcolls, **configs):
   if duration == 'inf':
     duration = float('inf')
 
-  # This assertion is to protect the backward compatibility for function
-  # signature change after Python 2 deprecation.
-  assert not configs, (
-      'The only supported arguments are include_window_info, visualize_data, '
-      'n, and duration')
-
   recording_manager = ie.current_env().get_recording_manager(
       user_pipeline, create_if_absent=True)
   recording = recording_manager.record(pcolls, max_n=n, max_duration=duration)
@@ -494,10 +501,14 @@ def show(*pcolls, **configs):
         visualize(
             stream,
             include_window_info=include_window_info,
-            display_facets=visualize_data)
+            display_facets=visualize_data,
+            element_type=element_types[stream.pcoll])
     elif ie.current_env().is_in_ipython:
       for stream in recording.computed().values():
-        visualize(stream, include_window_info=include_window_info)
+        visualize(
+            stream,
+            include_window_info=include_window_info,
+            element_type=element_types[stream.pcoll])
 
     if recording.is_computed():
       return
@@ -509,7 +520,8 @@ def show(*pcolls, **configs):
             stream,
             dynamic_plotting_interval=1,
             include_window_info=include_window_info,
-            display_facets=visualize_data)
+            display_facets=visualize_data,
+            element_type=element_types[stream.pcoll])
 
     # Invoke wait_until_finish to ensure the blocking nature of this API without
     # relying on the run to be blocking.
@@ -538,6 +550,8 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
     n: (optional) max number of elements to visualize. Default 'inf'.
     duration: (optional) max duration of elements to read in integer seconds or
         a string duration. Default 'inf'.
+    include_window_info: (optional) if True, appends the windowing information
+        to each row. Default False.
 
   For example::
 
@@ -548,6 +562,15 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
     # Run the pipeline and bring the PCollection into memory as a Dataframe.
     in_memory_square = head(square, n=5)
   """
+  # Remember the element type so we can make an informed decision on how to
+  # collect the result in elements_to_df.
+  if isinstance(pcoll, DeferredBase):
+    # Get the proxy so we can get the output shape of the DataFrame.
+    pcoll, element_type = deferred_df_to_pcollection(pcoll)
+    watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
+  else:
+    element_type = pcoll.element_type
+
   assert isinstance(pcoll, beam.pvalue.PCollection), (
       '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
 
@@ -580,7 +603,15 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
     recording.cancel()
     return pd.DataFrame()
 
-  return elements_to_df(elements, include_window_info=include_window_info)
+  if n == float('inf'):
+    n = None
+
+  # Collecting DataFrames may have a length > n, so slice again to be sure. Note
+  # that array[:None] returns everything.
+  return elements_to_df(
+      elements,
+      include_window_info=include_window_info,
+      element_type=element_type)[:n]
 
 
 @progress_indicated

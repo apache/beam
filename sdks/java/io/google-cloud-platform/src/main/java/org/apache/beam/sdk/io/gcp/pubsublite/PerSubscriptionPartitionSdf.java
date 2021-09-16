@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import static com.google.cloud.pubsublite.internal.wire.ApiServiceUtils.blockingShutdown;
+
 import com.google.cloud.pubsublite.Offset;
+import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -31,29 +34,33 @@ import org.joda.time.Instant;
 
 class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedMessage> {
   private final Duration maxSleepTime;
+  private final ManagedBacklogReaderFactory backlogReaderFactory;
   private final SubscriptionPartitionProcessorFactory processorFactory;
   private final SerializableFunction<SubscriptionPartition, InitialOffsetReader>
       offsetReaderFactory;
-  private final SerializableBiFunction<
-          SubscriptionPartition, OffsetRange, RestrictionTracker<OffsetRange, OffsetByteProgress>>
+  private final SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
       trackerFactory;
   private final SerializableFunction<SubscriptionPartition, Committer> committerFactory;
 
   PerSubscriptionPartitionSdf(
       Duration maxSleepTime,
+      ManagedBacklogReaderFactory backlogReaderFactory,
       SerializableFunction<SubscriptionPartition, InitialOffsetReader> offsetReaderFactory,
-      SerializableBiFunction<
-              SubscriptionPartition,
-              OffsetRange,
-              RestrictionTracker<OffsetRange, OffsetByteProgress>>
+      SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
           trackerFactory,
       SubscriptionPartitionProcessorFactory processorFactory,
       SerializableFunction<SubscriptionPartition, Committer> committerFactory) {
     this.maxSleepTime = maxSleepTime;
+    this.backlogReaderFactory = backlogReaderFactory;
     this.processorFactory = processorFactory;
     this.offsetReaderFactory = offsetReaderFactory;
     this.trackerFactory = trackerFactory;
     this.committerFactory = committerFactory;
+  }
+
+  @Teardown
+  public void teardown() {
+    backlogReaderFactory.close();
   }
 
   @GetInitialWatermarkEstimatorState
@@ -68,10 +75,9 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
 
   @ProcessElement
   public ProcessContinuation processElement(
-      RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
+      RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker,
       @Element SubscriptionPartition subscriptionPartition,
-      OutputReceiver<SequencedMessage> receiver,
-      BundleFinalizer finalizer)
+      OutputReceiver<SequencedMessage> receiver)
       throws Exception {
     try (SubscriptionPartitionProcessor processor =
         processorFactory.newProcessor(subscriptionPartition, tracker, receiver)) {
@@ -80,31 +86,44 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
       processor
           .lastClaimed()
           .ifPresent(
-              lastClaimedOffset ->
-                  finalizer.afterBundleCommit(
-                      Instant.ofEpochMilli(Long.MAX_VALUE),
-                      () -> {
-                        Committer committer = committerFactory.apply(subscriptionPartition);
-                        committer.startAsync().awaitRunning();
-                        // Commit the next-to-deliver offset.
-                        committer.commitOffset(Offset.of(lastClaimedOffset.value() + 1)).get();
-                        committer.stopAsync().awaitTerminated();
-                      }));
+              lastClaimedOffset -> {
+                Committer committer = committerFactory.apply(subscriptionPartition);
+                committer.startAsync().awaitRunning();
+                // Commit the next-to-deliver offset.
+                try {
+                  committer.commitOffset(Offset.of(lastClaimedOffset.value() + 1)).get();
+                } catch (Exception e) {
+                  throw ExtractStatus.toCanonical(e).underlying;
+                }
+                blockingShutdown(committer);
+              });
       return result;
     }
   }
 
   @GetInitialRestriction
-  public OffsetRange getInitialRestriction(@Element SubscriptionPartition subscriptionPartition) {
+  public OffsetByteRange getInitialRestriction(
+      @Element SubscriptionPartition subscriptionPartition) {
     try (InitialOffsetReader reader = offsetReaderFactory.apply(subscriptionPartition)) {
       Offset offset = reader.read();
-      return new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */);
+      return OffsetByteRange.of(
+          new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */));
     }
   }
 
   @NewTracker
-  public RestrictionTracker<OffsetRange, OffsetByteProgress> newTracker(
-      @Element SubscriptionPartition subscriptionPartition, @Restriction OffsetRange range) {
-    return trackerFactory.apply(subscriptionPartition, range);
+  public TrackerWithProgress newTracker(
+      @Element SubscriptionPartition subscriptionPartition, @Restriction OffsetByteRange range) {
+    return trackerFactory.apply(backlogReaderFactory.newReader(subscriptionPartition), range);
+  }
+
+  @GetSize
+  public double getSize(
+      @Element SubscriptionPartition subscriptionPartition,
+      @Restriction OffsetByteRange restriction) {
+    if (restriction.getRange().getTo() != Long.MAX_VALUE) {
+      return restriction.getByteCount();
+    }
+    return newTracker(subscriptionPartition, restriction).getProgress().getWorkRemaining();
   }
 }

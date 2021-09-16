@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util;
 
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTE;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.DATETIME;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DECIMAL;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DOUBLE;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.FLOAT;
@@ -28,13 +29,17 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.booleanValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.byteValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.dateValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.datetimeValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.decimalValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.doubleValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.floatValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.intValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.localDatetimeValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.longValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.shortValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.stringValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.timeValueExtractor;
 import static org.apache.beam.sdk.values.Row.toRow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
@@ -49,6 +54,9 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -57,12 +65,14 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.RowJsonValueExtractors.ValueExtractor;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
 
 /**
  * Jackson serializer and deserializer for {@link Row Rows}.
@@ -78,6 +88,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>{@link Schema.TypeName#DOUBLE}
  *   <li>{@link Schema.TypeName#BOOLEAN}
  *   <li>{@link Schema.TypeName#STRING}
+ *   <li>{@link Schema.TypeName#DECIMAL}
+ *   <li>{@link Schema.TypeName#DATETIME}
  * </ul>
  */
 @Experimental(Kind.SCHEMAS)
@@ -86,7 +98,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class RowJson {
   private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
-      ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL);
+      ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL, DATETIME);
+  private static final ImmutableSet<String> KNOWN_LOGICAL_TYPE_IDENTIFIERS =
+      ImmutableSet.of(
+          SqlTypes.DATE.getIdentifier(),
+          SqlTypes.TIME.getIdentifier(),
+          SqlTypes.DATETIME.getIdentifier());
 
   /**
    * Throws {@link UnsupportedRowJsonException} if {@code schema} contains an unsupported field
@@ -147,7 +164,11 @@ public class RowJson {
     }
 
     if (fieldTypeName.isLogicalType()) {
-      return findUnsupportedFields(fieldType.getLogicalType().getBaseType(), fieldName);
+      if (KNOWN_LOGICAL_TYPE_IDENTIFIERS.contains(fieldType.getLogicalType().getIdentifier())) {
+        return ImmutableList.of();
+      } else {
+        return findUnsupportedFields(fieldType.getLogicalType().getBaseType(), fieldName);
+      }
     }
 
     if (!SUPPORTED_TYPES.contains(fieldTypeName)) {
@@ -206,6 +227,7 @@ public class RowJson {
             .put(BOOLEAN, booleanValueExtractor())
             .put(STRING, stringValueExtractor())
             .put(DECIMAL, decimalValueExtractor())
+            .put(DATETIME, datetimeValueExtractor())
             .build();
 
     private final Schema schema;
@@ -285,11 +307,20 @@ public class RowJson {
       }
 
       if (fieldValue.typeName().isLogicalType()) {
-        return extractJsonNodeValue(
-            FieldValue.of(
-                fieldValue.name(),
-                fieldValue.type().getLogicalType().getBaseType(),
-                fieldValue.jsonValue()));
+        String identifier = fieldValue.type().getLogicalType().getIdentifier();
+        if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+          return dateValueExtractor().extractValue(fieldValue.jsonValue());
+        } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
+          return timeValueExtractor().extractValue(fieldValue.jsonValue());
+        } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+          return localDatetimeValueExtractor().extractValue(fieldValue.jsonValue());
+        } else {
+          return extractJsonNodeValue(
+              FieldValue.of(
+                  fieldValue.name(),
+                  fieldValue.type().getLogicalType().getBaseType(),
+                  fieldValue.jsonValue()));
+        }
       }
 
       return extractJsonPrimitiveValue(fieldValue);
@@ -495,6 +526,9 @@ public class RowJson {
         case DECIMAL:
           gen.writeNumber((BigDecimal) value);
           break;
+        case DATETIME:
+          gen.writeString(((DateTime) value).toString()); // ISO 8601 format
+          break;
         case ARRAY:
         case ITERABLE:
           gen.writeStartArray();
@@ -507,7 +541,16 @@ public class RowJson {
           writeRow((Row) value, type.getRowSchema(), gen);
           break;
         case LOGICAL_TYPE:
-          writeValue(gen, type.getLogicalType().getBaseType(), value);
+          String identifier = type.getLogicalType().getIdentifier();
+          if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+            gen.writeString(((LocalDate) value).toString()); // ISO 8601 format
+          } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
+            gen.writeString(((LocalTime) value).toString()); // ISO 8601 format
+          } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+            gen.writeString(((LocalDateTime) value).toString()); // ISO 8601 format
+          } else {
+            writeValue(gen, type.getLogicalType().getBaseType(), value);
+          }
           break;
         default:
           throw new IllegalArgumentException("Unsupported field type: " + type);

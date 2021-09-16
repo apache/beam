@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 )
 
 // Kind is the semantic type of a window fn.
@@ -29,7 +29,7 @@ const (
 	GlobalWindows  Kind = "GLO"
 	FixedWindows   Kind = "FIX"
 	SlidingWindows Kind = "SLI"
-	Sessions       Kind = "SES" // TODO
+	Sessions       Kind = "SES"
 )
 
 // NewGlobalWindows returns the default WindowFn, which places all elements

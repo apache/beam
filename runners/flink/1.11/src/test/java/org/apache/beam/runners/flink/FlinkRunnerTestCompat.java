@@ -27,9 +27,6 @@ import org.apache.flink.configuration.Configuration;
  * Compatibility layer for {@link PackagedProgram} and {@link OptimizerPlanEnvironment} breaking
  * changes.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public abstract class FlinkRunnerTestCompat {
   public PackagedProgram getPackagedProgram() throws ProgramInvocationException {
     return PackagedProgram.newBuilder().setEntryPointClassName(getClass().getName()).build();

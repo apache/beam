@@ -49,7 +49,7 @@ public class OffsetByteRangeTrackerTest {
   private static final double IGNORED_FRACTION = -10000000.0;
   private static final long MIN_BYTES = 1000;
   private static final OffsetRange RANGE = new OffsetRange(123L, Long.MAX_VALUE);
-  private final TopicBacklogReader reader = mock(TopicBacklogReader.class);
+  private final TopicBacklogReader unownedBacklogReader = mock(TopicBacklogReader.class);
 
   @Spy Ticker ticker;
   private OffsetByteRangeTracker tracker;
@@ -60,14 +60,18 @@ public class OffsetByteRangeTrackerTest {
     when(ticker.read()).thenReturn(0L);
     tracker =
         new OffsetByteRangeTracker(
-            RANGE, reader, Stopwatch.createUnstarted(ticker), Duration.millis(500), MIN_BYTES);
+            OffsetByteRange.of(RANGE, 0),
+            unownedBacklogReader,
+            Stopwatch.createUnstarted(ticker),
+            Duration.millis(500),
+            MIN_BYTES);
   }
 
   @Test
   public void progressTracked() {
     assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(123), 10)));
     assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(124), 11)));
-    when(reader.computeMessageStats(Offset.of(125)))
+    when(unownedBacklogReader.computeMessageStats(Offset.of(125)))
         .thenReturn(ComputeMessageStatsResponse.newBuilder().setMessageBytes(1000).build());
     Progress progress = tracker.getProgress();
     assertEquals(21, progress.getWorkCompleted(), .0001);
@@ -76,7 +80,7 @@ public class OffsetByteRangeTrackerTest {
 
   @Test
   public void getProgressStatsFailure() {
-    when(reader.computeMessageStats(Offset.of(123)))
+    when(unownedBacklogReader.computeMessageStats(Offset.of(123)))
         .thenThrow(new CheckedApiException(Code.INTERNAL).underlying);
     assertThrows(ApiException.class, tracker::getProgress);
   }
@@ -86,11 +90,15 @@ public class OffsetByteRangeTrackerTest {
   public void claimSplitSuccess() {
     assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES)));
     assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(10_000), MIN_BYTES)));
-    SplitResult<OffsetRange> splits = tracker.trySplit(IGNORED_FRACTION);
-    assertEquals(RANGE.getFrom(), splits.getPrimary().getFrom());
-    assertEquals(10_001, splits.getPrimary().getTo());
-    assertEquals(10_001, splits.getResidual().getFrom());
-    assertEquals(Long.MAX_VALUE, splits.getResidual().getTo());
+    SplitResult<OffsetByteRange> splits = tracker.trySplit(IGNORED_FRACTION);
+    OffsetByteRange primary = splits.getPrimary();
+    assertEquals(RANGE.getFrom(), primary.getRange().getFrom());
+    assertEquals(10_001, primary.getRange().getTo());
+    assertEquals(MIN_BYTES * 2, primary.getByteCount());
+    OffsetByteRange residual = splits.getResidual();
+    assertEquals(10_001, residual.getRange().getFrom());
+    assertEquals(Long.MAX_VALUE, residual.getRange().getTo());
+    assertEquals(0, residual.getByteCount());
     assertEquals(splits.getPrimary(), tracker.currentRestriction());
     tracker.checkDone();
     assertNull(tracker.trySplit(IGNORED_FRACTION));
@@ -100,10 +108,10 @@ public class OffsetByteRangeTrackerTest {
   @SuppressWarnings({"dereference.of.nullable", "argument.type.incompatible"})
   public void splitWithoutClaimEmpty() {
     when(ticker.read()).thenReturn(100000000000000L);
-    SplitResult<OffsetRange> splits = tracker.trySplit(IGNORED_FRACTION);
-    assertEquals(RANGE.getFrom(), splits.getPrimary().getFrom());
-    assertEquals(RANGE.getFrom(), splits.getPrimary().getTo());
-    assertEquals(RANGE, splits.getResidual());
+    SplitResult<OffsetByteRange> splits = tracker.trySplit(IGNORED_FRACTION);
+    assertEquals(RANGE.getFrom(), splits.getPrimary().getRange().getFrom());
+    assertEquals(RANGE.getFrom(), splits.getPrimary().getRange().getTo());
+    assertEquals(RANGE, splits.getResidual().getRange());
     assertEquals(splits.getPrimary(), tracker.currentRestriction());
     tracker.checkDone();
     assertNull(tracker.trySplit(IGNORED_FRACTION));

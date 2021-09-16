@@ -18,12 +18,12 @@
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;

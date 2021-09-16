@@ -42,9 +42,6 @@ import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
 
 /** */
 @RunWith(MockitoJUnitRunner.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ShardCheckpointTest {
 
   private static final String AT_SEQUENCE_SHARD_IT = "AT_SEQUENCE_SHARD_IT";

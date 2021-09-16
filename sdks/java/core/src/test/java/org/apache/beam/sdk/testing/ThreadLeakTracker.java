@@ -32,9 +32,6 @@ import org.junit.runners.model.Statement;
  * Tracks the threads created during a test method execution (or class using @ClassRule) and fails
  * if some still exists after the test method execution.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ThreadLeakTracker implements TestRule {
   private final Field groupField;
 

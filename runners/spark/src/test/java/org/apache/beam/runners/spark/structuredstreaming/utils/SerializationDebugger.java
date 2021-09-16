@@ -27,9 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** A {@code SerializationDebugger} for Spark Runner. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SerializationDebugger {
 
   public static void testSerialization(Object object, File to) throws IOException {

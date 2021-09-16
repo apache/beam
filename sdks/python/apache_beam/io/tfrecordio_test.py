@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import binascii
 import glob
 import gzip
@@ -28,14 +26,10 @@ import os
 import pickle
 import random
 import re
-import sys
 import unittest
 import zlib
-from builtins import range
 
 import crcmod
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 
 import apache_beam as beam
 from apache_beam import Create
@@ -105,12 +99,8 @@ class TestTFRecordUtil(unittest.TestCase):
 
   def _increment_value_at_index(self, value, index):
     l = list(value)
-    if sys.version_info[0] <= 2:
-      l[index] = bytes(ord(l[index]) + 1)
-      return b"".join(l)
-    else:
-      l[index] = l[index] + 1
-      return bytes(l)
+    l[index] = l[index] + 1
+    return bytes(l)
 
   def _test_error(self, record, error_text):
     with self.assertRaisesRegex(ValueError, re.escape(error_text)):
@@ -371,6 +361,28 @@ class TestReadAllFromTFRecord(unittest.TestCase):
                 coder=coders.BytesCoder(),
                 compression_type=CompressionTypes.AUTO))
         assert_that(result, equal_to([b'foo', b'bar']))
+
+  def test_process_with_filename(self):
+    with TempDir() as temp_dir:
+      num_files = 3
+      files = []
+      for i in range(num_files):
+        path = temp_dir.create_temp_file('result%s' % i)
+        _write_file(path, FOO_BAR_RECORD_BASE64)
+        files.append(path)
+      content = [b'foo', b'bar']
+      expected = [(file, line) for file in files for line in content]
+      pattern = temp_dir.get_path() + os.path.sep + '*'
+
+      with TestPipeline() as p:
+        result = (
+            p
+            | Create([pattern])
+            | ReadAllFromTFRecord(
+                coder=coders.BytesCoder(),
+                compression_type=CompressionTypes.AUTO,
+                with_filename=True))
+        assert_that(result, equal_to(expected))
 
   def test_process_glob(self):
     with TempDir() as temp_dir:

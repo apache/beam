@@ -33,9 +33,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** TestInput. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class TestInput {
 
   public static final TestBoundedTable BASIC_TABLE_ONE =
@@ -255,8 +252,12 @@ class TestInput {
                   .addValue(Row.withSchema(STRUCT_OF_ARRAY).addArray("2", "3").build())
                   .build());
 
-  private static final Schema STRUCT_OF_STRUCT =
+  public static final Schema STRUCT_OF_STRUCT =
       Schema.builder().addRowField("row", STRUCT_SCHEMA).build();
+  public static final TestBoundedTable TABLE_WITH_STRUCT_OF_STRUCT =
+      TestBoundedTable.of(STRUCT_OF_STRUCT)
+          .addRows(Row.withSchema(STRUCT_SCHEMA).attachValues(1L, "1"))
+          .addRows(Row.withSchema(STRUCT_SCHEMA).attachValues(2L, "2"));
   public static final TestBoundedTable TABLE_WITH_ARRAY_OF_STRUCT_OF_STRUCT =
       TestBoundedTable.of(
               Schema.builder().addArrayField("array_col", FieldType.row(STRUCT_OF_STRUCT)).build())
@@ -289,6 +290,19 @@ class TestInput {
                       Row.withSchema(STRUCT_SCHEMA).addValues(2L, "2").build(),
                       Row.withSchema(STRUCT_SCHEMA).addValues(3L, "3").build())
                   .build());
+
+  public static final TestBoundedTable TABLE_WITH_ARRAY_OF_STRUCT_OF_ARRAY =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addInt64Field("int_col")
+                  .addArrayField("array_col", FieldType.row(STRUCT_OF_ARRAY))
+                  .build())
+          .addRows(10L, ImmutableList.of(Row.withSchema(STRUCT_OF_ARRAY).addArray("a").build()))
+          .addRows(
+              20L,
+              Arrays.asList(
+                  Row.withSchema(STRUCT_OF_ARRAY).addArray("b").build(),
+                  Row.withSchema(STRUCT_OF_ARRAY).addArray("c", "d").build()));
 
   public static final TestBoundedTable TABLE_FOR_CASE_WHEN =
       TestBoundedTable.of(

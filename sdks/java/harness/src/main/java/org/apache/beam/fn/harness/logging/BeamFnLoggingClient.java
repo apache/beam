@@ -19,17 +19,18 @@ package org.apache.beam.fn.harness.logging;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -42,17 +43,22 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import org.apache.beam.fn.harness.TransformProcessingThreadTracker;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientCallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -177,8 +183,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
   }
 
   private class LogRecordHandler extends Handler implements Runnable {
-    private final BlockingDeque<BeamFnApi.LogEntry> bufferedLogEntries =
-        new LinkedBlockingDeque<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
+    private final BlockingQueue<LogEntry> bufferedLogEntries =
+        new ArrayBlockingQueue<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
     private @Nullable Future<?> bufferedLogWriter = null;
     /**
      * Safe object publishing is not required since we only care if the thread that set this field
@@ -207,6 +213,11 @@ public class BeamFnLoggingClient implements AutoCloseable {
                       .setSeconds(record.getMillis() / 1000)
                       .setNanos((int) (record.getMillis() % 1000) * 1_000_000));
 
+      String instructionId = BeamFnLoggingMDC.getInstructionId();
+      if (instructionId != null) {
+        builder.setInstructionId(instructionId);
+      }
+
       Throwable thrown = record.getThrown();
       if (thrown != null) {
         builder.setTrace(getStackTraceAsString(thrown));
@@ -215,6 +226,16 @@ public class BeamFnLoggingClient implements AutoCloseable {
       String loggerName = record.getLoggerName();
       if (loggerName != null) {
         builder.setLogLocation(loggerName);
+      }
+      ExecutionState state = ExecutionStateTracker.getCurrentExecutionState(record.getThreadID());
+      if (state instanceof SimpleExecutionState) {
+        String transformId =
+            ((SimpleExecutionState) state)
+                .getLabels()
+                .get(MonitoringInfoConstants.Labels.PTRANSFORM);
+        if (transformId != null) {
+          builder.setTransformId(transformId);
+        }
       }
 
       String transformId =
@@ -236,8 +257,13 @@ public class BeamFnLoggingClient implements AutoCloseable {
         }
       } else {
         // Never blocks caller, will drop log message if buffer is full.
-        bufferedLogEntries.offer(builder.build());
+        dropIfBufferFull(builder.build());
       }
+    }
+
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
+    private void dropIfBufferFull(BeamFnApi.LogEntry logEntry) {
+      bufferedLogEntries.offer(logEntry);
     }
 
     @Override

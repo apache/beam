@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -35,7 +36,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** {@link CoderTranslator} implementations for known coder types. */
@@ -185,6 +186,20 @@ class CoderTranslators {
       @Override
       public ShardedKey.Coder<?> fromComponents(List<Coder<?>> components) {
         return ShardedKey.Coder.of(components.get(0));
+      }
+    };
+  }
+
+  static CoderTranslator<TimestampPrefixingWindowCoder<?>> timestampPrefixingWindow() {
+    return new SimpleStructuredCoderTranslator<TimestampPrefixingWindowCoder<?>>() {
+      @Override
+      protected TimestampPrefixingWindowCoder<?> fromComponents(List<Coder<?>> components) {
+        return TimestampPrefixingWindowCoder.of((Coder<? extends BoundedWindow>) components.get(0));
+      }
+
+      @Override
+      public List<? extends Coder<?>> getComponents(TimestampPrefixingWindowCoder<?> from) {
+        return from.getComponents();
       }
     };
   }

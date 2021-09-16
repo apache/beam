@@ -33,7 +33,7 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Duration;
@@ -42,9 +42,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Tests for {@link JobInvocation}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JobInvocationTest {
 
   private static ExecutorService executorService;

@@ -27,11 +27,11 @@ import java.util.Map;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsContainerStepMapAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.MultiOuputCoder;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.MultiOutputCoder;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -68,7 +68,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
   @Override
   public void translateTransform(
-      PTransform<PCollection<InputT>, PCollectionTuple> transform, TranslationContext context) {
+      PTransform<PCollection<InputT>, PCollectionTuple> transform, AbstractTranslationContext context) {
     String stepName = context.getCurrentTransform().getFullName();
 
     // Check for not supported advanced features
@@ -140,8 +140,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
             doFnSchemaInformation,
             sideInputMapping);
 
-    MultiOuputCoder multipleOutputCoder =
-        MultiOuputCoder.of(SerializableCoder.of(TupleTag.class), outputCoderMap, windowCoder);
+    MultiOutputCoder multipleOutputCoder =
+        MultiOutputCoder.of(SerializableCoder.of(TupleTag.class), outputCoderMap, windowCoder);
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs =
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.fromBeamCoder(multipleOutputCoder));
     if (outputs.entrySet().size() > 1) {
@@ -163,7 +163,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
   }
 
   private static SideInputBroadcast createBroadcastSideInputs(
-      List<PCollectionView<?>> sideInputs, TranslationContext context) {
+      List<PCollectionView<?>> sideInputs, AbstractTranslationContext context) {
     JavaSparkContext jsc =
         JavaSparkContext.fromSparkContext(context.getSparkSession().sparkContext());
 
@@ -189,7 +189,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     return sideInputBroadcast;
   }
 
-  private List<PCollectionView<?>> getSideInputs(TranslationContext context) {
+  private List<PCollectionView<?>> getSideInputs(AbstractTranslationContext context) {
     List<PCollectionView<?>> sideInputs;
     try {
       sideInputs = ParDoTranslation.getSideInputs(context.getCurrentTransform());
@@ -199,7 +199,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     return sideInputs;
   }
 
-  private TupleTag<?> getTupleTag(TranslationContext context) {
+  private TupleTag<?> getTupleTag(AbstractTranslationContext context) {
     TupleTag<?> mainOutputTag;
     try {
       mainOutputTag = ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
@@ -210,7 +210,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
   }
 
   @SuppressWarnings("unchecked")
-  private DoFn<InputT, OutputT> getDoFn(TranslationContext context) {
+  private DoFn<InputT, OutputT> getDoFn(AbstractTranslationContext context) {
     DoFn<InputT, OutputT> doFn;
     try {
       doFn = (DoFn<InputT, OutputT>) ParDoTranslation.getDoFn(context.getCurrentTransform());
@@ -221,7 +221,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
   }
 
   private void pruneOutputFilteredByTag(
-      TranslationContext context,
+      AbstractTranslationContext context,
       Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs,
       Map.Entry<TupleTag<?>, PCollection<?>> output,
       Coder<? extends BoundedWindow> windowCoder) {

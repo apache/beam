@@ -41,9 +41,6 @@ import org.slf4j.LoggerFactory;
  * get the executor and use it to schedule the initial task, then use {@link runNextRunnable()} to
  * run the initial task, then use {@link runNextRunnable()} to run the second task, etc.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class StubbedExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(StubbedExecutor.class);
 

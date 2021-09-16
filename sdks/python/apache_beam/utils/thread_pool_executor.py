@@ -17,17 +17,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import sys
+import queue
 import threading
 import weakref
 from concurrent.futures import _base
-
-try:  # Python3
-  import queue
-except Exception:  # Python2
-  import Queue as queue  # type: ignore[no-redef]
 
 
 class _WorkItem(object):
@@ -43,15 +36,7 @@ class _WorkItem(object):
       try:
         self._future.set_result(self._fn(*self._fn_args, **self._fn_kwargs))
       except BaseException as exc:
-        # Even though Python 2 futures library has #set_exection(),
-        # the way it generates the traceback doesn't align with
-        # the way in which Python 3 does it so we provide alternative
-        # implementations that match our test expectations.
-        if sys.version_info.major >= 3:
-          self._future.set_exception(exc)
-        else:
-          e, tb = sys.exc_info()[1:]
-          self._future.set_exception_info(e, tb)
+        self._future.set_exception(exc)
 
 
 class _Worker(threading.Thread):

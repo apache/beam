@@ -42,9 +42,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BigtableTableTestUtils {
 
   static final String KEY1 = "key1";

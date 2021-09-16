@@ -77,12 +77,13 @@
             <th class='{{ $cap_style }} color-capability'></th>
 
             {{ range $column := $cap_data.columns }}
-                <th class='{{ $cap_style }} color-platform format-platform' style='color:#{{ index $category "color-y" }}'>{{ $column.name }}</th>
+              <th class='{{ $cap_style }} color-platform format-platform' style='color:#{{ index $category "color-y" }}'>{{ $column.name }}</th>
             {{ end }}
         </tr>
         {{ range $row := $category.rows }}
             <tr class='{{ $cap_style }}'>
-                <th class='{{ $cap_style }} color-capability format-capability' style='color:#{{ index $category "color-y" }}'>{{ $row.name }}</th>
+                <th class='{{ $cap_style }} color-capability format-capability' style='color:#{{ index $category "color-y" }}'><b>{{ $row.name }}</b>
+                    {{ if ne $cap_toggle_details 1 }}<br/><div class="capability-description">{{ $row.description }}</div>{{ end }}</th>
                 {{ range $val := $row.values }}
                     <td width='25%' class='{{ $cap_style }}' style='background-color:#{{ if eq $val.l1 "Yes" }}{{ index $category "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $category "color-p" }}{{ else }}{{ index $category "color-n" }}{{ end }};border-color:#{{ index $category "color-b" }}'>
                         {{ block "capability-matrix-row" (dict "type" $cap_view "val" $val) }}{{ end }}

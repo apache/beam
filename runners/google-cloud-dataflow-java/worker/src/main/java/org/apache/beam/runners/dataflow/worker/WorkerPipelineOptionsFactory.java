@@ -79,6 +79,9 @@ public class WorkerPipelineOptionsFactory {
     if (System.getProperties().containsKey("job_id")) {
       options.setJobId(System.getProperty("job_id"));
     }
+    if (System.getProperties().containsKey("worker_pool")) {
+      options.setWorkerPool(System.getProperty("worker_pool"));
+    }
 
     return options;
   }

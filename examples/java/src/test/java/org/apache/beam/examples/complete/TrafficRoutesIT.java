@@ -42,9 +42,6 @@ import org.slf4j.LoggerFactory;
 
 /** End-to-end tests of TrafficRoutes. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TrafficRoutesIT {
   private static final Logger LOG = LoggerFactory.getLogger(TrafficRoutesIT.class);
   private TrafficRoutesOptions options;

@@ -42,13 +42,13 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/test/integration/wordcount"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/test/integration/wordcount"
 )
 
 var (
@@ -62,6 +62,7 @@ var (
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*addTimestampFn)(nil)).Elem())
+	beam.RegisterFunction(formatFn)
 }
 
 // Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
@@ -95,7 +96,7 @@ func main() {
 	ctx := context.Background()
 
 	if *output == "" {
-		log.Exit(ctx, "No output provided")
+		log.Exit(ctx, "No --output provided")
 	}
 
 	p := beam.NewPipeline()

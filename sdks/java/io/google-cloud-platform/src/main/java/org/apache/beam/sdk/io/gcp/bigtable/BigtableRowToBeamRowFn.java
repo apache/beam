@@ -40,7 +40,7 @@ class BigtableRowToBeamRowFn extends SimpleFunction<com.google.bigtable.v2.Row, 
         .orElseThrow(() -> new RuntimeException("Couldn't retrieve the most recent cell value"));
   }
 
-  protected Object getCellValue(Cell cell, Schema.TypeName typeName) {
-    return valueParser.getCellValue(cell, typeName);
+  protected Object getCellValue(Cell cell, Schema.FieldType type) {
+    return valueParser.getCellValue(cell, type);
   }
 }

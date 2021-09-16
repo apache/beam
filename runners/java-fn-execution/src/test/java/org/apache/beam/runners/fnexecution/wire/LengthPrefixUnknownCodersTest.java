@@ -45,9 +45,6 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link LengthPrefixUnknownCoders}. */
 @RunWith(Parameterized.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class LengthPrefixUnknownCodersTest {
 
   private static class UnknownCoder extends CustomCoder<String> {

@@ -20,7 +20,7 @@
 //
 // 1. From a command line, navigate to the top-level beam/ directory and run
 // the Flink job server:
-//    ./gradlew :runners:flink:1.10:job-server:runShadow -Djob-host=localhost -Dflink-master=local
+//    ./gradlew :runners:flink:1.13:job-server:runShadow -Djob-host=localhost -Dflink-master=local
 //
 // 2. The job server is ready to receive jobs once it outputs a log like the
 // following: `JobService started on localhost:8099`. Take note of the endpoint
@@ -42,11 +42,11 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 func init() {

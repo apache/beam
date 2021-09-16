@@ -93,7 +93,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class IsmReaderTest {
   private static final long BLOOM_FILTER_SIZE_LIMIT = 10_000;

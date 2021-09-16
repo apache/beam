@@ -36,9 +36,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 /**
  * Test utilities to evaluate the {@link DisplayData} in the context of a {@link PipelineRunner}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DisplayDataEvaluator {
   private final PipelineOptions options;
 

@@ -28,7 +28,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -37,9 +37,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestTableProviderTest {
   private static final Schema BASIC_SCHEMA =
       Schema.builder().addInt32Field("id").addStringField("name").build();

@@ -23,17 +23,28 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/jsonx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/coderx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/jsonx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	protov1 "github.com/golang/protobuf/proto"
 	protov2 "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+// EnableSchemas is a temporary configuration variable
+// to use Beam Schema encoding by default instead of JSON.
+// Before it is removed, it will be set to true by default
+// and then eventually removed.
+//
+// Only users who rely on default JSON marshalling behaviour should set
+// this explicitly, and file an issue on the BEAM JIRA so the issue may
+// be resolved.
+// https://issues.apache.org/jira/projects/BEAM/issues/
+var EnableSchemas bool = true
 
 type jsonCoder interface {
 	json.Marshaler
@@ -183,6 +194,19 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			if c := coder.LookupCustomCoder(et); c != nil {
 				return coder.CoderFrom(c), nil
 			}
+
+			if EnableSchemas {
+				switch et.Kind() {
+				case reflect.Ptr:
+					if et.Elem().Kind() != reflect.Struct {
+						break
+					}
+					fallthrough
+				case reflect.Struct:
+					return &coder.Coder{Kind: coder.Row, T: t}, nil
+				}
+			}
+
 			// Interface types that implement JSON marshalling can be handled by the default coder.
 			// otherwise, inference needs to fail here.
 			if et.Kind() == reflect.Interface && !et.Implements(jsonCoderType) {

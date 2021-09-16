@@ -16,8 +16,8 @@
 package pipelinex
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
 
 func shallowClonePipeline(p *pipepb.Pipeline) *pipepb.Pipeline {
@@ -49,6 +49,7 @@ func ShallowClonePTransform(t *pipepb.PTransform) *pipepb.PTransform {
 		UniqueName:  t.UniqueName,
 		Spec:        t.Spec,
 		DisplayData: t.DisplayData,
+		Annotations: t.Annotations,
 	}
 	ret.Subtransforms, _ = reflectx.ShallowClone(t.Subtransforms).([]string)
 	ret.Inputs, _ = reflectx.ShallowClone(t.Inputs).(map[string]string)

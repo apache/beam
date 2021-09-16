@@ -20,13 +20,10 @@ Hadoop Distributed File System files."""
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import io
 import logging
 import posixpath
 import re
-from builtins import zip
 from typing import BinaryIO  # pylint: disable=unused-import
 
 import hdfs
@@ -42,7 +39,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 __all__ = ['HadoopFileSystem']
 
-_HDFS_PREFIX = 'hdfs2:/'
+_HDFS_PREFIX = 'hdfs:/'
 _URL_RE = re.compile(r'^' + _HDFS_PREFIX + r'(/.*)')
 _FULL_URL_RE = re.compile(r'^' + _HDFS_PREFIX + r'/([^/]+)(/.*)*')
 _COPY_BUFFER_SIZE = 2**16
@@ -100,7 +97,7 @@ class HdfsUploader(filesystemio.Uploader):
 class HadoopFileSystem(FileSystem):
   """``FileSystem`` implementation that supports HDFS.
 
-  URL arguments to methods expect strings starting with ``hdfs2://``.
+  URL arguments to methods expect strings starting with ``hdfs://``.
   """
   def __init__(self, pipeline_options):
     """Initializes a connection to HDFS.
@@ -138,25 +135,25 @@ class HadoopFileSystem(FileSystem):
 
   @classmethod
   def scheme(cls):
-    return 'hdfs2'
+    return 'hdfs'
 
   def _parse_url(self, url):
-    """Verifies that url begins with hdfs2:// prefix, strips it and adds a
+    """Verifies that url begins with hdfs:// prefix, strips it and adds a
     leading /.
 
     Parsing behavior is determined by HadoopFileSystemOptions.hdfs_full_urls.
 
     Args:
-      url: (str) A URL in the form hdfs2://path/...
-        or in the form hdfs2://server/path/...
+      url: (str) A URL in the form hdfs://path/...
+        or in the form hdfs://server/path/...
 
     Raises:
       ValueError if the URL doesn't match the expect format.
 
     Returns:
       (str, str) If using hdfs_full_urls, for an input of
-      'hdfs2://server/path/...' will return (server, '/path/...').
-      Otherwise, for an input of 'hdfs2://path/...', will return
+      'hdfs://server/path/...' will return (server, '/path/...').
+      Otherwise, for an input of 'hdfs://path/...', will return
       ('', '/path/...').
     """
     if not self._full_urls:
@@ -175,7 +172,7 @@ class HadoopFileSystem(FileSystem):
 
     Args:
       base_url: string path of the first component of the path.
-        Must start with hdfs2://.
+        Must start with hdfs://.
       paths: path components to be added
 
     Returns:
@@ -362,7 +359,7 @@ class HadoopFileSystem(FileSystem):
     """Checks existence of url in HDFS.
 
     Args:
-      url: String in the form hdfs2://...
+      url: String in the form hdfs://...
 
     Returns:
       True if url exists as a file or directory in HDFS.

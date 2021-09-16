@@ -44,6 +44,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -55,7 +56,6 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -81,9 +81,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 @Category(UsesSideInputs.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ViewTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
@@ -160,30 +157,30 @@ public class ViewTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testWindowedSideInputNotPresent() {
-    PCollection<KV<Integer, Integer>> input =
+    PCollection<KV<Long, Long>> input =
         pipeline.apply(
-            TestStream.create(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()))
+            TestStream.create(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
                 .advanceWatermarkTo(new Instant(0))
-                .addElements(TimestampedValue.of(KV.of(1000, 1000), new Instant(1000)))
+                .addElements(TimestampedValue.of(KV.of(1000L, 1000L), new Instant(1000L)))
                 .advanceWatermarkTo(new Instant(20000))
                 .advanceWatermarkToInfinity());
 
-    final PCollectionView<Integer> view =
+    final PCollectionView<Long> view =
         input
             .apply(Values.create())
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.standardSeconds(100))))
-            .apply("ViewCombine", Combine.globally(Sum.ofIntegers()).withoutDefaults())
+            .apply("ViewCombine", Combine.globally(Sum.ofLongs()).withoutDefaults())
             .apply("Rewindow", Window.into(FixedWindows.of(Duration.standardSeconds(10))))
-            .apply(View.<Integer>asSingleton().withDefaultValue(0));
+            .apply(View.<Long>asSingleton().withDefaultValue(0L));
 
-    PCollection<Integer> output =
+    PCollection<Long> output =
         input
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.standardSeconds(10))))
             .apply(GroupByKey.create())
             .apply(
                 "OutputSideInputs",
                 ParDo.of(
-                        new DoFn<KV<Integer, Iterable<Integer>>, Integer>() {
+                        new DoFn<KV<Long, Iterable<Long>>, Long>() {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             c.output(c.sideInput(view));
@@ -193,7 +190,7 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output)
         .inWindow(new IntervalWindow(new Instant(0), new Instant(10000)))
-        .containsInAnyOrder(0);
+        .containsInAnyOrder(0L);
 
     pipeline.run();
   }
@@ -1616,22 +1613,6 @@ public class ViewTest implements Serializable {
         .apply(view);
   }
 
-  private void testViewNonmerging(
-      Pipeline pipeline,
-      PTransform<PCollection<KV<String, Integer>>, ? extends PCollectionView<?>> view) {
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("Unable to create a side-input view from input");
-    thrown.expectCause(
-        ThrowableMessageMatcher.hasMessage(Matchers.containsString("Consumed by GroupByKey")));
-    pipeline
-        .apply(Create.of(KV.of("hello", 5)))
-        .apply(
-            Window.into(
-                new InvalidWindows<>(
-                    "Consumed by GroupByKey", FixedWindows.of(Duration.standardHours(1)))))
-        .apply(view);
-  }
-
   @Test
   public void testViewUnboundedAsSingletonDirect() {
     testViewUnbounded(pipeline, View.asSingleton());
@@ -1655,30 +1636,5 @@ public class ViewTest implements Serializable {
   @Test
   public void testViewUnboundedAsMultimapDirect() {
     testViewUnbounded(pipeline, View.asMultimap());
-  }
-
-  @Test
-  public void testViewNonmergingAsSingletonDirect() {
-    testViewNonmerging(pipeline, View.asSingleton());
-  }
-
-  @Test
-  public void testViewNonmergingAsIterableDirect() {
-    testViewNonmerging(pipeline, View.asIterable());
-  }
-
-  @Test
-  public void testViewNonmergingAsListDirect() {
-    testViewNonmerging(pipeline, View.asList());
-  }
-
-  @Test
-  public void testViewNonmergingAsMapDirect() {
-    testViewNonmerging(pipeline, View.asMap());
-  }
-
-  @Test
-  public void testViewNonmergingAsMultimapDirect() {
-    testViewNonmerging(pipeline, View.asMultimap());
   }
 }

@@ -29,9 +29,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /** Reads from a bounded source in batch execution. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ReadSourceTest extends JavaProgramTestBase {
 
   protected String resultPath;

@@ -29,9 +29,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests of Min, Max, Mean, and Sum. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SimpleStatsFnsTest {
   static final double DOUBLE_COMPARISON_ACCURACY = 1e-7;
 

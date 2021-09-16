@@ -125,22 +125,6 @@ public class RedisIO {
   /**
    * Like {@link #read()} but executes multiple instances of the Redis query substituting each
    * element of a {@link PCollection} as key pattern.
-   *
-   * @deprecated This method is not consistent with the readAll pattern of other transforms and will
-   *     be remove soon. Please update you code to use {@link #readKeyPatterns()} instead.
-   */
-  @Deprecated
-  public static ReadAll readAll() {
-    return new AutoValue_RedisIO_ReadAll.Builder()
-        .setConnectionConfiguration(RedisConnectionConfiguration.create())
-        .setBatchSize(1000)
-        .setOutputParallelization(true)
-        .build();
-  }
-
-  /**
-   * Like {@link #read()} but executes multiple instances of the Redis query substituting each
-   * element of a {@link PCollection} as key pattern.
    */
   public static ReadKeyPatterns readKeyPatterns() {
     return new AutoValue_RedisIO_ReadKeyPatterns.Builder()
@@ -250,91 +234,6 @@ public class RedisIO {
                   .withConnectionConfiguration(connectionConfiguration())
                   .withBatchSize(batchSize())
                   .withOutputParallelization(outputParallelization()));
-    }
-  }
-
-  /**
-   * Implementation of {@link #readAll()}.
-   *
-   * @deprecated This class will be removed soon. Please update you code to depend on {@link
-   *     ReadKeyPatterns} instead.
-   */
-  @Deprecated
-  @AutoValue
-  public abstract static class ReadAll
-      extends PTransform<PCollection<String>, PCollection<KV<String, String>>> {
-
-    abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
-
-    abstract int batchSize();
-
-    abstract boolean outputParallelization();
-
-    abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    abstract static class Builder {
-
-      abstract @Nullable Builder setConnectionConfiguration(
-          RedisConnectionConfiguration connection);
-
-      abstract Builder setBatchSize(int batchSize);
-
-      abstract Builder setOutputParallelization(boolean outputParallelization);
-
-      abstract ReadAll build();
-    }
-
-    public ReadAll withEndpoint(String host, int port) {
-      checkArgument(host != null, "host can not be null");
-      checkArgument(port > 0, "port can not be negative or 0");
-      return toBuilder()
-          .setConnectionConfiguration(connectionConfiguration().withHost(host).withPort(port))
-          .build();
-    }
-
-    public ReadAll withAuth(String auth) {
-      checkArgument(auth != null, "auth can not be null");
-      return toBuilder()
-          .setConnectionConfiguration(connectionConfiguration().withAuth(auth))
-          .build();
-    }
-
-    public ReadAll withTimeout(int timeout) {
-      checkArgument(timeout >= 0, "timeout can not be negative");
-      return toBuilder()
-          .setConnectionConfiguration(connectionConfiguration().withTimeout(timeout))
-          .build();
-    }
-
-    public ReadAll withConnectionConfiguration(RedisConnectionConfiguration connection) {
-      checkArgument(connection != null, "connection can not be null");
-      return toBuilder().setConnectionConfiguration(connection).build();
-    }
-
-    public ReadAll withBatchSize(int batchSize) {
-      return toBuilder().setBatchSize(batchSize).build();
-    }
-
-    /**
-     * Whether to reshuffle the resulting PCollection so results are distributed to all workers. The
-     * default is to parallelize and should only be changed if this is known to be unnecessary.
-     */
-    public ReadAll withOutputParallelization(boolean outputParallelization) {
-      return toBuilder().setOutputParallelization(outputParallelization).build();
-    }
-
-    @Override
-    public PCollection<KV<String, String>> expand(PCollection<String> input) {
-      checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
-      PCollection<KV<String, String>> output =
-          input
-              .apply(ParDo.of(new ReadFn(connectionConfiguration(), batchSize())))
-              .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
-      if (outputParallelization()) {
-        output = output.apply(new Reparallelize());
-      }
-      return output;
     }
   }
 

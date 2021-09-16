@@ -34,17 +34,17 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.SqlOperators;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnitRange;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.DateString;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimeString;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimestampString;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.TimeUnitRange;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.DateString;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.TimeString;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.TimestampString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
@@ -58,6 +58,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public final class ZetaSqlCalciteTranslationUtils {
+  // Maximum and minimum allowed values for the NUMERIC/DECIMAL data type.
+  // https://github.com/google/zetasql/blob/master/docs/data-types.md#decimal-type
+  public static final BigDecimal ZETASQL_NUMERIC_MAX_VALUE =
+      new BigDecimal("99999999999999999999999999999.999999999");
+  public static final BigDecimal ZETASQL_NUMERIC_MIN_VALUE =
+      new BigDecimal("-99999999999999999999999999999.999999999");
+  // Number of digits after the decimal point supported by the NUMERIC data type.
+  public static final int ZETASQL_NUMERIC_SCALE = 9;
 
   private ZetaSqlCalciteTranslationUtils() {}
 
@@ -290,7 +298,10 @@ public final class ZetaSqlCalciteTranslationUtils {
 
   private static RexNode arrayValueToRexNode(Value value, RexBuilder rexBuilder) {
     return rexBuilder.makeCall(
-        toCalciteArrayType(value.getType().asArray().getElementType(), false, rexBuilder),
+        toCalciteArrayType(
+            value.getType().asArray().getElementType(),
+            value.getElementList().stream().anyMatch(v -> v.isNull()),
+            rexBuilder),
         SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR,
         value.getElementList().stream()
             .map(v -> toRexNode(v, rexBuilder))

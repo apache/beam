@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // TestCombineFn3String verifies that the accumulator correctly
@@ -124,13 +124,16 @@ func load(fn *combineFn, elms ...string) accum {
 func merge(t *testing.T, fn *combineFn, as ...accum) accum {
 	t.Helper()
 	a := fn.CreateAccumulator()
+	enc := accumEnc()
+	dec := accumDec()
+
 	for i, b := range as {
-		buf, err := b.MarshalJSON()
+		buf, err := enc(b)
 		if err != nil {
 			t.Fatalf("failure marshalling accum[%d]: %v, %+v", i, err, b)
 		}
-		var c accum
-		if err := c.UnmarshalJSON(buf); err != nil {
+		c, err := dec(buf)
+		if err != nil {
 			t.Fatalf("failure unmarshalling accum[%d]: %v, %+v", i, err, b)
 		}
 		a = fn.MergeAccumulators(a, c)
@@ -139,12 +142,15 @@ func merge(t *testing.T, fn *combineFn, as ...accum) accum {
 }
 
 func outputUnmarshal(t *testing.T, fn *combineFn, a accum) []string {
-	buf, err := a.MarshalJSON()
+	enc := accumEnc()
+	dec := accumDec()
+
+	buf, err := enc(a)
 	if err != nil {
 		t.Fatalf("failure marshalling accum: %v, %+v", err, a)
 	}
-	var b accum
-	if err := b.UnmarshalJSON(buf); err != nil {
+	b, err := dec(buf)
+	if err != nil {
 		t.Fatalf("failure unmarshalling accum: %v, %+v", err, b)
 	}
 	return output(fn, b)

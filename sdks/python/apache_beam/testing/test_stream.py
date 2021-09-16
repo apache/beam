@@ -21,15 +21,10 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from abc import ABCMeta
 from abc import abstractmethod
-from builtins import object
 from enum import Enum
 from functools import total_ordering
-
-from future.utils import with_metaclass
 
 import apache_beam as beam
 from apache_beam import coders
@@ -63,7 +58,7 @@ __all__ = [
 
 
 @total_ordering
-class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class Event(metaclass=ABCMeta):  # type: ignore[misc]
   """Test stream event to be emitted during execution of a TestStream."""
   @abstractmethod
   def __eq__(self, other):
@@ -76,10 +71,6 @@ class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   @abstractmethod
   def __lt__(self, other):
     raise NotImplementedError
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   @abstractmethod
   def to_runner_api(self, element_coder):
@@ -216,15 +207,56 @@ class ProcessingTimeEvent(Event):
     return 'ProcessingTimeEvent: <{}>'.format(self.advance_by)
 
 
-class WindowedValueHolder:
+class WindowedValueHolderMeta(type):
+  """A metaclass that overrides the isinstance check for WindowedValueHolder.
+
+  Python does a quick test for exact match. If an instance is exactly of
+  type WindowedValueHolder, the overridden isinstance check is omitted.
+  The override is needed because WindowedValueHolder elements encoded then
+  decoded become Row elements.
+  """
+  def __instancecheck__(cls, other):
+    """Checks if a beam.Row typed instance is a WindowedValueHolder.
+    """
+    return (
+        isinstance(other, beam.Row) and hasattr(other, 'windowed_value') and
+        hasattr(other, 'urn') and
+        isinstance(other.windowed_value, WindowedValue) and
+        other.urn == common_urns.coders.ROW.urn)
+
+
+class WindowedValueHolder(beam.Row, metaclass=WindowedValueHolderMeta):
   """A class that holds a WindowedValue.
 
   This is a special class that can be used by the runner that implements the
   TestStream as a signal that the underlying value should be unreified to the
   specified window.
   """
+  # Register WindowedValueHolder to always use RowCoder.
+  coders.registry.register_coder(WindowedValueHolderMeta, coders.RowCoder)
+
   def __init__(self, windowed_value):
-    self.windowed_value = windowed_value
+    assert isinstance(windowed_value, WindowedValue), (
+        'WindowedValueHolder can only hold %s type. Instead, %s is given.') % (
+            WindowedValue, windowed_value)
+    super().__init__(
+        **{
+            'windowed_value': windowed_value, 'urn': common_urns.coders.ROW.urn
+        })
+
+  @classmethod
+  def from_row(cls, row):
+    """Converts a beam.Row typed instance to WindowedValueHolder.
+    """
+    if isinstance(row, WindowedValueHolder):
+      return WindowedValueHolder(row.windowed_value)
+    assert isinstance(row, beam.Row), 'The given row %s must be a %s type' % (
+        row, beam.Row)
+    assert hasattr(row, 'windowed_value'), (
+        'The given %s must have a windowed_value attribute.') % row
+    assert isinstance(row.windowed_value, WindowedValue), (
+        'The windowed_value attribute of %s must be a %s type') % (
+            row, WindowedValue)
 
 
 class TestStream(PTransform):

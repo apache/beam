@@ -28,7 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class SplitResult<RestrictionT> {
   /** Returns a {@link SplitResult} for the specified primary and residual restrictions. */
   public static <RestrictionT> SplitResult<RestrictionT> of(
-      RestrictionT primary, RestrictionT residual) {
+      @Nullable RestrictionT primary, @Nullable RestrictionT residual) {
     return new AutoValue_SplitResult(primary, residual);
   }
 

@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.batch;
 
 import java.util.Arrays;
 import java.util.Objects;
-import org.apache.beam.runners.flink.FlinkCapabilities;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.FlinkTestPipeline;
 import org.apache.beam.sdk.Pipeline;
@@ -31,12 +30,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Test;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class NonMergingGroupByKeyTest extends AbstractTestBase {
 
   private static class ReiterateDoFn<K, V> extends DoFn<KV<K, Iterable<V>>, Void> {
@@ -51,9 +46,6 @@ public class NonMergingGroupByKeyTest extends AbstractTestBase {
 
   @Test
   public void testDisabledReIterationThrowsAnException() {
-    // If output during closing is not supported, we can not chain DoFns and results
-    // are therefore materialized during output serialization.
-    Assume.assumeTrue(FlinkCapabilities.supportsOutputDuringClosing());
     final Pipeline p = FlinkTestPipeline.createForBatch();
     p.apply(Create.of(Arrays.asList(KV.of("a", 1), KV.of("b", 2), KV.of("c", 3))))
         .apply(GroupByKey.create())

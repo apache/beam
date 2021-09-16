@@ -56,9 +56,6 @@ import org.slf4j.LoggerFactory;
 
 /** Tests of {@link MqttIO}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MqttIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(MqttIOTest.class);

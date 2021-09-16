@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties
 import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
@@ -36,13 +37,13 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink_Streaming',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:flink:1.10:job-server:validatesPortableRunnerStreaming')
+          tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server:validatesPortableRunnerStreaming")
           commonJobProperties.setGradleSwitches(delegate)
         }
         // TODO(BEAM-10940): Enable this test suite once we have support.
         //gradle {
         //  rootBuildScriptDir(commonJobProperties.checkoutDir)
-        //  tasks(':runners:flink:1.10:job-server:validatesPortableRunnerStreamingCheckpoint')
+        //  tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server:validatesPortableRunnerStreamingCheckpoint")
         //  commonJobProperties.setGradleSwitches(delegate)
         //}
       }

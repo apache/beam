@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.util.HistogramData;
 
 /**
  * Holds the metrics for a single step. Each of the methods should return an implementation of the
@@ -45,4 +47,17 @@ public interface MetricsContainer extends Serializable {
    * this container.
    */
   Gauge getGauge(MetricName metricName);
+
+  /**
+   * Return the {@link Histogram} that should be used for implementing the given {@code metricName}
+   * in this container.
+   */
+  default Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
+    throw new RuntimeException("Histogram metric is not supported yet.");
+  }
+
+  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  default Iterable<MetricsApi.MonitoringInfo> getMonitoringInfos() {
+    throw new RuntimeException("getMonitoringInfos is not implemented on this MetricsContainer.");
+  }
 }

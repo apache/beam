@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -25,7 +26,6 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.File;
 import java.io.Reader;
@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
@@ -157,7 +158,12 @@ public class WriteWithShardingFactoryTest implements Serializable {
             PTransform<PCollection<Object>, WriteFilesResult<Void>>>
         originalApplication =
             AppliedPTransform.of(
-                "write", PValues.expandInput(objs), Collections.emptyMap(), original, p);
+                "write",
+                PValues.expandInput(objs),
+                Collections.emptyMap(),
+                original,
+                ResourceHints.create(),
+                p);
 
     assertThat(
         factory.getReplacementTransform(originalApplication).getTransform(),

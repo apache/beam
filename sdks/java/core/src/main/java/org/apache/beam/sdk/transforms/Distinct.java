@@ -88,7 +88,7 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   private static <T, W extends BoundedWindow> void validateWindowStrategy(
       WindowingStrategy<T, W> strategy) {
-    if (!strategy.getWindowFn().isNonMerging()
+    if (strategy.needsMerge()
         && (!strategy.getTrigger().getClass().equals(DefaultTrigger.class)
             || strategy.getAllowedLateness().isLongerThan(Duration.ZERO))) {
       throw new UnsupportedOperationException(

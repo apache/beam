@@ -36,8 +36,6 @@ FlatMap processing functions.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 import itertools
 import logging
@@ -45,9 +43,6 @@ import operator
 import os
 import sys
 import threading
-from builtins import hex
-from builtins import object
-from builtins import zip
 from functools import reduce
 from functools import wraps
 from typing import TYPE_CHECKING
@@ -55,6 +50,7 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -71,8 +67,10 @@ from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.portability import python_urns
 from apache_beam.pvalue import DoOutputsTuple
+from apache_beam.transforms import resources
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import IOTypeHints
@@ -256,7 +254,7 @@ class _FinalizeMaterialization(_PValueishTransform):
       return self.visit_nested(node)
 
 
-def get_named_nested_pvalues(pvalueish):
+def get_named_nested_pvalues(pvalueish, as_inputs=False):
   if isinstance(pvalueish, tuple):
     # Check to see if it's a named tuple.
     fields = getattr(pvalueish, '_fields', None)
@@ -265,16 +263,22 @@ def get_named_nested_pvalues(pvalueish):
     else:
       tagged_values = enumerate(pvalueish)
   elif isinstance(pvalueish, list):
+    if as_inputs:
+      # Full list treated as a list of value for eager evaluation.
+      yield None, pvalueish
+      return
     tagged_values = enumerate(pvalueish)
   elif isinstance(pvalueish, dict):
     tagged_values = pvalueish.items()
   else:
-    if isinstance(pvalueish, (pvalue.PValue, pvalue.DoOutputsTuple)):
+    if as_inputs or isinstance(pvalueish,
+                               (pvalue.PValue, pvalue.DoOutputsTuple)):
       yield None, pvalueish
     return
 
   for tag, subvalue in tagged_values:
-    for subtag, subsubvalue in get_named_nested_pvalues(subvalue):
+    for subtag, subsubvalue in get_named_nested_pvalues(
+        subvalue, as_inputs=as_inputs):
       if subtag is None:
         yield tag, subsubvalue
       else:
@@ -364,6 +368,9 @@ class PTransform(WithTypeHints, HasDisplayData):
     # type: () -> str
     return self.__class__.__name__
 
+  def annotations(self) -> Dict[str, Union[bytes, str, message.Message]]:
+    return {}
+
   def default_type_hints(self):
     fn_type_hints = IOTypeHints.from_callable(self.expand)
     if fn_type_hints is not None:
@@ -417,6 +424,35 @@ class PTransform(WithTypeHints, HasDisplayData):
     type_hint = native_type_compatibility.convert_to_beam_type(type_hint)
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
     return super(PTransform, self).with_output_types(type_hint)
+
+  def with_resource_hints(self, **kwargs):  # type: (...) -> PTransform
+    """Adds resource hints to the :class:`PTransform`.
+
+    Resource hints allow users to express constraints on the environment where
+    the transform should be executed.  Interpretation of the resource hints is
+    defined by Beam Runners. Runners may ignore the unsupported hints.
+
+    Args:
+      **kwargs: key-value pairs describing hints and their values.
+
+    Raises:
+      ValueError: if provided hints are unknown to the SDK. See
+        :mod:~apache_beam.transforms.resources` for a list of known hints.
+
+    Returns:
+      PTransform: A reference to the instance of this particular
+      :class:`PTransform` object.
+    """
+    self.get_resource_hints().update(resources.parse_resource_hints(kwargs))
+    return self
+
+  def get_resource_hints(self):
+    # type: () -> Dict[str, bytes]
+    if '_resource_hints' not in self.__dict__:
+      # PTransform subclasses don't always call super(), so prefer lazy
+      # initialization. By default, transforms don't have any resource hints.
+      self._resource_hints = {}  # type: Dict[str, bytes]
+    return self._resource_hints
 
   def type_check_inputs(self, pvalueish):
     self.type_check_inputs_or_outputs(pvalueish, 'input')
@@ -520,8 +556,13 @@ class PTransform(WithTypeHints, HasDisplayData):
     By default most transforms just return the windowing function associated
     with the input PCollection (or the first input if several).
     """
-    # TODO(robertwb): Assert all input WindowFns compatible.
-    return inputs[0].windowing
+    if inputs:
+      return inputs[0].windowing
+    else:
+      from apache_beam.transforms.core import Windowing
+      from apache_beam.transforms.window import GlobalWindows
+      # TODO(robertwb): Return something compatible with every windowing?
+      return Windowing(GlobalWindows())
 
   def __rrshift__(self, label):
     return _NamedPTransform(self, label)
@@ -535,6 +576,8 @@ class PTransform(WithTypeHints, HasDisplayData):
   def __ror__(self, left, label=None):
     """Used to apply this PTransform to non-PValues, e.g., a tuple."""
     pvalueish, pvalues = self._extract_input_pvalues(left)
+    if isinstance(pvalues, dict):
+      pvalues = tuple(pvalues.values())
     pipelines = [v.pipeline for v in pvalues if isinstance(v, pvalue.PValue)]
     if pvalues and not pipelines:
       deferred = False
@@ -556,15 +599,15 @@ class PTransform(WithTypeHints, HasDisplayData):
         for pp in pipelines:
           if p != pp:
             raise ValueError(
-                'Mixing value from different pipelines not allowed.')
+                'Mixing values in different pipelines is not allowed.'
+                '\n{%r} != {%r}' % (p, pp))
       deferred = not getattr(p.runner, 'is_eager', False)
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Create
     # pylint: enable=wrong-import-order, wrong-import-position
     replacements = {
         id(v): p | 'CreatePInput%s' % ix >> Create(v, reshuffle=False)
-        for ix,
-        v in enumerate(pvalues)
+        for (ix, v) in enumerate(pvalues)
         if not isinstance(v, pvalue.PValue) and v is not None
     }
     pvalueish = _SetInputPValues().visit(pvalueish, replacements)
@@ -594,25 +637,45 @@ class PTransform(WithTypeHints, HasDisplayData):
     if isinstance(pvalueish, pipeline.Pipeline):
       pvalueish = pvalue.PBegin(pvalueish)
 
-    def _dict_tuple_leaves(pvalueish):
-      if isinstance(pvalueish, tuple):
-        for a in pvalueish:
-          for p in _dict_tuple_leaves(a):
-            yield p
-      elif isinstance(pvalueish, dict):
-        for a in pvalueish.values():
-          for p in _dict_tuple_leaves(a):
-            yield p
-      else:
-        yield pvalueish
-
-    return pvalueish, tuple(_dict_tuple_leaves(pvalueish))
+    return pvalueish, {
+        str(tag): value
+        for (tag, value) in get_named_nested_pvalues(
+            pvalueish, as_inputs=True)
+    }
 
   def _pvaluish_from_dict(self, input_dict):
     if len(input_dict) == 1:
       return next(iter(input_dict.values()))
     else:
       return input_dict
+
+  def _named_inputs(self, main_inputs, side_inputs):
+    # type: (Mapping[str, pvalue.PValue], Sequence[Any]) -> Dict[str, pvalue.PValue]
+
+    """Returns the dictionary of named inputs (including side inputs) as they
+    should be named in the beam proto.
+    """
+    main_inputs = {
+        tag: input
+        for (tag, input) in main_inputs.items()
+        if isinstance(input, pvalue.PCollection)
+    }
+    named_side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
+                         for (ix, si) in enumerate(side_inputs)}
+    return dict(main_inputs, **named_side_inputs)
+
+  def _named_outputs(self, outputs):
+    # type: (Dict[object, pvalue.PCollection]) -> Dict[str, pvalue.PCollection]
+
+    """Returns the dictionary of named outputs as they should be named in the
+    beam proto.
+    """
+    # TODO(BEAM-1833): Push names up into the sdk construction.
+    return {
+        str(tag): output
+        for (tag, output) in outputs.items()
+        if isinstance(output, pvalue.PCollection)
+    }
 
   _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
 

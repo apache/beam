@@ -46,6 +46,8 @@ public class GcpCredentialFactory implements CredentialFactory {
           "https://www.googleapis.com/auth/devstorage.full_control",
           "https://www.googleapis.com/auth/userinfo.email",
           "https://www.googleapis.com/auth/datastore",
+          "https://www.googleapis.com/auth/bigquery",
+          "https://www.googleapis.com/auth/bigquery.insertdata",
           "https://www.googleapis.com/auth/pubsub");
 
   private static final GcpCredentialFactory INSTANCE = new GcpCredentialFactory();

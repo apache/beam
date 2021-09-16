@@ -23,6 +23,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesImpulse;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -51,6 +53,8 @@ public class PeriodicImpulseTest {
     NeedsRunner.class,
     UsesImpulse.class,
     UsesStatefulParDo.class,
+    UsesUnboundedPCollections.class,
+    UsesUnboundedSplittableParDo.class
   })
   public void testOutputsProperElements() {
     Instant instant = Instant.now();

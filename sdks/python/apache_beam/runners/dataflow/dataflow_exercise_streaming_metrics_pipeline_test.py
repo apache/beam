@@ -19,14 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
 from apache_beam.runners.dataflow import dataflow_exercise_streaming_metrics_pipeline
@@ -115,7 +113,9 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
     return dataflow_exercise_streaming_metrics_pipeline.run(argv)
 
   # Need not run streaming test in batch mode.
-  @attr('IT', 'ValidatesRunner', 'sickbay-batch')
+  @pytest.mark.it_validatesrunner
+  @pytest.mark.no_sickbay_batch
+  @pytest.mark.no_xdist
   def test_streaming_pipeline_returns_expected_user_metrics_fnapi_it(self):
     """
     Runs streaming Dataflow job and verifies that user metrics are reported

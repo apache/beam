@@ -92,7 +92,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class GroupingShuffleReaderTest {
   private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];

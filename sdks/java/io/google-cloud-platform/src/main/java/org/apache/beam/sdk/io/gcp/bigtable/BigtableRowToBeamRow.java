@@ -94,8 +94,7 @@ public class BigtableRowToBeamRow
 
       Row.FieldValueBuilder rowBuilder =
           Row.withSchema(cellSchema)
-              .withFieldValue(
-                  VALUE, getCellValue(cell, cellSchema.getField(VALUE).getType().getTypeName()));
+              .withFieldValue(VALUE, getCellValue(cell, cellSchema.getField(VALUE).getType()));
       if (cellSchema.hasField(TIMESTAMP_MICROS)) {
         rowBuilder.withFieldValue(TIMESTAMP_MICROS, cell.getTimestampMicros());
       }
@@ -115,7 +114,7 @@ public class BigtableRowToBeamRow
           Schema.FieldType collectionElementType = columnType.getCollectionElementType();
           if (collectionElementType != null) {
             return cells.stream()
-                .map(cell -> getCellValue(cell, collectionElementType.getTypeName()))
+                .map(cell -> getCellValue(cell, collectionElementType))
                 .collect(toList());
           } else {
             throw new NullPointerException("Null collectionElementType at column " + columnName);
@@ -128,7 +127,7 @@ public class BigtableRowToBeamRow
             return cellToRow(getLastCell(cells), rowSchema);
           }
         default:
-          return getCellValue(getLastCell(cells), columnType.getTypeName());
+          return getCellValue(getLastCell(cells), columnType);
       }
     }
 

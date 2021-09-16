@@ -20,9 +20,10 @@ package org.apache.beam.sdk.fn.stream;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +45,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   private final CallStreamObserver<T> outboundObserver;
   private final int maxMessagesBeforeCheck;
 
-  private int numberOfMessagesBeforeReadyCheck;
+  private AtomicInteger numMessages = new AtomicInteger();
 
   public DirectStreamObserver(Phaser phaser, CallStreamObserver<T> outboundObserver) {
     this(phaser, outboundObserver, DEFAULT_MAX_MESSAGES_BEFORE_CHECK);
@@ -59,9 +60,8 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   @Override
   public void onNext(T value) {
-    numberOfMessagesBeforeReadyCheck += 1;
-    if (numberOfMessagesBeforeReadyCheck >= maxMessagesBeforeCheck) {
-      numberOfMessagesBeforeReadyCheck = 0;
+    if (maxMessagesBeforeCheck <= 1
+        || numMessages.incrementAndGet() % maxMessagesBeforeCheck == 0) {
       int waitTime = 1;
       int totalTimeWaited = 0;
       int phase = phaser.getPhase();

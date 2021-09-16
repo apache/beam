@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import tempfile
 import unittest
@@ -76,27 +74,6 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
           saved_job_dict['environment']['sdkPipelineOptions']['options']
           ['job_name'],
           'test-job')
-
-  def test_bad_path(self):
-    dummy_sdk_file = tempfile.NamedTemporaryFile()
-    remote_runner = DataflowRunner()
-    pipeline = Pipeline(
-        remote_runner,
-        options=PipelineOptions([
-            '--dataflow_endpoint=ignored',
-            '--sdk_location=' + dummy_sdk_file.name,
-            '--job_name=test-job',
-            '--project=test-project',
-            '--staging_location=ignored',
-            '--temp_location=/dev/null',
-            '--template_location=/bad/path',
-            '--no_auth'
-        ]))
-    remote_runner.job = apiclient.Job(
-        pipeline._options, pipeline.to_runner_api())
-
-    with self.assertRaises(IOError):
-      pipeline.run().wait_until_finish()
 
 
 if __name__ == '__main__':

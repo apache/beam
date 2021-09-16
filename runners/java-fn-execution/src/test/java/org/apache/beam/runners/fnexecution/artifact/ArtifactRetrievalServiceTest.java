@@ -28,12 +28,12 @@ import java.util.Map;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -45,9 +45,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ArtifactRetrievalServiceTest {
   private static final int TEST_BUFFER_SIZE = 1 << 10;
   private GrpcFnServer<ArtifactRetrievalService> retrievalServer;

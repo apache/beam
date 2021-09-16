@@ -32,9 +32,6 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
 /** Tests for {@link LabeledMetrics}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class LabeledMetricsTest implements Serializable {
 
   @Rule public final transient ExpectedException thrown = ExpectedException.none();

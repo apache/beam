@@ -27,8 +27,6 @@ to verify the infrastructure.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 
 
@@ -40,7 +38,7 @@ class RoundTripFn(beam.DoFn):
     yield recon
 
 
-def load(events, query_args=None):
+def load(events, metadata=None, pipeline_options=None):
   return (
       events
       | 'serialization_and_deserialization' >> beam.ParDo(RoundTripFn()))

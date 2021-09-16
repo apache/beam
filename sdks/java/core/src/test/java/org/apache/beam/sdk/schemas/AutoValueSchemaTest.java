@@ -26,7 +26,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.auto.value.AutoValue;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -45,12 +45,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link AutoValueSchema}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class AutoValueSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
-  static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
+  static final byte[] BYTE_ARRAY = "bytearray".getBytes(StandardCharsets.UTF_8);
   static final StringBuilder STRING_BUILDER = new StringBuilder("stringbuilder");
 
   static final Schema SIMPLE_SCHEMA =

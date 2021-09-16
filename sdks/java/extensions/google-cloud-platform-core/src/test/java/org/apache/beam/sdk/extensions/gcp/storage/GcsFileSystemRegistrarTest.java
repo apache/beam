@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.util.ServiceLoader;

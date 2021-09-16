@@ -36,9 +36,6 @@ import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 
 /** Matchers for {@link Counter} and {@link CounterUpdate}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public final class CounterHamcrestMatchers {
   private CounterHamcrestMatchers() {}
 

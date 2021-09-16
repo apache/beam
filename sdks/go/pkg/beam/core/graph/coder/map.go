@@ -16,14 +16,16 @@
 package coder
 
 import (
+	"bytes"
 	"io"
 	"reflect"
+	"sort"
 )
 
 // TODO(lostluck): 2020.08.04 export these for use for others?
 
 // mapDecoder produces a decoder for the beam schema map encoding.
-func mapDecoder(rt reflect.Type, decodeToKey, decodeToElem func(reflect.Value, io.Reader) error) func(reflect.Value, io.Reader) error {
+func mapDecoder(rt reflect.Type, decodeToKey, decodeToElem typeDecoderFieldReflect) func(reflect.Value, io.Reader) error {
 	return func(ret reflect.Value, r io.Reader) error {
 		// (1) Read count prefixed encoded data
 		size, err := DecodeInt32(r)
@@ -32,16 +34,29 @@ func mapDecoder(rt reflect.Type, decodeToKey, decodeToElem func(reflect.Value, i
 		}
 		n := int(size)
 		ret.Set(reflect.MakeMapWithSize(rt, n))
+		rtk := rt.Key()
+		rtv := rt.Elem()
 		for i := 0; i < n; i++ {
-			rvk := reflect.New(rt.Key()).Elem()
-			if err := decodeToKey(rvk, r); err != nil {
+			rvk := reflect.New(rtk)
+			var err error
+			if decodeToKey.addr {
+				err = decodeToKey.decode(rvk, r)
+			} else {
+				err = decodeToKey.decode(rvk.Elem(), r)
+			}
+			if err != nil {
 				return err
 			}
-			rvv := reflect.New(rt.Elem()).Elem()
-			if err := decodeToElem(rvv, r); err != nil {
+			rvv := reflect.New(rtv)
+			if decodeToElem.addr {
+				err = decodeToElem.decode(rvv, r)
+			} else {
+				err = decodeToElem.decode(rvv.Elem(), r)
+			}
+			if err != nil {
 				return err
 			}
-			ret.SetMapIndex(rvk, rvv)
+			ret.SetMapIndex(rvk.Elem(), rvv.Elem())
 		}
 		return nil
 	}
@@ -58,28 +73,59 @@ func containerNilDecoder(decodeToElem func(reflect.Value, io.Reader) error) func
 		if !hasValue {
 			return nil
 		}
-		rv := reflect.New(ret.Type().Elem())
-		if err := decodeToElem(rv.Elem(), r); err != nil {
+		if err := decodeToElem(ret, r); err != nil {
 			return err
 		}
-		ret.Set(rv)
 		return nil
 	}
 }
 
 // mapEncoder reflectively encodes a map or array type using the beam map encoding.
-func mapEncoder(rt reflect.Type, encodeKey, encodeValue func(reflect.Value, io.Writer) error) func(reflect.Value, io.Writer) error {
+func mapEncoder(rt reflect.Type, encodeKey, encodeValue typeEncoderFieldReflect) func(reflect.Value, io.Writer) error {
 	return func(rv reflect.Value, w io.Writer) error {
 		size := rv.Len()
 		if err := EncodeInt32((int32)(size), w); err != nil {
 			return err
 		}
-		iter := rv.MapRange()
-		for iter.Next() {
-			if err := encodeKey(iter.Key(), w); err != nil {
+		keys := rv.MapKeys()
+		type pair struct {
+			v reflect.Value
+			b []byte
+		}
+		rtk := rv.Type().Key()
+		sorted := make([]pair, 0, size)
+		var buf bytes.Buffer // Re-use the same buffer.
+		for _, key := range keys {
+			var rvk reflect.Value
+			if encodeKey.addr {
+				rvk = reflect.New(rtk)
+				rvk.Elem().Set(key)
+			} else {
+				rvk = key
+			}
+			if err := encodeKey.encode(key, &buf); err != nil {
 				return err
 			}
-			if err := encodeValue(iter.Value(), w); err != nil {
+			p := pair{v: key, b: make([]byte, buf.Len(), buf.Len())}
+			copy(p.b, buf.Bytes())
+			sorted = append(sorted, p)
+			buf.Reset() // Reset for next iteration.
+		}
+		sort.Slice(sorted, func(i, j int) bool { return bytes.Compare(sorted[i].b, sorted[j].b) < 0 })
+		rtv := rv.Type().Elem()
+		for _, kp := range sorted {
+			if _, err := w.Write(kp.b); err != nil {
+				return err
+			}
+			val := rv.MapIndex(kp.v)
+			var rvv reflect.Value
+			if encodeValue.addr {
+				rvv = reflect.New(rtv)
+				rvv.Elem().Set(val)
+			} else {
+				rvv = val
+			}
+			if err := encodeValue.encode(rvv, w); err != nil {
 				return err
 			}
 		}
@@ -97,6 +143,6 @@ func containerNilEncoder(encodeElem func(reflect.Value, io.Writer) error) func(r
 		if err := EncodeBool(true, w); err != nil {
 			return err
 		}
-		return encodeElem(rv.Elem(), w)
+		return encodeElem(rv, w)
 	}
 }

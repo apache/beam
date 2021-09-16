@@ -19,15 +19,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples.complete.juliaset.juliaset import juliaset
 from apache_beam.io.filesystems import FileSystems
@@ -36,7 +34,7 @@ from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
-@attr('IT')
+@pytest.mark.it_postcommit
 class JuliaSetTestIT(unittest.TestCase):
   GRID_SIZE = 1000
 

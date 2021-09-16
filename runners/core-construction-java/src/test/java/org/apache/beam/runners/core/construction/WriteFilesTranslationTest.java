@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.Objects;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -35,6 +35,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
@@ -92,7 +93,12 @@ public class WriteFilesTranslationTest {
     AppliedPTransform<PCollection<String>, WriteFilesResult<Void>, WriteFiles<String, Void, String>>
         appliedPTransform =
             AppliedPTransform.of(
-                "foo", PValues.expandInput(input), PValues.expandOutput(output), writeFiles, p);
+                "foo",
+                PValues.expandInput(input),
+                PValues.expandOutput(output),
+                writeFiles,
+                ResourceHints.create(),
+                p);
 
     assertThat(
         WriteFilesTranslation.isRunnerDeterminedSharding(appliedPTransform),

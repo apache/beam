@@ -35,6 +35,8 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.concurrent.ThreadSafe;
@@ -48,7 +50,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
-import org.joda.time.Interval;
 import org.slf4j.Logger;
 
 /** A Dataflow WorkUnit client that fetches WorkItems from the Dataflow service. */
@@ -102,8 +103,14 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     // All remote sources require the "remote_source" capability. Dataflow's
     // custom sources are further tagged with the format "custom_source".
     List<String> capabilities =
-        ImmutableList.<String>of(
-            options.getWorkerId(), CAPABILITY_REMOTE_SOURCE, PropertyNames.CUSTOM_SOURCE_FORMAT);
+        new ArrayList<String>(
+            Arrays.asList(
+                options.getWorkerId(),
+                CAPABILITY_REMOTE_SOURCE,
+                PropertyNames.CUSTOM_SOURCE_FORMAT));
+    if (options.getWorkerPool() != null) {
+      capabilities.add(options.getWorkerPool());
+    }
 
     Optional<WorkItem> workItem = getWorkItemInternal(workItemTypes, capabilities);
     if (!workItem.isPresent()) {
@@ -215,14 +222,15 @@ class DataflowWorkUnitClient implements WorkUnitClient {
         && DataflowWorkerLoggingMDC.getStageName() != null) {
       DateTime startTime = stageStartTime.get();
       if (startTime != null) {
-        // This thread should have been tagged with the stage start time during getWorkItem(),
-        Interval elapsed = new Interval(startTime, endTime);
+        // elapsed time can be negative by time correction
+        long elapsed = endTime.getMillis() - startTime.getMillis();
         int numErrors = workItemStatus.getErrors() == null ? 0 : workItemStatus.getErrors().size();
+        // This thread should have been tagged with the stage start time during getWorkItem(),
         logger.info(
             "Finished processing stage {} with {} errors in {} seconds ",
             DataflowWorkerLoggingMDC.getStageName(),
             numErrors,
-            (double) elapsed.toDurationMillis() / 1000);
+            (double) elapsed / 1000);
       }
     }
     shortIdCache.shortenIdsIfAvailable(workItemStatus.getCounterUpdates());

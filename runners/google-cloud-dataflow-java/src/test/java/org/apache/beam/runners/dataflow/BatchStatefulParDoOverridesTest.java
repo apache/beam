@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -58,9 +58,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BatchStatefulParDoOverrides}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BatchStatefulParDoOverridesTest implements Serializable {
 
   @Test
@@ -73,13 +70,13 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     pipeline.apply(Create.of(KV.of(1, 2))).apply(ParDo.of(fn));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 
   @Test
   public void testFnApiSingleOutputOverrideNonCrashing() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions("--experiments=beam_fn_api");
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setRunner(DataflowRunner.class);
     Pipeline pipeline = Pipeline.create(options);
 
@@ -87,7 +84,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     pipeline.apply(Create.of(KV.of(1, 2))).apply(ParDo.of(fn));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 
@@ -106,7 +103,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
         .apply(ParDo.of(fn).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 
@@ -116,7 +113,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
           + "exposes a way to know when the replacement is not required by checking that the "
           + "preceding ParDos to a GBK are key preserving.")
   public void testFnApiMultiOutputOverrideNonCrashing() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions("--experiments=beam_fn_api");
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setRunner(DataflowRunner.class);
     Pipeline pipeline = Pipeline.create(options);
 
@@ -129,7 +126,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
         .apply(ParDo.of(fn).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 

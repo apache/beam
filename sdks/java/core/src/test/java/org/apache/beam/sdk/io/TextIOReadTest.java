@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.io.Compression.GZIP;
 import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.io.Compression.ZIP;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -35,16 +36,17 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Writer;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -66,6 +68,9 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ToString;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -95,9 +100,6 @@ import org.junit.runners.Parameterized;
 
 /** Tests for {@link TextIO.Read}. */
 @RunWith(Enclosed.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TextIOReadTest {
   private static final int LINES_NUMBER_FOR_LARGE = 1000;
   private static final List<String> EMPTY = Collections.emptyList();
@@ -852,6 +854,123 @@ public class TextIOReadTest {
 
       PAssert.that(lines).containsInAnyOrder("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
       p.run();
+    }
+  }
+
+  /** Tests for TextSource class. */
+  @RunWith(JUnit4.class)
+  public static class TextSourceTest {
+    @Rule public transient TestPipeline pipeline = TestPipeline.create();
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testRemoveUtf8BOM() throws Exception {
+      Path p1 = createTestFile("test_txt_ascii", Charset.forName("US-ASCII"), "1,p1", "2,p1");
+      Path p2 =
+          createTestFile(
+              "test_txt_utf8_no_bom",
+              Charset.forName("UTF-8"),
+              "1,p2-Japanese:テスト",
+              "2,p2-Japanese:テスト");
+      Path p3 =
+          createTestFile(
+              "test_txt_utf8_bom",
+              Charset.forName("UTF-8"),
+              "\uFEFF1,p3-テストBOM",
+              "\uFEFF2,p3-テストBOM");
+      PCollection<String> contents =
+          pipeline
+              .apply("Create", Create.of(p1.toString(), p2.toString(), p3.toString()))
+              .setCoder(StringUtf8Coder.of())
+              // PCollection<String>
+              .apply("Read file", new TextIOReadTest.TextSourceTest.TextFileReadTransform());
+      // PCollection<KV<String, String>>: tableName, line
+
+      // Validate that the BOM bytes (\uFEFF) at the beginning of the first line have been removed.
+      PAssert.that(contents)
+          .containsInAnyOrder(
+              "1,p1",
+              "2,p1",
+              "1,p2-Japanese:テスト",
+              "2,p2-Japanese:テスト",
+              "1,p3-テストBOM",
+              "\uFEFF2,p3-テストBOM");
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testPreserveNonBOMBytes() throws Exception {
+      // Contains \uFEFE, not UTF BOM.
+      Path p1 =
+          createTestFile(
+              "test_txt_utf_bom", Charset.forName("UTF-8"), "\uFEFE1,p1テスト", "\uFEFE2,p1テスト");
+      PCollection<String> contents =
+          pipeline
+              .apply("Create", Create.of(p1.toString()))
+              .setCoder(StringUtf8Coder.of())
+              // PCollection<String>
+              .apply("Read file", new TextIOReadTest.TextSourceTest.TextFileReadTransform());
+
+      PAssert.that(contents).containsInAnyOrder("\uFEFE1,p1テスト", "\uFEFE2,p1テスト");
+
+      pipeline.run();
+    }
+
+    private static class FileReadDoFn extends DoFn<FileIO.ReadableFile, String> {
+
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        FileIO.ReadableFile file = c.element();
+        ValueProvider<String> filenameProvider =
+            ValueProvider.StaticValueProvider.of(file.getMetadata().resourceId().getFilename());
+        // Create a TextSource, passing null as the delimiter to use the default
+        // delimiters ('\n', '\r', or '\r\n').
+        TextSource textSource = new TextSource(filenameProvider, null, null);
+        try {
+          BoundedSource.BoundedReader<String> reader =
+              textSource
+                  .createForSubrangeOfFile(file.getMetadata(), 0, file.getMetadata().sizeBytes())
+                  .createReader(c.getPipelineOptions());
+          for (boolean more = reader.start(); more; more = reader.advance()) {
+            c.output(reader.getCurrent());
+          }
+        } catch (IOException e) {
+          throw new RuntimeException(
+              "Unable to readFile: " + file.getMetadata().resourceId().toString());
+        }
+      }
+    }
+
+    /** A transform that reads CSV file records. */
+    private static class TextFileReadTransform
+        extends PTransform<PCollection<String>, PCollection<String>> {
+      public TextFileReadTransform() {}
+
+      @Override
+      public PCollection<String> expand(PCollection<String> files) {
+        return files
+            // PCollection<String>
+            .apply(FileIO.matchAll().withEmptyMatchTreatment(EmptyMatchTreatment.DISALLOW))
+            // PCollection<Match.Metadata>
+            .apply(FileIO.readMatches())
+            // PCollection<FileIO.ReadableFile>
+            .apply("Read lines", ParDo.of(new TextIOReadTest.TextSourceTest.FileReadDoFn()));
+        // PCollection<String>: line
+      }
+    }
+
+    private Path createTestFile(String filename, Charset charset, String... lines)
+        throws IOException {
+      Path path = Files.createTempFile(filename, ".csv");
+      try (BufferedWriter writer = Files.newBufferedWriter(path, charset)) {
+        for (String line : lines) {
+          writer.write(line);
+          writer.write('\n');
+        }
+      }
+      return path;
     }
   }
 }

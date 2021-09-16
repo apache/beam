@@ -21,28 +21,28 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.getParsePayloadFn;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.VARCHAR;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.ATTRIBUTE_ARRAY_ENTRY_SCHEMA;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.size;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.PayloadFormat;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.SerializerProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.DateTime;
@@ -52,10 +52,9 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Unit tests for {@link PubsubMessageToRow}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PubsubMessageToRowTest implements Serializable {
+  private static final SerializerProvider JSON_SERIALIZER_PROVIDER =
+      schema -> PayloadSerializers.getSerializer("json", schema, ImmutableMap.of());
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -70,7 +69,7 @@ public class PubsubMessageToRowTest implements Serializable {
     Schema messageSchema =
         Schema.builder()
             .addDateTimeField("event_timestamp")
-            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addMapField("attributes", FieldType.STRING, FieldType.STRING)
             .addRowField("payload", payloadSchema)
             .build();
 
@@ -90,6 +89,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(false)
                     .useFlatSchema(false)
+                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PAssert.that(rows.get(MAIN_TAG))
@@ -114,13 +114,57 @@ public class PubsubMessageToRowTest implements Serializable {
   }
 
   @Test
+  public void testConvertsMessagesBytesPayloadArrayAttributes() {
+    Schema messageSchema =
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addArrayField("attributes", FieldType.row(ATTRIBUTE_ARRAY_ENTRY_SCHEMA))
+            .addByteArrayField("payload")
+            .build();
+
+    PCollectionTuple rows =
+        pipeline
+            .apply(
+                "create",
+                Create.timestamped(
+                    message(1, map("attr", "val"), "foo"),
+                    message(2, map("bttr", "vbl"), "baz"),
+                    message(3, map("cttr", "vcl"), "bar"),
+                    message(4, map("dttr", "vdl"), "qaz")))
+            .apply(
+                "convert",
+                PubsubMessageToRow.builder()
+                    .messageSchema(messageSchema)
+                    .useDlq(false)
+                    .useFlatSchema(false)
+                    .build());
+
+    PAssert.that(rows.get(MAIN_TAG))
+        .containsInAnyOrder(
+            Row.withSchema(messageSchema)
+                .addValues(ts(1), mapEntries("attr", "val"), "foo".getBytes(UTF_8))
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(2), mapEntries("bttr", "vbl"), "baz".getBytes(UTF_8))
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(3), mapEntries("cttr", "vcl"), "bar".getBytes(UTF_8))
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(4), mapEntries("dttr", "vdl"), "qaz".getBytes(UTF_8))
+                .build());
+
+    pipeline.run();
+  }
+
+  @Test
   public void testSendsInvalidToDLQ() {
     Schema payloadSchema = Schema.builder().addInt32Field("id").addStringField("name").build();
 
     Schema messageSchema =
         Schema.builder()
             .addDateTimeField("event_timestamp")
-            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addMapField("attributes", FieldType.STRING, FieldType.STRING)
             .addRowField("payload", payloadSchema)
             .build();
 
@@ -139,6 +183,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(true)
                     .useFlatSchema(false)
+                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PCollection<Row> rows = outputs.get(MAIN_TAG);
@@ -195,6 +240,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(false)
                     .useFlatSchema(true)
+                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PAssert.that(rows.get(MAIN_TAG))
@@ -242,6 +288,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(true)
                     .useFlatSchema(true)
+                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PCollection<Row> rows = outputs.get(MAIN_TAG);
@@ -294,10 +341,12 @@ public class PubsubMessageToRowTest implements Serializable {
                 .messageSchema(messageSchema)
                 .useDlq(false)
                 .useFlatSchema(true)
+                .serializerProvider(JSON_SERIALIZER_PROVIDER)
                 .build());
 
     Exception exception = Assert.assertThrows(RuntimeException.class, () -> pipeline.run());
-    Assert.assertTrue(exception.getMessage().contains("Error parsing message"));
+    Assert.assertTrue(
+        exception.toString(), exception.getMessage().contains("Non-nullable field 'id'"));
   }
 
   @Test
@@ -307,7 +356,7 @@ public class PubsubMessageToRowTest implements Serializable {
     Schema messageSchema =
         Schema.builder()
             .addDateTimeField("event_timestamp")
-            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addMapField("attributes", FieldType.STRING, FieldType.STRING)
             .addRowField("payload", payloadSchema)
             .build();
 
@@ -323,30 +372,12 @@ public class PubsubMessageToRowTest implements Serializable {
                 .messageSchema(messageSchema)
                 .useDlq(false)
                 .useFlatSchema(false)
+                .serializerProvider(JSON_SERIALIZER_PROVIDER)
                 .build());
 
     Exception exception = Assert.assertThrows(RuntimeException.class, () -> pipeline.run());
-    Assert.assertTrue(exception.getMessage().contains("Error parsing message"));
-  }
-
-  @Test
-  public void testParsesAvroPayload() {
-    Schema payloadSchema = getParserSchema();
-    Row row = row(payloadSchema, 3, "Dovahkiin", 5.5, 5L);
-    byte[] payload = AvroUtils.getRowToAvroBytesFunction(payloadSchema).apply(row);
-    SimpleFunction<PubsubMessage, Row> messageToRowFn =
-        getParsePayloadFn(PayloadFormat.AVRO, payloadSchema);
-    Row parsedRow = messageToRowFn.apply(new PubsubMessage(payload, null));
-    assertEquals(row, parsedRow);
-  }
-
-  private Schema getParserSchema() {
-    return Schema.builder()
-        .addInt32Field("id")
-        .addNullableField("name", FieldType.STRING)
-        .addNullableField("real", FieldType.DOUBLE)
-        .addNullableField("number", FieldType.INT64)
-        .build();
+    Assert.assertTrue(
+        exception.toString(), exception.getMessage().contains("Non-nullable field 'id'"));
   }
 
   private Row row(Schema schema, Object... objects) {
@@ -355,6 +386,10 @@ public class PubsubMessageToRowTest implements Serializable {
 
   private Map<String, String> map(String attr, String val) {
     return ImmutableMap.of(attr, val);
+  }
+
+  private List<Row> mapEntries(String attr, String val) {
+    return ImmutableList.of(Row.withSchema(ATTRIBUTE_ARRAY_ENTRY_SCHEMA).attachValues(attr, val));
   }
 
   private TimestampedValue<PubsubMessage> message(

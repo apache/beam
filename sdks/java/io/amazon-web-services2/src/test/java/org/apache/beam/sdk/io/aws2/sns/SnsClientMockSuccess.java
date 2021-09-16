@@ -30,9 +30,6 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
 // import static org.mockito.BDDMockito.given;
 
 /** Mock class to test a successful publish of a msg. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SnsClientMockSuccess implements SnsClient {
 
   @Override
