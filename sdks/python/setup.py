@@ -306,7 +306,7 @@ setuptools.setup(
         'interactive_test': INTERACTIVE_BEAM_TEST,
         'aws': AWS_REQUIREMENTS,
         'azure': AZURE_REQUIREMENTS,
-        'dataframe': ['pandas>=1.0,<=1.3']
+        'dataframe': ['pandas>=1.0,<1.3']
     },
     zip_safe=False,
     # PyPI package information.
