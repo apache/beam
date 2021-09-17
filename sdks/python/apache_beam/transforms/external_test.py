@@ -422,7 +422,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
   def test_build_payload_with_constructor(self):
     payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
 
-    payload_builder.with_constructor(str_field='abc', int_field=123)
+    payload_builder.with_constructor('abc', 123, str_field='def', int_field=456)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
         payload_bytes, JavaClassLookupPayload)
@@ -430,13 +430,13 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     self._verify_row(
         payload_from_bytes.constructor_schema,
         payload_from_bytes.constructor_payload, {
-            'str_field': 'abc', 'int_field': 123
+            'arg0': 'abc', 'arg1': 123, 'str_field': 'def', 'int_field': 456
         })
 
   def test_build_payload_with_constructor_method(self):
     payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
     payload_builder.with_constructor_method(
-        'dummy_constructor_method', str_field='abc', int_field=123)
+        'dummy_constructor_method', 'abc', 123, str_field='def', int_field=456)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
         payload_bytes, JavaClassLookupPayload)
@@ -446,16 +446,16 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     self._verify_row(
         payload_from_bytes.constructor_schema,
         payload_from_bytes.constructor_payload, {
-            'str_field': 'abc', 'int_field': 123
+            'arg0': 'abc', 'arg1': 123, 'str_field': 'def', 'int_field': 456
         })
 
   def test_build_payload_with_builder_methods(self):
     payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
-    payload_builder.with_constructor(str_field='abc', int_field=123)
+    payload_builder.with_constructor('abc', 123, str_field='def', int_field=456)
     payload_builder.add_builder_method(
-        'builder_method1', str_field1='abc1', int_field1=1234)
+        'builder_method1', 'abc1', 1234, str_field1='abc2', int_field1=2345)
     payload_builder.add_builder_method(
-        'builder_method2', str_field2='abc2', int_field2=5678)
+        'builder_method2', 'abc3', 3456, str_field2='abc4', int_field2=4567)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
         payload_bytes, JavaClassLookupPayload)
@@ -463,7 +463,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     self._verify_row(
         payload_from_bytes.constructor_schema,
         payload_from_bytes.constructor_payload, {
-            'str_field': 'abc', 'int_field': 123
+            'arg0': 'abc', 'arg1': 123, 'str_field': 'def', 'int_field': 456
         })
     self.assertEqual(2, len(payload_from_bytes.builder_methods))
     builder_method = payload_from_bytes.builder_methods[0]
@@ -473,7 +473,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     self._verify_row(
         builder_method.schema,
         builder_method.payload, {
-            'str_field1': 'abc1', 'int_field1': 1234
+            'arg0': 'abc1',
+            'arg1': 1234,
+            'str_field1': 'abc2',
+            'int_field1': 2345
         })
 
     builder_method = payload_from_bytes.builder_methods[1]
@@ -482,7 +485,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     self._verify_row(
         builder_method.schema,
         builder_method.payload, {
-            'str_field2': 'abc2', 'int_field2': 5678
+            'arg0': 'abc3',
+            'arg1': 3456,
+            'str_field2': 'abc4',
+            'int_field2': 4567
         })
 
 
