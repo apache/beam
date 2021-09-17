@@ -52,14 +52,15 @@ public class RampupThrottlingFnTest {
     MockitoAnnotations.openMocks(this);
 
     DateTimeUtils.setCurrentMillisFixed(0);
-    RampupThrottlingFn<Void> rampupThrottlingFn = new RampupThrottlingFn<Void>(1) {
-      @Override
-      @Setup
-      public void setup(){
-        super.setup();
-        this.sleeper = mockSleeper;
-      }
-    };
+    RampupThrottlingFn<Void> rampupThrottlingFn =
+        new RampupThrottlingFn<Void>(1) {
+          @Override
+          @Setup
+          public void setup() {
+            super.setup();
+            this.sleeper = mockSleeper;
+          }
+        };
     rampupThrottlingFnTester = DoFnTester.of(rampupThrottlingFn);
     rampupThrottlingFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     rampupThrottlingFnTester.startBundle();
