@@ -75,6 +75,7 @@ nums.each {
       shell('echo "Maven home $MAVEN_HOME"')
       shell('env')
       shell('docker system prune --all --filter until=24h --force')
+      shell('docker volume prune --force')
       shell('echo "Current size of /tmp dir is \$(sudo du -sh /tmp)"')
       shell('echo "Deleting files accessed later than \${tmp_unaccessed_for} hours ago"')
       shell('sudo find /tmp -type f -amin +\$((60*\${tmp_unaccessed_for})) -print -delete')
