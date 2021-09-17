@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.BuilderMethod;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
@@ -74,6 +75,9 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     implements TransformProvider<PInput, POutput> {
 
   public static final String ALLOW_LIST_VERSION = "v1";
+
+  public static final Pattern FIELD_NAME_IGNORE_PATTERN = Pattern.compile("ignore[0-9]+");
+
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
   private final AllowList allowList;
 
@@ -276,9 +280,17 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     for (int i = 0; i < methodParameters.length; i++) {
       java.lang.reflect.Parameter parameterFromReflection = methodParameters[i];
       Field parameterFromPayload = constructorSchema.getField(i);
-
       String paramNameFromReflection = parameterFromReflection.getName();
-      if (!paramNameFromReflection.startsWith("arg")
+
+      // Spec requires field names in this format to be ignored.
+      boolean ignoreFieldName =
+          FIELD_NAME_IGNORE_PATTERN.matcher(parameterFromPayload.getName()).matches();
+
+      // Parameter name was generated during reflection and hence should not be used for validation.
+      boolean reflectionGeneratedFieldName = paramNameFromReflection.startsWith("arg");
+
+      if (!reflectionGeneratedFieldName
+          && !ignoreFieldName
           && !paramNameFromReflection.equals(parameterFromPayload.getName())) {
         // Parameter name through reflection is from the class file (not through synthesizing,
         // hence we can validate names)

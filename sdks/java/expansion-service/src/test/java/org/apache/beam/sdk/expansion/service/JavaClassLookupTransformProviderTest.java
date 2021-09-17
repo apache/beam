@@ -543,6 +543,48 @@ public class JavaClassLookupTransformProviderTest {
   }
 
   @Test
+  public void testJavaClassLookupRespectsIgnoreFields() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithConstructorAndBuilderMethods");
+
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("ignore123", FieldType.STRING)))
+            .withFieldValue("ignore123", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
+
+    BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withStrField2");
+    Row builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("ignore456", FieldType.STRING)))
+            .withFieldValue("ignore456", "test_str_2")
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withIntField1");
+    builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("ignore789", FieldType.INT32)))
+            .withFieldValue("ignore789", 10)
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    testClassLookupExpansionRequestConstruction(
+        payloadBuilder.build(),
+        ImmutableMap.of("strField1", "test_str_1", "strField2", "test_str_2", "intField1", 10));
+  }
+
+  @Test
   public void testJavaClassLookupWithMultiArgumentConstructor() {
     ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
         ExternalTransforms.JavaClassLookupPayload.newBuilder();
