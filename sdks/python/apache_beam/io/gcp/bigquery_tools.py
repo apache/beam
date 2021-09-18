@@ -539,6 +539,7 @@ class BigQueryWrapper(object):
       use_legacy_sql,
       flatten_results,
       job_id,
+      priority,
       dry_run=False,
       kms_key=None,
       job_labels=None):
@@ -555,7 +556,7 @@ class BigQueryWrapper(object):
                     destinationTable=self._get_temp_table(project_id)
                     if not dry_run else None,
                     flattenResults=flatten_results,
-                    priority='BATCH',
+                    priority=priority,
                     destinationEncryptionConfiguration=bigquery.
                     EncryptionConfiguration(kmsKeyName=kms_key)),
                 labels=_build_job_labels(job_labels),
@@ -1087,6 +1088,7 @@ class BigQueryWrapper(object):
       query,
       use_legacy_sql,
       flatten_results,
+      priority,
       dry_run=False,
       job_labels=None):
     job = self._start_query_job(
@@ -1095,6 +1097,7 @@ class BigQueryWrapper(object):
         use_legacy_sql,
         flatten_results,
         job_id=uuid.uuid4().hex,
+        priority=priority,
         dry_run=dry_run,
         job_labels=job_labels)
     job_id = job.jobReference.jobId
@@ -1253,7 +1256,8 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
       test_bigquery_client=None,
       use_legacy_sql=True,
       flatten_results=True,
-      kms_key=None):
+      kms_key=None,
+      query_priority=None):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
     if auth.is_running_in_gce:
@@ -1280,6 +1284,9 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.kms_key = kms_key
     self.bigquery_job_labels = {}
     self.bq_io_metadata = None
+
+    from apache_beam.io.gcp.bigquery import BigQueryQueryPriority
+    self.query_priority = query_priority or BigQueryQueryPriority.BATCH
 
     if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
@@ -1342,6 +1349,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
         project_id=self.executing_project, query=self.query,
         use_legacy_sql=self.use_legacy_sql,
         flatten_results=self.flatten_results,
+        priority=self.query_priority,
         job_labels=self.bq_io_metadata.add_additional_bq_job_labels(
             self.bigquery_job_labels)):
       if self.schema is None:
