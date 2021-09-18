@@ -555,6 +555,7 @@ class BigQueryWrapper(object):
                     destinationTable=self._get_temp_table(project_id)
                     if not dry_run else None,
                     flattenResults=flatten_results,
+                    priority='BATCH',
                     destinationEncryptionConfiguration=bigquery.
                     EncryptionConfiguration(kmsKeyName=kms_key)),
                 labels=_build_job_labels(job_labels),
