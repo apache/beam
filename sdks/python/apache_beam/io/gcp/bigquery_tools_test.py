@@ -487,7 +487,7 @@ class TestBigQueryWrapper(unittest.TestCase):
         "my_project", "my_dataset", "my_table", "ok", 1)
 
   @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
-  def test_queries_run_with_batch_priority(self):
+  def test_start_query_job_priority_configuration(self):
     client = mock.Mock()
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
 
@@ -495,13 +495,29 @@ class TestBigQueryWrapper(unittest.TestCase):
     query_result.pageToken = None
     wrapper._get_query_results = mock.Mock(return_value=query_result)
 
-    response_row_generator = wrapper.run_query(
-        "my_project", "my_query", use_legacy_sql=False, flatten_results=False)
-    next(response_row_generator)
+    wrapper._start_query_job(
+        "my_project",
+        "my_query",
+        use_legacy_sql=False,
+        flatten_results=False,
+        job_id="my_job_id",
+        priority=beam.io.BigQueryQueryPriority.BATCH)
 
     self.assertEqual(
         client.jobs.Insert.call_args[0][0].job.configuration.query.priority,
         'BATCH')
+
+    wrapper._start_query_job(
+        "my_project",
+        "my_query",
+        use_legacy_sql=False,
+        flatten_results=False,
+        job_id="my_job_id",
+        priority=beam.io.BigQueryQueryPriority.INTERACTIVE)
+
+    self.assertEqual(
+        client.jobs.Insert.call_args[0][0].job.configuration.query.priority,
+        'INTERACTIVE')
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
