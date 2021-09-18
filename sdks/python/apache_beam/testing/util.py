@@ -287,19 +287,19 @@ def assert_that(
       if use_global_window:
         pcoll = pcoll | WindowInto(window.GlobalWindows())
 
-      keyed_actual = pcoll | "ToVoidKey" >> Map(lambda v: (None, v))
+      keyed_actual = pcoll | 'ToVoidKey' >> Map(lambda v: (None, v))
       keyed_actual.is_bounded = True
 
       # This is a CoGroupByKey so that the matcher always runs, even if the
       # PCollection is empty.
       plain_actual = ((keyed_singleton, keyed_actual)
-                      | "Group" >> CoGroupByKey()
-                      | "Unkey" >> Map(lambda k_values: k_values[1][1]))
+                      | 'Group' >> CoGroupByKey()
+                      | 'Unkey' >> Map(lambda k_values: k_values[1][1]))
 
       if not use_global_window:
-        plain_actual = plain_actual | "AddWindow" >> ParDo(AddWindow())
+        plain_actual = plain_actual | 'AddWindow' >> ParDo(AddWindow())
 
-      plain_actual = plain_actual | "Match" >> Map(matcher)
+      plain_actual = plain_actual | 'Match' >> Map(matcher)
 
     def default_label(self):
       return label
