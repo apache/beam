@@ -755,7 +755,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(even_length, equal_to(['AA', 'CC']), label='assert:even')
       assert_that(odd_length, equal_to(['BBB']), label='assert:odd')
 
-  def test_co_group_by_key_on_list(self):
+  def test_co_group_by_key_on_tuple(self):
     with TestPipeline() as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
                                                      ('b', 3), ('c', 4)])
@@ -773,8 +773,19 @@ class PTransformTest(unittest.TestCase):
                                                      ('b', 3), ('c', 4)])
       pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
                                                      ('c', 7), ('c', 8)])
-      result = iter([pcoll_1, pcoll_2]) | beam.CoGroupByKey()
-      result |= _SortLists
+      result = iter([pcoll_1, pcoll_2]) | beam.CoGroupByKey() | _SortLists
+      assert_that(
+          result,
+          equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
+                    ('c', ([4], [7, 8]))]))
+
+  def test_co_group_by_key_on_list(self):
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
+                                                     ('c', 7), ('c', 8)])
+      result = [pcoll_1, pcoll_2] | beam.CoGroupByKey() | _SortLists
       assert_that(
           result,
           equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
@@ -786,8 +797,7 @@ class PTransformTest(unittest.TestCase):
                                                      ('b', 3), ('c', 4)])
       pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
                                                      ('c', 7), ('c', 8)])
-      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey()
-      result |= _SortLists
+      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey() | _SortLists
       assert_that(
           result,
           equal_to([('a', {
@@ -803,9 +813,45 @@ class PTransformTest(unittest.TestCase):
       key = ('a', ('b', 'c'))
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([(key, 1)])
       pcoll_2 = pipeline | 'Start 2' >> beam.Create([(key, 2)])
-      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey()
-      result |= _SortLists
+      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey() | _SortLists
       assert_that(result, equal_to([(key, {'X': [1], 'Y': [2]})]))
+
+  def test_co_group_by_key_on_empty(self):
+    with TestPipeline() as pipeline:
+      assert_that(
+          tuple() | 'EmptyTuple' >> beam.CoGroupByKey(pipeline=pipeline),
+          equal_to([]),
+          label='AssertEmptyTuple')
+      assert_that([] | 'EmptyList' >> beam.CoGroupByKey(pipeline=pipeline),
+                  equal_to([]),
+                  label='AssertEmptyList')
+      assert_that(
+          iter([]) | 'EmptyIterable' >> beam.CoGroupByKey(pipeline=pipeline),
+          equal_to([]),
+          label='AssertEmptyIterable')
+      assert_that({} | 'EmptyDict' >> beam.CoGroupByKey(pipeline=pipeline),
+                  equal_to([]),
+                  label='AssertEmptyDict')
+
+  def test_co_group_by_key_on_one(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | beam.Create([('a', 1), ('b', 2)])
+      expected = [('a', ([1], )), ('b', ([2], ))]
+      assert_that((pcoll, ) | 'OneTuple' >> beam.CoGroupByKey(),
+                  equal_to(expected),
+                  label='AssertOneTuple')
+      assert_that([pcoll] | 'OneList' >> beam.CoGroupByKey(),
+                  equal_to(expected),
+                  label='AssertOneList')
+      assert_that(
+          iter([pcoll]) | 'OneIterable' >> beam.CoGroupByKey(),
+          equal_to(expected),
+          label='AssertOneIterable')
+      assert_that({'tag': pcoll}
+                  | 'OneDict' >> beam.CoGroupByKey()
+                  | beam.MapTuple(lambda k, v: (k, (v['tag'], ))),
+                  equal_to(expected),
+                  label='AssertOneDict')
 
   def test_co_group_by_key_on_empty(self):
     with TestPipeline() as pipeline:
