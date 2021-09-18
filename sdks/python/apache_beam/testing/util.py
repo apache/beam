@@ -23,6 +23,7 @@ import collections
 import glob
 import io
 import tempfile
+from typing import Iterable
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -329,3 +330,20 @@ def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
         out_file.write(in_file.read())
     concatenated_file_name = out_file.name
   return io.open(concatenated_file_name, mode, encoding=encoding)
+
+
+def _sort_lists(result):
+  if isinstance(result, list):
+    return sorted(result)
+  elif isinstance(result, tuple):
+    return tuple(_sort_lists(e) for e in result)
+  elif isinstance(result, dict):
+    return {k: _sort_lists(v) for k, v in result.items()}
+  elif isinstance(result, Iterable) and not isinstance(result, str):
+    return sorted(result)
+  else:
+    return result
+
+
+# A utility transform that recursively sorts lists for easier testing.
+SortLists = Map(_sort_lists)
