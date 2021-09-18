@@ -486,6 +486,23 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.verify_write_call_metric(
         "my_project", "my_dataset", "my_table", "ok", 1)
 
+  @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
+  def test_queries_run_with_batch_priority(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    query_result = mock.Mock()
+    query_result.pageToken = None
+    wrapper._get_query_results = mock.Mock(return_value=query_result)
+
+    response_row_generator = wrapper.run_query(
+        "my_project", "my_query", use_legacy_sql=False, flatten_results=False)
+    next(response_row_generator)
+
+    self.assertEqual(
+        client.jobs.Insert.call_args[0][0].job.configuration.query.priority,
+        'BATCH')
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryReader(unittest.TestCase):
