@@ -27,7 +27,6 @@ import re
 import typing
 import unittest
 from functools import reduce
-from typing import Iterable
 from typing import Optional
 from unittest.mock import patch
 
@@ -46,6 +45,7 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.util import SortLists
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import is_empty
@@ -470,7 +470,7 @@ class PTransformTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'start' >> beam.Create([(1, 1), (2, 1), (3, 1), (1, 2),
                                                  (2, 2), (1, 3)])
-      result = pcoll | 'Group' >> beam.GroupByKey() | _SortLists
+      result = pcoll | 'Group' >> beam.GroupByKey() | SortLists
       assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
 
   def test_group_by_key_unbounded_global_default_trigger(self):
@@ -675,7 +675,7 @@ class PTransformTest(unittest.TestCase):
       created = pipeline | 'A' >> beam.Create(contents)
       partitioned = created | 'B' >> beam.Partition(lambda x, n: len(x) % n, 3)
       flattened = partitioned | 'C' >> beam.Flatten()
-      grouped = flattened | 'D' >> beam.GroupByKey() | _SortLists
+      grouped = flattened | 'D' >> beam.GroupByKey() | SortLists
       assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
 
   @pytest.mark.it_validatesrunner
@@ -755,121 +755,6 @@ class PTransformTest(unittest.TestCase):
       assert_that(even_length, equal_to(['AA', 'CC']), label='assert:even')
       assert_that(odd_length, equal_to(['BBB']), label='assert:odd')
 
-  def test_co_group_by_key_on_tuple(self):
-    with TestPipeline() as pipeline:
-      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
-                                                     ('b', 3), ('c', 4)])
-      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
-                                                     ('c', 7), ('c', 8)])
-      result = (pcoll_1, pcoll_2) | beam.CoGroupByKey() | _SortLists
-      assert_that(
-          result,
-          equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
-                    ('c', ([4], [7, 8]))]))
-
-  def test_co_group_by_key_on_iterable(self):
-    with TestPipeline() as pipeline:
-      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
-                                                     ('b', 3), ('c', 4)])
-      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
-                                                     ('c', 7), ('c', 8)])
-      result = iter([pcoll_1, pcoll_2]) | beam.CoGroupByKey() | _SortLists
-      assert_that(
-          result,
-          equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
-                    ('c', ([4], [7, 8]))]))
-
-  def test_co_group_by_key_on_list(self):
-    with TestPipeline() as pipeline:
-      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
-                                                     ('b', 3), ('c', 4)])
-      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
-                                                     ('c', 7), ('c', 8)])
-      result = [pcoll_1, pcoll_2] | beam.CoGroupByKey() | _SortLists
-      assert_that(
-          result,
-          equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
-                    ('c', ([4], [7, 8]))]))
-
-  def test_co_group_by_key_on_dict(self):
-    with TestPipeline() as pipeline:
-      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
-                                                     ('b', 3), ('c', 4)])
-      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
-                                                     ('c', 7), ('c', 8)])
-      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey() | _SortLists
-      assert_that(
-          result,
-          equal_to([('a', {
-              'X': [1, 2], 'Y': [5, 6]
-          }), ('b', {
-              'X': [3], 'Y': []
-          }), ('c', {
-              'X': [4], 'Y': [7, 8]
-          })]))
-
-  def test_co_group_by_key_on_dict_with_tuple_keys(self):
-    with TestPipeline() as pipeline:
-      key = ('a', ('b', 'c'))
-      pcoll_1 = pipeline | 'Start 1' >> beam.Create([(key, 1)])
-      pcoll_2 = pipeline | 'Start 2' >> beam.Create([(key, 2)])
-      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey() | _SortLists
-      assert_that(result, equal_to([(key, {'X': [1], 'Y': [2]})]))
-
-  def test_co_group_by_key_on_empty(self):
-    with TestPipeline() as pipeline:
-      assert_that(
-          tuple() | 'EmptyTuple' >> beam.CoGroupByKey(pipeline=pipeline),
-          equal_to([]),
-          label='AssertEmptyTuple')
-      assert_that([] | 'EmptyList' >> beam.CoGroupByKey(pipeline=pipeline),
-                  equal_to([]),
-                  label='AssertEmptyList')
-      assert_that(
-          iter([]) | 'EmptyIterable' >> beam.CoGroupByKey(pipeline=pipeline),
-          equal_to([]),
-          label='AssertEmptyIterable')
-      assert_that({} | 'EmptyDict' >> beam.CoGroupByKey(pipeline=pipeline),
-                  equal_to([]),
-                  label='AssertEmptyDict')
-
-  def test_co_group_by_key_on_one(self):
-    with TestPipeline() as pipeline:
-      pcoll = pipeline | beam.Create([('a', 1), ('b', 2)])
-      expected = [('a', ([1], )), ('b', ([2], ))]
-      assert_that((pcoll, ) | 'OneTuple' >> beam.CoGroupByKey(),
-                  equal_to(expected),
-                  label='AssertOneTuple')
-      assert_that([pcoll] | 'OneList' >> beam.CoGroupByKey(),
-                  equal_to(expected),
-                  label='AssertOneList')
-      assert_that(
-          iter([pcoll]) | 'OneIterable' >> beam.CoGroupByKey(),
-          equal_to(expected),
-          label='AssertOneIterable')
-      assert_that({'tag': pcoll}
-                  | 'OneDict' >> beam.CoGroupByKey()
-                  | beam.MapTuple(lambda k, v: (k, (v['tag'], ))),
-                  equal_to(expected),
-                  label='AssertOneDict')
-
-  def test_co_group_by_key_on_empty(self):
-    with TestPipeline() as pipeline:
-      assert_that(
-          tuple() | 'EmptyTuple' >> beam.CoGroupByKey(pipeline=pipeline),
-          equal_to([]),
-          label='AssertEmptyTuple')
-      assert_that([] | 'EmptyList' >> beam.CoGroupByKey(pipeline=pipeline),
-                  equal_to([]),
-                  label='AssertEmptyList')
-      assert_that(
-          iter([]) | 'EmptyIterable' >> beam.CoGroupByKey(pipeline=pipeline),
-          equal_to([]),
-          label='AssertEmptyIterable')
-      assert_that({} | 'EmptyDict' >> beam.CoGroupByKey(pipeline=pipeline),
-                  equal_to([]),
-                  label='AssertEmptyDict')
-
   def test_group_by_key_input_must_be_kv_pairs(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
       with TestPipeline() as pipeline:
@@ -932,7 +817,7 @@ class PTransformTest(unittest.TestCase):
     self.assertCountEqual([1, 2, 100, 3], ([1, 2, 3], [100]) | beam.Flatten())
     join_input = ([('k', 'a')], [('k', 'b'), ('k', 'c')])
     self.assertCountEqual([('k', (['a'], ['b', 'c']))],
-                          join_input | beam.CoGroupByKey() | _SortLists)
+                          join_input | beam.CoGroupByKey() | SortLists)
 
   def test_multi_input_ptransform(self):
     class DisjointUnion(PTransform):
@@ -1724,7 +1609,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                               ]).with_output_types(str)
         | 'GenKeys' >> beam.Map(group_with_upper_ord)
         | 'O' >> beam.GroupByKey()
-        | _SortLists)
+        | SortLists)
 
     assert_that(
         result,
@@ -1777,7 +1662,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | 'Nums' >> beam.Create(range(5)).with_output_types(int)
         | 'IsEven' >> beam.Map(is_even_as_key)
         | 'Parity' >> beam.GroupByKey()
-        | _SortLists)
+        | SortLists)
 
     assert_that(result, equal_to([(False, [1, 3]), (True, [0, 2, 4])]))
     self.p.run()
@@ -2670,22 +2555,6 @@ class TestPTransformFn(TypeHintTestCase):
 
     with TestPipeline() as p:
       _ = (p | beam.Create([1, 2]) | MyTransform('test').with_output_types(int))
-
-
-def _sort_lists(result):
-  if isinstance(result, list):
-    return sorted(result)
-  elif isinstance(result, tuple):
-    return tuple(_sort_lists(e) for e in result)
-  elif isinstance(result, dict):
-    return {k: _sort_lists(v) for k, v in result.items()}
-  elif isinstance(result, Iterable) and not isinstance(result, str):
-    return sorted(result)
-  else:
-    return result
-
-
-_SortLists = beam.Map(_sort_lists)
 
 
 class PickledObject(object):
