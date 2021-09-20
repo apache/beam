@@ -263,7 +263,7 @@ class RowCoderTest(unittest.TestCase):
         ])
 
     # Should raise an exception referencing the problem field
-    exception = self.assertRaisesRegex(
+    self.assertRaisesRegex(
         ValueError, "type_with_no_typeinfo", lambda: RowCoder(schema_proto))
 
 
