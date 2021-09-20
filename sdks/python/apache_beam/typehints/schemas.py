@@ -67,6 +67,7 @@ from typing import TypeVar
 from uuid import uuid4
 
 import numpy as np
+from google.protobuf import text_format
 
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
@@ -239,10 +240,19 @@ def typing_from_runner_api(fieldtype_proto):
       from apache_beam import coders
 
       type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
-      user_type = NamedTuple(
-          type_name,
-          [(field.name, typing_from_runner_api(field.type))
-           for field in schema.fields])
+
+      subfields = []
+      for field in schema.fields:
+        try:
+          field_py_type = typing_from_runner_api(field.type)
+        except ValueError as e:
+          raise ValueError(
+              "Failed to decode schema due to an issue with Field proto:\n\n" +
+              text_format.MessageToString(field)) from e
+
+        subfields.append((field.name, field_py_type))
+
+      user_type = NamedTuple(type_name, subfields)
 
       setattr(user_type, _BEAM_SCHEMA_ID, schema.id)
 
@@ -265,6 +275,9 @@ def typing_from_runner_api(fieldtype_proto):
     else:
       return LogicalType.from_runner_api(
           fieldtype_proto.logical_type).language_type()
+
+  else:
+    raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
 
 def _hydrate_namedtuple_instance(encoded_schema, values):
