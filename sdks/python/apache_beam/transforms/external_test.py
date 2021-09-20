@@ -431,7 +431,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     self._verify_row(
         payload_from_bytes.constructor_schema,
         payload_from_bytes.constructor_payload, {
-            'arg0': 'abc', 'arg1': 123, 'str_field': 'def', 'int_field': 456
+            'ignore0': 'abc',
+            'ignore1': 123,
+            'str_field': 'def',
+            'int_field': 456
         })
 
   def test_build_payload_with_constructor_method(self):
@@ -447,7 +450,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     self._verify_row(
         payload_from_bytes.constructor_schema,
         payload_from_bytes.constructor_payload, {
-            'arg0': 'abc', 'arg1': 123, 'str_field': 'def', 'int_field': 456
+            'ignore0': 'abc',
+            'ignore1': 123,
+            'str_field': 'def',
+            'int_field': 456
         })
 
   def test_build_payload_with_builder_methods(self):
@@ -464,7 +470,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     self._verify_row(
         payload_from_bytes.constructor_schema,
         payload_from_bytes.constructor_payload, {
-            'arg0': 'abc', 'arg1': 123, 'str_field': 'def', 'int_field': 456
+            'ignore0': 'abc',
+            'ignore1': 123,
+            'str_field': 'def',
+            'int_field': 456
         })
     self.assertEqual(2, len(payload_from_bytes.builder_methods))
     builder_method = payload_from_bytes.builder_methods[0]
@@ -473,9 +482,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
     self._verify_row(
         builder_method.schema,
-        builder_method.payload, {
-            'arg0': 'abc1',
-            'arg1': 1234,
+        builder_method.payload,
+        {
+            'ignore0': 'abc1',
+            'ignore1': 1234,
             'str_field1': 'abc2',
             'int_field1': 2345
         })
@@ -485,9 +495,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     self.assertEqual('builder_method2', builder_method.name)
     self._verify_row(
         builder_method.schema,
-        builder_method.payload, {
-            'arg0': 'abc3',
-            'arg1': 3456,
+        builder_method.payload,
+        {
+            'ignore0': 'abc3',
+            'ignore1': 3456,
             'str_field2': 'abc4',
             'int_field2': 4567
         })
