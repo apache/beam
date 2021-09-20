@@ -236,6 +236,8 @@ public class ReadWriteIT {
     pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
 
     TopicPath topic = createTopic(getProject(pipeline.getOptions()));
+    // Sleep for topic creation to propagate.
+    Thread.sleep(10000);
     SubscriptionPath subscription = createSubscription(topic);
 
     // Publish some messages
