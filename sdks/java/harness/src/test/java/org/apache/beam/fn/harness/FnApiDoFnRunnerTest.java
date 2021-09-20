@@ -22,14 +22,17 @@ import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWin
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -124,6 +127,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -139,6 +143,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.PeriodFormat;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -1478,6 +1483,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
         } else {
           return ProcessContinuation.resume().withResumeDelay(Duration.millis(54321L));
         }
+      }
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return Duration.millis(Long.MAX_VALUE);
       }
 
       @Override
@@ -3567,6 +3577,142 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
       Iterables.getOnlyElement(context.getTearDownFunctions()).run();
       assertThat(mainOutputValues, empty());
+    }
+
+    /**
+     * A {@link DoFn} that outputs elements with timestamp equal to the input timestamp minus the
+     * input element.
+     */
+    private static class SkewingDoFn extends DoFn<String, String> {
+      private final Duration allowedSkew;
+
+      private SkewingDoFn(Duration allowedSkew) {
+        this.allowedSkew = allowedSkew;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context) {
+        Duration duration = Duration.millis(Long.valueOf(context.element()));
+        context.outputWithTimestamp(context.element(), context.timestamp().minus(duration));
+      }
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return allowedSkew;
+      }
+    }
+
+    private static class OutputFnDataReceiver implements FnDataReceiver<WindowedValue> {
+      OutputFnDataReceiver(List<WindowedValue<String>> mainOutputValues) {
+        this.mainOutputValues = mainOutputValues;
+      }
+
+      private final List<WindowedValue<String>> mainOutputValues;
+
+      @Override
+      public void accept(WindowedValue input) throws Exception {
+        mainOutputValues.add(input);
+      }
+    }
+
+    @Test
+    public void testDoFnSkewNotAllowed() throws Exception {
+      Pipeline p = Pipeline.create();
+      PCollection<String> valuePCollection = p.apply(Create.of("0", "1"));
+      PCollection<String> outputPCollection =
+          valuePCollection.apply(TEST_TRANSFORM_ID, ParDo.of(new SkewingDoFn(Duration.ZERO)));
+
+      SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
+      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+      String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
+      String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
+      RunnerApi.PTransform pTransform =
+          pProto
+              .getComponents()
+              .getTransformsOrThrow(
+                  pProto
+                      .getComponents()
+                      .getTransformsOrThrow(TEST_TRANSFORM_ID)
+                      .getSubtransforms(0));
+
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .processBundleInstructionId("57")
+              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+              .coders(pProto.getComponents().getCodersMap())
+              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .build();
+      List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+      Coder coder = StringUtf8Coder.of();
+      context.addPCollectionConsumer(
+          outputPCollectionId, (FnDataReceiver) new OutputFnDataReceiver(mainOutputValues), coder);
+
+      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+
+      mainOutputValues.clear();
+      FnDataReceiver<WindowedValue<?>> mainInput =
+          context.getPCollectionConsumer(inputPCollectionId);
+      mainInput.accept(valueInGlobalWindow("0"));
+
+      String message =
+          assertThrows(
+                  UserCodeException.class,
+                  () -> {
+                    mainInput.accept(timestampedValueInGlobalWindow("1", new Instant(0L)));
+                  })
+              .getMessage();
+
+      assertThat(
+          message,
+          allOf(
+              containsString(
+                  String.format("timestamp %s", new Instant(0).minus(Duration.millis(1L)))),
+              containsString(
+                  String.format(
+                      "allowed skew (%s)",
+                      PeriodFormat.getDefault().print(Duration.ZERO.toPeriod())))));
+    }
+
+    @Test
+    public void testDoFnSkewAllowed() throws Exception {
+      Pipeline p = Pipeline.create();
+      PCollection<String> valuePCollection = p.apply(Create.of("0", "3"));
+      PCollection<String> outputPCollection =
+          valuePCollection.apply(TEST_TRANSFORM_ID, ParDo.of(new SkewingDoFn(Duration.millis(5L))));
+
+      SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
+      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+      String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
+      String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
+      RunnerApi.PTransform pTransform =
+          pProto
+              .getComponents()
+              .getTransformsOrThrow(
+                  pProto
+                      .getComponents()
+                      .getTransformsOrThrow(TEST_TRANSFORM_ID)
+                      .getSubtransforms(0));
+
+      List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .processBundleInstructionId("57")
+              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+              .coders(pProto.getComponents().getCodersMap())
+              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .build();
+      Coder coder = StringUtf8Coder.of();
+      context.addPCollectionConsumer(
+          outputPCollectionId, (FnDataReceiver) new OutputFnDataReceiver(mainOutputValues), coder);
+
+      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+
+      mainOutputValues.clear();
+
+      FnDataReceiver<WindowedValue<?>> mainInput =
+          context.getPCollectionConsumer(inputPCollectionId);
+      mainInput.accept(valueInGlobalWindow("0"));
+      mainInput.accept(timestampedValueInGlobalWindow("3", new Instant(0L)));
     }
   }
 
