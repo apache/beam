@@ -153,7 +153,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
   constructor and builder methods.
   """
 
-  IGNORED_ARG_FORMAT = 'arg%d'
+  IGNORED_ARG_FORMAT = 'ignore%d'
 
   def __init__(self, class_name):
     """
