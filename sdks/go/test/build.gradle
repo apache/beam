@@ -183,8 +183,6 @@ ext.goIoValidatesRunnerTask = { proj, name, scriptOpts ->
 
     dependsOn ":sdks:go:test:goBuild"
     dependsOn ":sdks:go:container:docker"
-    dependsOn ":sdks:java:container:java11:docker"
-    dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
     dependsOn ":sdks:java:io:expansion-service:build"
     dependsOn ":sdks:java:testing:kafka-service:buildTestKafkaServiceJar"
 

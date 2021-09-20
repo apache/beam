@@ -367,7 +367,6 @@ createCrossLanguageValidatesRunnerTask(
     "--dataflow_project ${dataflowProject}",
     "--region ${dataflowRegion}",
     "--tests \"./test/integration/xlang\"",
-    "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
     "--sdk_overrides \".*java.*,${dockerImageContainer}:${dockerTag}\"",
   ],
 )

@@ -34,7 +34,6 @@ import (
 var bootstrapAddr string
 
 const (
-	timeout    = "10m" // Timeout for the Kafka jar.
 	basicTopic = "xlang_kafkaio_basic_test"
 	numRecords = 1000
 )
@@ -79,7 +78,7 @@ func TestMain(m *testing.M) {
 	if *integration.BootstrapServers != "" {
 		bootstrapAddr = *integration.BootstrapServers
 	} else if *integration.KafkaJar != "" {
-		cluster, err := runLocalKafka(*integration.KafkaJar, timeout)
+		cluster, err := runLocalKafka(*integration.KafkaJar, *integration.KafkaJarTimeout)
 		if err != nil {
 			log.Fatalf("Kafka cluster failed to start: %v", err)
 		}

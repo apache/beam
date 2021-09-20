@@ -13,39 +13,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Exclude OSes which do not support the timeout command or syscall.SIGTERM.
-//go:build !windows
-// +build !windows
-
 package kafka
 
 import (
+	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"strconv"
-	"syscall"
 	"time"
 )
 
-// kafkaCluster contains anything needed to use and clean up the Kafka cluster
-// once it's been started.
-type kafkaCluster struct {
-	proc          *os.Process // The process information for the running jar.
-	bootstrapAddr string      // The bootstrap address to connect to Kafka.
-}
-
-// Shutdown gracefully shuts down the cluster. It is recommended to use this
-// instead of directly killing the process.
-func (kc *kafkaCluster) Shutdown() {
-	// Avoid using SIGKILL. The cluster is wrapped in the timeout command,
-	// so SIGKILL will kill the timeout and leave the cluster running.
-	kc.proc.Signal(syscall.SIGTERM)
-}
-
 // runLocalKafka takes a Kafka jar filepath and runs a local Kafka cluster with
-// a timeout (via the timeout command), returning the bootstrap server.
-func runLocalKafka(jar string, timeout string) (*kafkaCluster, error) {
+// a timeout (via the timeout command), returning the bootstrap server. Requires
+// an environment with the timeout command.
+func runLocalKafka(jar string, timeout string) (*cluster, error) {
+	_, err := exec.LookPath("java")
+	if err != nil {
+		return nil, err
+	}
+	_, err = exec.LookPath("timeout")
+	if err != nil && len(timeout) != 0 {
+		return nil, fmt.Errorf("\"timeout\" required for kafka_jar_timeout flag: %s", err)
+	}
+
 	port, err := getOpenPort()
 	if err != nil {
 		return nil, err
@@ -57,14 +47,20 @@ func runLocalKafka(jar string, timeout string) (*kafkaCluster, error) {
 	}
 	zookeeperPort := strconv.Itoa(port)
 
-	cmd := exec.Command("timeout", timeout, "java", "-jar", jar, kafkaPort, zookeeperPort)
+	var cmdArr []string
+	if len(timeout) != 0 {
+		cmdArr = append(cmdArr, "timeout", timeout)
+	}
+	cmdArr = append(cmdArr, "java", "-jar", jar, kafkaPort, zookeeperPort)
+
+	cmd := exec.Command(cmdArr[0], cmdArr[1:]...)
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
 	}
 	time.Sleep(3 * time.Second) // Wait a bit for the cluster to start.
 
-	return &kafkaCluster{proc: cmd.Process, bootstrapAddr: "localhost:" + kafkaPort}, nil
+	return &cluster{proc: cmd.Process, bootstrapAddr: "localhost:" + kafkaPort}, nil
 }
 
 // getOpenPort gets an open TCP port and returns it, or an error on failure.
