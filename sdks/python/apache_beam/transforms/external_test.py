@@ -427,6 +427,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     payload_from_bytes = proto_utils.parse_Bytes(
         payload_bytes, JavaClassLookupPayload)
     self.assertTrue(isinstance(payload_from_bytes, JavaClassLookupPayload))
+    self.assertFalse(payload_from_bytes.constructor_method)
     self._verify_row(
         payload_from_bytes.constructor_schema,
         payload_from_bytes.constructor_payload, {
@@ -490,6 +491,12 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
             'str_field2': 'abc4',
             'int_field2': 4567
         })
+
+  def test_build_payload_with_constructor_twice_fails(self):
+    payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
+    payload_builder.with_constructor('abc')
+    with self.assertRaises(ValueError):
+      payload_builder.with_constructor('def')
 
 
 if __name__ == '__main__':
