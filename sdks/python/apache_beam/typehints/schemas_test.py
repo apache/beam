@@ -283,7 +283,7 @@ class SchemaTest(unittest.TestCase):
         ])
 
     # Should raise an exception referencing the problem field
-    exception = self.assertRaisesRegex(
+    self.assertRaisesRegex(
         ValueError,
         "type_with_no_typeinfo",
         lambda: named_tuple_from_schema(schema_proto))
