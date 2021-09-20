@@ -30,18 +30,20 @@ from typing import Union
 
 import apache_beam as beam
 from apache_beam.pvalue import PValue
-from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
-from apache_beam.runners.interactive import pipeline_instrument as inst
-from apache_beam.runners.interactive.cache_manager import FileBasedCacheManager
-from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
+from apache_beam.runners.interactive.background_caching_job import has_source_to_cache
+from apache_beam.runners.interactive.caching.cacheable import CacheKey
+from apache_beam.runners.interactive.caching.reify import reify_to_cache
+from apache_beam.runners.interactive.caching.reify import unreify_from_cache
+from apache_beam.runners.interactive.display.pcoll_visualization import visualize_computed_pcoll
 from apache_beam.runners.interactive.sql.utils import find_pcolls
 from apache_beam.runners.interactive.sql.utils import is_namedtuple
-from apache_beam.runners.interactive.sql.utils import pcolls_by_name
+from apache_beam.runners.interactive.sql.utils import pformat_namedtuple
 from apache_beam.runners.interactive.sql.utils import register_coder_for_schema
 from apache_beam.runners.interactive.sql.utils import replace_single_pcoll_token
 from apache_beam.runners.interactive.utils import obfuscate
+from apache_beam.runners.interactive.utils import pcoll_by_name
 from apache_beam.runners.interactive.utils import progress_indicated
 from apache_beam.testing import test_stream
 from apache_beam.testing.test_stream_service import TestStreamServiceController
@@ -64,6 +66,19 @@ _EXAMPLE_USAGE = """Usage:
 
     The output of the magic is usually a PCollection or similar PValue,
     depending on the SQL statement executed.
+"""
+
+_NOT_SUPPORTED_MSG = """The query was valid and successfully applied.
+    But beam_sql failed to execute the query: %s
+
+    Runner used by beam_sql was %s.
+    Some Beam features might have not been supported by the Python SDK and runner combination.
+    Please check the runner output for more details about the failed items.
+
+    In the meantime, you may check:
+    https://beam.apache.org/documentation/runners/capability-matrix/
+    to choose a runner other than the InteractiveRunner and explicitly apply SqlTransform
+    to build Beam pipelines in a non-interactive manner.
 """
 
 
@@ -98,7 +113,7 @@ class BeamSqlMagics(Magics):
     if not cell or cell.isspace():
       on_error('Please supply the sql to be executed.')
       return
-    found = find_pcolls(cell, pcolls_by_name())
+    found = find_pcolls(cell, pcoll_by_name())
     for _, pcoll in found.items():
       if not is_namedtuple(pcoll.element_type):
         on_error(
@@ -110,15 +125,15 @@ class BeamSqlMagics(Magics):
         return
       register_coder_for_schema(pcoll.element_type)
 
-    # TODO(BEAM-10708): implicitly execute the pipeline and write output into
-    # cache.
-    return apply_sql(cell, line, found)
+    output_name, output = apply_sql(cell, line, found)
+    cache_output(output_name, output)
+    return output
 
 
 @progress_indicated
 def apply_sql(
     query: str, output_name: Optional[str],
-    found: Dict[str, beam.PCollection]) -> PValue:
+    found: Dict[str, beam.PCollection]) -> Tuple[str, PValue]:
   """Applies a SqlTransform with the given sql and queried PCollections.
 
   Args:
@@ -127,7 +142,9 @@ def apply_sql(
     found: The PCollections with variable names found to be used in the query.
 
   Returns:
-    A PValue, mostly a PCollection, depending on the query.
+    A Tuple[str, PValue]. First str value is the output variable name in
+    __main__ module (auto-generated if not provided). Second PValue is
+    most likely a PCollection, depending on the query.
   """
   output_name = _generate_output_name(output_name, query, found)
   query, sql_source = _build_query_components(query, found)
@@ -138,53 +155,20 @@ def apply_sql(
     setattr(importlib.import_module('__main__'), output_name, output)
     ib.watch({output_name: output})
     _LOGGER.info(
-        "The output PCollection variable is %s: %s", output_name, output)
-    return output
+        "The output PCollection variable is %s with element_type %s",
+        output_name,
+        pformat_namedtuple(output.element_type))
+    return output_name, output
   except (KeyboardInterrupt, SystemExit):
     raise
   except Exception as e:
     on_error('Error when applying the Beam SQL: %s', e)
 
 
-def pcoll_from_file_cache(
-    query_pipeline: beam.Pipeline,
-    pcoll: beam.PCollection,
-    cache_manager: FileBasedCacheManager,
-    key: str) -> beam.PCollection:
-  """Reads PCollection cache from files.
-
-  Args:
-    query_pipeline: The beam.Pipeline object built by the magic to execute the
-        SQL query.
-    pcoll: The PCollection to read cache for.
-    cache_manager: The file based cache manager that holds the PCollection
-        cache.
-    key: The key of the PCollection cache.
-
-  Returns:
-    A PCollection read from the cache.
-  """
-  schema = pcoll.element_type
-
-  class Unreify(beam.DoFn):
-    def process(self, e):
-      if isinstance(e, beam.Row) and hasattr(e, 'windowed_value'):
-        yield e.windowed_value
-
-  return (
-      query_pipeline
-      |
-      '{}{}'.format('QuerySource', key) >> cache.ReadCache(cache_manager, key)
-      | '{}{}'.format('Unreify', key) >> beam.ParDo(
-          Unreify()).with_output_types(schema))
-
-
 def pcolls_from_streaming_cache(
     user_pipeline: beam.Pipeline,
     query_pipeline: beam.Pipeline,
-    name_to_pcoll: Dict[str, beam.PCollection],
-    instrumentation: inst.PipelineInstrument,
-    cache_manager: StreamingCache) -> Dict[str, beam.PCollection]:
+    name_to_pcoll: Dict[str, beam.PCollection]) -> Dict[str, beam.PCollection]:
   """Reads PCollection cache through the TestStream.
 
   Args:
@@ -193,9 +177,6 @@ def pcolls_from_streaming_cache(
     query_pipeline: The beam.Pipeline object built by the magic to execute the
         SQL query.
     name_to_pcoll: PCollections with variable names used in the SQL query.
-    instrumentation: A pipeline_instrument.PipelineInstrument that helps
-        calculate the cache key of a given PCollection.
-    cache_manager: The streaming cache manager that holds the PCollection cache.
 
   Returns:
     A Dict[str, beam.PCollection], where each PCollection is tagged with
@@ -208,6 +189,8 @@ def pcolls_from_streaming_cache(
     _LOGGER.error(str(e))
     return True
 
+  cache_manager = ie.current_env().get_cache_manager(
+      user_pipeline, create_if_absent=True)
   test_stream_service = ie.current_env().get_test_stream_service_controller(
       user_pipeline)
   if not test_stream_service:
@@ -219,7 +202,7 @@ def pcolls_from_streaming_cache(
 
   tag_to_name = {}
   for name, pcoll in name_to_pcoll.items():
-    key = instrumentation.cache_key(pcoll)
+    key = CacheKey.from_pcoll(name, pcoll).to_str()
     tag_to_name[key] = name
   output_pcolls = query_pipeline | test_stream.TestStream(
       output_tags=set(tag_to_name.keys()),
@@ -267,25 +250,52 @@ def _build_query_components(
   """
   if found:
     user_pipeline = next(iter(found.values())).pipeline
-    cache_manager = ie.current_env().get_cache_manager(user_pipeline)
-    instrumentation = inst.build_pipeline_instrument(user_pipeline)
     sql_pipeline = beam.Pipeline(options=user_pipeline._options)
     ie.current_env().add_derived_pipeline(user_pipeline, sql_pipeline)
     sql_source = {}
-    if instrumentation.has_unbounded_sources:
+    if has_source_to_cache(user_pipeline):
       sql_source = pcolls_from_streaming_cache(
-          user_pipeline, sql_pipeline, found, instrumentation, cache_manager)
+          user_pipeline, sql_pipeline, found)
     else:
+      cache_manager = ie.current_env().get_cache_manager(
+          user_pipeline, create_if_absent=True)
       for pcoll_name, pcoll in found.items():
-        cache_key = instrumentation.cache_key(pcoll)
-        sql_source[pcoll_name] = pcoll_from_file_cache(
-            sql_pipeline, pcoll, cache_manager, cache_key)
+        cache_key = CacheKey.from_pcoll(pcoll_name, pcoll).to_str()
+        sql_source[pcoll_name] = unreify_from_cache(
+            pipeline=sql_pipeline,
+            cache_key=cache_key,
+            cache_manager=cache_manager,
+            element_type=pcoll.element_type)
     if len(sql_source) == 1:
       query = replace_single_pcoll_token(query, next(iter(sql_source.keys())))
       sql_source = next(iter(sql_source.values()))
   else:
     sql_source = beam.Pipeline()
+    ie.current_env().add_user_pipeline(sql_source)
   return query, sql_source
+
+
+@progress_indicated
+def cache_output(output_name: str, output: PValue) -> None:
+  user_pipeline = ie.current_env().user_pipeline(output.pipeline)
+  if user_pipeline:
+    cache_manager = ie.current_env().get_cache_manager(
+        user_pipeline, create_if_absent=True)
+  else:
+    _LOGGER.warning(
+        'Something is wrong with %s. Cannot introspect its data.', output)
+    return
+  key = CacheKey.from_pcoll(output_name, output).to_str()
+  _ = reify_to_cache(pcoll=output, cache_key=key, cache_manager=cache_manager)
+  try:
+    output.pipeline.run().wait_until_finish()
+  except (KeyboardInterrupt, SystemExit):
+    raise
+  except Exception as e:
+    _LOGGER.warning(_NOT_SUPPORTED_MSG, e, output.pipeline.runner)
+    return
+  ie.current_env().mark_pcollection_computed([output])
+  visualize_computed_pcoll(output_name, output)
 
 
 def load_ipython_extension(ipython):
