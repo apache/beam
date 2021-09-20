@@ -234,7 +234,7 @@ class _BaseDataframeUnbatchDoFn(beam.DoFn):
     all_series = self._get_series(df)
     iterators = [
         make_null_checking_generator(series) for series,
-        typehint in zip(all_series, self._namedtuple_ctor._field_types)
+        typehint in zip(all_series, self._namedtuple_ctor.__annotations__)
     ]
 
     # TODO: Avoid materializing the rows. Produce an object that references the
