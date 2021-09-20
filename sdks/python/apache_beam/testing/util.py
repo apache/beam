@@ -23,6 +23,7 @@ import collections
 import glob
 import io
 import tempfile
+from typing import Iterable
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -287,19 +288,19 @@ def assert_that(
       if use_global_window:
         pcoll = pcoll | WindowInto(window.GlobalWindows())
 
-      keyed_actual = pcoll | "ToVoidKey" >> Map(lambda v: (None, v))
+      keyed_actual = pcoll | 'ToVoidKey' >> Map(lambda v: (None, v))
       keyed_actual.is_bounded = True
 
       # This is a CoGroupByKey so that the matcher always runs, even if the
       # PCollection is empty.
       plain_actual = ((keyed_singleton, keyed_actual)
-                      | "Group" >> CoGroupByKey()
-                      | "Unkey" >> Map(lambda k_values: k_values[1][1]))
+                      | 'Group' >> CoGroupByKey()
+                      | 'Unkey' >> Map(lambda k_values: k_values[1][1]))
 
       if not use_global_window:
-        plain_actual = plain_actual | "AddWindow" >> ParDo(AddWindow())
+        plain_actual = plain_actual | 'AddWindow' >> ParDo(AddWindow())
 
-      plain_actual = plain_actual | "Match" >> Map(matcher)
+      plain_actual = plain_actual | 'Match' >> Map(matcher)
 
     def default_label(self):
       return label
@@ -329,3 +330,20 @@ def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
         out_file.write(in_file.read())
     concatenated_file_name = out_file.name
   return io.open(concatenated_file_name, mode, encoding=encoding)
+
+
+def _sort_lists(result):
+  if isinstance(result, list):
+    return sorted(result)
+  elif isinstance(result, tuple):
+    return tuple(_sort_lists(e) for e in result)
+  elif isinstance(result, dict):
+    return {k: _sort_lists(v) for k, v in result.items()}
+  elif isinstance(result, Iterable) and not isinstance(result, str):
+    return sorted(result)
+  else:
+    return result
+
+
+# A utility transform that recursively sorts lists for easier testing.
+SortLists = Map(_sort_lists)
