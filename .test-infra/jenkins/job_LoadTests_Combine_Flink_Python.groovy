@@ -132,7 +132,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
         "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       initialParallelism,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
 
   // Execute all scenarios connected with initial parallelism.
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, initialScenarios, 'Combine', mode)
@@ -177,5 +177,6 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Streaming', 'H 18 * 
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
+  // TODO(BEAM-12898): Re-enable this test once fixed.
+  // loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
 }

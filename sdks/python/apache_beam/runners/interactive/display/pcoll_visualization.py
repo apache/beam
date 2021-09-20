@@ -30,6 +30,7 @@ from datetime import timedelta
 
 from dateutil import tz
 
+import apache_beam as beam
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.transforms.window import GlobalWindow
@@ -153,7 +154,8 @@ def visualize(
     stream,
     dynamic_plotting_interval=None,
     include_window_info=False,
-    display_facets=False):
+    display_facets=False,
+    element_type=None):
   """Visualizes the data of a given PCollection. Optionally enables dynamic
   plotting with interval in seconds if the PCollection is being produced by a
   running pipeline or the pipeline is streaming indefinitely. The function
@@ -189,7 +191,8 @@ def visualize(
   pv = PCollectionVisualization(
       stream,
       include_window_info=include_window_info,
-      display_facets=display_facets)
+      display_facets=display_facets,
+      element_type=element_type)
   if ie.current_env().is_in_notebook:
     pv.display()
   else:
@@ -214,7 +217,8 @@ def visualize(
         updated_pv = PCollectionVisualization(
             stream,
             include_window_info=include_window_info,
-            display_facets=display_facets)
+            display_facets=display_facets,
+            element_type=element_type)
         updated_pv.display(updating_pv=pv)
 
         # Stop updating the visualizations as soon as the stream will not yield
@@ -233,6 +237,22 @@ def visualize(
   return None
 
 
+def visualize_computed_pcoll(
+    pcoll_name: str, pcoll: beam.pvalue.PCollection) -> None:
+  """A simple visualize alternative.
+
+  When the pcoll_name and pcoll pair identifies a watched and computed
+  PCollection in the current interactive environment without ambiguity, an
+  ElementStream can be built directly from cache.
+  """
+  pipeline = ie.current_env().user_pipeline(pcoll.pipeline)
+  rm = ie.current_env().get_recording_manager(pipeline, create_if_absent=True)
+  stream = rm.read(
+      pcoll_name, pcoll, max_n=float('inf'), max_duration_secs=float('inf'))
+  if stream:
+    visualize(stream, element_type=pcoll.element_type)
+
+
 class PCollectionVisualization(object):
   """A visualization of a PCollection.
 
@@ -240,7 +260,12 @@ class PCollectionVisualization(object):
   access current interactive environment for materialized PCollection data at
   the moment of self instantiation through cache.
   """
-  def __init__(self, stream, include_window_info=False, display_facets=False):
+  def __init__(
+      self,
+      stream,
+      include_window_info=False,
+      display_facets=False,
+      element_type=None):
     assert _pcoll_visualization_ready, (
         'Dependencies for PCollection visualization are not available. Please '
         'use `pip install apache-beam[interactive]` to install necessary '
@@ -258,6 +283,7 @@ class PCollectionVisualization(object):
     self._include_window_info = include_window_info
     self._display_facets = display_facets
     self._is_datatable_empty = True
+    self._element_type = element_type
 
   def display_plain_text(self):
     """Displays a head sample of the normalized PCollection data.
@@ -407,7 +433,8 @@ class PCollectionVisualization(object):
 
   def _to_dataframe(self):
     results = list(self._stream.read(tail=False))
-    return elements_to_df(results, self._include_window_info)
+    return elements_to_df(
+        results, self._include_window_info, element_type=self._element_type)
 
 
 def format_window_info_in_dataframe(data):

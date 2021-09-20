@@ -91,7 +91,8 @@ public class Environments {
 
   public enum JavaVersion {
     java8("java", "1.8"),
-    java11("java11", "11");
+    java11("java11", "11"),
+    java17("java17", "17");
 
     // Legacy name, as used in container image
     private final String legacyName;
@@ -385,6 +386,7 @@ public class Environments {
     capabilities.addAll(ModelCoders.urns());
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.PROGRESS_REPORTING));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.HARNESS_MONITORING_INFOS));
     capabilities.add("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL);
     capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
     capabilities.add(BeamUrns.getUrn(Primitives.TO_STRING));
@@ -401,6 +403,16 @@ public class Environments {
     String ext = path.isDirectory() ? "jar" : Files.getFileExtension(path.getAbsolutePath());
     String suffix = Strings.isNullOrEmpty(ext) ? "" : "." + ext;
     return String.format("%s-%s%s", fileName, encodedHash, suffix);
+  }
+
+  public static String getExternalServiceAddress(PortablePipelineOptions options) {
+    String environmentConfig = options.getDefaultEnvironmentConfig();
+    String environmentOption =
+        PortablePipelineOptions.getEnvironmentOption(options, externalServiceAddressOption);
+    if (environmentConfig != null && !environmentConfig.isEmpty()) {
+      return environmentConfig;
+    }
+    return environmentOption;
   }
 
   private static File zipDirectory(File directory) throws IOException {
@@ -447,16 +459,6 @@ public class Environments {
     String environmentConfig = options.getDefaultEnvironmentConfig();
     String environmentOption =
         PortablePipelineOptions.getEnvironmentOption(options, dockerContainerImageOption);
-    if (environmentConfig != null && !environmentConfig.isEmpty()) {
-      return environmentConfig;
-    }
-    return environmentOption;
-  }
-
-  private static String getExternalServiceAddress(PortablePipelineOptions options) {
-    String environmentConfig = options.getDefaultEnvironmentConfig();
-    String environmentOption =
-        PortablePipelineOptions.getEnvironmentOption(options, externalServiceAddressOption);
     if (environmentConfig != null && !environmentConfig.isEmpty()) {
       return environmentConfig;
     }

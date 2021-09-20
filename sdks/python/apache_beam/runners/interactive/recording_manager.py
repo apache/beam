@@ -23,15 +23,14 @@ import warnings
 import pandas as pd
 
 import apache_beam as beam
-from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive import pipeline_fragment as pf
-from apache_beam.runners.interactive import pipeline_instrument as pi
 from apache_beam.runners.interactive import utils
+from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.runner import PipelineState
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,7 +48,7 @@ class ElementStream:
       ):
     self._pcoll = pcoll
     self._cache_key = cache_key
-    self._pipeline = pcoll.pipeline
+    self._pipeline = ie.current_env().user_pipeline(pcoll.pipeline)
     self._var = var
     self._n = max_n
     self._duration_secs = max_duration_secs
@@ -64,6 +63,13 @@ class ElementStream:
 
     """Returns the variable named that defined this PCollection."""
     return self._var
+
+  @property
+  def pcoll(self):
+    # type: () -> beam.pvalue.PCollection
+
+    """Returns the PCollection that supplies this stream with data."""
+    return self._pcoll
 
   @property
   def cache_key(self):
@@ -151,24 +157,22 @@ class Recording:
       user_pipeline,  # type: beam.Pipeline
       pcolls,  # type: List[beam.pvalue.PCollection]
       result,  # type: beam.runner.PipelineResult
-      pipeline_instrument,  # type: beam.runners.interactive.PipelineInstrument
       max_n,  # type: int
       max_duration_secs,  # type: float
       ):
-
     self._user_pipeline = user_pipeline
     self._result = result
     self._result_lock = threading.Lock()
     self._pcolls = pcolls
-
-    pcoll_var = lambda pcoll: pipeline_instrument.cacheable_var_by_pcoll_id(
-        pipeline_instrument.pcolls_to_pcoll_id.get(str(pcoll), None))
+    pcoll_var = lambda pcoll: {v: k
+                               for k, v in utils.pcoll_by_name().items()}.get(
+                                   pcoll, None)
 
     self._streams = {
         pcoll: ElementStream(
             pcoll,
             pcoll_var(pcoll),
-            pipeline_instrument.cache_key(pcoll),
+            CacheKey.from_pcoll(pcoll_var(pcoll), pcoll).to_str(),
             max_n,
             max_duration_secs)
         for pcoll in pcolls
@@ -303,15 +307,15 @@ class RecordingManager:
     # TODO(BEAM-12388): investigate the mixing pcollections in multiple
     # pipelines error when using the default label.
     for df in watched_dataframes:
-      pcoll = to_pcollection(df, yield_elements='pandas', label=str(df._expr))
+      pcoll, _ = utils.deferred_df_to_pcollection(df)
       watched_pcollections.add(pcoll)
     for pcoll in pcolls:
       if pcoll not in watched_pcollections:
         ie.current_env().watch(
             {'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
 
-  def _clear(self, pipeline_instrument):
-    # type: (List[beam.pvalue.PCollection]) -> None
+  def _clear(self):
+    # type: () -> None
 
     """Clears the recording of all non-source PCollections."""
 
@@ -321,7 +325,7 @@ class RecordingManager:
     # BackgroundCachingJob.
     computed = ie.current_env().computed_pcollections
     cacheables = [
-        c for c in pipeline_instrument.cacheables.values()
+        c for c in utils.cacheables().values()
         if c.pcoll.pipeline is self.user_pipeline and c.pcoll not in computed
     ]
     all_cached = set(str(c.to_key()) for c in cacheables)
@@ -391,7 +395,7 @@ class RecordingManager:
 
     # Make sure that sources without a user reference are still cached.
     ie.current_env().add_user_pipeline(self.user_pipeline)
-    pi.watch_sources(self.user_pipeline)
+    utils.watch_sources(self.user_pipeline)
 
     # Attempt to run background caching job to record any sources.
     if ie.current_env().is_in_ipython:
@@ -431,7 +435,6 @@ class RecordingManager:
     # watch it. No validation is needed here because the watch logic can handle
     # arbitrary variables.
     self._watch(pcolls)
-    pipeline_instrument = pi.PipelineInstrument(self.user_pipeline)
     self.record_pipeline()
 
     # Get the subset of computed PCollections. These do not to be recomputed.
@@ -444,7 +447,7 @@ class RecordingManager:
     if uncomputed_pcolls:
       # Clear the cache of the given uncomputed PCollections because they are
       # incomplete.
-      self._clear(pipeline_instrument)
+      self._clear()
 
       warnings.filterwarnings(
           'ignore',
@@ -458,12 +461,29 @@ class RecordingManager:
       result = None
 
     recording = Recording(
-        self.user_pipeline,
-        pcolls,
-        result,
-        pipeline_instrument,
-        max_n,
-        max_duration_secs)
+        self.user_pipeline, pcolls, result, max_n, max_duration_secs)
     self._recordings.add(recording)
 
     return recording
+
+  def read(self, pcoll_name, pcoll, max_n, max_duration_secs):
+    # type: (str, beam.pvalue.PValue, int, float) -> Union[None, ElementStream]
+
+    """Reads an ElementStream of a computed PCollection.
+
+    Returns None if an error occurs. The caller is responsible of validating if
+    the given pcoll_name and pcoll can identify a watched and computed
+    PCollection without ambiguity in the notebook.
+    """
+
+    try:
+      cache_key = CacheKey.from_pcoll(pcoll_name, pcoll).to_str()
+      return ElementStream(
+          pcoll, pcoll_name, cache_key, max_n, max_duration_secs)
+    except (KeyboardInterrupt, SystemExit):
+      raise
+    except Exception as e:
+      # Caller should handle all validations. Here to avoid redundant
+      # validations, simply log errors if caller fails to do so.
+      _LOGGER.error(str(e))
+      return None

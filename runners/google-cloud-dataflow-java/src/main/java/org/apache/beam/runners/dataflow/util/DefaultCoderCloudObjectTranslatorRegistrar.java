@@ -65,6 +65,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
       ImmutableList.of(
           CloudObjectTranslators.globalWindow(),
           CloudObjectTranslators.intervalWindow(),
+          CloudObjectTranslators.customWindow(),
           CloudObjectTranslators.bytes(),
           CloudObjectTranslators.varInt(),
           CloudObjectTranslators.lengthPrefix(),

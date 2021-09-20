@@ -23,7 +23,7 @@ import logging
 import typing
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam import coders
@@ -45,7 +45,7 @@ Shopper = typing.NamedTuple(
 coders.registry.register_coder(Shopper, coders.RowCoder)
 
 
-@attr('UsesSqlExpansionService')
+@pytest.mark.xlang_sql_expansion_service
 @unittest.skipIf(
     TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
     None,
@@ -57,15 +57,14 @@ class SqlTransformTest(unittest.TestCase):
   job server. The easiest way to accomplish this is to run the
   `validatesCrossLanguageRunnerPythonUsingSql` gradle target for a particular
   job server, which will start the runner and job server for you. For example,
-  `:runners:flink:1.10:job-server:validatesCrossLanguageRunnerPythonUsingSql` to
-  test on Flink 1.10.
+  `:runners:flink:1.13:job-server:validatesCrossLanguageRunnerPythonUsingSql` to
+  test on Flink 1.13.
 
   Alternatively, you may be able to iterate faster if you run the tests directly
   using a runner like `FlinkRunner`, which can start a local Flink cluster and
   job server for you:
     $ pip install -e './sdks/python[gcp,test]'
-    $ python ./sdks/python/setup.py nosetests \\
-        --tests apache_beam.transforms.sql_test \\
+    $ pytest apache_beam/transforms/sql_test.py \\
         --test-pipeline-options="--runner=FlinkRunner"
   """
   _multiprocess_can_split_ = True

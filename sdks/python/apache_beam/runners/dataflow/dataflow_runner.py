@@ -305,7 +305,7 @@ class DataflowRunner(PipelineRunner):
                     parent,
                     beam.Map(lambda x: (b'', x)),
                     transform_node.full_label + '/MapToVoidKey%s' % ix,
-                    (side_input.pvalue, ))
+                    {'input': side_input.pvalue})
                 new_side_input.pvalue.producer = map_to_void_key
                 map_to_void_key.add_output(new_side_input.pvalue, None)
                 parent.add_part(map_to_void_key)
@@ -408,6 +408,18 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
+    debug_options = options.view_as(DebugOptions)
+    if pipeline.contains_external_transforms:
+      if not apiclient._use_unified_worker(options):
+        _LOGGER.info(
+            'Automatically enabling Dataflow Runner v2 since the '
+            'pipeline used cross-language transforms.')
+        # This has to be done before any Fn API specific setup.
+        debug_options.add_experiment("use_runner_v2")
+      # Dataflow multi-language pipelines require portable job submission.
+      if not debug_options.lookup_experiment('use_portable_job_submission'):
+        debug_options.add_experiment("use_portable_job_submission")
+
     self._maybe_add_unified_worker_missing_options(options)
 
     use_fnapi = apiclient._use_fnapi(options)
@@ -496,6 +508,13 @@ class DataflowRunner(PipelineRunner):
       # in the proto representation of the graph.
       pipeline.replace_all(DataflowRunner._NON_PORTABLE_PTRANSFORM_OVERRIDES)
 
+    # Always upload graph out-of-band when explicitly using runner v2 with
+    # use_portable_job_submission to avoid irrelevant large graph limits.
+    if (apiclient._use_unified_worker(debug_options) and
+        debug_options.lookup_experiment('use_portable_job_submission') and
+        not debug_options.lookup_experiment('upload_graph')):
+      debug_options.add_experiment("upload_graph")
+
     # Add setup_options for all the BeamPlugin imports
     setup_options = options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
@@ -510,12 +529,6 @@ class DataflowRunner(PipelineRunner):
     if worker_options.min_cpu_platform:
       debug_options.add_experiment(
           'min_cpu_platform=' + worker_options.min_cpu_platform)
-
-    if (apiclient._use_unified_worker(options) and
-        pipeline.contains_external_transforms):
-      # All Dataflow multi-language pipelines (supported by Runner v2 only) use
-      # portable job submission by default.
-      debug_options.add_experiment("use_portable_job_submission")
 
     # Elevate "enable_streaming_engine" to pipeline option, but using the
     # existing experiment.

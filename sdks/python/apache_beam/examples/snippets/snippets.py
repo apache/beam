@@ -1647,7 +1647,8 @@ def sdf_basic_example():
   read_next_record = None
 
   # [START SDF_BasicExample]
-  class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
+  class FileToWordsRestrictionProvider(beam.transforms.core.RestrictionProvider
+                                       ):
     def initial_restriction(self, file_name):
       return OffsetRange(0, os.stat(file_name).st_size)
 
@@ -1680,7 +1681,8 @@ def sdf_basic_example_with_splitting():
   from apache_beam.io.restriction_trackers import OffsetRange
 
   # [START SDF_BasicExampleWithSplitting]
-  class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
+  class FileToWordsRestrictionProvider(beam.transforms.core.RestrictionProvider
+                                       ):
     def split(self, file_name, restriction):
       # Compute and output 64 MiB size ranges to process in parallel
       split_size = 64 * (1 << 20)

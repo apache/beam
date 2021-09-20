@@ -87,10 +87,10 @@ class RowCoder(FastCoder):
   def from_runner_api_parameter(schema, components, unused_context):
     return RowCoder(schema)
 
-  @staticmethod
-  def from_type_hint(type_hint, registry):
+  @classmethod
+  def from_type_hint(cls, type_hint, registry):
     schema = schema_from_element_type(type_hint)
-    return RowCoder(schema)
+    return cls(schema)
 
   @staticmethod
   def from_payload(payload):

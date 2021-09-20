@@ -45,8 +45,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20210505',
-    'dataflow.fnapi_container_version' : 'beam-master-20210524',
+    'dataflow.legacy_container_version' : 'beam-master-20210913',
+    'dataflow.fnapi_container_version' : 'beam-master-20210913',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -277,7 +277,10 @@ task cleanUpDockerImages() {
       commandLine "docker", "rmi", "--force", "${dockerImageName}"
     }
     exec {
-      commandLine "gcloud", "--quiet", "container", "images", "delete", "--force-delete-tags", "${dockerImageName}"
+      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerImageName}"
+    }
+    exec {
+      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerImageContainer}"
     }
   }
 }
@@ -319,7 +322,6 @@ task validatesRunnerStreaming {
       'org.apache.beam.sdk.testing.UsesMapState',
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
       'org.apache.beam.sdk.testing.UsesSetState',
-      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering',
     ],
   ))
 }
@@ -352,12 +354,11 @@ createCrossLanguageValidatesRunnerTask(
     // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
     "--experiments=use_runner_v2,shuffle_mode=appliance",
   ],
-  nosetestsOptions: [
-    "--nocapture",
-    "--processes=8",
-    "--process-timeout=4500",
-    // TODO: enable after fixing BEAM-10507
-    "--exclude=test_xlang_parquetio_write|test_flatten",
+  pytestOptions: [
+    "--capture=no",
+    "--numprocesses=8",
+    "--timeout=4500",
+    "--log-cli-level=INFO",
   ]
 )
 

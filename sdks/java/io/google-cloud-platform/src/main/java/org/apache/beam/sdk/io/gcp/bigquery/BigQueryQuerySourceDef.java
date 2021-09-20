@@ -128,7 +128,9 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
     Optional<String> queryTempDatasetOpt = Optional.ofNullable(tempDatasetId);
     TableReference tableToRemove =
         createTempTableReference(
-            bqOptions.getProject(),
+            bqOptions.getBigQueryProject() == null
+                ? bqOptions.getProject()
+                : bqOptions.getBigQueryProject(),
             BigQueryResourceNaming.createJobIdPrefix(
                 bqOptions.getJobName(), stepUuid, JobType.QUERY),
             queryTempDatasetOpt);

@@ -51,6 +51,7 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import python_urns
 from apache_beam.runners.portability import fn_api_runner
@@ -99,6 +100,7 @@ class FnApiRunnerTest(unittest.TestCase):
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner(is_drain=is_drain))
 
+  @retry(stop=stop_after_attempt(3))
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
@@ -106,10 +108,12 @@ class FnApiRunnerTest(unittest.TestCase):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
+  @retry(stop=stop_after_attempt(3))
   def test_create(self):
     with self.create_pipeline() as p:
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo(self):
     with self.create_pipeline() as p:
       res = (
@@ -119,6 +123,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda e: e + 'x'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_side_outputs(self):
     def tee(elem, *tags):
       for tag in tags:
@@ -133,6 +138,7 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(xy.x, equal_to(['x', 'xy']), label='x')
       assert_that(xy.y, equal_to(['y', 'xy']), label='y')
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_side_and_main_outputs(self):
     def even_odd(elem):
       yield elem
@@ -152,6 +158,7 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(unnamed.even, equal_to([2]), label='unnamed.even')
       assert_that(unnamed.odd, equal_to([1, 3]), label='unnamed.odd')
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_side_inputs(self):
     def cross_product(elem, sides):
       for side in sides:
@@ -165,6 +172,7 @@ class FnApiRunnerTest(unittest.TestCase):
           equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'), ('a', 'y'), ('b', 'y'),
                     ('c', 'y')]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_windowed_side_inputs(self):
     with self.create_pipeline() as p:
       # Now with some windowing.
@@ -193,6 +201,7 @@ class FnApiRunnerTest(unittest.TestCase):
           ]),
           label='windowed')
 
+  @retry(stop=stop_after_attempt(3))
   def test_flattened_side_input(self, with_transcoding=True):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
@@ -215,6 +224,7 @@ class FnApiRunnerTest(unittest.TestCase):
                   equal_to([('a', 1), ('b', 2)] + third_element),
                   label='CheckFlattenOfSideInput')
 
+  @retry(stop=stop_after_attempt(3))
   def test_gbk_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
@@ -225,6 +235,7 @@ class FnApiRunnerTest(unittest.TestCase):
               'a': [1]
           })]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_multimap_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
@@ -234,6 +245,7 @@ class FnApiRunnerTest(unittest.TestCase):
               lambda k, d: (k, sorted(d[k])), beam.pvalue.AsMultiMap(side)),
           equal_to([('a', [1, 3]), ('b', [2])]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_multimap_multiside_input(self):
     # A test where two transforms in the same stage consume the same PCollection
     # twice as side input.
@@ -255,6 +267,7 @@ class FnApiRunnerTest(unittest.TestCase):
               beam.pvalue.AsList(side)),
           equal_to([('a', [1, 3], [1, 2, 3]), ('b', [2], [1, 2, 3])]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_multimap_side_input_type_coercion(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
@@ -269,6 +282,7 @@ class FnApiRunnerTest(unittest.TestCase):
               lambda k, d: (k, sorted(d[k])), beam.pvalue.AsMultiMap(side)),
           equal_to([('a', [1, 3]), ('b', [2])]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_unfusable_side_inputs(self):
     def cross_product(elem, sides):
       for side in sides:
@@ -290,6 +304,7 @@ class FnApiRunnerTest(unittest.TestCase):
           pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(derived)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_state_only(self):
     index_state_spec = userstate.CombiningValueStateSpec('index', sum)
     value_and_index_state_spec = userstate.ReadModifyWriteStateSpec(
@@ -317,6 +332,7 @@ class FnApiRunnerTest(unittest.TestCase):
           p | beam.Create(inputs) | beam.ParDo(AddIndex()), equal_to(expected))
 
   @unittest.skip('TestStream not yet supported')
+  @retry(stop=stop_after_attempt(3))
   def test_teststream_pardo_timers(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
 
@@ -346,6 +362,7 @@ class FnApiRunnerTest(unittest.TestCase):
       #expected = [('fired', ts) for ts in (20, 200)]
       #assert_that(actual, equal_to(expected))
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_timers(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
     state_spec = userstate.CombiningValueStateSpec('num_called', sum)
@@ -377,6 +394,7 @@ class FnApiRunnerTest(unittest.TestCase):
       expected = [('fired', ts) for ts in (20, 200, 40, 400)]
       assert_that(actual, equal_to(expected))
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_timers_clear(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
     clear_timer_spec = userstate.TimerSpec(
@@ -412,12 +430,15 @@ class FnApiRunnerTest(unittest.TestCase):
       expected = [('fired', ts) for ts in (20, 200)]
       assert_that(actual, equal_to(expected))
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_state_timers(self):
     self._run_pardo_state_timers(windowed=False)
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_state_timers_non_standard_coder(self):
     self._run_pardo_state_timers(windowed=False, key_type=Any)
 
+  @retry(stop=stop_after_attempt(3))
   def test_windowed_pardo_state_timers(self):
     self._run_pardo_state_timers(windowed=True)
 
@@ -486,6 +507,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(actual, is_buffered_correctly)
 
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_dynamic_timer(self):
     class DynamicTimerDoFn(beam.DoFn):
       dynamic_timer_spec = userstate.TimerSpec(
@@ -510,6 +532,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(DynamicTimerDoFn()))
       assert_that(actual, equal_to([('key1', 10), ('key2', 20), ('key3', 30)]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_sdf(self):
     class ExpandingStringsDoFn(beam.DoFn):
       def process(
@@ -528,6 +551,7 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
       assert_that(actual, equal_to(list(''.join(data))))
 
+  @retry(stop=stop_after_attempt(3))
   def test_sdf_with_dofn_as_restriction_provider(self):
     class ExpandingStringsDoFn(beam.DoFn, ExpandStringsProvider):
       def process(
@@ -543,6 +567,7 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
       assert_that(actual, equal_to(list(''.join(data))))
 
+  @retry(stop=stop_after_attempt(3))
   def test_sdf_with_check_done_failed(self):
     class ExpandingStringsDoFn(beam.DoFn):
       def process(
@@ -562,6 +587,7 @@ class FnApiRunnerTest(unittest.TestCase):
         data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
         _ = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
 
+  @retry(stop=stop_after_attempt(3))
   def test_sdf_with_watermark_tracking(self):
     class ExpandingStringsDoFn(beam.DoFn):
       def process(
@@ -588,6 +614,7 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
       assert_that(actual, equal_to(list(''.join(data))))
 
+  @retry(stop=stop_after_attempt(3))
   def test_sdf_with_dofn_as_watermark_estimator(self):
     class ExpandingStringsDoFn(beam.DoFn, beam.WatermarkEstimatorProvider):
       def initial_estimator_state(self, element, restriction):
@@ -651,12 +678,15 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
 
+  @retry(stop=stop_after_attempt(3))
   def test_sdf_with_sdf_initiated_checkpointing(self):
     self.run_sdf_initiated_checkpointing(is_drain=False)
 
+  @retry(stop=stop_after_attempt(3))
   def test_draining_sdf_with_sdf_initiated_checkpointing(self):
     self.run_sdf_initiated_checkpointing(is_drain=True)
 
+  @retry(stop=stop_after_attempt(3))
   def test_sdf_default_truncate_when_bounded(self):
     class SimleSDF(beam.DoFn):
       def process(
@@ -674,6 +704,7 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
       assert_that(actual, equal_to(range(10)))
 
+  @retry(stop=stop_after_attempt(3))
   def test_sdf_default_truncate_when_unbounded(self):
     class SimleSDF(beam.DoFn):
       def process(
@@ -691,6 +722,7 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
       assert_that(actual, equal_to([]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_sdf_with_truncate(self):
     class SimleSDF(beam.DoFn):
       def process(
@@ -708,6 +740,7 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
       assert_that(actual, equal_to(range(5)))
 
+  @retry(stop=stop_after_attempt(3))
   def test_group_by_key(self):
     with self.create_pipeline() as p:
       res = (
@@ -718,11 +751,13 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([('a', [1, 2]), ('b', [3])]))
 
   # Runners may special case the Reshuffle transform urn.
+  @retry(stop=stop_after_attempt(3))
   def test_reshuffle(self):
     with self.create_pipeline() as p:
       assert_that(
           p | beam.Create([1, 2, 3]) | beam.Reshuffle(), equal_to([1, 2, 3]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_flatten(self, with_transcoding=True):
     with self.create_pipeline() as p:
       if with_transcoding:
@@ -736,11 +771,13 @@ class FnApiRunnerTest(unittest.TestCase):
           p | 'd' >> beam.Create(additional)) | beam.Flatten()
       assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
+  @retry(stop=stop_after_attempt(3))
   def test_flatten_same_pcollections(self, with_transcoding=True):
     with self.create_pipeline() as p:
       pc = p | beam.Create(['a', 'b'])
       assert_that((pc, pc, pc) | beam.Flatten(), equal_to(['a', 'b'] * 3))
 
+  @retry(stop=stop_after_attempt(3))
   def test_combine_per_key(self):
     with self.create_pipeline() as p:
       res = (
@@ -749,6 +786,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
       assert_that(res, equal_to([('a', 1.5), ('b', 3.0)]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_read(self):
     # Can't use NamedTemporaryFile as a context
     # due to https://bugs.python.org/issue14243
@@ -762,6 +800,7 @@ class FnApiRunnerTest(unittest.TestCase):
     finally:
       os.unlink(temp_file.name)
 
+  @retry(stop=stop_after_attempt(3))
   def test_windowing(self):
     with self.create_pipeline() as p:
       res = (
@@ -773,6 +812,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_custom_merging_window(self):
     with self.create_pipeline() as p:
       res = (
@@ -789,6 +829,7 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertEqual(GenericMergingWindowFn._HANDLES, {})
 
   @unittest.skip('BEAM-9119: test is flaky')
+  @retry(stop=stop_after_attempt(3))
   def test_large_elements(self):
     with self.create_pipeline() as p:
       big = (
@@ -811,6 +852,7 @@ class FnApiRunnerTest(unittest.TestCase):
       gbk_res = (big | beam.GroupByKey() | beam.Map(lambda x: x[0]))
       assert_that(gbk_res, equal_to(['a', 'b']), label='gbk')
 
+  @retry(stop=stop_after_attempt(3))
   def test_error_message_includes_stage(self):
     with self.assertRaises(BaseException) as e_cm:
       with self.create_pipeline() as p:
@@ -824,16 +866,13 @@ class FnApiRunnerTest(unittest.TestCase):
             | beam.Create(['a', 'b'])
             | 'StageA' >> beam.Map(lambda x: x)
             | 'StageB' >> beam.Map(lambda x: x)
-            | 'FusionBreakBeforeRaise' >> beam.Reshuffle()
             | 'StageC' >> beam.Map(raise_error)
-            | 'FusionBreakAfterRaise' >> beam.Reshuffle()
             | 'StageD' >> beam.Map(lambda x: x))
     message = e_cm.exception.args[0]
     self.assertIn('StageC', message)
-    self.assertNotIn('StageA', message)
     self.assertNotIn('StageB', message)
-    self.assertNotIn('StageD', message)
 
+  @retry(stop=stop_after_attempt(3))
   def test_error_traceback_includes_user_code(self):
     def first(x):
       return second(x)
@@ -856,6 +895,7 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertIn('second', message)
     self.assertIn('third', message)
 
+  @retry(stop=stop_after_attempt(3))
   def test_no_subtransform_composite(self):
     class First(beam.PTransform):
       def expand(self, pcolls):
@@ -866,6 +906,7 @@ class FnApiRunnerTest(unittest.TestCase):
       pcoll_b = p | 'b' >> beam.Create(['b'])
       assert_that((pcoll_a, pcoll_b) | First(), equal_to(['a']))
 
+  @retry(stop=stop_after_attempt(3))
   def test_metrics(self, check_gauge=True):
     p = self.create_pipeline()
 
@@ -898,6 +939,7 @@ class FnApiRunnerTest(unittest.TestCase):
                                   .with_name('gauge'))['gauges']
       self.assertEqual(gaug.committed.value, 3)
 
+  @retry(stop=stop_after_attempt(3))
   def test_callbacks_with_exception(self):
     elements_list = ['1', '2']
 
@@ -917,6 +959,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(FinalizebleDoFnWithException()))
       assert_that(res, equal_to(['1', '2']))
 
+  @retry(stop=stop_after_attempt(3))
   def test_register_finalizations(self):
     event_recorder = EventRecorder(tempfile.gettempdir())
 
@@ -954,6 +997,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
     event_recorder.cleanup()
 
+  @retry(stop=stop_after_attempt(3))
   def test_sdf_synthetic_source(self):
     common_attrs = {
         'key_size': 1,
@@ -984,6 +1028,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.combiners.Count.Globally())
       assert_that(res, equal_to([total_num_records]))
 
+  @retry(stop=stop_after_attempt(3))
   def test_create_value_provider_pipeline_option(self):
     # Verify that the runner can execute a pipeline when there are value
     # provider pipeline options
@@ -999,7 +1044,8 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
-  def test_pack_combiners(self):
+  @retry(stop=stop_after_attempt(3))
+  def _test_pack_combiners(self, assert_using_counter_names):
     counter = beam.metrics.Metrics.counter('ns', 'num_values')
 
     def min_with_counter(values):
@@ -1030,26 +1076,24 @@ class FnApiRunnerTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
-    unpacked_min_step_name_regex = r'.*PackableMin.*CombinePerKey.*'
-    unpacked_max_step_name_regex = r'.*PackableMax.*CombinePerKey.*'
     packed_step_name_regex = (
         r'.*Packed.*PackableMin.*CombinePerKey.*PackableMax.*CombinePerKey.*' +
         'Pack.*')
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
     step_names = set(m.key.step for m in counters)
-    self.assertFalse(
-        any([
-            re.match(unpacked_min_step_name_regex, s) and
-            not re.match(packed_step_name_regex, s) for s in step_names
-        ]))
-    self.assertFalse(
-        any([
-            re.match(unpacked_max_step_name_regex, s) and
-            not re.match(packed_step_name_regex, s) for s in step_names
-        ]))
-    self.assertTrue(
-        any([re.match(packed_step_name_regex, s) for s in step_names]))
+    pipeline_options = p._options
+    if assert_using_counter_names:
+      if pipeline_options.view_as(StandardOptions).streaming:
+        self.assertFalse(
+            any([re.match(packed_step_name_regex, s) for s in step_names]))
+      else:
+        self.assertTrue(
+            any([re.match(packed_step_name_regex, s) for s in step_names]))
+
+  @retry(stop=stop_after_attempt(3))
+  def test_pack_combiners(self):
+    self._test_pack_combiners(assert_using_counter_names=True)
 
 
 # These tests are kept in a separate group so that they are
@@ -1132,6 +1176,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
+  @retry(stop=stop_after_attempt(3))
   def test_element_count_metrics(self):
     class GenerateTwoOutputs(beam.DoFn):
       def process(self, element):
@@ -1316,6 +1361,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       print(res._monitoring_infos_by_stage)
       raise
 
+  @retry(stop=stop_after_attempt(3))
   def test_non_user_metrics(self):
     p = self.create_pipeline()
 

@@ -38,9 +38,6 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class SideInputsTest(unittest.TestCase):
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   def create_pipeline(self):
     return TestPipeline()
 

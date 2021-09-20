@@ -35,8 +35,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.NlsString;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
@@ -146,6 +146,9 @@ public final class BeamTableUtils {
         && ((rawObj instanceof String)
             || (rawObj instanceof BigDecimal && type.getTypeName() != TypeName.DECIMAL))) {
       String raw = rawObj.toString();
+      if (raw.trim().isEmpty()) {
+        return null;
+      }
       switch (type.getTypeName()) {
         case BYTE:
           return Byte.valueOf(raw);
@@ -154,16 +157,10 @@ public final class BeamTableUtils {
         case INT32:
           return Integer.valueOf(raw);
         case INT64:
-          if (raw.equals("")) {
-            return null;
-          }
           return Long.valueOf(raw);
         case FLOAT:
           return Float.valueOf(raw);
         case DOUBLE:
-          if (raw.equals("")) {
-            return null;
-          }
           return Double.valueOf(raw);
         default:
           throw new UnsupportedOperationException(

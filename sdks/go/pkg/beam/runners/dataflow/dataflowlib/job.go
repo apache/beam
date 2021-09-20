@@ -17,17 +17,18 @@ package dataflowlib
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	// Importing to get the side effect of the remote execution hook. See init().
-	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/init"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
 )
@@ -344,6 +345,18 @@ func validateWorkerSettings(ctx context.Context, opts *JobOptions) error {
 		log.Warn(ctx, "Option --zone is deprecated. Please use --workerZone instead.")
 		opts.WorkerZone = opts.Zone
 		opts.Zone = ""
+	}
+
+	numWorkers := opts.NumWorkers
+	maxNumWorkers := opts.MaxNumWorkers
+	if numWorkers < 0 {
+		return fmt.Errorf("num_workers (%d) cannot be negative", numWorkers)
+	}
+	if maxNumWorkers < 0 {
+		return fmt.Errorf("max_num_workers (%d) cannot be negative", maxNumWorkers)
+	}
+	if numWorkers > 0 && maxNumWorkers > 0 && numWorkers > maxNumWorkers {
+		return fmt.Errorf("num_workers (%d) cannot exceed max_num_workers (%d)", numWorkers, maxNumWorkers)
 	}
 	return nil
 }

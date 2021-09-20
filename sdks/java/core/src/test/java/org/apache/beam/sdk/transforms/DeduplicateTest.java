@@ -23,7 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -177,27 +177,28 @@ public class DeduplicateTest {
   @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testRepresentativeValuesWithCoder() {
     Instant base = new Instant(0);
-    TestStream<KV<Integer, String>> values =
-        TestStream.create(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
+    TestStream<KV<Long, String>> values =
+        TestStream.create(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(base)
             .addElements(
-                TimestampedValue.of(KV.of(1, "k1"), base),
-                TimestampedValue.of(KV.of(2, "k2"), base.plus(Duration.standardSeconds(10))),
-                TimestampedValue.of(KV.of(3, "k3"), base.plus(Duration.standardSeconds(20))))
+                TimestampedValue.of(KV.of(1L, "k1"), base),
+                TimestampedValue.of(KV.of(2L, "k2"), base.plus(Duration.standardSeconds(10))),
+                TimestampedValue.of(KV.of(3L, "k3"), base.plus(Duration.standardSeconds(20))))
             .advanceProcessingTime(Duration.standardMinutes(1))
             .addElements(
-                TimestampedValue.of(KV.of(1, "k1"), base.plus(Duration.standardSeconds(30))),
-                TimestampedValue.of(KV.of(2, "k2"), base.plus(Duration.standardSeconds(40))),
-                TimestampedValue.of(KV.of(3, "k3"), base.plus(Duration.standardSeconds(50))))
+                TimestampedValue.of(KV.of(1L, "k1"), base.plus(Duration.standardSeconds(30))),
+                TimestampedValue.of(KV.of(2L, "k2"), base.plus(Duration.standardSeconds(40))),
+                TimestampedValue.of(KV.of(3L, "k3"), base.plus(Duration.standardSeconds(50))))
             .advanceWatermarkToInfinity();
 
-    PCollection<KV<Integer, String>> distinctValues =
+    PCollection<KV<Long, String>> distinctValues =
         p.apply(values)
             .apply(
-                Deduplicate.withRepresentativeValueFn(new Keys<Integer>())
-                    .withRepresentativeCoder(VarIntCoder.of()));
+                Deduplicate.withRepresentativeValueFn(new Keys<Long>())
+                    .withRepresentativeCoder(VarLongCoder.of()));
 
-    PAssert.that(distinctValues).containsInAnyOrder(KV.of(1, "k1"), KV.of(2, "k2"), KV.of(3, "k3"));
+    PAssert.that(distinctValues)
+        .containsInAnyOrder(KV.of(1L, "k1"), KV.of(2L, "k2"), KV.of(3L, "k3"));
     p.run();
   }
 
@@ -205,27 +206,28 @@ public class DeduplicateTest {
   @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredRepresentativeValuesWithType() {
     Instant base = new Instant(0);
-    TestStream<KV<Integer, String>> values =
-        TestStream.create(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
+    TestStream<KV<Long, String>> values =
+        TestStream.create(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(base)
             .addElements(
-                TimestampedValue.of(KV.of(1, "k1"), base),
-                TimestampedValue.of(KV.of(2, "k2"), base.plus(Duration.standardSeconds(10))),
-                TimestampedValue.of(KV.of(3, "k3"), base.plus(Duration.standardSeconds(20))))
+                TimestampedValue.of(KV.of(1L, "k1"), base),
+                TimestampedValue.of(KV.of(2L, "k2"), base.plus(Duration.standardSeconds(10))),
+                TimestampedValue.of(KV.of(3L, "k3"), base.plus(Duration.standardSeconds(20))))
             .advanceProcessingTime(Duration.standardMinutes(1))
             .addElements(
-                TimestampedValue.of(KV.of(1, "k1"), base.plus(Duration.standardSeconds(30))),
-                TimestampedValue.of(KV.of(2, "k2"), base.plus(Duration.standardSeconds(40))),
-                TimestampedValue.of(KV.of(3, "k3"), base.plus(Duration.standardSeconds(50))))
+                TimestampedValue.of(KV.of(1L, "k1"), base.plus(Duration.standardSeconds(30))),
+                TimestampedValue.of(KV.of(2L, "k2"), base.plus(Duration.standardSeconds(40))),
+                TimestampedValue.of(KV.of(3L, "k3"), base.plus(Duration.standardSeconds(50))))
             .advanceWatermarkToInfinity();
 
-    PCollection<KV<Integer, String>> distinctValues =
+    PCollection<KV<Long, String>> distinctValues =
         p.apply(values)
             .apply(
-                Deduplicate.withRepresentativeValueFn(new Keys<Integer>())
-                    .withRepresentativeCoder(VarIntCoder.of()));
+                Deduplicate.withRepresentativeValueFn(new Keys<Long>())
+                    .withRepresentativeCoder(VarLongCoder.of()));
 
-    PAssert.that(distinctValues).containsInAnyOrder(KV.of(1, "k1"), KV.of(2, "k2"), KV.of(3, "k3"));
+    PAssert.that(distinctValues)
+        .containsInAnyOrder(KV.of(1L, "k1"), KV.of(2L, "k2"), KV.of(3L, "k3"));
     p.run();
   }
 

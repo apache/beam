@@ -19,14 +19,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 )
@@ -40,7 +40,7 @@ const (
 	URNGBK           = "beam:transform:group_by_key:v1"
 	URNReshuffle     = "beam:transform:reshuffle:v1"
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
-	URNWindow        = "beam:transform:window:v1"
+	URNWindow        = "beam:transform:window_into:v1"
 
 	// URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
@@ -975,22 +975,144 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	if err != nil {
 		return nil, err
 	}
+	var mergeStat pipepb.MergeStatus_Enum
+	if w.Fn.Kind == window.Sessions {
+		mergeStat = pipepb.MergeStatus_NEEDS_MERGE
+	} else {
+		mergeStat = pipepb.MergeStatus_NON_MERGING
+	}
+
 	ws := &pipepb.WindowingStrategy{
 		WindowFn:         windowFn,
-		MergeStatus:      pipepb.MergeStatus_NON_MERGING,
-		AccumulationMode: pipepb.AccumulationMode_DISCARDING,
+		MergeStatus:      mergeStat,
 		WindowCoderId:    windowCoderId,
-		Trigger: &pipepb.Trigger{
+		Trigger:          makeTrigger(w.Trigger),
+		AccumulationMode: makeAccumulationMode(w.AccumulationMode),
+		OutputTime:       pipepb.OutputTime_END_OF_WINDOW,
+		ClosingBehavior:  pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
+		AllowedLateness:  0,
+		OnTimeBehavior:   pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY,
+	}
+	return ws, nil
+}
+
+func makeAccumulationMode(m window.AccumulationMode) pipepb.AccumulationMode_Enum {
+	switch m {
+	case window.Accumulating:
+		return pipepb.AccumulationMode_ACCUMULATING
+	case window.Discarding:
+		return pipepb.AccumulationMode_DISCARDING
+	case window.Unspecified:
+		return pipepb.AccumulationMode_UNSPECIFIED
+	case window.Retracting:
+		return pipepb.AccumulationMode_RETRACTING
+	default:
+		return pipepb.AccumulationMode_DISCARDING
+	}
+}
+
+func makeTrigger(t window.Trigger) *pipepb.Trigger {
+	switch t.Kind {
+	case window.DefaultTrigger:
+		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
 				Default: &pipepb.Trigger_Default{},
 			},
-		},
-		OutputTime:      pipepb.OutputTime_END_OF_WINDOW,
-		ClosingBehavior: pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
-		AllowedLateness: 0,
-		OnTimeBehavior:  pipepb.OnTimeBehavior_FIRE_ALWAYS,
+		}
+	case window.AlwaysTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Always_{
+				Always: &pipepb.Trigger_Always{},
+			},
+		}
+	case window.AfterAnyTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterAny_{
+				AfterAny: &pipepb.Trigger_AfterAny{
+					Subtriggers: extractSubtriggers(t.SubTriggers),
+				},
+			},
+		}
+	case window.AfterAllTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterAll_{
+				AfterAll: &pipepb.Trigger_AfterAll{
+					Subtriggers: extractSubtriggers(t.SubTriggers),
+				},
+			},
+		}
+	case window.AfterProcessingTimeTrigger:
+		// TODO(BEAM-3304) Right now would work only for single delay value.
+		// could be configured to take more than one delay values later.
+		ttd := &pipepb.TimestampTransform{
+			TimestampTransform: &pipepb.TimestampTransform_Delay_{
+				Delay: &pipepb.TimestampTransform_Delay{DelayMillis: t.Delay},
+			}}
+		tt := []*pipepb.TimestampTransform{ttd}
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterProcessingTime_{
+				AfterProcessingTime: &pipepb.Trigger_AfterProcessingTime{TimestampTransforms: tt},
+			},
+		}
+	case window.ElementCountTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_ElementCount_{
+				ElementCount: &pipepb.Trigger_ElementCount{ElementCount: t.ElementCount},
+			},
+		}
+	case window.AfterEndOfWindowTrigger:
+		var lateTrigger *pipepb.Trigger
+		if t.LateTrigger != nil {
+			lateTrigger = makeTrigger(*t.LateTrigger)
+		}
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterEndOfWindow_{
+				AfterEndOfWindow: &pipepb.Trigger_AfterEndOfWindow{
+					EarlyFirings: makeTrigger(*t.EarlyTrigger),
+					LateFirings:  lateTrigger,
+				},
+			},
+		}
+	case window.RepeatTrigger:
+		if len(t.SubTriggers) != 1 {
+			panic("Only 1 Subtrigger should be passed to Repeat Trigger")
+		}
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Repeat_{
+				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTriggers[0])},
+			},
+		}
+	case window.NeverTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Never_{
+				Never: &pipepb.Trigger_Never{},
+			},
+		}
+	case window.AfterSynchronizedProcessingTimeTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterSynchronizedProcessingTime_{
+				AfterSynchronizedProcessingTime: &pipepb.Trigger_AfterSynchronizedProcessingTime{},
+			},
+		}
+	default:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Default_{
+				Default: &pipepb.Trigger_Default{},
+			},
+		}
 	}
-	return ws, nil
+}
+
+func extractSubtriggers(t []window.Trigger) []*pipepb.Trigger {
+	if len(t) <= 0 {
+		panic("At least one subtrigger required for composite triggers.")
+	}
+
+	var result []*pipepb.Trigger
+	for _, tr := range t {
+		result = append(result, makeTrigger(tr))
+	}
+	return result
 }
 
 func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
@@ -1036,10 +1158,10 @@ func makeWindowCoder(w *window.Fn) (*coder.WindowCoder, error) {
 	switch w.Kind {
 	case window.GlobalWindows:
 		return coder.NewGlobalWindow(), nil
-	case window.FixedWindows, window.SlidingWindows, URNSlidingWindowsWindowFn:
+	case window.FixedWindows, window.SlidingWindows, window.Sessions, URNSlidingWindowsWindowFn:
 		return coder.NewIntervalWindow(), nil
 	default:
-		return nil, errors.Errorf("unexpected windowing strategy: %v", w)
+		return nil, errors.Errorf("unexpected windowing strategy for coder: %v", w)
 	}
 }
 

@@ -298,6 +298,68 @@ pre {
     }
   }
 }
+.runner-switcher {
+  ul.nav-tabs {
+    padding-left: 0;
+    border:0;
+    li {
+      &:hover {
+        cursor: pointer;
+      }
+      a {
+        border: none;
+        margin-right: 0;
+        color: #333;
+        &:hover {
+          background-color: #f2804d;
+          color: #fff;
+        }
+      }
+      &::before {
+        display: none;
+      }
+    }
+    li.active {
+      color: #fff;
+      a {
+        background-color: #ff6d05;
+        color: #fff;
+        border: none;
+      }
+    }
+  }
+}
+.shell-switcher {
+  ul.nav-tabs {
+    padding-left: 0;
+    border:0;
+    li {
+      &:hover {
+        cursor: pointer;
+      }
+      a {
+        border: none;
+        margin-right: 0;
+        color: #333;
+        &:hover {
+          background-color: #f2804d;
+          color: #fff;
+        }
+      }
+      &::before {
+        display: none;
+      }
+    }
+    li.active {
+      color: #fff;
+      a {
+        background-color: #ff6d05;
+        color: #fff;
+        border: none;
+      }
+    }
+  }
+}
 nav.version-switcher {
   ul {
     li {

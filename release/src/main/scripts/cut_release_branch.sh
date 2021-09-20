@@ -139,9 +139,6 @@ if [[ $confirmation != "y" ]]; then
   exit
 fi
 
-git add gradle.properties
-git add sdks/python/apache_beam/version.py
-git add sdks/go/pkg/beam/core/core.go
 git add runners/google-cloud-dataflow-java/build.gradle
 git commit -m "Set Dataflow container to release version."
 git push --set-upstream origin ${RELEASE_BRANCH}

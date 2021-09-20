@@ -27,11 +27,6 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 5.x"
 ext.summary = "Tests of ElasticsearchIO on Elasticsearch 5.x"
 
-test {
-  // needed for ESIntegTestCase
-  systemProperty "tests.security.manager", "false"
-}
-
 def log4j_version = "2.14.1"
 def elastic_search_version = "5.6.3"
 
@@ -50,6 +45,7 @@ dependencies {
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.5.0"
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testImplementation "org.testcontainers:elasticsearch:1.15.3"
 
   testCompile project(path: ":sdks:java:core", configuration: "shadow")
   testCompile project(":sdks:java:io:elasticsearch")

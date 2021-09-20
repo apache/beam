@@ -33,32 +33,33 @@ import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.BeamBuiltinMethods;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.CastFunctionImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.AggregateFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ScalarFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlSyntax;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.FamilyOperandTypeChecker;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.InferTypes;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.OperandTypes;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFamily;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Optionality;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.AggregateFunction;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.FunctionParameter;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.ScalarFunction;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlFunction;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlSyntax;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.ArraySqlType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.FamilyOperandTypeChecker;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.InferTypes;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.OperandTypes;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Optionality;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Util;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
@@ -89,8 +90,8 @@ public class SqlOperators {
   public static final SqlOperator ARRAY_AGG_FN =
       createUdafOperator(
           "array_agg",
-          x -> createTypeFactory().createArrayType(x.getOperandType(0), -1),
-          new UdafImpl<>(new ArrayAgg.ArrayAggArray()));
+          x -> new ArraySqlType(x.getOperandType(0), true),
+          new UdafImpl<>(new ArrayAgg.ArrayAggArray<>()));
 
   public static final SqlOperator START_WITHS =
       createUdfOperator(
@@ -161,7 +162,7 @@ public class SqlOperators {
   public static final SqlOperator BIT_XOR =
       createUdafOperator(
           "BIT_XOR",
-          x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
+          x -> NULLABLE_BIGINT,
           new UdafImpl<>(new BeamBuiltinAggregations.BitXOr<Number>()));
 
   public static final SqlOperator COUNTIF =
@@ -173,7 +174,7 @@ public class SqlOperators {
   public static final SqlUserDefinedFunction CAST_OP =
       new SqlUserDefinedFunction(
           new SqlIdentifier("CAST", SqlParserPos.ZERO),
-          null,
+          SqlKind.OTHER_FUNCTION,
           null,
           null,
           null,

@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableSpec;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -356,11 +357,18 @@ class DynamicDestinationsHelpers {
           try {
             BigQueryOptions bqOptions = getPipelineOptions().as(BigQueryOptions.class);
             if (tableReference.getProjectId() == null) {
-              tableReference.setProjectId(bqOptions.getProject());
+              tableReference.setProjectId(
+                  bqOptions.getBigQueryProject() == null
+                      ? bqOptions.getProject()
+                      : bqOptions.getBigQueryProject());
             }
-            return bqServices.getDatasetService(bqOptions).getTable(tableReference);
-          } catch (InterruptedException | IOException e) {
-            LOG.info("Failed to get BigQuery table " + tableReference);
+            try (DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
+              return datasetService.getTable(tableReference);
+            } catch (InterruptedException | IOException e) {
+              LOG.info("Failed to get BigQuery table " + tableReference);
+            }
+          } catch (Exception e) {
+            throw new RuntimeException(e);
           }
         } while (nextBackOff(Sleeper.DEFAULT, backoff));
       } catch (InterruptedException e) {

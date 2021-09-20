@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.service.AutoService;
@@ -198,7 +199,7 @@ public class BeamFnDataReadRunner<OutputT> {
                     .build());
           }
         });
-    reset();
+    clearSplitIndices();
   }
 
   public void registerInputLocation() {
@@ -245,6 +246,14 @@ public class BeamFnDataReadRunner<OutputT> {
       // to the downstream consumer. We still have a race where the downstream consumer may
       // have yet to see the element or has completed processing the element by the time
       // we ask it to split (even after we have asked for its progress).
+
+      // If the split request we received was delayed we it may be for a previous bundle.
+      // Ensure we're processing a split for *this* bundle.  This check is done under the lock
+      // to make sure reset() is not called concurrently in case the bundle processor is
+      // being released.
+      if (!request.getInstructionId().equals(processBundleInstructionIdSupplier.get())) {
+        return;
+      }
 
       // If the split request we received was delayed and is less then the known number of elements
       // then use "index + 1" as the total size. Similarly, if we have already split and the
@@ -348,8 +357,17 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   public void reset() {
-    index = -1;
-    stopIndex = Long.MAX_VALUE;
+    checkArgument(
+        processBundleInstructionIdSupplier.get() == null,
+        "Cannot reset an active bundle processor.");
+    clearSplitIndices();
+  }
+
+  private void clearSplitIndices() {
+    synchronized (splittingLock) {
+      index = -1;
+      stopIndex = Long.MAX_VALUE;
+    }
   }
 
   private boolean isValidSplitPoint(List<Long> allowedSplitPoints, long index) {

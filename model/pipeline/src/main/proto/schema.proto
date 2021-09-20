@@ -27,7 +27,7 @@ syntax = "proto3";
 
 package org.apache.beam.model.pipeline.v1;
 
-option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1;pipeline_v1";
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1;pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "SchemaApi";
 
@@ -113,9 +113,9 @@ message LogicalType {
 message Option {
   // REQUIRED. Identifier for the option.
   string name = 1;
-  // OPTIONAL. Type specifer for the structure of value.
-  // If not present, assumes no additional configuration is needed
-  // for this option and value is ignored.
+  // REQUIRED. Type specifer for the structure of value.
+  // Conventionally, options that don't require additional configuration should
+  // use a boolean type, with the value set to true.
   FieldType type = 2;
   FieldValue value = 3;
 }

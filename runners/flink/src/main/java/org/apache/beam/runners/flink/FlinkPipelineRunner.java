@@ -122,13 +122,8 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
 
   private PortablePipelineResult createPortablePipelineResult(
       JobExecutionResult result, PipelineOptions options) {
-    // The package of DetachedJobExecutionResult has been changed in 1.10.
-    // Refer to https://github.com/apache/flink/commit/c36b35e6876ecdc717dade653e8554f9d8b543c9 for
-    // details.
     String resultClassName = result.getClass().getCanonicalName();
-    if (resultClassName.equals(
-            "org.apache.flink.client.program.DetachedEnvironment.DetachedJobExecutionResult")
-        || resultClassName.equals("org.apache.flink.core.execution.DetachedJobExecutionResult")) {
+    if (resultClassName.equals("org.apache.flink.core.execution.DetachedJobExecutionResult")) {
       LOG.info("Pipeline submitted in Detached mode");
       // no metricsPusher because metrics are not supported in detached mode
       return new FlinkPortableRunnerResult.Detached();

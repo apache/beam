@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import java.util.Set;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParser;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 
@@ -36,5 +40,21 @@ public class QueryReader {
   public static String readQuery(String queryFileName) throws Exception {
     String path = "queries/" + queryFileName + ".sql";
     return Resources.toString(Resources.getResource(path), Charsets.UTF_8);
+  }
+
+  /**
+   * Parse query and get all its identifiers.
+   *
+   * @param queryString
+   * @return Set of SQL query identifiers as strings.
+   * @throws SqlParseException
+   */
+  public static Set<String> getQueryIdentifiers(String queryString) throws SqlParseException {
+    SqlParser parser = SqlParser.create(queryString);
+    SqlNode parsedQuery = parser.parseQuery();
+    SqlTransformRunner.SqlIdentifierVisitor sqlVisitor =
+        new SqlTransformRunner.SqlIdentifierVisitor();
+    parsedQuery.accept(sqlVisitor);
+    return sqlVisitor.getIdentifiers();
   }
 }

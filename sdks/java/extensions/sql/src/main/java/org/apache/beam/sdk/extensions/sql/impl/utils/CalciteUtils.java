@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Date;
@@ -28,14 +29,15 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableBiMap;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlTypeNameSpec;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
@@ -200,6 +202,10 @@ public class CalciteUtils {
     }
   }
 
+  public static FieldType toFieldType(SqlTypeNameSpec sqlTypeName) {
+    return toFieldType(SqlTypeName.get(sqlTypeName.getTypeName().getSimple()));
+  }
+
   public static FieldType toFieldType(SqlTypeName sqlTypeName) {
     switch (sqlTypeName) {
       case MAP:
@@ -313,16 +319,22 @@ public class CalciteUtils {
     } else if (type instanceof ParameterizedType) {
       ParameterizedType parameterizedType = (ParameterizedType) type;
       if (java.util.List.class.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
-        Class<?> genericType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
-        RelDataType collectionElementType = typeFactory.createJavaType(genericType);
-        return typeFactory.createArrayType(collectionElementType, UNLIMITED_ARRAY_SIZE);
+        RelDataType elementType =
+            sqlTypeWithAutoCast(typeFactory, parameterizedType.getActualTypeArguments()[0]);
+        return typeFactory.createArrayType(elementType, UNLIMITED_ARRAY_SIZE);
       } else if (java.util.Map.class.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
-        Class<?> genericKeyType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
-        Class<?> genericValueType = (Class<?>) parameterizedType.getActualTypeArguments()[1];
-        RelDataType mapElementKeyType = typeFactory.createJavaType(genericKeyType);
-        RelDataType mapElementValueType = typeFactory.createJavaType(genericValueType);
+        RelDataType mapElementKeyType =
+            sqlTypeWithAutoCast(typeFactory, parameterizedType.getActualTypeArguments()[0]);
+        RelDataType mapElementValueType =
+            sqlTypeWithAutoCast(typeFactory, parameterizedType.getActualTypeArguments()[1]);
         return typeFactory.createMapType(mapElementKeyType, mapElementValueType);
       }
+    } else if (type instanceof GenericArrayType) {
+      throw new IllegalArgumentException(
+          "Cannot infer types from "
+              + type
+              + ". This is currently unsupported, use List instead "
+              + "of Array.");
     }
     return typeFactory.createJavaType((Class) type);
   }

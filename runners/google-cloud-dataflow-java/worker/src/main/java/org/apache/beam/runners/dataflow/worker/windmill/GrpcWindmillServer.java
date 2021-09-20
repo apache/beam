@@ -623,7 +623,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
    * require synchronizing on this.
    */
   private abstract class AbstractWindmillStream<RequestT, ResponseT> implements WindmillStream {
-    private final StreamObserverFactory streamObserverFactory = StreamObserverFactory.direct();
+    private final StreamObserverFactory streamObserverFactory =
+        StreamObserverFactory.direct(streamDeadlineSeconds * 2);
     private final Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory;
     private final Executor executor = Executors.newSingleThreadExecutor();
 
@@ -1524,8 +1525,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
                 try {
                   blockedStartMs.set(Instant.now().getMillis());
-                  current = queue.take();
-                  if (current != POISON_PILL) {
+                  current = queue.poll(180, TimeUnit.SECONDS);
+                  if (current != null && current != POISON_PILL) {
                     return true;
                   }
                   if (cancelled.get()) {
@@ -1534,7 +1535,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
                   if (complete.get()) {
                     return false;
                   }
-                  throw new IllegalStateException("Got poison pill but stream is not done.");
+                  throw new IllegalStateException(
+                      "Got poison pill or timeout but stream is not done.");
                 } catch (InterruptedException e) {
                   Thread.currentThread().interrupt();
                   throw new CancellationException();

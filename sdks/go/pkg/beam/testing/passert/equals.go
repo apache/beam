@@ -21,7 +21,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 // Equals verifies the given collection has the same values as the given
@@ -38,6 +38,19 @@ func Equals(s beam.Scope, col beam.PCollection, values ...interface{}) beam.PCol
 
 	other := beam.Create(subScope, values...)
 	return equals(subScope, col, other)
+}
+
+// EqualsList verifies that the given collection has the same values as a
+// given list, under coder equality. The values must be provided as an
+// array or slice. This is equivalent to passing a beam.CreateList PCollection
+// to Equals.
+func EqualsList(s beam.Scope, col beam.PCollection, list interface{}) beam.PCollection {
+	subScope := s.Scope("passert.EqualsList")
+	if list == nil {
+		return Empty(subScope, col)
+	}
+	listCollection := beam.CreateList(subScope, list)
+	return equals(subScope, col, listCollection)
 }
 
 // equals verifies that the actual values match the expected ones.

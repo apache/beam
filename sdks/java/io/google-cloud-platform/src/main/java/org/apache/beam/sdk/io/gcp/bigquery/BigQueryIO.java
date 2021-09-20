@@ -591,6 +591,7 @@ public class BigQueryIO {
         .setParseFn(parseFn)
         .setMethod(Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
+        .setFormat(DataFormat.AVRO)
         .build();
   }
 
@@ -780,6 +781,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setMethod(Method method);
 
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setFormat(DataFormat method);
+
       abstract Builder<T> setSelectedFields(ValueProvider<List<String>> selectedFields);
 
       abstract Builder<T> setRowRestriction(ValueProvider<String> rowRestriction);
@@ -827,6 +831,9 @@ public class BigQueryIO {
     abstract @Nullable String getQueryTempDataset();
 
     abstract Method getMethod();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    abstract DataFormat getFormat();
 
     abstract @Nullable ValueProvider<List<String>> getSelectedFields();
 
@@ -917,6 +924,7 @@ public class BigQueryIO {
           getQueryLocation(),
           getQueryTempDataset(),
           getKmsKey(),
+          getFormat(),
           getParseFn(),
           outputCoder,
           getBigQueryServices());
@@ -957,44 +965,53 @@ public class BigQueryIO {
       // earlier stages of the pipeline or if a query depends on earlier stages of a pipeline.
       // For these cases the withoutValidation method can be used to disable the check.
       if (getValidate()) {
-        if (table != null) {
-          checkArgument(table.isAccessible(), "Cannot call validate if table is dynamically set.");
-        }
-        if (table != null && table.get().getProjectId() != null) {
-          // Check for source table presence for early failure notification.
-          DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
-          BigQueryHelpers.verifyDatasetPresence(datasetService, table.get());
-          BigQueryHelpers.verifyTablePresence(datasetService, table.get());
-        } else if (getQuery() != null) {
-          checkArgument(
-              getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
-          JobService jobService = getBigQueryServices().getJobService(bqOptions);
-          try {
-            jobService.dryRunQuery(
-                bqOptions.getProject(),
-                new JobConfigurationQuery()
-                    .setQuery(getQuery().get())
-                    .setFlattenResults(getFlattenResults())
-                    .setUseLegacySql(getUseLegacySql()),
-                getQueryLocation());
-          } catch (Exception e) {
-            throw new IllegalArgumentException(
-                String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
+        try (DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions)) {
+          if (table != null) {
+            checkArgument(
+                table.isAccessible(), "Cannot call validate if table is dynamically set.");
           }
+          if (table != null && table.get().getProjectId() != null) {
+            // Check for source table presence for early failure notification.
+            BigQueryHelpers.verifyDatasetPresence(datasetService, table.get());
+            BigQueryHelpers.verifyTablePresence(datasetService, table.get());
+          } else if (getQuery() != null) {
+            checkArgument(
+                getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
+            JobService jobService = getBigQueryServices().getJobService(bqOptions);
+            try {
+              jobService.dryRunQuery(
+                  bqOptions.getBigQueryProject() == null
+                      ? bqOptions.getProject()
+                      : bqOptions.getBigQueryProject(),
+                  new JobConfigurationQuery()
+                      .setQuery(getQuery().get())
+                      .setFlattenResults(getFlattenResults())
+                      .setUseLegacySql(getUseLegacySql()),
+                  getQueryLocation());
+            } catch (Exception e) {
+              throw new IllegalArgumentException(
+                  String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
+            }
 
-          DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
-          // If the user provided a temp dataset, check if the dataset exists before launching the
-          // query
-          if (getQueryTempDataset() != null) {
-            // The temp table is only used for dataset and project id validation, not for table name
-            // validation
-            TableReference tempTable =
-                new TableReference()
-                    .setProjectId(bqOptions.getProject())
-                    .setDatasetId(getQueryTempDataset())
-                    .setTableId("dummy table");
-            BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
+            // If the user provided a temp dataset, check if the dataset exists before launching the
+            // query
+            if (getQueryTempDataset() != null) {
+              // The temp table is only used for dataset and project id validation, not for table
+              // name
+              // validation
+              TableReference tempTable =
+                  new TableReference()
+                      .setProjectId(
+                          bqOptions.getBigQueryProject() == null
+                              ? bqOptions.getProject()
+                              : bqOptions.getBigQueryProject())
+                      .setDatasetId(getQueryTempDataset())
+                      .setTableId("dummy table");
+              BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
+            }
           }
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
       }
     }
@@ -1162,7 +1179,10 @@ public class BigQueryIO {
               String jobUuid = c.getJobId();
               final String extractDestinationDir =
                   resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", jobUuid);
-              final String executingProject = bqOptions.getProject();
+              final String executingProject =
+                  bqOptions.getBigQueryProject() == null
+                      ? bqOptions.getProject()
+                      : bqOptions.getBigQueryProject();
               JobReference jobRef =
                   new JobReference()
                       .setProjectId(executingProject)
@@ -1205,6 +1225,7 @@ public class BigQueryIO {
             org.apache.beam.sdk.io.Read.from(
                 BigQueryStorageTableSource.create(
                     tableProvider,
+                    getFormat(),
                     getSelectedFields(),
                     getRowRestriction(),
                     getParseFn(),
@@ -1287,7 +1308,10 @@ public class BigQueryIO {
                             CreateReadSessionRequest request =
                                 CreateReadSessionRequest.newBuilder()
                                     .setParent(
-                                        BigQueryHelpers.toProjectResourceName(options.getProject()))
+                                        BigQueryHelpers.toProjectResourceName(
+                                            options.getBigQueryProject() == null
+                                                ? options.getProject()
+                                                : options.getBigQueryProject()))
                                     .setReadSession(
                                         ReadSession.newBuilder()
                                             .setTable(
@@ -1374,20 +1398,24 @@ public class BigQueryIO {
 
               TableReference tempTable =
                   createTempTableReference(
-                      options.getProject(),
+                      options.getBigQueryProject() == null
+                          ? options.getProject()
+                          : options.getBigQueryProject(),
                       BigQueryResourceNaming.createJobIdPrefix(
                           options.getJobName(), jobUuid, JobType.QUERY),
                       queryTempDataset);
 
-              DatasetService datasetService = getBigQueryServices().getDatasetService(options);
-              LOG.info("Deleting temporary table with query results {}", tempTable);
-              datasetService.deleteTable(tempTable);
-              // Delete dataset only if it was created by Beam
-              boolean datasetCreatedByBeam = !queryTempDataset.isPresent();
-              if (datasetCreatedByBeam) {
-                LOG.info(
-                    "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
-                datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
+              try (DatasetService datasetService =
+                  getBigQueryServices().getDatasetService(options)) {
+                LOG.info("Deleting temporary table with query results {}", tempTable);
+                datasetService.deleteTable(tempTable);
+                // Delete dataset only if it was created by Beam
+                boolean datasetCreatedByBeam = !queryTempDataset.isPresent();
+                if (datasetCreatedByBeam) {
+                  LOG.info(
+                      "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
+                  datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
+                }
               }
             }
           };
@@ -1544,6 +1572,12 @@ public class BigQueryIO {
     /** See {@link Method}. */
     public TypedRead<T> withMethod(Method method) {
       return toBuilder().setMethod(method).build();
+    }
+
+    /** See {@link DataFormat}. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withFormat(DataFormat format) {
+      return toBuilder().setFormat(format).build();
     }
 
     /** See {@link #withSelectedFields(ValueProvider)}. */
@@ -2456,17 +2490,20 @@ public class BigQueryIO {
       // The user specified a table.
       if (getJsonTableRef() != null && getJsonTableRef().isAccessible() && getValidate()) {
         TableReference table = getTableWithDefaultProject(options).get();
-        DatasetService datasetService = getBigQueryServices().getDatasetService(options);
-        // Check for destination table presence and emptiness for early failure notification.
-        // Note that a presence check can fail when the table or dataset is created by an earlier
-        // stage of the pipeline. For these cases the #withoutValidation method can be used to
-        // disable the check.
-        BigQueryHelpers.verifyDatasetPresence(datasetService, table);
-        if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
-          BigQueryHelpers.verifyTablePresence(datasetService, table);
-        }
-        if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
-          BigQueryHelpers.verifyTableNotExistOrEmpty(datasetService, table);
+        try (DatasetService datasetService = getBigQueryServices().getDatasetService(options)) {
+          // Check for destination table presence and emptiness for early failure notification.
+          // Note that a presence check can fail when the table or dataset is created by an earlier
+          // stage of the pipeline. For these cases the #withoutValidation method can be used to
+          // disable the check.
+          BigQueryHelpers.verifyDatasetPresence(datasetService, table);
+          if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
+            BigQueryHelpers.verifyTablePresence(datasetService, table);
+          }
+          if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
+            BigQueryHelpers.verifyTableNotExistOrEmpty(datasetService, table);
+          }
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
       }
     }
@@ -2916,7 +2953,10 @@ public class BigQueryIO {
         // If user does not specify a project we assume the table to be located in
         // the default project.
         TableReference tableRef = table.get();
-        tableRef.setProjectId(bqOptions.getProject());
+        tableRef.setProjectId(
+            bqOptions.getBigQueryProject() == null
+                ? bqOptions.getProject()
+                : bqOptions.getBigQueryProject());
         return NestedValueProvider.of(
             StaticValueProvider.of(BigQueryHelpers.toJsonString(tableRef)),
             new JsonTableRefToTableRef());
