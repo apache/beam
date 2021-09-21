@@ -99,7 +99,13 @@ class Flink {
         buildSteps {
           postBuildStep {
             stopOnFailure(false)
-            results(['SUCCESS','UNSTABLE','FAILURE','NOT_BUILT','ABORTED'])
+            results([
+              'SUCCESS',
+              'UNSTABLE',
+              'FAILURE',
+              'NOT_BUILT',
+              'ABORTED'
+            ])
             buildSteps {
               shell {
                 command("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} delete")
