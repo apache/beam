@@ -1124,6 +1124,9 @@ class WriteImpl(ptransform.PTransform):
     do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
     init_result_coll = do_once | 'InitializeWrite' >> core.Map(
         lambda _, sink: sink.initialize_write(), self.sink)
+    def print_and_go(x):
+      _LOGGER.error("PABLOEM! %s", x)
+      return x
     if getattr(self.sink, 'num_shards', 0):
       min_shards = self.sink.num_shards
       if min_shards == 1:
@@ -1148,11 +1151,13 @@ class WriteImpl(ptransform.PTransform):
           | 'Extract' >> core.FlatMap(lambda x: x[1]))
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
-    pre_finalize_coll = do_once | 'PreFinalize' >> core.FlatMap(
+    pre_finalize_coll = (do_once
+                         | 'pag1' >> core.Map(print_and_go)
+                         | 'PreFinalize' >> core.FlatMap(
         _pre_finalize,
         self.sink,
         AsSingleton(init_result_coll),
-        AsIter(write_result_coll))
+        AsIter(write_result_coll)))
     return do_once | 'FinalizeWrite' >> core.FlatMap(
         _finalize_write,
         self.sink,
@@ -1216,6 +1221,7 @@ def _finalize_write(
     pre_finalize_results):
   write_results = list(write_results)
   extra_shards = []
+  _LOGGER.error("PABLOEM FINALIZE WRITE!!! %s", write_results)
   if len(write_results) < min_shards:
     _LOGGER.debug(
         'Creating %s empty shard(s).', min_shards - len(write_results))
