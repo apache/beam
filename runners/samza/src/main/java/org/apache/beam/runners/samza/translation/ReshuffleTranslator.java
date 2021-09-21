@@ -46,13 +46,13 @@ public class ReshuffleTranslator<K, InT, OutT>
     final PCollection<KV<K, OutT>> output = ctx.getOutput(transform);
     final MessageStream<OpMessage<KV<K, InT>>> inputStream = ctx.getMessageStream(input);
     // input will be OpMessage of Windowed<KV<K, Iterable<V>>>
-    final KvCoder<K, InT> kvInputCoder = (KvCoder<K, InT>) input.getCoder();
+    final KvCoder<K, InT> inputCoder = (KvCoder<K, InT>) input.getCoder();
     final Coder<WindowedValue<KV<K, InT>>> elementCoder = SamzaCoders.of(input);
 
     final MessageStream<OpMessage<KV<K, InT>>> outputStream =
         doTranslate(
             inputStream,
-            kvInputCoder.getKeyCoder(),
+            inputCoder.getKeyCoder(),
             elementCoder,
             "rshfl-" + ctx.getTransformId(),
             ctx.getPipelineOptions().getMaxSourceParallelism() > 1);
