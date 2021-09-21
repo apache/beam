@@ -96,12 +96,10 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.33.0] - Unreleased
+# [2.33.0] - 2021-09-TODO
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 * Go SDK is no longer experimental, and is officially part of the Beam release process.
   * Matching Go SDK containers are published on release.
   * Batch usage is well supported, and tested on Flink, Spark, and the Python Portable Runner.
@@ -109,24 +107,27 @@
   * The SDK supports Splittable DoFns, Cross Language transforms, and most Beam Model basics.
   * Go Modules are now used for dependency management.
     * This is a breaking change, see Breaking Changes for resolution.
-    * Easier path to contribute to the Go SDK, no need to set up a GO_PATH.
+    * Easier path to contribute to the Go SDK, no need to set up a GO\_PATH.
     * Minimum Go version is now Go v1.16
   * See the announcement blogpost for full information (TODO(lostluck): Add link once published.)
 
+<!--
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+-->
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Projection pushdown in SchemaIO ([BEAM-12609](https://issues.apache.org/jira/browse/BEAM-12609)).
 * Upgrade Flink runner to Flink versions 1.13.2, 1.12.5 and 1.11.4 ([BEAM-10955](https://issues.apache.org/jira/browse/BEAM-10955)).
 
 ## Breaking Changes
 
-* Python GBK by defualt will fail on unbounded PCollections that have global windowing and a default trigger. The `--allow_unsafe_triggers` flag can be used to override this. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
+* Python GBK by default will fail on unbounded PCollections that have global windowing and a default trigger. The `--allow_unsafe_triggers` flag can be used to override this. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 * Python GBK will fail if it detects an unsafe trigger unless the `--allow_unsafe_triggers` flag is set. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 
+<!--
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
@@ -134,6 +135,7 @@
 ## Known Issues
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+-->
 
 # [2.32.0] - 2021-08-25
 
