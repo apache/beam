@@ -576,6 +576,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public static void main(String[] args) throws Exception {
     int port = Integer.parseInt(args[0]);
     System.out.println("Starting expansion service at localhost:" + port);
+
+    // Register the options class used by the expansion service.
+    PipelineOptionsFactory.register(ExpansionServiceOptions.class);
+
     @SuppressWarnings("nullness")
     ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
     for (Map.Entry<String, TransformProvider> entry :
