@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -471,14 +472,20 @@ public class PubsubTableProviderIT implements Serializable {
       eventsTopic.assertSubscriptionEventuallyCreated(
           pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
     } catch (AssertionError assertionError) {
-      // If we timed out, check if the forked thread had an exception. If something
-      // did go wrong there this call will raise an ExecutionException, which we allow to bubble
-      // up.
+      // If we're here we timed out waiting for a subscription to get created.
+      // Check if the forked thread had an exception.
       try {
-        queryResult.get(1, TimeUnit.SECONDS);
+        queryResult.get(0, TimeUnit.SECONDS);
       } catch (TimeoutException e) {
         // Nothing went wrong on the forked thread, but a subscription still wasn't created.
+      } catch (ExecutionException e) {
+        // get() throws an ExecutionException if there was an exception in the thread. Bubble it
+        // up to the user.
+        throw new AssertionError("Exception occurred in statement.executeQuery thread", e);
       }
+
+      // Nothing went wrong in executeQuery thread, but still no subscription was created!
+      // Just re-throw the timeout assertion.
       throw assertionError;
     }
     eventsTopic.publish(messages);
