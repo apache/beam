@@ -239,6 +239,7 @@ type control struct {
 
 	data  *DataChannelManager
 	state *StateChannelManager
+	// TODO(BEAM-11097): Cache is currently unused.
 	cache *statecache.SideInputCache
 }
 
