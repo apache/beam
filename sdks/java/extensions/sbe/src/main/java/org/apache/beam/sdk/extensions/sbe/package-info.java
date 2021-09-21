@@ -17,4 +17,8 @@
  */
 
 /** Extension for working with PCollections of SBE messages. */
+@Experimental(Kind.EXTENSION)
 package org.apache.beam.sdk.extensions.sbe;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

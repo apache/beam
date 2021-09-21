@@ -93,9 +93,11 @@ public abstract class DirectByteBuffer implements DirectBuffer {
     if (mode == CreateMode.COPY) {
       this.buffer = createCopyOfByteBuffer(buffer, buffer.position(), this.length);
       this.offset = 0;
-    } else {
+    } else if (mode == CreateMode.VIEW) {
       this.buffer = buffer;
       this.offset = buffer.position();
+    } else {
+      throw new IllegalStateException(String.format("CreateMode.%s is not supported", mode));
     }
     this.capacity = this.buffer.capacity();
   }
