@@ -6436,7 +6436,7 @@ machine and ensure they are accessible to your code during pipeline construction
 
 **Using an SDK wrapper**
 
-To use a cross-language transform through an SDK wrapper, include the module for the SDK wrapper
+To use a cross-language transform through an SDK wrapper, import the package for the SDK wrapper
 and call it from your pipeline as shown in the example:
 
 {{< highlight >}}
@@ -6456,22 +6456,22 @@ kafkaRecords := kafkaio.Read(
 
 **Using the CrossLanguage function**
 
-When an SDK-specific wrapper isn't available, you will have to access the cross-language transform through the `CrossLanguage` function.
+When an SDK-specific wrapper isn't available, you will have to access the cross-language transform through the `beam.CrossLanguage` function.
 
 1. Make sure you have the appropriate expansion service running. See the expansion service section for details.
 2. Make sure the transform you're trying to use is available and can be used by the expansion service.
    Refer to [Creating cross-language transforms](#create-x-lang-transforms) for details.
-3. Use the `CrossLanguage` function in your pipeline as appropriate. Reference the URN, Payload,
+3. Use the `beam.CrossLanguage` function in your pipeline as appropriate. Reference the URN, Payload,
    expansion service address, and define inputs and outputs. You can use the
-   [CrossLanguagePayload](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguagePayload)
+   [beam.CrossLanguagePayload](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguagePayload)
    function as a helper for encoding a payload. You can use the
-   [UnnamedInput](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedInput) and
-   [UnnamedOutput](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedOutput)
+   [beam.UnnamedInput](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedInput) and
+   [beam.UnnamedOutput](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedOutput)
    functions as shortcuts for single, unnamed inputs/outputs or define a map for named ones.
 
    {{< highlight >}}
 type prefixPayload struct {
-    Data string
+    Data string `beam:"data"`
 }
 urn := "beam:transforms:xlang:test:prefix"
 payload := beam.CrossLanguagePayload(prefixPayload{Data: prefix})
