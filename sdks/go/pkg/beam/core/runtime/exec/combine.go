@@ -460,7 +460,6 @@ func (n *GlobalCombine) Up(ctx context.Context) error {
 	if err := n.Combine.Up(ctx); err != nil {
 		return err
 	}
-	n.accumulators = make(map[typex.Window]interface{})
 	return nil
 }
 
@@ -469,7 +468,7 @@ func (n *GlobalCombine) StartBundle(ctx context.Context, id string, data DataCon
 	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
 		return err
 	}
-	//n.accumulators = make(map[typex.Window]interface{})
+	n.accumulators = make(map[typex.Window]interface{})
 	return nil
 }
 
@@ -515,7 +514,7 @@ func (n *GlobalCombine) FinishBundle(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	//n.accumulators = nil
+	n.accumulators = nil
 	return nil
 }
 
