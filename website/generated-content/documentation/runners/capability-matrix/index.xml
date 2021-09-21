@@ -38,7 +38,6 @@ back to collapsed details
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
-&lt;th>IBM Streams&lt;/th>
 &lt;th>Apache Samza&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -64,12 +63,6 @@ Dataflow has a native drain operation, but it does not work in the presence of e
 &lt;/b>
 &lt;br>
 Flink supports taking a &amp;#34;savepoint&amp;#34; of the pipeline and shutting the pipeline down after its completion.
-&lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
-&lt;/b>
-&lt;br>
 &lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
@@ -135,12 +128,6 @@ Spark has a native savepoint capability.
 &lt;/b>
 &lt;br>
 not implemented
-&lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
-&lt;/b>
-&lt;br>
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -228,7 +215,6 @@ back to collapsed details
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
-&lt;th>IBM Streams&lt;/th>
 &lt;th>Apache Samza&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -289,12 +275,6 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : &lt;/p>
@@ -318,12 +298,6 @@ back to collapsed details
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only portable Flink Runner supports this.&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -425,12 +399,6 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : &lt;/p>
@@ -493,12 +461,6 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : Only with Python SDK&lt;/p>
@@ -522,12 +484,6 @@ back to collapsed details
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : &lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -631,7 +587,6 @@ back to collapsed details
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
-&lt;th>IBM Streams&lt;/th>
 &lt;th>Apache Samza&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -693,12 +648,6 @@ Spark streaming natively discards elements after firing.
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
@@ -723,12 +672,6 @@ Requires that the accumulated pane fits in memory, after being passed through th
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -817,7 +760,6 @@ back to collapsed details
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
-&lt;th>IBM Streams&lt;/th>
 &lt;th>Apache Samza&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -839,12 +781,6 @@ back to collapsed details
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : &lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -952,12 +888,6 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : &lt;/p>
@@ -975,12 +905,6 @@ back to collapsed details
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : &lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1043,12 +967,6 @@ back to collapsed details
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : &lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1111,12 +1029,6 @@ back to collapsed details
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only portable Flink Runner supports this with checkpointing enabled.&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
-&lt;b>
-&lt;p> : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1241,7 +1153,6 @@ back to collapsed details
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
-&lt;th>IBM Streams&lt;/th>
 &lt;th>Apache Samza&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -1281,12 +1192,6 @@ ParDo applies per-element transformations as Spark FlatMapFunction.
 &lt;/b>
 &lt;br>
 ParDo applies per-element transformations as Spark FlatMapFunction.
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1353,12 +1258,6 @@ Using Spark&amp;#39;s &amp;lt;tt&amp;gt;groupByKey&amp;lt;/tt&amp;gt;. GroupByKe
 &lt;/b>
 &lt;br>
 Using Spark&amp;#39;s &amp;lt;tt&amp;gt;groupByKey&amp;lt;/tt&amp;gt;.
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1448,12 +1347,6 @@ Some corner cases like flatten on empty collections are not yet supported.
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>&lt;/p>
@@ -1494,12 +1387,6 @@ Using Spark&amp;#39;s &amp;lt;tt&amp;gt;combineByKey&amp;lt;/tt&amp;gt; and &amp
 &lt;/b>
 &lt;br>
 Using Spark&amp;#39;s &amp;lt;tt&amp;gt;Aggregator&amp;lt;/tt&amp;gt; and agg function
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1573,12 +1460,6 @@ Currently composite transformations are inlined during execution. The structure 
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
-&lt;b>
-&lt;p>Partially : supported via inlining&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -1638,12 +1519,6 @@ Using Spark&amp;#39;s broadcast variables. In streaming mode, side inputs may up
 &lt;/b>
 &lt;br>
 Using Spark&amp;#39;s broadcast variables.
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1735,12 +1610,6 @@ Using Spark&amp;#39;s DatasourceV2 API in microbatch mode (Continuous streaming 
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>&lt;/p>
@@ -1779,13 +1648,6 @@ Only attempted values are supported. No committed values for metrics.
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : All metric types are supported in batch mode.&lt;/p>
-&lt;/b>
-&lt;br>
-Only attempted values are supported. No committed values for metrics.
-&lt;/td>
-&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
-&lt;b>
-&lt;p>Partially : All metrics types are supported.&lt;/p>
 &lt;/b>
 &lt;br>
 Only attempted values are supported. No committed values for metrics.
@@ -1853,12 +1715,6 @@ State is supported for non-merging windows. SetState and MapState are not yet su
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : not implemented&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
-&lt;b>
-&lt;p>Partially : non-merging windows&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1966,7 +1822,6 @@ back to collapsed details
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
-&lt;th>IBM Streams&lt;/th>
 &lt;th>Apache Samza&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -2028,12 +1883,6 @@ Fully supported in streaming mode. In batch mode, intermediate trigger firings a
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
@@ -2058,12 +1907,6 @@ Fully supported in streaming mode. In batch mode, currently watermark progress j
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : fully supported in batch mode&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -2143,12 +1986,6 @@ Spark processes streams in micro-batches. The micro-batch size is actually a pre
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
@@ -2200,12 +2037,6 @@ Fully supported in streaming mode. In batch mode, elements are processed in the 
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
@@ -2229,12 +2060,6 @@ Fully supported in streaming mode. In batch mode, elements are processed in the 
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : fully supported in batch mode&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -2307,12 +2132,6 @@ Fully supported in streaming mode. In batch mode no data is ever late.
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : fully supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : &lt;/p>
@@ -2344,12 +2163,6 @@ The Flink Runner supports timers in non-merging windows.
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : not implemented&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
-&lt;b>
-&lt;p>Partially : non-merging windows&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -2445,7 +2258,6 @@ back to collapsed details
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
-&lt;th>IBM Streams&lt;/th>
 &lt;th>Apache Samza&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -2506,12 +2318,6 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
@@ -2535,68 +2341,6 @@ back to collapsed details
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : fully supported in batch mode&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : built-in&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
-&lt;b>
-&lt;p>Partially : fully supported in batch mode&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -2674,6 +2418,50 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : built-in&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : supported&lt;/p>
@@ -2730,12 +2518,6 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
@@ -2786,12 +2568,6 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
@@ -2815,12 +2591,6 @@ back to collapsed details
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : fully supported in batch mode&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
