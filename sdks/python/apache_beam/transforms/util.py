@@ -161,7 +161,7 @@ class CoGroupByKey(PTransform):
 
   def expand(self, pcolls):
     if not pcolls:
-      pcolls = (self.pipeline | Create([]),)
+      pcolls = (self.pipeline | Create([]), )
     if isinstance(pcolls, dict):
       if all(isinstance(tag, str) and len(tag) < 10 for tag in pcolls.keys()):
         # Small, string tags. Pass them as data.

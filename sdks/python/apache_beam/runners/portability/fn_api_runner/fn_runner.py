@@ -738,6 +738,7 @@ class FnApiRunner(runner.PipelineRunner):
             bundle_context_manager.stage.name, {}))
     runner_execution_context.commit_side_inputs_to_state(data_side_input)
 
+    buffers_to_clean = set()
     for _, buffer_id in bundle_context_manager.stage_data_outputs.items():
       for (consuming_stage_name, consuming_transform) in \
           runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id,
@@ -745,12 +746,16 @@ class FnApiRunner(runner.PipelineRunner):
         buffer = runner_execution_context.pcoll_buffers.get(buffer_id, [])
 
         if buffer_id in runner_execution_context.pcoll_buffers:
-          del runner_execution_context.pcoll_buffers[buffer_id]
+          buffers_to_clean.add(buffer_id)
         # We enqueue all of the pending output buffers to be scheduled at the
         # MAX_TIMESTAMP for the downstream stage.
         runner_execution_context.queues.watermark_pending_inputs.enque(
             ((consuming_stage_name, timestamp.MAX_TIMESTAMP),
              DataInput({consuming_transform: buffer}, {})))
+
+    for bid in buffers_to_clean:
+      if bid in runner_execution_context.pcoll_buffers:
+        del runner_execution_context.pcoll_buffers[bid]
 
     return last_result
 
