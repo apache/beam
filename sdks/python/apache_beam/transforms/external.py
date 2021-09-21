@@ -25,6 +25,7 @@ import contextlib
 import copy
 import functools
 import threading
+from collections import OrderedDict
 from typing import Dict
 
 import grpc
@@ -36,7 +37,9 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api.external_transforms_pb2 import BuilderMethod
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.portability.api.external_transforms_pb2 import JavaClassLookupPayload
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
@@ -144,6 +147,136 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     return self._tuple_instance
 
 
+class JavaClassLookupPayloadBuilder(PayloadBuilder):
+  """
+  Builds a payload for directly instantiating a Java transform using a
+  constructor and builder methods.
+  """
+
+  IGNORED_ARG_FORMAT = 'ignore%d'
+
+  def __init__(self, class_name):
+    """
+    :param class_name: fully qualified name of the transform class.
+    """
+    if not class_name:
+      raise ValueError('Class name must not be empty')
+
+    self._class_name = class_name
+    self._constructor_method = None
+    self._constructor_param_args = None
+    self._constructor_param_kwargs = None
+    self._builder_methods_and_params = OrderedDict()
+
+  def _get_schema_proto_and_payload(self, *args, **kwargs):
+    named_fields = []
+    fields_to_values = OrderedDict()
+    next_field_id = 0
+    for value in args:
+      if value is None:
+        raise ValueError(
+            'Received value None. None values are currently not supported')
+      named_fields.append(
+          ((JavaClassLookupPayloadBuilder.IGNORED_ARG_FORMAT % next_field_id),
+           convert_to_typing_type(instance_to_type(value))))
+      fields_to_values[(
+          JavaClassLookupPayloadBuilder.IGNORED_ARG_FORMAT %
+          next_field_id)] = value
+      next_field_id += 1
+    for key, value in kwargs.items():
+      if not key:
+        raise ValueError('Parameter name cannot be empty')
+      if value is None:
+        raise ValueError(
+            'Received value None for key %s. None values are currently not '
+            'supported' % key)
+      named_fields.append(
+          (key, convert_to_typing_type(instance_to_type(value))))
+      fields_to_values[key] = value
+
+    schema_proto = named_fields_to_schema(named_fields)
+    row = named_tuple_from_schema(schema_proto)(**fields_to_values)
+    schema = named_tuple_to_schema(type(row))
+
+    payload = RowCoder(schema).encode(row)
+    return (schema_proto, payload)
+
+  def build(self):
+    constructor_param_args = self._constructor_param_args or []
+    constructor_param_kwargs = self._constructor_param_kwargs or {}
+    constructor_schema, constructor_payload = (
+        self._get_schema_proto_and_payload(
+            *constructor_param_args, **constructor_param_kwargs))
+    payload = JavaClassLookupPayload(
+        class_name=self._class_name,
+        constructor_schema=constructor_schema,
+        constructor_payload=constructor_payload)
+    if self._constructor_method:
+      payload.constructor_method = self._constructor_method
+
+    for builder_method_name, params in self._builder_methods_and_params.items():
+      builder_method_args, builder_method_kwargs = params
+      builder_method_schema, builder_method_payload = (
+          self._get_schema_proto_and_payload(
+              *builder_method_args, **builder_method_kwargs))
+      builder_method = BuilderMethod(
+          name=builder_method_name,
+          schema=builder_method_schema,
+          payload=builder_method_payload)
+      builder_method.name = builder_method_name
+      payload.builder_methods.append(builder_method)
+    return payload
+
+  def with_constructor(self, *args, **kwargs):
+    """
+    Specifies the Java constructor to use.
+    Arguments provided using args and kwargs will be applied to the Java
+    transform constructor in the specified order.
+
+    :param args: parameter values of the constructor.
+    :param kwargs: parameter names and values of the constructor.
+    """
+    if (self._constructor_method or self._constructor_param_args or
+        self._constructor_param_kwargs):
+      raise ValueError(
+          'Constructor or constructor method can only be specified once')
+
+    self._constructor_param_args = args
+    self._constructor_param_kwargs = kwargs
+
+  def with_constructor_method(self, method_name, *args, **kwargs):
+    """
+    Specifies the Java constructor method to use.
+    Arguments provided using args and kwargs will be applied to the Java
+    transform constructor method in the specified order.
+
+    :param method_name: name of the constructor method.
+    :param args: parameter values of the constructor method.
+    :param kwargs: parameter names and values of the constructor method.
+    """
+    if (self._constructor_method or self._constructor_param_args or
+        self._constructor_param_kwargs):
+      raise ValueError(
+          'Constructor or constructor method can only be specified once')
+
+    self._constructor_method = method_name
+    self._constructor_param_args = args
+    self._constructor_param_kwargs = kwargs
+
+  def add_builder_method(self, method_name, *args, **kwargs):
+    """
+    Specifies a Java builder method to be invoked after instantiating the Java
+    transform class. Specified builder method will be applied in order.
+    Arguments provided using args and kwargs will be applied to the Java
+    transform builder method in the specified order.
+
+    :param method_name: name of the builder method.
+    :param args: parameter values of the builder method.
+    :param kwargs:  parameter names and values of the builder method.
+    """
+    self._builder_methods_and_params[method_name] = (args, kwargs)
+
+
 class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   """
   Build a payload based on an external transform's type annotations.
@@ -212,6 +345,8 @@ class ExternalTransform(ptransform.PTransform):
         or an address (as a str) to a grpc server that provides this method.
     """
     expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
+    if not urn and isinstance(payload, JavaClassLookupPayloadBuilder):
+      urn = common_urns.java_class_lookup
     self._urn = urn
     self._payload = (
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
