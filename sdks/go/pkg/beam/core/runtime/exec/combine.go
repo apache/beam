@@ -24,7 +24,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
@@ -453,9 +452,7 @@ func (n *LiftedCombine) Down(ctx context.Context) error {
 // Differs from a Combine node in that a GBK is not required beforehand.
 type GlobalCombine struct {
 	*Combine
-	accumulator    interface{}
-	firstTimestamp typex.EventTime
-	firstWindows   []typex.Window
+	accumulators map[typex.Window]interface{}
 }
 
 // Up initializes the GlobalCombine.
@@ -463,9 +460,7 @@ func (n *GlobalCombine) Up(ctx context.Context) error {
 	if err := n.Combine.Up(ctx); err != nil {
 		return err
 	}
-	n.accumulator = nil
-	n.firstWindows = nil
-	n.firstTimestamp = mtime.ZeroTimestamp
+	n.accumulators = make(map[typex.Window]interface{})
 	return nil
 }
 
@@ -474,63 +469,59 @@ func (n *GlobalCombine) StartBundle(ctx context.Context, id string, data DataCon
 	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
 		return err
 	}
+	//n.accumulators = make(map[typex.Window]interface{})
 	return nil
 }
 
 // ProcessElement combines elements given to it using the CombineFn and stores the results in an
 // accumulator between calls.
 func (n *GlobalCombine) ProcessElement(ctx context.Context, value *FullValue, values ...ReStream) error {
-	first := false
-	if n.firstWindows == nil {
-		first = true
-		a, err := n.newAccum(ctx, nil)
+	var err error
+	for _, window := range value.Windows {
+		first := false
+		a, ok := n.accumulators[window]
+		if !ok {
+			a, err = n.newAccum(ctx, window)
+			if err != nil {
+				return err
+			}
+			first = true
+		}
+		b, err := n.addInput(ctx, a, window, value.Elm, value.Timestamp, first)
 		if err != nil {
 			return err
 		}
-		n.accumulator = a
-		n.firstTimestamp = value.Timestamp
-		n.firstWindows = value.Windows
+		n.accumulators[window] = b
 	}
-	b, err := n.addInput(ctx, n.accumulator, nil, value.Elm, value.Timestamp, first)
-	if err != nil {
-		return err
-	}
-	n.accumulator = b
 	return nil
 }
 
 // FinishBundle extracts the value from the accumulator, sends it to the output node,
 // and clears the accumulator before calling FinishBundle for Combine.
 func (n *GlobalCombine) FinishBundle(ctx context.Context) error {
-	// If nothing to process, finish the bundle immediately
-	if n.accumulator == nil {
-		return n.Combine.FinishBundle(ctx)
+	for w, a := range n.accumulators {
+		v, err := n.extract(ctx, a)
+		if err != nil {
+			return err
+		}
+		err = n.Out.ProcessElement(ctx, &FullValue{Elm: v, Elm2: nil, Windows: []typex.Window{w}, Timestamp: w.MaxTimestamp()})
+		if err != nil {
+			return err
+		}
 	}
-	// Extract value from accumulator, pass to next node
-	a, err := n.extract(ctx, n.accumulator)
-	if err != nil {
-		return err
-	}
-	err = n.Out.ProcessElement(ctx, &FullValue{Elm: a, Elm2: nil, Windows: n.firstWindows, Timestamp: n.firstTimestamp})
-	if err != nil {
-		return err
-	}
+
 	// Clean up
-	err = n.Combine.FinishBundle(ctx)
+	err := n.Combine.FinishBundle(ctx)
 	if err != nil {
 		return err
 	}
-	n.accumulator = nil
-	n.firstWindows = nil
-	n.firstTimestamp = mtime.ZeroTimestamp
+	//n.accumulators = nil
 	return nil
 }
 
 // Down clears out the GlobalCombine accumulator and associated values.
 func (n *GlobalCombine) Down(ctx context.Context) error {
-	n.accumulator = nil
-	n.firstWindows = nil
-	n.firstTimestamp = mtime.ZeroTimestamp
+	n.accumulators = nil
 	return nil
 }
 

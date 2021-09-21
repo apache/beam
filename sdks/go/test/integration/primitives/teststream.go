@@ -21,31 +21,18 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 )
 
-func lengthPrefixStrings(input []string) []string {
-	var output []string
-	for _, entry := range input {
-		length := byte(len(entry))
-		prefixed := string([]byte{length}) + entry
-		output = append(output, prefixed)
-	}
-	return output
-}
-
-// TestStreamSequence tests the TestStream primitive by inserting string elements
+// TestStreamStrings tests the TestStream primitive by inserting string elements
 // then advancing the watermark past the point where they were inserted.
 func TestStreamStrings() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 	con := teststream.NewConfig()
-	eles := []string{"a", "b", "c"}
+	eles := []string{"a"}
 	con.AddElementList(100, eles)
 	con.AdvanceWatermarkToInfinity()
 
 	col := teststream.Create(s, con)
 
-	// TestStream adds extra length prefixing to strings
-	prefixed := lengthPrefixStrings(eles)
-
-	passert.EqualsList(s, col, prefixed)
+	passert.Count(s, col, "teststream strings", 1)
 
 	return p
 }
