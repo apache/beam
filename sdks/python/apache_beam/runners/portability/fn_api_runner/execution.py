@@ -141,7 +141,6 @@ class ListBuffer:
     if self._grouped_output:
       raise RuntimeError('ListBuffer append after read.')
     self._inputs.extend(extra._inputs)
-    extra.clear()
 
   def append(self, element):
     # type: (bytes) -> None
