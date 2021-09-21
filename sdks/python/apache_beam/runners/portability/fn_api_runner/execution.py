@@ -135,6 +135,11 @@ class ListBuffer:
     self._grouped_output = None  # type: Optional[List[List[bytes]]]
     self.cleared = False
 
+  def copy(self):
+    new = ListBuffer(self._coder_impl)
+    new._inputs = [v for v in self._inputs]
+    return new
+
   def extend(self, extra: 'ListBuffer') -> None:
     if self.cleared:
       raise RuntimeError('Trying to append to a cleared ListBuffer.')
@@ -208,6 +213,9 @@ class GroupingBuffer(object):
         list)  # type: DefaultDict[bytes, List[Any]]
     self._windowing = windowing
     self._grouped_output = None  # type: Optional[List[List[bytes]]]
+
+  def copy(self):
+    return self
 
   def append(self, elements_data):
     # type: (bytes) -> None
