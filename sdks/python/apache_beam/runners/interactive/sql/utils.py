@@ -36,7 +36,7 @@ def is_namedtuple(cls: type) -> bool:
   """Determines if a class is built from typing.NamedTuple."""
   return (
       isinstance(cls, type) and issubclass(cls, tuple) and
-      hasattr(cls, '_fields') and hasattr(cls, '_field_types'))
+      hasattr(cls, '_fields') and hasattr(cls, '__annotations__'))
 
 
 def register_coder_for_schema(schema: NamedTuple) -> None:
@@ -117,5 +117,5 @@ def pformat_namedtuple(schema: NamedTuple) -> str:
       schema.__name__,
       ', '.join([
           '{}: {}'.format(k, v.__name__) for k,
-          v in schema._field_types.items()
+          v in schema.__annotations__.items()
       ]))

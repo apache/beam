@@ -157,7 +157,7 @@ def typing_to_runner_api(type_):
     if schema is None:
       fields = [
           schema_pb2.Field(
-              name=name, type=typing_to_runner_api(type_._field_types[name]))
+              name=name, type=typing_to_runner_api(type_.__annotations__[name]))
           for name in type_._fields
       ]
       type_id = str(uuid4())
