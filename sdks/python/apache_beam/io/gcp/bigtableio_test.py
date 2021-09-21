@@ -19,119 +19,43 @@
 
 # pytype: skip-file
 import datetime
-import string
 import unittest
 import uuid
-from random import choice
 
-import apache_beam as beam
-from apache_beam.io.gcp.bigtableio import WriteToBigTable
-from apache_beam.testing.test_pipeline import TestPipeline
+from mock import MagicMock
 
+# Protect against environments where bigtable library is not available.
 try:
-  from google.cloud.bigtable import row, Client, column_family
-  from google.cloud._helpers import _datetime_from_microseconds, UTC
+  from apache_beam.io.gcp import resource_identifiers, bigtableio
+  from apache_beam.metrics import monitoring_infos
+  from apache_beam.metrics.execution import MetricsEnvironment
+  from google.api_core import exceptions
+  from google.cloud.bigtable import client, row
+except ImportError as e:
+  client = None
 
-except ImportError:
-  row = None
 
-
+@unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestWriteBigTable(unittest.TestCase):
-  TABLE_PREFIX = "python-test"
-  instance_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  cluster_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  table_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  number = 50
-  LOCATION_ID = "us-east1-b"
-
-  def setUp(self):
-    try:
-      from google.cloud.bigtable import enums
-      self.STORAGE_TYPE = enums.StorageType.HDD
-      self.INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
-    except ImportError:
-      self.STORAGE_TYPE = 2
-      self.INSTANCE_TYPE = 2
-
-    self.test_pipeline = TestPipeline(is_integration_test=True)
-    self.runner_name = type(self.test_pipeline.runner).__name__
-    self.project = self.test_pipeline.get_option('project')
-    self.client = Client(project=self.project, admin=True)
-
-    self._delete_old_instances()
-
-    self.instance = self.client.instance(
-        self.instance_id, instance_type=self.INSTANCE_TYPE, labels=LABELS)
-
-    if not self.instance.exists():
-      cluster = self.instance.cluster(
-          self.cluster_id,
-          self.LOCATION_ID,
-          default_storage_type=self.STORAGE_TYPE)
-      self.instance.create(clusters=[cluster])
-    self.table = self.instance.table(self.table_id)
-
-    if not self.table.exists():
-      max_versions_rule = column_family.MaxVersionsGCRule(2)
-      column_family_id = 'cf1'
-      column_families = {column_family_id: max_versions_rule}
-      self.table.create(column_families=column_families)
-
-  def _delete_old_instances(self):
-    instances = self.client.list_instances()
-    EXISTING_INSTANCES[:] = instances
-
-    def age_in_hours(micros):
-      return (
-          datetime.datetime.utcnow().replace(tzinfo=UTC) -
-          (_datetime_from_microseconds(micros))).total_seconds() // 3600
-
-    CLEAN_INSTANCE = [
-        i for instance in EXISTING_INSTANCES for i in instance if (
-            LABEL_KEY in i.labels.keys() and
-            (age_in_hours(int(i.labels[LABEL_KEY])) >= 2))
+  def test_write_metrics(self):
+    MetricsEnvironment.process_wide_container().reset()
+    TABLE_PREFIX = "python-test"
+    project_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+    instance_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+    table_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+    write_fn = bigtableio._BigTableWriteFn(project_id, instance_id, table_id)
+    write_fn.table = MagicMock()
+    write_fn.start_bundle()
+    write_fn.batcher.mutate_rows.side_effect = [
+        exceptions.DeadlineExceeded("Deadline Exceeded"), []
     ]
+    direct_row = self.generate_row(1)
+    write_fn.process(direct_row)
+    self.verify_write_call_metric(project_id, instance_id, table_id, "ok", 1)
 
-    if CLEAN_INSTANCE:
-      for instance in CLEAN_INSTANCE:
-        instance.delete()
-
-  def test_write_bigtable(self):
-
-    with TestPipeline() as p:
-      config_bigtable = {
-          'project_id': self.project,
-          'instance_id': self.instance,
-          'table_id': self.table
-      }
-      result = (
-          p | 'Generate Direct Rows' >> GenerateTestRows(
-              self.number, **config_bigtable) | WriteToBigTable())
-
-      self.assertEqual(len([_ for _ in result]), self.number)
-
-
-EXISTING_INSTANCES = []
-LABEL_KEY = u'python-bigtable-beam'
-LABELS = {LABEL_KEY: LABEL_KEY}
-
-
-class GenerateTestRows(beam.PTransform):
-  def __init__(self, number, project_id=None, instance_id=None, table_id=None):
-    beam.PTransform.__init__(self)
-    self.number = number
-    self.rand = choice(string.ascii_letters + string.digits)
-    self.column_family_id = 'cf1'
-    self.beam_options = {
-        'project_id': project_id,
-        'instance_id': instance_id,
-        'table_id': table_id
-    }
-
-  def _generate(self):
+  def generate_row(self, row_number=1):
     value = ''.join(self.rand for i in range(100))
-
-    for index in range(self.number):
+    for index in range(row_number):
       key = "beam_key%s" % ('{0:07}'.format(index))
       direct_row = row.DirectRow(row_key=key)
       for column_id in range(10):
@@ -141,15 +65,34 @@ class GenerateTestRows(beam.PTransform):
             datetime.datetime.now())
       yield direct_row
 
-  def expand(self, pvalue):
-    beam_options = self.beam_options
-    return (
-        pvalue
-        | beam.Create(self._generate())
-        | WriteToBigTable(
-            beam_options['project_id'],
-            beam_options['instance_id'],
-            beam_options['table_id']))
+  def verify_write_call_metric(
+      self, project_id, instance_id, table_id, status, count):
+    """Check if a metric was recorded for the Datastore IO write API call."""
+    process_wide_monitoring_infos = list(
+        MetricsEnvironment.process_wide_container().
+        to_runner_api_monitoring_infos(None).values())
+    resource = resource_identifiers.BigtableTable(
+        project_id, instance_id, table_id)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'BigTable',
+        monitoring_infos.METHOD_LABEL: 'google.bigtable.v2.MutateRows',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.BIGTABLE_PROJECT_ID_LABEL: project_id,
+        monitoring_infos.INSTANCE_ID_LABEL: instance_id,
+        monitoring_infos.TABLE_ID_LABEL: table_id
+    }
+    expected_mi = monitoring_infos.int64_counter(
+        monitoring_infos.API_REQUEST_COUNT_URN, count, labels=labels)
+    expected_mi.ClearField("start_time")
+
+    found = False
+    for actual_mi in process_wide_monitoring_infos:
+      actual_mi.ClearField("start_time")
+      if expected_mi == actual_mi:
+        found = True
+        break
+    self.assertTrue(
+        found, "Did not find write call metric with status: %s" % status)
 
 
 if __name__ == '__main__':

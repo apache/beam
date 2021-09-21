@@ -44,17 +44,39 @@ from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.metrics import Metrics
 from apache_beam.metrics import monitoring_infos
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.io.gcp import resource_identifiers
 
 _LOGGER = logging.getLogger(__name__)
 
 try:
   from google.cloud.bigtable import Client
-  from google.cloud.bigtable.batcher import MaxMutationsError
+  from google.cloud.bigtable.batcher import MutationsBatcher
 except ImportError:
   _LOGGER.warning(
       'ImportError: from google.cloud.bigtable import Client', exc_info=True)
 
 __all__ = ['WriteToBigTable']
+
+FLUSH_COUNT = 1000
+MAX_ROW_BYTES = 5242880  # 5MB
+
+
+class _MutationsBatcher(MutationsBatcher):
+  def __init__(
+      self, table, flush_count=FLUSH_COUNT, max_row_bytes=MAX_ROW_BYTES):
+    super(_MutationsBatcher, self).__init__(table, flush_count, max_row_bytes)
+    self.rows = []
+
+  def set_flush_callback(self, callback_fn):
+    self.callback_fn = callback_fn
+
+  def flush(self):
+    if len(self.rows) != 0:
+      rows = self.table.mutate_rows(self.rows)
+      self.callback_fn(rows)
+      self.total_mutation_count = 0
+      self.total_size = 0
+      self.rows = []
 
 
 class _BigTableWriteFn(beam.DoFn):
@@ -82,14 +104,20 @@ class _BigTableWriteFn(beam.DoFn):
     self.table = None
     self.batcher = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
+    resource = resource_identifiers.BigtableTable(
+        project_id, instance_id, table_id)
     self.labels = {
         monitoring_infos.SERVICE_LABEL: 'BigTable',
         monitoring_infos.METHOD_LABEL: 'google.bigtable.v2.MutateRows',
-        monitoring_infos.RESOURCE_LABEL: self.table.name,
-        monitoring_infos.BIGTABLE_PROJECT_ID: self.beam_options['project_id'],
-        monitoring_infos.INSANCE_ID: self.beam_options['instance_id'],
-        monitoring_infos.TABLE_ID: self.beam_options['table_id']
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.BIGTABLE_PROJECT_ID_LABEL: self.
+        beam_options['project_id'],
+        monitoring_infos.INSTANCE_ID_LABEL: self.beam_options['instance_id'],
+        monitoring_infos.TABLE_ID_LABEL: self.beam_options['table_id']
     }
+    self.service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=self.labels)
 
   def __getstate__(self):
     return self.beam_options
@@ -100,16 +128,16 @@ class _BigTableWriteFn(beam.DoFn):
     self.batcher = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
-    self.service_call_metric = ServiceCallMetric(
-        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
-        base_labels=self.labels)
+  def write_mutate_metrics(self, rows):
+    self.service_call_metric.call('ok')
 
   def start_bundle(self):
     if self.table is None:
       client = Client(project=self.beam_options['project_id'])
       instance = client.instance(self.beam_options['instance_id'])
       self.table = instance.table(self.beam_options['table_id'])
-    self.batcher = self.table.mutations_batcher()
+    self.batcher = _MutationsBatcher(self.table)
+    self.batcher.set_flush_callback(self.write_mutate_metrics)
 
   def process(self, row):
     self.written.inc()
@@ -123,15 +151,12 @@ class _BigTableWriteFn(beam.DoFn):
     #                     timestamp=datetime.datetime.now())
     try:
       self.batcher.mutate(row)
-    except MaxMutationsError:
-      self.service_call_metric.call(MaxMutationsError)
+      self.service_call_metric.call('ok')
+    except Exception as e:
+      self.service_call_metric.call(e)
 
   def finish_bundle(self):
-    try:
-      self.batcher.flush()
-      self.service_call_metric.call('ok')
-    except Exception:
-      self.service_call_metric(Exception)
+    self.batcher.flush()
     self.batcher = None
 
   def display_data(self):
