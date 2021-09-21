@@ -18,7 +18,12 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.spanner.*;
+import com.google.cloud.spanner.BatchReadOnlyTransaction;
+import com.google.cloud.spanner.Partition;
+import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.TimestampBound;
 import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
