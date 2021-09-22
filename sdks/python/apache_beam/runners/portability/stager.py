@@ -63,6 +63,7 @@ import pkg_resources
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
+from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
@@ -463,6 +464,14 @@ class Stager(object):
         _LOGGER.info('Failed to download Artifact from %s', from_url)
         raise
     else:
+      try:
+        FileSystems.copy([from_url], [to_path])
+        _LOGGER.info('Copied remote file from %s to %s.', from_url, to_path)
+        return
+      except (ValueError, BeamIOError) as e:
+        _LOGGER.info(
+            'Failed to download file via apache_beam.io.filesystems. Trying '
+            'to copy directly.')
       if not os.path.isdir(os.path.dirname(to_path)):
         _LOGGER.info(
             'Created folder (since we have not done yet, and any errors '
