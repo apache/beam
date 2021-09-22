@@ -286,16 +286,21 @@ class InteractiveEnvironment(object):
   def _track_user_pipelines(self, watchable):
     """Tracks user pipelines from the given watchable."""
 
+    pipelines = set()
     if isinstance(watchable, beam.Pipeline):
-      self._tracked_user_pipelines.add_user_pipeline(watchable)
+      pipelines.add(watchable)
     elif isinstance(watchable, dict):
       for v in watchable.values():
         if isinstance(v, beam.Pipeline):
-          self._tracked_user_pipelines.add_user_pipeline(v)
+          pipelines.add(v)
     elif isinstance(watchable, Iterable):
       for v in watchable:
         if isinstance(v, beam.Pipeline):
-          self._tracked_user_pipelines.add_user_pipeline(v)
+          pipelines.add(v)
+    for p in pipelines:
+      self._tracked_user_pipelines.add_user_pipeline(p)
+      _ = self.get_cache_manager(p, create_if_absent=True)
+      _ = self.get_recording_manager(p, create_if_absent=True)
 
   def watch(self, watchable):
     """Watches a watchable.
@@ -306,12 +311,11 @@ class InteractiveEnvironment(object):
     matter since they are different instances. Duplicated variables are also
     allowed when watching.
     """
-    self._track_user_pipelines(watchable)
-
     if isinstance(watchable, dict):
       self._watching_dict_list.append(watchable.items())
     else:
       self._watching_set.add(watchable)
+    self._track_user_pipelines(watchable)
 
   def watching(self):
     """Analyzes and returns a list of pair lists referring to variable names and
