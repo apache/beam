@@ -7,6 +7,7 @@ def pulsarVersion = '2.8.0'
 
 dependencies {
     compile group: 'org.apache.pulsar', name: 'pulsar-client', version: pulsarVersion
+    compile group: 'org.apache.pulsar', name: 'pulsar-client-admin', version: pulsarVersion
     compile project(path: ":sdks:java:core", configuration: "shadow")
 
 
