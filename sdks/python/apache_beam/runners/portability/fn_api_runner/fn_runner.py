@@ -748,12 +748,13 @@ class FnApiRunner(runner.PipelineRunner):
 
         if buffer and buffer_id in buffers_to_clean:
           runner_execution_context.pcoll_buffers[buffer_id] = buffer.copy()
+          buffer = runner_execution_context.pcoll_buffers[buffer_id]
         if buffer_id in runner_execution_context.pcoll_buffers:
           buffers_to_clean.add(buffer_id)
-        if (consuming_transform, buffer_id) in known_consumers:
+        if (consuming_stage_name, consuming_transform, buffer_id) in known_consumers:
           continue
         else:
-          known_consumers.add((consuming_transform, buffer_id))
+          known_consumers.add((consuming_stage_name, consuming_transform, buffer_id))
         # We enqueue all of the pending output buffers to be scheduled at the
         # MAX_TIMESTAMP for the downstream stage.
         runner_execution_context.queues.watermark_pending_inputs.enque(

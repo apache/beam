@@ -1124,9 +1124,6 @@ class WriteImpl(ptransform.PTransform):
     do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
     init_result_coll = do_once | 'InitializeWrite' >> core.Map(
         lambda _, sink: sink.initialize_write(), self.sink)
-    def print_and_go(x):
-      _LOGGER.error("PABLOEM! %s", x)
-      return x
     if getattr(self.sink, 'num_shards', 0):
       min_shards = self.sink.num_shards
       if min_shards == 1:
@@ -1152,7 +1149,6 @@ class WriteImpl(ptransform.PTransform):
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
     pre_finalize_coll = (do_once
-                         | 'pag1' >> core.Map(print_and_go)
                          | 'PreFinalize' >> core.FlatMap(
         _pre_finalize,
         self.sink,
