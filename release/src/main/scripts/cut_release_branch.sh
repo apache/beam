@@ -125,7 +125,11 @@ echo "==================Current working branch======================="
 echo ${RELEASE_BRANCH}
 echo "==============================================================="
 
+# Update java containers
 sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
+
+# Update python containers for consistency
+sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" sdks/python/apache_beam/runners/dataflow/internal/names.py
 
 echo "===============Update release branch as following=============="
 git diff

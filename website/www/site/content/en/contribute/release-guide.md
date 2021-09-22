@@ -471,6 +471,11 @@ For all other JIRA issues:
 
 If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.
 
+### Process for cherry-picks
+
+* Feature owner should first merge the changes in master and then create the cherry-pick from the merge commit against release branch. The cr should start have `[cherrypick]` in the title and release manager as the reviewer.
+* Cherry-pick should be associated to a jira and ideally be marked as a blocker for the release.
+
 ### Review cherry-picks
 
 Check if there are outstanding cherry-picks into the release branch, [e.g. for `2.14.0`](https://github.com/apache/beam/pulls?utf8=%E2%9C%93&q=is%3Apr+base%3Arelease-2.14.0).
@@ -500,14 +505,14 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 
 ### Checklist before proceeding
 
-* Release Manager’s GPG key is published to `dist.apache.org`;
-* Release Manager’s GPG key is configured in `git` configuration;
-* Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus;
+* Release Manager’s GPG key is published to [dist.apache.org](dist.apache.org);
+* Release Manager’s GPG key is configured in [git](https://beam.apache.org/contribute/release-guide/#gpg-key) configuration;
+* Release Manager has `org.apache.beam` listed under [Staging Profiles](https://beam.apache.org/contribute/release-guide/#access-to-apache-nexus-repository) in Nexus;
 * Release Manager’s Nexus User Token is configured in `settings.xml`;
-* JIRA release item for the subsequent release has been created;
+* [JIRA release](https://issues.apache.org/jira/projects/BEAM?selectedItem=com.atlassian.jira.jira-projects-plugin%3Arelease-page) item for the subsequent release has been created;
 * All test failures from branch verification have associated JIRA issues;
 * There are no release blocking JIRA issues;
-* Release branch has been created;
+* Release [branch](https://github.com/apache/beam/branches) has been created;
 * There are no open pull requests to release branch;
 * Originating branch has the version information updated to the new version;
 * Nightly snapshot is in progress (do revisit it continually);
@@ -567,6 +572,12 @@ See the source of the script for more details, or to run commands manually in ca
      * Copy python doc into beam-site
      * Copy java doc into beam-site
 
+
+* **Mitigate GPG Out Of Memory Error**
+  * gpg-agent might through Out Of Memory error. You can kill the gpg-agent to mitigate this issue.
+  * It's a good idea to kill the gpg-agent before running the script.
+  * The gpg-agent should get started automatically when needed.
+
 #### Tasks you need to do manually
   1. Verify the script worked.
       1. Verify that the source and Python binaries are present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
@@ -597,6 +608,10 @@ See the source of the script for more details, or to run commands manually in ca
          They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc.
          Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
          Carefully review any new artifacts.
+
+__NOTE__: When uploading to Nexus using gradle, ip address is used as a seesion id. Incorrect partial artifact upload will result if the public ip of the dev machine changes during upload.
+
+__NOTE__: If you notice multiple Nexus staging repositories getting created, try reducing the parallelism of gradle upload task.
 
 ### Upload release candidate to PyPi
 
@@ -656,6 +671,7 @@ This pull request is against the `apache/beam` repo, on the `master` branch ([ex
 * Update release version in `website/www/site/config.toml`.
 * Add new release in `website/www/site/content/en/get-started/downloads.md`.
   * Download links will not work until the release is finalized.
+* Update download link for old release in `website/www/site/content/en/get-started/downloads.md` to archive ([example](https://github.com/apache/beam/pull/11727)).
 * Update `website/www/site/static/.htaccess` to redirect to the new version.
 * Create the Blog post:
 
@@ -1138,6 +1154,7 @@ All wheels should be published, in addition to the zip of the release source.
 ### Merge Website pull requests
 
 Merge all of the website pull requests
+- Update the release date in all pull requests to Voting finalization date.
 - [listing the release](/get-started/downloads/)
 - publishing the [Python API reference manual](https://beam.apache.org/releases/pydoc/) and the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and
 - adding the release blog post.
@@ -1198,7 +1215,7 @@ Use [reporter.apache.org](https://reporter.apache.org/addrelease.html?beam) to s
 * Release version finalized in JIRA.
   (Note: Not all committers have administrator access to JIRA.
   If you end up getting permissions errors ask on the mailing list for assistance.)
-* Release version is listed at reporter.apache.org
+* Release version is listed at [reporter.apache.org](https://reporter.apache.org/addrelease.html?beam)
 
 
 **********
