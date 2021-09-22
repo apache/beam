@@ -470,7 +470,8 @@ class Stager(object):
       except Exception:
         _LOGGER.info(
             'Failed to download file from %s via apache_beam.io.filesystems.'
-            'Trying to copy directly.', from_url)
+            'Trying to copy directly.',
+            from_url)
       if not os.path.isdir(os.path.dirname(to_path)):
         _LOGGER.info(
             'Created folder (since we have not done yet, and any errors '
