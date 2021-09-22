@@ -357,11 +357,28 @@ def memoize_on_instance(f):
 
 class TransformContext(object):
 
-  _KNOWN_CODER_URNS = set(
+  _COMMON_CODER_URNS = set(
       value.urn for (key, value) in common_urns.coders.__dict__.items()
       if not key.startswith('_')
       # Length prefix Rows rather than re-coding them.
   ) - set([common_urns.coders.ROW.urn])
+
+  _REQUIRED_CODER_URNS = set([
+      common_urns.coders.WINDOWED_VALUE.urn,
+      # For impulse.
+      common_urns.coders.BYTES.urn,
+      common_urns.coders.GLOBAL_WINDOW.urn,
+      # For GBK.
+      common_urns.coders.KV.urn,
+      common_urns.coders.ITERABLE.urn,
+      # For SDF.
+      common_urns.coders.DOUBLE.urn,
+      # For timers.
+      common_urns.coders.TIMER.urn,
+      # For everything else.
+      common_urns.coders.LENGTH_PREFIX.urn,
+      common_urns.coders.CUSTOM_WINDOW.urn,
+  ])
 
   def __init__(
       self,
@@ -373,6 +390,14 @@ class TransformContext(object):
     self.known_runner_urns = known_runner_urns
     self.runner_only_urns = known_runner_urns - frozenset(
         [common_urns.primitives.FLATTEN.urn])
+    self._known_coder_urns = set.union(
+        # Those which are required.
+        self._REQUIRED_CODER_URNS,
+        # Those common coders which are understood by all environments.
+        self._COMMON_CODER_URNS.intersection(
+            *(
+                set(env.capabilities)
+                for env in self.components.environments.values())))
     self.use_state_iterables = use_state_iterables
     self.is_drain = is_drain
     # ok to pass None for context because BytesCoder has no components
@@ -456,7 +481,7 @@ class TransformContext(object):
     coder = self.components.coders[coder_id]
     if coder.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
       return coder_id, self.bytes_coder_id
-    elif coder.spec.urn in self._KNOWN_CODER_URNS:
+    elif coder.spec.urn in self._known_coder_urns:
       new_component_ids = [
           self.maybe_length_prefixed_coder(c) for c in coder.component_coder_ids
       ]
