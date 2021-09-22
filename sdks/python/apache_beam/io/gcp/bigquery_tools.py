@@ -96,6 +96,9 @@ JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 MAX_RETRIES = 3
 UNKNOWN_MIME_TYPE = 'application/octet-stream'
 
+# Timeout for a BQ streaming insert RPC. Set to a maximum of 2 minutes.
+BQ_STREAMING_INSERT_TIMEOUT_SEC = 120
+
 
 class FileFormat(object):
   CSV = 'CSV'
@@ -653,7 +656,8 @@ class BigQueryWrapper(object):
           table_ref_str,
           json_rows=rows,
           row_ids=insert_ids,
-          skip_invalid_rows=True)
+          skip_invalid_rows=True,
+          timeout=BQ_STREAMING_INSERT_TIMEOUT_SEC)
       if not errors:
         service_call_metric.call('ok')
       else:

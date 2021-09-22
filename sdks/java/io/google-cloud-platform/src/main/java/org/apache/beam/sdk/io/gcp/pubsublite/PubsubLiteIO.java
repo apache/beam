@@ -107,7 +107,7 @@ public final class PubsubLiteIO {
    * }</pre>
    */
   public static PTransform<PCollection<PubSubMessage>, PDone> write(PublisherOptions options) {
-    return new PTransform<PCollection<PubSubMessage>, PDone>("PubsubLiteIO") {
+    return new PTransform<PCollection<PubSubMessage>, PDone>() {
       @Override
       public PDone expand(PCollection<PubSubMessage> input) {
         PubsubLiteSink sink = new PubsubLiteSink(options);

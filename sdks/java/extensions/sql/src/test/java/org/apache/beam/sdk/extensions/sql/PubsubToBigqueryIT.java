@@ -57,7 +57,7 @@ public class PubsubToBigqueryIT implements Serializable {
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
-            + "             id INTEGER, \n"
+            + "             id BIGINT, \n"
             + "             name VARCHAR \n"
             + "           > \n"
             + ") \n"
@@ -111,7 +111,7 @@ public class PubsubToBigqueryIT implements Serializable {
     String pubsubTableString =
         "CREATE EXTERNAL TABLE pubsub_topic (\n"
             + "event_timestamp TIMESTAMP, \n"
-            + "id INTEGER, \n"
+            + "id BIGINT, \n"
             + "name VARCHAR \n"
             + ") \n"
             + "TYPE 'pubsub' \n"

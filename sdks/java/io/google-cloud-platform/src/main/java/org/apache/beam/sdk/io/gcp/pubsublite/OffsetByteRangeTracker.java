@@ -26,8 +26,6 @@ import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.joda.time.Duration;
@@ -44,33 +42,31 @@ import org.joda.time.Duration;
  * received. IMPORTANT: minTrackingTime must be strictly smaller than the SDF read timeout when it
  * would return ProcessContinuation.resume().
  */
-class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteProgress>
-    implements HasProgress {
-  private final TopicBacklogReader backlogReader;
+class OffsetByteRangeTracker extends TrackerWithProgress {
+  private final TopicBacklogReader unownedBacklogReader;
   private final Duration minTrackingTime;
   private final long minBytesReceived;
   private final Stopwatch stopwatch;
-  private OffsetRange range;
+  private OffsetByteRange range;
   private @Nullable Long lastClaimed;
-  private long byteCount = 0;
 
   public OffsetByteRangeTracker(
-      OffsetRange range,
-      TopicBacklogReader backlogReader,
+      OffsetByteRange range,
+      TopicBacklogReader unownedBacklogReader,
       Stopwatch stopwatch,
       Duration minTrackingTime,
       long minBytesReceived) {
-    checkArgument(range.getTo() == Long.MAX_VALUE);
-    this.backlogReader = backlogReader;
+    checkArgument(
+        range.getRange().getTo() == Long.MAX_VALUE,
+        "May only construct OffsetByteRangeTracker with an unbounded range with no progress.");
+    checkArgument(
+        range.getByteCount() == 0L,
+        "May only construct OffsetByteRangeTracker with an unbounded range with no progress.");
+    this.unownedBacklogReader = unownedBacklogReader;
     this.minTrackingTime = minTrackingTime;
     this.minBytesReceived = minBytesReceived;
     this.stopwatch = stopwatch.reset().start();
     this.range = range;
-  }
-
-  @Override
-  public void finalize() {
-    this.backlogReader.close();
   }
 
   @Override
@@ -87,32 +83,32 @@ class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteP
         position.lastOffset().value(),
         lastClaimed);
     checkArgument(
-        toClaim >= range.getFrom(),
+        toClaim >= range.getRange().getFrom(),
         "Trying to claim offset %s before start of the range %s",
         toClaim,
         range);
     // split() has already been called, truncating this range. No more offsets may be claimed.
-    if (range.getTo() != Long.MAX_VALUE) {
-      boolean isRangeEmpty = range.getTo() == range.getFrom();
-      boolean isValidClosedRange = nextOffset() == range.getTo();
+    if (range.getRange().getTo() != Long.MAX_VALUE) {
+      boolean isRangeEmpty = range.getRange().getTo() == range.getRange().getFrom();
+      boolean isValidClosedRange = nextOffset() == range.getRange().getTo();
       checkState(
           isRangeEmpty || isValidClosedRange,
           "Violated class precondition: offset range improperly split. Please report a beam bug.");
       return false;
     }
     lastClaimed = toClaim;
-    byteCount += position.batchBytes();
+    range = OffsetByteRange.of(range.getRange(), range.getByteCount() + position.batchBytes());
     return true;
   }
 
   @Override
-  public OffsetRange currentRestriction() {
+  public OffsetByteRange currentRestriction() {
     return range;
   }
 
   private long nextOffset() {
     checkState(lastClaimed == null || lastClaimed < Long.MAX_VALUE);
-    return lastClaimed == null ? currentRestriction().getFrom() : lastClaimed + 1;
+    return lastClaimed == null ? currentRestriction().getRange().getFrom() : lastClaimed + 1;
   }
 
   /**
@@ -124,29 +120,33 @@ class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteP
     if (duration.isLongerThan(minTrackingTime)) {
       return true;
     }
-    if (byteCount >= minBytesReceived) {
+    if (currentRestriction().getByteCount() >= minBytesReceived) {
       return true;
     }
     return false;
   }
 
   @Override
-  public @Nullable SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
+  public @Nullable SplitResult<OffsetByteRange> trySplit(double fractionOfRemainder) {
     // Cannot split a bounded range. This should already be completely claimed.
-    if (range.getTo() != Long.MAX_VALUE) {
+    if (range.getRange().getTo() != Long.MAX_VALUE) {
       return null;
     }
     if (!receivedEnough()) {
       return null;
     }
-    range = new OffsetRange(currentRestriction().getFrom(), nextOffset());
-    return SplitResult.of(this.range, new OffsetRange(nextOffset(), Long.MAX_VALUE));
+    range =
+        OffsetByteRange.of(
+            new OffsetRange(currentRestriction().getRange().getFrom(), nextOffset()),
+            range.getByteCount());
+    return SplitResult.of(
+        this.range, OffsetByteRange.of(new OffsetRange(nextOffset(), Long.MAX_VALUE), 0));
   }
 
   @Override
   @SuppressWarnings("unboxing.of.nullable")
   public void checkDone() throws IllegalStateException {
-    if (range.getFrom() == range.getTo()) {
+    if (range.getRange().getFrom() == range.getRange().getTo()) {
       return;
     }
     checkState(
@@ -155,18 +155,18 @@ class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteP
         range);
     long lastClaimedNotNull = checkNotNull(lastClaimed);
     checkState(
-        lastClaimedNotNull >= range.getTo() - 1,
+        lastClaimedNotNull >= range.getRange().getTo() - 1,
         "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",
         lastClaimedNotNull,
         range,
         lastClaimedNotNull + 1,
-        range.getTo());
+        range.getRange().getTo());
   }
 
   @Override
   public Progress getProgress() {
     ComputeMessageStatsResponse stats =
-        this.backlogReader.computeMessageStats(Offset.of(nextOffset()));
-    return Progress.from(byteCount, stats.getMessageBytes());
+        this.unownedBacklogReader.computeMessageStats(Offset.of(nextOffset()));
+    return Progress.from(range.getByteCount(), stats.getMessageBytes());
   }
 }

@@ -33,6 +33,20 @@ public class GcpResourceIdentifiers {
         projectId, datasetId, tableId);
   }
 
+  public static String bigtableTableID(String project, String instance, String table) {
+    return String.format("projects/%s/instances/%s/tables/%s", project, instance, table);
+  }
+
+  public static String bigtableResource(String projectId, String instanceId, String tableId) {
+    return String.format(
+        "//bigtable.googleapis.com/projects/%s/instances/%s/tables/%s",
+        projectId, instanceId, tableId);
+  }
+
+  public static String cloudStorageBucket(String bucketId) {
+    return String.format("//storage.googleapis.com/buckets/%s", bucketId);
+  }
+
   public static String datastoreResource(String projectId, String namespace) {
     return String.format(
         "//bigtable.googleapis.com/projects/%s/namespaces/%s", projectId, namespace);

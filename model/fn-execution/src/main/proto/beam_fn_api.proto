@@ -709,6 +709,15 @@ message StateKey {
     bytes window = 3;
   }
 
+  // Represents a request for an unordered set of values associated with a
+  // specified user key and window for a PTransform. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
+  //
+  // The response data stream will be a concatenation of all V's associated
+  // with the specified user key and window.
+  // See https://s.apache.org/beam-fn-api-send-and-receive-data for further
+  // details.
   message BagUserState {
     // (Required) The id of the PTransform containing user state.
     string transform_id = 1;
@@ -721,6 +730,53 @@ message StateKey {
     bytes key = 4;
   }
 
+  // Represents a request for the keys of a multimap associated with a specified
+  // user key and window for a PTransform. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
+  //
+  // Can only be used to perform StateGetRequests and StateClearRequests on the
+  // user state.
+  //
+  // The response data stream will be a concatenation of all K's associated
+  // with the specified user key and window.
+  // See https://s.apache.org/beam-fn-api-send-and-receive-data for further
+  // details.
+  message MultimapKeysUserState {
+    // (Required) The id of the PTransform containing user state.
+    string transform_id = 1;
+    // (Required) The id of the user state.
+    string user_state_id = 2;
+    // (Required) The window encoded in a nested context.
+    bytes window = 3;
+    // (Required) The key of the currently executing element encoded in a
+    // nested context.
+    bytes key = 4;
+  }
+
+  // Represents a request for the values of the map key associated with a
+  // specified user key and window for a PTransform. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
+  //
+  // The response data stream will be a concatenation of all V's associated
+  // with the specified map key, user key, and window.
+  // See https://s.apache.org/beam-fn-api-send-and-receive-data for further
+  // details.
+  message MultimapUserState {
+    // (Required) The id of the PTransform containing user state.
+    string transform_id = 1;
+    // (Required) The id of the user state.
+    string user_state_id = 2;
+    // (Required) The window encoded in a nested context.
+    bytes window = 3;
+    // (Required) The key of the currently executing element encoded in a
+    // nested context.
+    bytes key = 4;
+    // (Required) The map key encoded in a nested context.
+    bytes map_key = 5;
+  }
+
   // (Required) One of the following state keys must be set.
   oneof type {
     Runner runner = 1;
@@ -728,7 +784,8 @@ message StateKey {
     BagUserState bag_user_state = 3;
     IterableSideInput iterable_side_input = 4;
     MultimapKeysSideInput multimap_keys_side_input = 5;
-    // TODO: represent a state key for user map state
+    MultimapKeysUserState multimap_keys_user_state = 6;
+    MultimapUserState multimap_user_state = 7;
   }
 }
 

@@ -58,6 +58,7 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -72,6 +73,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
@@ -454,42 +458,143 @@ public class GcsUtil {
   @VisibleForTesting
   SeekableByteChannel open(GcsPath path, GoogleCloudStorageReadOptions readOptions)
       throws IOException {
-    return googleCloudStorage.open(
-        new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
+    HashMap<String, String> baseLabels = new HashMap<>();
+    baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
+    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "GcsGet");
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.cloudStorageBucket(path.getBucket()));
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.GCS_PROJECT_ID, googleCloudStorageOptions.getProjectId());
+    baseLabels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, path.getBucket());
+
+    ServiceCallMetric serviceCallMetric =
+        new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+    try {
+      SeekableByteChannel channel =
+          googleCloudStorage.open(
+              new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
+      serviceCallMetric.call("ok");
+      return channel;
+    } catch (IOException e) {
+      if (e.getCause() instanceof GoogleJsonResponseException) {
+        serviceCallMetric.call(((GoogleJsonResponseException) e.getCause()).getDetails().getCode());
+      }
+      throw e;
+    }
   }
 
-  /**
-   * Creates an object in GCS.
-   *
-   * <p>Returns a WritableByteChannel that can be used to write data to the object.
-   *
-   * @param path the GCS file to write to
-   * @param type the type of object, eg "text/plain".
-   * @return a Callable object that encloses the operation.
-   */
+  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
+  @Deprecated
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
-    return create(path, type, uploadBufferSizeBytes);
+    CreateOptions.Builder builder = CreateOptions.builder().setContentType(type);
+    return create(path, builder.build());
   }
 
-  /**
-   * Same as {@link GcsUtil#create(GcsPath, String)} but allows overriding {code
-   * uploadBufferSizeBytes}.
-   */
+  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
+  @Deprecated
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
+    CreateOptions.Builder builder =
+        CreateOptions.builder()
+            .setContentType(type)
+            .setUploadBufferSizeBytes(uploadBufferSizeBytes);
+    return create(path, builder.build());
+  }
+
+  @AutoValue
+  public abstract static class CreateOptions {
+    /**
+     * If true, the created file is expected to not exist. Instead of checking for file presence
+     * before writing a write exception may occur if the file does exist.
+     */
+    public abstract boolean getExpectFileToNotExist();
+
+    /**
+     * If non-null, the upload buffer size to be used. If null, the buffer size corresponds to {code
+     * GCSUtil.getUploadBufferSizeBytes}
+     */
+    public abstract @Nullable Integer getUploadBufferSizeBytes();
+
+    /** The content type for the created file, eg "text/plain". */
+    public abstract @Nullable String getContentType();
+
+    public static Builder builder() {
+      return new AutoValue_GcsUtil_CreateOptions.Builder().setExpectFileToNotExist(false);
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setContentType(String value);
+
+      public abstract Builder setUploadBufferSizeBytes(int value);
+
+      public abstract Builder setExpectFileToNotExist(boolean value);
+
+      public abstract CreateOptions build();
+    }
+  }
+
+  /**
+   * Creates an object in GCS and prepares for uploading its contents.
+   *
+   * @param path the GCS file to write to
+   * @param options to be used for creating and configuring file upload
+   * @return a WritableByteChannel that can be used to write data to the object.
+   */
+  public WritableByteChannel create(GcsPath path, CreateOptions options) throws IOException {
     AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
-    int uploadChunkSize =
-        (uploadBufferSizeBytes == null) ? wcOptions.getUploadChunkSize() : uploadBufferSizeBytes;
-    AsyncWriteChannelOptions newOptions =
-        wcOptions.toBuilder().setUploadChunkSize(uploadChunkSize).build();
+    @Nullable
+    Integer uploadBufferSizeBytes =
+        options.getUploadBufferSizeBytes() != null
+            ? options.getUploadBufferSizeBytes()
+            : getUploadBufferSizeBytes();
+    if (uploadBufferSizeBytes != null) {
+      wcOptions = wcOptions.toBuilder().setUploadChunkSize(uploadBufferSizeBytes).build();
+    }
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
-        googleCloudStorageOptions.toBuilder().setWriteChannelOptions(newOptions).build();
+        googleCloudStorageOptions.toBuilder().setWriteChannelOptions(wcOptions).build();
     GoogleCloudStorage gcpStorage =
         new GoogleCloudStorageImpl(
             newGoogleCloudStorageOptions, this.storageClient, this.credentials);
-    return gcpStorage.create(
-        new StorageResourceId(path.getBucket(), path.getObject()),
-        CreateObjectOptions.builder().setOverwriteExisting(true).setContentType(type).build());
+    StorageResourceId resourceId =
+        new StorageResourceId(
+            path.getBucket(),
+            path.getObject(),
+            // If we expect the file not to exist, we set a generation id of 0. This avoids a read
+            // to identify the object exists already and should be overwritten.
+            // See {@link GoogleCloudStorage#create(StorageResourceId, GoogleCloudStorageOptions)}
+            options.getExpectFileToNotExist() ? 0L : StorageResourceId.UNKNOWN_GENERATION_ID);
+    CreateObjectOptions.Builder createBuilder =
+        CreateObjectOptions.builder().setOverwriteExisting(true);
+    if (options.getContentType() != null) {
+      createBuilder = createBuilder.setContentType(options.getContentType());
+    }
+
+    HashMap<String, String> baseLabels = new HashMap<>();
+    baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
+    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "GcsInsert");
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.cloudStorageBucket(path.getBucket()));
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.GCS_PROJECT_ID, googleCloudStorageOptions.getProjectId());
+    baseLabels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, path.getBucket());
+
+    ServiceCallMetric serviceCallMetric =
+        new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+    try {
+      WritableByteChannel channel = gcpStorage.create(resourceId, createBuilder.build());
+      serviceCallMetric.call("ok");
+      return channel;
+    } catch (IOException e) {
+      if (e.getCause() instanceof GoogleJsonResponseException) {
+        serviceCallMetric.call(((GoogleJsonResponseException) e.getCause()).getDetails().getCode());
+      }
+      throw e;
+    }
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */
@@ -793,7 +898,12 @@ public class GcsUtil {
 
   public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
       throws IOException {
-    rewriteHelper(srcFilenames, destFilenames, false, false);
+    rewriteHelper(
+        srcFilenames,
+        destFilenames,
+        /*deleteSource=*/ false,
+        /*ignoreMissingSource=*/ false,
+        /*ignoreExistingDest=*/ false);
   }
 
   public void rename(
@@ -804,17 +914,22 @@ public class GcsUtil {
     Set<MoveOptions> moveOptionSet = Sets.newHashSet(moveOptions);
     final boolean ignoreMissingSrc =
         moveOptionSet.contains(StandardMoveOptions.IGNORE_MISSING_FILES);
-    rewriteHelper(srcFilenames, destFilenames, true, ignoreMissingSrc);
+    final boolean ignoreExistingDest =
+        moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+    rewriteHelper(
+        srcFilenames, destFilenames, /*deleteSource=*/ true, ignoreMissingSrc, ignoreExistingDest);
   }
 
   private void rewriteHelper(
       Iterable<String> srcFilenames,
       Iterable<String> destFilenames,
       boolean deleteSource,
-      boolean ignoreMissingSource)
+      boolean ignoreMissingSource,
+      boolean ignoreExistingDest)
       throws IOException {
     LinkedList<RewriteOp> rewrites =
-        makeRewriteOps(srcFilenames, destFilenames, deleteSource, ignoreMissingSource);
+        makeRewriteOps(
+            srcFilenames, destFilenames, deleteSource, ignoreMissingSource, ignoreExistingDest);
     org.apache.beam.sdk.util.BackOff backoff = BACKOFF_FACTORY.backoff();
     while (true) {
       List<BatchInterface> batches = makeRewriteBatches(rewrites); // Removes completed rewrite ops.
@@ -858,7 +973,8 @@ public class GcsUtil {
       Iterable<String> srcFilenames,
       Iterable<String> destFilenames,
       boolean deleteSource,
-      boolean ignoreMissingSource)
+      boolean ignoreMissingSource,
+      boolean ignoreExistingDest)
       throws IOException {
     List<String> srcList = Lists.newArrayList(srcFilenames);
     List<String> destList = Lists.newArrayList(destFilenames);
@@ -871,6 +987,10 @@ public class GcsUtil {
     for (int i = 0; i < srcList.size(); i++) {
       final GcsPath sourcePath = GcsPath.fromUri(srcList.get(i));
       final GcsPath destPath = GcsPath.fromUri(destList.get(i));
+      if (ignoreExistingDest && !sourcePath.getBucket().equals(destPath.getBucket())) {
+        throw new UnsupportedOperationException(
+            "Skipping dest existence is only supported within a bucket.");
+      }
       rewrites.addLast(new RewriteOp(sourcePath, destPath, deleteSource, ignoreMissingSource));
     }
     return rewrites;
