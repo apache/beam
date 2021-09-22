@@ -41,7 +41,7 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
@@ -66,7 +66,7 @@ jobs:
       )
     needs:
       - check_gcp_variables
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -91,7 +91,8 @@ jobs:
 
   python_unit_tests:
     name: 'Python Unit Tests'
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
+    container: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -135,7 +136,8 @@ jobs:
 
   python_wordcount_direct_runner:
     name: 'Python Wordcount Direct Runner'
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
+    container: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -168,7 +170,8 @@ jobs:
     name: 'Python Wordcount Dataflow'
     needs:
       - build_python_sdk_source
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
+    container: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:

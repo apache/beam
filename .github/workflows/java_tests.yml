@@ -42,7 +42,7 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables set"
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
@@ -60,7 +60,8 @@ jobs:
 
   java_unit_tests:
     name: 'Java Unit Tests'
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
+    container: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -109,7 +110,8 @@ jobs:
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
+    container: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -137,7 +139,8 @@ jobs:
     name: 'Java Wordcount Dataflow'
     needs:
       - check_gcp_variables
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
+    container: ${{ matrix.os }}
     if: |
       needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
         (github.event_name == 'push' || github.event_name == 'schedule') ||
