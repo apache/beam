@@ -20,12 +20,14 @@ package org.apache.beam.sdk.io.redis;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -35,14 +37,12 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
@@ -228,7 +228,6 @@ public class RedisIO {
 
       return input
           .apply(Create.of(keyPattern()))
-          .apply(ParDo.of(new ReadKeysWithPattern(connectionConfiguration())))
           .apply(
               RedisIO.readKeyPatterns()
                   .withConnectionConfiguration(connectionConfiguration())
@@ -316,7 +315,114 @@ public class RedisIO {
     }
   }
 
-  private abstract static class BaseReadFn<T> extends DoFn<String, T> {
+  private static class ReadFn extends DoFn<String, KV<String, String>> {
+
+    protected final RedisConnectionConfiguration connectionConfiguration;
+    transient Jedis jedis;
+    private long batchSize;
+    @Nullable AtomicInteger batchCount = null;
+
+    ReadFn(RedisConnectionConfiguration connectionConfiguration, int batchSize) {
+      this.connectionConfiguration = connectionConfiguration;
+      this.batchSize = batchSize;
+    }
+
+    @Setup
+    public void setup() {
+      jedis = connectionConfiguration.connect();
+    }
+
+    @Teardown
+    public void teardown() {
+      jedis.close();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange GetInitialRestriction(@Element String pattern) {
+      return new OffsetRange(0, getKeyPatters(pattern).size());
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+      String pattern = c.element();
+      List<String> keys = getKeyPatters(pattern);
+      List<String> bundle = new ArrayList<>();
+      for (long i = tracker.currentRestriction().getFrom();
+          i < tracker.currentRestriction().getTo();
+          i++) {
+        if (tracker.tryClaim(i)) {
+          bundle.add(keys.get((int) i));
+        }
+      }
+      if (bundle.size() > 0) {
+        List<KV<String, String>> kvs = fetchAndFlush(bundle);
+        for (KV<String, String> kv : kvs) {
+          c.output(kv);
+        }
+      }
+    }
+
+    @SplitRestriction
+    public void split(@Restriction OffsetRange restriction, OutputReceiver<OffsetRange> out) {
+      for (OffsetRange offsetRange :
+          splitBlockWithLimit(restriction.getFrom(), restriction.getTo())) {
+        out.output(offsetRange);
+      }
+    }
+
+    public ArrayList<OffsetRange> splitBlockWithLimit(long start, long end) {
+      ArrayList<OffsetRange> offsetList = new ArrayList<>();
+      long newStart = start;
+      long newEnd = start;
+      while (true) {
+        if (newStart + batchSize <= end) {
+          offsetList.add(new OffsetRange(newStart, newStart + batchSize));
+          newEnd = newStart + batchSize;
+          newStart = newStart + batchSize + 1;
+        } else {
+          break;
+        }
+      }
+      if (newEnd < end) {
+        offsetList.add(new OffsetRange(newStart, end));
+      }
+      return offsetList;
+    }
+
+    private List<String> getKeyPatters(String pattern) {
+      ScanParams scanParams = new ScanParams();
+      scanParams.match(pattern);
+
+      String cursor = ScanParams.SCAN_POINTER_START;
+      List<String> keys = new ArrayList<>();
+      boolean finished = false;
+      while (!finished) {
+        ScanResult<String> scanResult = jedis.scan(cursor, scanParams);
+        for (String k : scanResult.getResult()) {
+          keys.add(k);
+        }
+        cursor = scanResult.getCursor();
+        if (cursor.equals(ScanParams.SCAN_POINTER_START)) {
+          finished = true;
+        }
+      }
+      return keys;
+    }
+
+    private List<KV<String, String>> fetchAndFlush(List<String> bundle) {
+      List<KV<String, String>> kvs = new ArrayList<>();
+      String[] keys = bundle.toArray(new String[bundle.size()]);
+      List<String> results = jedis.mget(keys);
+      for (int i = 0; i < results.size(); i++) {
+        if (results.get(i) != null) {
+          kvs.add(KV.of(keys[i], results.get(i)));
+        }
+      }
+      return kvs;
+    }
+  }
+
+  /*private abstract static class BaseReadFn<T> extends DoFn<String, T> {
     protected final RedisConnectionConfiguration connectionConfiguration;
 
     transient Jedis jedis;
@@ -361,10 +467,10 @@ public class RedisIO {
         }
       }
     }
-  }
+  }/*
 
   /** A {@link DoFn} requesting Redis server to get key/value pairs. */
-  private static class ReadFn extends BaseReadFn<KV<String, String>> {
+  /*private static class ReadFn extends BaseReadFn<KV<String, String>> {
     transient @Nullable Multimap<BoundedWindow, String> bundles = null;
     @Nullable AtomicInteger batchCount = null;
     private final int batchSize;
@@ -424,7 +530,7 @@ public class RedisIO {
       batchCount.set(0);
       return kvs;
     }
-  }
+  }*/
 
   private static class Reparallelize
       extends PTransform<PCollection<KV<String, String>>, PCollection<KV<String, String>>> {
