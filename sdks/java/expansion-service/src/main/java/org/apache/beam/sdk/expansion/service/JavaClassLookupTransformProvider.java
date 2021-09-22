@@ -286,12 +286,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       boolean ignoreFieldName =
           FIELD_NAME_IGNORE_PATTERN.matcher(parameterFromPayload.getName()).matches();
 
-      // Parameter name was generated during reflection and hence should not be used for validation.
-      boolean reflectionGeneratedFieldName = paramNameFromReflection.startsWith("arg");
-
-      if (!reflectionGeneratedFieldName
-          && !ignoreFieldName
-          && !paramNameFromReflection.equals(parameterFromPayload.getName())) {
+      if (!ignoreFieldName && !paramNameFromReflection.equals(parameterFromPayload.getName())) {
         // Parameter name through reflection is from the class file (not through synthesizing,
         // hence we can validate names)
         return false;
