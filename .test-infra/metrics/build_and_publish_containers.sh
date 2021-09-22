@@ -42,7 +42,6 @@ docker build -t gcr.io/${PROJECT_ID}/beamgrafana:$CONTAINER_VERSION_NAME ./grafa
 docker build -t gcr.io/${PROJECT_ID}/beammetricssyncjenkins:$CONTAINER_VERSION_NAME ./sync/jenkins
 docker build -t gcr.io/${PROJECT_ID}/beammetricssyncjira:$CONTAINER_VERSION_NAME ./sync/jira
 docker build -t gcr.io/${PROJECT_ID}/beammetricssyncgithub:$CONTAINER_VERSION_NAME ./sync/github
-docker build -t gcr.io/${PROJECT_ID}/beammetricsrungithubactions:$CONTAINER_VERSION_NAME ../../.github/dockerized-gh_actions_runners/
 
 if [ "$DO_PUSH" = true ]; then
   echo
@@ -51,5 +50,4 @@ if [ "$DO_PUSH" = true ]; then
   docker push gcr.io/${PROJECT_ID}/beammetricssyncjenkins:$CONTAINER_VERSION_NAME
   docker push gcr.io/${PROJECT_ID}/beammetricssyncjira:$CONTAINER_VERSION_NAME
   docker push gcr.io/${PROJECT_ID}/beammetricssyncgithub:$CONTAINER_VERSION_NAME
-  docker push gcr.io/${PROJECT_ID}/beammetricsrungithubactions:$CONTAINER_VERSION_NAME
 fi

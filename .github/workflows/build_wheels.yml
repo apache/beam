@@ -40,7 +40,7 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
@@ -57,7 +57,7 @@ jobs:
           GCP_TESTING_BUCKET: "not-needed-here"
 
   build_source:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Build python source distribution
     outputs:
       is_rc: ${{ steps.is_rc.outputs.is_rc }}
@@ -166,7 +166,7 @@ jobs:
     needs:
       - build_source
       - check_gcp_variables
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
@@ -182,7 +182,7 @@ jobs:
     needs:
       - prepare_gcs
       - check_gcp_variables
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
@@ -203,8 +203,7 @@ jobs:
     needs: build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
-    runs-on: self-hosted
-    container: ${{ matrix.os_python.os }}
+    runs-on: ${{ matrix.os_python.os }}
     strategy:
       matrix:
         os_python: [
@@ -287,7 +286,7 @@ jobs:
     needs:
       - build_wheels
       - check_gcp_variables
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
@@ -331,7 +330,7 @@ jobs:
     needs:
      - upload_wheels_to_gcs
      - check_gcp_variables
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
@@ -347,7 +346,7 @@ jobs:
     needs:
       - build_source
       - build_wheels
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
