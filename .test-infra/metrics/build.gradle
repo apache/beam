@@ -103,7 +103,8 @@ task deploy {
           beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
           beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
           beammetricssyncjira=gcr.io/apache-beam-testing/beammetricssyncjira:${project.lastCommitId} \
-          beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
+          beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId} \
+          beammetricsrungithubactions=gcr.io/apache-beam-testing/beammetricsrungithubactions:${project.lastCommitId}"
       }
     } else {
       println 'Nothing to do, exiting.'
