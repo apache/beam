@@ -26,6 +26,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -34,6 +35,9 @@ import (
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
+
+// This side input cache size is a placeholder value.
+const cacheSize = 20
 
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
@@ -92,6 +96,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
+	sideCache := statecache.SideInputCache{}
+	sideCache.Init(cacheSize)
+
 	ctrl := &control{
 		lookupDesc:  lookupDesc,
 		descriptors: make(map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor),
@@ -102,6 +109,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		failed:      make(map[instructionID]error),
 		data:        &DataChannelManager{},
 		state:       &StateChannelManager{},
+		cache:       &sideCache,
 	}
 
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
@@ -231,6 +239,8 @@ type control struct {
 
 	data  *DataChannelManager
 	state *StateChannelManager
+	// TODO(BEAM-11097): Cache is currently unused.
+	cache *statecache.SideInputCache
 }
 
 func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
