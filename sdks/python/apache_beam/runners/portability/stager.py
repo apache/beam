@@ -63,7 +63,6 @@ import pkg_resources
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
-from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
@@ -468,10 +467,10 @@ class Stager(object):
         FileSystems.copy([from_url], [to_path])
         _LOGGER.info('Copied remote file from %s to %s.', from_url, to_path)
         return
-      except (ValueError, BeamIOError) as e:
+      except Exception:
         _LOGGER.info(
-            'Failed to download file via apache_beam.io.filesystems. Trying '
-            'to copy directly.')
+            'Failed to download file from %s via apache_beam.io.filesystems.'
+            'Trying to copy directly.', from_url)
       if not os.path.isdir(os.path.dirname(to_path)):
         _LOGGER.info(
             'Created folder (since we have not done yet, and any errors '
