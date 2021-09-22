@@ -2616,11 +2616,6 @@ public class BigQueryIO {
             "The supplied getTableFunction object can directly set TimePartitioning."
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
       }
-      if (getClustering() != null && getClustering().getFields() != null) {
-        checkArgument(
-            getJsonTimePartitioning() != null,
-            "Clustering fields can only be set when TimePartitioning is set.");
-      }
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
