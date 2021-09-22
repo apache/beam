@@ -21,7 +21,7 @@ Playground tests may be run using this command:
 
 `flutter test`
 
-Dart code may be analyzed using this command:
+Dart code should follow next [code style](https://dart-lang.github.io/linter/lints/index.html). Code may be analyzed using this command:
 
 `flutter analyze`
 
