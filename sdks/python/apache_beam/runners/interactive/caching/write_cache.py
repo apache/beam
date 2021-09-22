@@ -27,10 +27,9 @@ import apache_beam as beam
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
+from apache_beam.runners.interactive.caching.reify import reify_to_cache
 from apache_beam.runners.pipeline_context import PipelineContext
-from apache_beam.testing import test_stream
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.window import WindowedValue
 
 
 class WriteCache:
@@ -46,8 +45,7 @@ class WriteCache:
     self._context = context
     self._cache_manager = cache_manager
     self._cacheable = cacheable
-    self._key = repr(cacheable.to_key())
-    self._label = '{}{}'.format('_cache_', self._key)
+    self._key = cacheable.to_key().to_str()
 
   def write_cache(self) -> None:
     """Writes cache for the cacheable PCollection that is being computed.
@@ -129,35 +127,21 @@ class WriteCache:
   def _build_runner_api_template(
       self) -> Tuple[beam_runner_api_pb2.Pipeline, '_PCollectionPlaceHolder']:
     pph = _PCollectionPlaceHolder(self._cacheable.pcoll, self._context)
-    transform = _WriteCacheTransform(
-        self._cache_manager, self._key, self._label)
-    _ = pph.placeholder_pcoll | 'sink' + self._label >> transform
+    transform = _WriteCacheTransform(self._cache_manager, self._key)
+    _ = pph.placeholder_pcoll | 'sink_cache_' + self._key >> transform
     return pph.placeholder_pcoll.pipeline.to_runner_api(), pph
 
 
 class _WriteCacheTransform(PTransform):
   """A composite transform encapsulates writing cache for PCollections.
   """
-  def __init__(self, cache_manager: cache.CacheManager, key: str, label: str):
+  def __init__(self, cache_manager: cache.CacheManager, key: str):
     self._cache_manager = cache_manager
     self._key = key
-    self._label = label
 
-  def expand(self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
-    class Reify(beam.DoFn):
-      def process(
-          self,
-          e,
-          w=beam.DoFn.WindowParam,
-          p=beam.DoFn.PaneInfoParam,
-          t=beam.DoFn.TimestampParam):
-        yield test_stream.WindowedValueHolder(WindowedValue(e, t, [w], p))
-
-    return (
-        pcoll
-        | 'reify' + self._label >> beam.ParDo(Reify())
-        | 'write' + self._label >> cache.WriteCache(
-            self._cache_manager, self._key, is_capture=False))
+  def expand(self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PValue:
+    return reify_to_cache(
+        pcoll=pcoll, cache_key=self._key, cache_manager=self._cache_manager)
 
 
 class _PCollectionPlaceHolder:

@@ -36,6 +36,7 @@ dependencies {
   testCompile library.java.activemq_kahadb_store
   testCompile library.java.activemq_client
   testCompile library.java.junit
+  testCompile library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

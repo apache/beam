@@ -72,8 +72,7 @@ class SqlOperatorMappingTable {
           .put("sum", SqlStdOperatorTable.SUM)
           .put("any_value", SqlStdOperatorTable.ANY_VALUE)
           .put("count", SqlStdOperatorTable.COUNT)
-          // .put("bit_and", SqlStdOperatorTable.BIT_AND) //JIRA link:
-          // https://issues.apache.org/jira/browse/BEAM-10379
+          .put("bit_and", SqlStdOperatorTable.BIT_AND)
           .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
           .put("array_agg", SqlOperators.ARRAY_AGG_FN)
           .put("bit_or", SqlStdOperatorTable.BIT_OR)

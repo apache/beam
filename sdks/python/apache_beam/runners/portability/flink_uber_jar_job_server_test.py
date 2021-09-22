@@ -192,6 +192,36 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
     self.assertEqual(
         options_proto['beam:option:unknown_option_foo:v1'], 'some_value')
 
+  @requests_mock.mock()
+  def test_bad_url_flink_version(self, http_mock):
+    http_mock.get('http://flink/v1/config', json={'flink-version': '1.2.3.4'})
+    options = pipeline_options.FlinkRunnerOptions()
+    options.flink_job_server_jar = "bad url"
+    job_server = flink_uber_jar_job_server.FlinkUberJarJobServer(
+        'http://flink', options)
+    with self.assertRaises(ValueError) as context:
+      job_server.executable_jar()
+    self.assertEqual(
+        'Unable to parse jar URL "bad url". If using a full URL, make sure '
+        'the scheme is specified. If using a local file path, make sure '
+        'the file exists; you may have to first build the job server '
+        'using `./gradlew runners:flink:1.2:job-server:shadowJar`.',
+        str(context.exception))
+
+  def test_bad_url_placeholder_version(self):
+    options = pipeline_options.FlinkRunnerOptions()
+    options.flink_job_server_jar = "bad url"
+    job_server = flink_uber_jar_job_server.FlinkUberJarJobServer(
+        'http://example.com/bad', options)
+    with self.assertRaises(ValueError) as context:
+      job_server.executable_jar()
+    self.assertEqual(
+        'Unable to parse jar URL "bad url". If using a full URL, make sure '
+        'the scheme is specified. If using a local file path, make sure '
+        'the file exists; you may have to first build the job server '
+        'using `./gradlew runners:flink:$FLINK_VERSION:job-server:shadowJar`.',
+        str(context.exception))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
