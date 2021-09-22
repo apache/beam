@@ -338,7 +338,7 @@ public class RedisIO {
     }
 
     @GetInitialRestriction
-    public OffsetRange GetInitialRestriction(@Element String pattern) {
+    public OffsetRange getInitialRestriction(@Element String pattern) {
       return new OffsetRange(0, getKeyPatters(pattern).size());
     }
 
