@@ -28,7 +28,7 @@ on:
 jobs:
   cancel-duplicate-workflow-runs:
     name: "Cancel duplicate workflow runs"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2

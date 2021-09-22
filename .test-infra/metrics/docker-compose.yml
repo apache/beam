@@ -86,18 +86,6 @@ services:
       - DB_DBUSERNAME=admin
       - DB_DBPWD=<PGPasswordHere>
       - GH_ACCESS_TOKEN=<GithubAccessToken>
-  rungithubactions:
-    image: rungithubactions
-    container_name: beamrungithubactions
-    build:
-      context: ../../.github/dockerized-gh_actions_runners/
-      dockerfile: Dockerfile
-    environment:
-      # If deployed to a K8S cluster, these variables will be overriden -
-      # - by the ones set in .test-infra/metrics/kubernetes/beamgrafana-deploy.yaml
-      - GITHUB_PERSONAL_TOKEN=<GitHubPATHere>
-      - GITHUB_REPOSITORY=<GitHubRepositoryHere>
-      - GITHUB_OWNER=<GitHubRepositoryOwnerHere>
   syncjenkins:
     image: syncjenkins
     container_name: beamsyncjenkins
