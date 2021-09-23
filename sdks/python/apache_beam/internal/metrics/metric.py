@@ -250,4 +250,4 @@ class ServiceCallMetric(object):
     if (grpc_status is not None and
         grpc_status in grpc_to_canonical_gcp_status):
       return grpc_to_canonical_gcp_status[grpc_status]
-    return grpc_status
+    return str(grpc_status)
