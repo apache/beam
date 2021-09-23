@@ -501,15 +501,6 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  @Test(expected = IllegalArgumentException.class)
-  public void testClusteringThrowsWithoutPartitioning() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      throw new IllegalArgumentException();
-    }
-    p.enableAbandonedNodeEnforcement(false);
-    testTimePartitioningClustering(Method.STREAMING_INSERTS, false, true);
-  }
-
   @Test
   public void testClusteringTableFunction() throws Exception {
     TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
