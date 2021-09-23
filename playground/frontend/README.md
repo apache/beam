@@ -26,11 +26,3 @@ Dart code should follow next [code style](https://dart-lang.github.io/linter/lin
 `flutter analyze`
 
 The full list of command can be found [here](https://flutter.dev/docs/reference/flutter-cli)
-
-## Deployment
-
-TODO:
-
-## Contribution guide
-
-TODO:
