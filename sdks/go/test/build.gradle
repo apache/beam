@@ -53,6 +53,8 @@ golang {
 // ValidatesRunner tests for Dataflow. Runs tests in the integration directory
 // with Dataflow to validate that the runner behaves as expected.
 task dataflowValidatesRunner() {
+  group = "Verification"
+
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
@@ -73,6 +75,8 @@ task dataflowValidatesRunner() {
 // ValidatesRunner tests for Flink. Runs tests in the integration directory
 // with Flink to validate that the runner behaves as expected.
 task flinkValidatesRunner {
+  group = "Verification"
+
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:java8:docker"
@@ -117,6 +121,8 @@ task samzaValidatesRunner {
 // ValidatesRunner tests for Spark. Runs tests in the integration directory
 // with Spark to validate that the runner behaves as expected.
 task sparkValidatesRunner {
+  group = "Verification"
+
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:java:container:java8:docker"
   dependsOn ":sdks:java:container:java11:docker"
@@ -143,6 +149,8 @@ task sparkValidatesRunner {
 // vendored directories. For best results use the clean task, like so:
 //   ./gradlew clean :sdks:go:test:ulrValidatesRunner
 task ulrValidatesRunner {
+  group = "Verification"
+
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:java8:docker"
@@ -163,6 +171,34 @@ task ulrValidatesRunner {
     exec {
       executable "sh"
       args "-c", ". ${envdir}/bin/activate && ./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
+// A method for configuring a cross-language validates runner test task,
+// intended to be used in calls to createCrossLanguageValidatesRunnerTask.
+ext.goIoValidatesRunnerTask = { proj, name, scriptOpts ->
+  return proj.tasks.create(name: name) {
+    group = "Verification"
+
+    dependsOn ":sdks:go:test:goBuild"
+    dependsOn ":sdks:go:container:docker"
+    dependsOn ":sdks:java:io:expansion-service:build"
+    dependsOn ":sdks:java:testing:kafka-service:buildTestKafkaServiceJar"
+
+    doLast {
+      def ioExpJar = project(":sdks:java:io:expansion-service").shadowJar.archivePath
+      def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
+      def options = [
+          "--io_expansion_jar ${ioExpJar}",
+          "--pipeline_opts \"--kafka_jar=${kafkaJar}\"",
+      ]
+      options.addAll(scriptOpts)
+      logger.info("Running the command: sh -c ./run_validatesrunner_tests.sh ${options.join(' ')}")
+      exec {
+        executable "sh"
+        args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+      }
     }
   }
 }
