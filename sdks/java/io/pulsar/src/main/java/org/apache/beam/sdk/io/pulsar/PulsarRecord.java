@@ -1,21 +1,23 @@
 package org.apache.beam.sdk.io.pulsar;
 
 import org.apache.beam.sdk.values.KV;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 
 public class PulsarRecord<K, V> {
 
     private final String topic;
-    private MessageId messageId;
+    private Message message;
     private Long offset;
     private KV<K,V> kv;
 
-    public PulsarRecord(String topic, MessageId messageId, Long offset) {
+    public PulsarRecord(String topic, Message message, Long offset) {
         this.topic = topic;
         this.offset = offset;
+        this.message = message;
     }
 
-    public MessageId getMessageId() { return this.messageId; }
+    public Message getMessage() { return this.message; }
 
     public Long getOffset() {
         return this.offset;
