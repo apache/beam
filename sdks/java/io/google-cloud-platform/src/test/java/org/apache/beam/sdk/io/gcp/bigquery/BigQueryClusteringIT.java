@@ -48,7 +48,7 @@ import org.junit.runners.JUnit4;
 public class BigQueryClusteringIT {
   private static final String WEATHER_SAMPLES_TABLE =
       "clouddataflow-readonly:samples.weather_stations";
-  private static final String DATASET_NAME = "BigQueryCIT";
+  private static final String DATASET_NAME = "BigQueryClusteringIT";
   private static final Clustering CLUSTERING =
       new Clustering().setFields(Arrays.asList("station_number"));
   private static final TableSchema SCHEMA =
@@ -66,7 +66,7 @@ public class BigQueryClusteringIT {
     PipelineOptionsFactory.register(BigQueryClusteringITOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryClusteringITOptions.class);
     options.setTempLocation(options.getTempRoot() + "/temp-it/");
-    bqClient = BigqueryClient.getNewBigquerryClient(options.getAppName());
+    bqClient = BigqueryClient.getNewBigqueryClient(options.getAppName());
   }
 
   /** Customized PipelineOptions for BigQueryClustering Integration Test. */
@@ -108,7 +108,7 @@ public class BigQueryClusteringIT {
     @Override
     public TableDestination getDestination(ValueInSingleWindow<TableRow> element) {
       return new TableDestination(
-          String.format("%s.%s", DATASET_NAME, tableName), null, CLUSTERING);
+          String.format("%s.%s", DATASET_NAME, tableName), null, null, CLUSTERING);
     }
 
     @Override
@@ -158,7 +158,10 @@ public class BigQueryClusteringIT {
                 .to(
                     (ValueInSingleWindow<TableRow> vsw) ->
                         new TableDestination(
-                            String.format("%s.%s", DATASET_NAME, tableName), null, CLUSTERING))
+                            String.format("%s.%s", DATASET_NAME, tableName),
+                            null,
+                            null,
+                            CLUSTERING))
                 .withClustering()
                 .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
