@@ -471,7 +471,13 @@ def show(
   assert len(pcolls) > 0, (
       'Need at least 1 PCollection to show data visualization.')
 
-  user_pipeline = ie.current_env().user_pipeline(next(iter(pcolls)).pipeline)
+  pcoll_pipeline = next(iter(pcolls)).pipeline
+  user_pipeline = ie.current_env().user_pipeline(pcoll_pipeline)
+  # Possibly showing a PCollection defined in a local scope that is not
+  # explicitly watched. Ad hoc watch it though it's a little late.
+  if not user_pipeline:
+    watch({'anonymous_pipeline_{}'.format(id(pcoll_pipeline)): pcoll_pipeline})
+    user_pipeline = pcoll_pipeline
 
   if isinstance(n, str):
     assert n == 'inf', (
@@ -607,6 +613,11 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
     duration = float('inf')
 
   user_pipeline = ie.current_env().user_pipeline(pcoll.pipeline)
+  # Possibly collecting a PCollection defined in a local scope that is not
+  # explicitly watched. Ad hoc watch it though it's a little late.
+  if not user_pipeline:
+    watch({'anonymous_pipeline_{}'.format(id(pcoll.pipeline)): pcoll.pipeline})
+    user_pipeline = pcoll.pipeline
   recording_manager = ie.current_env().get_recording_manager(
       user_pipeline, create_if_absent=True)
 
