@@ -244,7 +244,8 @@ class GroupingBuffer(object):
 
   def extend(self, input_buffer):
     # type: (Buffer) -> None
-    assert isinstance(input_buffer, GroupingBuffer)
+    assert isinstance(input_buffer, GroupingBuffer), \
+      'Input was not GroupingBuffer: %s' % input_buffer
     for key, values in input_buffer._table.items():
       self._table[key].extend(values)
 
