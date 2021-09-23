@@ -41,10 +41,10 @@ import logging
 
 import apache_beam as beam
 from apache_beam.internal.metrics.metric import ServiceCallMetric
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import Metrics
 from apache_beam.metrics import monitoring_infos
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.io.gcp import resource_identifiers
 
 _LOGGER = logging.getLogger(__name__)
 

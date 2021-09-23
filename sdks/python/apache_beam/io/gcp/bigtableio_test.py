@@ -23,6 +23,7 @@ import string
 import unittest
 import uuid
 from random import choice
+
 from mock import MagicMock
 from mock import patch
 
