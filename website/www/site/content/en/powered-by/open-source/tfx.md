@@ -3,7 +3,7 @@ title:  "TensorFlow Extended (TFX)"
 type: open-source
 categories:
   - Open Source Projects Powered by Apache Beam
-icon:
+icon: /images/logos/powered-by/tfx.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
