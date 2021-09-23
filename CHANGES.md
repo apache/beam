@@ -91,6 +91,7 @@
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Fixed error while writing multiple DeferredFrames to csv (Python)
 ([BEAM-12701](https://issues.apache.org/jira/browse/BEAM-12701)).
+* Fixed top.SmallestPerKey implementation in the Go SDK ([BEAM-12946](https://issues.apache.org/jira/browse/BEAM-12946)).
 
 ## Known Issues
 
