@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
  * <p>Get a new Bigquery client:
  *
  * <pre>{@code [
- *    BigqueryClient client = BigqueryClient.getNewBigquerryClient(applicationName);
+ *    BigqueryClient client = BigqueryClient.getNewBigqueryClient(applicationName);
  * ]}</pre>
  *
  * <p>Execute a query with retries:
@@ -149,7 +149,7 @@ public class BigqueryClient {
     return credential;
   }
 
-  public static Bigquery getNewBigquerryClient(String applicationName) {
+  public static Bigquery getNewBigqueryClient(String applicationName) {
     HttpTransport transport = Transport.getTransport();
     JsonFactory jsonFactory = Transport.getJsonFactory();
     Credentials credential = getDefaultCredential();
@@ -163,7 +163,7 @@ public class BigqueryClient {
   }
 
   public BigqueryClient(String applicationName) {
-    bqClient = BigqueryClient.getNewBigquerryClient(applicationName);
+    bqClient = BigqueryClient.getNewBigqueryClient(applicationName);
   }
 
   @Nonnull
