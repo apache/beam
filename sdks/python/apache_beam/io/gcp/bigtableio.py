@@ -51,32 +51,32 @@ _LOGGER = logging.getLogger(__name__)
 try:
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.batcher import MutationsBatcher
+
+  FLUSH_COUNT = 1000
+  MAX_ROW_BYTES = 5242880  # 5MB
+
+  class _MutationsBatcher(MutationsBatcher):
+    def __init__(
+        self, table, flush_count=FLUSH_COUNT, max_row_bytes=MAX_ROW_BYTES):
+      super(_MutationsBatcher, self).__init__(table, flush_count, max_row_bytes)
+      self.rows = []
+
+    def set_flush_callback(self, callback_fn):
+      self.callback_fn = callback_fn
+
+    def flush(self):
+      if len(self.rows) != 0:
+        rows = self.table.mutate_rows(self.rows)
+        self.callback_fn(rows)
+        self.total_mutation_count = 0
+        self.total_size = 0
+        self.rows = []
+
 except ImportError:
   _LOGGER.warning(
       'ImportError: from google.cloud.bigtable import Client', exc_info=True)
 
 __all__ = ['WriteToBigTable']
-
-FLUSH_COUNT = 1000
-MAX_ROW_BYTES = 5242880  # 5MB
-
-
-class _MutationsBatcher(MutationsBatcher):
-  def __init__(
-      self, table, flush_count=FLUSH_COUNT, max_row_bytes=MAX_ROW_BYTES):
-    super(_MutationsBatcher, self).__init__(table, flush_count, max_row_bytes)
-    self.rows = []
-
-  def set_flush_callback(self, callback_fn):
-    self.callback_fn = callback_fn
-
-  def flush(self):
-    if len(self.rows) != 0:
-      rows = self.table.mutate_rows(self.rows)
-      self.callback_fn(rows)
-      self.total_mutation_count = 0
-      self.total_size = 0
-      self.rows = []
 
 
 class _BigTableWriteFn(beam.DoFn):
@@ -117,9 +117,10 @@ class _BigTableWriteFn(beam.DoFn):
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
   def write_mutate_metrics(self, rows):
-    for status in enumerate(rows):
+    for status in rows:
       if status.code == 0:
-        self.service_call_metric.call('ok')
+        self.service_call_metric.call(
+            0)  #TODO (BEAM-11985) Handle grpc status codes
       else:
         self.service_call_metric.call(status.code)
 
