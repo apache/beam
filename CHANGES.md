@@ -76,11 +76,6 @@
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Go SDK pipelines require new import paths to use this release due to migration to Go Modules.
-  * `go.mod` files will need to change to require `github.com/apache/beam/sdks/v2`.
-  * Code depending on beam imports need to include v2 on the module path.
-    * Fix by'v2' to the import paths, turning  `.../sdks/go/...` to `.../sdks/v2/go/...`
-  * No other code change should be required to use v2.33.0 of the Go SDK.
 * SQL Rows are no longer flattened ([BEAM-5505](https://issues.apache.org/jira/browse/BEAM-5505)).
 
 ## Deprecations
