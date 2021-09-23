@@ -2524,6 +2524,157 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       result.foo
 
 
+class DeadLettersTest(unittest.TestCase):
+  @staticmethod
+  def raise_if_negative(x):
+    if x < 0:
+      raise ValueError(x)
+    else:
+      return x
+
+  @staticmethod
+  def raise_if_less(x, bound=0):
+    if x < bound:
+      raise ValueError((x, bound))
+    else:
+      return x, bound
+
+  def test_error_messages(self):
+
+    with TestPipeline() as p:
+      good, bad = (
+          p
+          | beam.Create([-1, 10, -100, 2, 0])
+          | beam.Map(self.raise_if_negative).with_dead_letters())
+      assert_that(good, equal_to([0, 2, 10]), label='CheckGood')
+      assert_that(
+          bad |
+          beam.MapTuple(lambda e, exc_info: (e, exc_info[1].replace(',', ''))),
+          equal_to([(-1, 'ValueError(-1)'), (-100, 'ValueError(-100)')]),
+          label='CheckBad')
+
+  def test_filters_exceptions(self):
+
+    with TestPipeline() as p:
+      good, _ = (
+          p
+          | beam.Create([-1, 10, -100, 2, 0])
+          | beam.Map(self.raise_if_negative).with_dead_letters(
+              exc_class=(ValueError, TypeError)))
+      assert_that(good, equal_to([0, 2, 10]), label='CheckGood')
+
+    with self.assertRaises(Exception):
+      with TestPipeline() as p:
+        good, _ = (
+            p
+            | beam.Create([-1, 10, -100, 2, 0])
+            | beam.Map(self.raise_if_negative).with_dead_letters(
+                exc_class=TypeError))
+
+  def test_tuples(self):
+
+    with TestPipeline() as p:
+      good, _ = (
+          p
+          | beam.Create([(1, 2), (3, 2), (1, -10)])
+          | beam.MapTuple(self.raise_if_less).with_dead_letters())
+      assert_that(good, equal_to([(3, 2), (1, -10)]), label='CheckGood')
+
+  def test_side_inputs(self):
+
+    with TestPipeline() as p:
+      input = p | beam.Create([-1, 10, 100])
+
+      assert_that((
+          input
+          | 'Default' >> beam.Map(self.raise_if_less).with_dead_letters()).good,
+                  equal_to([(10, 0), (100, 0)]),
+                  label='CheckDefault')
+      assert_that((
+          input
+          | 'Pos' >> beam.Map(self.raise_if_less, 20).with_dead_letters()).good,
+                  equal_to([(100, 20)]),
+                  label='PosSideInput')
+      assert_that((
+          input
+          | 'Key' >> beam.Map(self.raise_if_less, bound=30).with_dead_letters()
+      ).good,
+                  equal_to([(100, 30)]),
+                  label='KeySideInput')
+
+  def test_params(self):
+    def raise_if_negative_with_timestamp(x, ts=beam.DoFn.TimestampParam):
+      if x < 0:
+        raise ValueError((x, ts))
+      else:
+        return x, ts
+
+    with TestPipeline() as p:
+      good, _ = (
+          p
+          | beam.Create([-1, 0, 1])
+          | beam.Map(lambda x: TimestampedValue(x, x))
+          | beam.Map(raise_if_negative_with_timestamp).with_dead_letters())
+      assert_that(good, equal_to([(0, Timestamp(0)), (1, Timestamp(1))]))
+
+  def test_lifecycle(self):
+    class MyDoFn(beam.DoFn):
+      state = None
+
+      def setup(self):
+        assert self.state is None
+        self.state = 'setup'
+
+      def start_bundle(self):
+        assert self.state in ('setup', 'finish_bundle'), self.state
+        self.state = 'start_bundle'
+
+      def finish_bundle(self):
+        assert self.state in ('start_bundle', ), self.state
+        self.state = 'finish_bundle'
+
+      def teardown(self):
+        assert self.state in ('setup', 'finish_bundle'), self.state
+        self.state = 'teardown'
+
+      def process(self, x):
+        if x < 0:
+          raise ValueError(x)
+        else:
+          yield self.state
+
+    with TestPipeline() as p:
+      good, _ = (
+          p
+          | beam.Create([-1, 0, 1])
+          | beam.ParDo(MyDoFn()).with_dead_letters())
+      assert_that(good, equal_to(['start_bundle'] * 2))
+
+  def test_partial(self):
+    def raise_if_negative_iter(elements):
+      for element in elements:
+        if element < 0:
+          raise ValueError(element)
+        yield element
+
+    with TestPipeline() as p:
+      input = p | beam.Create([(-1, 1, 11), (2, -2, 22), (3, 33, -3), (4, 44)])
+
+      assert_that((
+          input
+          | 'Partial' >> beam.FlatMap(raise_if_negative_iter).with_dead_letters(
+              partial=True)).good,
+                  equal_to([2, 3, 33, 4, 44]),
+                  'CheckPartial')
+
+      assert_that((
+          input |
+          'Complete' >> beam.FlatMap(raise_if_negative_iter).with_dead_letters(
+              partial=False)).good,
+                  equal_to([4, 44]),
+                  'CheckComplete')
+
+
 class TestPTransformFn(TypeHintTestCase):
   def test_type_checking_fail(self):
     @beam.ptransform_fn
