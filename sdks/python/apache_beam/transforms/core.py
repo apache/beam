@@ -23,6 +23,8 @@ import copy
 import inspect
 import logging
 import random
+import sys
+import traceback
 import types
 import typing
 
@@ -1222,6 +1224,49 @@ class ParDo(PTransformWithSideInputs):
     from apache_beam.runners.common import DoFnSignature
     self._signature = DoFnSignature(self.fn)
 
+  def with_dead_letters(
+      self,
+      main_tag='good',
+      dead_letter_tag='bad',
+      *,
+      exc_class=Exception,
+      partial=False):
+    """Automatically provides a dead letter output for skipping bad records.
+
+    This returns a tagged output with two PCollections, the first being the
+    results of successfully processing the input PCollection, and the second
+    being the set of bad records (those which threw exceptions during
+    processing) along with information about the errors raised.
+
+    For example, one would write::
+
+        good, bad = Map(maybe_error_raising_function).with_dead_letters()
+
+    and `good` will be a PCollection of mapped records and `bad` will contain
+    those that raised exceptions.
+
+
+    Args:
+      main_tag: tag to be used for the main (good) output of the DoFn,
+          useful to avoid possible conflicts if this DoFn already produces
+          multiple outputs.  Optional, defaults to 'good'.
+      dead_letter_tag: tag to be used for the bad records, useful to avoid
+          possible conflicts if this DoFn already produces multiple outputs.
+          Optional, defaults to 'bad'.
+      exc_class: An exception class, or tuple of exception classes, to catch.
+          Optional, defaults to 'Exception'.
+      partial: Whether to emit outputs as they're produced (which could result
+          in partial outputs for a ParDo or FlatMap that throws an error part
+          way through execution) or buffer all outputs until successful
+          processing of the entire element. Optional, defaults to False.
+    """
+    args, kwargs = self.raw_side_inputs
+    return self.label >> ParDo(
+        _DeadLetterDoFn(self.fn, dead_letter_tag, exc_class, partial),
+        *args,
+        **kwargs).with_outputs(
+            dead_letter_tag, main=main_tag)
+
   def default_type_hints(self):
     return self.fn.get_type_hints()
 
@@ -1267,7 +1312,7 @@ class ParDo(PTransformWithSideInputs):
 
     return pvalue.PCollection.from_(pcoll)
 
-  def with_outputs(self, *tags, **main_kw):
+  def with_outputs(self, *tags, main=None):
     """Returns a tagged tuple allowing access to the outputs of a
     :class:`ParDo`.
 
@@ -1297,13 +1342,11 @@ class ParDo(PTransformWithSideInputs):
       ValueError: if **main_kw** contains any key other than
         ``'main'``.
     """
-    main_tag = main_kw.pop('main', None)
-    if main_tag in tags:
+    if main in tags:
       raise ValueError(
-          'Main output tag must be different from side output tags.')
-    if main_kw:
-      raise ValueError('Unexpected keyword arguments: %s' % list(main_kw))
-    return _MultiParDo(self, tags, main_tag)
+          'Main output tag %r must be different from side output tags %r.' %
+          (main, tags))
+    return _MultiParDo(self, tags, main)
 
   def _do_fn_info(self):
     return DoFnInfo.create(self.fn, self.args, self.kwargs)
@@ -1731,6 +1774,38 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
       **kwargs)
   pardo.label = label
   return pardo
+
+
+class _DeadLetterDoFn(DoFn):
+  """Implementation of ParDo.with_dead_letters."""
+  def __init__(self, fn, dead_letter_tag, exc_class, partial):
+    self._fn = fn
+    self._dead_letter_tag = dead_letter_tag
+    self._exc_class = exc_class
+    self._partial = partial
+
+  def __getattribute__(self, name):
+    if (name.startswith('__') or name in self.__dict__ or
+        name in _DeadLetterDoFn.__dict__):
+      return object.__getattribute__(self, name)
+    else:
+      return getattr(self._fn, name)
+
+  def process(self, *args, **kwargs):
+    try:
+      result = self._fn.process(*args, **kwargs)
+      if not self._partial:
+        # Don't emit any results until we know there will be no errors.
+        result = list(result)
+      yield from result
+    except self._exc_class as exn:
+      yield pvalue.TaggedOutput(
+          self._dead_letter_tag,
+          (
+              args[0], (
+                  type(exn),
+                  repr(exn),
+                  traceback.format_exception(*sys.exc_info()))))
 
 
 def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
