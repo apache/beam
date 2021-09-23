@@ -1218,7 +1218,6 @@ def _finalize_write(
     pre_finalize_results):
   write_results = list(write_results)
   extra_shards = []
-  _LOGGER.error("PABLOEM FINALIZE WRITE!!! %s", write_results)
   if len(write_results) < min_shards:
     _LOGGER.debug(
         'Creating %s empty shard(s).', min_shards - len(write_results))
