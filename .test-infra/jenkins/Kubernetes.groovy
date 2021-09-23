@@ -92,9 +92,13 @@ class Kubernetes {
             ])
             buildSteps {
               if (!namespace.isEmpty()) {
-                shell("${KUBERNETES_SCRIPT} deleteNamespace ${namespace}")
+                shell {
+                  command("${KUBERNETES_SCRIPT} deleteNamespace ${namespace}")
+                }
               }
-              shell("rm ${kubeconfigLocation}")
+              shell {
+                command("rm ${kubeconfigLocation}")
+              }
             }
           }
         }
