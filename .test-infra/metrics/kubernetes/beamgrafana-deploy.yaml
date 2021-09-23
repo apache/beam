@@ -91,6 +91,7 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/grafana
           name: beam-grafana-libdata
+          readOnly: false
         - mountPath: /etc/grafana
           name: beam-grafana-etcdata
         - mountPath: /var/log/grafana
