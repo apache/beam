@@ -244,6 +244,10 @@ class GroupingBuffer(object):
 
   def extend(self, input_buffer):
     # type: (Buffer) -> None
+    if isinstance(input_buffer, ListBuffer):
+      # TODO(pabloem): GroupingBuffer will be removed once shuffling is done
+      #  via state. Remove this workaround along with that.
+      return
     assert isinstance(input_buffer, GroupingBuffer), \
       'Input was not GroupingBuffer: %s' % input_buffer
     for key, values in input_buffer._table.items():
