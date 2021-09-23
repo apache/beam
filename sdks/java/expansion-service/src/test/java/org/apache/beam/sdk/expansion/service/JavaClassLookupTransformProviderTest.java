@@ -1099,7 +1099,7 @@ public class JavaClassLookupTransformProviderTest {
             () ->
                 testClassLookupExpansionRequestConstruction(
                     payloadBuilder.build(), ImmutableMap.of()));
-    assertTrue(thrown.getMessage().contains("Expected to find a single mapping constructor"));
+    assertTrue(thrown.getMessage().contains("Could not find a matching constructor"));
   }
 
   @Test
@@ -1133,7 +1133,7 @@ public class JavaClassLookupTransformProviderTest {
             () ->
                 testClassLookupExpansionRequestConstruction(
                     payloadBuilder.build(), ImmutableMap.of()));
-    assertTrue(thrown.getMessage().contains("Expected to find exactly one matching method"));
+    assertTrue(thrown.getMessage().contains("Could not find a matching method"));
   }
 
   private SchemaApi.Schema getProtoSchemaFromRow(Row row) {
