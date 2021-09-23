@@ -28,7 +28,8 @@ from mock import MagicMock
 from mock import patch
 
 from apache_beam.internal.metrics.metric import ServiceCallMetric
-from apache_beam.io.gcp import resource_identifiers, bigtableio
+from apache_beam.io.gcp import bigtableio
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
 
