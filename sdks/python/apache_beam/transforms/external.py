@@ -275,8 +275,9 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     self._builder_methods_and_params[method_name] = (args, kwargs)
 
   def _has_constructor(self):
-    return (self._constructor_method or self._constructor_param_args or
-            self._constructor_param_kwargs)
+    return (
+        self._constructor_method or self._constructor_param_args or
+        self._constructor_param_kwargs)
 
 
 class JavaExternalTransform(ptransform.PTransform):
