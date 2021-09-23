@@ -60,6 +60,7 @@ var sickbay = []string{}
 var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
+	"TestKafkaIO.*",
 	// Triggers are not yet supported
 	"TestTrigger.*",
 	// The direct runner does not support the TestStream primitive
@@ -71,11 +72,15 @@ var portableFilters = []string{
 	"TestTestStream.*",
 	// The trigger tests uses TestStream
 	"TestTrigger.*",
+	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
+	"TestKafkaIO.*",
 }
 
 var flinkFilters = []string{
 	// TODO(BEAM-11500): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
+	// TODO(BEAM-12815): Test fails: "Insufficient number of network buffers".
+	"TestXLang_Multi",
 	// TODO(BEAM-12753): Flink test stream fails for non-string/byte slice inputs
 	"TestTestStream.*Sequence.*",
 	// Triggers are not yet supported
@@ -110,6 +115,8 @@ var dataflowFilters = []string{
 	"TestTestStream.*",
 	// The trigger tests uses TestStream
 	"TestTrigger.*",
+	// There is no infrastructure for running KafkaIO tests with Dataflow.
+	"TestKafkaIO.*",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
