@@ -63,12 +63,16 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
       if not os.path.exists(self._executable_jar):
         parsed = urllib.parse.urlparse(self._executable_jar)
         if not parsed.scheme:
+          try:
+            flink_version = self.flink_version()
+          except Exception:
+            flink_version = '$FLINK_VERSION'
           raise ValueError(
               'Unable to parse jar URL "%s". If using a full URL, make sure '
               'the scheme is specified. If using a local file path, make sure '
               'the file exists; you may have to first build the job server '
               'using `./gradlew runners:flink:%s:job-server:shadowJar`.' %
-              (self._executable_jar, self._flink_version))
+              (self._executable_jar, flink_version))
       url = self._executable_jar
     else:
       url = job_server.JavaJarJobServer.path_to_beam_jar(

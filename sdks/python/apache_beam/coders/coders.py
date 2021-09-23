@@ -531,6 +531,13 @@ class MapCoder(FastCoder):
     return coder_impl.MapCoderImpl(
         self._key_coder.get_impl(), self._value_coder.get_impl())
 
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
+    # type: (typehints.DictConstraint, CoderRegistry) -> MapCoder
+    return cls(
+        registry.get_coder(typehint.key_type),
+        registry.get_coder(typehint.value_type))
+
   def to_type_hint(self):
     return typehints.Dict[self._key_coder.to_type_hint(),
                           self._value_coder.to_type_hint()]

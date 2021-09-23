@@ -106,16 +106,14 @@ For a detailed introduction to the Beam concepts used in these examples, see the
 
 ## Optional: Convert from Maven to Gradle Project
 
-Ensure you are in the same directory as the `pom.xml` file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
+The steps below explain how to convert the build for the Direct Runner from Maven to Gradle. Converting the builds for the other runners is a more involved process and is out of scope for this guide. For additional guidance, see [Migrating Builds From Apache Maven](https://docs.gradle.org/current/userguide/migrating_from_maven.html).
+
+1. Ensure you are in the same directory as the `pom.xml` file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
 {{< highlight >}}
 $ gradle init
 {{< /highlight >}}
-
 You'll be asked if you want to generate a Gradle build. Enter **yes**. You'll also be prompted to choose a DSL (Groovy or Kotlin). This tutorial uses Groovy, so select that if you don't have a preference.
-
-After you have converted the project to Gradle:
-
-1. In the generated `build.gradle` file, in the `repositories` block, replace `mavenLocal()` with `mavenCentral()`:
+1. After you've converted the project to Gradle, open the generated `build.gradle` file, and, in the `repositories` block, replace `mavenLocal()` with `mavenCentral()`:
 {{< highlight >}}
 repositories {
     mavenCentral()
