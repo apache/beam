@@ -242,7 +242,12 @@ createCrossLanguageValidatesRunnerTask(
     "--environmentCacheMillis=10000",
     "--experiments=beam_fn_api",
     "--parallelism=2",
-  ]
+  ],
+  goScriptOptions: [
+    "--runner flink",
+    "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
+    "--endpoint localhost:${jobPort}",
+  ],
 )
 
 // miniCluster jar starts an embedded Flink cluster intended for use in testing.

@@ -169,19 +169,6 @@ spec:
               secretKeyRef:
                 name: beamcrawler-gh-access-token
                 key: token
-      - name: beammetricsrungithubactions
-        image: gcr.io/apache-beam-testing/beammetricsrungithubactions
-        imagePullPolicy: Always
-        env:
-          - name: GITHUB_PERSONAL_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: runners-gh-access-token
-                key: token
-          - name: GITHUB_REPOSITORY
-            value: "beam"
-          - name: GITHUB_OWNER
-            value: "fernando-wizeline"
       volumes:
       - name: beammetrics-psql-credentials
         secret:
