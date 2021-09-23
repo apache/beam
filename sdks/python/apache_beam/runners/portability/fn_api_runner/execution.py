@@ -45,6 +45,7 @@ from typing_extensions import Protocol
 
 from apache_beam import coders
 from apache_beam.coders import BytesCoder
+from apache_beam.coders.coder_impl import CoderImpl
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.coders.coders import GlobalWindowCoder
@@ -78,7 +79,7 @@ from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from apache_beam.coders.coder_impl import CoderImpl, WindowedValueCoderImpl
+  from apache_beam.coders.coder_impl import WindowedValueCoderImpl
   from apache_beam.portability.api import endpoints_pb2
   from apache_beam.runners.portability.fn_api_runner import worker_handlers
   from apache_beam.runners.portability.fn_api_runner.translations import DataSideInput
@@ -106,8 +107,14 @@ class Buffer(Protocol):
     # type: (bytes) -> None
     pass
 
+  def extend(self, other: 'Buffer') -> None:
+    pass
+
 
 class PartitionableBuffer(Buffer, Protocol):
+  def copy(self) -> 'PartitionableBuffer':
+    pass
+
   def partition(self, n):
     # type: (int) -> List[List[bytes]]
     pass
@@ -129,22 +136,23 @@ class PartitionableBuffer(Buffer, Protocol):
 class ListBuffer:
   """Used to support parititioning of a list."""
   def __init__(self, coder_impl):
-    # type: (CoderImpl) -> None
-    self._coder_impl = coder_impl
+    # type: (Optional[CoderImpl]) -> None
+    self._coder_impl = coder_impl or CoderImpl()
     self._inputs = []  # type: List[bytes]
     self._grouped_output = None  # type: Optional[List[List[bytes]]]
     self.cleared = False
 
-  def copy(self):
+  def copy(self) -> 'ListBuffer':
     new = ListBuffer(self._coder_impl)
     new._inputs = [v for v in self._inputs]
     return new
 
-  def extend(self, extra: 'ListBuffer') -> None:
+  def extend(self, extra: 'Buffer') -> None:
     if self.cleared:
       raise RuntimeError('Trying to append to a cleared ListBuffer.')
     if self._grouped_output:
       raise RuntimeError('ListBuffer append after read.')
+    assert isinstance(extra, ListBuffer)
     self._inputs.extend(extra._inputs)
 
   def append(self, element):
@@ -214,7 +222,7 @@ class GroupingBuffer(object):
     self._windowing = windowing
     self._grouped_output = None  # type: Optional[List[List[bytes]]]
 
-  def copy(self):
+  def copy(self) -> 'GroupingBuffer':
     return self
 
   def append(self, elements_data):
@@ -235,7 +243,8 @@ class GroupingBuffer(object):
           with_value(value))
 
   def extend(self, input_buffer):
-    # type: (GroupingBuffer) -> None
+    # type: (Buffer) -> None
+    assert isinstance(input_buffer, GroupingBuffer)
     for key, values in input_buffer._table.items():
       self._table[key].extend(values)
 
@@ -399,12 +408,15 @@ class _ProcessingQueueManager(object):
   """
   class KeyedQueue(Generic[QUEUE_KEY_TYPE]):
     def __init__(self) -> None:
-      self._q: typing.Deque[DataInput] = collections.deque()
-      self._keyed_elements: MutableMapping[QUEUE_KEY_TYPE, DataInput] = {}
+      self._q: typing.Deque[Tuple[QUEUE_KEY_TYPE,
+                                  DataInput]] = collections.deque()
+      self._keyed_elements: MutableMapping[QUEUE_KEY_TYPE,
+                                           Tuple[QUEUE_KEY_TYPE,
+                                                 DataInput]] = {}
 
     def enque(self, elm: Tuple[QUEUE_KEY_TYPE, DataInput]) -> None:
       key = elm[0]
-      incoming_inputs = elm[1]
+      incoming_inputs: DataInput = elm[1]
       if key in self._keyed_elements:
         existing_inputs = self._keyed_elements[key][1]
         for pcoll in incoming_inputs.data:
@@ -710,7 +722,8 @@ class FnApiRunnerExecutionContext(object):
     # The following set of dictionaries hold information mapping relationships
     # between various pipeline elements.
     self.input_transform_to_buffer_id: MutableMapping[str, bytes] = {}
-    self.pcollection_to_producer_transform: MutableMapping[str, str] = {}
+    self.pcollection_to_producer_transform: MutableMapping[Union[str, bytes],
+                                                           Optional[str]] = {}
     # Map of buffer_id to its consumers. A consumer is the pair of
     # Stage name + Ptransform name that consume that buffer.
     self.buffer_id_to_consumer_pairs: Dict[bytes, Set[Tuple[str, str]]] = {}
@@ -729,7 +742,7 @@ class FnApiRunnerExecutionContext(object):
         for id in self.pipeline_components.windowing_strategies.keys()
     }
 
-    self._stage_managers = {}
+    self._stage_managers: Dict[str, BundleContextManager] = {}
 
   def bundle_manager_for(
       self,
@@ -779,9 +792,9 @@ class FnApiRunnerExecutionContext(object):
     for stage in self.stages.values():
       self._enqueue_stage_initial_inputs(stage)
 
-  def _enqueue_stage_initial_inputs(self, stage) -> None:
+  def _enqueue_stage_initial_inputs(self, stage: Stage) -> None:
     """Sets up IMPULSE inputs for a stage, and the data GRPC API endpoint."""
-    data_input = {}  # type: Dict[str, ListBuffer]
+    data_input = {}  # type: MutableMapping[str, PartitionableBuffer]
     ready_to_schedule = True
     for transform in stage.transforms:
       if (transform.spec.urn in {bundle_processor.DATA_INPUT_URN,
@@ -797,7 +810,7 @@ class FnApiRunnerExecutionContext(object):
           else:
             # If this is not an IMPULSE input, then it is not part of the
             # initial inputs of a pipeline, and we'll ignore it.
-            data_input = None
+            data_input = {}
         else:
           assert transform.spec.urn == bundle_processor.DATA_OUTPUT_URN
           coder_id = self.data_channel_coders[only_element(
@@ -806,9 +819,11 @@ class FnApiRunnerExecutionContext(object):
         # payload with the GRPC configuration for the Data channel.
         bundle_manager = self.bundle_manager_for(stage)
         data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
-        if bundle_manager.data_api_service_descriptor():
+        data_api_service_descriptor = (
+            bundle_manager.data_api_service_descriptor())
+        if data_api_service_descriptor:
           data_spec.api_service_descriptor.url = (
-              bundle_manager.data_api_service_descriptor().url)
+              data_api_service_descriptor.url)
         transform.spec.payload = data_spec.SerializeToString()
       elif transform.spec.urn in translations.PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(

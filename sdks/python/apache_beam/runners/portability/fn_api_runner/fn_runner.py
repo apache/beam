@@ -121,7 +121,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = progress_request_frequency
-    self._profiler_factory: Optional[Callable[[...], Profile]] = None
+    self._profiler_factory: Optional[Callable[..., Profile]] = None
     self._use_state_iterables = use_state_iterables
     self._is_drain = is_drain
     self._provision_info = provision_info or ExtendedProvisionInfo(
@@ -354,8 +354,8 @@ class FnApiRunner(runner.PipelineRunner):
     """
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
-    monitoring_infos_by_stage: Mapping[str,
-                                       List['metrics_pb2.MonitoringInfo']] = {}
+    monitoring_infos_by_stage: MutableMapping[
+        str, Iterable['metrics_pb2.MonitoringInfo']] = {}
 
     runner_execution_context = execution.FnApiRunnerExecutionContext(
         stages,
@@ -403,6 +403,8 @@ class FnApiRunner(runner.PipelineRunner):
                         bundle_results.process_bundle.monitoring_infos,
                         monitoring_infos_by_stage[consuming_stage_name]))
           else:
+            assert isinstance(
+                bundle_results.process_bundle.monitoring_infos, Iterable)
             monitoring_infos_by_stage[consuming_stage_name] = \
               bundle_results.process_bundle.monitoring_infos
 
@@ -492,7 +494,7 @@ class FnApiRunner(runner.PipelineRunner):
       self,
       runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
       bundle_manager,  # type: BundleManager
-      data_input,  # type: Dict[str, execution.PartitionableBuffer]
+      data_input,  # type: MutableMapping[str, execution.PartitionableBuffer]
       data_output,  # type: DataOutput
       fired_timers,  # type: Mapping[translations.TimerFamilyId, execution.PartitionableBuffer]
       expected_output_timers: OutputTimers,
@@ -608,7 +610,7 @@ class FnApiRunner(runner.PipelineRunner):
       self,
       splits,  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
       bundle_context_manager,  # type: execution.BundleContextManager
-      last_sent,  # type: Dict[str, execution.PartitionableBuffer]
+      last_sent,  # type: MutableMapping[str, execution.PartitionableBuffer]
       deferred_inputs  # type: MutableMapping[str, execution.PartitionableBuffer]
   ):
     # type: (...) -> Tuple[Set[str], Set[str]]
@@ -744,7 +746,8 @@ class FnApiRunner(runner.PipelineRunner):
       for (consuming_stage_name, consuming_transform) in \
           runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id,
                                                                    []):
-        buffer = runner_execution_context.pcoll_buffers.get(buffer_id, [])
+        buffer = runner_execution_context.pcoll_buffers.get(
+            buffer_id, ListBuffer(None))
 
         if buffer and buffer_id in buffers_to_clean:
           runner_execution_context.pcoll_buffers[buffer_id] = buffer.copy()
@@ -776,7 +779,10 @@ class FnApiRunner(runner.PipelineRunner):
       fired_timers: translations.OutputTimerData,
       previous_bundle_input: DataInput):
 
-    empty_data_input = {k: [] for k in previous_bundle_input.data.keys()}
+    empty_data_input: MutableMapping[str, execution.PartitionableBuffer] = {
+        k: ListBuffer(None)
+        for k in previous_bundle_input.data.keys()
+    }
     current_time = runner_execution_context.clock.time()
     current_watermark = \
       runner_execution_context.watermark_manager.get_stage_node(

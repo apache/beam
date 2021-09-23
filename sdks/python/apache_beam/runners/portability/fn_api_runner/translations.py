@@ -26,6 +26,7 @@ import itertools
 import logging
 from builtins import object
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Callable
 from typing import Container
 from typing import DefaultDict
@@ -34,6 +35,7 @@ from typing import FrozenSet
 from typing import Iterable
 from typing import Iterator
 from typing import List
+from typing import MutableMapping
 from typing import NamedTuple
 from typing import Optional
 from typing import Set
@@ -106,12 +108,14 @@ DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
 DataOutput = Dict[str, BufferId]
 
 # A map of [Transform ID, Timer Family ID] to [Buffer ID, Time Domain for timer]
-OutputTimers = Dict[TimerFamilyId,
-                    Tuple[BufferId, beam_runner_api_pb2.TimeDomain]]
+# The time domain comes from beam_runner_api_pb2.TimeDomain. It may be
+# EVENT_TIME or PROCESSING_TIME.
+OutputTimers = MutableMapping[TimerFamilyId, Tuple[BufferId, Any]]
 
 # A map of [Transform ID, Timer Family ID] to [Buffer CONTENTS, Timestamp]
-OutputTimerData = Dict[TimerFamilyId,
-                       Tuple['PartitionableBuffer', timestamp.Timestamp]]
+OutputTimerData = MutableMapping[TimerFamilyId,
+                                 Tuple['PartitionableBuffer',
+                                       timestamp.Timestamp]]
 
 BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
                             List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
@@ -119,8 +123,8 @@ BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
 
 # TODO(pabloem): Change tha name to a more representative one
 class DataInput(NamedTuple):
-  data: Optional[Dict[str, 'PartitionableBuffer']]
-  timers: Optional[Dict[TimerFamilyId, 'PartitionableBuffer']]
+  data: MutableMapping[str, 'PartitionableBuffer']
+  timers: MutableMapping[TimerFamilyId, 'PartitionableBuffer']
 
 
 class Stage(object):
