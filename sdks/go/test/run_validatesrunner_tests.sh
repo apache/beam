@@ -371,7 +371,7 @@ fi
 ARGS="$ARGS -p $SIMULTANEOUS"
 
 # Assemble test arguments and pipeline options.
-ARGS="$ARGS --timeout=$TIMEOUT"
+ARGS="$ARGS -timeout $TIMEOUT"
 ARGS="$ARGS --runner=$RUNNER"
 ARGS="$ARGS --project=$DATAFLOW_PROJECT"
 ARGS="$ARGS --region=$REGION"
