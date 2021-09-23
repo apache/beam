@@ -19,51 +19,79 @@
 
 # pytype: skip-file
 import datetime
+import string
 import unittest
 import uuid
-
+from random import choice
 from mock import MagicMock
+from mock import patch
 
 # Protect against environments where bigtable library is not available.
 try:
   from apache_beam.io.gcp import resource_identifiers, bigtableio
   from apache_beam.metrics import monitoring_infos
   from apache_beam.metrics.execution import MetricsEnvironment
-  from google.api_core import exceptions
   from google.cloud.bigtable import client, row
+  from google.cloud.bigtable.instance import Instance
+  from google.cloud.bigtable.table import Table
+  from google.rpc.code_pb2 import OK, ALREADY_EXISTS
+  from google.rpc.status_pb2 import Status
 except ImportError as e:
   client = None
 
 
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestWriteBigTable(unittest.TestCase):
+  TABLE_PREFIX = "python-test"
+  _PROJECT_ID = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+  _INSTANCE_ID = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+  _TABLE_ID = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+
+  def setUp(self):
+    client = MagicMock()
+    instance = Instance(self._INSTANCE_ID, client)
+    self.table = Table(self._TABLE_ID, instance)
+
   def test_write_metrics(self):
     MetricsEnvironment.process_wide_container().reset()
-    TABLE_PREFIX = "python-test"
-    project_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-    instance_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-    table_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-    write_fn = bigtableio._BigTableWriteFn(project_id, instance_id, table_id)
-    write_fn.table = MagicMock()
+    write_fn = bigtableio._BigTableWriteFn(
+        self._PROJECT_ID, self._INSTANCE_ID, self._TABLE_ID)
+    write_fn.table = self.table
     write_fn.start_bundle()
-    write_fn.batcher.mutate_rows.side_effect = [
-        exceptions.DeadlineExceeded("Deadline Exceeded"), []
-    ]
-    direct_row = self.generate_row(1)
-    write_fn.process(direct_row)
-    self.verify_write_call_metric(project_id, instance_id, table_id, "ok", 1)
+    number_of_rows = 2
+    error = Status()
+    error.message = 'Entity already exists.'
+    error.code = ALREADY_EXISTS
+    success = Status()
+    success.message = 'Success'
+    success.code = OK
+    rows_response = [error, success] * number_of_rows
+    with patch.object(Table, 'mutate_rows', return_value=rows_response):
+      direct_rows = [self.generate_row(i) for i in range(number_of_rows * 2)]
+      for direct_row in direct_rows:
+        write_fn.process(direct_row)
+      write_fn.finish_bundle()
+      self.verify_write_call_metric(
+          self._PROJECT_ID,
+          self._INSTANCE_ID,
+          self._TABLE_ID,
+          str(ALREADY_EXISTS),
+          2)
+      self.verify_write_call_metric(
+          self._PROJECT_ID, self._INSTANCE_ID, self._TABLE_ID, str(OK), 2)
 
-  def generate_row(self, row_number=1):
-    value = ''.join(self.rand for i in range(100))
-    for index in range(row_number):
-      key = "beam_key%s" % ('{0:07}'.format(index))
-      direct_row = row.DirectRow(row_key=key)
-      for column_id in range(10):
-        direct_row.set_cell(
-            self.column_family_id, ('field%s' % column_id).encode('utf-8'),
-            value,
-            datetime.datetime.now())
-      yield direct_row
+  def generate_row(self, index=0):
+    rand = choice(string.ascii_letters + string.digits)
+    value = ''.join(rand for i in range(100))
+    column_family_id = 'cf1'
+    key = "beam_key%s" % ('{0:07}'.format(index))
+    direct_row = row.DirectRow(row_key=key)
+    for column_id in range(10):
+      direct_row.set_cell(
+          column_family_id, ('field%s' % column_id).encode('utf-8'),
+          value,
+          datetime.datetime.now())
+    return direct_row
 
   def verify_write_call_metric(
       self, project_id, instance_id, table_id, status, count):
@@ -79,7 +107,8 @@ class TestWriteBigTable(unittest.TestCase):
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.BIGTABLE_PROJECT_ID_LABEL: project_id,
         monitoring_infos.INSTANCE_ID_LABEL: instance_id,
-        monitoring_infos.TABLE_ID_LABEL: table_id
+        monitoring_infos.TABLE_ID_LABEL: table_id,
+        monitoring_infos.STATUS_LABEL: status
     }
     expected_mi = monitoring_infos.int64_counter(
         monitoring_infos.API_REQUEST_COUNT_URN, count, labels=labels)

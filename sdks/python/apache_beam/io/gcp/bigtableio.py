@@ -103,21 +103,8 @@ class _BigTableWriteFn(beam.DoFn):
     }
     self.table = None
     self.batcher = None
+    self.service_call_metric = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
-    resource = resource_identifiers.BigtableTable(
-        project_id, instance_id, table_id)
-    self.labels = {
-        monitoring_infos.SERVICE_LABEL: 'BigTable',
-        monitoring_infos.METHOD_LABEL: 'google.bigtable.v2.MutateRows',
-        monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.BIGTABLE_PROJECT_ID_LABEL: self.
-        beam_options['project_id'],
-        monitoring_infos.INSTANCE_ID_LABEL: self.beam_options['instance_id'],
-        monitoring_infos.TABLE_ID_LABEL: self.beam_options['table_id']
-    }
-    self.service_call_metric = ServiceCallMetric(
-        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
-        base_labels=self.labels)
 
   def __getstate__(self):
     return self.beam_options
@@ -126,16 +113,42 @@ class _BigTableWriteFn(beam.DoFn):
     self.beam_options = options
     self.table = None
     self.batcher = None
+    self.service_call_metric = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
   def write_mutate_metrics(self, rows):
-    self.service_call_metric.call('ok')
+    for status in enumerate(rows):
+      if status.code == 0:
+        self.service_call_metric.call('ok')
+      else:
+        self.service_call_metric.call(status.code)
+
+  def start_service_call_metrics(self, project_id, instance_id, table_id):
+    resource = resource_identifiers.BigtableTable(
+        project_id, instance_id, table_id)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'BigTable',
+        # TODO(JIRA-11985): Add Ptransform label.
+        monitoring_infos.METHOD_LABEL: 'google.bigtable.v2.MutateRows',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.BIGTABLE_PROJECT_ID_LABEL: self.
+        beam_options['project_id'],
+        monitoring_infos.INSTANCE_ID_LABEL: self.beam_options['instance_id'],
+        monitoring_infos.TABLE_ID_LABEL: self.beam_options['table_id']
+    }
+    return ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
 
   def start_bundle(self):
     if self.table is None:
       client = Client(project=self.beam_options['project_id'])
       instance = client.instance(self.beam_options['instance_id'])
       self.table = instance.table(self.beam_options['table_id'])
+    self.service_call_metric = self.start_service_call_metrics(
+        self.beam_options['project_id'],
+        self.beam_options['instance_id'],
+        self.beam_options['table_id'])
     self.batcher = _MutationsBatcher(self.table)
     self.batcher.set_flush_callback(self.write_mutate_metrics)
 
@@ -149,11 +162,7 @@ class _BigTableWriteFn(beam.DoFn):
     #                     'field1',
     #                     'value1',
     #                     timestamp=datetime.datetime.now())
-    try:
-      self.batcher.mutate(row)
-      self.service_call_metric.call('ok')
-    except Exception as e:
-      self.service_call_metric.call(e)
+    self.batcher.mutate(row)
 
   def finish_bundle(self):
     self.batcher.flush()
