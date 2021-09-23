@@ -27,11 +27,13 @@ from random import choice
 from mock import MagicMock
 from mock import patch
 
+from apache_beam.internal.metrics.metric import ServiceCallMetric
+from apache_beam.io.gcp import resource_identifiers, bigtableio
+from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.execution import MetricsEnvironment
+
 # Protect against environments where bigtable library is not available.
 try:
-  from apache_beam.io.gcp import resource_identifiers, bigtableio
-  from apache_beam.metrics import monitoring_infos
-  from apache_beam.metrics.execution import MetricsEnvironment
   from google.cloud.bigtable import client, row
   from google.cloud.bigtable.instance import Instance
   from google.cloud.bigtable.table import Table
@@ -76,10 +78,14 @@ class TestWriteBigTable(unittest.TestCase):
           self._PROJECT_ID,
           self._INSTANCE_ID,
           self._TABLE_ID,
-          str(ALREADY_EXISTS),
+          ServiceCallMetric.convert_to_grpc_status_string(ALREADY_EXISTS),
           2)
       self.verify_write_call_metric(
-          self._PROJECT_ID, self._INSTANCE_ID, self._TABLE_ID, str(OK), 2)
+          self._PROJECT_ID,
+          self._INSTANCE_ID,
+          self._TABLE_ID,
+          ServiceCallMetric.convert_to_grpc_status_string(OK),
+          2)
 
   def generate_row(self, index=0):
     rand = choice(string.ascii_letters + string.digits)

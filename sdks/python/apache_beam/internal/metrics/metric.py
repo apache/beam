@@ -223,3 +223,31 @@ class ServiceCallMetric(object):
         http_status_code in http_to_canonical_gcp_status):
       return http_to_canonical_gcp_status[http_status_code]
     return str(http_status_code)
+
+  @staticmethod
+  def convert_to_grpc_status_string(grpc_status):
+    # type: (int) -> str
+
+    """Converts a grpc status to a canonical GCP status code string."""
+
+    grpc_to_canonical_gcp_status = {
+        0: 'ok',
+        1: 'cancelled',
+        2: 'unknown',
+        3: 'invalid_argument',
+        4: 'deadline_exceeded',
+        5: 'not_found',
+        6: 'already_exists',
+        7: 'permission_denied',
+        8: 'resource_exhausted',
+        9: 'failed_precondition',
+        10: 'aborted',
+        11: 'out_of_range',
+        12: 'unimplemented',
+        13: 'internal',
+        14: 'unavailable'
+    }
+    if (grpc_status is not None and
+        grpc_status in grpc_to_canonical_gcp_status):
+      return grpc_to_canonical_gcp_status[grpc_status]
+    return grpc_status

@@ -118,11 +118,9 @@ class _BigTableWriteFn(beam.DoFn):
 
   def write_mutate_metrics(self, rows):
     for status in rows:
-      if status.code == 0:
-        self.service_call_metric.call(
-            0)  #TODO (BEAM-11985) Handle grpc status codes
-      else:
-        self.service_call_metric.call(status.code)
+      grpc_status_string = (
+          ServiceCallMetric.convert_to_grpc_status_string(status.code))
+      self.service_call_metric.call(grpc_status_string)
 
   def start_service_call_metrics(self, project_id, instance_id, table_id):
     resource = resource_identifiers.BigtableTable(
@@ -132,8 +130,8 @@ class _BigTableWriteFn(beam.DoFn):
         # TODO(JIRA-11985): Add Ptransform label.
         monitoring_infos.METHOD_LABEL: 'google.bigtable.v2.MutateRows',
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.BIGTABLE_PROJECT_ID_LABEL: self.
-        beam_options['project_id'],
+        monitoring_infos.BIGTABLE_PROJECT_ID_LABEL: (
+            self.beam_options['project_id']),
         monitoring_infos.INSTANCE_ID_LABEL: self.beam_options['instance_id'],
         monitoring_infos.TABLE_ID_LABEL: self.beam_options['table_id']
     }
