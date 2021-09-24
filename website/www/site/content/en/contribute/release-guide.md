@@ -609,7 +609,7 @@ See the source of the script for more details, or to run commands manually in ca
          Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
          Carefully review any new artifacts.
 
-__NOTE__: When uploading to Nexus using gradle, ip address is used as a seesion id. Incorrect partial artifact upload will result if the public ip of the dev machine changes during upload.
+__NOTE__: When uploading to Nexus using gradle, ip address is used as a session id. Incorrect partial artifact upload will result if the public ip of the dev machine changes during upload.
 
 __NOTE__: If you notice multiple Nexus staging repositories getting created, try reducing the parallelism of gradle upload task.
 
