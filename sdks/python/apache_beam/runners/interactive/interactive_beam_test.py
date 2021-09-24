@@ -188,7 +188,6 @@ class InteractiveBeamTest(unittest.TestCase):
     p2 = beam.Pipeline(ir.InteractiveRunner())
 
     ib.watch(locals())
-    ie.current_env().track_user_pipelines()
 
     # Get the descriptions. This test is simple as there isn't much logic in the
     # method.
