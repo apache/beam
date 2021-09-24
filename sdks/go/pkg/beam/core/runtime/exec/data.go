@@ -19,6 +19,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 )
 
 // Port represents the connection port of external operations.
@@ -59,6 +61,8 @@ type StateReader interface {
 	OpenSideInput(ctx context.Context, id StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error)
 	// OpenIterable opens a byte stream for reading unwindowed iterables from the runner.
 	OpenIterable(ctx context.Context, id StreamID, key []byte) (io.ReadCloser, error)
+	// GetSideInputCache returns the SideInputCache being used at the harness level.
+	GetSideInputCache() *statecache.SideInputCache
 }
 
 // TODO(herohde) 7/20/2018: user state management
