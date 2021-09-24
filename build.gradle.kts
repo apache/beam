@@ -91,6 +91,9 @@ tasks.rat {
     "ownership/**/*",
     "**/OWNERS",
 
+    // Ignore CPython LICENSE file
+    "LICENSE.python",
+
     // Json doesn't support comments.
     "**/*.json",
 
@@ -227,7 +230,7 @@ task("goIntegrationTests") {
   doLast {
     exec {
       executable("sh")
-      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner dataflow --jenkins")
+      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner dataflow")
     }
   }
   dependsOn(":sdks:go:test:build")
@@ -332,6 +335,7 @@ task("pushAllDockerImages") {
   dependsOn(":runners:spark:3:job-server:container:dockerPush")
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")
+  dependsOn(":sdks:go:container:pushAll")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
   }

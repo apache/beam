@@ -203,7 +203,10 @@ def _create_tfrecordio_source(
 class ReadAllFromTFRecord(PTransform):
   """A ``PTransform`` for reading a ``PCollection`` of TFRecord files."""
   def __init__(
-      self, coder=coders.BytesCoder(), compression_type=CompressionTypes.AUTO):
+      self,
+      coder=coders.BytesCoder(),
+      compression_type=CompressionTypes.AUTO,
+      with_filename=False):
     """Initialize the ``ReadAllFromTFRecord`` transform.
 
     Args:
@@ -211,6 +214,9 @@ class ReadAllFromTFRecord(PTransform):
       compression_type: Used to handle compressed input files. Default value
           is CompressionTypes.AUTO, in which case the file_path's extension will
           be used to detect the compression.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
     super(ReadAllFromTFRecord, self).__init__()
     source_from_file = partial(
@@ -224,7 +230,8 @@ class ReadAllFromTFRecord(PTransform):
         compression_type=compression_type,
         desired_bundle_size=0,
         min_bundle_size=0,
-        source_from_file=source_from_file)
+        source_from_file=source_from_file,
+        with_filename=with_filename)
 
   def expand(self, pvalue):
     return pvalue | 'ReadAllFiles' >> self._read_all_files

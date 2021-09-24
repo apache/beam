@@ -46,6 +46,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -69,14 +70,22 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   /** Number of copy operations performed. */
   private Counter numCopies;
 
+  /** Number of renames operations performed. */
+  private Counter numRenames;
+
   /** Time spent performing copies. */
   private Counter copyTimeMsec;
+
+  /** Time spent performing renames. */
+  private Counter renameTimeMsec;
 
   GcsFileSystem(GcsOptions options) {
     this.options = checkNotNull(options, "options");
     if (options.getGcsPerformanceMetrics()) {
       numCopies = Metrics.counter(GcsFileSystem.class, "num_copies");
       copyTimeMsec = Metrics.counter(GcsFileSystem.class, "copy_time_msec");
+      numRenames = Metrics.counter(GcsFileSystem.class, "num_renames");
+      renameTimeMsec = Metrics.counter(GcsFileSystem.class, "rename_time_msec");
     }
   }
 
@@ -124,16 +133,16 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @Override
   protected WritableByteChannel create(GcsResourceId resourceId, CreateOptions createOptions)
       throws IOException {
+    GcsUtil.CreateOptions.Builder builder =
+        GcsUtil.CreateOptions.builder()
+            .setContentType(createOptions.mimeType())
+            .setExpectFileToNotExist(createOptions.expectFileToNotExist());
     if (createOptions instanceof GcsCreateOptions) {
-      return options
-          .getGcsUtil()
-          .create(
-              resourceId.getGcsPath(),
-              createOptions.mimeType(),
+      builder =
+          builder.setUploadBufferSizeBytes(
               ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
-    } else {
-      return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType());
     }
+    return options.getGcsUtil().create(resourceId.getGcsPath(), builder.build());
   }
 
   @Override
@@ -142,10 +151,20 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   @Override
-  protected void rename(List<GcsResourceId> srcResourceIds, List<GcsResourceId> destResourceIds)
+  protected void rename(
+      List<GcsResourceId> srcResourceIds,
+      List<GcsResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
-    copy(srcResourceIds, destResourceIds);
-    delete(srcResourceIds);
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    options
+        .getGcsUtil()
+        .rename(toFilenames(srcResourceIds), toFilenames(destResourceIds), moveOptions);
+    stopwatch.stop();
+    if (options.getGcsPerformanceMetrics()) {
+      numRenames.inc(srcResourceIds.size());
+      renameTimeMsec.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    }
   }
 
   @Override

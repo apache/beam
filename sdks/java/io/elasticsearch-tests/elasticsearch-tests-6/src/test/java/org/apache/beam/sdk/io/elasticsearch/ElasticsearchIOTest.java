@@ -33,6 +33,7 @@ import org.elasticsearch.client.RestClient;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -82,6 +83,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-5172")
   @Test
   public void testSizes() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
@@ -141,6 +143,7 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.testWriteWithMaxBatchSizeBytes();
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-5172")
   @Test
   public void testSplit() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
@@ -171,6 +174,18 @@ public class ElasticsearchIOTest implements Serializable {
   public void testWritePartialUpdate() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWritePartialUpdate();
+  }
+
+  @Test
+  public void testWriteAppendOnly() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteAppendOnly();
+  }
+
+  @Test(expected = Exception.class)
+  public void testWriteAppendOnlyDeleteNotAllowed() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteAppendOnlyDeleteNotAllowed();
   }
 
   @Test

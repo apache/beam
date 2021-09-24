@@ -19,17 +19,18 @@ package org.apache.beam.fn.harness.logging;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -41,6 +42,7 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
@@ -180,8 +182,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
   }
 
   private class LogRecordHandler extends Handler implements Runnable {
-    private final BlockingDeque<BeamFnApi.LogEntry> bufferedLogEntries =
-        new LinkedBlockingDeque<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
+    private final BlockingQueue<LogEntry> bufferedLogEntries =
+        new ArrayBlockingQueue<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
     private @Nullable Future<?> bufferedLogWriter = null;
     /**
      * Safe object publishing is not required since we only care if the thread that set this field
@@ -247,8 +249,13 @@ public class BeamFnLoggingClient implements AutoCloseable {
         }
       } else {
         // Never blocks caller, will drop log message if buffer is full.
-        bufferedLogEntries.offer(builder.build());
+        dropIfBufferFull(builder.build());
       }
+    }
+
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
+    private void dropIfBufferFull(BeamFnApi.LogEntry logEntry) {
+      bufferedLogEntries.offer(logEntry);
     }
 
     @Override

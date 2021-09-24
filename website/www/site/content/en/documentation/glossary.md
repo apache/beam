@@ -114,7 +114,7 @@ Transforms that can be shared across Beam SDKs. With cross-language transforms, 
 
 To learn more, see:
 
-* [Multi-language pipelines](/documentation/programming-guide/#mulit-language-pipelines)
+* [Multi-language pipelines](/documentation/programming-guide/#multi-language-pipelines)
 
 ## Deferred execution
 
@@ -241,7 +241,7 @@ A pipeline that uses cross-language transforms. You can combine transforms writt
 
 To learn more, see:
 
-* [Multi-language pipelines](/documentation/programming-guide/#mulit-language-pipelines)
+* [Multi-language pipelines](/documentation/programming-guide/#multi-language-pipelines)
 
 ## ParDo
 
@@ -307,6 +307,14 @@ To learn more, see:
 
 * [Overview](/documentation/programming-guide/#overview)
 * [Transforms](/documentation/programming-guide/#transforms)
+
+## Resource hints
+
+A Beam feature that lets you provide information to a runner about the compute resource requirements of your pipeline. You can use resource hints to define requirements for specific transforms or for an entire pipeline. For example, you could use a resource hint to specify the minimum amount of memory to allocate to workers. The runner is responsible for interpreting resource hints, and runners can ignore unsupported hints.
+
+To learn more, see:
+
+* [Resource hints](/documentation/runtime/resource-hints)
 
 ## Runner
 

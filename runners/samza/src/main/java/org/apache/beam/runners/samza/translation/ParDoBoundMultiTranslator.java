@@ -44,6 +44,8 @@ import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.runtime.SamzaDoFnInvokerRegistrar;
 import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
+import org.apache.beam.runners.samza.util.StateUtils;
+import org.apache.beam.runners.samza.util.WindowUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -112,8 +114,10 @@ class ParDoBoundMultiTranslator<InT, OutT>
             .collect(
                 Collectors.toMap(e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
 
-    boolean isStateful = DoFnSignatures.isStateful(transform.getFn());
-    final Coder<?> keyCoder = isStateful ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
+    final Coder<?> keyCoder =
+        StateUtils.isStateful(transform.getFn())
+            ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder()
+            : null;
 
     if (DoFnSignatures.isSplittable(transform.getFn())) {
       throw new UnsupportedOperationException("Splittable DoFn is not currently supported");
@@ -247,7 +251,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
               .getTransformsOrThrow(sideInputId.getTransformId())
               .getInputsOrThrow(sideInputId.getLocalName());
       final WindowingStrategy<?, BoundedWindow> windowingStrategy =
-          ctx.getPortableWindowStrategy(sideInputCollectionId, components);
+          WindowUtils.getWindowStrategy(sideInputCollectionId, components);
       final WindowedValue.WindowedValueCoder<?> coder =
           (WindowedValue.WindowedValueCoder) instantiateCoder(sideInputCollectionId, components);
 
@@ -292,7 +296,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             });
 
     WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
-        ctx.instantiateCoder(inputId, pipeline.getComponents());
+        WindowUtils.instantiateWindowedCoder(inputId, pipeline.getComponents());
 
     // TODO: support schema and side inputs for portable runner
     // Note: transform.getTransform() is an ExecutableStage, not ParDo, so we need to extract
@@ -301,18 +305,24 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
+    final Coder<?> keyCoder =
+        StateUtils.isStateful(stagePayload)
+            ? ((KvCoder)
+                    ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder())
+                .getKeyCoder()
+            : null;
 
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             mainOutputTag,
             new NoOpDoFn<>(),
-            null, // key coder not in use
+            keyCoder,
             windowedInputCoder.getValueCoder(), // input coder not in use
             windowedInputCoder,
             Collections.emptyMap(), // output coders not in use
             new ArrayList<>(sideInputMapping.values()),
             new ArrayList<>(idToTupleTagMap.values()), // used by java runner only
-            ctx.getPortableWindowStrategy(inputId, stagePayload.getComponents()),
+            WindowUtils.getWindowStrategy(inputId, stagePayload.getComponents()),
             idToViewMapping,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             ctx.getTransformFullName(),
@@ -400,8 +410,39 @@ class ParDoBoundMultiTranslator<InT, OutT>
   @Override
   public Map<String, String> createPortableConfig(
       PipelineNode.PTransformNode transform, SamzaPipelineOptions options) {
-    // TODO: Add beamStore configs when portable use case supports stateful ParDo.
-    return Collections.emptyMap();
+
+    final RunnerApi.ExecutableStagePayload stagePayload;
+    try {
+      stagePayload =
+          RunnerApi.ExecutableStagePayload.parseFrom(
+              transform.getTransform().getSpec().getPayload());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    if (!StateUtils.isStateful(stagePayload)) {
+      return Collections.emptyMap();
+    }
+
+    final Map<String, String> config =
+        new HashMap<>(ConfigBuilder.createRocksDBStoreConfig(options));
+    for (RunnerApi.ExecutableStagePayload.UserStateId stateId : stagePayload.getUserStatesList()) {
+      final String storeId = stateId.getLocalName();
+
+      config.put(
+          "stores." + storeId + ".factory",
+          "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+      config.put("stores." + storeId + ".key.serde", "byteArraySerde");
+      config.put("stores." + storeId + ".msg.serde", "stateValueSerde");
+      config.put("stores." + storeId + ".rocksdb.compression", "lz4");
+
+      if (options.getStateDurable()) {
+        config.put(
+            "stores." + storeId + ".changelog", ConfigBuilder.getChangelogTopic(options, storeId));
+      }
+    }
+
+    return config;
   }
 
   @SuppressWarnings("unchecked")

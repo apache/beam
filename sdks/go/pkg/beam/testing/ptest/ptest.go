@@ -22,10 +22,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 
 	// ptest uses the direct runner to execute pipelines by default.
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 )
 
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
@@ -81,12 +81,23 @@ func Run(p *beam.Pipeline) error {
 	return err
 }
 
+// RunWithMetrics runs a pipeline for testing with that returns metrics.Results
+// in the form of Pipeline Result
+func RunWithMetrics(p *beam.Pipeline) (beam.PipelineResult, error) {
+	if *Runner == "" {
+		*Runner = defaultRunner
+	}
+	return beam.Run(context.Background(), *Runner, p)
+}
+
 // RunAndValidate runs a pipeline for testing and validates the result, failing
 // the test if the pipeline fails.
-func RunAndValidate(t *testing.T, p *beam.Pipeline) {
-	if err := Run(p); err != nil {
+func RunAndValidate(t *testing.T, p *beam.Pipeline) beam.PipelineResult {
+	pr, err := RunWithMetrics(p)
+	if err != nil {
 		t.Fatalf("Failed to execute job: %v", err)
 	}
+	return pr
 }
 
 // Main is an implementation of testing's TestMain to permit testing
@@ -95,7 +106,7 @@ func RunAndValidate(t *testing.T, p *beam.Pipeline) {
 // To enable this behavior, _ import the desired runner, and set the flag
 // accordingly. For example:
 //
-//	import _ "github.com/apache/beam/sdks/go/pkg/runners/flink"
+//	import _ "github.com/apache/beam/sdks/v2/go/pkg/runners/flink"
 //
 //	func TestMain(m *testing.M) {
 //		ptest.Main(m)

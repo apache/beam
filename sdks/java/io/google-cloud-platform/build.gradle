@@ -91,6 +91,7 @@ dependencies {
   compile library.java.grpc_netty
   compile library.java.grpc_netty_shaded
   permitUnusedDeclared library.java.grpc_netty_shaded // BEAM-11761
+  compile library.java.grpc_protobuf
   compile library.java.grpc_stub
   permitUnusedDeclared library.java.grpc_stub // BEAM-11761
   compile library.java.grpc_google_cloud_pubsub_v1
@@ -131,7 +132,7 @@ dependencies {
 
   compile "org.threeten:threetenbp:1.4.4"
 
-  testCompile "org.apache.arrow:arrow-memory-netty:4.0.0"
+  testCompile library.java.arrow_memory_netty
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntime")

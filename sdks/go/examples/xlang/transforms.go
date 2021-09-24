@@ -19,10 +19,9 @@ package xlang
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -51,7 +50,7 @@ func Prefix(s beam.Scope, prefix string, addr string, col beam.PCollection) beam
 	pl := beam.CrossLanguagePayload(prefixPayload{Data: prefix})
 	outT := beam.UnnamedOutput(typex.New(reflectx.String))
 	outs := beam.CrossLanguage(s, "beam:transforms:xlang:test:prefix", pl, addr, beam.UnnamedInput(col), outT)
-	return outs[graph.UnnamedOutputTag]
+	return outs[beam.UnnamedOutputTag()]
 }
 
 func CoGroupByKey(s beam.Scope, addr string, col1, col2 beam.PCollection) beam.PCollection {
@@ -59,21 +58,21 @@ func CoGroupByKey(s beam.Scope, addr string, col1, col2 beam.PCollection) beam.P
 	namedInputs := map[string]beam.PCollection{"col1": col1, "col2": col2}
 	outT := beam.UnnamedOutput(typex.NewCoGBK(typex.New(reflectx.Int64), typex.New(reflectx.String)))
 	outs := beam.CrossLanguage(s, "beam:transforms:xlang:test:cgbk", nil, addr, namedInputs, outT)
-	return outs[graph.UnnamedOutputTag]
+	return outs[beam.UnnamedOutputTag()]
 }
 
 func CombinePerKey(s beam.Scope, addr string, col beam.PCollection) beam.PCollection {
 	s = s.Scope("XLangTest.CombinePerKey")
 	outT := beam.UnnamedOutput(typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64)))
 	outs := beam.CrossLanguage(s, "beam:transforms:xlang:test:compk", nil, addr, beam.UnnamedInput(col), outT)
-	return outs[graph.UnnamedOutputTag]
+	return outs[beam.UnnamedOutputTag()]
 }
 
 func CombineGlobally(s beam.Scope, addr string, col beam.PCollection) beam.PCollection {
 	s = s.Scope("XLangTest.CombineGlobally")
 	outT := beam.UnnamedOutput(typex.New(reflectx.Int64))
 	outs := beam.CrossLanguage(s, "beam:transforms:xlang:test:comgl", nil, addr, beam.UnnamedInput(col), outT)
-	return outs[graph.UnnamedOutputTag]
+	return outs[beam.UnnamedOutputTag()]
 }
 
 func Flatten(s beam.Scope, addr string, col1, col2 beam.PCollection) beam.PCollection {
@@ -81,14 +80,14 @@ func Flatten(s beam.Scope, addr string, col1, col2 beam.PCollection) beam.PColle
 	namedInputs := map[string]beam.PCollection{"col1": col1, "col2": col2}
 	outT := beam.UnnamedOutput(typex.New(reflectx.Int64))
 	outs := beam.CrossLanguage(s, "beam:transforms:xlang:test:flatten", nil, addr, namedInputs, outT)
-	return outs[graph.UnnamedOutputTag]
+	return outs[beam.UnnamedOutputTag()]
 }
 
 func GroupByKey(s beam.Scope, addr string, col beam.PCollection) beam.PCollection {
 	s = s.Scope("XLangTest.GroupByKey")
 	outT := beam.UnnamedOutput(typex.NewCoGBK(typex.New(reflectx.String), typex.New(reflectx.Int64)))
 	outs := beam.CrossLanguage(s, "beam:transforms:xlang:test:gbk", nil, addr, beam.UnnamedInput(col), outT)
-	return outs[graph.UnnamedOutputTag]
+	return outs[beam.UnnamedOutputTag()]
 }
 
 func Multi(s beam.Scope, addr string, main1, main2, side beam.PCollection) (mainOut, sideOut beam.PCollection) {
@@ -112,5 +111,5 @@ func Count(s beam.Scope, addr string, col beam.PCollection) beam.PCollection {
 	s = s.Scope("XLang.Count")
 	outT := beam.UnnamedOutput(typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64)))
 	c := beam.CrossLanguage(s, "beam:transforms:xlang:count", nil, addr, beam.UnnamedInput(col), outT)
-	return c[graph.UnnamedOutputTag]
+	return c[beam.UnnamedOutputTag()]
 }

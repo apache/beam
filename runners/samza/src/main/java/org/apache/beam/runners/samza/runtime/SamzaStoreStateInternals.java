@@ -26,18 +26,23 @@ import java.lang.ref.SoftReference;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
@@ -89,7 +94,7 @@ import org.joda.time.Instant;
 public class SamzaStoreStateInternals<K> implements StateInternals {
   static final String BEAM_STORE = "beamStore";
 
-  private static ThreadLocal<SoftReference<ByteArrayOutputStream>> threadLocalBaos =
+  private static final ThreadLocal<SoftReference<ByteArrayOutputStream>> threadLocalBaos =
       new ThreadLocal<>();
 
   // the stores include both beamStore for system states as well as stores for user state
@@ -118,27 +123,58 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
         context.getStore(SamzaStoreStateInternals.BEAM_STORE);
   }
 
-  @SuppressWarnings("unchecked")
-  static <K> Factory<K> createStateInternalFactory(
+  /**
+   * Creates non keyed state internal factory to persist states in {@link
+   * SamzaStoreStateInternals#BEAM_STORE}.
+   */
+  static <K> Factory<K> createNonKeyedStateInternalsFactory(
+      String id, TaskContext context, SamzaPipelineOptions pipelineOptions) {
+    return createStateInternalsFactory(id, null, context, pipelineOptions, Collections.emptySet());
+  }
+
+  static <K> Factory<K> createStateInternalsFactory(
       String id,
       Coder<K> keyCoder,
       TaskContext context,
       SamzaPipelineOptions pipelineOptions,
       DoFnSignature signature) {
+
+    return createStateInternalsFactory(
+        id, keyCoder, context, pipelineOptions, signature.stateDeclarations().keySet());
+  }
+
+  static <K> Factory<K> createStateInternalsFactory(
+      String id,
+      Coder<K> keyCoder,
+      TaskContext context,
+      SamzaPipelineOptions pipelineOptions,
+      ExecutableStage executableStage) {
+
+    Set<String> stateIds =
+        executableStage.getUserStates().stream()
+            .map(UserStateReference::localName)
+            .collect(Collectors.toSet());
+
+    return createStateInternalsFactory(id, keyCoder, context, pipelineOptions, stateIds);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <K> Factory<K> createStateInternalsFactory(
+      String id,
+      @Nullable Coder<K> keyCoder,
+      TaskContext context,
+      SamzaPipelineOptions pipelineOptions,
+      Collection<String> stateIds) {
     final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
     final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores = new HashMap<>();
     stores.put(BEAM_STORE, getBeamStore(context));
 
     final Coder<K> stateKeyCoder;
     if (keyCoder != null) {
-      signature
-          .stateDeclarations()
-          .keySet()
-          .forEach(
-              stateId ->
-                  stores.put(
-                      stateId,
-                      (KeyValueStore<ByteArray, StateValue<?>>) context.getStore(stateId)));
+      stateIds.forEach(
+          stateId ->
+              stores.put(
+                  stateId, (KeyValueStore<ByteArray, StateValue<?>>) context.getStore(stateId)));
       stateKeyCoder = keyCoder;
     } else {
       stateKeyCoder = (Coder<K>) VoidCoder.of();
@@ -269,11 +305,6 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
       return new SamzaStoreStateInternals<>(stores, key, baos.toByteArray(), stageId, batchGetSize);
     }
-  }
-
-  /** An internal State interface that holds underlying KeyValueIterators. */
-  interface KeyValueIteratorState {
-    void closeIterators();
   }
 
   private abstract class AbstractSamzaState<T> {
@@ -501,7 +532,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
   }
 
-  private class SamzaSetStateImpl<T> implements SamzaSetState<T>, KeyValueIteratorState {
+  private class SamzaSetStateImpl<T> implements SamzaSetState<T> {
     private final SamzaMapStateImpl<T, Boolean> mapState;
 
     private SamzaSetStateImpl(
@@ -594,7 +625,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   }
 
   private class SamzaMapStateImpl<KeyT, ValueT> extends AbstractSamzaState<ValueT>
-      implements SamzaMapState<KeyT, ValueT>, KeyValueIteratorState {
+      implements SamzaMapState<KeyT, ValueT> {
 
     private final Coder<KeyT> keyCoder;
     private final int storeKeySize;

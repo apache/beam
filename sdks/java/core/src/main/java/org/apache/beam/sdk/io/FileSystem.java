@@ -27,6 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 
 /**
@@ -113,6 +114,9 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    *
    * @param srcResourceIds the references of the source resources
    * @param destResourceIds the references of the destination resources
+   * @param moveOptions move options specifying handling of error conditions
+   * @throws UnsupportedOperationException if move options are specified and not supported by the
+   *     FileSystem
    * @throws FileNotFoundException if the source resources are missing. When rename throws, the
    *     state of the resources is unknown but safe: for every (source, destination) pair of
    *     resources, the following are possible: a) source exists, b) destination exists, c) source
@@ -121,7 +125,10 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    *     resource.
    */
   protected abstract void rename(
-      List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds) throws IOException;
+      List<ResourceIdT> srcResourceIds,
+      List<ResourceIdT> destResourceIds,
+      MoveOptions... moveOptions)
+      throws IOException;
 
   /**
    * Deletes a collection of resources.

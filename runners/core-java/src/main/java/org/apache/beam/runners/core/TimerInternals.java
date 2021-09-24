@@ -79,11 +79,11 @@ public interface TimerInternals {
   void deleteTimer(
       StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain);
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
   @Deprecated
   void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId);
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
   @Deprecated
   void deleteTimer(TimerData timerKey);
 
@@ -256,6 +256,7 @@ public interface TimerInternals {
       }
       ComparisonChain chain =
           ComparisonChain.start()
+              .compare(this.getDeleted(), that.getDeleted())
               .compare(this.getTimestamp(), that.getTimestamp())
               .compare(this.getOutputTimestamp(), that.getOutputTimestamp())
               .compare(this.getDomain(), that.getDomain())

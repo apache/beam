@@ -100,7 +100,7 @@ public class BigtableTableIT {
     String query =
         String.format(
             "INSERT INTO `%s`(key, boolColumn, longColumn, stringColumn, doubleColumn) "
-                + "VALUES ('key1', FALSE, 1, 'string1', 1.0)",
+                + "VALUES ('key1', FALSE, CAST(1 as bigint), 'string1', 1.0)",
             TABLE_ID);
 
     BeamSqlRelUtils.toPCollection(p, sqlEnv.parseQuery(query));

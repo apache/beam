@@ -39,7 +39,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 // Filters for temporarily skipping integration tests. All filters are regex
@@ -60,19 +60,41 @@ var sickbay = []string{}
 var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
+	"TestKafkaIO.*",
+	// Triggers are not yet supported
+	"TestTrigger.*",
+	// The direct runner does not support the TestStream primitive
+	"TestTestStream.*",
 }
 
-var portableFilters = []string{}
+var portableFilters = []string{
+	// The portable runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger tests uses TestStream
+	"TestTrigger.*",
+	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
+	"TestKafkaIO.*",
+}
 
 var flinkFilters = []string{
 	// TODO(BEAM-11500): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
+	// TODO(BEAM-12815): Test fails: "Insufficient number of network buffers".
+	"TestXLang_Multi",
+	// TODO(BEAM-12753): Flink test stream fails for non-string/byte slice inputs
+	"TestTestStream.*Sequence.*",
+	// Triggers are not yet supported
+	"TestTrigger.*",
 }
 
 var samzaFilters = []string{
 	// TODO(BEAM-12608): Samza tests invalid encoding.
 	"TestReshuffle",
 	"TestReshuffleKV",
+	// The Samza runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger tests uses TestStream
+	"TestTrigger.*",
 }
 
 var sparkFilters = []string{
@@ -80,11 +102,21 @@ var sparkFilters = []string{
 	"TestXLang.*",
 	"TestParDoSideInput",
 	"TestParDoKVSideInput",
+	// The Spark runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger tests uses TestStream
+	"TestTrigger.*",
 }
 
 var dataflowFilters = []string{
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
+	// The Dataflow runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger tests uses TestStream
+	"TestTrigger.*",
+	// There is no infrastructure for running KafkaIO tests with Dataflow.
+	"TestKafkaIO.*",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

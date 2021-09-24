@@ -26,7 +26,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Duration;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -1002,7 +1001,6 @@ public class ZetaSqlMathFunctionsTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-10459] Aggregation functions on NUMERIC is not supported yet")
   public void testSumNumeric() {
     String sql = "SELECT SUM(numeric_field) FROM table_with_numeric";
 
@@ -1019,7 +1017,6 @@ public class ZetaSqlMathFunctionsTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-10459] Aggregation functions on NUMERIC is not supported yet")
   public void testAvgNumeric() {
     String sql = "SELECT AVG(numeric_field) FROM table_with_numeric";
 

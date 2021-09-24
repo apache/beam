@@ -189,7 +189,8 @@ public class DoFnSignatures {
               Parameter.TimerParameter.class,
               Parameter.StateParameter.class,
               Parameter.TimerFamilyParameter.class,
-              Parameter.TimerIdParameter.class);
+              Parameter.TimerIdParameter.class,
+              Parameter.KeyParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =

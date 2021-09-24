@@ -68,6 +68,7 @@ from apache_beam.utils.histogram import LinearBucket
 try:
   from apitools.base.py.transfer import Upload
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+  from google.api_core.exceptions import ClientError, GoogleAPICallError
   from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   gcp_bigquery = None
@@ -94,6 +95,9 @@ _LOGGER = logging.getLogger(__name__)
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 MAX_RETRIES = 3
 UNKNOWN_MIME_TYPE = 'application/octet-stream'
+
+# Timeout for a BQ streaming insert RPC. Set to a maximum of 2 minutes.
+BQ_STREAMING_INSERT_TIMEOUT_SEC = 120
 
 
 class FileFormat(object):
@@ -291,8 +295,10 @@ class BigQueryWrapper(object):
   (e.g., find and create tables, query a table, etc.).
   """
 
-  TEMP_TABLE = 'temp_table_'
-  TEMP_DATASET = 'temp_dataset_'
+  # If updating following names, also update the corresponding pydocs in
+  # bigquery.py.
+  TEMP_TABLE = 'beam_temp_table_'
+  TEMP_DATASET = 'beam_temp_dataset_'
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
@@ -312,6 +318,10 @@ class BigQueryWrapper(object):
         'latency_histogram_ms',
         LinearBucket(0, 20, 3000),
         BigQueryWrapper.HISTOGRAM_METRIC_LOGGER)
+    if temp_dataset_id and temp_dataset_id.startswith(self.TEMP_DATASET):
+      raise ValueError(
+          'User provided temp dataset ID cannot start with %r' %
+          self.TEMP_DATASET)
     self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
     self.created_temp_dataset = False
 
@@ -529,6 +539,7 @@ class BigQueryWrapper(object):
       use_legacy_sql,
       flatten_results,
       job_id,
+      priority,
       dry_run=False,
       kms_key=None,
       job_labels=None):
@@ -545,6 +556,7 @@ class BigQueryWrapper(object):
                     destinationTable=self._get_temp_table(project_id)
                     if not dry_run else None,
                     flattenResults=flatten_results,
+                    priority=priority,
                     destinationEncryptionConfiguration=bigquery.
                     EncryptionConfiguration(kmsKeyName=kms_key)),
                 labels=_build_job_labels(job_labels),
@@ -646,15 +658,20 @@ class BigQueryWrapper(object):
           table_ref_str,
           json_rows=rows,
           row_ids=insert_ids,
-          skip_invalid_rows=True)
+          skip_invalid_rows=True,
+          timeout=BQ_STREAMING_INSERT_TIMEOUT_SEC)
       if not errors:
         service_call_metric.call('ok')
       else:
         for insert_error in errors:
           service_call_metric.call(insert_error['errors'][0])
+    except (ClientError, GoogleAPICallError) as e:
+      # e.code.value contains the numeric http status code.
+      service_call_metric.call(e.code.value)
+      # Re-reise the exception so that we re-try appropriately.
+      raise
     except HttpError as e:
       service_call_metric.call(e)
-
       # Re-reise the exception so that we re-try appropriately.
       raise
     finally:
@@ -794,18 +811,22 @@ class BigQueryWrapper(object):
     table = self.get_table(project_id, dataset_id, table_id)
     return table.location
 
+  # Returns true if the temporary dataset was provided by the user.
+  def is_user_configured_dataset(self):
+    return (
+        self.temp_dataset_id and
+        not self.temp_dataset_id.startswith(self.TEMP_DATASET))
+
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def create_temporary_dataset(self, project_id, location):
-    is_user_configured_dataset = \
-      not self.temp_dataset_id.startswith(self.TEMP_DATASET)
     # Check if dataset exists to make sure that the temporary id is unique
     try:
       self.client.datasets.Get(
           bigquery.BigqueryDatasetsGetRequest(
               projectId=project_id, datasetId=self.temp_dataset_id))
-      if project_id is not None and not is_user_configured_dataset:
+      if project_id is not None and not self.is_user_configured_dataset():
         # Unittests don't pass projectIds so they can be run without error
         # User configured datasets are allowed to pre-exist.
         raise RuntimeError(
@@ -841,7 +862,13 @@ class BigQueryWrapper(object):
       else:
         raise
     try:
-      self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+      # We do not want to delete temporary datasets configured by the user hence
+      # we just delete the temporary table in that case.
+      if not self.is_user_configured_dataset():
+        self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+      else:
+        self._delete_table(
+            temp_table.projectId, temp_table.datasetId, temp_table.tableId)
       self.created_temp_dataset = False
     except HttpError as exn:
       if exn.status_code == 403:
@@ -1061,6 +1088,7 @@ class BigQueryWrapper(object):
       query,
       use_legacy_sql,
       flatten_results,
+      priority,
       dry_run=False,
       job_labels=None):
     job = self._start_query_job(
@@ -1069,6 +1097,7 @@ class BigQueryWrapper(object):
         use_legacy_sql,
         flatten_results,
         job_id=uuid.uuid4().hex,
+        priority=priority,
         dry_run=dry_run,
         job_labels=job_labels)
     job_id = job.jobReference.jobId
@@ -1227,7 +1256,8 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
       test_bigquery_client=None,
       use_legacy_sql=True,
       flatten_results=True,
-      kms_key=None):
+      kms_key=None,
+      query_priority=None):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
     if auth.is_running_in_gce:
@@ -1254,6 +1284,9 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.kms_key = kms_key
     self.bigquery_job_labels = {}
     self.bq_io_metadata = None
+
+    from apache_beam.io.gcp.bigquery import BigQueryQueryPriority
+    self.query_priority = query_priority or BigQueryQueryPriority.BATCH
 
     if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
@@ -1300,8 +1333,10 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
-    self.client.create_temporary_dataset(
-        self.executing_project, location=self._get_source_location())
+    if not self.client.is_user_configured_dataset():
+      # Temp dataset was provided by the user so we do not have to create one.
+      self.client.create_temporary_dataset(
+          self.executing_project, location=self._get_source_location())
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
@@ -1314,6 +1349,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
         project_id=self.executing_project, query=self.query,
         use_legacy_sql=self.use_legacy_sql,
         flatten_results=self.flatten_results,
+        priority=self.query_priority,
         job_labels=self.bq_io_metadata.add_additional_bq_job_labels(
             self.bigquery_job_labels)):
       if self.schema is None:

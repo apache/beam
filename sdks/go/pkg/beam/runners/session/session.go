@@ -30,12 +30,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/session"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
@@ -54,6 +54,8 @@ var sessionFile = flag.String("session_file", "", "Session file for the runner")
 
 // controlServer manages the FnAPI control channel.
 type controlServer struct {
+	fnpb.UnimplementedBeamFnControlServer
+
 	filename   string
 	wg         *sync.WaitGroup // used to signal when the session is completed
 	ctrlStream fnpb.BeamFnControl_ControlServer
@@ -214,6 +216,8 @@ func extractPortSpec(spec *pipepb.FunctionSpec) string {
 
 // dataServer manages the FnAPI data channel.
 type dataServer struct {
+	fnpb.UnimplementedBeamFnDataServer
+
 	ctrl *controlServer
 }
 
@@ -241,7 +245,9 @@ func (d *dataServer) Data(stream fnpb.BeamFnData_DataServer) error {
 }
 
 // loggingServer manages the FnAPI logging channel.
-type loggingServer struct{} // no data content
+type loggingServer struct {
+	fnpb.UnimplementedBeamFnLoggingServer
+}
 
 func (l *loggingServer) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 	// This stream object is only used here. The stream is used for receiving, and

@@ -20,14 +20,14 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
 )
 
 // ParDo is a DoFn executor.
@@ -43,8 +43,8 @@ type ParDo struct {
 	ctx      context.Context
 	inv      *invoker
 
-	side  StateReader
-	cache *cacheElm
+	reader StateReader
+	cache  *cacheElm
 
 	status Status
 	err    errorx.GuardedError
@@ -97,7 +97,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 		return errors.Errorf("invalid status for pardo %v: %v, want Up", n.UID, n.status)
 	}
 	n.status = Active
-	n.side = data.State
+	n.reader = data.State
 	// Allocating contexts all the time is expensive, but we seldom re-write them,
 	// and never accept modified contexts from users, so we will cache them per-bundle
 	// per-unit, to avoid the constant allocation overhead.
@@ -201,7 +201,7 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
-	n.side = nil
+	n.reader = nil
 	n.cache = nil
 
 	if err := MultiFinishBundle(n.ctx, n.Out...); err != nil {
@@ -216,7 +216,7 @@ func (n *ParDo) Down(ctx context.Context) error {
 		return n.err.Error()
 	}
 	n.status = Down
-	n.side = nil
+	n.reader = nil
 	n.cache = nil
 
 	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil); err != nil {
@@ -253,16 +253,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 
 	// Slow path: init side input for the given window
 
-	streams := make([]ReStream, len(n.Side), len(n.Side))
-	for i, adapter := range n.Side {
-		s, err := adapter.NewIterable(ctx, n.side, w)
-		if err != nil {
-			return err
-		}
-		streams[i] = s
-	}
-
-	sideinput, err := makeSideInputs(n.Fn.ProcessElementFn(), n.Inbound, streams)
+	sideinput, err := makeSideInputs(ctx, w, n.Side, n.reader, n.Fn.ProcessElementFn(), n.Inbound)
 	if err != nil {
 		return err
 	}
@@ -332,8 +323,18 @@ func (n *ParDo) postInvoke() error {
 
 func (n *ParDo) fail(err error) error {
 	n.status = Broken
-	n.err.TrySetError(err)
-	return err
+	if err2, ok := err.(*doFnError); ok {
+		return err2
+	}
+
+	parDoError := &doFnError{
+		doFn: n.Fn.Name(),
+		err:  err,
+		uid:  n.UID,
+		pid:  n.PID,
+	}
+	n.err.TrySetError(parDoError)
+	return parDoError
 }
 
 func (n *ParDo) String() string {

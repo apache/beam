@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.services.healthcare.v1beta1.model.Message;
-import com.google.api.services.healthcare.v1beta1.model.SchematizedData;
+import com.google.api.services.healthcare.v1.model.Message;
+import com.google.api.services.healthcare.v1.model.SchematizedData;
 import java.io.IOException;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -80,7 +80,9 @@ public class HL7v2Message {
     out.setCreateTime(this.getCreateTime());
     out.setData(this.getData());
     out.setSendFacility(this.getSendFacility());
-    out.setSchematizedData(new SchematizedData().setData(this.schematizedData));
+    if (this.schematizedData != null) {
+      out.setSchematizedData(new SchematizedData().setData(this.schematizedData));
+    }
     out.setLabels(this.labels);
     return out;
   }

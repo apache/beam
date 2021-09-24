@@ -16,21 +16,27 @@
 package kafka
 
 import (
+	"flag"
 	"log"
 	"os"
 	"testing"
 
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/samza"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/test/integration"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 // bootstrapAddr should be set by TestMain once a Kafka cluster has been
 // started, and is used by each test.
 var bootstrapAddr string
+
+const (
+	basicTopic = "xlang_kafkaio_basic_test"
+	numRecords = 1000
+)
 
 func checkFlags(t *testing.T) {
 	if *integration.IoExpansionAddr == "" {
@@ -41,13 +47,22 @@ func checkFlags(t *testing.T) {
 	}
 }
 
-// TestBasicPipeline tests a basic Kafka pipeline that writes to and reads from
-// Kafka with no optional parameters or extra features.
-func TestBasicPipeline(t *testing.T) {
+// TestBasicPipeline basic writes and reads from Kafka with as few optional
+// parameters or extra features as possible.
+func TestKafkaIO_BasicReadWrite(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
-	p := BasicPipeline(*integration.IoExpansionAddr, bootstrapAddr)
-	ptest.RunAndValidate(t, p)
+
+	inputs := make([]int, numRecords)
+	for i := 0; i < numRecords; i++ {
+		inputs[i] = i
+	}
+	topic := appendUuid(basicTopic)
+
+	write := WritePipeline(*integration.IoExpansionAddr, bootstrapAddr, topic, inputs)
+	ptest.RunAndValidate(t, write)
+	read := ReadPipeline(*integration.IoExpansionAddr, bootstrapAddr, topic, inputs)
+	ptest.RunAndValidate(t, read)
 }
 
 // TestMain starts up a Kafka cluster from integration.KafkaJar before running
@@ -57,15 +72,17 @@ func TestMain(m *testing.M) {
 	var retCode int
 	defer func() { os.Exit(retCode) }()
 
+	flag.Parse()
+
 	// Start local Kafka cluster and defer its shutdown.
 	if *integration.BootstrapServers != "" {
 		bootstrapAddr = *integration.BootstrapServers
 	} else if *integration.KafkaJar != "" {
-		cluster, err := runLocalKafka(*integration.KafkaJar)
+		cluster, err := runLocalKafka(*integration.KafkaJar, *integration.KafkaJarTimeout)
 		if err != nil {
 			log.Fatalf("Kafka cluster failed to start: %v", err)
 		}
-		defer func() { cluster.proc.Kill() }()
+		defer func() { cluster.Shutdown() }()
 		bootstrapAddr = cluster.bootstrapAddr
 	}
 
