@@ -46,7 +46,7 @@ public class DisplayDataTranslationTest {
                     builder.add(DisplayData.item("foo4", 123.4).withLabel("label"));
                     builder.add(DisplayData.item("foo5", 4.321f).withLabel("label"));
                     builder.add(DisplayData.item("foo6", 321).withLabel("label"));
-                    builder.add(DisplayData.item("foo7", 123l).withLabel("label"));
+                    builder.add(DisplayData.item("foo7", 123L).withLabel("label"));
                   }
                 })),
         containsInAnyOrder(
