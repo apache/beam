@@ -2530,7 +2530,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 class DeadLettersTest(unittest.TestCase):
   @classmethod
   def die(cls, x):
-    if cls.use_subprocess and False:
+    if cls.use_subprocess:
       os._exit(x)
     else:
       raise ValueError(x)
@@ -2621,6 +2621,25 @@ class DeadLettersTest(unittest.TestCase):
               use_subprocess=self.use_subprocess)).good,
                   equal_to([(100, 30)]),
                   label='KeySideInput')
+
+  def test_multiple_outputs(self):
+    die = type(self).die
+
+    def die_on_negative_even_odd(x):
+      if x < 0:
+        die(x)
+      elif x % 2 == 0:
+        return pvalue.TaggedOutput('even', x)
+      elif x % 2 == 1:
+        return pvalue.TaggedOutput('odd', x)
+
+    with TestPipeline() as p:
+      results = (
+          p
+          | beam.Create([1, -1, 2, -2, 3])
+          | beam.Map(die_on_negative_even_odd).with_dead_letters())
+      assert_that(results.even, equal_to([2]), label='CheckEven')
+      assert_that(results.odd, equal_to([1, 3]), label='CheckOdd')
 
   def test_params(self):
     die = type(self).die
