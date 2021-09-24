@@ -1274,7 +1274,7 @@ class ParDo(PTransformWithSideInputs):
         _DeadLetterDoFn(fn, dead_letter_tag, exc_class, partial),
         *args,
         **kwargs).with_outputs(
-            dead_letter_tag, main=main_tag)
+            dead_letter_tag, main=main_tag, allow_unknown_tags=True)
 
   def default_type_hints(self):
     return self.fn.get_type_hints()
@@ -1321,7 +1321,7 @@ class ParDo(PTransformWithSideInputs):
 
     return pvalue.PCollection.from_(pcoll)
 
-  def with_outputs(self, *tags, main=None):
+  def with_outputs(self, *tags, main=None, allow_unknown_tags=None):
     """Returns a tagged tuple allowing access to the outputs of a
     :class:`ParDo`.
 
@@ -1355,7 +1355,7 @@ class ParDo(PTransformWithSideInputs):
       raise ValueError(
           'Main output tag %r must be different from side output tags %r.' %
           (main, tags))
-    return _MultiParDo(self, tags, main)
+    return _MultiParDo(self, tags, main, allow_unknown_tags)
 
   def _do_fn_info(self):
     return DoFnInfo.create(self.fn, self.args, self.kwargs)
@@ -1471,16 +1471,21 @@ class ParDo(PTransformWithSideInputs):
 
 
 class _MultiParDo(PTransform):
-  def __init__(self, do_transform, tags, main_tag):
+  def __init__(self, do_transform, tags, main_tag, allow_unknown_tags=None):
     super().__init__(do_transform.label)
     self._do_transform = do_transform
     self._tags = tags
     self._main_tag = main_tag
+    self._allow_unknown_tags = allow_unknown_tags
 
   def expand(self, pcoll):
     _ = pcoll | self._do_transform
     return pvalue.DoOutputsTuple(
-        pcoll.pipeline, self._do_transform, self._tags, self._main_tag)
+        pcoll.pipeline,
+        self._do_transform,
+        self._tags,
+        self._main_tag,
+        self._allow_unknown_tags)
 
 
 class DoFnInfo(object):
