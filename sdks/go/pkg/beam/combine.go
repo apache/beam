@@ -39,8 +39,9 @@ func CombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Opti
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
 func TryCombine(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
+	s = s.Scope(graph.CombineGloballyScope)
 	pre := AddFixedKey(s, col)
-	post, err := TryCombinePerKey(s, combinefn, pre, opts...)
+	post, err := tryCombinePerKey(s, combinefn, pre, opts...)
 	if err != nil {
 		return PCollection{}, err
 	}
@@ -56,6 +57,10 @@ func addCombinePerKeyCtx(err error, s Scope) error {
 // -- due to type mismatch, say -- to the incoming PCollection.
 func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
 	s = s.Scope(graph.CombinePerKeyScope)
+	return tryCombinePerKey(s, combinefn, col, opts...)
+}
+
+func tryCombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
 	ValidateKVType(col)
 	side, typedefs, err := validate(s, col, opts)
 	if err != nil {

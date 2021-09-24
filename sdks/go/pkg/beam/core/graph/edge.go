@@ -440,7 +440,10 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, rc *coder.C
 // default representation beneath. The use of this const permits the
 // translation layer to confirm the SDK expects this combine to be liftable
 // by a runner and should set this scope's URN and Payload accordingly.
-const CombinePerKeyScope = "CombinePerKey"
+const (
+	CombinePerKeyScope   = "CombinePerKey"
+	CombineGloballyScope = "CombineGlobally"
+)
 
 // NewCombine inserts a new Combine edge into the graph. Combines cannot have side
 // input.
