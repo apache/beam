@@ -260,77 +260,79 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 9:
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
 
-setuptools.setup(
-    name=PACKAGE_NAME,
-    version=PACKAGE_VERSION,
-    description=PACKAGE_DESCRIPTION,
-    long_description=PACKAGE_LONG_DESCRIPTION,
-    url=PACKAGE_URL,
-    download_url=PACKAGE_DOWNLOAD_URL,
-    author=PACKAGE_AUTHOR,
-    author_email=PACKAGE_EMAIL,
-    packages=setuptools.find_packages(),
-    package_data={
-        'apache_beam': [
-            '*/*.pyx',
-            '*/*/*.pyx',
-            '*/*.pxd',
-            '*/*/*.pxd',
-            '*/*.h',
-            '*/*/*.h',
-            'testing/data/*.yaml',
-            'portability/api/*.yaml'
-        ]
-    },
-    ext_modules=cythonize([
-        # Make sure to use language_level=3 cython directive in files below.
-        'apache_beam/**/*.pyx',
-        'apache_beam/coders/coder_impl.py',
-        'apache_beam/metrics/cells.py',
-        'apache_beam/metrics/execution.py',
-        'apache_beam/runners/common.py',
-        'apache_beam/runners/worker/logger.py',
-        'apache_beam/runners/worker/opcounters.py',
-        'apache_beam/runners/worker/operations.py',
-        'apache_beam/transforms/cy_combiners.py',
-        'apache_beam/transforms/stats.py',
-        'apache_beam/utils/counters.py',
-        'apache_beam/utils/windowed_value.py',
-    ]),
-    install_requires=REQUIRED_PACKAGES,
-    python_requires=python_requires,
-    # BEAM-8840: Do NOT use tests_require or setup_requires.
-    extras_require={
-        'docs': ['Sphinx>=1.5.2,<2.0'],
-        'test': REQUIRED_TEST_PACKAGES,
-        'gcp': GCP_REQUIREMENTS,
-        'interactive': INTERACTIVE_BEAM,
-        'interactive_test': INTERACTIVE_BEAM_TEST,
-        'aws': AWS_REQUIREMENTS,
-        'azure': AZURE_REQUIREMENTS,
-        'dataframe': ['pandas>=1.0,<1.4']
-    },
-    zip_safe=False,
-    # PyPI package information.
-    classifiers=[
-        'Intended Audience :: End Users/Desktop',
-        'License :: OSI Approved :: Apache Software License',
-        'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        # When updating vesion classifiers, also update version warnings
-        # above and in apache_beam/__init__.py.
-        'Topic :: Software Development :: Libraries',
-        'Topic :: Software Development :: Libraries :: Python Modules',
-    ],
-    license='Apache License, Version 2.0',
-    keywords=PACKAGE_KEYWORDS,
-    cmdclass={
-        'build_py': generate_protos_first(build_py),
-        'develop': generate_protos_first(develop),
-        'egg_info': generate_protos_first(egg_info),
-        'test': generate_protos_first(test),
-        'mypy': generate_protos_first(mypy),
-    },
-)
+
+if __name__ == '__main__':
+  setuptools.setup(
+      name=PACKAGE_NAME,
+      version=PACKAGE_VERSION,
+      description=PACKAGE_DESCRIPTION,
+      long_description=PACKAGE_LONG_DESCRIPTION,
+      url=PACKAGE_URL,
+      download_url=PACKAGE_DOWNLOAD_URL,
+      author=PACKAGE_AUTHOR,
+      author_email=PACKAGE_EMAIL,
+      packages=setuptools.find_packages(),
+      package_data={
+          'apache_beam': [
+              '*/*.pyx',
+              '*/*/*.pyx',
+              '*/*.pxd',
+              '*/*/*.pxd',
+              '*/*.h',
+              '*/*/*.h',
+              'testing/data/*.yaml',
+              'portability/api/*.yaml'
+          ]
+      },
+      ext_modules=cythonize([
+          # Make sure to use language_level=3 cython directive in files below.
+          'apache_beam/**/*.pyx',
+          'apache_beam/coders/coder_impl.py',
+          'apache_beam/metrics/cells.py',
+          'apache_beam/metrics/execution.py',
+          'apache_beam/runners/common.py',
+          'apache_beam/runners/worker/logger.py',
+          'apache_beam/runners/worker/opcounters.py',
+          'apache_beam/runners/worker/operations.py',
+          'apache_beam/transforms/cy_combiners.py',
+          'apache_beam/transforms/stats.py',
+          'apache_beam/utils/counters.py',
+          'apache_beam/utils/windowed_value.py',
+      ]),
+      install_requires=REQUIRED_PACKAGES,
+      python_requires=python_requires,
+      # BEAM-8840: Do NOT use tests_require or setup_requires.
+      extras_require={
+          'docs': ['Sphinx>=1.5.2,<2.0'],
+          'test': REQUIRED_TEST_PACKAGES,
+          'gcp': GCP_REQUIREMENTS,
+          'interactive': INTERACTIVE_BEAM,
+          'interactive_test': INTERACTIVE_BEAM_TEST,
+          'aws': AWS_REQUIREMENTS,
+          'azure': AZURE_REQUIREMENTS,
+          'dataframe': ['pandas>=1.0,<1.4']
+      },
+      zip_safe=False,
+      # PyPI package information.
+      classifiers=[
+          'Intended Audience :: End Users/Desktop',
+          'License :: OSI Approved :: Apache Software License',
+          'Operating System :: POSIX :: Linux',
+          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.8',
+          # When updating vesion classifiers, also update version warnings
+          # above and in apache_beam/__init__.py.
+          'Topic :: Software Development :: Libraries',
+          'Topic :: Software Development :: Libraries :: Python Modules',
+      ],
+      license='Apache License, Version 2.0',
+      keywords=PACKAGE_KEYWORDS,
+      cmdclass={
+          'build_py': generate_protos_first(build_py),
+          'develop': generate_protos_first(develop),
+          'egg_info': generate_protos_first(egg_info),
+          'test': generate_protos_first(test),
+          'mypy': generate_protos_first(mypy),
+      },
+  )
