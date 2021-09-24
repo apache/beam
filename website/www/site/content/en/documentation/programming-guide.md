@@ -4553,7 +4553,8 @@ trigger emits the contents of a window after the
 timestamps attached to the data elements. The watermark is a global progress
 metric, and is Beam's notion of input completeness within your pipeline at any
 given point. <span class="language-java">`AfterWatermark.pastEndOfWindow()`</span>
-<span class="language-py">`AfterWatermark`</span> *only* fires when the
+<span class="language-py">`AfterWatermark`</span>
+<span class="language-go">`window.AfterEndOfWindow`</span> *only* fires when the
 watermark passes the end of the window.
 
 In addition, you can configure triggers that fire if your pipeline receives data
@@ -4578,6 +4579,10 @@ firings:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_early_late_triggers >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+  {{< code_sample "sdks/go/examples/snippets/09triggers.go" after_window_trigger >}}
+{{< /highlight >}}
+
 #### 9.1.1. Default trigger {#default-trigger}
 
 The default trigger for a `PCollection` is based on event time, and emits the
@@ -4594,7 +4599,8 @@ modifying this behavior.
 
 The `AfterProcessingTime` trigger operates on *processing time*. For example,
 the <span class="language-java">`AfterProcessingTime.pastFirstElementInPane()`</span>
-<span class="language-py">`AfterProcessingTime`</span> trigger emits a window
+<span class="language-py">`AfterProcessingTime`</span>
+<span class="language-go">`window.TriggerAfterProcessingTime()`</span> trigger emits a window
 after a certain amount of processing time has passed since data was received.
 The processing time is determined by the system clock, rather than the data
 element's timestamp.
@@ -4607,14 +4613,16 @@ window.
 
 Beam provides one data-driven trigger,
 <span class="language-java">`AfterPane.elementCountAtLeast()`</span>
-<span class="language-py">`AfterCount`</span>. This trigger works on an element
+<span class="language-py">`AfterCount`</span>
+<span class="language-go">`window.TriggerAfterCount()`</span>. This trigger works on an element
 count; it fires after the current pane has collected at least *N* elements. This
 allows a window to emit early results (before all the data has accumulated),
 which can be particularly useful if you are using a single global window.
 
 It is important to note that if, for example, you specify
 <span class="language-java">`.elementCountAtLeast(50)`</span>
-<span class="language-py">AfterCount(50)</span> and only 32 elements arrive,
+<span class="language-py">AfterCount(50)</span>
+<span class="language-go">`window.TriggerAfterCount(50)`</span> and only 32 elements arrive,
 those 32 elements sit around forever. If the 32 elements are important to you,
 consider using [composite triggers](#composite-triggers) to combine multiple
 conditions. This allows you to specify multiple firing conditions such as "fire
@@ -4623,7 +4631,7 @@ either when I receive 50 elements, or every 1 second".
 ### 9.4. Setting a trigger {#setting-a-trigger}
 
 When you set a windowing function for a `PCollection` by using the
-<span class="language-java">`Window`</span><span class="language-py">`WindowInto`</span>
+<span class="language-java">`Window`</span><span class="language-py">`WindowInto`</span><span class="language-go">`beam.WindowInto`</span>
 transform, you can also specify a trigger.
 
 {{< paragraph class="language-java" >}}
@@ -4643,6 +4651,13 @@ element in that window has been processed. The `accumulation_mode` parameter
 sets the window's **accumulation mode**.
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+You set the trigger(s) for a `PCollection` by passing in the `beam.Trigger` parameter
+when you use the `beam.WindowInto` transform. This code sample sets an Always
+trigger for a `PCollection`, which emits results every time an element in that window has been processed. The `beam.AccumulationMode` parameter
+sets the window's **accumulation mode**.
+{{< /paragraph >}}
+
 {{< highlight java >}}
   PCollection<String> pc = ...;
   pc.apply(Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES))
@@ -4656,6 +4671,10 @@ sets the window's **accumulation mode**.
     FixedWindows(1 * 60),
     trigger=AfterProcessingTime(1 * 60),
     accumulation_mode=AccumulationMode.DISCARDING)
+{{< /highlight >}}
+
+{{< highlight go >}}
+  {{< code_sample "sdks/go/examples/snippets/09triggers.go" always_trigger >}}
 {{< /highlight >}}
 
 #### 9.4.1. Window accumulation modes {#window-accumulation-modes}
@@ -4677,6 +4696,13 @@ To set a window to accumulate the panes that are produced when the trigger
 fires, set the `accumulation_mode` parameter to `ACCUMULATING` when you set the
 trigger. To set a window to discard fired panes, set `accumulation_mode` to
 `DISCARDING`.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+To set a window to accumulate the panes that are produced when the trigger
+fires, set the `beam.AccumulationMode` parameter to `beam.PanesAccumulate()` when you set the
+trigger. To set a window to discard fired panes, set `beam.AccumulationMode` to
+`beam.PanesDiscard()`.
 {{< /paragraph >}}
 
 Let's look an example that uses a `PCollection` with fixed-time windowing and a
