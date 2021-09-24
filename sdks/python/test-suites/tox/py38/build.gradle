@@ -41,6 +41,13 @@ testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
   preCommitPy38.dependsOn "testPy38pyarrow-$version"
 }
 
+toxTask "testPy38pandas-11", "py38-pandas-11"
+toxTask "testPy38pandas-12", "py38-pandas-12"
+toxTask "testPy38pandas-13", "py38-pandas-13"
+test.dependsOn "testPy38pandas-11"
+test.dependsOn "testPy38pandas-12"
+test.dependsOn "testPy38pandas-13"
+
 toxTask "whitespacelint", "whitespacelint"
 
 task archiveFilesToLint(type: Zip) {
