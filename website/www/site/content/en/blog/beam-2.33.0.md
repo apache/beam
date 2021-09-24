@@ -4,7 +4,7 @@ date:   2021-09-TODO 00:00:01 -0800
 categories:
   - blog
 authors:
-  - ehudm
+  - udim
 ---
 
 <!--
@@ -57,6 +57,7 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 
 * Python GBK by default will fail on unbounded PCollections that have global windowing and a default trigger. The `--allow_unsafe_triggers` flag can be used to override this. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 * Python GBK will fail if it detects an unsafe trigger unless the `--allow_unsafe_triggers` flag is set. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
+* Since release 2.30.0, "The AvroCoder changes for BEAM-2303 \[changed\] the reader/writer from the Avro ReflectDatum* classes to the SpecificDatum* classes" (Java). The `useReflectApi` setting, introduced in this release, allows reverting to the previous behavior ([BEAM-12628](https://issues.apache.org/jira/browse/BEAM-12628)). 
 
 <!--
 ### Deprecations
@@ -77,6 +78,8 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 
 ### Known Issues
 
+* The Python SDK's `allow_unsafe_triggers` check may incorrectly classify triggers wrapped in `Repeatedly` as unsafe. The workaround is to pass the `--allow_unsafe_triggers` option to the pipeline (a warning will still be issued) ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
+* Spark 2.x users will need to update Spark's Jackson runtime dependencies (`spark.jackson.version`) to at least version 2.9.2, due to Beam updating its dependencies.
 * See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.33.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
 
 
