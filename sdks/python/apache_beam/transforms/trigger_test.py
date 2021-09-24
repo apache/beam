@@ -496,7 +496,7 @@ class MayLoseDataTest(unittest.TestCase):
     self._test(
         AfterWatermark(late=AfterCount(5)),
         60,
-        DataLossReason.CONDITION_NOT_GUARANTEED)
+        DataLossReason.NO_POTENTIAL_LOSS)
 
   def test_after_count_one(self):
     self._test(AfterCount(1), 0, DataLossReason.MAY_FINISH)
@@ -515,8 +515,7 @@ class MayLoseDataTest(unittest.TestCase):
     self._test(Repeatedly(AfterCount(1)), 0, DataLossReason.NO_POTENTIAL_LOSS)
 
   def test_repeatedly_condition_underlying(self):
-    self._test(
-        Repeatedly(AfterCount(2)), 0, DataLossReason.CONDITION_NOT_GUARANTEED)
+    self._test(Repeatedly(AfterCount(2)), 0, DataLossReason.NO_POTENTIAL_LOSS)
 
   def test_after_any_some_unsafe(self):
     self._test(
@@ -532,7 +531,7 @@ class MayLoseDataTest(unittest.TestCase):
 
   def test_after_any_different_reasons(self):
     self._test(
-        AfterAny(Repeatedly(AfterCount(2)), AfterProcessingTime()),
+        AfterAny(AfterCount(2), AfterProcessingTime()),
         0,
         DataLossReason.MAY_FINISH | DataLossReason.CONDITION_NOT_GUARANTEED)
 
