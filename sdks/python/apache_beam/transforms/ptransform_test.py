@@ -2723,6 +2723,34 @@ class DeadLettersTest(unittest.TestCase):
                   equal_to([4, 44]),
                   'CheckComplete')
 
+  def test_threshold(self):
+    # The threshold is high enough.
+    with TestPipeline() as p:
+      _ = (
+          p
+          | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
+          | beam.Map(self.die_if_negative).with_dead_letters(threshold=0.5))
+
+    # The threshold is too low enough.
+    with self.assertRaisesRegex(Exception,
+                                "Too many bad elements: 2 / 8 = 0.25 > 0.1"):
+      with TestPipeline() as p:
+        _ = (
+            p
+            | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
+            | beam.Map(self.die_if_negative).with_dead_letters(threshold=0.1))
+
+    # The threshold is too low per window.
+    with self.assertRaisesRegex(Exception,
+                                "Too many bad elements: 2 / 2 = 1.0 > 0.5"):
+      with TestPipeline() as p:
+        _ = (
+            p
+            | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
+            | beam.Map(lambda x: TimestampedValue(x, x))
+            | beam.Map(self.die_if_negative).with_dead_letters(
+                threshold=0.5, threshold_windowing=window.FixedWindows(10)))
+
 
 class TestPTransformFn(TypeHintTestCase):
   def test_type_checking_fail(self):

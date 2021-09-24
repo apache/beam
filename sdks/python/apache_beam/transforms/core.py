@@ -1232,7 +1232,9 @@ class ParDo(PTransformWithSideInputs):
       *,
       exc_class=Exception,
       partial=False,
-      use_subprocess=False):
+      use_subprocess=False,
+      threshold=.999,
+      threshold_windowing=None):
     """Automatically provides a dead letter output for skipping bad records.
 
     This returns a tagged output with two PCollections, the first being the
@@ -1265,16 +1267,24 @@ class ParDo(PTransformWithSideInputs):
           allows one to recover from errors that crash the process (e.g. from
           an underlying C/C++ library), but is slower as elements and results
           must cross a process boundary. Optional, defaults to False.
+      threshold: An upper bound on the ratio of records that can be bad before
+          aborting the entire pipeline. Optional, defaults to 1.0 (meaning
+          up to 100% of records can be bad and the pipeline will still succeed).
+      threshold_windowing: Event-time windowing to use for threshold. Optional,
+          defaults to the windowing of the input.
     """
-    if partial and use_subprocess:
-      raise ValueError('partial and use_subprocess are mutually incompatible.')
     args, kwargs = self.raw_side_inputs
-    fn = _SubprocessDoFn(self.fn) if use_subprocess else self.fn
-    return self.label >> ParDo(
-        _DeadLetterDoFn(fn, dead_letter_tag, exc_class, partial),
-        *args,
-        **kwargs).with_outputs(
-            dead_letter_tag, main=main_tag, allow_unknown_tags=True)
+    return self.label >> _DeadLetterPattern(
+        self.fn,
+        args,
+        kwargs,
+        main_tag,
+        dead_letter_tag,
+        exc_class,
+        partial,
+        use_subprocess,
+        threshold,
+        threshold_windowing)
 
   def default_type_hints(self):
     return self.fn.get_type_hints()
@@ -1788,6 +1798,72 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
       **kwargs)
   pardo.label = label
   return pardo
+
+
+class _DeadLetterPattern(ptransform.PTransform):
+  def __init__(
+      self,
+      fn,
+      args,
+      kwargs,
+      main_tag,
+      dead_letter_tag,
+      exc_class,
+      partial,
+      use_subprocess,
+      threshold,
+      threshold_windowing):
+    if partial and use_subprocess:
+      raise ValueError('partial and use_subprocess are mutually incompatible.')
+    self._fn = fn
+    self._args = args
+    self._kwargs = kwargs
+    self._main_tag = main_tag
+    self._dead_letter_tag = dead_letter_tag
+    self._exc_class = exc_class
+    self._partial = partial
+    self._use_subprocess = use_subprocess
+    self._threshold = threshold
+    self._threshold_windowing = threshold_windowing
+
+  def expand(self, pcoll):
+    result = pcoll | ParDo(
+        _DeadLetterDoFn(
+            _SubprocessDoFn(self._fn) if self._use_subprocess else self._fn,
+            self._dead_letter_tag,
+            self._exc_class,
+            self._partial),
+        *self._args,
+        **self._kwargs).with_outputs(
+            self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+
+    if self._threshold < 1.0:
+
+      class MaybeWindow(ptransform.PTransform):
+        @staticmethod
+        def expand(pcoll):
+          if self._threshold_windowing:
+            return pcoll | WindowInto(self._threshold_windowing)
+          else:
+            return pcoll
+
+      input_count_view = pcoll | 'CountTotal' >> (
+          MaybeWindow() | Map(lambda _: 1)
+          | CombineGlobally(sum).as_singleton_view())
+      bad_count_pcoll = result[self._dead_letter_tag] | 'CountBad' >> (
+          MaybeWindow() | Map(lambda _: 1)
+          | CombineGlobally(sum).without_defaults())
+
+      def check_threshold(bad, total, threshold):
+        if bad > total * threshold:
+          raise ValueError(
+              "Too many bad elements: %s / %s = %s > %s" %
+              (bad, total, bad / total, threshold))
+
+      _ = bad_count_pcoll | Map(
+          check_threshold, input_count_view, self._threshold)
+
+    return result
 
 
 class _DeadLetterDoFn(DoFn):
