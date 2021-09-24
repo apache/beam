@@ -473,7 +473,7 @@ If there is a bug found in the RC creation process/tools, those issues should be
 
 ### Process for cherry-picks
 
-* Feature owner should first merge the changes in master and then create the cherry-pick from the merge commit against release branch. The cr should start have `[cherrypick]` in the title and release manager as the reviewer.
+* Feature owner should first merge the changes in master and then create the cherry-pick from the merge commit against release branch. The PR should have `[cherrypick]` in the title and release manager as the reviewer.
 * Cherry-pick should be associated to a jira and ideally be marked as a blocker for the release.
 
 ### Review cherry-picks
