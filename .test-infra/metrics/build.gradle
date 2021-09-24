@@ -77,14 +77,15 @@ task deploy {
   dependsOn checkLastCommitId
   doLast {
     def stdout = new ByteArrayOutputStream()
-    exec {
-      executable 'sh'
-      args '-c', 'kubectl get deployment beamgrafana -o jsonpath="{..image}"'
-      standardOutput = stdout
-    }
+//    exec {
+//      executable 'sh'
+//      args '-c', 'kubectl get deployment beamgrafana -o jsonpath="{..image}"'
+//      standardOutput = stdout
+//    }
 
     // All images have the same tag, it doesn't matter which we choose.
-    String image = (stdout.toString().split(' ') as List)[0]
+//    String image = (stdout.toString().split(' ') as List)[0]
+    String image = "a:a"
     String currentImageTag = (image.split(':') as List)[1]
     println "Current image tag: ${currentImageTag}"
     println "Last commit ID: ${lastCommitId}"
