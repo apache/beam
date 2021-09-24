@@ -508,13 +508,6 @@ class DataflowRunner(PipelineRunner):
       # in the proto representation of the graph.
       pipeline.replace_all(DataflowRunner._NON_PORTABLE_PTRANSFORM_OVERRIDES)
 
-    # Always upload graph out-of-band when explicitly using runner v2 with
-    # use_portable_job_submission to avoid irrelevant large graph limits.
-    if (apiclient._use_unified_worker(debug_options) and
-        debug_options.lookup_experiment('use_portable_job_submission') and
-        not debug_options.lookup_experiment('upload_graph')):
-      debug_options.add_experiment("upload_graph")
-
     # Add setup_options for all the BeamPlugin imports
     setup_options = options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
