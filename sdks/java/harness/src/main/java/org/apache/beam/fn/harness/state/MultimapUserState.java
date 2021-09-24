@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
@@ -195,6 +194,7 @@ public class MultimapUserState<K, V> {
   }
 
   @SuppressWarnings({
+    "FutureReturnValueIgnored",
     "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-12687)
   })
   // Update data in persistent store
@@ -211,27 +211,30 @@ public class MultimapUserState<K, V> {
 
     // Clear currently persisted key-values
     if (isCleared) {
-      beamFnStateClient.handle(
-          keysStateRequest.toBuilder().setClear(StateClearRequest.getDefaultInstance()),
-          new CompletableFuture<>());
+      beamFnStateClient
+          .handle(keysStateRequest.toBuilder().setClear(StateClearRequest.getDefaultInstance()))
+          .get();
     } else if (!pendingRemoves.isEmpty()) {
       for (K key : pendingRemoves) {
-        beamFnStateClient.handle(
-            createUserStateRequest(key)
-                .toBuilder()
-                .setClear(StateClearRequest.getDefaultInstance()),
-            new CompletableFuture<>());
+        beamFnStateClient
+            .handle(
+                createUserStateRequest(key)
+                    .toBuilder()
+                    .setClear(StateClearRequest.getDefaultInstance()))
+            .get();
       }
     }
 
     // Persist pending key-values
     if (!pendingAdds.isEmpty()) {
       for (Map.Entry<K, List<V>> entry : pendingAdds.entrySet()) {
-        beamFnStateClient.handle(
-            createUserStateRequest(entry.getKey())
-                .toBuilder()
-                .setAppend(StateAppendRequest.newBuilder().setData(encodeValues(entry.getValue()))),
-            new CompletableFuture<>());
+        beamFnStateClient
+            .handle(
+                createUserStateRequest(entry.getKey())
+                    .toBuilder()
+                    .setAppend(
+                        StateAppendRequest.newBuilder().setData(encodeValues(entry.getValue()))))
+            .get();
       }
     }
   }

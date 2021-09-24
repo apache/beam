@@ -76,16 +76,14 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
    */
   @Override
   @SuppressWarnings("FutureReturnValueIgnored")
-  public void handle(
-      StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
+  public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
 
     StateKey stateKey = requestBuilder.getStateKey();
     ByteString cacheToken = getCacheToken(stateKey);
 
     // If state is not cacheable proceed as normal.
     if (ByteString.EMPTY.equals(cacheToken)) {
-      beamFnStateClient.handle(requestBuilder, response);
-      return;
+      return beamFnStateClient.handle(requestBuilder);
     }
 
     switch (requestBuilder.getRequestCase()) {
@@ -98,37 +96,38 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
 
         // If data is not cached, add callback to add response to cache on completion.
         // Otherwise, complete the response with the cached data.
+        CompletableFuture<StateResponse> response;
         if (cachedPage == null) {
+          response = beamFnStateClient.handle(requestBuilder);
           response.thenAccept(
               stateResponse ->
                   stateCache.getUnchecked(stateKey).put(cacheKey, stateResponse.getGet()));
-          beamFnStateClient.handle(requestBuilder, response);
 
         } else {
-          response.complete(
+          return CompletableFuture.completedFuture(
               StateResponse.newBuilder().setId(requestBuilder.getId()).setGet(cachedPage).build());
         }
 
-        return;
+        return response;
 
       case APPEND:
         // TODO(BEAM-12637): Support APPEND in CachingBeamFnStateClient.
-        beamFnStateClient.handle(requestBuilder, response);
+        response = beamFnStateClient.handle(requestBuilder);
 
         // Invalidate last page of cached values (entry with a blank continuation token response)
         Map<StateCacheKey, StateGetResponse> map = stateCache.getUnchecked(stateKey);
         map.entrySet()
             .removeIf(entry -> (entry.getValue().getContinuationToken().equals(ByteString.EMPTY)));
-        return;
+        return response;
 
       case CLEAR:
         // Remove all state key data and replace with an empty response.
-        beamFnStateClient.handle(requestBuilder, response);
+        response = beamFnStateClient.handle(requestBuilder);
         Map<StateCacheKey, StateGetResponse> clearedData = new HashMap<>();
         StateCacheKey newKey = StateCacheKey.create(cacheToken, ByteString.EMPTY);
         clearedData.put(newKey, StateGetResponse.getDefaultInstance());
         stateCache.put(stateKey, clearedData);
-        return;
+        return response;
 
       default:
         throw new IllegalStateException(
