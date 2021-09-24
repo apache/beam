@@ -25,6 +25,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_BeamMetrics_Publish', 'Run B
 
       description('Applies new configuration to Beam Metrics infrastructure.')
 
+
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate)
 
