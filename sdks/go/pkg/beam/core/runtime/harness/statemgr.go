@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -39,11 +40,18 @@ type ScopedStateReader struct {
 	opened []io.Closer // track open readers to force close all
 	closed bool
 	mu     sync.Mutex
+
+	cache *statecache.SideInputCache
 }
 
 // NewScopedStateReader returns a ScopedStateReader for the given instruction.
 func NewScopedStateReader(mgr *StateChannelManager, instID instructionID) *ScopedStateReader {
-	return &ScopedStateReader{mgr: mgr, instID: instID}
+	return &ScopedStateReader{mgr: mgr, instID: instID, cache: nil}
+}
+
+// NewScopedStateReaderWithCache returns a ScopedState reader for the given instruction with a pointer to a SideInputCache.
+func NewScopedStateReaderWithCache(mgr *StateChannelManager, instID instructionID, cache *statecache.SideInputCache) *ScopedStateReader {
+	return &ScopedStateReader{mgr: mgr, instID: instID, cache: cache}
 }
 
 // OpenSideInput opens a byte stream for reading iterable side input.
@@ -58,6 +66,11 @@ func (s *ScopedStateReader) OpenIterable(ctx context.Context, id exec.StreamID, 
 	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
 		return newRunnerReader(ch, s.instID, key)
 	})
+}
+
+// GetSideInputCache returns a pointer to the SideInputCache being used by the SDK harness.
+func (s *ScopedStateReader) GetSideInputCache() *statecache.SideInputCache {
+	return s.cache
 }
 
 func (s *ScopedStateReader) openReader(ctx context.Context, id exec.StreamID, readerFn func(*StateChannel) *stateKeyReader) (*stateKeyReader, error) {
