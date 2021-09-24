@@ -149,7 +149,8 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       unique_id: str = None,
       kms_key: str = None,
       project: str = None,
-      temp_dataset: Union[str, DatasetReference] = None):
+      temp_dataset: Union[str, DatasetReference] = None,
+      query_priority: Optional[str] = None):
     self.options = options
     self.use_json_exports = use_json_exports
     self.gcs_location = gcs_location
@@ -160,6 +161,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     self.kms_key = kms_key
     self.project = project
     self.temp_dataset = temp_dataset or 'bq_read_all_%s' % uuid.uuid4().hex
+    self.query_priority = query_priority
     self.bq_io_metadata = None
 
   def display_data(self):
@@ -254,6 +256,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         not element.use_standard_sql,
         element.flatten_results,
         job_id=query_job_name,
+        priority=self.query_priority,
         kms_key=self.kms_key,
         job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
             self.bigquery_job_labels))
