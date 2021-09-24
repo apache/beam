@@ -574,7 +574,7 @@ See the source of the script for more details, or to run commands manually in ca
 
 
 * **Mitigate GPG Out Of Memory Error**
-  * gpg-agent might through Out Of Memory error. You can kill the gpg-agent to mitigate this issue.
+  * gpg-agent might throw Out Of Memory error. You can kill the gpg-agent to mitigate this issue.
   * It's a good idea to kill the gpg-agent before running the script.
   * The gpg-agent should get started automatically when needed.
 
