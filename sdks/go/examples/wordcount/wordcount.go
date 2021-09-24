@@ -112,7 +112,7 @@ func init() {
 var (
 	wordRE          = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 	empty           = beam.NewCounter("extract", "emptyLines")
-	smallWordLength = flag.Int("small_word_length", 9, "smallWordLength")
+	smallWordLength = flag.Int("small_word_length", 9, "length of small words (default: 9)")
 	smallWords      = beam.NewCounter("extract", "smallWords")
 	lineLen         = beam.NewDistribution("extract", "lineLenDistro")
 )
