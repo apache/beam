@@ -23,12 +23,24 @@ package statecache
 import (
 	"sync"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
 type token string
+
+// ReusableInput is a resettable value, notably used to unwind iterators cheaply
+// and cache materialized side input across invocations.
+//
+// Redefined from exec's input.go to avoid a cyclical dependency.
+type ReusableInput interface {
+	// Init initializes the value before use.
+	Init() error
+	// Value returns the side input value.
+	Value() interface{}
+	// Reset resets the value after use.
+	Reset() error
+}
 
 // SideInputCache stores a cache of reusable inputs for the purposes of
 // eliminating redundant calls to the runner during execution of ParDos
@@ -44,7 +56,7 @@ type token string
 type SideInputCache struct {
 	capacity    int
 	mu          sync.Mutex
-	cache       map[token]exec.ReusableInput
+	cache       map[token]ReusableInput
 	idsToTokens map[string]token
 	validTokens map[token]int8 // Maps tokens to active bundle counts
 	metrics     CacheMetrics
@@ -66,7 +78,7 @@ func (c *SideInputCache) Init(cap int) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache = make(map[token]exec.ReusableInput, cap)
+	c.cache = make(map[token]ReusableInput, cap)
 	c.idsToTokens = make(map[string]token)
 	c.validTokens = make(map[token]int8)
 	c.capacity = cap
@@ -148,7 +160,7 @@ func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (
 // input has been cached. A query having a bad token (e.g. one that doesn't make a known
 // token or one that makes a known but currently invalid token) is treated the same as a
 // cache miss.
-func (c *SideInputCache) QueryCache(transformID, sideInputID string) exec.ReusableInput {
+func (c *SideInputCache) QueryCache(transformID, sideInputID string) ReusableInput {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
@@ -170,7 +182,7 @@ func (c *SideInputCache) QueryCache(transformID, sideInputID string) exec.Reusab
 // with its corresponding transform ID and side input ID. If the IDs do not pair with a known, valid token
 // then we silently do not cache the input, as this is an indication that the runner is treating that input
 // as uncacheable.
-func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.ReusableInput) {
+func (c *SideInputCache) SetCache(transformID, sideInputID string, input ReusableInput) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)

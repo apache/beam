@@ -62,6 +62,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -70,6 +71,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
+@Ignore("https://issues.apache.org/jira/browse/BEAM-12908")
 public class ReadWriteIT {
   private static final Logger LOG = LoggerFactory.getLogger(ReadWriteIT.class);
   private static final CloudZone ZONE = CloudZone.parse("us-central1-b");
@@ -236,7 +238,21 @@ public class ReadWriteIT {
     pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
 
     TopicPath topic = createTopic(getProject(pipeline.getOptions()));
-    SubscriptionPath subscription = createSubscription(topic);
+    SubscriptionPath subscription = null;
+    Exception lastException = null;
+    for (int i = 0; i < 30; ++i) {
+      // Sleep for topic creation to propagate.
+      Thread.sleep(1000);
+      try {
+        subscription = createSubscription(topic);
+      } catch (Exception e) {
+        lastException = e;
+        LOG.info("Retrying exception on subscription creation.", e);
+      }
+    }
+    if (subscription == null) {
+      throw lastException;
+    }
 
     // Publish some messages
     writeMessages(topic, pipeline);
