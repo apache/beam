@@ -659,24 +659,23 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
           final_file_name, i, len(file_results), r.window, r.pane, destination)
 
     _LOGGER.info(
-        'Cautiously removing temporary files for'
+        'Checking orphaned temporary files for'
         ' destination %s and window %s',
         destination,
         w)
     writer_key = (destination, w)
-    self._remove_temporary_files(writer_key)
+    self._check_orphaned_files(writer_key)
 
-  def _remove_temporary_files(self, writer_key):
+  def _check_orphaned_files(self, writer_key):
     try:
       prefix = filesystems.FileSystems.join(
           self.temporary_directory.get(), str(abs(hash(writer_key))))
       match_result = filesystems.FileSystems.match(['%s*' % prefix])
       orphaned_files = [m.path for m in match_result[0].metadata_list]
 
-      _LOGGER.debug('Deleting orphaned files: %s', orphaned_files)
-      filesystems.FileSystems.delete(orphaned_files)
+      _LOGGER.info('Some files may be left orphaned in the temporary folder: %s', orphaned_files)
     except BeamIOError as e:
-      _LOGGER.debug('Exceptions when deleting files: %s', e)
+      _LOGGER.info('Exceptions when checking orphaned files: %s', e)
 
 
 class _WriteShardedRecordsFn(beam.DoFn):
