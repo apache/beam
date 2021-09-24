@@ -57,7 +57,7 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 
 * Python GBK by default will fail on unbounded PCollections that have global windowing and a default trigger. The `--allow_unsafe_triggers` flag can be used to override this. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 * Python GBK will fail if it detects an unsafe trigger unless the `--allow_unsafe_triggers` flag is set. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
-* Since release 2.30.0, "The AvroCoder changes for BEAM-2303 \[changed\] the reader/writer from the Avro ReflectDatum* classes to the SpecificDatum* classes" (Java). The `useReflectApi` setting, introduced in this release, allows reverting to the previous behavior ([BEAM-12628](https://issues.apache.org/jira/browse/BEAM-12628)). 
+* Since release 2.30.0, "The AvroCoder changes for BEAM-2303 \[changed\] the reader/writer from the Avro ReflectDatum* classes to the SpecificDatum* classes" (Java). The `useReflectApi` setting, introduced in this release, allows reverting to the previous behavior ([BEAM-12628](https://issues.apache.org/jira/browse/BEAM-12628)).
 
 <!--
 ### Deprecations
