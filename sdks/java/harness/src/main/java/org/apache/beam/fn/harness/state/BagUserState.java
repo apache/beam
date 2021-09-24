@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
@@ -115,6 +114,7 @@ public class BagUserState<T> {
     newValues = new ArrayList<>();
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void asyncClose() throws Exception {
     checkState(
         !isClosed,
@@ -122,8 +122,7 @@ public class BagUserState<T> {
         request.getStateKey());
     if (oldValues == null) {
       beamFnStateClient.handle(
-          request.toBuilder().setClear(StateClearRequest.getDefaultInstance()),
-          new CompletableFuture<>());
+          request.toBuilder().setClear(StateClearRequest.getDefaultInstance()));
     }
     if (!newValues.isEmpty()) {
       ByteString.Output out = ByteString.newOutput();
@@ -134,8 +133,7 @@ public class BagUserState<T> {
       beamFnStateClient.handle(
           request
               .toBuilder()
-              .setAppend(StateAppendRequest.newBuilder().setData(out.toByteString())),
-          new CompletableFuture<>());
+              .setAppend(StateAppendRequest.newBuilder().setData(out.toByteString())));
     }
     isClosed = true;
   }
