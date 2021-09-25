@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import concurrent.futures
 import copy
 import inspect
 import logging
@@ -1230,7 +1231,8 @@ class ParDo(PTransformWithSideInputs):
       dead_letter_tag='bad',
       *,
       exc_class=Exception,
-      partial=False):
+      partial=False,
+      use_subprocess=False):
     """Automatically provides a dead letter output for skipping bad records.
 
     This returns a tagged output with two PCollections, the first being the
@@ -1259,10 +1261,17 @@ class ParDo(PTransformWithSideInputs):
           in partial outputs for a ParDo or FlatMap that throws an error part
           way through execution) or buffer all outputs until successful
           processing of the entire element. Optional, defaults to False.
+      use_subprocess: Whether to execute the DoFn logic in a subprocess. This
+          allows one to recover from errors that crash the process (e.g. from
+          an underlying C/C++ library), but is slower as elements and results
+          must cross a process boundary. Optional, defaults to False.
     """
+    if partial and use_subprocess:
+      raise ValueError('partial and use_subprocess are mutually incompatible.')
     args, kwargs = self.raw_side_inputs
+    fn = _SubprocessDoFn(self.fn) if use_subprocess else self.fn
     return self.label >> ParDo(
-        _DeadLetterDoFn(self.fn, dead_letter_tag, exc_class, partial),
+        _DeadLetterDoFn(fn, dead_letter_tag, exc_class, partial),
         *args,
         **kwargs).with_outputs(
             dead_letter_tag, main=main_tag)
@@ -1806,6 +1815,89 @@ class _DeadLetterDoFn(DoFn):
                   type(exn),
                   repr(exn),
                   traceback.format_exception(*sys.exc_info()))))
+
+
+class _SubprocessDoFn(DoFn):
+  """Process method run in a subprocess, turning hard crashes into exceptions.
+  """
+  def __init__(self, fn):
+    self._fn = fn
+    self._serialized_fn = pickler.dumps(fn)
+
+  def __getattribute__(self, name):
+    if (name.startswith('__') or name in self.__dict__ or
+        name in type(self).__dict__):
+      return object.__getattribute__(self, name)
+    else:
+      return getattr(self._fn, name)
+
+  def setup(self):
+    self._pool = None
+
+  def start_bundle(self):
+    # The pool is initialized lazily, including calls to setup and start_bundle.
+    # This allows us to continue processing elements after a crash.
+    pass
+
+  def process(self, *args, **kwargs):
+    return self._call_remote(self._remote_process, *args, **kwargs)
+
+  def finish_bundle(self):
+    self._call_remote(self._remote_finish_bundle)
+
+  def teardown(self):
+    self._call_remote(self._remote_teardown)
+    self._pool.shutdown()
+    self._pool = None
+
+  def _call_remote(self, method, *args, **kwargs):
+    if self._pool is None:
+      self._pool = concurrent.futures.ProcessPoolExecutor(1)
+      self._pool.submit(self._remote_init, self._serialized_fn).result()
+    try:
+      return self._pool.submit(method, *args, **kwargs).result()
+    except concurrent.futures.process.BrokenProcessPool:
+      self._pool = None
+      raise
+
+  # These are classmethods to avoid picking the state of self.
+  # They should only be called in an isolated process, so there's no concern
+  # about sharing state or thread safety.
+
+  @classmethod
+  def _remote_init(cls, serialized_fn):
+    cls._serialized_fn = serialized_fn
+    cls._fn = None
+    cls._started = False
+
+  @classmethod
+  def _remote_process(cls, *args, **kwargs):
+    if cls._fn is None:
+      cls._fn = pickler.loads(cls._serialized_fn)
+      cls._fn.setup()
+    if not cls._started:
+      cls._fn.start_bundle()
+      cls._started = True
+    result = cls._fn.process(*args, **kwargs)
+    if result:
+      # Don't return generator objects.
+      result = list(result)
+    return result
+
+  @classmethod
+  def _remote_finish_bundle(cls):
+    if cls._started:
+      cls._started = False
+      if cls._fn.finish_bundle():
+        # This is because we restart and re-initialize the pool if it crashed.
+        raise RuntimeError(
+            "Returning elements from _SubprocessDoFn.finish_bundle not safe.")
+
+  @classmethod
+  def _remote_teardown(cls):
+    if cls._fn:
+      cls._fn.teardown()
+    cls._fn = None
 
 
 def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
