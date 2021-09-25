@@ -673,7 +673,9 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       match_result = filesystems.FileSystems.match(['%s*' % prefix])
       orphaned_files = [m.path for m in match_result[0].metadata_list]
 
-      _LOGGER.info('Some files may be left orphaned in the temporary folder: %s', orphaned_files)
+      _LOGGER.info(
+          'Some files may be left orphaned in the temporary folder: %s',
+          orphaned_files)
     except BeamIOError as e:
       _LOGGER.info('Exceptions when checking orphaned files: %s', e)
 
