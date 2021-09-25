@@ -420,6 +420,10 @@ message MonitoringInfo {
     BIGTABLE_PROJECT_ID = 20 [(label_props) = { name: "BIGTABLE_PROJECT_ID"}];
     INSTANCE_ID = 21 [(label_props) = { name: "INSTANCE_ID"}];
     TABLE_ID = 22 [(label_props) = { name: "TABLE_ID"}];
+    SPANNER_PROJECT_ID = 23 [(label_props) = { name: "SPANNER_PROJECT_ID"}];
+    SPANNER_DATABASE_ID = 24 [(label_props) = { name: "SPANNER_DATABASE_ID"}];
+    SPANNER_INSTANCE_ID = 25 [(label_props) = { name: "SPANNER_INSTANCE_ID" }];
+    SPANNER_QUERY_NAME = 26 [(label_props) = { name: "SPANNER_QUERY_NAME" }];
   }
 
   // A set of key and value labels which define the scope of the metric. For
