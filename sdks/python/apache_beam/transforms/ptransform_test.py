@@ -21,6 +21,7 @@
 
 import collections
 import operator
+import os
 import pickle
 import random
 import re
@@ -32,6 +33,7 @@ from unittest.mock import patch
 
 import hamcrest as hc
 import pytest
+from parameterized import parameterized_class
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
@@ -2524,28 +2526,42 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       result.foo
 
 
+@parameterized_class([{'use_subprocess': False}, {'use_subprocess': True}])
 class DeadLettersTest(unittest.TestCase):
-  @staticmethod
-  def raise_if_negative(x):
+  @classmethod
+  def die(cls, x):
+    if cls.use_subprocess and False:
+      os._exit(x)
+    else:
+      raise ValueError(x)
+
+  @classmethod
+  def die_if_negative(cls, x):
+    if x < 0:
+      cls.die(x)
+    else:
+      return x
+
+  @classmethod
+  def exception_if_negative(cls, x):
     if x < 0:
       raise ValueError(x)
     else:
       return x
 
-  @staticmethod
-  def raise_if_less(x, bound=0):
+  @classmethod
+  def die_if_less(cls, x, bound=0):
     if x < bound:
-      raise ValueError((x, bound))
+      cls.die(x)
     else:
       return x, bound
 
   def test_error_messages(self):
-
     with TestPipeline() as p:
       good, bad = (
           p
           | beam.Create([-1, 10, -100, 2, 0])
-          | beam.Map(self.raise_if_negative).with_dead_letters())
+          | beam.Map(self.exception_if_negative).with_dead_letters())
       assert_that(good, equal_to([0, 2, 10]), label='CheckGood')
       assert_that(
           bad |
@@ -2554,12 +2570,12 @@ class DeadLettersTest(unittest.TestCase):
           label='CheckBad')
 
   def test_filters_exceptions(self):
-
     with TestPipeline() as p:
       good, _ = (
           p
           | beam.Create([-1, 10, -100, 2, 0])
-          | beam.Map(self.raise_if_negative).with_dead_letters(
+          | beam.Map(self.exception_if_negative).with_dead_letters(
+              use_subprocess=self.use_subprocess,
               exc_class=(ValueError, TypeError)))
       assert_that(good, equal_to([0, 2, 10]), label='CheckGood')
 
@@ -2568,7 +2584,8 @@ class DeadLettersTest(unittest.TestCase):
         good, _ = (
             p
             | beam.Create([-1, 10, -100, 2, 0])
-            | beam.Map(self.raise_if_negative).with_dead_letters(
+            | beam.Map(self.die_if_negative).with_dead_letters(
+                use_subprocess=self.use_subprocess,
                 exc_class=TypeError))
 
   def test_tuples(self):
@@ -2577,7 +2594,8 @@ class DeadLettersTest(unittest.TestCase):
       good, _ = (
           p
           | beam.Create([(1, 2), (3, 2), (1, -10)])
-          | beam.MapTuple(self.raise_if_less).with_dead_letters())
+          | beam.MapTuple(self.die_if_less).with_dead_letters(
+              use_subprocess=self.use_subprocess))
       assert_that(good, equal_to([(3, 2), (1, -10)]), label='CheckGood')
 
   def test_side_inputs(self):
@@ -2587,25 +2605,29 @@ class DeadLettersTest(unittest.TestCase):
 
       assert_that((
           input
-          | 'Default' >> beam.Map(self.raise_if_less).with_dead_letters()).good,
+          | 'Default' >> beam.Map(self.die_if_less).with_dead_letters(
+              use_subprocess=self.use_subprocess)).good,
                   equal_to([(10, 0), (100, 0)]),
                   label='CheckDefault')
       assert_that((
           input
-          | 'Pos' >> beam.Map(self.raise_if_less, 20).with_dead_letters()).good,
+          | 'Pos' >> beam.Map(self.die_if_less, 20).with_dead_letters(
+              use_subprocess=self.use_subprocess)).good,
                   equal_to([(100, 20)]),
                   label='PosSideInput')
       assert_that((
           input
-          | 'Key' >> beam.Map(self.raise_if_less, bound=30).with_dead_letters()
-      ).good,
+          | 'Key' >> beam.Map(self.die_if_less, bound=30).with_dead_letters(
+              use_subprocess=self.use_subprocess)).good,
                   equal_to([(100, 30)]),
                   label='KeySideInput')
 
   def test_params(self):
-    def raise_if_negative_with_timestamp(x, ts=beam.DoFn.TimestampParam):
+    die = type(self).die
+
+    def die_if_negative_with_timestamp(x, ts=beam.DoFn.TimestampParam):
       if x < 0:
-        raise ValueError((x, ts))
+        die(x)
       else:
         return x, ts
 
@@ -2614,10 +2636,13 @@ class DeadLettersTest(unittest.TestCase):
           p
           | beam.Create([-1, 0, 1])
           | beam.Map(lambda x: TimestampedValue(x, x))
-          | beam.Map(raise_if_negative_with_timestamp).with_dead_letters())
+          | beam.Map(die_if_negative_with_timestamp).with_dead_letters(
+              use_subprocess=self.use_subprocess))
       assert_that(good, equal_to([(0, Timestamp(0)), (1, Timestamp(1))]))
 
   def test_lifecycle(self):
+    die = type(self).die
+
     class MyDoFn(beam.DoFn):
       state = None
 
@@ -2639,19 +2664,23 @@ class DeadLettersTest(unittest.TestCase):
 
       def process(self, x):
         if x < 0:
-          raise ValueError(x)
+          die(x)
         else:
           yield self.state
 
     with TestPipeline() as p:
       good, _ = (
           p
-          | beam.Create([-1, 0, 1])
-          | beam.ParDo(MyDoFn()).with_dead_letters())
-      assert_that(good, equal_to(['start_bundle'] * 2))
+          | beam.Create([-1, 0, 1, -10, 10])
+          | beam.ParDo(MyDoFn()).with_dead_letters(
+              use_subprocess=self.use_subprocess))
+      assert_that(good, equal_to(['start_bundle'] * 3))
 
   def test_partial(self):
-    def raise_if_negative_iter(elements):
+    if self.use_subprocess:
+      self.skipTest('Subprocess and partial mutally exclusive.')
+
+    def die_if_negative_iter(elements):
       for element in elements:
         if element < 0:
           raise ValueError(element)
@@ -2662,14 +2691,14 @@ class DeadLettersTest(unittest.TestCase):
 
       assert_that((
           input
-          | 'Partial' >> beam.FlatMap(raise_if_negative_iter).with_dead_letters(
+          | 'Partial' >> beam.FlatMap(die_if_negative_iter).with_dead_letters(
               partial=True)).good,
                   equal_to([2, 3, 33, 4, 44]),
                   'CheckPartial')
 
       assert_that((
-          input |
-          'Complete' >> beam.FlatMap(raise_if_negative_iter).with_dead_letters(
+          input
+          | 'Complete' >> beam.FlatMap(die_if_negative_iter).with_dead_letters(
               partial=False)).good,
                   equal_to([4, 44]),
                   'CheckComplete')
