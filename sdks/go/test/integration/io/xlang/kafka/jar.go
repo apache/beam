@@ -16,23 +16,26 @@
 package kafka
 
 import (
+	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"strconv"
 	"time"
 )
 
-// kafkaCluster contains anything needed to use and clean up the Kafka cluster
-// once it's been started.
-type kafkaCluster struct {
-	proc          *os.Process // The process information for the running jar.
-	bootstrapAddr string      // The bootstrap address to connect to Kafka.
-}
+// runLocalKafka takes a Kafka jar filepath and runs a local Kafka cluster with
+// a timeout (via the timeout command), returning the bootstrap server. Requires
+// an environment with the timeout command.
+func runLocalKafka(jar string, timeout string) (*cluster, error) {
+	_, err := exec.LookPath("java")
+	if err != nil {
+		return nil, err
+	}
+	_, err = exec.LookPath("timeout")
+	if err != nil && len(timeout) != 0 {
+		return nil, fmt.Errorf("\"timeout\" required for kafka_jar_timeout flag: %s", err)
+	}
 
-// runLocalKafka takes a Kafka jar filepath and runs a local Kafka cluster,
-// returning the bootstrap server for that cluster.
-func runLocalKafka(jar string) (*kafkaCluster, error) {
 	port, err := getOpenPort()
 	if err != nil {
 		return nil, err
@@ -44,14 +47,20 @@ func runLocalKafka(jar string) (*kafkaCluster, error) {
 	}
 	zookeeperPort := strconv.Itoa(port)
 
-	cmd := exec.Command("java", "-jar", jar, kafkaPort, zookeeperPort)
+	var cmdArr []string
+	if len(timeout) != 0 {
+		cmdArr = append(cmdArr, "timeout", timeout)
+	}
+	cmdArr = append(cmdArr, "java", "-jar", jar, kafkaPort, zookeeperPort)
+
+	cmd := exec.Command(cmdArr[0], cmdArr[1:]...)
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
 	}
 	time.Sleep(3 * time.Second) // Wait a bit for the cluster to start.
 
-	return &kafkaCluster{proc: cmd.Process, bootstrapAddr: "localhost:" + kafkaPort}, nil
+	return &cluster{proc: cmd.Process, bootstrapAddr: "localhost:" + kafkaPort}, nil
 }
 
 // getOpenPort gets an open TCP port and returns it, or an error on failure.

@@ -207,10 +207,9 @@ public class StateFetchingIterators {
 
     private void prefetchFirstPage() {
       if (firstPageResponseFuture == null) {
-        firstPageResponseFuture = new CompletableFuture<>();
-        beamFnStateClient.handle(
-            stateRequestForFirstChunk.toBuilder().setGet(stateRequestForFirstChunk.getGet()),
-            firstPageResponseFuture);
+        firstPageResponseFuture =
+            beamFnStateClient.handle(
+                stateRequestForFirstChunk.toBuilder().setGet(stateRequestForFirstChunk.getGet()));
       }
     }
   }
@@ -256,12 +255,11 @@ public class StateFetchingIterators {
     @Override
     public void prefetch() {
       if (currentState == State.READ_REQUIRED && prefetchedResponse == null) {
-        prefetchedResponse = new CompletableFuture<>();
-        beamFnStateClient.handle(
-            stateRequestForFirstChunk
-                .toBuilder()
-                .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)),
-            prefetchedResponse);
+        prefetchedResponse =
+            beamFnStateClient.handle(
+                stateRequestForFirstChunk
+                    .toBuilder()
+                    .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)));
       }
     }
 

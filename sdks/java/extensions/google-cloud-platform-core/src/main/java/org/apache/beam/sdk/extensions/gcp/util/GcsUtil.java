@@ -485,35 +485,93 @@ public class GcsUtil {
     }
   }
 
-  /**
-   * Creates an object in GCS.
-   *
-   * <p>Returns a WritableByteChannel that can be used to write data to the object.
-   *
-   * @param path the GCS file to write to
-   * @param type the type of object, eg "text/plain".
-   * @return a Callable object that encloses the operation.
-   */
+  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
+  @Deprecated
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
-    return create(path, type, uploadBufferSizeBytes);
+    CreateOptions.Builder builder = CreateOptions.builder().setContentType(type);
+    return create(path, builder.build());
+  }
+
+  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
+  @Deprecated
+  public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
+      throws IOException {
+    CreateOptions.Builder builder =
+        CreateOptions.builder()
+            .setContentType(type)
+            .setUploadBufferSizeBytes(uploadBufferSizeBytes);
+    return create(path, builder.build());
+  }
+
+  @AutoValue
+  public abstract static class CreateOptions {
+    /**
+     * If true, the created file is expected to not exist. Instead of checking for file presence
+     * before writing a write exception may occur if the file does exist.
+     */
+    public abstract boolean getExpectFileToNotExist();
+
+    /**
+     * If non-null, the upload buffer size to be used. If null, the buffer size corresponds to {code
+     * GCSUtil.getUploadBufferSizeBytes}
+     */
+    public abstract @Nullable Integer getUploadBufferSizeBytes();
+
+    /** The content type for the created file, eg "text/plain". */
+    public abstract @Nullable String getContentType();
+
+    public static Builder builder() {
+      return new AutoValue_GcsUtil_CreateOptions.Builder().setExpectFileToNotExist(false);
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setContentType(String value);
+
+      public abstract Builder setUploadBufferSizeBytes(int value);
+
+      public abstract Builder setExpectFileToNotExist(boolean value);
+
+      public abstract CreateOptions build();
+    }
   }
 
   /**
-   * Same as {@link GcsUtil#create(GcsPath, String)} but allows overriding {code
-   * uploadBufferSizeBytes}.
+   * Creates an object in GCS and prepares for uploading its contents.
+   *
+   * @param path the GCS file to write to
+   * @param options to be used for creating and configuring file upload
+   * @return a WritableByteChannel that can be used to write data to the object.
    */
-  public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
-      throws IOException {
+  public WritableByteChannel create(GcsPath path, CreateOptions options) throws IOException {
     AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
-    int uploadChunkSize =
-        (uploadBufferSizeBytes == null) ? wcOptions.getUploadChunkSize() : uploadBufferSizeBytes;
-    AsyncWriteChannelOptions newOptions =
-        wcOptions.toBuilder().setUploadChunkSize(uploadChunkSize).build();
+    @Nullable
+    Integer uploadBufferSizeBytes =
+        options.getUploadBufferSizeBytes() != null
+            ? options.getUploadBufferSizeBytes()
+            : getUploadBufferSizeBytes();
+    if (uploadBufferSizeBytes != null) {
+      wcOptions = wcOptions.toBuilder().setUploadChunkSize(uploadBufferSizeBytes).build();
+    }
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
-        googleCloudStorageOptions.toBuilder().setWriteChannelOptions(newOptions).build();
+        googleCloudStorageOptions.toBuilder().setWriteChannelOptions(wcOptions).build();
     GoogleCloudStorage gcpStorage =
         new GoogleCloudStorageImpl(
             newGoogleCloudStorageOptions, this.storageClient, this.credentials);
+    StorageResourceId resourceId =
+        new StorageResourceId(
+            path.getBucket(),
+            path.getObject(),
+            // If we expect the file not to exist, we set a generation id of 0. This avoids a read
+            // to identify the object exists already and should be overwritten.
+            // See {@link GoogleCloudStorage#create(StorageResourceId, GoogleCloudStorageOptions)}
+            options.getExpectFileToNotExist() ? 0L : StorageResourceId.UNKNOWN_GENERATION_ID);
+    CreateObjectOptions.Builder createBuilder =
+        CreateObjectOptions.builder().setOverwriteExisting(true);
+    if (options.getContentType() != null) {
+      createBuilder = createBuilder.setContentType(options.getContentType());
+    }
+
     HashMap<String, String> baseLabels = new HashMap<>();
     baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
     baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
@@ -528,13 +586,7 @@ public class GcsUtil {
     ServiceCallMetric serviceCallMetric =
         new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
     try {
-      WritableByteChannel channel =
-          gcpStorage.create(
-              new StorageResourceId(path.getBucket(), path.getObject()),
-              CreateObjectOptions.builder()
-                  .setOverwriteExisting(true)
-                  .setContentType(type)
-                  .build());
+      WritableByteChannel channel = gcpStorage.create(resourceId, createBuilder.build());
       serviceCallMetric.call("ok");
       return channel;
     } catch (IOException e) {

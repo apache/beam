@@ -70,6 +70,8 @@ message JavaClassLookupPayload {
   // order.
   // If able, top level field names are also verified against the method
   // parameters for a match.
+  // Any field names in the form 'ignore[0-9]+' will not be used for validation
+  // hence that format can be used to represent arbitrary field names.
   Schema constructor_schema = 3;
 
   // A payload which can be decoded using beam:coder:row:v1 and the provided
@@ -95,6 +97,8 @@ message BuilderMethod {
   // order.
   // If able, top level field names are also verified against the method
   // parameters for a match.
+  // Any field names in the form 'ignore[0-9]+' will not be used for validation
+  // hence that format can be used to represent arbitrary field names.
   Schema schema = 2;
 
   // A payload which can be decoded using beam:coder:row:v1 and the builder

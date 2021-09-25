@@ -724,15 +724,8 @@ class Repeatedly(TriggerFn):
     self.underlying.reset(window, context)
 
   def may_lose_data(self, windowing):
-    """Repeatedly may only lose data if the underlying trigger may not have
-    its condition met.
-
-    For underlying triggers that may finish, Repeatedly overrides that
-    behavior.
-    """
-    return (
-        self.underlying.may_lose_data(windowing)
-        & DataLossReason.CONDITION_NOT_GUARANTEED)
+    """Repeatedly will run in a loop and pick up whatever is left at GC."""
+    return DataLossReason.NO_POTENTIAL_LOSS
 
   @staticmethod
   def from_runner_api(proto, context):

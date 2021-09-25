@@ -852,13 +852,13 @@ public class ProcessBundleHandler {
     @Override
     @SuppressWarnings("FutureReturnValueIgnored") // async arriveAndDeregister task doesn't need
     // monitoring.
-    public void handle(
-        StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
+    public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
       // Register each request with the phaser and arrive and deregister each time a request
       // completes.
+      CompletableFuture<StateResponse> response = beamFnStateClient.handle(requestBuilder);
       phaser.register();
       response.whenComplete((stateResponse, throwable) -> phaser.arriveAndDeregister());
-      beamFnStateClient.handle(requestBuilder, response);
+      return response;
     }
   }
 
@@ -879,7 +879,7 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    public void handle(Builder requestBuilder, CompletableFuture<StateResponse> response) {
+    public CompletableFuture<StateResponse> handle(Builder requestBuilder) {
       throw new IllegalStateException(
           String.format(
               "State API calls are unsupported because the "

@@ -34,6 +34,7 @@ from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.interactive.utils import to_element_list
+from apache_beam.runners.interactive.utils import watch_sources
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 
 # size of PCollection samples cached.
@@ -129,7 +130,7 @@ class InteractiveRunner(runners.PipelineRunner):
       ie.current_env().evict_computed_pcollections()
 
     # Make sure that sources without a user reference are still cached.
-    inst.watch_sources(pipeline)
+    watch_sources(pipeline)
 
     user_pipeline = ie.current_env().user_pipeline(pipeline)
     pipeline_instrument = inst.build_pipeline_instrument(pipeline, options)
