@@ -8674,7 +8674,8 @@ trigger emits the contents of a window after the
 timestamps attached to the data elements. The watermark is a global progress
 metric, and is Beam&amp;rsquo;s notion of input completeness within your pipeline at any
 given point. &lt;span class="language-java">&lt;code>AfterWatermark.pastEndOfWindow()&lt;/code>&lt;/span>
-&lt;span class="language-py">&lt;code>AfterWatermark&lt;/code>&lt;/span> &lt;em>only&lt;/em> fires when the
+&lt;span class="language-py">&lt;code>AfterWatermark&lt;/code>&lt;/span>
+&lt;span class="language-go">&lt;code>window.AfterEndOfWindow&lt;/code>&lt;/span> &lt;em>only&lt;/em> fires when the
 watermark passes the end of the window.&lt;/p>
 &lt;p>In addition, you can configure triggers that fire if your pipeline receives data
 before or after the end of the window.&lt;/p>
@@ -8705,6 +8706,15 @@ firings:&lt;/p>
 &lt;span class="n">early&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">AfterProcessingTime&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">delay&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">60&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">late&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">AfterCount&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">
+&lt;span class="nx">trigger&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterEndOfWindow&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nf">EarlyFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterProcessingTime&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60000&lt;/span>&lt;span class="p">)).&lt;/span>&lt;span class="nf">LateFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerRepeat&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterCount&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="default-trigger">9.1.1. Default trigger&lt;/h4>
 &lt;p>The default trigger for a &lt;code>PCollection&lt;/code> is based on event time, and emits the
 results of the window when the Beam&amp;rsquo;s watermark passes the end of the window,
@@ -8717,7 +8727,8 @@ modifying this behavior.&lt;/p>
 &lt;h3 id="processing-time-triggers">9.2. Processing time triggers&lt;/h3>
 &lt;p>The &lt;code>AfterProcessingTime&lt;/code> trigger operates on &lt;em>processing time&lt;/em>. For example,
 the &lt;span class="language-java">&lt;code>AfterProcessingTime.pastFirstElementInPane()&lt;/code>&lt;/span>
-&lt;span class="language-py">&lt;code>AfterProcessingTime&lt;/code>&lt;/span> trigger emits a window
+&lt;span class="language-py">&lt;code>AfterProcessingTime&lt;/code>&lt;/span>
+&lt;span class="language-go">&lt;code>window.TriggerAfterProcessingTime()&lt;/code>&lt;/span> trigger emits a window
 after a certain amount of processing time has passed since data was received.
 The processing time is determined by the system clock, rather than the data
 element&amp;rsquo;s timestamp.&lt;/p>
@@ -8727,20 +8738,22 @@ window.&lt;/p>
 &lt;h3 id="data-driven-triggers">9.3. Data-driven triggers&lt;/h3>
 &lt;p>Beam provides one data-driven trigger,
 &lt;span class="language-java">&lt;code>AfterPane.elementCountAtLeast()&lt;/code>&lt;/span>
-&lt;span class="language-py">&lt;code>AfterCount&lt;/code>&lt;/span>. This trigger works on an element
+&lt;span class="language-py">&lt;code>AfterCount&lt;/code>&lt;/span>
+&lt;span class="language-go">&lt;code>window.TriggerAfterCount()&lt;/code>&lt;/span>. This trigger works on an element
 count; it fires after the current pane has collected at least &lt;em>N&lt;/em> elements. This
 allows a window to emit early results (before all the data has accumulated),
 which can be particularly useful if you are using a single global window.&lt;/p>
 &lt;p>It is important to note that if, for example, you specify
 &lt;span class="language-java">&lt;code>.elementCountAtLeast(50)&lt;/code>&lt;/span>
-&lt;span class="language-py">AfterCount(50)&lt;/span> and only 32 elements arrive,
+&lt;span class="language-py">AfterCount(50)&lt;/span>
+&lt;span class="language-go">&lt;code>window.TriggerAfterCount(50)&lt;/code>&lt;/span> and only 32 elements arrive,
 those 32 elements sit around forever. If the 32 elements are important to you,
 consider using &lt;a href="#composite-triggers">composite triggers&lt;/a> to combine multiple
 conditions. This allows you to specify multiple firing conditions such as &amp;ldquo;fire
 either when I receive 50 elements, or every 1 second&amp;rdquo;.&lt;/p>
 &lt;h3 id="setting-a-trigger">9.4. Setting a trigger&lt;/h3>
 &lt;p>When you set a windowing function for a &lt;code>PCollection&lt;/code> by using the
-&lt;span class="language-java">&lt;code>Window&lt;/code>&lt;/span>&lt;span class="language-py">&lt;code>WindowInto&lt;/code>&lt;/span>
+&lt;span class="language-java">&lt;code>Window&lt;/code>&lt;/span>&lt;span class="language-py">&lt;code>WindowInto&lt;/code>&lt;/span>&lt;span class="language-go">&lt;code>beam.WindowInto&lt;/code>&lt;/span>
 transform, you can also specify a trigger.&lt;/p>
 &lt;p class="language-java">You set the trigger(s) for a &lt;code>PCollection&lt;/code> by invoking the method
 &lt;code>.triggering()&lt;/code> on the result of your &lt;code>Window.into()&lt;/code> transform. This code
@@ -8752,6 +8765,10 @@ mode&lt;/strong>.&lt;/p>
 when you use the &lt;code>WindowInto&lt;/code> transform. This code sample sets a time-based
 trigger for a &lt;code>PCollection&lt;/code>, which emits results one minute after the first
 element in that window has been processed. The &lt;code>accumulation_mode&lt;/code> parameter
+sets the window&amp;rsquo;s &lt;strong>accumulation mode&lt;/strong>.&lt;/p>
+&lt;p class="language-go">You set the trigger(s) for a &lt;code>PCollection&lt;/code> by passing in the &lt;code>beam.Trigger&lt;/code> parameter
+when you use the &lt;code>beam.WindowInto&lt;/code> transform. This code sample sets an Always
+trigger for a &lt;code>PCollection&lt;/code>, which emits results every time an element in that window has been processed. The &lt;code>beam.AccumulationMode&lt;/code> parameter
 sets the window&amp;rsquo;s &lt;strong>accumulation mode&lt;/strong>.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -8776,6 +8793,17 @@ sets the window&amp;rsquo;s &lt;strong>accumulation mode&lt;/strong>.&lt;/p>
 &lt;span class="n">accumulation_mode&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">AccumulationMode&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DISCARDING&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">
+&lt;span class="nx">windowSize&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="mi">10&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Second&lt;/span>
+&lt;span class="nx">trigger&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAlways&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">windowSize&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">pCollection&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">trigger&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">PanesDiscard&lt;/span>&lt;span class="p">())&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="window-accumulation-modes">9.4.1. Window accumulation modes&lt;/h4>
 &lt;p>When you specify a trigger, you must also set the the window&amp;rsquo;s &lt;strong>accumulation
 mode&lt;/strong>. When a trigger fires, it emits the current contents of the window as a
@@ -8789,6 +8817,10 @@ window to discard fired panes, invoke &lt;code>.discardingFiredPanes()&lt;/code>
 fires, set the &lt;code>accumulation_mode&lt;/code> parameter to &lt;code>ACCUMULATING&lt;/code> when you set the
 trigger. To set a window to discard fired panes, set &lt;code>accumulation_mode&lt;/code> to
 &lt;code>DISCARDING&lt;/code>.&lt;/p>
+&lt;p class="language-go">To set a window to accumulate the panes that are produced when the trigger
+fires, set the &lt;code>beam.AccumulationMode&lt;/code> parameter to &lt;code>beam.PanesAccumulate()&lt;/code> when you set the
+trigger. To set a window to discard fired panes, set &lt;code>beam.AccumulationMode&lt;/code> to
+&lt;code>beam.PanesDiscard()&lt;/code>.&lt;/p>
 &lt;p>Let&amp;rsquo;s look an example that uses a &lt;code>PCollection&lt;/code> with fixed-time windowing and a
 data-based trigger. This is something you might do if, for example, each window
 represented a ten-minute running average, but you wanted to display the current
@@ -10826,6 +10858,9 @@ return CombinePerKeyTransform()
 &lt;/ol>
 &lt;p>&lt;strong>Including dependencies&lt;/strong>&lt;/p>
 &lt;p>Currently Python external transforms are limited to dependencies available in core Beam SDK Harness.&lt;/p>
+&lt;h4 id="1313-creating-cross-language-go-transforms">13.1.3. Creating cross-language Go transforms&lt;/h4>
+&lt;p>Go currently does not support creating cross-language transforms, only using cross-language
+transforms from other languages; see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-9923">BEAM-9923&lt;/a>.&lt;/p>
 &lt;h3 id="use-x-lang-transforms">13.2. Using cross-language transforms&lt;/h3>
 &lt;p>Depending on the SDK language of the pipeline, you can use a high-level SDK-wrapper class, or a low-level transform class to access a cross-language transform.&lt;/p>
 &lt;h4 id="1321-using-cross-language-transforms-in-a-java-pipeline">13.2.1. Using cross-language transforms in a Java pipeline&lt;/h4>
@@ -10849,7 +10884,7 @@ return CombinePerKeyTransform()
 &lt;p>After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.&lt;/p>
 &lt;/li>
 &lt;/ol>
-&lt;h4 id="1322-using-cross-language-transforms-in-a-python-pipeline">13.2.2 Using cross-language transforms in a Python pipeline&lt;/h4>
+&lt;h4 id="1322-using-cross-language-transforms-in-a-python-pipeline">13.2.2. Using cross-language transforms in a Python pipeline&lt;/h4>
 &lt;p>If a Python-specific wrapper for a cross-language transform is available, use that; otherwise, you have to use the lower-level &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py">ExternalTransform&lt;/a> class to access the transform.&lt;/p>
 &lt;p>&lt;strong>Using an SDK wrapper&lt;/strong>&lt;/p>
 &lt;p>To use a cross-language transform through an SDK wrapper, import the module for the SDK wrapper and call it from your pipeline as shown in the example:&lt;/p>
@@ -10904,6 +10939,76 @@ assert_that(res, equal_to([&amp;#39;0a&amp;#39;, &amp;#39;0b&amp;#39;]))
 &lt;/li>
 &lt;li>
 &lt;p>After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;h4 id="1323-using-cross-language-transforms-in-a-go-pipeline">13.2.3. Using cross-language transforms in a Go pipeline&lt;/h4>
+&lt;p>If a Go-specific wrapper for a cross-language is available, use that; otherwise, you have to use the
+lower-level &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguage">CrossLanguage&lt;/a>
+function to access the transform.&lt;/p>
+&lt;p>&lt;strong>Expansion Services&lt;/strong>&lt;/p>
+&lt;p>The Go SDK does not yet support automatically starting an expansion service. In order to use
+cross-language transforms, you must manually start any necessary expansion services on your local
+machine and ensure they are accessible to your code during pipeline construction; see more at
+&lt;a href="https://issues.apache.org/jira/browse/BEAM-12862">BEAM-12862&lt;/a>.&lt;/p>
+&lt;p>&lt;strong>Using an SDK wrapper&lt;/strong>&lt;/p>
+&lt;p>To use a cross-language transform through an SDK wrapper, import the package for the SDK wrapper
+and call it from your pipeline as shown in the example:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>import (
+&amp;#34;github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio&amp;#34;
+)
+// Kafka Read using previously defined values.
+kafkaRecords := kafkaio.Read(
+s,
+expansionAddr, // Address of expansion service.
+bootstrapAddr,
+[]string{topicName},
+kafkaio.MaxNumRecords(numRecords),
+kafkaio.ConsumerConfigs(map[string]string{&amp;#34;auto.offset.reset&amp;#34;: &amp;#34;earliest&amp;#34;}))&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>&lt;strong>Using the CrossLanguage function&lt;/strong>&lt;/p>
+&lt;p>When an SDK-specific wrapper isn&amp;rsquo;t available, you will have to access the cross-language transform through the &lt;code>beam.CrossLanguage&lt;/code> function.&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>Make sure you have the appropriate expansion service running. See the expansion service section for details.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Make sure the transform you&amp;rsquo;re trying to use is available and can be used by the expansion service.
+Refer to &lt;a href="#create-x-lang-transforms">Creating cross-language transforms&lt;/a> for details.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Use the &lt;code>beam.CrossLanguage&lt;/code> function in your pipeline as appropriate. Reference the URN, Payload,
+expansion service address, and define inputs and outputs. You can use the
+&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguagePayload">beam.CrossLanguagePayload&lt;/a>
+function as a helper for encoding a payload. You can use the
+&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedInput">beam.UnnamedInput&lt;/a> and
+&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedOutput">beam.UnnamedOutput&lt;/a>
+functions as shortcuts for single, unnamed inputs/outputs or define a map for named ones.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>type prefixPayload struct {
+Data string `beam:&amp;#34;data&amp;#34;`
+}
+urn := &amp;#34;beam:transforms:xlang:test:prefix&amp;#34;
+payload := beam.CrossLanguagePayload(prefixPayload{Data: prefix})
+expansionAddr := &amp;#34;localhost:8097&amp;#34;
+outT := beam.UnnamedOutput(typex.New(reflectx.String))
+res := beam.CrossLanguage(s, urn, payload, expansionAddr, beam.UnnamedInput(inputPCol), outT)
+&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>After the job has been submitted to the Beam runner, shutdown the expansion service by
+terminating the expansion service process.&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;h3 id="x-lang-transform-runner-support">13.3. Runner Support&lt;/h3>
