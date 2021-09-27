@@ -35,12 +35,7 @@ If you’re new to pandas DataFrames, you can get started by reading [10 minutes
 To use Beam DataFrames, you need to install Apache Beam version 2.26.0 or higher (for complete setup instructions, see the [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/)) and pandas version 1.0 or higher. You can use DataFrames as shown in the following example, which reads New York City taxi data from a CSV file, performs a grouped aggregation, and writes the output back to CSV:
 
 {{< highlight py >}}
-from apache_beam.dataframe.io import read_csv
-
-with beam.Pipeline() as p:
-  df = p | read_csv("gs://apache-beam-samples/nyc_taxi/misc/sample.csv")
-  agg = df[['passenger_count', 'DOLocationID']].groupby('DOLocationID').sum()
-  agg.to_csv('output')
+{{< code_sample "sdks/python/apache_beam/examples/dataframe/taxiride.py" DataFrame_taxiride_aggregation >}}
 {{< /highlight >}}
 
 pandas is able to infer column names from the first row of the CSV data, which is where `passenger_count` and `DOLocationID` come from.
@@ -55,32 +50,8 @@ To use the DataFrames API in a larger pipeline, you can convert a PCollection to
 
 Here’s an example that creates a schema-aware PCollection, converts it to a DataFrame using `to_dataframe`, processes the DataFrame, and then converts the DataFrame back to a PCollection using `to_pcollection`:
 
-<!-- TODO(BEAM-11480): Convert these examples to snippets -->
 {{< highlight py >}}
-from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.dataframe.convert import to_pcollection
-...
-    # Read the text file[pattern] into a PCollection.
-    lines = p | 'Read' >> ReadFromText(known_args.input)
-
-    words = (
-        lines
-        | 'Split' >> beam.FlatMap(
-            lambda line: re.findall(r'[\w]+', line)).with_output_types(str)
-        # Map to Row objects to generate a schema suitable for conversion
-        # to a dataframe.
-        | 'ToRows' >> beam.Map(lambda word: beam.Row(word=word)))
-
-    df = to_dataframe(words)
-    df['count'] = 1
-    counted = df.groupby('word').sum()
-    counted.to_csv(known_args.output)
-
-    # Deferred DataFrames can also be converted back to schema'd PCollections
-    counted_pc = to_pcollection(counted, include_indexes=True)
-
-    # Do something with counted_pc
-    ...
+{{< code_sample "sdks/python/apache_beam/examples/dataframe/wordcount.py" DataFrame_wordcount >}}
 {{< /highlight >}}
 
 You can find the full wordcount example on
