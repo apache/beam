@@ -702,6 +702,22 @@ public class ParDo {
   public static class SingleOutput<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
 
+    @Override
+    public ProjectSupport supportsProjectionPushdown() {
+      return fn.supportsProjectionPushdown();
+    }
+
+    @Override
+    public FieldAccessDescriptor consumesProjection() {
+      return fn.consumesProjection();
+    }
+
+    @Override
+    public PTransform<PCollection<? extends InputT>, PCollection<OutputT>>
+        actuateProjectionPushdown(FieldAccessDescriptor fields) {
+      return new SingleOutput<>(fn.actuateProjectionPushdown(fields), sideInputs, fnDisplayData);
+    }
+
     private static final String MAIN_OUTPUT_TAG = "output";
 
     private final Map<String, PCollectionView<?>> sideInputs;

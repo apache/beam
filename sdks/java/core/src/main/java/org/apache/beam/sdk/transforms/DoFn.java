@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import avro.shaded.com.google.common.collect.Iterables;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.lang.annotation.Documented;
@@ -24,10 +25,12 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -37,6 +40,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.optimization.ProjectionConsumer;
+import org.apache.beam.sdk.transforms.optimization.ProjectionProducer;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -55,6 +62,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The argument to {@link ParDo} providing the code to use to process elements of the input {@link
@@ -90,7 +99,13 @@ import org.joda.time.Instant;
  * @param <OutputT> the type of the (main) output elements
  */
 public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nullable Object>
-    implements Serializable, HasDisplayData {
+    implements Serializable,
+        HasDisplayData,
+        ProjectionProducer<DoFn<InputT, OutputT>>,
+        ProjectionConsumer {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DoFn.class);
+
   /** Information accessible while within the {@link StartBundle} method. */
   @SuppressWarnings("ClassCanBeStatic") // Converting class to static is an API change.
   public abstract class StartBundleContext {
@@ -1390,5 +1405,22 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     interface Callback {
       void onBundleSuccess() throws Exception;
     }
+  }
+
+  @Override
+  public FieldAccessDescriptor consumesProjection() {
+    Map<String, FieldAccessDeclaration> dec =
+        DoFnSignatures.getSignature(this.getClass()).fieldAccessDeclarations();
+    if (dec != null && dec.size() == 1) {
+      try {
+        return (FieldAccessDescriptor) Iterables.getOnlyElement(dec.values()).field().get(this);
+      } catch (IllegalAccessException e) {
+        LOG.warn(
+            "Failed to read FieldAccess annotation target for {}",
+            this.getClass().getSimpleName(),
+            e);
+      }
+    }
+    return FieldAccessDescriptor.withAllFields();
   }
 }

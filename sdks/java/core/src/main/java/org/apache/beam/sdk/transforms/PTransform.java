@@ -29,6 +29,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.optimization.ProjectionConsumer;
+import org.apache.beam.sdk.transforms.optimization.ProjectionProducer;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -139,7 +141,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <OutputT> the type of the output of this PTransform
  */
 public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
-    implements Serializable /* See the note above */, HasDisplayData {
+    implements Serializable /* See the note above */,
+        HasDisplayData,
+        ProjectionProducer<PTransform<InputT, OutputT>>,
+        ProjectionConsumer {
   /**
    * Override this method to specify how this {@code PTransform} should be expanded on the given
    * {@code InputT}.
