@@ -1218,6 +1218,10 @@ public final class FirestoreV1 {
         List<Cursor> cursors = new ArrayList<>(partitionQueryResponse.getPartitionsList());
         cursors.sort(CURSOR_REFERENCE_VALUE_COMPARATOR);
         final int size = cursors.size();
+        if (size == 0) {
+          emit(c, dbRoot, structuredQuery.toBuilder());
+          return;
+        }
         final int lastIdx = size - 1;
         for (int i = 0; i < size; i++) {
           Cursor curr = cursors.get(i);

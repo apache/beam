@@ -53,6 +53,7 @@ dependencies {
   compile library.java.commons_lang3
   compile library.java.http_core
   compile library.java.commons_codec
+  runtime library.java.aws_java_sdk2_sts
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:io:kinesis", configuration: "testRuntime")

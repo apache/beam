@@ -178,7 +178,8 @@ class CoGroupByKey(PTransform):
       pcolls_dict = {str(ix): pcolls[ix] for ix in range(num_tags)}
       restore_tags = lambda vs: tuple(vs[str(ix)] for ix in range(num_tags))
 
-    result = pcolls_dict | _CoGBKImpl(pipeline=self.pipeline)
+    result = (
+        pcolls_dict | 'CoGroupByKeyImpl' >> _CoGBKImpl(pipeline=self.pipeline))
     if restore_tags:
       return result | 'RestoreTags' >> MapTuple(
           lambda k, vs: (k, restore_tags(vs)))
