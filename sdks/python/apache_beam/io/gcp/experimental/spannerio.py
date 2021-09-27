@@ -333,10 +333,10 @@ class _NaiveSpannerReadDoFn(DoFn):
     self.base_labels = {
         monitoring_infos.SERVICE_LABEL: 'Spanner',
         monitoring_infos.METHOD_LABEL: 'Read',
-        monitoring_infos.SPANNER_PROJECT_ID: self._spanner_configuration.
-        project,
-        monitoring_infos.SPANNER_DATABASE_ID: self._spanner_configuration.
-        database,
+        monitoring_infos.SPANNER_PROJECT_ID: (
+            self._spanner_configuration.project),
+        monitoring_infos.SPANNER_DATABASE_ID: (
+            self._spanner_configuration.database),
     }
 
   def _table_metric(self, table_id, status):
@@ -588,13 +588,14 @@ class _ReadFromPartitionFn(DoFn):
     self.base_labels = {
         monitoring_infos.SERVICE_LABEL: 'Spanner',
         monitoring_infos.METHOD_LABEL: 'Read',
-        monitoring_infos.SPANNER_PROJECT_ID: self._spanner_configuration.
-        project,
-        monitoring_infos.SPANNER_DATABASE_ID: self._spanner_configuration.
-        database,
+        monitoring_infos.SPANNER_PROJECT_ID: (
+            self._spanner_configuration.project),
+        monitoring_infos.SPANNER_DATABASE_ID: (
+            self._spanner_configuration.database),
     }
+    self.service_metric = None
 
-  def _table_metric(self, table_id, status):
+  def _table_metric(self, table_id):
     database_id = self._spanner_configuration.database
     project_id = self._spanner_configuration.project
     resource = resource_identifiers.SpannerTable(
@@ -607,9 +608,9 @@ class _ReadFromPartitionFn(DoFn):
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
-    service_call_metric.call(str(status))
+    return service_call_metric
 
-  def _query_metric(self, query_name, status):
+  def _query_metric(self, query_name):
     project_id = self._spanner_configuration.project
     resource = resource_identifiers.SpannerSqlQuery(project_id, query_name)
     labels = {
@@ -620,7 +621,7 @@ class _ReadFromPartitionFn(DoFn):
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
-    service_call_metric.call(str(status))
+    return service_call_metric
 
   def setup(self):
     spanner_client = Client(self._spanner_configuration.project)
@@ -640,12 +641,10 @@ class _ReadFromPartitionFn(DoFn):
 
     if element['is_sql'] is True:
       read_action = self._snapshot.process_query_batch
-      metric_action = self._query_metric
-      metric_id = query_name
+      self.service_metric = self._query_metric(query_name)
     elif element['is_table'] is True:
       read_action = self._snapshot.process_read_batch
-      metric_action = self._table_metric
-      metric_id = table_id
+      self.service_metric = self._table_metric(table_id)
     else:
       raise ValueError(
           "ReadOperation is improperly configure: %s" % str(element))
@@ -654,12 +653,12 @@ class _ReadFromPartitionFn(DoFn):
       for row in read_action(element['partitions']):
         yield row
 
-      metric_action(metric_id, 'ok')
+      self.service_metric.call('ok')
     except (ClientError, GoogleAPICallError) as e:
-      metric_action(metric_id, e.code.value)
+      self.service_metric(str(e.code.value))
       raise
     except HttpError as e:
-      metric_action(metric_id, e)
+      self.service_metric(str(e))
       raise
 
   def teardown(self):
@@ -1193,8 +1192,9 @@ class _WriteToSpannerDoFn(DoFn):
         monitoring_infos.SPANNER_PROJECT_ID: spanner_configuration.project,
         monitoring_infos.SPANNER_DATABASE_ID: spanner_configuration.database,
     }
+    self.service_metric = None
 
-  def _table_write_metric(self, table_id, status):
+  def _table_metric(self, table_id):
     database_id = self._spanner_configuration.database
     project_id = self._spanner_configuration.project
     resource = resource_identifiers.SpannerTable(
@@ -1204,11 +1204,10 @@ class _WriteToSpannerDoFn(DoFn):
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.SPANNER_TABLE_ID: table_id
     }
-
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
-    service_call_metric.call(str(status))
+    return service_call_metric
 
   def setup(self):
     spanner_client = Client(self._spanner_configuration.project)
@@ -1223,6 +1222,8 @@ class _WriteToSpannerDoFn(DoFn):
       with self._db_instance.batch() as b:
         for m in element:
           table_id = m.kwargs['table']
+          self.service_metric = self._table_metric(table_id)
+
           if m.operation == WriteMutation._OPERATION_DELETE:
             batch_func = b.delete
           elif m.operation == WriteMutation._OPERATION_REPLACE:
@@ -1237,12 +1238,12 @@ class _WriteToSpannerDoFn(DoFn):
             raise ValueError("Unknown operation action: %s" % m.operation)
           batch_func(**m.kwargs)
 
-      self._table_write_metric(table_id, 'ok')
+      self.service_metric.call('ok')
     except (ClientError, GoogleAPICallError) as e:
-      self._table_write_metric(table_id, e.code.value)
+      self.service_metric.call(str(e.code.value))
       raise
     except HttpError as e:
-      self._table_write_metric(table_id, e)
+      self.service_metric.call(str(e))
       raise
 
 
