@@ -77,7 +77,7 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 	}, nil
 }
 
-// GetIDs returns the StreamID and Side Input ID for the adapter. Used primarily for sidei nput caching.
+// GetIDs returns the StreamID and Side Input ID for the adapter. Used primarily for side input caching.
 func (s *sideInputAdapter) GetIDs() (StreamID, string) {
 	return s.sid, s.sideInputID
 }

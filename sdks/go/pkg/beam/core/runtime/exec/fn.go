@@ -293,9 +293,8 @@ func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter
 		} else {
 			transformID = sid.PtransformID
 		}
-		c := cache.QueryCache(transformID, sideInputID)
-		// Cache hit
-		if c != nil {
+		if c := cache.QueryCache(transformID, sideInputID); c != nil {
+			// Cache hit
 			ret = append(ret, c)
 			continue
 		}
