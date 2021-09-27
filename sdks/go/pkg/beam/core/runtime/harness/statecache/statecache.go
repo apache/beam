@@ -62,6 +62,7 @@ type SideInputCache struct {
 	metrics     CacheMetrics
 }
 
+// CacheMetrics stores metrics for the cache across a pipeline run.
 type CacheMetrics struct {
 	Hits           int64
 	Misses         int64
