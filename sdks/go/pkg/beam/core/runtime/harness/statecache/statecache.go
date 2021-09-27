@@ -90,7 +90,7 @@ func (c *SideInputCache) Init(cap int) error {
 // transform and side input IDs to cache tokens in the process. Should be called at the start of every
 // new ProcessBundleRequest. If the runner does not support caching, the passed cache token values
 // should be empty and all get/set requests will silently be no-ops.
-func (c *SideInputCache) SetValidTokens(cacheTokens ...fnpb.ProcessBundleRequest_CacheToken) {
+func (c *SideInputCache) SetValidTokens(cacheTokens ...*fnpb.ProcessBundleRequest_CacheToken) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, tok := range cacheTokens {
@@ -122,7 +122,7 @@ func (c *SideInputCache) setValidToken(transformID, sideInputID string, tok toke
 // CompleteBundle takes the cache tokens passed to set the valid tokens and decrements their
 // usage count for the purposes of maintaining a valid count of whether or not a value is
 // still in use. Should be called once ProcessBundle has completed.
-func (c *SideInputCache) CompleteBundle(cacheTokens ...fnpb.ProcessBundleRequest_CacheToken) {
+func (c *SideInputCache) CompleteBundle(cacheTokens ...*fnpb.ProcessBundleRequest_CacheToken) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, tok := range cacheTokens {

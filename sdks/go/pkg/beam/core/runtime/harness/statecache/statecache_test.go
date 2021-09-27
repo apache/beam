@@ -116,7 +116,7 @@ func TestSetCache_CacheableCase(t *testing.T) {
 	}
 }
 
-func makeRequest(transformID, sideInputID string, t token) fnpb.ProcessBundleRequest_CacheToken {
+func makeRequest(transformID, sideInputID string, t token) *fnpb.ProcessBundleRequest_CacheToken {
 	var tok fnpb.ProcessBundleRequest_CacheToken
 	var wrap fnpb.ProcessBundleRequest_CacheToken_SideInput_
 	var side fnpb.ProcessBundleRequest_CacheToken_SideInput
@@ -125,7 +125,7 @@ func makeRequest(transformID, sideInputID string, t token) fnpb.ProcessBundleReq
 	wrap.SideInput = &side
 	tok.Type = &wrap
 	tok.Token = []byte(t)
-	return tok
+	return &tok
 }
 
 func TestSetValidTokens(t *testing.T) {
@@ -157,7 +157,7 @@ func TestSetValidTokens(t *testing.T) {
 		t.Fatalf("cache init failed, got %v", err)
 	}
 
-	var tokens []fnpb.ProcessBundleRequest_CacheToken
+	var tokens []*fnpb.ProcessBundleRequest_CacheToken
 	for _, input := range inputs {
 		t := makeRequest(input.transformID, input.sideInputID, input.tok)
 		tokens = append(tokens, t)

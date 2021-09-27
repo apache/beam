@@ -296,6 +296,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 	case req.GetProcessBundle() != nil:
 		msg := req.GetProcessBundle()
+		tokens := msg.GetCacheTokens()
+		c.cache.SetValidTokens(tokens...)
 
 		// NOTE: the harness sends a 0-length process bundle request to sources (changed?)
 
