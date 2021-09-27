@@ -16,11 +16,12 @@
 package wordcount
 
 import (
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/memfs"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
@@ -93,10 +94,9 @@ func TestWordCount(t *testing.T) {
 
 	for _, test := range tests {
 		integration.CheckFilters(t)
-		const filename = "memfs://input"
-		memfs.Write(filename, []byte(strings.Join(test.lines, "\n")))
-
-		p := WordCount(filename, test.hash, test.words)
+		p, s := beam.NewPipelineWithRoot()
+		lines := beam.CreateList(s, test.lines)
+		WordCountFromPCol(s, lines, test.hash, test.words)
 		pr, err := ptest.RunWithMetrics(p)
 		if err != nil {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)

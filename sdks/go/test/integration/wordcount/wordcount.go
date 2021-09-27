@@ -78,8 +78,11 @@ func WordCount(glob, hash string, size int) *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	in := textio.Read(s, glob)
+	WordCountFromPCol(s, in, hash, size)
+	return p
+}
+
+func WordCountFromPCol(s beam.Scope, in beam.PCollection, hash string, size int) {
 	out := Format(s, CountWords(s, in))
 	passert.Hash(s, out, "out", hash, size)
-
-	return p
 }
