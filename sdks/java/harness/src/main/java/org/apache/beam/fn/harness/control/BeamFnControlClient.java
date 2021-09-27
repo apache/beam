@@ -110,6 +110,8 @@ public class BeamFnControlClient {
         executor.execute(
             () -> {
               try {
+                // Ensure that we set and clear the MDC since processing the request will occur
+                // in a separate thread.
                 BeamFnLoggingMDC.setInstructionId(request.getInstructionId());
                 BeamFnApi.InstructionResponse response = delegateOnInstructionRequestType(request);
                 sendInstructionResponse(response);
