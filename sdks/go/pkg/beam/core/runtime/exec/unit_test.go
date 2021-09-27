@@ -163,8 +163,12 @@ func (a *FixedSideInputAdapter) NewIterable(ctx context.Context, reader StateRea
 	return a.Val, nil
 }
 
-func (a *FixedSideInputAdapter) GetIDs() (StreamID, string) {
-	return StreamID{}, ""
+func (a *FixedSideInputAdapter) QueryCache(reader StateReader) ReusableInput {
+	return nil
+}
+
+func (a *FixedSideInputAdapter) SetCache(reader StateReader, input ReusableInput) {
+	return
 }
 
 // BenchRoot is a test Root that emits elements through a channel for benchmarking purposes.

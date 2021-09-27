@@ -24,7 +24,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -253,15 +252,6 @@ func (n *invoker) ret4(ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3 int
 }
 
 func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter, reader StateReader, fn *funcx.Fn, in []*graph.Inbound) ([]ReusableInput, error) {
-	streams := make([]ReStream, len(side), len(side))
-	for i, adapter := range side {
-		s, err := adapter.NewIterable(ctx, reader, w)
-		if err != nil {
-			return nil, err
-		}
-		streams[i] = s
-	}
-
 	if len(side) == 0 {
 		return nil, nil // ok: no side input
 	}
@@ -278,34 +268,24 @@ func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter
 	offset := len(param) - len(side)
 
 	var ret []ReusableInput
-	var cache *statecache.SideInputCache
-	if reader != nil {
-		cache = reader.GetSideInputCache()
-	} else {
-		cache = &statecache.SideInputCache{}
-		cache.Init(1)
-	}
-	for i := 0; i < len(streams); i++ {
-		sid, sideInputID := side[i].GetIDs()
-		var transformID string
-		if sideInputID == "" {
-			transformID = ""
-		} else {
-			transformID = sid.PtransformID
-		}
-		if c := cache.QueryCache(transformID, sideInputID); c != nil {
-			// Cache hit
+	for i, adapter := range side {
+		// Cache hit
+		if c := adapter.QueryCache(reader); c != nil {
 			ret = append(ret, c)
 			continue
 		}
-		// Cache miss
-		s, err := makeSideInput(in[i+1].Kind, fn.Param[param[i+offset]].T, streams[i])
+		// Cache miss, make ReStream and open it
+		s, err := adapter.NewIterable(ctx, reader, w)
+		if err != nil {
+			return nil, err
+		}
+		input, err := makeSideInput(in[i+1].Kind, fn.Param[param[i+offset]].T, s)
 		if err != nil {
 			return nil, errors.WithContextf(err, "making side input %v for %v", i, fn)
 		}
-		cache.SetCache(transformID, sideInputID, s)
-		ret = append(ret, s)
+		ret = append(ret, input)
 	}
+
 	return ret, nil
 }
 

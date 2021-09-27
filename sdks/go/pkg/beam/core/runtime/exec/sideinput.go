@@ -33,7 +33,8 @@ const iterableSideInputKey = ""
 // encapsulates StreamID and coding as needed.
 type SideInputAdapter interface {
 	NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error)
-	GetIDs() (StreamID, string)
+	QueryCache(reader StateReader) ReusableInput
+	SetCache(reader StateReader, input ReusableInput)
 }
 
 type sideInputAdapter struct {
@@ -77,9 +78,17 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 	}, nil
 }
 
-// GetIDs returns the StreamID and Side Input ID for the adapter. Used primarily for side input caching.
-func (s *sideInputAdapter) GetIDs() (StreamID, string) {
-	return s.sid, s.sideInputID
+// QueryCache checks a reader's side input cache for an entry with a PtransformID and sideInputID
+// and returns the entry.
+func (s *sideInputAdapter) QueryCache(reader StateReader) ReusableInput {
+	input := reader.GetSideInputCache().QueryCache(s.sid.PtransformID, s.sideInputID)
+	return input
+}
+
+// SetCache sets a reader's cache with a materialized ReusableInput for the adapter's PTransform
+// and Side Input.
+func (s *sideInputAdapter) SetCache(reader StateReader, input ReusableInput) {
+	reader.GetSideInputCache().SetCache(s.sid.PtransformID, s.sideInputID, input)
 }
 
 func (s *sideInputAdapter) String() string {

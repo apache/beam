@@ -71,8 +71,12 @@ func (n *buffer) NewIterable(ctx context.Context, reader exec.StateReader, w typ
 	return &exec.FixedReStream{Buf: n.buf}, nil
 }
 
-func (n *buffer) GetIDs() (exec.StreamID, string) {
-	return exec.StreamID{}, ""
+func (n *buffer) QueryCache(reader exec.StateReader) exec.ReusableInput {
+	return nil
+}
+
+func (c *buffer) SetCache(reader exec.StateReader, input exec.ReusableInput) {
+	return
 }
 
 func (n *buffer) String() string {
