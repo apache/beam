@@ -135,6 +135,7 @@
 
 * The Python SDK's `allow_unsafe_triggers` check may incorrectly classify triggers wrapped in `Repeatedly` as unsafe. The workaround is to pass the `--allow_unsafe_triggers` option to the pipeline (a warning will still be issued) ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 * Spark 2.x users will need to update Spark's Jackson runtime dependencies (`spark.jackson.version`) to at least version 2.9.2, due to Beam updating its dependencies.
+* Go SDK jobs may produce "Failed to deduce Step from MonitoringInfo" messages following successful job execution. The messages are benign and don't indicate job failure. These are due to not yet handling PCollection metrics. 
 
 
 # [2.32.0] - 2021-08-25
