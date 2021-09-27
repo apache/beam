@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -277,11 +278,33 @@ func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter
 	offset := len(param) - len(side)
 
 	var ret []ReusableInput
+	var cache *statecache.SideInputCache
+	if reader != nil {
+		cache = reader.GetSideInputCache()
+	} else {
+		cache = &statecache.SideInputCache{}
+		cache.Init(1)
+	}
 	for i := 0; i < len(streams); i++ {
+		sid, sideInputID := side[i].GetIDs()
+		var transformID string
+		if sideInputID == "" {
+			transformID = ""
+		} else {
+			transformID = sid.PtransformID
+		}
+		c := cache.QueryCache(transformID, sideInputID)
+		// Cache hit
+		if c != nil {
+			ret = append(ret, c)
+			continue
+		}
+		// Cache miss
 		s, err := makeSideInput(in[i+1].Kind, fn.Param[param[i+offset]].T, streams[i])
 		if err != nil {
 			return nil, errors.WithContextf(err, "making side input %v for %v", i, fn)
 		}
+		cache.SetCache(transformID, sideInputID, s)
 		ret = append(ret, s)
 	}
 	return ret, nil
