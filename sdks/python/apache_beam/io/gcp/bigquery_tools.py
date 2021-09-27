@@ -283,6 +283,34 @@ def _build_job_labels(input_labels):
   return result
 
 
+def _build_table_labels(input_labels):
+  """Builds dataset label protobuf structure."""
+  input_labels = input_labels or {}
+  result = bigquery.Table.LabelsValue()
+
+  for k, v in input_labels.items():
+    result.additionalProperties.append(
+        bigquery.Table.LabelsValue.AdditionalProperty(
+            key=k,
+            value=v,
+        ))
+  return result
+
+
+def _build_dataset_labels(input_labels):
+  """Builds dataset label protobuf structure."""
+  input_labels = input_labels or {}
+  result = bigquery.Dataset.LabelsValue()
+
+  for k, v in input_labels.items():
+    result.additionalProperties.append(
+        bigquery.Dataset.LabelsValue.AdditionalProperty(
+            key=k,
+            value=v,
+        ))
+  return result
+
+
 class BigQueryWrapper(object):
   """BigQuery client wrapper with utilities for querying.
 
@@ -299,7 +327,7 @@ class BigQueryWrapper(object):
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
-  def __init__(self, client=None, temp_dataset_id=None):
+  def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
         credentials=auth.get_service_credentials(),
@@ -309,17 +337,30 @@ class BigQueryWrapper(object):
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
     self._row_id_prefix = '' if client else uuid.uuid4()
-    self._temporary_table_suffix = uuid.uuid4().hex
     self._latency_histogram_metric = Metrics.histogram(
         self.__class__,
         'latency_histogram_ms',
         LinearBucket(0, 20, 3000),
         BigQueryWrapper.HISTOGRAM_METRIC_LOGGER)
+
+    if temp_dataset_id is not None and temp_table_ref is not None:
+      raise ValueError(
+          'Both a BigQuery temp_dataset_id and a temp_table_ref were specified.'
+          ' Please specify only one of these.')
+
     if temp_dataset_id and temp_dataset_id.startswith(self.TEMP_DATASET):
       raise ValueError(
           'User provided temp dataset ID cannot start with %r' %
           self.TEMP_DATASET)
-    self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
+
+    if temp_table_ref is not None:
+      self.temp_table_ref = temp_table_ref
+      self.temp_dataset_id = temp_table_ref.datasetId
+    else:
+      self.temp_table_ref = None
+      self._temporary_table_suffix = uuid.uuid4().hex
+      self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
+
     self.created_temp_dataset = False
 
   @property
@@ -338,12 +379,17 @@ class BigQueryWrapper(object):
     return '%s_%d' % (self._row_id_prefix, self._unique_row_id)
 
   def _get_temp_table(self, project_id):
+    if self.temp_table_ref:
+      return self.temp_table_ref
+
     return parse_table_reference(
         table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
         dataset=self.temp_dataset_id,
         project=project_id)
 
   def _get_temp_dataset(self):
+    if self.temp_table_ref:
+      return self.temp_table_ref.datasetId
     return BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
 
   @retry.with_exponential_backoff(
@@ -728,7 +774,8 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def get_or_create_dataset(self, project_id, dataset_id, location=None):
+  def get_or_create_dataset(
+      self, project_id, dataset_id, location=None, labels=None):
     # Check if dataset already exists otherwise create it
     try:
       dataset = self.client.datasets.Get(
@@ -743,6 +790,8 @@ class BigQueryWrapper(object):
         dataset = bigquery.Dataset(datasetReference=dataset_reference)
         if location is not None:
           dataset.location = location
+        if labels is not None:
+          dataset.labels = _build_dataset_labels(labels)
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)
@@ -764,6 +813,29 @@ class BigQueryWrapper(object):
     response = self.client.tabledata.List(request)
     # The response is a bigquery.TableDataList instance.
     return response.totalRows == 0
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def update_table_labels(self, project_id, dataset_id, table_id, labels):
+    table_reference = bigquery.TableReference(
+        projectId=project_id, datasetId=dataset_id, tableId=table_id)
+    table = bigquery.Table(
+        tableReference=table_reference, labels=_build_table_labels(labels))
+    request = bigquery.BigqueryTablesUpdateRequest(
+        projectId=project_id,
+        datasetId=dataset_id,
+        tableId=table_id,
+        table=table)
+    try:
+      self.client.tables.Update(request)
+    except HttpError as exn:
+      if exn.status_code == 404:
+        _LOGGER.warning(
+            'Table %s:%s.%s does not exist', project_id, dataset_id, table_id)
+        return
+      else:
+        raise
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -814,7 +886,7 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def create_temporary_dataset(self, project_id, location):
+  def create_temporary_dataset(self, project_id, location, labels=None):
     # Check if dataset exists to make sure that the temporary id is unique
     try:
       self.client.datasets.Get(
@@ -835,7 +907,7 @@ class BigQueryWrapper(object):
             self.temp_dataset_id,
             location)
         self.get_or_create_dataset(
-            project_id, self.temp_dataset_id, location=location)
+            project_id, self.temp_dataset_id, location=location, labels=labels)
       else:
         raise
 
@@ -873,6 +945,34 @@ class BigQueryWrapper(object):
         return
       else:
         raise
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def _clean_up_beam_labelled_temporary_datasets(
+      self, project_id, dataset_id=None, table_id=None):
+    # Deletes ALL datasets that have been labelled `type:apache-beam-temp` in
+    # project.
+    if not self.is_user_configured_dataset() and table_id is None:
+      response = (
+          self.client.datasets.List(
+              bigquery.BigqueryDatasetsListRequest(
+                  projectId=project_id, filter='labels.type:apache-beam-temp')))
+      for dataset in response.datasets:
+        dataset_id = dataset.datasetReference.datasetId
+        self._delete_dataset(project_id, dataset_id, True)
+    else:
+      try:
+        self._delete_table(project_id, dataset_id, table_id)
+      except HttpError as exn:
+        if exn.status_code == 403:
+          _LOGGER.warning(
+              'Permission denied to delete temporary dataset %s:%s for clean up',
+              temp_table.projectId,
+              temp_table.datasetId)
+          return
+        else:
+          raise
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
