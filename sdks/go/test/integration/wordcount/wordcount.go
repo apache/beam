@@ -82,6 +82,7 @@ func WordCount(glob, hash string, size int) *beam.Pipeline {
 	return p
 }
 
+// WordCountFromPCol counts the words from a PCollection and validates it.
 func WordCountFromPCol(s beam.Scope, in beam.PCollection, hash string, size int) {
 	out := Format(s, CountWords(s, in))
 	passert.Hash(s, out, "out", hash, size)
