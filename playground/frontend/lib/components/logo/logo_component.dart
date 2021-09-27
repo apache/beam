@@ -17,23 +17,21 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/modules/editor/editor_page.dart';
 
-void main() {
-  runApp(const PlaygroundApp());
-}
-
-class PlaygroundApp extends StatelessWidget {
-  const PlaygroundApp({Key? key}) : super(key: key);
+class LogoComponent extends StatelessWidget {
+  const LogoComponent({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Apache Beam Playground',
-      theme: theme,
-      home: const EditorPage(),
-      debugShowCheckedModeBanner: false,
+    final theme = Theme.of(context);
+    return RichText(
+      text: TextSpan(
+        style: theme.textTheme.headline6,
+        children: <TextSpan>[
+          TextSpan(text: 'Beam', style: TextStyle(color: theme.primaryColor)),
+          const TextSpan(text: ' Playground'),
+        ],
+      ),
     );
   }
 }

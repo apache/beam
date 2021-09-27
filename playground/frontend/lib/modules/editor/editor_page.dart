@@ -17,23 +17,26 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/modules/editor/editor_page.dart';
+import 'package:playground/components/logo/logo_component.dart';
+import 'package:playground/modules/editor/code_textarea/code_textarea.dart';
+import 'package:playground/modules/editor/output_area/output_area.dart';
 
-void main() {
-  runApp(const PlaygroundApp());
-}
-
-class PlaygroundApp extends StatelessWidget {
-  const PlaygroundApp({Key? key}) : super(key: key);
+class EditorPage extends StatelessWidget {
+  const EditorPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Apache Beam Playground',
-      theme: theme,
-      home: const EditorPage(),
-      debugShowCheckedModeBanner: false,
+    return Scaffold(
+      appBar: AppBar(
+        title: const LogoComponent(),
+      ),
+      body: Column(
+        children:  [
+          const Expanded(child: CodeTextArea()),
+          Container(height: 16.0, color: Theme.of(context).backgroundColor),
+          const Expanded(child: OutputArea()),
+        ],
+      ),
     );
   }
 }

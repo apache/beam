@@ -17,23 +17,14 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/modules/editor/editor_page.dart';
 
-void main() {
-  runApp(const PlaygroundApp());
-}
-
-class PlaygroundApp extends StatelessWidget {
-  const PlaygroundApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Apache Beam Playground',
-      theme: theme,
-      home: const EditorPage(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
+final theme = ThemeData(
+  brightness: Brightness.light,
+  primaryColor: const Color(0xFFF36D21),
+  backgroundColor: Color(0xFFFFFFFF),
+  appBarTheme: const AppBarTheme(
+    color: Color(0xFFFFFFFF),
+    elevation: 1,
+    centerTitle: false,
+  ),
+);
