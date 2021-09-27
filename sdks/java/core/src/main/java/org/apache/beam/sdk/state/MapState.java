@@ -56,12 +56,6 @@ public interface MapState<K, V> extends State {
    * <p>Changes will not be reflected in the results returned by previous calls to {@link
    * ReadableState#read} on the results any of the reading methods ({@link #get}, {@link #keys},
    * {@link #values}, and {@link #entries}).
-   *
-   * <p>Since the condition is not evaluated until {@link ReadableState#read} is called, a call to
-   * {@link #putIfAbsent} followed by a call to {@link #remove} followed by a read on the
-   * putIfAbsent return will result in the item being written to the map. Similarly, if there are
-   * multiple calls to {@link #putIfAbsent} for the same key, precedence will be given to the first
-   * one on which read is called.
    */
   default ReadableState<V> putIfAbsent(K key, V value) {
     return computeIfAbsent(key, k -> value);
@@ -79,12 +73,6 @@ public interface MapState<K, V> extends State {
    * <p>Changes will not be reflected in the results returned by previous calls to {@link
    * ReadableState#read} on the results any of the reading methods ({@link #get}, {@link #keys},
    * {@link #values}, and {@link #entries}).
-   *
-   * <p>Since the condition is not evaluated until {@link ReadableState#read} is called, a call to
-   * {@link #putIfAbsent} followed by a call to {@link #remove} followed by a read on the
-   * putIfAbsent return will result in the item being written to the map. Similarly, if there are
-   * multiple calls to {@link #putIfAbsent} for the same key, precedence will be given to the first
-   * one on which read is called.
    */
   ReadableState<V> computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction);
 

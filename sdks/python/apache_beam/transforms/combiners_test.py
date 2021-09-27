@@ -249,7 +249,8 @@ class CombineTest(unittest.TestCase):
     dd = DisplayData.create_from(transform)
     expected_items = [
         DisplayDataItemMatcher('combine_fn', combine.TupleCombineFn),
-        DisplayDataItemMatcher('combiners', "['max', 'MeanCombineFn', 'sum']")
+        DisplayDataItemMatcher('combiners', "['max', 'MeanCombineFn', 'sum']"),
+        DisplayDataItemMatcher('merge_accumulators_batch_size', 333),
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
@@ -357,6 +358,49 @@ class CombineTest(unittest.TestCase):
                   min, combine.MeanCombineFn(),
                   max).with_common_input()).without_defaults())
       assert_that(result, equal_to([(1, 7.0 / 4, 3)]))
+
+  def test_empty_tuple_combine_fn(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | Create([(), (), ()])
+          | beam.CombineGlobally(combine.TupleCombineFn()))
+      assert_that(result, equal_to([()]))
+
+  def test_tuple_combine_fn_batched_merge(self):
+    num_combine_fns = 10
+    max_num_accumulators_in_memory = 30
+    # Maximum number of accumulator tuples in memory - 1 for the merge result.
+    merge_accumulators_batch_size = (
+        max_num_accumulators_in_memory // num_combine_fns - 1)
+    num_accumulator_tuples_to_merge = 20
+
+    class CountedAccumulator:
+      count = 0
+      oom = False
+
+      def __init__(self):
+        if CountedAccumulator.count > max_num_accumulators_in_memory:
+          CountedAccumulator.oom = True
+        else:
+          CountedAccumulator.count += 1
+
+    class CountedAccumulatorCombineFn(beam.CombineFn):
+      def create_accumulator(self):
+        return CountedAccumulator()
+
+      def merge_accumulators(self, accumulators):
+        CountedAccumulator.count += 1
+        for _ in accumulators:
+          CountedAccumulator.count -= 1
+
+    combine_fn = combine.TupleCombineFn(
+        *[CountedAccumulatorCombineFn() for _ in range(num_combine_fns)],
+        merge_accumulators_batch_size=merge_accumulators_batch_size)
+    combine_fn.merge_accumulators(
+        combine_fn.create_accumulator()
+        for _ in range(num_accumulator_tuples_to_merge))
+    assert not CountedAccumulator.oom
 
   def test_to_list_and_to_dict1(self):
     with TestPipeline() as pipeline:

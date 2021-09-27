@@ -65,7 +65,7 @@ class PipelineFragment(object):
     self._runner_pipeline = self._build_runner_pipeline()
     _, self._context = self._runner_pipeline.to_runner_api(return_context=True)
     from apache_beam.runners.interactive import pipeline_instrument as instr
-    self._runner_pcoll_to_id = instr.pcolls_to_pcoll_id(
+    self._runner_pcoll_to_id = instr.pcoll_to_pcoll_id(
         self._runner_pipeline, self._context)
     # Correlate components in the runner pipeline to components in the user
     # pipeline. The target pcolls are the pcolls given and defined in the user

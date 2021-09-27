@@ -333,6 +333,7 @@ __all__ = [
     'BigQueryDisposition',
     'BigQuerySource',
     'BigQuerySink',
+    'BigQueryQueryPriority',
     'WriteToBigQuery',
     'ReadFromBigQuery',
     'ReadFromBigQueryRequest',
@@ -461,6 +462,13 @@ class BigQueryDisposition(object):
       raise ValueError(
           'Invalid write disposition %s. Expecting %s' % (disposition, values))
     return disposition
+
+
+class BigQueryQueryPriority(object):
+  """Class holding standard strings used for query priority."""
+
+  INTERACTIVE = 'INTERACTIVE'
+  BATCH = 'BATCH'
 
 
 # -----------------------------------------------------------------------------
@@ -653,7 +661,8 @@ class _CustomBigQuerySource(BoundedSource):
       job_name=None,
       step_name=None,
       unique_id=None,
-      temp_dataset=None):
+      temp_dataset=None,
+      query_priority=BigQueryQueryPriority.BATCH):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -685,6 +694,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.bigquery_job_labels = bigquery_job_labels or {}
     self.use_json_exports = use_json_exports
     self.temp_dataset = temp_dataset
+    self.query_priority = query_priority
     self._job_name = job_name or 'BQ_EXPORT_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
@@ -737,6 +747,7 @@ class _CustomBigQuerySource(BoundedSource):
           self.use_legacy_sql,
           self.flatten_results,
           job_id=query_job_name,
+          priority=self.query_priority,
           dry_run=True,
           kms_key=self.kms_key,
           job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
@@ -833,6 +844,7 @@ class _CustomBigQuerySource(BoundedSource):
         self.use_legacy_sql,
         self.flatten_results,
         job_id=query_job_name,
+        priority=self.query_priority,
         kms_key=self.kms_key,
         job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
             self.bigquery_job_labels))
@@ -1915,6 +1927,11 @@ class ReadFromBigQuery(PTransform):
         that dataset, and will remove it once it is not needed. Job needs access
         to create and delete tables within the given dataset. Dataset name
         should *not* start with the reserved prefix `beam_temp_dataset_`.
+    query_priority (BigQueryQueryPriority): By default, this transform runs
+      queries with BATCH priority. Use :attr:`BigQueryQueryPriority.INTERACTIVE`
+      to run queries with INTERACTIVE priority. This option is ignored when
+      reading from a table rather than a query. To learn more about query
+      priority, see: https://cloud.google.com/bigquery/docs/running-queries
    """
 
   COUNTER = 0
@@ -2051,7 +2068,8 @@ class ReadAllFromBigQuery(PTransform):
       validate: bool = False,
       kms_key: str = None,
       temp_dataset: Union[str, DatasetReference] = None,
-      bigquery_job_labels: Dict[str, str] = None):
+      bigquery_job_labels: Dict[str, str] = None,
+      query_priority: str = BigQueryQueryPriority.BATCH):
     if gcs_location:
       if not isinstance(gcs_location, (str, ValueProvider)):
         raise TypeError(
@@ -2064,6 +2082,7 @@ class ReadAllFromBigQuery(PTransform):
     self.kms_key = kms_key
     self.bigquery_job_labels = bigquery_job_labels
     self.temp_dataset = temp_dataset
+    self.query_priority = query_priority
 
   def expand(self, pcoll):
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
@@ -2088,7 +2107,8 @@ class ReadAllFromBigQuery(PTransform):
             unique_id=unique_id,
             kms_key=self.kms_key,
             project=project,
-            temp_dataset=self.temp_dataset)).with_outputs(
+            temp_dataset=self.temp_dataset,
+            query_priority=self.query_priority)).with_outputs(
         "location_to_cleanup", main="files_to_read")
     )
 

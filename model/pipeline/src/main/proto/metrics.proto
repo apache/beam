@@ -423,7 +423,8 @@ message MonitoringInfo {
     SPANNER_PROJECT_ID = 23 [(label_props) = { name: "SPANNER_PROJECT_ID" }];
     SPANNER_DATABASE_ID = 24 [(label_props) = { name: "SPANNER_DATABASE_ID" }];
     SPANNER_TABLE_ID = 25 [(label_props) = { name: "SPANNER_TABLE_ID" }];
-    SPANNER_QUERY_NAME = 26 [(label_props) = { name: "SPANNER_QUERY_NAME" }];
+    SPANNER_INSTANCE_ID = 26 [(label_props) = { name: "SPANNER_INSTANCE_ID" }];
+    SPANNER_QUERY_NAME = 27 [(label_props) = { name: "SPANNER_QUERY_NAME" }];
   }
 
   // A set of key and value labels which define the scope of the metric. For
