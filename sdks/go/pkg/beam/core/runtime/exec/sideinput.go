@@ -33,6 +33,7 @@ const iterableSideInputKey = ""
 // encapsulates StreamID and coding as needed.
 type SideInputAdapter interface {
 	NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error)
+	GetIDs() (StreamID, string)
 }
 
 type sideInputAdapter struct {
@@ -74,6 +75,11 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 			return &elementStream{r: r, ec: s.ec}, nil
 		},
 	}, nil
+}
+
+// GetIDs returns the StreamID and Side Input ID for the adapter. Used primarily for sidei nput caching.
+func (s *sideInputAdapter) GetIDs() (StreamID, string) {
+	return s.sid, s.sideInputID
 }
 
 func (s *sideInputAdapter) String() string {

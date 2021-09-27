@@ -71,6 +71,10 @@ func (n *buffer) NewIterable(ctx context.Context, reader exec.StateReader, w typ
 	return &exec.FixedReStream{Buf: n.buf}, nil
 }
 
+func (n *buffer) GetIDs() (exec.StreamID, string) {
+	return exec.StreamID{}, ""
+}
+
 func (n *buffer) String() string {
 	return fmt.Sprintf("buffer[%v]. wait:%v Out:%v", n.uid, n.next, n.read)
 }
