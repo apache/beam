@@ -215,7 +215,7 @@ INTERACTIVE_BEAM = [
 INTERACTIVE_BEAM_TEST = [
     # notebok utils
     'nbformat>=5.0.5,<6',
-    'nbconvert>=5.6.1,<6',
+    'nbconvert>=6.2.0,<7',
     # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
