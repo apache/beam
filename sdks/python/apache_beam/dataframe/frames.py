@@ -294,10 +294,14 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Arbitrary(),
             requires_partition_by=requires))
 
-  ffill = _fillna_alias('ffill')
-  bfill = _fillna_alias('bfill')
-  backfill = _fillna_alias('backfill')
-  pad = _fillna_alias('pad')
+  if hasattr(pd.DataFrame, 'ffill'):
+    ffill = _fillna_alias('ffill')
+  if hasattr(pd.DataFrame, 'bfill'):
+    bfill = _fillna_alias('bfill')
+  if hasattr(pd.DataFrame, 'backfill'):
+    backfill = _fillna_alias('backfill')
+  if hasattr(pd.DataFrame, 'pad'):
+    pad = _fillna_alias('pad')
 
   @frame_base.with_docs_from(pd.DataFrame)
   def first(self, offset):
@@ -3390,25 +3394,26 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton()))
 
-  @frame_base.with_docs_from(pd.DataFrame)
-  def value_counts(self, subset=None, sort=False, normalize=False,
-                   ascending=False):
-    """``sort`` is ``False`` by default, and ``sort=True`` is not supported
-    because it imposes an ordering on the dataset which likely will not be
-    preserved."""
+  if hasattr(pd.DataFrame, 'value_counts'):
+    @frame_base.with_docs_from(pd.DataFrame)
+    def value_counts(self, subset=None, sort=False, normalize=False,
+                     ascending=False):
+      """``sort`` is ``False`` by default, and ``sort=True`` is not supported
+      because it imposes an ordering on the dataset which likely will not be
+      preserved."""
 
-    if sort:
-      raise frame_base.WontImplementError(
-          "value_counts(sort=True) is not supported because it imposes an "
-          "ordering on the dataset which likely will not be preserved.",
-          reason="order-sensitive")
-    columns = subset or list(self.columns)
-    result = self.groupby(columns).size()
+      if sort:
+        raise frame_base.WontImplementError(
+            "value_counts(sort=True) is not supported because it imposes an "
+            "ordering on the dataset which likely will not be preserved.",
+            reason="order-sensitive")
+      columns = subset or list(self.columns)
+      result = self.groupby(columns).size()
 
-    if normalize:
-      return result/self.dropna().length()
-    else:
-      return result
+      if normalize:
+        return result/self.dropna().length()
+      else:
+        return result
 
 
 for io_func in dir(io):
@@ -4239,6 +4244,9 @@ def make_str_func(method):
   return func
 
 for method in ELEMENTWISE_STRING_METHODS:
+  if not hasattr(pd.core.strings.StringMethods, method):
+    # older versions (1.0.x) don't support some of these methods
+    continue
   setattr(_DeferredStringMethods,
           method,
           frame_base._elementwise_method(make_str_func(method),
@@ -4382,6 +4390,9 @@ ELEMENTWISE_DATETIME_METHODS = [
 ]
 
 for method in ELEMENTWISE_DATETIME_METHODS:
+  if not hasattr(pd.core.indexes.accessors.DatetimeProperties, method):
+    # older versions (1.0.x) don't support some of these methods
+    continue
   setattr(_DeferredDatetimeMethods,
           method,
           frame_base._elementwise_method(
