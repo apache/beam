@@ -62,7 +62,7 @@ abstract class TopicBacklogReaderSettings implements Serializable {
       try (AdminClient adminClient =
           AdminClient.create(
               AdminClientSettings.newBuilder()
-                  .setRegion(subscriptionPath.location().region())
+                  .setRegion(subscriptionPath.location().extractRegion())
                   .build())) {
         return setTopicPath(
             TopicPath.parse(adminClient.getSubscription(subscriptionPath).get().getTopic()));
@@ -81,7 +81,9 @@ abstract class TopicBacklogReaderSettings implements Serializable {
 
   TopicBacklogReader instantiate() throws ApiException {
     TopicStatsClientSettings settings =
-        TopicStatsClientSettings.newBuilder().setRegion(topicPath().location().region()).build();
+        TopicStatsClientSettings.newBuilder()
+            .setRegion(topicPath().location().extractRegion())
+            .build();
     TopicBacklogReader impl =
         new TopicBacklogReaderImpl(TopicStatsClient.create(settings), topicPath(), partition());
     return new LimitingTopicBacklogReader(impl, Ticker.systemTicker());
