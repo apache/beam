@@ -225,11 +225,23 @@ class ServiceCallMetric(object):
     return str(http_status_code)
 
   @staticmethod
-  def convert_to_grpc_status_string(grpc_status):
+  def bigtable_error_code_to_grpc_status_string(grpc_status_code):
     # type: (int) -> str
 
-    """Converts a grpc status to a canonical GCP status code string."""
+    """
+    Converts the bigtable error code to a canonical GCP status code string.
 
+    This Bigtable client library is not using the canonical http status code
+    values (i.e. https://cloud.google.com/apis/design/errors)"
+    Instead they are numbered using an enum with these values corresponding
+    to each status code: https://cloud.google.com/bigtable/docs/status-codes
+
+    Args:
+      grpc_status_code: An int that corresponds to an enum of status codes
+
+    Returns:
+      A GCP status code string
+    """
     grpc_to_canonical_gcp_status = {
         0: 'ok',
         1: 'cancelled',
@@ -247,7 +259,7 @@ class ServiceCallMetric(object):
         13: 'internal',
         14: 'unavailable'
     }
-    if (grpc_status is not None and
-        grpc_status in grpc_to_canonical_gcp_status):
-      return grpc_to_canonical_gcp_status[grpc_status]
-    return str(grpc_status)
+    if (grpc_status_code is not None and
+        grpc_status_code in grpc_to_canonical_gcp_status):
+      return grpc_to_canonical_gcp_status[grpc_status_code]
+    return str(grpc_status_code)

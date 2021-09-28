@@ -79,13 +79,14 @@ class TestWriteBigTable(unittest.TestCase):
           self._PROJECT_ID,
           self._INSTANCE_ID,
           self._TABLE_ID,
-          ServiceCallMetric.convert_to_grpc_status_string(ALREADY_EXISTS),
+          ServiceCallMetric.bigtable_error_code_to_grpc_status_string(
+              ALREADY_EXISTS),
           2)
       self.verify_write_call_metric(
           self._PROJECT_ID,
           self._INSTANCE_ID,
           self._TABLE_ID,
-          ServiceCallMetric.convert_to_grpc_status_string(OK),
+          ServiceCallMetric.bigtable_error_code_to_grpc_status_string(OK),
           2)
 
   def generate_row(self, index=0):
