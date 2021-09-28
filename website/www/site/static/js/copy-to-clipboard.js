@@ -13,7 +13,7 @@
 $(document).ready(function() {
     function copy() {
         $(".copy").click(function(){
-            var text=$(this).siblings()[$(this).siblings().length-1].childNodes[0].innerHTML;
+            var text=$(this).siblings()[$(this).siblings().length-1].childNodes[0].innerText;
             const el=document.createElement('textarea');
             el.value=text;document.body.appendChild(el);
             el.select();document.execCommand('copy');
@@ -21,7 +21,7 @@ $(document).ready(function() {
             alert('copied to clipboard');
         })
         $(".just-copy").click(function(){
-            var text=$(this).parent().siblings()[0].innerHTML;
+            var text=$(this).parent().siblings()[0].innerText;
             const el=document.createElement('textarea');
             el.value=text;document.body.appendChild(el);
             el.select();document.execCommand('copy');
