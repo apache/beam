@@ -16,15 +16,24 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
+enum SDK {
+  java,
+  go,
+  python,
+  scio,
+}
 
-final theme = ThemeData(
-  brightness: Brightness.light,
-  primaryColor: const Color(0xFFF36D21),
-  backgroundColor: const Color(0xFFFFFFFF),
-  appBarTheme: const AppBarTheme(
-    color: Color(0xFFFFFFFF),
-    elevation: 1,
-    centerTitle: false,
-  ),
-);
+extension SDKToString on SDK {
+  String get displayName {
+    switch (this) {
+      case SDK.go:
+        return "Go";
+      case SDK.java:
+        return "Java";
+      case SDK.python:
+        return "Python";
+      case SDK.scio:
+        return "SCIO";
+    }
+  }
+}

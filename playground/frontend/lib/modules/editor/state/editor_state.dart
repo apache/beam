@@ -17,14 +17,13 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/constants/sdk.dart';
 
-final theme = ThemeData(
-  brightness: Brightness.light,
-  primaryColor: const Color(0xFFF36D21),
-  backgroundColor: const Color(0xFFFFFFFF),
-  appBarTheme: const AppBarTheme(
-    color: Color(0xFFFFFFFF),
-    elevation: 1,
-    centerTitle: false,
-  ),
-);
+class EditorState with ChangeNotifier {
+  SDK sdk = SDK.java;
+
+  setSdk(SDK sdk) {
+    this.sdk = sdk;
+    notifyListeners();
+  }
+}
