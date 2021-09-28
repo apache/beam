@@ -52,15 +52,14 @@ public class StateFetchingIteratorsTest {
 
   private static BeamFnStateClient fakeStateClient(
       AtomicInteger callCount, ByteString... expected) {
-    return (requestBuilder, response) -> {
+    return requestBuilder -> {
       callCount.incrementAndGet();
       if (expected.length == 0) {
-        response.complete(
+        return CompletableFuture.completedFuture(
             StateResponse.newBuilder()
                 .setId(requestBuilder.getId())
                 .setGet(StateGetResponse.newBuilder())
                 .build());
-        return;
       }
 
       ByteString continuationToken = requestBuilder.getGet().getContinuationToken();
@@ -75,7 +74,7 @@ public class StateFetchingIteratorsTest {
       if (requestedPosition != expected.length - 1) {
         newContinuationToken = ByteString.copyFromUtf8(Integer.toString(requestedPosition + 1));
       }
-      response.complete(
+      return CompletableFuture.completedFuture(
           StateResponse.newBuilder()
               .setId(requestBuilder.getId())
               .setGet(
@@ -121,15 +120,49 @@ public class StateFetchingIteratorsTest {
           ByteString.EMPTY);
     }
 
+    private BeamFnStateClient fakeStateClient(AtomicInteger callCount, ByteString... expected) {
+      return (requestBuilder) -> {
+        callCount.incrementAndGet();
+        if (expected.length == 0) {
+          return CompletableFuture.completedFuture(
+              StateResponse.newBuilder()
+                  .setId(requestBuilder.getId())
+                  .setGet(StateGetResponse.newBuilder())
+                  .build());
+        }
+
+        ByteString continuationToken = requestBuilder.getGet().getContinuationToken();
+
+        int requestedPosition = 0; // Default position is 0
+        if (!ByteString.EMPTY.equals(continuationToken)) {
+          requestedPosition = Integer.parseInt(continuationToken.toStringUtf8());
+        }
+
+        // Compute the new continuation token
+        ByteString newContinuationToken = ByteString.EMPTY;
+        if (requestedPosition != expected.length - 1) {
+          newContinuationToken = ByteString.copyFromUtf8(Integer.toString(requestedPosition + 1));
+        }
+        return CompletableFuture.completedFuture(
+            StateResponse.newBuilder()
+                .setId(requestBuilder.getId())
+                .setGet(
+                    StateGetResponse.newBuilder()
+                        .setData(expected[requestedPosition])
+                        .setContinuationToken(newContinuationToken))
+                .build());
+      };
+    }
+
     @Test
     public void testPrefetchIgnoredWhenExistingPrefetchOngoing() throws Exception {
       AtomicInteger callCount = new AtomicInteger();
       BeamFnStateClient fakeStateClient =
           new BeamFnStateClient() {
             @Override
-            public void handle(
-                StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
+            public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
               callCount.incrementAndGet();
+              return new CompletableFuture<StateResponse>();
             }
           };
       PrefetchableIterator<ByteString> byteStrings =

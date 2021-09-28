@@ -313,6 +313,20 @@ def pcoll_by_name() -> Dict[str, beam.PCollection]:
   return pcolls
 
 
+def find_pcoll_name(pcoll: beam.PCollection) -> str:
+  """Finds the variable name of a PCollection defined by the user.
+
+  Returns None if not assigned to any variable.
+  """
+  from apache_beam.runners.interactive import interactive_environment as ie
+
+  inspectables = ie.current_env().inspector.inspectables
+  for _, inspectable in inspectables.items():
+    if inspectable['value'] is pcoll:
+      return inspectable['metadata']['name']
+  return None
+
+
 def cacheables() -> Dict[CacheKey, Cacheable]:
   """Finds all Cacheables with their CacheKeys."""
   from apache_beam.runners.interactive import interactive_environment as ie

@@ -42,6 +42,7 @@ tasks.rat {
   val exclusions = mutableListOf(
     // Ignore files we track but do not distribute
     "**/.github/**/*",
+    "**/.gitkeep",
     "gradlew",
     "gradlew.bat",
     "gradle/wrapper/gradle-wrapper.properties",

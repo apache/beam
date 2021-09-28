@@ -332,6 +332,12 @@ class BeamModulePlugin implements Plugin<Project> {
       "--environment_cache_millis=10000",
       "--experiments=beam_fn_api",
     ]
+    // Go script options to use.
+    List<String> goScriptOptions = [
+      "--runner portable",
+      "--endpoint localhost:8099",
+      "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\""
+    ]
     // Additional pytest options
     List<String> pytestOptions = []
     // Job server startup task.
@@ -2093,6 +2099,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(":sdks:python")
       project.evaluationDependsOn(":sdks:java:testing:expansion-service")
       project.evaluationDependsOn(":runners:core-construction-java")
+      project.evaluationDependsOn(":sdks:go:test")
 
       // Task for launching expansion services
       def envDir = project.project(":sdks:python").envdir
@@ -2217,7 +2224,7 @@ class BeamModulePlugin implements Plugin<Project> {
       cleanupTask.mustRunAfter javaUsingPythonOnlyTask
       config.cleanupJobServer.mustRunAfter javaUsingPythonOnlyTask
 
-      // Task for running testcases in Python SDK
+      // Task for running SQL testcases in Python SDK
       def beamPythonTestPipelineOptions = [
         "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
         "test_opts":  config.pytestOptions,
@@ -2237,6 +2244,19 @@ class BeamModulePlugin implements Plugin<Project> {
       mainTask.dependsOn pythonSqlTask
       cleanupTask.mustRunAfter pythonSqlTask
       config.cleanupJobServer.mustRunAfter pythonSqlTask
+
+      // Task for running Java testcases in Go SDK.
+      def scriptOptions = [
+        "--test_expansion_addr localhost:${javaPort}",
+      ]
+      scriptOptions.addAll(config.goScriptOptions)
+      def goTask = project.project(":sdks:go:test:").goIoValidatesRunnerTask(project, config.name+"GoUsingJava", scriptOptions)
+      goTask.description = "Validates runner for cross-language capability of using Java transforms from Go SDK"
+      goTask.dependsOn setupTask
+      goTask.dependsOn config.startJobServer
+      mainTask.dependsOn goTask
+      cleanupTask.mustRunAfter goTask
+      config.cleanupJobServer.mustRunAfter goTask
     }
 
     /** ***********************************************************************************************/
