@@ -2318,12 +2318,12 @@ class GroupByKey(PTransform):
         windowing.windowfn, GlobalWindows) and isinstance(trigger,
                                                           DefaultTrigger):
       if pcoll.pipeline.allow_unsafe_triggers:
-        # TODO(BEAM-9487) Change comment for Beam 2.33
+        # TODO(BEAM-9487) Change comment for Beam 2.34
         _LOGGER.warning(
-            '%s: PCollection passed to GroupByKey is unbounded, has a global '
-            'window, and uses a default trigger. This is being allowed '
-            'because --allow_unsafe_triggers is set, but it may prevent '
-            'data from making it through the pipeline.',
+            'PCollection passed to GroupByKey (label: %s) is unbounded, has a '
+            'global window, and uses a default trigger. This will no longer '
+            'be allowed starting with Beam 2.34 unless '
+            '--allow_unsafe_triggers is set.',
             self.label)
       else:
         raise ValueError(
@@ -2332,19 +2332,22 @@ class GroupByKey(PTransform):
 
     unsafe_reason = trigger.may_lose_data(windowing)
     if unsafe_reason != DataLossReason.NO_POTENTIAL_LOSS:
-      reason_msg = str(unsafe_reason).replace('DataLossReason.', '')
       if pcoll.pipeline.allow_unsafe_triggers:
+        # TODO(BEAM-9487): Switch back to this log for Beam 2.34.
+        # _LOGGER.warning(
+        #   'Skipping trigger safety check. '
+        #   'This could lead to incomplete or missing groups.')
         _LOGGER.warning(
-            '%s: Unsafe trigger `%s` detected (reason: %s). This is '
-            'being allowed because --allow_unsafe_triggers is set. This could '
-            'lead to missing or incomplete groups.',
+            '%s: Unsafe trigger type (%s) detected. Starting with '
+            'Beam 2.34, this will raise an error by default. '
+            'Either change the pipeline to use a safe trigger or '
+            'set the --allow_unsafe_triggers flag.',
             self.label,
-            trigger,
-            reason_msg)
+            unsafe_reason)
       else:
-        msg = '{}: Unsafe trigger: `{}` may lose data. '.format(
-            self.label, trigger)
-        msg += 'Reason: {}. '.format(reason_msg)
+        msg = 'Unsafe trigger: `{}` may lose data. '.format(trigger)
+        msg += 'Reason: {}. '.format(
+            str(unsafe_reason).replace('DataLossReason.', ''))
         msg += 'This can be overriden with the --allow_unsafe_triggers flag.'
         raise ValueError(msg)
 
