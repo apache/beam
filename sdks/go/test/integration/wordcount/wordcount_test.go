@@ -31,12 +31,11 @@ import (
 
 func TestWordCount(t *testing.T) {
 	tests := []struct {
-		lines                                                             []string
-		words                                                             int
-		hash                                                              string
-		smallWords                                                        string
-		lineLen                                                           string
-		smallWordsCount, lineLenCount, lineLenSum, lineLenMin, lineLenMax int64
+		lines           []string
+		words           int
+		hash            string
+		smallWordsCount int64
+		lineLen         metrics.DistributionValue
 	}{
 		{
 			[]string{
@@ -44,13 +43,8 @@ func TestWordCount(t *testing.T) {
 			},
 			1,
 			"6zZtmVTet7aIhR3wmPE8BA==",
-			"smallWords",
-			"lineLenDistro",
 			1,
-			1,
-			3,
-			3,
-			3,
+			metrics.DistributionValue{1, 3, 3, 3},
 		},
 		{
 			[]string{
@@ -60,13 +54,8 @@ func TestWordCount(t *testing.T) {
 			},
 			1,
 			"jAk8+k4BOH7vQDUiUZdfWg==",
-			"smallWords",
-			"lineLenDistro",
 			6,
-			3,
-			21,
-			3,
-			11,
+			metrics.DistributionValue{3, 21, 3, 11},
 		},
 		{
 			[]string{
@@ -74,13 +63,8 @@ func TestWordCount(t *testing.T) {
 			},
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==",
-			"smallWords",
-			"lineLenDistro",
 			6,
-			1,
-			23,
-			23,
-			23,
+			metrics.DistributionValue{1, 23, 23, 23},
 		},
 		{
 			[]string{
@@ -88,13 +72,8 @@ func TestWordCount(t *testing.T) {
 			},
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==", // ordering doesn't matter: same hash as above
-			"smallWords",
-			"lineLenDistro",
 			6,
-			1,
-			23,
-			23,
-			23,
+			metrics.DistributionValue{1, 23, 23, 23},
 		},
 		{
 			[]string{
@@ -107,13 +86,8 @@ func TestWordCount(t *testing.T) {
 			},
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==", // whitespace doesn't matter: same hash as above
-			"smallWords",
-			"lineLenDistro",
 			6,
-			6,
-			37,
-			0,
-			11,
+			metrics.DistributionValue{6, 37, 0, 11},
 		},
 	}
 
@@ -127,17 +101,19 @@ func TestWordCount(t *testing.T) {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
 		qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
-			return sr.Name() == test.smallWords
+			return sr.Name() == "smallWords"
 		})
+		// only 1 entry would be present for this case
 		if qr.Counters()[0].Result() != test.smallWordsCount {
 			t.Errorf("Metrics().Query(by Name) failed. Got %d counters, Want %d counters", qr.Counters()[0].Result(), test.smallWordsCount)
 		}
 		qr = pr.Metrics().Query(func(sr metrics.SingleResult) bool {
-			return sr.Name() == test.lineLen
+			return sr.Name() == "lineLenDistro"
 		})
+		// only 1 entry would be present for this case
 		distributonValue := qr.Distributions()[0].Result()
-		if distributonValue.Count != test.lineLenCount || distributonValue.Sum != test.lineLenSum || distributonValue.Max != test.lineLenMax || distributonValue.Min != test.lineLenMin {
-			t.Errorf("Metrics().Query(by Name) failed. Got {%d %d %d %d} distributions, Want {%d %d %d %d} distribution", distributonValue.Count, distributonValue.Sum, distributonValue.Min, distributonValue.Max, test.lineLenCount, test.lineLenSum, test.lineLenMin, test.lineLenMax)
+		if distributonValue != test.lineLen {
+			t.Errorf("Metrics().Query(by Name) failed. Got %v distribution, Want %v distribution", distributonValue, lineLen)
 		}
 	}
 }
