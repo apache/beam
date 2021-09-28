@@ -260,12 +260,12 @@ class SequenceTypeConstraint(IndexableTypeConstraint):
                 index,
                 _unified_repr(self._sequence_type),
                 _unified_repr(self.inner_type),
-                elem.__class__.__name__))
+                elem.__class__.__name__)) from e
       except CompositeTypeHintError as e:
         raise CompositeTypeHintError(
             '%s hint type-constraint violated. The type of element #%s in '
             'the passed %s is incorrect: %s' %
-            (repr(self), index, self._sequence_type.__name__, e))
+            (repr(self), index, self._sequence_type.__name__, e)) from e
 
   def match_type_variables(self, concrete_type):
     if isinstance(concrete_type, SequenceTypeConstraint):
@@ -599,7 +599,7 @@ class TupleHint(CompositeTypeHint):
   """
   class TupleSequenceConstraint(SequenceTypeConstraint):
     def __init__(self, type_param):
-      super(TupleHint.TupleSequenceConstraint, self).__init__(type_param, tuple)
+      super().__init__(type_param, tuple)
 
     def __repr__(self):
       return 'Tuple[%s, ...]' % _unified_repr(self.inner_type)
@@ -610,7 +610,7 @@ class TupleHint(CompositeTypeHint):
         return all(
             is_consistent_with(elem, self.inner_type)
             for elem in sub.tuple_types)
-      return super(TupleSequenceConstraint, self)._consistent_with_check_(sub)
+      return super()._consistent_with_check_(sub)
 
   class TupleConstraint(IndexableTypeConstraint):
     def __init__(self, type_params):
@@ -662,7 +662,7 @@ class TupleHint(CompositeTypeHint):
         try:
           check_constraint(expected, actual)
           continue
-        except SimpleTypeHintError:
+        except SimpleTypeHintError as type_hint_error:
           raise CompositeTypeHintError(
               '%s hint type-constraint violated. The type of element #%s in '
               'the passed tuple is incorrect. Expected an instance of '
@@ -670,11 +670,12 @@ class TupleHint(CompositeTypeHint):
                   repr(self),
                   type_pos,
                   _unified_repr(expected),
-                  actual.__class__.__name__))
+                  actual.__class__.__name__)) from type_hint_error
         except CompositeTypeHintError as e:
           raise CompositeTypeHintError(
               '%s hint type-constraint violated. The type of element #%s in '
-              'the passed tuple is incorrect. %s' % (repr(self), type_pos, e))
+              'the passed tuple is incorrect. %s' %
+              (repr(self), type_pos, e)) from e
 
     def match_type_variables(self, concrete_type):
       bindings = {}
@@ -731,7 +732,7 @@ class ListHint(CompositeTypeHint):
   """
   class ListConstraint(SequenceTypeConstraint):
     def __init__(self, list_type):
-      super(ListHint.ListConstraint, self).__init__(list_type, list)
+      super().__init__(list_type, list)
 
     def __repr__(self):
       return 'List[%s]' % _unified_repr(self.inner_type)
@@ -912,7 +913,7 @@ class SetHint(CompositeTypeHint):
   """
   class SetTypeConstraint(SequenceTypeConstraint):
     def __init__(self, type_param):
-      super(SetHint.SetTypeConstraint, self).__init__(type_param, set)
+      super().__init__(type_param, set)
 
     def __repr__(self):
       return 'Set[%s]' % _unified_repr(self.inner_type)
@@ -1031,14 +1032,15 @@ class IteratorHint(CompositeTypeHint):
         return
       except CompositeTypeHintError as e:
         raise CompositeTypeHintError(
-            '%s hint type-constraint violated: %s' % (repr(self), str(e)))
-      except SimpleTypeHintError:
+            '%s hint type-constraint violated: %s' %
+            (repr(self), str(e))) from e
+      except SimpleTypeHintError as e:
         raise CompositeTypeHintError(
             '%s hint type-constraint violated. Expected a iterator of type %s. '
             'Instead received a iterator of type %s.' % (
                 repr(self),
                 _unified_repr(self.yielded_type),
-                instance.__class__.__name__))
+                instance.__class__.__name__)) from e
 
   def __getitem__(self, type_param):
     validate_composite_type_param(
@@ -1087,14 +1089,14 @@ class WindowedTypeConstraint(TypeConstraint, metaclass=GetitemConstructor):
 
     try:
       check_constraint(self.inner_type, instance.value)
-    except (CompositeTypeHintError, SimpleTypeHintError):
+    except (CompositeTypeHintError, SimpleTypeHintError) as e:
       raise CompositeTypeHintError(
           '%s hint type-constraint violated. The type of element in '
           'is incorrect. Expected an instance of type %s, '
           'instead received an instance of type %s.' % (
               repr(self),
               _unified_repr(self.inner_type),
-              instance.value.__class__.__name__))
+              instance.value.__class__.__name__)) from e
 
 
 class GeneratorHint(IteratorHint):

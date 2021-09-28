@@ -122,7 +122,7 @@ class BlobStorageFileSystem(FileSystem):
           blobstorageio.BlobStorageIO().list_prefix(dir_or_prefix).items():
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("List operation failed", {dir_or_prefix: e})
+      raise BeamIOError("List operation failed", {dir_or_prefix: e}) from e
 
   def _path_open(
       self,
@@ -225,7 +225,7 @@ class BlobStorageFileSystem(FileSystem):
     try:
       return blobstorageio.BlobStorageIO().exists(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("Exists operation failed", {path: e})
+      raise BeamIOError("Exists operation failed", {path: e}) from e
 
   def size(self, path):
     """Get size in bytes of a file on the FileSystem.
@@ -241,7 +241,7 @@ class BlobStorageFileSystem(FileSystem):
     try:
       return blobstorageio.BlobStorageIO().size(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("Size operation failed", {path: e})
+      raise BeamIOError("Size operation failed", {path: e}) from e
 
   def last_updated(self, path):
     """Get UNIX Epoch time in seconds on the FileSystem.
@@ -257,7 +257,7 @@ class BlobStorageFileSystem(FileSystem):
     try:
       return blobstorageio.BlobStorageIO().last_updated(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("Last updated operation failed", {path: e})
+      raise BeamIOError("Last updated operation failed", {path: e}) from e
 
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
@@ -274,7 +274,7 @@ class BlobStorageFileSystem(FileSystem):
     try:
       return blobstorageio.BlobStorageIO().checksum(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("Checksum operation failed", {path, e})
+      raise BeamIOError("Checksum operation failed", {path, e}) from e
 
   def delete(self, paths):
     """Deletes files or directories at the provided paths.

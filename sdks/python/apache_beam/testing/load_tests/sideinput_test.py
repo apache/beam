@@ -79,7 +79,7 @@ class SideInputTest(LoadTest):
   SDF_INITIAL_ELEMENTS = 1000
 
   def __init__(self):
-    super(SideInputTest, self).__init__()
+    super().__init__()
     self.windows = self.get_option_or_default('window_count', default=1)
 
     self.access_percentage = self.get_option_or_default(
@@ -100,10 +100,10 @@ class SideInputTest(LoadTest):
   def materialize_as(self):
     try:
       return self.SIDE_INPUT_TYPES[self.side_input_type]
-    except KeyError:
+    except KeyError as key_error:
       raise ValueError(
           'Unknown side input type. Please provide one of '
-          'these: {}'.format(list(self.SIDE_INPUT_TYPES.keys())))
+          'these: {}'.format(list(self.SIDE_INPUT_TYPES.keys()))) from key_error
 
   def test(self):
     class SequenceSideInputTestDoFn(beam.DoFn):

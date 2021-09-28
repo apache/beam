@@ -283,8 +283,10 @@ class PortableRunner(runner.PipelineRunner):
       try:
         environment_urn = getattr(
             common_urns.environments, environment_type).urn
-      except AttributeError:
-        raise ValueError('Unknown environment type: %s' % environment_type)
+      except AttributeError as attribute_error:
+        raise ValueError(
+            'Unknown environment type: %s' %
+            environment_type) from attribute_error
 
     env_class = environments.Environment.get_env_cls_from_urn(environment_urn)
     return env_class.from_options(portable_options)
@@ -493,7 +495,7 @@ class PipelineResult(runner.PipelineResult):
       message_stream,
       state_stream,
       cleanup_callbacks=()):
-    super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
+    super().__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
     self._job_service = job_service
     self._job_id = job_id
     self._messages = []

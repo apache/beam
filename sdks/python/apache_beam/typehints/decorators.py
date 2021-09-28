@@ -642,7 +642,7 @@ def getcallargs_forhints(func, *type_args, **type_kwargs):
     bindings = signature.bind(*type_args, **type_kwargs)
   except TypeError as e:
     # Might be raised due to too few or too many arguments.
-    raise TypeCheckError(e)
+    raise TypeCheckError(e) from e
   bound_args = bindings.arguments
   for param in signature.parameters.values():
     if param.name in bound_args:
@@ -887,7 +887,7 @@ def _check_instance_type(
 
   try:
     check_constraint(type_constraint, instance)
-  except SimpleTypeHintError:
+  except SimpleTypeHintError as type_hint_error:
     if verbose:
       verbose_instance = '%s, ' % instance
     else:
@@ -895,9 +895,11 @@ def _check_instance_type(
     raise TypeCheckError(
         'Type-hint for %s violated. Expected an '
         'instance of %s, instead found %san instance of %s.' %
-        (hint_type, type_constraint, verbose_instance, type(instance)))
+        (hint_type, type_constraint, verbose_instance,
+         type(instance))) from type_hint_error
   except CompositeTypeHintError as e:
-    raise TypeCheckError('Type-hint for %s violated: %s' % (hint_type, e))
+    raise TypeCheckError(
+        'Type-hint for %s violated: %s' % (hint_type, e)) from e
 
 
 def _interleave_type_check(type_constraint, var_name=None):

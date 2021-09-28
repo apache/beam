@@ -125,7 +125,7 @@ class Timestamp(object):
     except ValueError as e:
       raise ValueError(
           "Could not parse RFC 3339 string '{}' due to error: '{}'.".format(
-              rfc3339, e))
+              rfc3339, e)) from e
     return cls.from_utc_datetime(dt)
 
   def seconds(self) -> int:

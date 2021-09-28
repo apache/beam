@@ -42,7 +42,7 @@ class S3FileSystem(FileSystem):
     Connection configuration is done by passing pipeline options.
     See :class:`~apache_beam.options.pipeline_options.S3Options`.
     """
-    super(S3FileSystem, self).__init__(pipeline_options)
+    super().__init__(pipeline_options)
     self._options = pipeline_options
 
   @classmethod
@@ -132,7 +132,7 @@ class S3FileSystem(FileSystem):
         s3io.S3IO(options=self._options).list_prefix(dir_or_prefix).items():
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("List operation failed", {dir_or_prefix: e})
+      raise BeamIOError("List operation failed", {dir_or_prefix: e}) from e
 
   def _path_open(
       self,
@@ -230,7 +230,7 @@ class S3FileSystem(FileSystem):
     try:
       return s3io.S3IO(options=self._options).exists(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("exists() operation failed", {path: e})
+      raise BeamIOError("exists() operation failed", {path: e}) from e
 
   def size(self, path):
     """Get size of path on the FileSystem.
@@ -246,7 +246,7 @@ class S3FileSystem(FileSystem):
     try:
       return s3io.S3IO(options=self._options).size(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("size() operation failed", {path: e})
+      raise BeamIOError("size() operation failed", {path: e}) from e
 
   def last_updated(self, path):
     """Get UNIX Epoch time in seconds on the FileSystem.
@@ -262,7 +262,7 @@ class S3FileSystem(FileSystem):
     try:
       return s3io.S3IO(options=self._options).last_updated(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("last_updated operation failed", {path: e})
+      raise BeamIOError("last_updated operation failed", {path: e}) from e
 
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
@@ -279,7 +279,7 @@ class S3FileSystem(FileSystem):
     try:
       return s3io.S3IO(options=self._options).checksum(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("Checksum operation failed", {path: e})
+      raise BeamIOError("Checksum operation failed", {path: e}) from e
 
   def delete(self, paths):
     """Deletes files or directories at the provided paths.

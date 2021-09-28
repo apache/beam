@@ -443,10 +443,10 @@ def show(
     else:
       try:
         flatten_pcolls.extend(iter(pcoll_container))
-      except TypeError:
+      except TypeError as type_error:
         raise ValueError(
             'The given pcoll %s is not a dict, an iterable or a PCollection.' %
-            pcoll_container)
+            pcoll_container) from type_error
 
   # Iterate through the given PCollections and convert any deferred DataFrames
   # or Series into PCollections.

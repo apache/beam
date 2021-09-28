@@ -116,7 +116,7 @@ class FileSystems(object):
     except ValueError:
       raise
     except Exception as e:
-      raise BeamIOError('Unable to get the Filesystem', {path: e})
+      raise BeamIOError('Unable to get the Filesystem', {path: e}) from e
 
   @staticmethod
   def join(basepath, *paths):

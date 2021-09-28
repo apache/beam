@@ -60,8 +60,8 @@ def generate_urn_files(log, out_dir):
   This is executed at build time rather than dynamically on import to ensure
   that it is compatible with static type checkers like mypy.
   """
-  import google.protobuf.message as message
   import google.protobuf.pyext._message as pyext_message
+  from google.protobuf import message
 
   class Context(object):
     INDENT = '  '
@@ -289,13 +289,13 @@ def generate_proto_files(force=False, log=None):
   if regenerate:
     try:
       from grpc_tools import protoc
-    except ImportError:
+    except ImportError as e:
       if platform.system() == 'Windows':
         # For Windows, grpcio-tools has to be installed manually.
         raise RuntimeError(
             'Cannot generate protos for Windows since grpcio-tools package is '
             'not installed. Please install this package manually '
-            'using \'pip install grpcio-tools\'.')
+            'using \'pip install grpcio-tools\'.') from e
 
       # Use a subprocess to avoid messing with this process' path and imports.
       # Note that this requires a separate module from setup.py for Windows:
@@ -306,7 +306,8 @@ def generate_proto_files(force=False, log=None):
       p.start()
       p.join()
       if p.exitcode:
-        raise ValueError("Proto generation failed (see log for details).")
+        raise ValueError("Proto generation failed (see log for details).") \
+          from e
     else:
       log.info('Regenerating Python proto definitions (%s).' % regenerate)
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')

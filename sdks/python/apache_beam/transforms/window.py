@@ -313,12 +313,12 @@ class GlobalWindow(BoundedWindow):
 
   def __new__(cls):
     if cls._instance is None:
-      cls._instance = super(GlobalWindow, cls).__new__(cls)
+      cls._instance = super().__new__(cls)
     return cls._instance
 
   def __init__(self):
     # type: () -> None
-    super(GlobalWindow, self).__init__(GlobalWindow._getTimestampFromProto())
+    super().__init__(GlobalWindow._getTimestampFromProto())
 
   def __repr__(self):
     return 'GlobalWindow'

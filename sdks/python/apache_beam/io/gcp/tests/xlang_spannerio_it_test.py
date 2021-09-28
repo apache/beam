@@ -227,7 +227,7 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
       _ = (
           p
           | 'Impulse' >> beam.Impulse()
-          | 'Generate' >> beam.FlatMap(lambda x: range(num_rows))  # pylint: disable=range-builtin-not-iterating
+          | 'Generate' >> beam.FlatMap(lambda x: range(num_rows))  # pylint: disable=bad-option-value
           | 'Map to row' >> beam.Map(to_row_fn).with_output_types(row_type)
           | 'Write to Spanner' >> spanner_transform(
               instance_id=self.instance_id,
@@ -314,8 +314,9 @@ class SpannerHelper(object):
               ORDER BY f_int64''')
       try:
         rows = list(results) if results else None
-      except IndexError:
-        raise ValueError(f"Spanner results not found for {prefix}.")
+      except IndexError as index_error:
+        raise ValueError(
+            f"Spanner results not found for {prefix}.") from index_error
     return rows
 
   def drop_database(self, database_id):

@@ -63,10 +63,10 @@ class _ReifyWindows(DoFn):
       self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
     try:
       k, v = element
-    except TypeError:
+    except TypeError as type_error:
       raise TypeCheckError(
           'Input to GroupByKey must be a PCollection with '
-          'elements compatible with KV[A, B]')
+          'elements compatible with KV[A, B]') from type_error
 
     yield (k, windowed_value.WindowedValue(v, timestamp, [window]))
 
@@ -96,7 +96,7 @@ def read_watermark(watermark_state):
 class TriggerMergeContext(WindowFn.MergeContext):
   def __init__(
       self, all_windows, context: 'FnRunnerStatefulTriggerContext', windowing):
-    super(TriggerMergeContext, self).__init__(all_windows)
+    super().__init__(all_windows)
     self.trigger_context = context
     self.windowing = windowing
     self.merged_away: typing.Dict[BoundedWindow, BoundedWindow] = {}

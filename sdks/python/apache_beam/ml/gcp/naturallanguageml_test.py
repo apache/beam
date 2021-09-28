@@ -46,8 +46,9 @@ class NaturalLanguageMlTest(unittest.TestCase):
     try:
       counter = metrics['counters'][0]
       self.assertEqual(expected, counter.result)
-    except IndexError:
-      raise AssertionError('Counter "{}" was not found'.format(counter_name))
+    except IndexError as index_error:
+      raise AssertionError(
+          'Counter "{}" was not found'.format(counter_name)) from index_error
 
   def test_document_source(self):
     document = naturallanguageml.Document('Hello, world!')

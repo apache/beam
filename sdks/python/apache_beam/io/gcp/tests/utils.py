@@ -100,8 +100,9 @@ def delete_bq_table(project, dataset_id, table_id):
   table_ref = client.dataset(dataset_id).table(table_id)
   try:
     client.delete_table(table_ref)
-  except gexc.NotFound:
-    raise GcpTestIOError('BigQuery table does not exist: %s' % table_ref)
+  except gexc.NotFound as not_found:
+    raise GcpTestIOError(
+        'BigQuery table does not exist: %s' % table_ref) from not_found
 
 
 @retry.with_exponential_backoff(

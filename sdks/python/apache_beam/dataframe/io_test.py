@@ -138,8 +138,9 @@ class IOTest(unittest.TestCase):
     for module in requires:
       try:
         importlib.import_module(module)
-      except ImportError:
-        raise unittest.SkipTest('Missing dependency: %s' % module)
+      except ImportError as import_error:
+        raise unittest.SkipTest(
+            'Missing dependency: %s' % module) from import_error
     small = pd.DataFrame({'label': ['11a', '37a', '389a'], 'rank': [0, 1, 2]})
     big = pd.DataFrame({'number': list(range(1000))})
     big['float'] = big.number.map(math.sqrt)
@@ -230,7 +231,7 @@ class IOTest(unittest.TestCase):
         min(len(s) for s in splits), len(numbers) * 0.9**20 * 0.1)
 
   @parameterized.expand([
-      ('defaults', dict()),
+      ('defaults', {}),
       ('header', dict(header=1)),
       ('multi_header', dict(header=[0, 1])),
       ('multi_header', dict(header=[0, 1, 4])),

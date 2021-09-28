@@ -123,7 +123,7 @@ class GCSFileSystem(FileSystem):
       for path, size in gcsio.GcsIO().list_prefix(dir_or_prefix).items():
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("List operation failed", {dir_or_prefix: e})
+      raise BeamIOError("List operation failed", {dir_or_prefix: e}) from e
 
   def _path_open(
       self,
@@ -309,7 +309,7 @@ class GCSFileSystem(FileSystem):
     try:
       return gcsio.GcsIO().checksum(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("Checksum operation failed", {path: e})
+      raise BeamIOError("Checksum operation failed", {path: e}) from e
 
   def delete(self, paths):
     """Deletes files or directories at the provided paths.
@@ -328,6 +328,7 @@ class GCSFileSystem(FileSystem):
       match_result = self.match([path_to_use])[0]
       statuses = gcsio.GcsIO().delete_batch(
           [m.path for m in match_result.metadata_list])
+      # pylint: disable=used-before-assignment
       failures = [e for (_, e) in statuses if e is not None]
       if failures:
         raise failures[0]

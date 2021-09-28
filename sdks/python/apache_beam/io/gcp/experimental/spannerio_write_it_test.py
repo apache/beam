@@ -82,9 +82,10 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
           'LIKE "{}%"'.format(prefix))
       try:
         count = list(results)[0][0]
-      except IndexError:
+      except IndexError as index_error:
         raise ValueError(
-            "Spanner Count rows results not found for %s." % prefix)
+            "Spanner Count rows results not found for %s." %
+            prefix) from index_error
     return count
 
   @classmethod

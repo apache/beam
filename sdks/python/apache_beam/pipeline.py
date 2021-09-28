@@ -458,15 +458,15 @@ class Pipeline(object):
 
     self.visit(InputOutputUpdater(self))
 
-    for transform in output_replacements:
-      for tag, output in output_replacements[transform]:
+    for transform, output_replacement in output_replacements.items():
+      for tag, output in output_replacement:
         transform.replace_output(output, tag=tag)
 
-    for transform in input_replacements:
-      transform.replace_inputs(input_replacements[transform])
+    for transform, input_replacement in input_replacements.items():
+      transform.replace_inputs(input_replacement)
 
-    for transform in side_input_replacements:
-      transform.replace_side_inputs(side_input_replacements[transform])
+    for transform, side_input_replacement in side_input_replacements.items():
+      transform.replace_side_inputs(side_input_replacement)
 
   def _check_replacement(self, override):
     # type: (PTransformOverride) -> None
@@ -677,11 +677,11 @@ class Pipeline(object):
     try:
       if not isinstance(inputs, dict):
         inputs = {str(ix): input for (ix, input) in enumerate(inputs)}
-    except TypeError:
+    except TypeError as type_error:
       raise NotImplementedError(
           'Unable to extract PValue inputs from %s; either %s does not accept '
           'inputs of this format, or it does not properly override '
-          '_extract_input_pvalues' % (pvalueish, transform))
+          '_extract_input_pvalues' % (pvalueish, transform)) from type_error
     for t, leaf_input in inputs.items():
       if not isinstance(leaf_input, pvalue.PValue) or not isinstance(t, str):
         raise NotImplementedError(

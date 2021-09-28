@@ -181,7 +181,7 @@ def parse_table_schema_from_json(schema_string):
     json_schema = json.loads(schema_string)
   except JSONDecodeError as e:
     raise ValueError(
-        'Unable to parse JSON schema: %s - %r' % (schema_string, e))
+        'Unable to parse JSON schema: %s - %r' % (schema_string, e)) from e
 
   def _parse_schema_field(field):
     """Parse a single schema field from dictionary.
@@ -1016,7 +1016,7 @@ class BigQueryWrapper(object):
         if create_disposition == BigQueryDisposition.CREATE_NEVER:
           raise RuntimeError(
               'Table %s:%s.%s not found but create disposition is CREATE_NEVER.'
-              % (project_id, dataset_id, table_id))
+              % (project_id, dataset_id, table_id)) from exn
       else:
         raise
 
@@ -1444,7 +1444,7 @@ class RowAsDictJsonCoder(coders.Coder):
           table_row, allow_nan=False, default=default_encoder).encode('utf-8')
     except ValueError as e:
       raise ValueError(
-          '%s. %s. Row: %r' % (e, JSON_COMPLIANCE_ERROR, table_row))
+          '%s. %s. Row: %r' % (e, JSON_COMPLIANCE_ERROR, table_row)) from e
 
   def decode(self, encoded_table_row):
     return json.loads(encoded_table_row.decode('utf-8'))

@@ -200,7 +200,7 @@ class SingletonConsumerSet(ConsumerSet):
                producer_type_hints
                ):
     assert len(consumers) == 1
-    super(SingletonConsumerSet, self).__init__(
+    super().__init__(
         counter_factory,
         step_name,
         output_index,
@@ -486,7 +486,7 @@ class Operation(object):
 class ReadOperation(Operation):
   def start(self):
     with self.scoped_start_state:
-      super(ReadOperation, self).start()
+      super().start()
       range_tracker = self.spec.source.source.get_range_tracker(
           self.spec.source.start_position, self.spec.source.stop_position)
       for value in self.spec.source.source.read(range_tracker):
@@ -506,8 +506,7 @@ class ImpulseReadOperation(Operation):
       consumers,  # type: Mapping[Any, List[Operation]]
       source,  # type: iobase.BoundedSource
       output_coder):
-    super(ImpulseReadOperation,
-          self).__init__(name_context, None, counter_factory, state_sampler)
+    super().__init__(name_context, None, counter_factory, state_sampler)
     self.source = source
 
     self.receivers = [
@@ -585,7 +584,7 @@ class DoOperation(Operation):
                side_input_maps=None,
                user_state_context=None
               ):
-    super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
+    super().__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
     self.user_state_context = user_state_context
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
@@ -651,7 +650,7 @@ class DoOperation(Operation):
   def setup(self):
     # type: () -> None
     with self.scoped_start_state:
-      super(DoOperation, self).setup()
+      super().setup()
 
       # See fn_data in dataflow_runner.py
       fn, args, kwargs, tags_and_types, window_fn = (
@@ -704,7 +703,7 @@ class DoOperation(Operation):
   def start(self):
     # type: () -> None
     with self.scoped_start_state:
-      super(DoOperation, self).start()
+      super().start()
       self.dofn_runner.start()
 
   def process(self, o):
@@ -755,7 +754,7 @@ class DoOperation(Operation):
 
   def reset(self):
     # type: () -> None
-    super(DoOperation, self).reset()
+    super().reset()
     for side_input_map in self.side_input_maps:
       side_input_map.reset()
     if self.user_state_context:
@@ -766,9 +765,7 @@ class DoOperation(Operation):
     # type: (Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
     """Returns the element count MonitoringInfo collected by this operation."""
-    infos = super(
-        DoOperation,
-        self).pcollection_count_monitoring_infos(tag_to_pcollection_id)
+    infos = super().pcollection_count_monitoring_infos(tag_to_pcollection_id)
 
     if self.tagged_receivers:
       for tag, receiver in self.tagged_receivers.items():
@@ -799,7 +796,7 @@ class DoOperation(Operation):
 
 class SdfTruncateSizedRestrictions(DoOperation):
   def __init__(self, *args, **kwargs):
-    super(SdfTruncateSizedRestrictions, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
   def current_element_progress(self):
     # type: () -> Optional[iobase.RestrictionProgress]
@@ -813,7 +810,7 @@ class SdfTruncateSizedRestrictions(DoOperation):
 
 class SdfProcessSizedElements(DoOperation):
   def __init__(self, *args, **kwargs):
-    super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self.lock = threading.RLock()
     self.element_start_output_bytes = None  # type: Optional[int]
 
@@ -870,8 +867,7 @@ class SdfProcessSizedElements(DoOperation):
       return coder.encode([value])
 
     with self.lock:
-      infos = super(SdfProcessSizedElements,
-                    self).monitoring_infos(transform_id, tag_to_pcollection_id)
+      infos = super().monitoring_infos(transform_id, tag_to_pcollection_id)
       current_element_progress = self.current_element_progress()
       if current_element_progress:
         if current_element_progress.completed_work:
@@ -900,8 +896,7 @@ class SdfProcessSizedElements(DoOperation):
 class CombineOperation(Operation):
   """A Combine operation executing a CombineFn for each input element."""
   def __init__(self, name_context, spec, counter_factory, state_sampler):
-    super(CombineOperation,
-          self).__init__(name_context, spec, counter_factory, state_sampler)
+    super().__init__(name_context, spec, counter_factory, state_sampler)
     # Combiners do not accept deferred side-inputs (the ignored fourth argument)
     # and therefore the code to handle the extra args/kwargs is simpler than for
     # the DoFn's of ParDo.
@@ -913,7 +908,7 @@ class CombineOperation(Operation):
     # type: () -> None
     with self.scoped_start_state:
       _LOGGER.debug('Setup called for %s', self)
-      super(CombineOperation, self).setup()
+      super().setup()
       self.phased_combine_fn.combine_fn.setup()
 
   def process(self, o):
@@ -932,7 +927,7 @@ class CombineOperation(Operation):
     # type: () -> None
     with self.scoped_finish_state:
       _LOGGER.debug('Teardown called for %s', self)
-      super(CombineOperation, self).teardown()
+      super().teardown()
       self.phased_combine_fn.combine_fn.teardown()
 
 
@@ -951,8 +946,7 @@ class PGBKOperation(Operation):
   values in this bundle, memory permitting.
   """
   def __init__(self, name_context, spec, counter_factory, state_sampler):
-    super(PGBKOperation,
-          self).__init__(name_context, spec, counter_factory, state_sampler)
+    super().__init__(name_context, spec, counter_factory, state_sampler)
     assert not self.spec.combine_fn
     self.table = collections.defaultdict(list)
     self.size = 0
@@ -991,8 +985,7 @@ class PGBKOperation(Operation):
 class PGBKCVOperation(Operation):
   def __init__(
       self, name_context, spec, counter_factory, state_sampler, windowing=None):
-    super(PGBKCVOperation,
-          self).__init__(name_context, spec, counter_factory, state_sampler)
+    super().__init__(name_context, spec, counter_factory, state_sampler)
     # Combiners do not accept deferred side-inputs (the ignored fourth
     # argument) and therefore the code to handle the extra args/kwargs is
     # simpler than for the DoFn's of ParDo.
@@ -1030,7 +1023,7 @@ class PGBKCVOperation(Operation):
     # type: () -> None
     with self.scoped_start_state:
       _LOGGER.debug('Setup called for %s', self)
-      super(PGBKCVOperation, self).setup()
+      super().setup()
       self.combine_fn.setup()
 
   def process(self, wkv):
@@ -1079,7 +1072,7 @@ class PGBKCVOperation(Operation):
     # type: () -> None
     with self.scoped_finish_state:
       _LOGGER.debug('Teardown called for %s', self)
-      super(PGBKCVOperation, self).teardown()
+      super().teardown()
       self.combine_fn.teardown()
 
   def output_key(self, wkey, accumulator, timestamp):

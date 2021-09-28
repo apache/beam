@@ -74,10 +74,10 @@ class LoadTestOptions(PipelineOptions):
   def _str_to_boolean(value):
     try:
       return bool(['false', 'true'].index(value.lower()))
-    except ValueError:
+    except ValueError as value_error:
       raise argparse.ArgumentTypeError(
           '"true" or "false" expected, got "{}" '
-          'instead.'.format(value))
+          'instead.'.format(value)) from value_error
 
 
 class LoadTest(object):

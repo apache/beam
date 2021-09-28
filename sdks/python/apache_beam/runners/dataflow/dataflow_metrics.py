@@ -75,7 +75,7 @@ class DataflowMetrics(MetricResults):
       job_graph: apiclient.Job instance to be able to translate between internal
         step names (e.g. "s2"), and user step names (e.g. "split").
     """
-    super(DataflowMetrics, self).__init__()
+    super().__init__()
     self._dataflow_client = dataflow_client
     self.job_result = job_result
     self._queried_after_termination = False
@@ -122,7 +122,7 @@ class DataflowMetrics(MetricResults):
     """Populate the MetricKey object for a queried metric result."""
     step = ""
     name = metric.name.name  # Always extract a name
-    labels = dict()
+    labels = {}
     try:  # Try to extract the user step name.
       # If ValueError is thrown within this try-block, it is because of
       # one of the following:
@@ -294,10 +294,10 @@ def main(argv):
   try:
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners.dataflow.internal import apiclient
-  except ImportError:
+  except ImportError as import_error:
     raise ImportError(
         'Google Cloud Dataflow runner not available, '
-        'please install apache_beam[gcp]')
+        'please install apache_beam[gcp]') from import_error
   if argv[0] == __file__:
     argv = argv[1:]
   parser = argparse.ArgumentParser()

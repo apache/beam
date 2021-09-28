@@ -112,7 +112,7 @@ class DataflowNameContext(NameContext):
       user_name: The full user-given name of the step (e.g. Foo/Bar/ParDo(Far)).
       system_name: The step name in the optimized graph (e.g. s2-1).
     """
-    super(DataflowNameContext, self).__init__(step_name)
+    super().__init__(step_name)
     self.user_name = user_name
     self.system_name = system_name
 
@@ -557,7 +557,7 @@ class SimpleInvoker(DoFnInvoker):
                signature  # type: DoFnSignature
               ):
     # type: (...) -> None
-    super(SimpleInvoker, self).__init__(output_processor, signature)
+    super().__init__(output_processor, signature)
     self.process_method = signature.process_method.method_value
 
   def invoke_process(self,
@@ -585,7 +585,7 @@ class PerWindowInvoker(DoFnInvoker):
                user_state_context,  # type: Optional[userstate.UserStateContext]
                bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
               ):
-    super(PerWindowInvoker, self).__init__(output_processor, signature)
+    super().__init__(output_processor, signature)
     self.side_inputs = side_inputs
     self.context = context
     self.process_method = signature.process_method.method_value
@@ -656,9 +656,10 @@ class PerWindowInvoker(DoFnInvoker):
         # If no more args are present then the value must be passed via kwarg
         try:
           args_with_placeholders.append(next(remaining_args_iter))
-        except StopIteration:
+        except StopIteration as stop_iteration:
           if a not in input_kwargs:
-            raise ValueError("Value for sideinput %s not provided" % a)
+            raise ValueError(
+                "Value for sideinput %s not provided" % a) from stop_iteration
       elif isinstance(d, core.DoFn.StateParam):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif isinstance(d, core.DoFn.TimerParam):
@@ -827,10 +828,10 @@ class PerWindowInvoker(DoFnInvoker):
     if self.user_state_context or self.is_key_param_required:
       try:
         key, unused_value = windowed_value.value
-      except (TypeError, ValueError):
+      except (TypeError, ValueError) as e:
         raise ValueError((
             'Input value to a stateful DoFn or KeyParam must be a KV tuple; '
-            'instead, got \'%s\'.') % (windowed_value.value, ))
+            'instead, got \'%s\'.') % (windowed_value.value, )) from e
 
     for i, p in self.placeholders:
       if core.DoFn.ElementParam == p:

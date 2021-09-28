@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
 _RUNNER_MAP = {
-    path.split('.')[-1].lower(): path
+    path.rsplit('.', maxsplit=1)[-1].lower(): path
     for path in StandardOptions.ALL_KNOWN_RUNNERS
 }
 
@@ -82,15 +82,15 @@ def create_runner(runner_name):
     module, runner = runner_name.rsplit('.', 1)
     try:
       return getattr(importlib.import_module(module), runner)()
-    except ImportError:
+    except ImportError as import_error:
       if 'dataflow' in runner_name.lower():
         raise ImportError(
             'Google Cloud Dataflow runner not available, '
-            'please install apache_beam[gcp]')
+            'please install apache_beam[gcp]') from import_error
       elif 'interactive' in runner_name.lower():
         raise ImportError(
             'Interactive runner not available, '
-            'please install apache_beam[interactive]')
+            'please install apache_beam[interactive]') from import_error
       else:
         raise
   else:

@@ -425,7 +425,8 @@ class TableRowJsonCoder(coders.Coder):
           allow_nan=False,
           default=bigquery_tools.default_encoder)
     except ValueError as e:
-      raise ValueError('%s. %s' % (e, bigquery_tools.JSON_COMPLIANCE_ERROR))
+      raise ValueError(
+          '%s. %s' % (e, bigquery_tools.JSON_COMPLIANCE_ERROR)) from e
 
   def decode(self, encoded_table_row):
     od = json.loads(
@@ -582,10 +583,10 @@ class _BigQuerySource(dataflow_io.NativeSource):
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
       from apitools.base import py  # pylint: disable=unused-import
-    except ImportError:
+    except ImportError as import_error:
       raise ImportError(
           'Google Cloud IO not available, '
-          'please install apache_beam[gcp]')
+          'please install apache_beam[gcp]') from import_error
 
     if table is not None and query is not None:
       raise ValueError(
@@ -985,10 +986,10 @@ bigquery_v2_messages.TableSchema` object.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
       from apitools.base import py  # pylint: disable=unused-import
-    except ImportError:
+    except ImportError as import_error:
       raise ImportError(
           'Google Cloud IO not available, '
-          'please install apache_beam[gcp]')
+          'please install apache_beam[gcp]') from import_error
 
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)

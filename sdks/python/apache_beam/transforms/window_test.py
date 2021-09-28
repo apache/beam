@@ -149,7 +149,7 @@ class WindowTest(unittest.TestCase):
 
       class TestMergeContext(WindowFn.MergeContext):
         def __init__(self):
-          super(TestMergeContext, self).__init__(running)
+          super().__init__(running)
 
         def merge(self, to_be_merged, merge_result):
           for w in to_be_merged:

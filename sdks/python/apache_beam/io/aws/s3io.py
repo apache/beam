@@ -513,7 +513,7 @@ class S3Downloader(Downloader):
 
     except messages.S3ClientError as e:
       if e.code == 404:
-        raise IOError(errno.ENOENT, 'Not found: %s' % self._path)
+        raise IOError(errno.ENOENT, 'Not found: %s' % self._path) from e
       else:
         logging.error('HTTP error while requesting file %s: %s', self._path, 3)
         raise
@@ -598,7 +598,7 @@ class S3Uploader(Uploader):
     except messages.S3ClientError as e:
       self.last_error = e
       if e.code == 404:
-        raise IOError(errno.ENOENT, 'Not found: %s' % self._path)
+        raise IOError(errno.ENOENT, 'Not found: %s' % self._path) from e
       else:
         logging.error('HTTP error while requesting file %s: %s', self._path, 3)
         raise

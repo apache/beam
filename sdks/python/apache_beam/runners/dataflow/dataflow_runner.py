@@ -138,7 +138,7 @@ class DataflowRunner(PipelineRunner):
 
   def apply(self, transform, input, options):
     self._maybe_add_unified_worker_missing_options(options)
-    return super(DataflowRunner, self).apply(transform, input, options)
+    return super().apply(transform, input, options)
 
   def _get_unique_step_name(self):
     self._unique_step_id += 1
@@ -403,10 +403,10 @@ class DataflowRunner(PipelineRunner):
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam.runners.dataflow.internal import apiclient
-    except ImportError:
+    except ImportError as import_error:
       raise ImportError(
           'Google Cloud Dataflow runner not available, '
-          'please install apache_beam[gcp]')
+          'please install apache_beam[gcp]') from import_error
 
     debug_options = options.view_as(DebugOptions)
     if pipeline.contains_external_transforms:
@@ -1674,5 +1674,5 @@ class DataflowPipelineResult(PipelineResult):
 class DataflowRuntimeException(Exception):
   """Indicates an error has occurred in running this pipeline."""
   def __init__(self, msg, result):
-    super(DataflowRuntimeException, self).__init__(msg)
+    super().__init__(msg)
     self.result = result

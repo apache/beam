@@ -771,10 +771,10 @@ class Stager(object):
     package_name = Stager.get_sdk_package_name()
     try:
       version = pkg_resources.get_distribution(package_name).version
-    except pkg_resources.DistributionNotFound:
+    except pkg_resources.DistributionNotFound as e:
       raise RuntimeError(
           'Please set --sdk_location command-line option '
-          'or install a valid {} distribution.'.format(package_name))
+          'or install a valid {} distribution.'.format(package_name)) from e
     cmd_args = [
         Stager._get_python_executable(),
         '-m',
@@ -825,7 +825,7 @@ class Stager(object):
     try:
       processes.check_output(cmd_args)
     except processes.CalledProcessError as e:
-      raise RuntimeError(repr(e))
+      raise RuntimeError(repr(e)) from e
 
     for sdk_file in expected_files:
       if os.path.exists(sdk_file):

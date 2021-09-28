@@ -70,7 +70,7 @@ class _BigTableWriteFn(beam.DoFn):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(_BigTableWriteFn, self).__init__()
+    super().__init__()
     self.beam_options = {
         'project_id': project_id,
         'instance_id': instance_id,
@@ -136,7 +136,7 @@ class WriteToBigTable(beam.PTransform):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(WriteToBigTable, self).__init__()
+    super().__init__()
     self.beam_options = {
         'project_id': project_id,
         'instance_id': instance_id,
