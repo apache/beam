@@ -81,8 +81,7 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 // QueryCache checks a reader's side input cache for an entry with a PtransformID and sideInputID
 // and returns the entry.
 func (s *sideInputAdapter) QueryCache(reader StateReader) ReusableInput {
-	input := reader.GetSideInputCache().QueryCache(s.sid.PtransformID, s.sideInputID)
-	return input
+	return reader.GetSideInputCache().QueryCache(s.sid.PtransformID, s.sideInputID)
 }
 
 // SetCache sets a reader's cache with a materialized ReusableInput for the adapter's PTransform
