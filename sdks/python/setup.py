@@ -165,7 +165,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
     'mock>=1.0.1,<3.0.0',
-    'pandas>=1.0,<1.4.0',
+    'pandas<2.0.0',
     'parameterized>=0.7.1,<0.8.0',
     'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
     'pyyaml>=3.12,<6.0.0',
@@ -305,7 +305,8 @@ setuptools.setup(
         'interactive': INTERACTIVE_BEAM,
         'interactive_test': INTERACTIVE_BEAM_TEST,
         'aws': AWS_REQUIREMENTS,
-        'azure': AZURE_REQUIREMENTS
+        'azure': AZURE_REQUIREMENTS,
+        'dataframe': ['pandas>=1.0,<1.4']
     },
     zip_safe=False,
     # PyPI package information.
