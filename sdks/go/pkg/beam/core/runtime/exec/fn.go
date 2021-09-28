@@ -283,6 +283,7 @@ func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter
 		if err != nil {
 			return nil, errors.WithContextf(err, "making side input %v for %v", i, fn)
 		}
+		adapter.SetCache(reader, input)
 		ret = append(ret, input)
 	}
 
