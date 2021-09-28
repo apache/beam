@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.util.List;
+import java.util.Optional;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
@@ -44,4 +47,12 @@ public interface ExternalTransformBuilder<ConfigT, InputT extends PInput, Output
 
   /** Builds the transform after it has been configured. */
   PTransform<InputT, OutputT> buildExternal(ConfigT configuration);
+
+  /**
+   * List the dependencies needed for this transform. Jars from classpath are used by default when
+   * Optional.empty() is returned.
+   */
+  default Optional<List<String>> getDependencies(PipelineOptions options) {
+    return Optional.empty();
+  }
 }
