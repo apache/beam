@@ -21,14 +21,13 @@ apiVersion: 1
 deleteDatasources:
 
 datasources:
-  - name: Python Tests
+  - name: "Python Tests"
     type: marcusolsson-json-datasource
     access: proxy
     orgId: 1
     url: https://api.github.com/repos/apache/beam/actions/workflows/python_tests.yml/runs
     jsonData:
       httpHeaderName1: "accept"
-      customQueryParameters: "per_page=100"
     secureJsonData:
       httpHeaderValue1: "application/vnd.github.v3+json"
     editable: false
