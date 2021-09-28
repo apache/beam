@@ -802,6 +802,9 @@ class _CustomBigQuerySource(BoundedSource):
           for metadata in metadata_list
       ]
 
+      if self.query is not None:
+        bq.clean_up_temporary_dataset(self._get_project())
+
     for source in self.split_result:
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)

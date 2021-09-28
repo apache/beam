@@ -133,8 +133,8 @@ class ReadTests(BigQueryReadIntegrationTests):
     cls.table_name = 'python_read_table'
     cls.create_table(cls.table_name)
 
-    table_name = '{}:{}.{}'.format(cls.project, cls.dataset_id, cls.table_name)
-    cls.query = 'SELECT number, str FROM `%s`' % table_name
+    table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)
+    cls.query = 'SELECT number, str FROM `%s`' % table_id
 
   @classmethod
   def create_table(cls, table_name):
