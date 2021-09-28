@@ -2318,11 +2318,11 @@ class GroupByKey(PTransform):
         windowing.windowfn, GlobalWindows) and isinstance(trigger,
                                                           DefaultTrigger):
       if pcoll.pipeline.allow_unsafe_triggers:
-        # TODO(BEAM-9487) Change comment for Beam 2.33
+        # TODO(BEAM-9487) Change comment for Beam 2.34
         _LOGGER.warning(
             'PCollection passed to GroupByKey (label: %s) is unbounded, has a '
             'global window, and uses a default trigger. This will no longer '
-            'be allowed starting with Beam 2.33 unless '
+            'be allowed starting with Beam 2.34 unless '
             '--allow_unsafe_triggers is set.',
             self.label)
       else:
@@ -2333,13 +2333,13 @@ class GroupByKey(PTransform):
     unsafe_reason = trigger.may_lose_data(windowing)
     if unsafe_reason != DataLossReason.NO_POTENTIAL_LOSS:
       if pcoll.pipeline.allow_unsafe_triggers:
-        # TODO(BEAM-9487): Switch back to this log for Beam 2.33.
+        # TODO(BEAM-9487): Switch back to this log for Beam 2.34.
         # _LOGGER.warning(
         #   'Skipping trigger safety check. '
         #   'This could lead to incomplete or missing groups.')
         _LOGGER.warning(
             '%s: Unsafe trigger type (%s) detected. Starting with '
-            'Beam 2.33, this will raise an error by default. '
+            'Beam 2.34, this will raise an error by default. '
             'Either change the pipeline to use a safe trigger or '
             'set the --allow_unsafe_triggers flag.',
             self.label,
