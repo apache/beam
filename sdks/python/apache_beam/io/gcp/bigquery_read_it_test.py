@@ -178,27 +178,25 @@ class ReadTests(BigQueryReadIntegrationTests):
 
 
 class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
-  TABLE_DATA = [
-      {
-          'number': 1,
-          'string': u'你好',
-          'time': '12:44:31',
-          'datetime': '2018-12-31 12:44:31',
-          'rec': None
-      },
-      {
-          'number': 4,
-          'string': u'привет',
-          'time': '12:44:31',
-          'datetime': '2018-12-31 12:44:31',
-          'rec': {
-              'rec_datetime': '2018-12-31 12:44:31',
-              'rec_rec': {
-                  'rec_rec_datetime': '2018-12-31 12:44:31'
-              }
-          },
-      }
-  ]
+  TABLE_DATA = [{
+      'number': 1,
+      'string': u'你好',
+      'time': '12:44:31',
+      'datetime': '2018-12-31 12:44:31',
+      'rec': None
+  },
+                {
+                    'number': 4,
+                    'string': u'привет',
+                    'time': '12:44:31',
+                    'datetime': '2018-12-31 12:44:31',
+                    'rec': {
+                        'rec_datetime': '2018-12-31 12:44:31',
+                        'rec_rec': {
+                            'rec_rec_datetime': '2018-12-31 12:44:31'
+                        }
+                    },
+                }]
 
   @classmethod
   def setUpClass(cls):

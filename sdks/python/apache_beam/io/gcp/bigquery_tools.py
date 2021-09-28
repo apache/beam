@@ -959,17 +959,30 @@ class BigQueryWrapper(object):
               bigquery.BigqueryDatasetsListRequest(
                   projectId=project_id, filter='labels.type:apache-beam-temp')))
       for dataset in response.datasets:
-        dataset_id = dataset.datasetReference.datasetId
-        self._delete_dataset(project_id, dataset_id, True)
+        try:
+          dataset_id = dataset.datasetReference.datasetId
+          self._delete_dataset(project_id, dataset_id, True)
+        except HttpError as exn:
+          if exn.status_code == 403:
+            _LOGGER.warning(
+                'Permission denied to delete temporary dataset %s:%s for '
+                'clean up.',
+                project_id,
+                dataset_id)
+            return
+          else:
+            raise
     else:
       try:
         self._delete_table(project_id, dataset_id, table_id)
       except HttpError as exn:
         if exn.status_code == 403:
           _LOGGER.warning(
-              'Permission denied to delete temporary dataset %s:%s for clean up',
-              temp_table.projectId,
-              temp_table.datasetId)
+              'Permission denied to delete temporary table %s:%s.%s for '
+              'clean up.',
+              project_id,
+              dataset_id,
+              table_id)
           return
         else:
           raise

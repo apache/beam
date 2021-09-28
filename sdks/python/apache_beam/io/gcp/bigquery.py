@@ -270,24 +270,19 @@ encoding when writing to BigQuery.
 # pytype: skip-file
 
 import collections
-import datetime
 import io
 import itertools
 import json
 import logging
-import pyarrow
 import random
 import time
 import uuid
-from itertools import chain
 from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Union
 
-import avro.schema
 import fastavro
-from avro import io as avroio
 
 import apache_beam as beam
 from apache_beam import coders
