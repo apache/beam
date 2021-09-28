@@ -21,7 +21,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
-
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
@@ -32,11 +31,12 @@ import (
 
 func TestWordCount(t *testing.T) {
 	tests := []struct {
-		lines    []string
-		words    int
-		hash     string
-		name     string
-		counters int
+		lines                                                             []string
+		words                                                             int
+		hash                                                              string
+		smallWords                                                        string
+		lineLen                                                           string
+		smallWordsCount, lineLenCount, lineLenSum, lineLenMin, lineLenMax int64
 	}{
 		{
 			[]string{
@@ -45,7 +45,12 @@ func TestWordCount(t *testing.T) {
 			1,
 			"6zZtmVTet7aIhR3wmPE8BA==",
 			"smallWords",
+			"lineLenDistro",
 			1,
+			1,
+			3,
+			3,
+			3,
 		},
 		{
 			[]string{
@@ -56,7 +61,12 @@ func TestWordCount(t *testing.T) {
 			1,
 			"jAk8+k4BOH7vQDUiUZdfWg==",
 			"smallWords",
-			1,
+			"lineLenDistro",
+			6,
+			3,
+			21,
+			3,
+			11,
 		},
 		{
 			[]string{
@@ -65,7 +75,12 @@ func TestWordCount(t *testing.T) {
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==",
 			"smallWords",
+			"lineLenDistro",
+			6,
 			1,
+			23,
+			23,
+			23,
 		},
 		{
 			[]string{
@@ -74,7 +89,12 @@ func TestWordCount(t *testing.T) {
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==", // ordering doesn't matter: same hash as above
 			"smallWords",
+			"lineLenDistro",
+			6,
 			1,
+			23,
+			23,
+			23,
 		},
 		{
 			[]string{
@@ -88,7 +108,12 @@ func TestWordCount(t *testing.T) {
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==", // whitespace doesn't matter: same hash as above
 			"smallWords",
-			1,
+			"lineLenDistro",
+			6,
+			6,
+			37,
+			0,
+			11,
 		},
 	}
 
@@ -102,10 +127,17 @@ func TestWordCount(t *testing.T) {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
 		qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
-			return sr.Name() == test.name
+			return sr.Name() == test.smallWords
 		})
-		if len(qr.Counters()) != test.counters {
-			t.Errorf("Metrics filtering with Name failed.\nGot %d counters \n Want %d counters", len(qr.Counters()), test.counters)
+		if qr.Counters()[0].Result() != test.smallWordsCount {
+			t.Errorf("Metrics().Query(by Name) failed. Got %d counters, Want %d counters", qr.Counters()[0].Result(), test.smallWordsCount)
+		}
+		qr = pr.Metrics().Query(func(sr metrics.SingleResult) bool {
+			return sr.Name() == test.lineLen
+		})
+		distributonValue := qr.Distributions()[0].Result()
+		if distributonValue.Count != test.lineLenCount || distributonValue.Sum != test.lineLenSum || distributonValue.Max != test.lineLenMax || distributonValue.Min != test.lineLenMin {
+			t.Errorf("Metrics().Query(by Name) failed. Got {%d %d %d %d} distributions, Want {%d %d %d %d} distribution", distributonValue.Count, distributonValue.Sum, distributonValue.Min, distributonValue.Max, test.lineLenCount, test.lineLenSum, test.lineLenMin, test.lineLenMax)
 		}
 	}
 }

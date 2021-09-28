@@ -482,9 +482,9 @@ func (mr Results) AllMetrics() QueryResults {
 	return QueryResults{mr.counters, mr.distributions, mr.gauges}
 }
 
+// TODO(BEAM-11217): Implement querying metrics by DoFn
 // SingleResult interface facilitates metrics query filtering methods.
 type SingleResult interface {
-	Step() string
 	Name() string
 	Namespace() string
 }
@@ -561,19 +561,14 @@ func (r CounterResult) Result() int64 {
 	return r.Attempted
 }
 
-// Name returns the Name value from the Key field.
+// Name returns the Name of this Counter.
 func (r CounterResult) Name() string {
 	return r.Key.Name
 }
 
-// Namespace returns the Namespace value from the Key field.
+// Namespace returns the Namespace of this Counter.
 func (r CounterResult) Namespace() string {
 	return r.Key.Namespace
-}
-
-// Step returns the Step value from the Key field.
-func (r CounterResult) Step() string {
-	return r.Key.Step
 }
 
 // MergeCounters combines counter metrics that share a common key.
@@ -618,19 +613,14 @@ func (r DistributionResult) Result() DistributionValue {
 	return r.Attempted
 }
 
-// Name returns the Name value from the Key field.
+// Name returns the Name of this Distribution.
 func (r DistributionResult) Name() string {
 	return r.Key.Name
 }
 
-// Namespace returns the Namespace value from the Key field.
+// Namespace returns the Namespace of this Distribution.
 func (r DistributionResult) Namespace() string {
 	return r.Key.Namespace
-}
-
-// Step returns the Step value from the Key field.
-func (r DistributionResult) Step() string {
-	return r.Key.Step
 }
 
 // MergeDistributions combines distribution metrics that share a common key.
@@ -675,19 +665,14 @@ func (r GaugeResult) Result() GaugeValue {
 	return r.Attempted
 }
 
-// Name returns the Name value from the Key field.
+// Name returns the Name of this Gauge.
 func (r GaugeResult) Name() string {
 	return r.Key.Name
 }
 
-// Namespace returns the Namespace value from the Key field.
+// Namespace returns the Namespace of this Gauge.
 func (r GaugeResult) Namespace() string {
 	return r.Key.Namespace
-}
-
-// Step returns the Step value from the Key field.
-func (r GaugeResult) Step() string {
-	return r.Key.Step
 }
 
 // StepKey uniquely identifies a metric within a pipeline graph.
