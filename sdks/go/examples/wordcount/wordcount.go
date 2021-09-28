@@ -110,16 +110,16 @@ func init() {
 }
 
 var (
-	wordRE            = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-	empty             = beam.NewCounter("extract", "emptyLines")
-	small_word_length = flag.Int("small_word_length", 9, "small_word_length")
-	small_words       = beam.NewCounter("extract", "small_words")
-	lineLen           = beam.NewDistribution("extract", "lineLenDistro")
+	wordRE          = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+	empty           = beam.NewCounter("extract", "emptyLines")
+	smallWordLength = flag.Int("small_word_length", 9, "length of small words (default: 9)")
+	smallWords      = beam.NewCounter("extract", "smallWords")
+	lineLen         = beam.NewDistribution("extract", "lineLenDistro")
 )
 
 // extractFn is a DoFn that emits the words in a given line and keeps a count for small words.
 type extractFn struct {
-	SmallWordLength int `json:"min_length"`
+	SmallWordLength int `json:"smallWordLength"`
 }
 
 func (f *extractFn) ProcessElement(ctx context.Context, line string, emit func(string)) {
@@ -131,7 +131,7 @@ func (f *extractFn) ProcessElement(ctx context.Context, line string, emit func(s
 		// increment the counter for small words if length of words is
 		// less than small_word_length
 		if len(word) < f.SmallWordLength {
-			small_words.Inc(ctx, 1)
+			smallWords.Inc(ctx, 1)
 		}
 		emit(word)
 	}
@@ -160,7 +160,7 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 	s = s.Scope("CountWords")
 
 	// Convert lines of text into individual words.
-	col := beam.ParDo(s, &extractFn{SmallWordLength: *small_word_length}, lines)
+	col := beam.ParDo(s, &extractFn{SmallWordLength: *smallWordLength}, lines)
 
 	// Count the number of times each word occurs.
 	return stats.Count(s, col)
