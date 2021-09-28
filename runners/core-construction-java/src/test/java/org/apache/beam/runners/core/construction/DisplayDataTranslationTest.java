@@ -115,7 +115,7 @@ public class DisplayDataTranslationTest {
                 .setPayload(
                     RunnerApi.LabelledPayload.newBuilder()
                         .setLabel("label")
-                        .setDoubleValue(321)
+                        .setIntValue(321)
                         .setKey("foo6")
                         .setNamespace(
                             "org.apache.beam.runners.core.construction.DisplayDataTranslationTest$1")
@@ -127,7 +127,7 @@ public class DisplayDataTranslationTest {
                 .setPayload(
                     RunnerApi.LabelledPayload.newBuilder()
                         .setLabel("label")
-                        .setDoubleValue(123)
+                        .setIntValue(123)
                         .setKey("foo7")
                         .setNamespace(
                             "org.apache.beam.runners.core.construction.DisplayDataTranslationTest$1")

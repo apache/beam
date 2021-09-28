@@ -1016,7 +1016,7 @@ class RunnerApiTest(unittest.TestCase):
             'dd_string_value', label='dd_string_label')
         parent_dd['dd_string_2'] = DisplayDataItem('dd_string_value_2')
         parent_dd['dd_bool'] = DisplayDataItem(False, label='dd_bool_label')
-        parent_dd['dd_int'] = DisplayDataItem(1.1, label='dd_int_label')
+        parent_dd['dd_double'] = DisplayDataItem(1.1, label='dd_double_label')
         return parent_dd
 
     p = beam.Pipeline()
@@ -1060,7 +1060,7 @@ class RunnerApiTest(unittest.TestCase):
                     label='p_dd_int_label',
                     key='p_dd_int',
                     namespace='apache_beam.pipeline_test.MyPTransform',
-                    double_value=1).SerializeToString()),
+                    int_value=1).SerializeToString()),
             beam_runner_api_pb2.DisplayData(
                 urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
                 payload=beam_runner_api_pb2.LabelledPayload(
@@ -1085,8 +1085,8 @@ class RunnerApiTest(unittest.TestCase):
             beam_runner_api_pb2.DisplayData(
                 urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
                 payload=beam_runner_api_pb2.LabelledPayload(
-                    label='dd_int_label',
-                    key='dd_int',
+                    label='dd_double_label',
+                    key='dd_double',
                     namespace='apache_beam.pipeline_test.MyPTransform',
                     double_value=1.1).SerializeToString()),
         ])

@@ -75,6 +75,8 @@ public class DisplayDataTranslation {
     Object valueObj = item.getValue() == null ? item.getShortValue() : item.getValue();
     if (valueObj instanceof Boolean) {
       builder.setBoolValue((Boolean) valueObj);
+    } else if (valueObj instanceof Integer || valueObj instanceof Long) {
+      builder.setIntValue((Long) valueObj);
     } else if (valueObj instanceof Number) {
       builder.setDoubleValue(((Number) valueObj).doubleValue());
     } else {

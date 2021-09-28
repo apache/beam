@@ -159,7 +159,13 @@ class DisplayData(object):
             bool_value=value,
             key=display_data_dict['key'],
             namespace=display_data_dict.get('namespace', ''))
-      elif isinstance(value, (int, float, complex)):
+      elif isinstance(value, int):
+        return beam_runner_api_pb2.LabelledPayload(
+            label=label,
+            int_value=value,
+            key=display_data_dict['key'],
+            namespace=display_data_dict.get('namespace', ''))
+      elif isinstance(value, (float, complex)):
         return beam_runner_api_pb2.LabelledPayload(
             label=label,
             double_value=value,
