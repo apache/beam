@@ -277,7 +277,7 @@ To learn more, see:
 
 ## Pipe operator (`|`)
 
-Delimits a step in a Python pipeline. For example: `[Final Output PCollection] = ([Initial Input PCollection] | [First Transform] | [Second Transform] | [Third Transform])`. The output of each transform is passed from left to right as input to the next transform. The pipe operator in Python is equivalent to the `apply` method in Java (in other words, the pipe applies a transform to a PCollection), and usage is similar to the pipe operator in shell scripts, where you can use pipes to chain programs.
+Delimits a step in a Python pipeline. For example: `[Final Output PCollection] = ([Initial Input PCollection] | [First Transform] | [Second Transform] | [Third Transform])`. The output of each transform is passed from left to right as input to the next transform. The pipe operator in Python is equivalent to the `apply` method in Java (in other words, the pipe applies a transform to a PCollection), and usage is similar to the pipe operator in shell scripts, which lets you pass the output of one program into the input of another.
 
 To learn more, see:
 
