@@ -249,7 +249,7 @@ To learn more, see:
 
 ## ParDo
 
-The lowest-level element-wise PTransform. For each element in an input PCollection, ParDo applies a function and emits zero, one, or multiple elements to an output PCollection. “ParDo” is short for “Parallel Do.” It’s similar to the map operation in a [MapReduce](https://en.wikipedia.org/wiki/MapReduce) algorithm and the Reduce operation when following a GroupByKey. ParDo is also comparable to the `apply` method from a DataFrame, or the `UPDATE` keyword from SQL.
+The lowest-level element-wise PTransform. For each element in an input PCollection, ParDo applies a function and emits zero, one, or multiple elements to an output PCollection. “ParDo” is short for “Parallel Do.” It’s similar to the map operation in a [MapReduce](https://en.wikipedia.org/wiki/MapReduce) algorithm and the reduce operation when following a GroupByKey. ParDo is also comparable to the `apply` method from a DataFrame, or the `UPDATE` keyword from SQL.
 
 To learn more, see:
 
@@ -386,7 +386,7 @@ To learn more, see:
 
 ## Stage
 
-The unit of fused transforms in a pipeline. Runners can perform *fusion* optimization to make pipeline execution more efficient. In Dataflow, in particular, the pipeline is conceptualized as a graph of fused stages.
+The unit of fused transforms in a pipeline. Runners can perform fusion optimization to make pipeline execution more efficient. In Dataflow, the pipeline is conceptualized as a graph of fused stages.
 
 ## State
 
