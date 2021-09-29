@@ -110,7 +110,7 @@ public class ReshuffleTranslator<K, InT, OutT>
         : inputStream.filter(op -> OpMessage.Type.ELEMENT == op.getType());
   }
 
-  /** Predicate to determine whether a URN is a Flink native transform. */
+  /** Predicate to determine whether a URN is a Samza native transform. */
   @AutoService(NativeTransforms.IsNativeTransform.class)
   public static class IsSamzaNativeTransform implements NativeTransforms.IsNativeTransform {
     @Override
