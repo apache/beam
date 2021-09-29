@@ -18,7 +18,6 @@ $(document).ready(function() {
             el.value=text;document.body.appendChild(el);
             el.select();document.execCommand('copy');
             document.body.removeChild(el);
-            alert('copied to clipboard');
         })
         $(".just-copy").click(function(){
             var text=$(this).parent().siblings()[0].innerText;
@@ -26,7 +25,6 @@ $(document).ready(function() {
             el.value=text;document.body.appendChild(el);
             el.select();document.execCommand('copy');
             document.body.removeChild(el);
-            alert('copied to clipboard');
         })
     }
     let code = document.querySelectorAll('pre'),
