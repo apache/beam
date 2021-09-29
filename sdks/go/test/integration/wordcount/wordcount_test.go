@@ -100,20 +100,27 @@ func TestWordCount(t *testing.T) {
 		if err != nil {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
+
 		qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
 			return sr.Name() == "smallWords"
 		})
-		// only 1 entry would be present for this case
-		if qr.Counters()[0].Result() != test.smallWordsCount {
-			t.Errorf("Metrics().Query(by Name) failed. Got %d counters, Want %d counters", qr.Counters()[0].Result(), test.smallWordsCount)
+		counter := metrics.CounterResult{}
+		if len(qr.Counters()) != 0 {
+			counter = qr.Counters()[0]
 		}
+		if counter.Result() != test.smallWordsCount {
+			t.Errorf("Metrics().Query(by Name) failed. Got %d counters, Want %d counters", counter.Result(), test.smallWordsCount)
+		}
+
 		qr = pr.Metrics().Query(func(sr metrics.SingleResult) bool {
 			return sr.Name() == "lineLenDistro"
 		})
-		// only 1 entry would be present for this case
-		distributonValue := qr.Distributions()[0].Result()
-		if distributonValue != test.lineLen {
-			t.Errorf("Metrics().Query(by Name) failed. Got %v distribution, Want %v distribution", distributonValue, lineLen)
+		distribution := metrics.DistributionResult{}
+		if len(qr.Distributions()) != 0 {
+			distribution = qr.Distributions()[0]
+		}
+		if distribution.Result() != test.lineLen {
+			t.Errorf("Metrics().Query(by Name) failed. Got %v distribution, Want %v distribution", distribution.Result(), test.lineLen)
 		}
 	}
 }
