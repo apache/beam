@@ -394,6 +394,12 @@ class Pipeline(object):
 
     self.visit(TransformUpdater(self))
 
+    # Ensure no type information is lost.
+    for old, new in output_map.items():
+      if new.element_type == typehints.Any:
+        # TODO(robertwb): Perhaps take the intersection?
+        new.element_type = old.element_type
+
     # Adjusting inputs and outputs
     class InputOutputUpdater(PipelineVisitor):  # pylint: disable=used-before-assignment
       """"A visitor that records input and output values to be replaced.
