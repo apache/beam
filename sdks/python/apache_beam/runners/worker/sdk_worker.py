@@ -180,7 +180,7 @@ class SdkHarness(object):
       _LOGGER.info('Creating secure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.secure_channel(
           control_address, credentials, options=options)
-    grpc.channel_ready_future(self._control_channel).result(timeout=60)
+    grpc.channel_ready_future(self._control_channel).result(timeout=120)
     _LOGGER.info('Control channel established.')
 
     self._control_channel = grpc.intercept_channel(
