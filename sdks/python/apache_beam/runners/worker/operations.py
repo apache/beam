@@ -703,7 +703,8 @@ class DoOperation(Operation):
   def start(self):
     # type: () -> None
     with self.scoped_start_state:
-      super().start()
+      # pylint: disable=super-with-arguments
+      super(DoOperation, self).start()
       self.dofn_runner.start()
 
   def process(self, o):
