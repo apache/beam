@@ -17,12 +17,58 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:code_text_field/code_text_field.dart';
+import 'package:flutter_highlight/themes/vs.dart';
+import 'package:highlight/languages/java.dart';
+import 'package:highlight/languages/python.dart';
+import 'package:highlight/languages/go.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-class EditorTextArea extends StatelessWidget {
-  const EditorTextArea({Key? key}) : super(key: key);
+class EditorTextArea extends StatefulWidget {
+  final SDK sdk;
+
+  const EditorTextArea({Key? key, required this.sdk}) : super(key: key);
+
+  @override
+  _EditorTextAreaState createState() => _EditorTextAreaState();
+}
+
+class _EditorTextAreaState extends State<EditorTextArea> {
+  CodeController? _codeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _codeController = CodeController(
+      language: _getLanguageFromSdk(),
+      theme: vsTheme,
+    );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _codeController?.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('Editor Text Area'));
+    return CodeField(
+      controller: _codeController!,
+      textStyle: const TextStyle(fontFamily: 'SourceCode'),
+    );
+  }
+
+  _getLanguageFromSdk() {
+    switch (widget.sdk) {
+      case SDK.java:
+        return java;
+      case SDK.go:
+        return go;
+      case SDK.python:
+        return python;
+      case SDK.scio:
+        return java;
+    }
   }
 }
