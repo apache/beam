@@ -17,13 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sdk.dart';
 
-class EditorState with ChangeNotifier {
-  SDK sdk = SDK.java;
+class EditorTextArea extends StatelessWidget {
+  const EditorTextArea({Key? key}) : super(key: key);
 
-  setSdk(SDK sdk) {
-    this.sdk = sdk;
-    notifyListeners();
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Editor Text Area'));
   }
 }

@@ -18,7 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
-import 'package:playground/modules/editor/editor_page.dart';
+import 'package:playground/pages/playground/playground_page.dart';
 
 void main() {
   runApp(const PlaygroundApp());
@@ -32,7 +32,7 @@ class PlaygroundApp extends StatelessWidget {
     return MaterialApp(
       title: 'Apache Beam Playground',
       theme: theme,
-      home: const EditorPage(),
+      home: const PlaygroundPage(),
       debugShowCheckedModeBanner: false,
     );
   }

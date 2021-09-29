@@ -18,33 +18,40 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:playground/modules/editor/components/sdk_selector/sdk_selector.dart';
-import 'package:playground/modules/editor/state/editor_state.dart';
+import 'package:playground/modules/output/components/output_area.dart';
+import 'package:playground/pages/playground/playground_state.dart';
+import 'package:playground/modules/editor/components/editor_textarea.dart';
+import 'package:playground/modules/sdk/components/sdk_selector.dart';
 import 'package:playground/components/logo/logo_component.dart';
-import 'package:playground/modules/editor/components/code_textarea/code_textarea.dart';
-import 'package:playground/modules/editor/components/output_area/output_area.dart';
 
-class EditorPage extends StatelessWidget {
-  const EditorPage({Key? key}) : super(key: key);
+class PlaygroundPage extends StatelessWidget {
+  const PlaygroundPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<EditorState>(
-      create: (context) => EditorState(),
+    return ChangeNotifierProvider<PlaygroundState>(
+      create: (context) => PlaygroundState(),
       child: Scaffold(
         appBar: AppBar(
           title: Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 16.0,
-            children: const [
-              LogoComponent(),
-              SDKSelector(),
+            children: [
+              const LogoComponent(),
+              Consumer<PlaygroundState>(
+                builder: (context, state, child) {
+                  return SDKSelector(
+                    sdk: state.sdk,
+                    setSdk: state.setSdk,
+                  );
+                },
+              ),
             ],
           ),
         ),
         body: Column(
           children: [
-            const Expanded(child: CodeTextArea()),
+            const Expanded(child: EditorTextArea()),
             Container(height: 16.0, color: Theme.of(context).backgroundColor),
             const Expanded(child: OutputArea()),
           ],

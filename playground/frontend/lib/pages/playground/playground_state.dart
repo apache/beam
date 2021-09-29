@@ -17,12 +17,13 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-class CodeTextArea extends StatelessWidget {
-  const CodeTextArea({Key? key}) : super(key: key);
+class PlaygroundState with ChangeNotifier {
+  SDK sdk = SDK.java;
 
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Code Text Area'));
+  setSdk(SDK sdk) {
+    this.sdk = sdk;
+    notifyListeners();
   }
 }
