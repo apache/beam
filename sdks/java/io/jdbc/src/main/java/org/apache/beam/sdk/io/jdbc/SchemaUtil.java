@@ -352,7 +352,7 @@ class SchemaUtil {
       Row.Builder rowBuilder = Row.withSchema(schema);
       for (int i = 0; i < schema.getFieldCount(); i++) {
         Object value = fieldExtractors.get(i).extract(rs, i + 1);
-        if (rs.wasNull() && schema.getField(i).getType().getNullable()) {
+        if (rs.wasNull()) {
           rowBuilder.addValue(null);
         } else {
           rowBuilder.addValue(value);

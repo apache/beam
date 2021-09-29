@@ -217,7 +217,7 @@ public class SchemaUtilTest {
             .addField("varbinary_col", Schema.FieldType.BYTES)
             .addField("varchar_col", Schema.FieldType.STRING)
             .addField("nullable_boolean_col", Schema.FieldType.BOOLEAN.withNullable(true))
-            .addField("another_int_col", Schema.FieldType.INT32)
+            .addField("another_int_col", Schema.FieldType.INT32.withNullable(true))
             .build();
     Row wantRow =
         Row.withSchema(wantSchema)
@@ -240,7 +240,7 @@ public class SchemaUtilTest {
                 "varbinary".getBytes(Charset.forName("UTF-8")),
                 "varchar",
                 null,
-                0)
+                null)
             .build();
 
     SchemaUtil.BeamRowMapper beamRowMapper = SchemaUtil.BeamRowMapper.of(wantSchema);
