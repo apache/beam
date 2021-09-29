@@ -34,13 +34,13 @@ message CodeInfo {
   sdk SDK = 2;
 }
 
-// PipelineInfo contains information about the id pipeline.
+// PipelineInfo contains information of the pipeline id.
 
 message PipelineInfo {
   int32 pipeline_id = 1;
 }
 
-// PipelineResult represents the result of compiling or executing code.
+// PipelineResult represents the result of the compiled and/or executed code.
 
 message PipelineResult {
   string output = 1;
@@ -59,7 +59,7 @@ message StatusInfo {
 
 service Playground {
 
-  // Submit the job for execution and get id of the pipeline.
+  // Submit the job for an execution and get the pipeline id.
   rpc RunCode(CodeInfo) returns (PipelineInfo);
 
   // Get the status of pipeline execution.
