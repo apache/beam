@@ -37,12 +37,11 @@ limitations under the License.
 -->
 
 We are happy to present the new 2.32.0 release of Apache Beam. This release includes both improvements and new functionality.
-
 See the [download page](/get-started/downloads/#2320-2021-08-11) for this release.
 
-For more information on changes in 2.32.0, check out the
+<!-- more -->
 
-[detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349992).
+For more information on changes in 2.32.0, check out the [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349992).
 
 
 ## Highlights

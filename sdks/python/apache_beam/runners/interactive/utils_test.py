@@ -309,6 +309,15 @@ class GeneralUtilTest(unittest.TestCase):
     _ = p | 'ReadBoundedSource' >> beam.io.ReadFromText(f.name)
     self.assertFalse(utils.has_unbounded_sources(p))
 
+  def test_find_pcoll_name(self):
+    p = beam.Pipeline()
+    pcoll = p | beam.Create([1, 2, 3])
+    ib.watch({
+        'p_test_find_pcoll_name': p,
+        'pcoll_test_find_pcoll_name': pcoll,
+    })
+    self.assertEqual('pcoll_test_find_pcoll_name', utils.find_pcoll_name(pcoll))
+
 
 if __name__ == '__main__':
   unittest.main()
