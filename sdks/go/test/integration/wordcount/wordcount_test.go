@@ -44,7 +44,7 @@ func TestWordCount(t *testing.T) {
 			1,
 			"6zZtmVTet7aIhR3wmPE8BA==",
 			1,
-			metrics.DistributionValue{1, 3, 3, 3},
+			metrics.DistributionValue{Count: 1, Sum: 3, Min: 3, Max: 3},
 		},
 		{
 			[]string{
@@ -55,7 +55,7 @@ func TestWordCount(t *testing.T) {
 			1,
 			"jAk8+k4BOH7vQDUiUZdfWg==",
 			6,
-			metrics.DistributionValue{3, 21, 3, 11},
+			metrics.DistributionValue{Count: 3, Sum: 21, Min: 3, Max: 11},
 		},
 		{
 			[]string{
@@ -64,7 +64,7 @@ func TestWordCount(t *testing.T) {
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==",
 			6,
-			metrics.DistributionValue{1, 23, 23, 23},
+			metrics.DistributionValue{Count: 1, Sum: 23, Min: 23, Max: 23},
 		},
 		{
 			[]string{
@@ -73,7 +73,7 @@ func TestWordCount(t *testing.T) {
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==", // ordering doesn't matter: same hash as above
 			6,
-			metrics.DistributionValue{1, 23, 23, 23},
+			metrics.DistributionValue{Count: 1, Sum: 23, Min: 23, Max: 23},
 		},
 		{
 			[]string{
@@ -87,7 +87,7 @@ func TestWordCount(t *testing.T) {
 			2,
 			"Nz70m/sn3Ep9o484r7MalQ==", // whitespace doesn't matter: same hash as above
 			6,
-			metrics.DistributionValue{6, 37, 0, 11},
+			metrics.DistributionValue{Count: 6, Sum: 37, Min: 0, Max: 11},
 		},
 	}
 
