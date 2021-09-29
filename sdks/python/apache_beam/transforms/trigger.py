@@ -173,11 +173,6 @@ class DataLossReason(Flag):
   # be lost. Example: AfterCount(1) will stop firing after the first element.
   MAY_FINISH = auto()
 
-  # Trigger has a condition that is not guaranteed to ever be met. In this
-  # case, data that comes in may be lost. Example: AfterCount(42) will lose
-  # 20 records if only 20 come in, since the condition to fire was never met.
-  CONDITION_NOT_GUARANTEED = auto()
-
 
 # Convenience functions for checking if a flag is included. Each is equivalent
 # to `reason & flag == flag`
@@ -186,13 +181,6 @@ class DataLossReason(Flag):
 def _IncludesMayFinish(reason):
   # type: (DataLossReason) -> bool
   return reason & DataLossReason.MAY_FINISH == DataLossReason.MAY_FINISH
-
-
-def _IncludesConditionNotGuaranteed(reason):
-  # type: (DataLossReason) -> bool
-  return (
-      reason & DataLossReason.CONDITION_NOT_GUARANTEED ==
-      DataLossReason.CONDITION_NOT_GUARANTEED)
 
 
 # pylint: disable=unused-argument
@@ -288,11 +276,6 @@ class TriggerFn(metaclass=ABCMeta):
           scenario is only accounted for if the windowing strategy allows
           late data. Otherwise, the trigger is not responsible for the data
           loss.
-        * The trigger condition may not be met. For instance, AfterCount(N)
-          may not fire due to N not being met. This is only accounted for if
-          the condition itself led to data loss. Repeatedly(AfterCount(1)) is
-          safe, since it would only not fire if there is no data to lose, but
-          AfterCount(2) can cause data loss if there is only one record.
 
     Note that this only returns the potential for loss. It does not mean that
     there will be data loss. It also only accounts for loss related to the
@@ -305,9 +288,7 @@ class TriggerFn(metaclass=ABCMeta):
     Returns:
       The DataLossReason. If there is no potential loss,
         DataLossReason.NO_POTENTIAL_LOSS is returned. Otherwise, all the
-        potential reasons are returned as a single value. For instance, if
-        data loss can result from finishing or not having the condition met,
-        the result will be DataLossReason.MAY_FINISH|CONDITION_NOT_GUARANTEED.
+        potential reasons are returned as a single value.
     """
     # For backwards compatibility's sake, we're assuming the trigger is safe.
     return DataLossReason.NO_POTENTIAL_LOSS
@@ -417,15 +398,8 @@ class AfterProcessingTime(TriggerFn):
     pass
 
   def may_lose_data(self, unused_windowing):
-    """AfterProcessingTime may finish.
-
-    It is also possible, if the delay is greater than zero, that data loss
-    could result from not enough seconds passing after processing time.
-    """
-    reason = DataLossReason.MAY_FINISH
-    if self.delay > 0:
-      reason |= DataLossReason.CONDITION_NOT_GUARANTEED
-    return reason
+    """AfterProcessingTime may finish."""
+    return DataLossReason.MAY_FINISH
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -530,7 +504,7 @@ class _Never(TriggerFn):
     """No potential data loss.
 
     Though Never doesn't explicitly trigger, it still collects data on
-    windowing closing, so any data loss is due to windowing closing.
+    windowing closing.
     """
     return DataLossReason.NO_POTENTIAL_LOSS
 
@@ -704,10 +678,8 @@ class AfterCount(TriggerFn):
     context.clear_state(self.COUNT_TAG)
 
   def may_lose_data(self, unused_windowing):
-    reason = DataLossReason.MAY_FINISH
-    if self.count > 1:
-      reason |= DataLossReason.CONDITION_NOT_GUARANTEED
-    return reason
+    """AfterCount may finish."""
+    return DataLossReason.MAY_FINISH
 
   @staticmethod
   def from_runner_api(proto, unused_context):
@@ -863,22 +835,10 @@ class AfterAny(_ParallelTriggerFn):
   combine_op = any
 
   def may_lose_data(self, windowing):
-    """May be flagged as unsafe under certain conditions.
-
-    If any sub-trigger may finish, this one may finish. If all sub-triggers
-    have unguaranteed conditions, then this one has an unguaranteed condition.
-    """
-    reason = DataLossReason.NO_POTENTIAL_LOSS
-    unguaranteed_conditions = 0
-    for trigger in self.triggers:
-      t_reason = trigger.may_lose_data(windowing)
-      if _IncludesMayFinish(t_reason):
-        reason |= DataLossReason.MAY_FINISH
-      if _IncludesConditionNotGuaranteed(t_reason):
-        unguaranteed_conditions += 1
-    if unguaranteed_conditions == len(self.triggers):
-      reason |= DataLossReason.CONDITION_NOT_GUARANTEED
-    return reason
+    """If any sub-trigger may finish, this one may finish."""
+    may_finish = any(t.may_lose_data(windowing) for t in self.triggers)
+    return (DataLossReason.MAY_FINISH if may_finish
+            else DataLossReason.NO_POTENTIAL_LOSS)
 
 
 class AfterAll(_ParallelTriggerFn):
@@ -889,22 +849,10 @@ class AfterAll(_ParallelTriggerFn):
   combine_op = all
 
   def may_lose_data(self, windowing):
-    """May be flagged as unsafe under certain conditions.
-
-    If all sub-triggers may finish, then this may finish. If any sub-trigger
-    has an unguaranteed condition, this has an unguaranteed condition.
-    """
-    reason = DataLossReason.NO_POTENTIAL_LOSS
-    may_finish = 0
-    for trigger in self.triggers:
-      t_reason = trigger.may_lose_data(windowing)
-      if _IncludesMayFinish(t_reason):
-        may_finish += 1
-      if _IncludesConditionNotGuaranteed(t_reason):
-        reason |= DataLossReason.CONDITION_NOT_GUARANTEED
-    if may_finish == len(self.triggers):
-      reason |= DataLossReason.MAY_FINISH
-    return reason
+    """If all sub-triggers may finish, then this may finish."""
+    may_finish = all(t.may_lose_data(windowing) for t in self.triggers)
+    return (DataLossReason.MAY_FINISH if may_finish
+            else DataLossReason.NO_POTENTIAL_LOSS)
 
 
 class AfterEach(TriggerFn):
@@ -962,19 +910,10 @@ class AfterEach(TriggerFn):
       trigger.reset(window, self._sub_context(context, ix))
 
   def may_lose_data(self, windowing):
-    """May be flagged as unsafe under certain conditions.
-
-    If any sub-trigger has NO_POTENTIAL_LOSS or CONDITION_NOT_GUARANTEED, then
-    this will return the same based on the first encountered one. If none of
-    the sub-triggers have either of these, then it will return MAY_FINISH.
-    """
-    for t in self.triggers:
-      reason = t.may_lose_data(windowing)
-      if reason == DataLossReason.NO_POTENTIAL_LOSS:
-        return DataLossReason.NO_POTENTIAL_LOSS
-      if _IncludesConditionNotGuaranteed(reason):
-        return DataLossReason.CONDITION_NOT_GUARANTEED
-    return DataLossReason.MAY_FINISH
+    """If all sub-triggers may finish, this may finish."""
+    may_finish = all(t.may_lose_data(windowing) for t in self.triggers)
+    return (DataLossReason.MAY_FINISH if may_finish
+            else DataLossReason.NO_POTENTIAL_LOSS)
 
   @staticmethod
   def _sub_context(context, index):
