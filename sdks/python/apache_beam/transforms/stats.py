@@ -259,7 +259,7 @@ class ApproximateUniqueCombineFn(CombineFn):
     try:
       hashed_value = self._hash_fn(self._coder.encode(element))
       accumulator.add(hashed_value)
-      return accumulatorresources
+      return accumulator
     except Exception as e:
       raise RuntimeError("Runtime exception: %s" % e) from e
 
