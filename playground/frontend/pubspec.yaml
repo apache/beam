@@ -47,6 +47,7 @@ dependencies:
   flutter:
     sdk: flutter
   provider: ^6.0.0
+  code_text_field: ^1.0.0
 
 dev_dependencies:
   flutter_test:
