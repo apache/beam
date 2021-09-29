@@ -38,6 +38,7 @@ testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
   // Create a test task for each major version of pyarrow
   toxTask "testPy38pyarrow-$version", "py38-pyarrow-$version"
   test.dependsOn "testPy38pyarrow-$version"
+  preCommitPy38.dependsOn "testPy38pyarrow-$version"
 }
 
 toxTask "whitespacelint", "whitespacelint"
