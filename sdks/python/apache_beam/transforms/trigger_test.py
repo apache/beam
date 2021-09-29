@@ -449,14 +449,8 @@ class MayLoseDataTest(unittest.TestCase):
   def test_default_trigger(self):
     self._test(DefaultTrigger(), 0, DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_after_processing_time_zero(self):
-    self._test(AfterProcessingTime(0), 0, DataLossReason.MAY_FINISH)
-
-  def test_after_processing_time_non_zero(self):
-    self._test(
-        AfterProcessingTime(10),
-        0,
-        DataLossReason.MAY_FINISH | DataLossReason.CONDITION_NOT_GUARANTEED)
+  def test_after_processing(self):
+    self._test(AfterProcessingTime(42), 0, DataLossReason.MAY_FINISH)
 
   def test_always(self):
     self._test(Always(), 0, DataLossReason.NO_POTENTIAL_LOSS)
@@ -482,62 +476,23 @@ class MayLoseDataTest(unittest.TestCase):
         60,
         DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_after_watermark_no_allowed_lateness_may_finish_late(self):
-    self._test(
-        AfterWatermark(late=AfterProcessingTime()),
-        0,
-        DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_after_watermark_may_finish_late(self):
-    self._test(
-        AfterWatermark(late=AfterProcessingTime(0)),
-        60,
-        #  No loss, since it is wrapped in Repeatedly
-        DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_after_watermark_no_allowed_lateness_condition_late(self):
-    self._test(
-        AfterWatermark(late=AfterCount(5)), 0, DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_after_watermark_condition_late(self):
-    self._test(
-        AfterWatermark(late=AfterCount(5)),
-        60,
-        # No loss, since it is wrapped in Repeatedly
-        DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_after_count_one(self):
-    self._test(AfterCount(1), 0, DataLossReason.MAY_FINISH)
-
-  def test_after_count_gt_one(self):
-    self._test(
-        AfterCount(2),
-        0,
-        DataLossReason.MAY_FINISH | DataLossReason.CONDITION_NOT_GUARANTEED)
+  def test_after_count(self):
+    self._test(AfterCount(42), 0, DataLossReason.MAY_FINISH)
 
   def test_repeatedly_safe_underlying(self):
     self._test(
         Repeatedly(DefaultTrigger()), 0, DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_repeatedly_may_finish_underlying(self):
-    self._test(Repeatedly(AfterCount(1)), 0, DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_repeatedly_condition_underlying(self):
-    self._test(Repeatedly(AfterCount(2)), 0, DataLossReason.NO_POTENTIAL_LOSS)
+  def test_repeatedly_unsafe_underlying(self):
+    self._test(Repeatedly(AfterCount(42)), 0, DataLossReason.NO_POTENTIAL_LOSS)
 
   def test_after_any_one_may_finish(self):
     self._test(
-        AfterAny(AfterCount(1), DefaultTrigger()), 0, DataLossReason.MAY_FINISH)
+        AfterAny(AfterCount(42), DefaultTrigger()), 0, DataLossReason.MAY_FINISH)
 
-  def test_after_any_one_condition_not_guaranteed(self):
+  def test_after_any_all_safe(self):
     self._test(
-        AfterAny(AfterCount(2), AfterWatermark()), 0, DataLossReason.MAY_FINISH)
-
-  def test_after_any_all_conditions_not_guaranteed(self):
-    self._test(
-        AfterAny(AfterCount(2), AfterProcessingTime(1)),
-        0,
-        DataLossReason.MAY_FINISH | DataLossReason.CONDITION_NOT_GUARANTEED)
+        AfterAny(Repeatedly(AfterCount(42)), DefaultTrigger()), 0, DataLossReason.NO_POTENTIAL_LOSS)
 
   def test_after_all_some_may_finish(self):
     self._test(
@@ -547,33 +502,19 @@ class MayLoseDataTest(unittest.TestCase):
 
   def test_afer_all_all_may_finish(self):
     self._test(
-        AfterAll(AfterCount(1), AfterProcessingTime(0)),
+        AfterAll(AfterCount(42), AfterProcessingTime(42)),
         0,
         DataLossReason.MAY_FINISH)
 
-  def test_after_all_any_condition_not_guaranteed(self):
-    self._test(
-        AfterAll(AfterCount(2), DefaultTrigger()),
-        0,
-        DataLossReason.CONDITION_NOT_GUARANTEED)
-
-  def test_after_each_safe_comes_first(self):
-    # Note: Safe comes first in relation to CONDITIOON_NOT_GUARANTEED
+  def test_after_each_at_least_one_safe(self):
     self._test(
         AfterEach(AfterCount(1), DefaultTrigger(), AfterCount(2)),
         0,
         DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_after_each_safe_comes_second(self):
-    # Note: Safe comes second in relation to CONDITIOON_NOT_GUARANTEED
-    self._test(
-        AfterEach(AfterCount(1), AfterCount(2), DefaultTrigger()),
-        0,
-        DataLossReason.CONDITION_NOT_GUARANTEED)
-
   def test_after_each_all_may_finish(self):
     self._test(
-        AfterEach(AfterCount(1), AfterCount(1), AfterCount(1)),
+        AfterEach(AfterCount(1), AfterCount(2), AfterCount(3)),
         0,
         DataLossReason.MAY_FINISH)
 
