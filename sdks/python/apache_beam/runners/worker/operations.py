@@ -236,7 +236,7 @@ class Operation(object):
                spec,
                counter_factory,
                state_sampler  # type: StateSampler
-               ):
+              ):
     """Initializes a worker operation instance.
 
     Args:
@@ -500,13 +500,13 @@ class ReadOperation(Operation):
 
 class ImpulseReadOperation(Operation):
   def __init__(
-          self,
-          name_context,  # type: Union[str, common.NameContext]
-          counter_factory,
-          state_sampler,  # type: StateSampler
-          consumers,  # type: Mapping[Any, List[Operation]]
-          source,  # type: iobase.BoundedSource
-          output_coder):
+      self,
+      name_context,  # type: Union[str, common.NameContext]
+      counter_factory,
+      state_sampler,  # type: StateSampler
+      consumers,  # type: Mapping[Any, List[Operation]]
+      source,  # type: iobase.BoundedSource
+      output_coder):
     super(ImpulseReadOperation,
           self).__init__(name_context, None, counter_factory, state_sampler)
     self.source = source
@@ -585,7 +585,7 @@ class DoOperation(Operation):
                sampler,
                side_input_maps=None,
                user_state_context=None
-               ):
+              ):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
     self.user_state_context = user_state_context
