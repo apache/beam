@@ -17,8 +17,15 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import com.google.auto.service.AutoService;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.NativeTransforms;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.SamzaCoders;
+import org.apache.beam.runners.samza.util.WindowUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -60,6 +67,29 @@ public class ReshuffleTranslator<K, InT, OutT>
     ctx.registerMessageStream(output, outputStream);
   }
 
+  @Override
+  public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+
+    final String inputId = ctx.getInputId(transform);
+    final MessageStream<OpMessage<KV<K, InT>>> inputStream = ctx.getMessageStreamById(inputId);
+    final WindowedValue.WindowedValueCoder<KV<K, InT>> windowedInputCoder =
+        WindowUtils.instantiateWindowedCoder(inputId, pipeline.getComponents());
+    final String outputId = ctx.getOutputId(transform);
+
+    final MessageStream<OpMessage<KV<K, InT>>> outputStream =
+        doTranslate(
+            inputStream,
+            ((KvCoder<K, InT>) windowedInputCoder.getValueCoder()).getKeyCoder(),
+            windowedInputCoder,
+            "rshfl-" + ctx.getTransformId(),
+            ctx.getSamzaPipelineOptions().getMaxSourceParallelism() > 1);
+
+    ctx.registerMessageStream(outputId, outputStream);
+  }
+
   private static <K, InT> MessageStream<OpMessage<KV<K, InT>>> doTranslate(
       MessageStream<OpMessage<KV<K, InT>>> inputStream,
       Coder<K> keyCoder,
@@ -78,5 +108,15 @@ public class ReshuffleTranslator<K, InT, OutT>
             // convert back to OpMessage
             .map(kv -> OpMessage.ofElement(kv.getValue()))
         : inputStream.filter(op -> OpMessage.Type.ELEMENT == op.getType());
+  }
+
+  /** Predicate to determine whether a URN is a Samza native transform. */
+  @AutoService(NativeTransforms.IsNativeTransform.class)
+  public static class IsSamzaNativeTransform implements NativeTransforms.IsNativeTransform {
+    @Override
+    public boolean test(RunnerApi.PTransform pTransform) {
+      return PTransformTranslation.RESHUFFLE_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(pTransform));
+    }
   }
 }
