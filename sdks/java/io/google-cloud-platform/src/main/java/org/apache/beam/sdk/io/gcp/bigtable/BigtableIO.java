@@ -489,7 +489,7 @@ public class BigtableIO {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       ToStringHelper helper =
           MoreObjects.toStringHelper(Read.class).add("config", getBigtableConfig());
       return helper.add("readOptions", getBigtableReadOptions()).toString();
@@ -733,7 +733,7 @@ public class BigtableIO {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return MoreObjects.toStringHelper(Write.class).add("config", getBigtableConfig()).toString();
     }
   }
