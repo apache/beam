@@ -50,7 +50,6 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import SortLists
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.util import is_empty
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
