@@ -17,23 +17,8 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/pages/playground/playground_page.dart';
+import 'package:playground/playground_app.dart';
 
 void main() {
   runApp(const PlaygroundApp());
-}
-
-class PlaygroundApp extends StatelessWidget {
-  const PlaygroundApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Apache Beam Playground',
-      theme: theme,
-      home: const PlaygroundPage(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
 }
