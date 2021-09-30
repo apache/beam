@@ -157,20 +157,20 @@ public class CountTest {
 {{< /highlight >}}
 
 {{< highlight py >}}
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 class CountTest(unittest.TestCase):
 
-  # Our static input data, which will make up the initial PCollection.
-  WORDS = [
+  def test_count(self):
+    # Our static input data, which will make up the initial PCollection.
+    WORDS = [
       "hi", "there", "hi", "hi", "sue", "bob",
       "hi", "sue", "", "", "ZOW", "bob", ""
-  ]
-
-  def test_count(self):
+    ]
     # Create a test pipeline.
-    with beam.TestPipeline as p:
+    with TestPipeline() as p:
 
       # Create an input PCollection.
       input = p | beam.Create(WORDS)
