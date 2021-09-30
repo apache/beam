@@ -17,13 +17,19 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/repositories/example_repository.dart';
 
-class PlaygroundState with ChangeNotifier {
-  SDK sdk = SDK.java;
+class ExampleState with ChangeNotifier {
+  final ExampleRepository _exampleRepository;
+  List<ExampleModel>? examples;
 
-  setSdk(SDK sdk) {
-    this.sdk = sdk;
+  ExampleState(this._exampleRepository) {
+    _loadExamples();
+  }
+
+  _loadExamples() async {
+    examples = await _exampleRepository.getExamples();
     notifyListeners();
   }
 }

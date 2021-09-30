@@ -16,21 +16,40 @@
  * limitations under the License.
  */
 
+import 'package:flutter/material.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
 
-void main() {
-  test('Playground State initial value should be java', () {
-    final state = PlaygroundState();
-    expect(state.sdk, equals(SDK.java));
-  });
+class PlaygroundState with ChangeNotifier {
+  SDK _sdk;
+  ExampleModel? _selectedExample;
+  String _source = "";
 
-  test('Playground state should notify all listeners about sdk change', () {
-    final state = PlaygroundState();
-    state.addListener(() {
-      expect(state.sdk, SDK.go);
-    });
-    state.setSdk(SDK.go);
-  });
+  PlaygroundState([this._sdk = SDK.java, this._selectedExample]);
+
+  ExampleModel? get selectedExample => _selectedExample;
+
+  SDK get sdk => _sdk;
+
+  String get source => _source;
+
+  setExample(ExampleModel example) {
+    _selectedExample = example;
+    _source = example.sources[_sdk] ?? "";
+    notifyListeners();
+  }
+
+  setSdk(SDK sdk) {
+    _sdk = sdk;
+    notifyListeners();
+  }
+
+  setSource(String source) {
+    _source = source;
+  }
+
+  @override
+  String toString() {
+    return 'PlaygroundState{_sdk: $_sdk, _selectedExample: $_selectedExample}';
+  }
 }
