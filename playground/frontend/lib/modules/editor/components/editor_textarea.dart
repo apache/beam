@@ -66,6 +66,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
     return CodeField(
       controller: _codeController!,
       textStyle: const TextStyle(fontFamily: 'SourceCode'),
+      expands: true,
     );
   }
 
