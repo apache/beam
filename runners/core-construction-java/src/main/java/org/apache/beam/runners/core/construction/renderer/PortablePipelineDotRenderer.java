@@ -19,6 +19,9 @@ package org.apache.beam.runners.core.construction.renderer;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
@@ -102,7 +105,8 @@ class PortablePipelineDotRenderer {
     indent -= 4;
   }
 
-  private void writeLine(String format, Object... args) {
+  @FormatMethod
+  private void writeLine(@FormatString String format, Object... args) {
     if (indent != 0) {
       dotBuilder.append(String.format("%-" + indent + "s", ""));
     }

@@ -176,7 +176,7 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
       return OneOfType.create(fields.collect(Collectors.toList())).getOneOfSchema();
     } else {
       return fields
-          .reduce(Schema.builder(), Builder::addField, ThriftSchema::throwingCombiner)
+          .reduce(Schema.builder(), Schema.Builder::addField, ThriftSchema::throwingCombiner)
           .build();
     }
   }

@@ -232,7 +232,7 @@ public class FnHarness {
       FileSystems.setDefaultPipelineOptions(options);
       EnumMap<
               BeamFnApi.InstructionRequest.RequestCase,
-              ThrowingFunction<InstructionRequest, Builder>>
+              ThrowingFunction<InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
           handlers = new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
 
       ManagedChannel channel = channelFactory.forDescriptor(controlApiServiceDescriptor);

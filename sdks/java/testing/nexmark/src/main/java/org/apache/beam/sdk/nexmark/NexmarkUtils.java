@@ -28,6 +28,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -320,7 +323,8 @@ public class NexmarkUtils {
   private static final boolean LOG_TO_CONSOLE = false;
 
   /** Log info message. */
-  public static void info(String format, Object... args) {
+  @FormatMethod
+  public static void info(@FormatString String format, Object... args) {
     if (LOG_INFO) {
       LOG.info(String.format(format, args));
       if (LOG_TO_CONSOLE) {
@@ -330,7 +334,8 @@ public class NexmarkUtils {
   }
 
   /** Log message to console. For client side only. */
-  public static void console(String format, Object... args) {
+  @FormatMethod
+  public static void console(@FormatString String format, Object... args) {
     System.out.printf("%s %s%n", Instant.now(), String.format(format, args));
   }
 

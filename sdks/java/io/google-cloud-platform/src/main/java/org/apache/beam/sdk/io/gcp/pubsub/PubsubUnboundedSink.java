@@ -184,7 +184,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("numShards", numShards));
     }
@@ -278,7 +278,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("topic", topic));
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));

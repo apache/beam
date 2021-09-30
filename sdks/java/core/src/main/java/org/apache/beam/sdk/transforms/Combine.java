@@ -1562,7 +1562,7 @@ public class Combine {
           fnDisplayData,
           new SimpleFunction<K, Integer>() {
             @Override
-            public void populateDisplayData(Builder builder) {
+            public void populateDisplayData(DisplayData.Builder builder) {
               super.populateDisplayData(builder);
               builder.add(DisplayData.item("fanout", hotKeyFanout).withLabel("Key Fanout Size"));
             }

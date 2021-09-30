@@ -821,7 +821,7 @@ public class ParDo {
      * DoFn#populateDisplayData}.
      */
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       ParDo.populateDisplayData(builder, fn, fnDisplayData);
     }
@@ -984,7 +984,7 @@ public class ParDo {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       ParDo.populateDisplayData(builder, fn, fnDisplayData);
     }

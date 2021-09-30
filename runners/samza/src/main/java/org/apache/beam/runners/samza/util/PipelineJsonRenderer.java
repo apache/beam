@@ -23,6 +23,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
+
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -172,7 +175,8 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     indent -= 4;
   }
 
-  private void writeLine(String format, Object... args) {
+  @FormatMethod
+  private void writeLine(@FormatString String format, Object... args) {
     // Since we append a comma after every entry to the graph, we will need to remove that one extra
     // comma towards the end of the JSON.
     int secondLastCharIndex = jsonBuilder.length() - 2;

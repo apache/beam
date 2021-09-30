@@ -2396,6 +2396,7 @@ public class DoFnSignatures {
               "parameter of type %s at index %s", format(param.getType()), param.getIndex()));
     }
 
+    @SuppressWarnings("AnnotateFormatMethod")
     void throwIllegalArgument(String message, Object... args) {
       throw new IllegalArgumentException(label + ": " + String.format(message, args));
     }

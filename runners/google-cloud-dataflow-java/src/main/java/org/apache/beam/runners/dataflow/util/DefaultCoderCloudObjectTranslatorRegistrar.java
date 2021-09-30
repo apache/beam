@@ -129,7 +129,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
   @Override
   public Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
       classesToTranslators() {
-    Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
+    ImmutableMap.Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
         ImmutableMap.builder();
     for (CloudObjectTranslator<? extends Coder> defaultTranslator : DEFAULT_TRANSLATORS) {
       builder.put(defaultTranslator.getSupportedClass(), defaultTranslator);

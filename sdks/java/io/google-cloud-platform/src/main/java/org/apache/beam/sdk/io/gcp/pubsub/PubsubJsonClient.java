@@ -75,7 +75,7 @@ public class PubsubJsonClient extends PubsubClient {
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
       Pubsub pubsub =
-          new Builder(
+          new Pubsub.Builder(
                   Transport.getTransport(),
                   Transport.getJsonFactory(),
                   chainHttpRequestInitializer(

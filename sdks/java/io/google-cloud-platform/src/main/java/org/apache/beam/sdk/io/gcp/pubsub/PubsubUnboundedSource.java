@@ -1144,7 +1144,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
           .addIfNotNull(DisplayData.item("subscription", subscription))

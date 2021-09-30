@@ -875,7 +875,7 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    public CompletableFuture<StateResponse> handle(Builder requestBuilder) {
+    public CompletableFuture<StateResponse> handle(BeamFnApi.StateRequest.Builder requestBuilder) {
       throw new IllegalStateException(
           String.format(
               "State API calls are unsupported because the "

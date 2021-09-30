@@ -50,7 +50,7 @@ public class MetadataCoderV2 extends AtomicCoder<Metadata> {
 
   @Override
   public Metadata decode(InputStream is) throws IOException {
-    Builder builder = V1_CODER.decodeBuilder(is);
+    Metadata.Builder builder = V1_CODER.decodeBuilder(is);
     long lastModifiedMillis = LONG_CODER.decode(is);
     return builder.setLastModifiedMillis(lastModifiedMillis).build();
   }

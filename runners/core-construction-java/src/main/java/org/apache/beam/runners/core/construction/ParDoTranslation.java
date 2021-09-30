@@ -724,7 +724,7 @@ public class ParDoTranslation {
   }
 
   public static SideInput translateView(PCollectionView<?> view, SdkComponents components) {
-    Builder builder = SideInput.newBuilder();
+    RunnerApi.SideInput.Builder builder = SideInput.newBuilder();
     builder.setAccessPattern(
         FunctionSpec.newBuilder().setUrn(view.getViewFn().getMaterialization().getUrn()).build());
     builder.setViewFn(translateViewFn(view.getViewFn(), components));

@@ -42,7 +42,7 @@ class BigQueryTableFactory implements TableFactory {
   }
 
   @Override
-  public Optional<Builder> tableBuilder(Entry entry) {
+  public Optional<Table.Builder> tableBuilder(Entry entry) {
     if (!URI.create(entry.getLinkedResource()).getAuthority().equalsIgnoreCase(BIGQUERY_API)) {
       return Optional.empty();
     }

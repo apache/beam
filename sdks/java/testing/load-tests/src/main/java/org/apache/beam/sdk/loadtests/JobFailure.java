@@ -76,7 +76,7 @@ class JobFailure {
         testResults.stream().anyMatch(namedTestResult -> namedTestResult.getValue() == -1D);
 
     if (isTestResultInvalid) {
-      return of(new JobFailure("Invalid test results", false));
+      return Optional.of(new JobFailure("Invalid test results", false));
     } else {
       return empty();
     }
@@ -86,13 +86,13 @@ class JobFailure {
     switch (state) {
       case RUNNING:
       case UNKNOWN:
-        return of(new JobFailure("Job timeout.", true));
+        return Optional.of(new JobFailure("Job timeout.", true));
 
       case CANCELLED:
       case FAILED:
       case STOPPED:
       case UPDATED:
-        return of(new JobFailure(format("Invalid job state: %s.", state.toString()), false));
+        return Optional.of(new JobFailure(format("Invalid job state: %s.", state.toString()), false));
 
       default:
         return empty();

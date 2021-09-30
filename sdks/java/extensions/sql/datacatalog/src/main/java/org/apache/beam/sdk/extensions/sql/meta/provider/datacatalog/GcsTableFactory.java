@@ -30,7 +30,7 @@ class GcsTableFactory implements TableFactory {
 
   /** Creates a Beam SQL table description from a GCS fileset entry. */
   @Override
-  public Optional<Builder> tableBuilder(Entry entry) {
+  public Optional<Table.Builder> tableBuilder(Entry entry) {
     if (!entry.hasGcsFilesetSpec()) {
       return Optional.empty();
     }
