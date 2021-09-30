@@ -137,8 +137,9 @@ def named_fields_to_schema(names_and_types):
   # type: (Sequence[Tuple[str, type]]) -> schema_pb2.Schema
   return schema_pb2.Schema(
       fields=[
-          schema_pb2.Field(name=name, type=typing_to_runner_api(type))
-          for (name, type) in names_and_types
+          schema_pb2.Field(
+              name=name, type=typing_to_runner_api(type), encoding_position=idx)
+          for idx, (name, type) in enumerate(names_and_types)
       ],
       id=str(uuid4()))
 
@@ -155,10 +156,13 @@ def typing_to_runner_api(type_):
     if hasattr(type_, _BEAM_SCHEMA_ID):
       schema = SCHEMA_REGISTRY.get_schema_by_id(getattr(type_, _BEAM_SCHEMA_ID))
     if schema is None:
+
       fields = [
           schema_pb2.Field(
-              name=name, type=typing_to_runner_api(type_.__annotations__[name]))
-          for name in type_._fields
+              name=name,
+              type=typing_to_runner_api(type_.__annotations__[name]),
+              encoding_position=index | 0) for index,
+          name in enumerate(type_._fields)
       ]
       type_id = str(uuid4())
       schema = schema_pb2.Schema(fields=fields, id=type_id)
@@ -274,6 +278,15 @@ def _hydrate_namedtuple_instance(encoded_schema, values):
 
 def get_encoding_position(schema):
   return [f.encoding_position for f in schema.fields]
+
+
+def set_encoding_position(type_, values):
+  if hasattr(type_, _BEAM_SCHEMA_ID):
+    schema = SCHEMA_REGISTRY.get_schema_by_id(getattr(type_, _BEAM_SCHEMA_ID))
+    val = dict(values)
+    for idx, field in enumerate(schema.fields):
+      schema.fields[idx].encoding_position = val[field.name]
+  SCHEMA_REGISTRY.add(type_, schema)
 
 
 def named_tuple_from_schema(schema):

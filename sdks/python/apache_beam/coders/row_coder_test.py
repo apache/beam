@@ -31,6 +31,7 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints.schemas import set_encoding_position
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils.timestamp import Timestamp
 
@@ -256,28 +257,47 @@ class RowCoderTest(unittest.TestCase):
     self.assertEqual(value, coder.decode(coder.encode(value)))
 
   def test_encoding_position_reorder_fields(self):
-    fields = [("field1", str), ("field2", typing.Optional[str])]
+    fields = [("field1", str), ("field2", int), ("field3", int)]
 
-    Old = typing.NamedTuple('Old', fields[:-1])
-    New = typing.NamedTuple('New', fields)
+    expected = typing.NamedTuple('expected', fields)
+    reorder = typing.NamedTuple('reversed', fields[::-1])
 
-    old_coder = RowCoder.from_type_hint(Old, None)
-    new_coder = RowCoder.from_type_hint(New, None)
+    old_coder = RowCoder.from_type_hint(expected, None)
+    new_coder = RowCoder.from_type_hint(reorder, None)
 
-    self.assertEqual(
-        New("bar", None), new_coder.decode(old_coder.encode(Old("bar"))))
+    set_encoding_position(
+        reorder, [("field3", 2), ("field2", 1), ("field1", 0)])
+
+    encode_expected = old_coder.encode(expected("foo", 7, 12))
+    encode_reorder = new_coder.encode(reorder(12, 7, "foo"))
+    self.assertEqual(encode_expected, encode_reorder)
 
   def test_encoding_position_add_fields(self):
     fields = [("field1", str), ("field2", str)]
 
-    Old = typing.NamedTuple('Old', fields[:-1])
-    New = typing.NamedTuple('New', fields)
+    Old = typing.NamedTuple("Old", fields[:-1])
+    New = typing.NamedTuple("New", fields)
 
     old_coder = RowCoder.from_type_hint(Old, None)
     new_coder = RowCoder.from_type_hint(New, None)
 
     self.assertEqual(
         New("bar", None), new_coder.decode(old_coder.encode(Old("bar"))))
+
+  def test_encoding_position_add_fields_and_reorder(self):
+    fields = [("field1", typing.Optional[str]), ("field2", str),
+              ("field3", typing.Optional[str])]
+
+    Old = typing.NamedTuple("Old", fields[:-1])
+    New = typing.NamedTuple("New", fields[::1])
+
+    old_coder = RowCoder.from_type_hint(Old, None)
+    new_coder = RowCoder.from_type_hint(New, None)
+    set_encoding_position(New, [("field3", 2), ("field2", 1), ("field1", 0)])
+
+    self.assertEqual(
+        New("foo", "baz", None),
+        new_coder.decode(old_coder.encode(Old("foo", "baz"))))
 
 
 if __name__ == "__main__":
