@@ -42,3 +42,8 @@ def GoogleCloudStorageBucket(bucket_id):
 def DatastoreNamespace(project_id, namespace_id):
   return '//bigtable.googleapis.com/projects/%s/namespaces/%s' % (
       project_id, namespace_id)
+
+
+def BigtableTable(project_id, instance_id, table_id):
+  return '//bigtable.googleapis.com/projects/%s/instances/%s/tables/%s' % (
+      project_id, instance_id, table_id)
