@@ -3323,14 +3323,14 @@ limitations under the License.
 -->
 &lt;h1 id="apache-beam-glossary">Apache Beam glossary&lt;/h1>
 &lt;h2 id="aggregation">Aggregation&lt;/h2>
-&lt;p>A transform pattern for computing a value from multiple input elements. Aggregation is similar to the reduce operation in the &lt;a href="https://en.wikipedia.org/wiki/MapReduce">MapReduce&lt;/a> model. Aggregation transforms include Count (computes the count of all elements in the aggregation), Max (computes the maximum element in the aggregation), and Sum (computes the sum of all elements in the aggregation).&lt;/p>
-&lt;p>For a complete list of aggregation transforms, see:&lt;/p>
+&lt;p>A transform pattern for computing a value from multiple input elements. Aggregation is similar to the reduce operation in the &lt;a href="https://en.wikipedia.org/wiki/MapReduce">MapReduce&lt;/a> model. Aggregation transforms include Combine (applies a user-defined function to all elements in the aggregation), Count (computes the count of all elements in the aggregation), Max (computes the maximum element in the aggregation), and Sum (computes the sum of all elements in the aggregation).&lt;/p>
+&lt;p>For a list of built-in aggregation transforms, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/transforms/java/overview/#aggregation">Java Transform catalog&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/transforms/python/overview/#aggregation">Python Transform catalog&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="apply">Apply&lt;/h2>
-&lt;p>A method for invoking a transform on a PCollection. Each transform in the Beam SDKs has a generic &lt;code>apply&lt;/code> method (or pipe operator &lt;code>|&lt;/code>). Invoking multiple Beam transforms is similar to method chaining, but with a difference: You apply the transform to the input PCollection, passing the transform itself as an argument, and the operation returns the output PCollection. Because of Beam’s deferred execution model, applying a transform does not immediately execute that transform.&lt;/p>
+&lt;p>A method for invoking a transform on an input PCollection (or set of PCollections) to produce one or more output PCollections. The &lt;code>apply&lt;/code> method is attached to the PCollection (or value). Invoking multiple Beam transforms is similar to method chaining, but with a difference: You apply the transform to the input PCollection, passing the transform itself as an argument, and the operation returns the output PCollection. Because of Beam’s deferred execution model, applying a transform does not immediately execute that transform.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#applying-transforms">Applying transforms&lt;/a>&lt;/li>
@@ -3342,13 +3342,13 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/programming-guide/#size-and-boundedness">Size and boundedness&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="bounded-data">Bounded data&lt;/h2>
-&lt;p>A dataset of a known, fixed size. A PCollection can be bounded or unbounded, depending on the source of the data that it represents. Reading from a batch data source, such as a file or a database, creates a bounded PCollection. Beam also supports reading a bounded amount of data from an unbounded source.&lt;/p>
+&lt;p>A dataset of a known, fixed size (alternatively, a dataset that is not growing over time). A PCollection can be bounded or unbounded, depending on the source of the data that it represents. Reading from a batch data source, such as a file or a database, creates a bounded PCollection. Beam also supports reading a bounded amount of data from an unbounded source.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#size-and-boundedness">Size and boundedness&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="bundle">Bundle&lt;/h2>
-&lt;p>The processing unit for elements in a PCollection. Instead of processing all elements in a PCollection simultaneously, Beam processes the elements in bundles. The runner handles the division of the collection into bundles, and in doing so it may optimize the bundle size for the use case. For example, a streaming runner might process smaller bundles than a batch runner.&lt;/p>
+&lt;p>The processing and commit/retry unit for elements in a PCollection. Instead of processing all elements in a PCollection simultaneously, Beam processes the elements in bundles. The runner handles the division of the collection into bundles, and in doing so it may optimize the bundle size for the use case. For example, a streaming runner might process smaller bundles than a batch runner.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runtime/model/#bundling-and-persistence">Bundling and persistence&lt;/a>&lt;/li>
@@ -3380,7 +3380,7 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/transforms/python/aggregation/combinevalues/">CombineValues (Python)&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="composite-transform">Composite transform&lt;/h2>
-&lt;p>A PTransform that expands into many PTransforms. Composite transforms have a nested structure, in which a complex transform applies one or more simpler transforms. These simpler transforms could be existing Beam operations like ParDo, Combine, or GroupByKey, or they could be other composite transforms. Nesting multiple transforms inside a single composite transform can make your pipeline more modular and easier to understand.&lt;/p>
+&lt;p>A PTransform that expands into many PTransforms. Composite transforms have a nested structure, in which a complex transform applies one or more simpler transforms. These simpler transforms could be existing Beam operations like ParDo, Combine, or GroupByKey, or they could be other composite transforms. Nesting multiple transforms inside a single composite transform can make your pipeline more modular and easier to understand. Many of the built-in transforms are composite transforms.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#composite-transforms">Composite transforms&lt;/a>&lt;/li>
@@ -3398,7 +3398,7 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/programming-guide/#multi-language-pipelines">Multi-language pipelines&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="deferred-execution">Deferred execution&lt;/h2>
-&lt;p>A feature of the Beam execution model. Beam operations are deferred, meaning that the result of a given operation may not be available for control flow. Deferred execution allows the Beam API to support parallel processing of data.&lt;/p>
+&lt;p>A feature of the Beam execution model. Beam operations are deferred, meaning that the result of a given operation may not be available for control flow. Deferred execution allows the Beam API to support parallel processing of data and perform pipeline-level optimizations.&lt;/p>
 &lt;h2 id="distribution-metric">Distribution (metric)&lt;/h2>
 &lt;p>A metric that reports information about the distribution of reported values. In the Beam model, metrics provide insight into the state of a pipeline, potentially while the pipeline is running.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
@@ -3406,7 +3406,7 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/programming-guide/#types-of-metrics">Types of metrics&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="dofn">DoFn&lt;/h2>
-&lt;p>A function object used by ParDo (or some other transform) to process the elements of a PCollection. A DoFn is a user-defined function, meaning that it contains custom code that defines a data processing task in your pipeline. The Beam system invokes a DoFn one or more times to process some arbitrary bundle of elements, but Beam doesn’t guarantee an exact number of invocations.&lt;/p>
+&lt;p>A function object used by ParDo (or some other transform) to process the elements of a PCollection, often producing elements for an output PCollection. A DoFn is a user-defined function, meaning that it contains custom code that defines a data processing task in your pipeline. The Beam system invokes a DoFn one or more times to process some arbitrary bundle of elements, but Beam doesn’t guarantee an exact number of invocations.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#pardo">ParDo&lt;/a>&lt;/li>
@@ -3433,14 +3433,14 @@ limitations under the License.
 &lt;h2 id="engine">Engine&lt;/h2>
 &lt;p>A data-processing system, such as Dataflow, Spark, or Flink. A Beam runner for an engine executes a Beam pipeline on that engine.&lt;/p>
 &lt;h2 id="event-time">Event time&lt;/h2>
-&lt;p>The time a data event occurs, determined by a timestamp on an element. This is in contrast to processing time, which is when an element is processed in a pipeline. An event could be, for example, a user interaction or a write to an error log. There’s no guarantee that events will appear in a pipeline in order of event time.&lt;/p>
+&lt;p>The time a data event occurs, determined by a timestamp on an element. This is in contrast to processing time, which is when an element is processed in a pipeline. An event could be, for example, a user interaction or a write to an error log. There’s no guarantee that events will appear in a pipeline in order of event time, but windowing and timers let you reason correctly about event time.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#watermarks-and-late-data">Watermarks and late data&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/programming-guide/#triggers">Triggers&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="expansion-service">Expansion Service&lt;/h2>
-&lt;p>A service that enables a pipeline to apply (expand) cross-language transforms defined in other SDKs. For example, by connecting to a Java expansion service, the Python SDK can apply transforms implemented in Java. Currently SDKs define expansion services as local processes, but in the future Beam may support long-running expansion services. The development of expansion services is part of the ongoing effort to support multi-language pipelines.&lt;/p>
+&lt;p>A service that enables a pipeline to apply (expand) cross-language transforms defined in other SDKs. For example, by connecting to a Java expansion service, the Python SDK can apply transforms implemented in Java. Currently, SDKs typically start up expansion services as local processes, but in the future Beam may support long-running expansion services. The development of expansion services is part of the ongoing effort to support multi-language pipelines.&lt;/p>
 &lt;h2 id="flatten">Flatten&lt;/h2>
 &lt;p>One of the core PTransforms. Flatten merges multiple PCollections into a single logical PCollection.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
@@ -3449,8 +3449,10 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/transforms/java/other/flatten/">Flatten (Java)&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/transforms/python/other/flatten/">Flatten (Python)&lt;/a>&lt;/li>
 &lt;/ul>
+&lt;h2 id="fn-api">Fn API&lt;/h2>
+&lt;p>An interface that lets a runner invoke SDK-specific user-defined functions. The Fn API, together with the Runner API, supports the ability to mix and match SDKs and runners. Used together, the Fn and Runner APIs let new SDKs run on every runner, and let new runners run pipelines from every SDK.&lt;/p>
 &lt;h2 id="fusion">Fusion&lt;/h2>
-&lt;p>An optimization that Beam runners can apply before running a pipeline. When one transform outputs a PCollection that’s consumed by another transform, or when two or more transforms take the same PCollection as input, a runner may be able to fuse the transforms together into a single processing unit (a &lt;em>stage&lt;/em> in Dataflow). Fusion can make pipeline execution more efficient by preventing I/O operations.&lt;/p>
+&lt;p>An optimization that Beam runners can apply before running a pipeline. When one transform outputs a PCollection that’s consumed by another transform, or when two or more transforms take the same PCollection as input, a runner may be able to fuse the transforms together into a single processing unit (a &lt;em>stage&lt;/em> in Dataflow). The consuming DoFn processes elements as they are emitted by the producing DoFn, rather than waiting for the entire intermediate PCollection to be computed. Fusion can make pipeline execution more efficient by preventing I/O operations.&lt;/p>
 &lt;h2 id="gauge-metric">Gauge (metric)&lt;/h2>
 &lt;p>A metric that reports the latest value out of reported values. In the Beam model, metrics provide insight into the state of a pipeline, potentially while the pipeline is running. Because metrics are collected from many workers, the gauge value may not be the absolute last value, but it will be one of the latest values produced by one of the workers.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
@@ -3473,7 +3475,7 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/io/built-in/">Built-in I/O Transforms&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="map">Map&lt;/h2>
-&lt;p>An element-wise PTransform that applies a user-defined function (UDF) to each element in a PCollection. Using Map, you can transform each individual element, but you can&amp;rsquo;t change the number of elements.&lt;/p>
+&lt;p>An element-wise PTransform that applies a user-defined function (UDF) to each element in a PCollection. Using Map, you can transform each individual element into a new element, but you can&amp;rsquo;t change the number of elements.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/transforms/python/elementwise/map/">Map (Python)&lt;/a>&lt;/li>
@@ -3492,7 +3494,7 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/programming-guide/#multi-language-pipelines">Multi-language pipelines&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="pardo">ParDo&lt;/h2>
-&lt;p>The lowest-level element-wise PTransform. For each element in an input PCollection, ParDo applies a function and emits zero, one, or multiple elements to an output PCollection. “ParDo” is short for “Parallel Do.” It’s similar to the map operation in a &lt;a href="https://en.wikipedia.org/wiki/MapReduce">MapReduce&lt;/a> algorithm, the &lt;code>apply&lt;/code> method from a DataFrame, or the &lt;code>UPDATE&lt;/code> keyword from SQL.&lt;/p>
+&lt;p>The lowest-level element-wise PTransform. For each element in an input PCollection, ParDo applies a function and emits zero, one, or multiple elements to an output PCollection. “ParDo” is short for “Parallel Do.” It’s similar to the map operation in a &lt;a href="https://en.wikipedia.org/wiki/MapReduce">MapReduce&lt;/a> algorithm and the reduce operation when following a GroupByKey. ParDo is also comparable to the &lt;code>apply&lt;/code> method from a DataFrame, or the &lt;code>UPDATE&lt;/code> keyword from SQL.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#pardo">ParDo&lt;/a>&lt;/li>
@@ -3500,7 +3502,7 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/transforms/python/elementwise/pardo/">ParDo (Python)&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="partition">Partition&lt;/h2>
-&lt;p>An element-wise PTransform that splits a single PCollection into a fixed number of smaller PCollections. Partition requires a user-defined function (UDF) to determine how to split up the elements of the input collection into the resulting output collections. The number of partitions must be determined at graph construction time, meaning that you can’t determine the number of partitions using data calculated by the running pipeline.&lt;/p>
+&lt;p>An element-wise PTransform that splits a single PCollection into a fixed number of smaller, disjoint PCollections. Partition requires a user-defined function (UDF) to determine how to split up the elements of the input collection into the resulting output collections. The number of partitions must be determined at graph construction time, meaning that you can’t determine the number of partitions using data calculated by the running pipeline.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#partition">Partition&lt;/a>&lt;/li>
@@ -3514,13 +3516,13 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/programming-guide/#pcollections">PCollections&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="pipe-operator-">Pipe operator (&lt;code>|&lt;/code>)&lt;/h2>
-&lt;p>Delimits a step in a Python pipeline. For example: &lt;code>[Final Output PCollection] = ([Initial Input PCollection] | [First Transform] | [Second Transform] | [Third Transform])&lt;/code>. The output of each transform is passed from left to right as input to the next transform. The pipe operator in Python is equivalent to the &lt;code>apply&lt;/code> method in Java (in other words, the pipe applies a transform to a PCollection).&lt;/p>
+&lt;p>Delimits a step in a Python pipeline. For example: &lt;code>[Final Output PCollection] = ([Initial Input PCollection] | [First Transform] | [Second Transform] | [Third Transform])&lt;/code>. The output of each transform is passed from left to right as input to the next transform. The pipe operator in Python is equivalent to the &lt;code>apply&lt;/code> method in Java (in other words, the pipe applies a transform to a PCollection), and usage is similar to the pipe operator in shell scripts, which lets you pass the output of one program into the input of another.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#applying-transforms">Applying transforms&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="pipeline">Pipeline&lt;/h2>
-&lt;p>An encapsulation of your entire data processing task, including reading input data from a source, transforming that data, and writing output data to a sink. You can think of a pipeline as a Beam program that uses PTransforms to process PCollections. The transforms in a pipeline can be represented as a directed acyclic graph (DAG). All Beam driver programs must create a pipeline.&lt;/p>
+&lt;p>An encapsulation of your entire data processing task, including reading input data from a source, transforming that data, and writing output data to a sink. You can think of a pipeline as a Beam program that uses PTransforms to process PCollections. (Alternatively, you can think of it as a single, executable composite PTransform with no inputs or outputs.) The transforms in a pipeline can be represented as a directed acyclic graph (DAG). All Beam driver programs must create a pipeline.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#overview">Overview&lt;/a>&lt;/li>
@@ -3529,7 +3531,7 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/pipelines/create-your-pipeline/">Create your pipeline&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="processing-time">Processing time&lt;/h2>
-&lt;p>The time at which an element is processed at some stage in a pipeline. Processing time is not the same as event time, which is the time at which a data event occurs. Processing time is determined by the clock on the system processing the element. There’s no guarantee that elements will be processed in order of event time.&lt;/p>
+&lt;p>The real-world time at which an element is processed at some stage in a pipeline. Processing time is not the same as event time, which is the time at which a data event occurs. Processing time is determined by the clock on the system processing the element. There’s no guarantee that elements will be processed in order of event time.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#watermarks-and-late-data">Watermarks and late data&lt;/a>&lt;/li>
@@ -3556,21 +3558,21 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/runners/capability-matrix/">Beam Capability Matrix&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="schema">Schema&lt;/h2>
-&lt;p>A language-independent type definition for a PCollection. The schema for a PCollection defines elements of that PCollection as an ordered list of named fields. Each field has a name, a type, and possibly a set of user options. Schemas provide a way to reason about types across different programming-language APIs.&lt;/p>
+&lt;p>A language-independent type definition for the elements of a PCollection. The schema for a PCollection defines elements of that PCollection as an ordered list of named fields. Each field has a name, a type, and possibly a set of user options. Schemas provide a way to reason about types across different programming-language APIs. They also let you describe data transformations more succinctly and at a higher level.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#schemas">Schemas&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/patterns/schema/">Schema Patterns&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="session">Session&lt;/h2>
-&lt;p>A time interval for grouping data events. A session is defined by some minimum gap duration between events. For example, a data stream representing user mouse activity may have periods with high concentrations of clicks followed by periods of inactivity. A session can represent such a pattern of activity followed by inactivity.&lt;/p>
+&lt;p>A time interval for grouping data events. A session is defined by some minimum gap duration between events. For example, a data stream representing user mouse activity may have periods with high concentrations of clicks followed by periods of inactivity. A session can represent such a pattern of activity delimited by inactivity.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#session-windows">Session windows&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/get-started/mobile-gaming-example/#analyzing-usage-patterns">Analyzing Usage Patterns&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="side-input">Side input&lt;/h2>
-&lt;p>Additional input to a PTransform. Side input is input that you provide in addition to the main input PCollection. A DoFn can access side input each time it processes an element in the PCollection. Side inputs are useful if your transform needs to inject additional data at runtime.&lt;/p>
+&lt;p>Additional input to a PTransform that is provided in its entirety, rather than element-by-element. Side input is input that you provide in addition to the main input PCollection. A DoFn can access side input each time it processes an element in the PCollection.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#side-inputs">Side inputs&lt;/a>&lt;/li>
@@ -3599,8 +3601,10 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/programming-guide/#splittable-dofns">Splittable DoFns&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/blog/splittable-do-fn-is-available/">Splittable DoFn in Apache Beam is Ready to Use&lt;/a>&lt;/li>
 &lt;/ul>
+&lt;h2 id="stage">Stage&lt;/h2>
+&lt;p>The unit of fused transforms in a pipeline. Runners can perform fusion optimization to make pipeline execution more efficient. In Dataflow, the pipeline is conceptualized as a graph of fused stages.&lt;/p>
 &lt;h2 id="state">State&lt;/h2>
-&lt;p>Persistent values that a PTransform can access. The state API lets you augment element-wise operations (for example, ParDo or Map) with mutable state. Using the state API, you can read from, and write to, state as you process each element of a PCollection. You can use the state API together with the timer API to create processing tasks that give you fine-grained control over the workflow.&lt;/p>
+&lt;p>Persistent values that a PTransform can access. The state API lets you augment element-wise operations (for example, ParDo or Map) with mutable state. Using the state API, you can read from, and write to, state as you process each element of a PCollection. You can use the state API together with the timer API to create processing tasks that give you fine-grained control over the workflow. State is always local to a key and window.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#state-and-timers">State and Timers&lt;/a>&lt;/li>
@@ -3622,7 +3626,7 @@ limitations under the License.
 &lt;li>&lt;a href="/blog/timely-processing/">Timely (and Stateful) Processing with Apache Beam&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="timestamp">Timestamp&lt;/h2>
-&lt;p>A point in time associated with an element in a PCollection and used to assign a window to the element. The source that creates the PCollection assigns each element an initial timestamp, often corresponding to when the element was read or added. But you can also manually assign timestamps. This can be useful if elements have an inherent timestamp, but the timestamp is somewhere in the structure of the element itself (for example, a time field in a server log entry).&lt;/p>
+&lt;p>A point in event time associated with an element in a PCollection and used to assign a window to the element. The source that creates the PCollection assigns each element an initial timestamp, often corresponding to when the element was read or added. But you can also manually assign timestamps. This can be useful if elements have an inherent timestamp, but the timestamp is somewhere in the structure of the element itself (for example, a time field in a server log entry).&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#element-timestamps">Element timestamps&lt;/a>&lt;/li>
@@ -3637,7 +3641,7 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/programming-guide/#triggers">Triggers&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="unbounded-data">Unbounded data&lt;/h2>
-&lt;p>A dataset of unlimited size. A PCollection can be bounded or unbounded, depending on the source of the data that it represents. Reading from a streaming or continuously-updating data source, such as Pub/Sub or Kafka, typically creates an unbounded PCollection.&lt;/p>
+&lt;p>A dataset that grows over time, with elements processed as they arrive. A PCollection can be bounded or unbounded, depending on the source of the data that it represents. Reading from a streaming or continuously-updating data source, such as Pub/Sub or Kafka, typically creates an unbounded PCollection.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#size-and-boundedness">Size and boundedness&lt;/a>&lt;/li>
@@ -3651,7 +3655,7 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms">Requirements for writing user code for Beam transforms&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="watermark">Watermark&lt;/h2>
-&lt;p>The point in event time when all data in a window can be expected to have arrived in the pipeline. Watermarks provide a way to estimate the completeness of input data. Every PCollection has an associated watermark. Once the watermark progresses past the end of a window, any element that arrives with a timestamp in that window is considered late data.&lt;/p>
+&lt;p>An estimate on the lower bound of the timestamps that will be seen (in the future) at this point of the pipeline. Watermarks provide a way to estimate the completeness of input data. Every PCollection has an associated watermark. Once the watermark progresses past the end of a window, any element that arrives with a timestamp in that window is considered late data.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#watermarks-and-late-data">Watermarks and late data&lt;/a>&lt;/li>
@@ -3663,7 +3667,7 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/programming-guide/#windowing">Windowing&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="worker">Worker&lt;/h2>
-&lt;p>A container, process, or virtual machine (VM) that handles some part of the parallel processing of a pipeline. The Beam model doesn’t support synchronizing shared state across worker machines. Instead, each worker node has its own independent copy of state. A Beam runner might serialize elements between machines for communication purposes and for other reasons such as persistence.&lt;/p>
+&lt;p>A container, process, or virtual machine (VM) that handles some part of the parallel processing of a pipeline. Each worker node has its own independent copy of state. A Beam runner might serialize elements between machines for communication purposes and for other reasons such as persistence.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runtime/model/">Execution model&lt;/a>&lt;/li>
