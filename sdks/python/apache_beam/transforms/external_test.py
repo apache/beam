@@ -39,6 +39,7 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import AnnotationBasedPayloadBuilder
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
+from apache_beam.transforms.external import JavaExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
@@ -508,6 +509,42 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     payload_builder.with_constructor('abc')
     with self.assertRaises(ValueError):
       payload_builder.with_constructor('def')
+
+  def test_implicit_builder_with_constructor(self):
+    constructor_transform = (
+        JavaExternalTransform('org.pkg.MyTransform')('abc').withIntProperty(5))
+
+    payload_bytes = constructor_transform._payload_builder.payload()
+    payload_from_bytes = proto_utils.parse_Bytes(
+        payload_bytes, JavaClassLookupPayload)
+    self.assertEqual('org.pkg.MyTransform', payload_from_bytes.class_name)
+    self._verify_row(
+        payload_from_bytes.constructor_schema,
+        payload_from_bytes.constructor_payload, {'ignore0': 'abc'})
+    builder_method = payload_from_bytes.builder_methods[0]
+    self.assertEqual('withIntProperty', builder_method.name)
+    self._verify_row(
+        builder_method.schema, builder_method.payload, {'ignore0': 5})
+
+  def test_implicit_builder_with_constructor_method(self):
+    constructor_transform = JavaExternalTransform('org.pkg.MyTransform').of(
+        str_field='abc').withProperty(int_field=1234).build()
+
+    payload_bytes = constructor_transform._payload_builder.payload()
+    payload_from_bytes = proto_utils.parse_Bytes(
+        payload_bytes, JavaClassLookupPayload)
+    self.assertEqual('of', payload_from_bytes.constructor_method)
+    self._verify_row(
+        payload_from_bytes.constructor_schema,
+        payload_from_bytes.constructor_payload, {'str_field': 'abc'})
+    with_property_method = payload_from_bytes.builder_methods[0]
+    self.assertEqual('withProperty', with_property_method.name)
+    self._verify_row(
+        with_property_method.schema,
+        with_property_method.payload, {'int_field': 1234})
+    build_method = payload_from_bytes.builder_methods[1]
+    self.assertEqual('build', build_method.name)
+    self._verify_row(build_method.schema, build_method.payload, {})
 
 
 if __name__ == '__main__':

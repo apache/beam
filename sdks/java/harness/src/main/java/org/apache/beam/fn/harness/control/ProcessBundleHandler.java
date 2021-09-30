@@ -48,7 +48,6 @@ import org.apache.beam.fn.harness.data.BeamFnTimerGrpcClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
-import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.state.CachingBeamFnStateClient;
@@ -335,7 +334,6 @@ public class ProcessBundleHandler {
               }
             });
     try {
-      BeamFnLoggingMDC.setInstructionId(request.getInstructionId());
       PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
       PTransformFunctionRegistry finishFunctionRegistry =
           bundleProcessor.getFinishFunctionRegistry();
@@ -390,8 +388,6 @@ public class ProcessBundleHandler {
       // Make sure we clean-up from the active set of bundle processors.
       bundleProcessorCache.discard(bundleProcessor);
       throw e;
-    } finally {
-      BeamFnLoggingMDC.setInstructionId(null);
     }
   }
 
@@ -852,13 +848,13 @@ public class ProcessBundleHandler {
     @Override
     @SuppressWarnings("FutureReturnValueIgnored") // async arriveAndDeregister task doesn't need
     // monitoring.
-    public void handle(
-        StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
+    public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
       // Register each request with the phaser and arrive and deregister each time a request
       // completes.
+      CompletableFuture<StateResponse> response = beamFnStateClient.handle(requestBuilder);
       phaser.register();
       response.whenComplete((stateResponse, throwable) -> phaser.arriveAndDeregister());
-      beamFnStateClient.handle(requestBuilder, response);
+      return response;
     }
   }
 
@@ -879,7 +875,7 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    public void handle(Builder requestBuilder, CompletableFuture<StateResponse> response) {
+    public CompletableFuture<StateResponse> handle(Builder requestBuilder) {
       throw new IllegalStateException(
           String.format(
               "State API calls are unsupported because the "

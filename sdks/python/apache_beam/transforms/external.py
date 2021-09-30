@@ -236,8 +236,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     :param args: parameter values of the constructor.
     :param kwargs: parameter names and values of the constructor.
     """
-    if (self._constructor_method or self._constructor_param_args or
-        self._constructor_param_kwargs):
+    if self._has_constructor():
       raise ValueError(
           'Constructor or constructor method can only be specified once')
 
@@ -254,8 +253,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     :param args: parameter values of the constructor method.
     :param kwargs: parameter names and values of the constructor method.
     """
-    if (self._constructor_method or self._constructor_param_args or
-        self._constructor_param_kwargs):
+    if self._has_constructor():
       raise ValueError(
           'Constructor or constructor method can only be specified once')
 
@@ -275,6 +273,46 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     :param kwargs:  parameter names and values of the builder method.
     """
     self._builder_methods_and_params[method_name] = (args, kwargs)
+
+  def _has_constructor(self):
+    return (
+        self._constructor_method or self._constructor_param_args or
+        self._constructor_param_kwargs)
+
+
+class JavaExternalTransform(ptransform.PTransform):
+  """A proxy for Java-implemented external transforms.
+
+  One builds these transforms just as one would in Java.
+  """
+  def __init__(self, class_name, expansion_service=None):
+    self._payload_builder = JavaClassLookupPayloadBuilder(class_name)
+    self._expansion_service = None
+
+  def __call__(self, *args, **kwargs):
+    self._payload_builder.with_constructor(*args, **kwargs)
+    return self
+
+  def __getattr__(self, name):
+    # Don't try to emulate special methods.
+    if name.startswith('__') and name.endswith('__'):
+      return super().__getattr__(name)
+
+    def construct(*args, **kwargs):
+      if self._payload_builder._has_constructor():
+        builder_method = self._payload_builder.add_builder_method
+      else:
+        builder_method = self._payload_builder.with_constructor_method
+      builder_method(name, *args, **kwargs)
+      return self
+
+    return construct
+
+  def expand(self, pcolls):
+    return pcolls | ExternalTransform(
+        common_urns.java_class_lookup,
+        self._payload_builder.build(),
+        self._expansion_service)
 
 
 class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):

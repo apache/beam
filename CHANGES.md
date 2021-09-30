@@ -61,7 +61,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* `ReadFromBigQuery` now runs queries with BATCH priority by default. The `query_priority` parameter is introduced to the same transform to allow configuring the query priority (Python) ([BEAM-12913](https://issues.apache.org/jira/browse/BEAM-12913)).
+* `ReadFromBigQuery` and `ReadAllFromBigQuery` now run queries with BATCH priority by default. The `query_priority` parameter is introduced to the same transforms to allow configuring the query priority (Python) ([BEAM-12913](https://issues.apache.org/jira/browse/BEAM-12913)).
 
 ## New Features / Improvements
 
@@ -123,7 +123,7 @@
   * Code depending on beam imports need to include v2 on the module path.
     * Fix by'v2' to the import paths, turning  `.../sdks/go/...` to `.../sdks/v2/go/...`
   * No other code change should be required to use v2.33.0 of the Go SDK.
-  
+
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).

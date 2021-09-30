@@ -405,7 +405,7 @@ class Job(object):
     # further modify it to not output too-long strings, aimed at the
     # 10,000+ character hex-encoded "serialized_fn" values.
     return json.dumps(
-        json.loads(encoding.MessageToJson(self.proto), encoding='shortstrings'),
+        json.loads(encoding.MessageToJson(self.proto)),
         indent=2,
         sort_keys=True)
 
