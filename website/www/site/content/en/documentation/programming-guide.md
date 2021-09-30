@@ -2899,7 +2899,7 @@ In Java, a logical type is specified as a subclass of the `LogicalType` class. A
 
 {{< paragraph class="language-go" >}}
 In Go, a logical type is specified with a custom implementation of the `beam.SchemaProvider` interface.
-For example, the logical type provider representing nanosecond timestamps 
+For example, the logical type provider representing nanosecond timestamps
 might be implemented as follows
 {{< /paragraph >}}
 
@@ -3048,7 +3048,7 @@ In the above example we used the field names in the switch statement for clarity
 ### 6.5. Creating Schemas {#creating-schemas}
 
 In order to take advantage of schemas, your `PCollection`s must have a schema attached to it.
-Often, the source itself will attach a schema to the PCollection. 
+Often, the source itself will attach a schema to the PCollection.
 For example, when using `AvroIO` to read Avro files, the source can automatically infer a Beam schema from the Avro schema and attach that to the Beam `PCollection`.
 However not all sources produce schemas.
 In addition, often Beam pipelines have intermediate stages and types, and those also can benefit from the expressiveness of schemas.
@@ -3288,7 +3288,7 @@ type Transaction struct{
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
-Unexported fields are ignored, and cannot be automatically infered as part of the schema. 
+Unexported fields are ignored, and cannot be automatically infered as part of the schema.
 Fields of type  func, channel, unsafe.Pointer, or uintptr will be ignored by inference.
 Fields of interface types are ignored, unless a schema provider
 is registered for them.
