@@ -173,10 +173,10 @@ class CountTest(unittest.TestCase):
     with beam.TestPipeline as p:
 
       # Create an input PCollection.
-      input = p | beam.Create(WORDS);
+      input = p | beam.Create(WORDS)
 
       # Apply the Count transform under test.
-      output = input | beam.combiners.Count.PerElement();
+      output = input | beam.combiners.Count.PerElement()
 
       # Assert on the results.
       assert_that(
@@ -187,7 +187,7 @@ class CountTest(unittest.TestCase):
             ("sue", 2),
             ("bob", 2),
             ("", 3),
-            ("ZOW", 1)])
+            ("ZOW", 1)]))
 
       # The pipeline will run and verify the results.
 {{< /highlight >}}
