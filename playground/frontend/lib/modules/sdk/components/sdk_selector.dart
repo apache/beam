@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/config/theme.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 typedef void SetSdk(SDK sdk);
@@ -36,7 +37,7 @@ class SDKSelector extends StatelessWidget {
         horizontal: 16.0,
       ),
       decoration: BoxDecoration(
-        color: const Color(0x0A091E42),
+        color: ThemeColors.greyColor(context),
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: DropdownButtonHideUnderline(

@@ -17,14 +17,22 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/config/colors.dart';
 
+// TODO: add support for dart theme
 final theme = ThemeData(
   brightness: Brightness.light,
-  primaryColor: const Color(0xFFF36D21),
-  backgroundColor: const Color(0xFFFFFFFF),
+  primaryColor: LightColor.accent,
+  backgroundColor: LightColor.primaryBackground,
   appBarTheme: const AppBarTheme(
-    color: Color(0xFFFFFFFF),
+    color: LightColor.secondaryBackground,
     elevation: 1,
     centerTitle: false,
   ),
 );
+
+class ThemeColors {
+  static Color greyColor(BuildContext context) {
+    return LightColor.grey;
+  }
+}
