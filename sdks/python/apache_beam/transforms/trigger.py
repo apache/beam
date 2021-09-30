@@ -836,9 +836,11 @@ class AfterAny(_ParallelTriggerFn):
 
   def may_lose_data(self, windowing):
     """If any sub-trigger may finish, this one may finish."""
-    may_finish = any(t.may_lose_data(windowing) for t in self.triggers)
-    return (DataLossReason.MAY_FINISH if may_finish
-            else DataLossReason.NO_POTENTIAL_LOSS)
+    may_finish = any(
+        _IncludesMayFinish(t.may_lose_data(windowing)) for t in self.triggers)
+    return (
+        DataLossReason.MAY_FINISH
+        if may_finish else DataLossReason.NO_POTENTIAL_LOSS)
 
 
 class AfterAll(_ParallelTriggerFn):
@@ -850,9 +852,11 @@ class AfterAll(_ParallelTriggerFn):
 
   def may_lose_data(self, windowing):
     """If all sub-triggers may finish, then this may finish."""
-    may_finish = all(t.may_lose_data(windowing) for t in self.triggers)
-    return (DataLossReason.MAY_FINISH if may_finish
-            else DataLossReason.NO_POTENTIAL_LOSS)
+    may_finish = all(
+        _IncludesMayFinish(t.may_lose_data(windowing)) for t in self.triggers)
+    return (
+        DataLossReason.MAY_FINISH
+        if may_finish else DataLossReason.NO_POTENTIAL_LOSS)
 
 
 class AfterEach(TriggerFn):
@@ -911,9 +915,11 @@ class AfterEach(TriggerFn):
 
   def may_lose_data(self, windowing):
     """If all sub-triggers may finish, this may finish."""
-    may_finish = all(t.may_lose_data(windowing) for t in self.triggers)
-    return (DataLossReason.MAY_FINISH if may_finish
-            else DataLossReason.NO_POTENTIAL_LOSS)
+    may_finish = all(
+        _IncludesMayFinish(t.may_lose_data(windowing)) for t in self.triggers)
+    return (
+        DataLossReason.MAY_FINISH
+        if may_finish else DataLossReason.NO_POTENTIAL_LOSS)
 
   @staticmethod
   def _sub_context(context, index):

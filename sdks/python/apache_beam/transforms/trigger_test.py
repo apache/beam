@@ -488,11 +488,15 @@ class MayLoseDataTest(unittest.TestCase):
 
   def test_after_any_one_may_finish(self):
     self._test(
-        AfterAny(AfterCount(42), DefaultTrigger()), 0, DataLossReason.MAY_FINISH)
+        AfterAny(AfterCount(42), DefaultTrigger()),
+        0,
+        DataLossReason.MAY_FINISH)
 
   def test_after_any_all_safe(self):
     self._test(
-        AfterAny(Repeatedly(AfterCount(42)), DefaultTrigger()), 0, DataLossReason.NO_POTENTIAL_LOSS)
+        AfterAny(Repeatedly(AfterCount(42)), DefaultTrigger()),
+        0,
+        DataLossReason.NO_POTENTIAL_LOSS)
 
   def test_after_all_some_may_finish(self):
     self._test(
