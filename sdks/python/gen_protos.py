@@ -306,7 +306,7 @@ def generate_proto_files(force=False, log=None):
       p.start()
       p.join()
       if p.exitcode:
-        raise ValueError("Proto generation failed (see log for details).") \
+        raise ValueError("Proto generation failed (see log for details).")
 
     else:
       log.info('Regenerating Python proto definitions (%s).' % regenerate)

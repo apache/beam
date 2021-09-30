@@ -645,12 +645,11 @@ class DataflowApplicationClient(object):
           404: 'bucket not found',
       }
       if e.status_code in reportable_errors:
-        raise IOError(
-            (
-                'Could not upload to GCS path %s: %s. Please verify '
-                'that credentials are valid and that you have write '
-                'access to the specified path.') %
-            (gcs_or_local_path, reportable_errors[e.status_code])) from e
+        raise IOError((
+            'Could not upload to GCS path %s: %s. Please verify '
+            'that credentials are valid and that you have write '
+            'access to the specified path.') %
+                      (gcs_or_local_path, reportable_errors[e.status_code]))
       raise
     _LOGGER.info(
         'Completed GCS upload to %s in %s seconds.',
