@@ -6,5 +6,5 @@ class LightColor {
   static const Color grey = Color(0xFFE5E5E5);
   static const Color grey1 = Color(0xFFA0A4AB);
   static const Color text = Color(0xFF242639);
-  static const Color accent = Color(0xFFE74D1A);
+  static const Color primary = Color(0xFFE74D1A);
 }

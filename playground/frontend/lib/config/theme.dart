@@ -22,7 +22,7 @@ import 'package:playground/config/colors.dart';
 // TODO: add support for dart theme
 final theme = ThemeData(
   brightness: Brightness.light,
-  primaryColor: LightColor.accent,
+  primaryColor: LightColor.primary,
   backgroundColor: LightColor.primaryBackground,
   appBarTheme: const AppBarTheme(
     color: LightColor.secondaryBackground,
