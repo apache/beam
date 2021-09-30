@@ -17,9 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
-import 'package:playground/pages/playground/playground_state.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
@@ -28,9 +30,29 @@ class CodeTextAreaWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<PlaygroundState>(builder: (context, state, child) {
       return EditorTextArea(
-        key: ValueKey(state.sdk),
+        key: ValueKey(EditorKeyObject(state.sdk, state.selectedExample)),
+        example: state.selectedExample,
         sdk: state.sdk,
+        onSourceChange: state.setSource,
       );
     });
   }
+}
+
+class EditorKeyObject {
+  final SDK sdk;
+  final ExampleModel? example;
+
+  const EditorKeyObject(this.sdk, this.example);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EditorKeyObject &&
+          runtimeType == other.runtimeType &&
+          sdk == other.sdk &&
+          example == other.example;
+
+  @override
+  int get hashCode => sdk.hashCode ^ example.hashCode;
 }
