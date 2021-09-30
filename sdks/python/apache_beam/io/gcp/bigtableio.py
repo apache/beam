@@ -58,7 +58,7 @@ try:
   class _MutationsBatcher(MutationsBatcher):
     def __init__(
         self, table, flush_count=FLUSH_COUNT, max_row_bytes=MAX_ROW_BYTES):
-      super(_MutationsBatcher, self).__init__(table, flush_count, max_row_bytes)
+      super().__init__(table, flush_count, max_row_bytes)
       self.rows = []
 
     def set_flush_callback(self, callback_fn):
