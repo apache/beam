@@ -555,8 +555,8 @@ class _BoundedMongoSource(iobase.BoundedSource):
       try:
         return cursor[0]["_id"]
 
-      except IndexError as index_error:
-        raise ValueError("Empty Mongodb collection") from index_error
+      except IndexError:
+        raise ValueError("Empty Mongodb collection")
 
   def _replace_none_positions(self, start_position, stop_position):
 

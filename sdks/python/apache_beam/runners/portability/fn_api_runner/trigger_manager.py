@@ -63,10 +63,10 @@ class _ReifyWindows(DoFn):
       self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
     try:
       k, v = element
-    except TypeError as type_error:
+    except TypeError:
       raise TypeCheckError(
           'Input to GroupByKey must be a PCollection with '
-          'elements compatible with KV[A, B]') from type_error
+          'elements compatible with KV[A, B]')
 
     yield (k, windowed_value.WindowedValue(v, timestamp, [window]))
 

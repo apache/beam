@@ -82,15 +82,15 @@ def create_runner(runner_name):
     module, runner = runner_name.rsplit('.', 1)
     try:
       return getattr(importlib.import_module(module), runner)()
-    except ImportError as import_error:
+    except ImportError:
       if 'dataflow' in runner_name.lower():
         raise ImportError(
             'Google Cloud Dataflow runner not available, '
-            'please install apache_beam[gcp]') from import_error
+            'please install apache_beam[gcp]')
       elif 'interactive' in runner_name.lower():
         raise ImportError(
             'Interactive runner not available, '
-            'please install apache_beam[interactive]') from import_error
+            'please install apache_beam[interactive]')
       else:
         raise
   else:

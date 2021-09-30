@@ -183,13 +183,13 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     except CompositeTypeHintError as e:
       _, _, tb = sys.exc_info()
       raise TypeCheckError(e.args[0]).with_traceback(tb)
-    except SimpleTypeHintError as e:
+    except SimpleTypeHintError:
       error_msg = (
           "According to type-hint expected %s should be of type %s. "
           "Instead, received '%s', an instance of type %s." %
           (datum_type, type_constraint, datum, type(datum)))
       _, _, tb = sys.exc_info()
-      raise TypeCheckError(error_msg).with_traceback(tb) from e
+      raise TypeCheckError(error_msg).with_traceback(tb)
 
 
 class TypeCheckCombineFn(core.CombineFn):

@@ -485,9 +485,9 @@ class _GrpcDataChannel(DataChannel):
       while len(done_inputs) < len(expected_inputs):
         try:
           element = received.get(timeout=1)
-        except queue.Empty as e:
+        except queue.Empty:
           if self._closed:
-            raise RuntimeError('Channel closed prematurely.') from e
+            raise RuntimeError('Channel closed prematurely.')
           if abort_callback():
             return
           if self._exception:

@@ -403,10 +403,10 @@ class DataflowRunner(PipelineRunner):
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam.runners.dataflow.internal import apiclient
-    except ImportError as import_error:
+    except ImportError:
       raise ImportError(
           'Google Cloud Dataflow runner not available, '
-          'please install apache_beam[gcp]') from import_error
+          'please install apache_beam[gcp]')
 
     debug_options = options.view_as(DebugOptions)
     if pipeline.contains_external_transforms:

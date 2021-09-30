@@ -677,11 +677,11 @@ class Pipeline(object):
     try:
       if not isinstance(inputs, dict):
         inputs = {str(ix): input for (ix, input) in enumerate(inputs)}
-    except TypeError as type_error:
+    except TypeError:
       raise NotImplementedError(
           'Unable to extract PValue inputs from %s; either %s does not accept '
           'inputs of this format, or it does not properly override '
-          '_extract_input_pvalues' % (pvalueish, transform)) from type_error
+          '_extract_input_pvalues' % (pvalueish, transform))
     for t, leaf_input in inputs.items():
       if not isinstance(leaf_input, pvalue.PValue) or not isinstance(t, str):
         raise NotImplementedError(

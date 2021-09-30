@@ -283,10 +283,8 @@ class PortableRunner(runner.PipelineRunner):
       try:
         environment_urn = getattr(
             common_urns.environments, environment_type).urn
-      except AttributeError as attribute_error:
-        raise ValueError(
-            'Unknown environment type: %s' %
-            environment_type) from attribute_error
+      except AttributeError:
+        raise ValueError('Unknown environment type: %s' % environment_type)
 
     env_class = environments.Environment.get_env_cls_from_urn(environment_urn)
     return env_class.from_options(portable_options)

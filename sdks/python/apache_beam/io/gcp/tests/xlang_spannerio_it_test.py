@@ -314,9 +314,8 @@ class SpannerHelper(object):
               ORDER BY f_int64''')
       try:
         rows = list(results) if results else None
-      except IndexError as index_error:
-        raise ValueError(
-            f"Spanner results not found for {prefix}.") from index_error
+      except IndexError:
+        raise ValueError(f"Spanner results not found for {prefix}.")
     return rows
 
   def drop_database(self, database_id):

@@ -100,10 +100,10 @@ class SideInputTest(LoadTest):
   def materialize_as(self):
     try:
       return self.SIDE_INPUT_TYPES[self.side_input_type]
-    except KeyError as key_error:
+    except KeyError:
       raise ValueError(
           'Unknown side input type. Please provide one of '
-          'these: {}'.format(list(self.SIDE_INPUT_TYPES.keys()))) from key_error
+          'these: {}'.format(list(self.SIDE_INPUT_TYPES.keys())))
 
   def test(self):
     class SequenceSideInputTestDoFn(beam.DoFn):

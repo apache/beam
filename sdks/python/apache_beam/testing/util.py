@@ -97,22 +97,20 @@ class _EqualToPerWindowMatcher(object):
       window_key = windowed_value.windows[0]
       try:
         _expected[window_key]
-      except KeyError as key_error:
+      except KeyError:
         raise BeamAssertException(
             'Failed assert: window {} not found in any expected ' \
             'windows {}'.format(window_key, list(_expected.keys())))\
-          from key_error
 
       # Remove any matched elements from the window. This is used later on to
       # assert that all elements in the window were matched with actual
       # elements.
       try:
         _expected[window_key].remove(actual)
-      except ValueError as value_error:
+      except ValueError:
         raise BeamAssertException(
             'Failed assert: element {} not found in window ' \
             '{}:{}'.format(actual, window_key, _expected[window_key]))\
-          from value_error
 
     # Run the matcher for each window and value pair. Fails if the
     # windowed_value is not a TestWindowedValue.

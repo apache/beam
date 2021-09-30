@@ -236,8 +236,8 @@ class DoctestTest(unittest.TestCase):
     try:
       # pylint: disable=unused-import
       import IPython
-    except ImportError as import_error:
-      raise unittest.SkipTest('IPython not available') from import_error
+    except ImportError:
+      raise unittest.SkipTest('IPython not available')
     result = doctests.test_rst_ipython(RST_IPYTHON, 'test_rst_ipython')
     self.assertEqual(result.attempted, 8)
     self.assertEqual(result.failed, 1)  # Only the very last one.

@@ -669,7 +669,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       try:
         fn_type_hints = fn_type_hints.strip_iterable()
       except ValueError as e:
-        raise ValueError('Return value not iterable: %s: %s' % (self, e)) from e
+        raise ValueError('Return value not iterable: %s: %s' % (self, e))
     # Prefer class decorator type hints for backwards compatibility.
     return get_type_hints(self.__class__).with_defaults(fn_type_hints)
 
@@ -758,7 +758,7 @@ class CallableWrapperDoFn(DoFn):
     except ValueError as e:
       raise TypeCheckError(
           'Return value not iterable: %s: %s' %
-          (self.display_data()['fn'].value, e)) from e
+          (self.display_data()['fn'].value, e))
     return type_hints
 
   def infer_output_type(self, input_type):
@@ -2297,10 +2297,10 @@ class GroupByKey(PTransform):
         self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
       try:
         k, v = element
-      except TypeError as type_error:
+      except TypeError:
         raise TypeCheckError(
             'Input to GroupByKey must be a PCollection with '
-            'elements compatible with KV[A, B]') from type_error
+            'elements compatible with KV[A, B]')
 
       return [(k, WindowedValue(v, timestamp, [window]))]
 
@@ -2868,10 +2868,10 @@ class Flatten(PTransform):
   def _extract_input_pvalues(self, pvalueish):
     try:
       pvalueish = tuple(pvalueish)
-    except TypeError as type_error:
+    except TypeError:
       raise ValueError(
           'Input to Flatten must be an iterable. '
-          'Got a value of type %s instead.' % type(pvalueish)) from type_error
+          'Got a value of type %s instead.' % type(pvalueish))
     return pvalueish, pvalueish
 
   def expand(self, pcolls):

@@ -57,15 +57,14 @@ class ShardedKeyTypeConstraint(typehints.TypeConstraint,
 
     try:
       typehints.check_constraint(self.key_type, instance.key)
-    except (typehints.CompositeTypeHintError,
-            typehints.SimpleTypeHintError) as e:
+    except (typehints.CompositeTypeHintError, typehints.SimpleTypeHintError):
       raise typehints.CompositeTypeHintError(
           "%s type-constraint violated. The type of key in 'ShardedKey' "
           "is incorrect. Expected an instance of type '%s', "
           "instead received an instance of type '%s'." % (
               repr(self),
               typehints._unified_repr(self.key_type),
-              instance.key.__class__.__name__)) from e
+              instance.key.__class__.__name__))
 
   def match_type_variables(self, concrete_type):
     if isinstance(concrete_type, ShardedKeyTypeConstraint):

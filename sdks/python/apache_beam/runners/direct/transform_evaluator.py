@@ -672,7 +672,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
           try:
             timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
           except ValueError as e:
-            raise ValueError('Bad timestamp value: %s' % e) from e
+            raise ValueError('Bad timestamp value: %s' % e)
       else:
         timestamp = Timestamp(
             message.publish_time.seconds, message.publish_time.nanos // 1000)

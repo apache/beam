@@ -261,9 +261,9 @@ def with_exponential_backoff(
           try:
             try:
               sleep_interval = next(retry_intervals)
-            except StopIteration as stop_iteration:
+            except StopIteration:
               # Re-raise the original exception since we finished the retries.
-              raise exn.with_traceback(exn_traceback) from stop_iteration
+              raise exn.with_traceback(exn_traceback)
 
             logger(
                 'Retry with exponential backoff: waiting for %s seconds before '

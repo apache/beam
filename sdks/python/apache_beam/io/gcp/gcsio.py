@@ -58,10 +58,10 @@ try:
   from apitools.base.py import transfer
   from apache_beam.internal.gcp import auth
   from apache_beam.io.gcp.internal.clients import storage
-except ImportError as import_error:
+except ImportError:
   raise ImportError(
       'Google Cloud Storage I/O not supported for this execution environment '
-      '(could not import storage API client).') from import_error
+      '(could not import storage API client).')
 
 # This is the size of each partial-file read operation from GCS.  This
 # parameter was chosen to give good throughput while keeping memory usage at
@@ -607,8 +607,7 @@ class GcsDownloader(Downloader):
     except HttpError as http_error:
       service_call_metric.call(http_error)
       if http_error.status_code == 404:
-        raise IOError(
-            errno.ENOENT, 'Not found: %s' % self._path) from http_error
+        raise IOError(errno.ENOENT, 'Not found: %s' % self._path)
       else:
         _LOGGER.error(
             'HTTP error while requesting file %s: %s', self._path, http_error)
@@ -719,9 +718,9 @@ class GcsUploader(Uploader):
   def put(self, data):
     try:
       self._conn.send_bytes(data.tobytes())
-    except EOFError as e:
+    except EOFError:
       if self._upload_thread.last_error is not None:
-        raise self._upload_thread.last_error from e  # pylint: disable=raising-bad-type
+        raise self._upload_thread.last_error  # pylint: disable=raising-bad-type
       raise
 
   def finish(self):

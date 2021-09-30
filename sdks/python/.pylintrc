@@ -126,6 +126,7 @@ disable =
   not-callable,
   pointless-statement,
   protected-access,
+  raise-missing-from,
   raising-format-tuple,
   raising-non-exception,
   redefined-builtin,

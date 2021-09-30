@@ -223,10 +223,9 @@ def typing_from_runner_api(fieldtype_proto):
   if type_info == "atomic_type":
     try:
       return ATOMIC_TYPE_TO_PRIMITIVE[fieldtype_proto.atomic_type]
-    except KeyError as key_error:
+    except KeyError:
       raise ValueError(
-          "Unsupported atomic type: {0}".format(
-              fieldtype_proto.atomic_type)) from key_error
+          "Unsupported atomic type: {0}".format(fieldtype_proto.atomic_type))
   elif type_info == "array_type":
     return Sequence[typing_from_runner_api(
         fieldtype_proto.array_type.element_type)]

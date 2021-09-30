@@ -289,13 +289,13 @@ def generate_proto_files(force=False, log=None):
   if regenerate:
     try:
       from grpc_tools import protoc
-    except ImportError as e:
+    except ImportError:
       if platform.system() == 'Windows':
         # For Windows, grpcio-tools has to be installed manually.
         raise RuntimeError(
             'Cannot generate protos for Windows since grpcio-tools package is '
             'not installed. Please install this package manually '
-            'using \'pip install grpcio-tools\'.') from e
+            'using \'pip install grpcio-tools\'.')
 
       # Use a subprocess to avoid messing with this process' path and imports.
       # Note that this requires a separate module from setup.py for Windows:
@@ -307,7 +307,7 @@ def generate_proto_files(force=False, log=None):
       p.join()
       if p.exitcode:
         raise ValueError("Proto generation failed (see log for details).") \
-          from e
+
     else:
       log.info('Regenerating Python proto definitions (%s).' % regenerate)
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')

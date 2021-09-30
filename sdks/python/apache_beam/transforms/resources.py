@@ -180,11 +180,10 @@ def parse_resource_hints(hints):  # type: (Dict[Any, Any]) -> Dict[str, bytes]
       hint_cls = ResourceHint.get_by_name(hint)
       try:
         parsed_hints.update(hint_cls.parse(value))
-      except ValueError as value_error:
-        raise ValueError(
-            f"Resource hint {hint} has invalid value {value}.") from value_error
-    except KeyError as key_error:
-      raise ValueError(f"Unknown resource hint: {hint}.") from key_error
+      except ValueError:
+        raise ValueError(f"Resource hint {hint} has invalid value {value}.")
+    except KeyError:
+      raise ValueError(f"Unknown resource hint: {hint}.")
 
   return parsed_hints
 

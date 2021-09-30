@@ -458,10 +458,10 @@ class ProcessEnvironment(Environment):
       try:
         name, value = var.split('=', 1)
         env[name] = value
-      except ValueError as value_error:
+      except ValueError:
         raise ValueError(
             'Invalid process_variables "%s" (expected assignment in the '
-            'form "FOO=bar").' % var) from value_error
+            'form "FOO=bar").' % var)
     return env
 
   @classmethod

@@ -30,11 +30,10 @@ from cachetools.func import ttl_cache
 
 try:
   from google.cloud import videointelligence
-except ImportError as import_error:
+except ImportError:
   raise ImportError(
       'Google Cloud Video Intelligence not supported for this execution '
-      'environment (could not import google.cloud.videointelligence).'
-  ) from import_error
+      'environment (could not import google.cloud.videointelligence).')
 
 __all__ = ['AnnotateVideo', 'AnnotateVideoWithContext']
 

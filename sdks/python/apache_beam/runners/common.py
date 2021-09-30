@@ -656,10 +656,9 @@ class PerWindowInvoker(DoFnInvoker):
         # If no more args are present then the value must be passed via kwarg
         try:
           args_with_placeholders.append(next(remaining_args_iter))
-        except StopIteration as stop_iteration:
+        except StopIteration:
           if a not in input_kwargs:
-            raise ValueError(
-                "Value for sideinput %s not provided" % a) from stop_iteration
+            raise ValueError("Value for sideinput %s not provided" % a)
       elif isinstance(d, core.DoFn.StateParam):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif isinstance(d, core.DoFn.TimerParam):
@@ -828,10 +827,10 @@ class PerWindowInvoker(DoFnInvoker):
     if self.user_state_context or self.is_key_param_required:
       try:
         key, unused_value = windowed_value.value
-      except (TypeError, ValueError) as e:
+      except (TypeError, ValueError):
         raise ValueError((
             'Input value to a stateful DoFn or KeyParam must be a KV tuple; '
-            'instead, got \'%s\'.') % (windowed_value.value, )) from e
+            'instead, got \'%s\'.') % (windowed_value.value, ))
 
     for i, p in self.placeholders:
       if core.DoFn.ElementParam == p:

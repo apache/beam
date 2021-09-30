@@ -78,7 +78,7 @@ class LocalFileSystem(FileSystem):
     try:
       os.makedirs(path)
     except OSError as err:
-      raise IOError(err) from err
+      raise IOError(err)
 
   def has_dirs(self):
     """Whether this FileSystem supports directories."""
@@ -126,7 +126,7 @@ class LocalFileSystem(FileSystem):
           # Files may disappear, such as when listing /tmp.
           pass
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("List operation failed", {dir_or_prefix: e}) from e
+      raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
   def _path_open(
       self,
@@ -209,7 +209,7 @@ class LocalFileSystem(FileSystem):
         else:
           shutil.copy2(source, destination)
       except OSError as err:
-        raise IOError(err) from err
+        raise IOError(err)
 
     exceptions = {}
     for source, destination in zip(source_file_names, destination_file_names):
@@ -242,7 +242,7 @@ class LocalFileSystem(FileSystem):
       try:
         os.rename(source, destination)
       except OSError as err:
-        raise IOError(err) from err
+        raise IOError(err)
 
     exceptions = {}
     for source, destination in zip(source_file_names, destination_file_names):
@@ -278,7 +278,7 @@ class LocalFileSystem(FileSystem):
     try:
       return os.path.getsize(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("Size operation failed", {path: e}) from e
+      raise BeamIOError("Size operation failed", {path: e})
 
   def last_updated(self, path):
     """Get UNIX Epoch time in seconds on the FileSystem.
@@ -330,7 +330,7 @@ class LocalFileSystem(FileSystem):
         else:
           os.remove(path)
       except OSError as err:
-        raise IOError(err) from err
+        raise IOError(err)
 
     exceptions = {}
 

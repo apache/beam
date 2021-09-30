@@ -28,11 +28,10 @@ try:
   from google.cloud import language
   from google.cloud.language import enums  # pylint: disable=unused-import
   from google.cloud.language import types
-except ImportError as import_error:
+except ImportError:
   raise ImportError(
       'Google Cloud Natural Language API not supported for this execution '
-      'environment (could not import Natural Language API client).'
-  ) from import_error
+      'environment (could not import Natural Language API client).')
 
 __all__ = ['Document', 'AnnotateText']
 

@@ -812,8 +812,8 @@ class TranscriptTest(unittest.TestCase):
       else:
         try:
           return int(s)
-        except ValueError as value_error:
-          raise ValueError('Unknown function: %s' % s) from value_error
+        except ValueError:
+          raise ValueError('Unknown function: %s' % s)
 
     def parse_fn(s, names):
       """Like parse(), but implicitly calls no-arg constructors."""

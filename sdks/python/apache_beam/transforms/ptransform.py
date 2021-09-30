@@ -860,7 +860,7 @@ class PTransformWithSideInputs(PTransform):
     try:
       self.fn = pickler.loads(pickler.dumps(self.fn))
     except RuntimeError as e:
-      raise RuntimeError('Unable to pickle fn %s: %s' % (self.fn, e)) from e
+      raise RuntimeError('Unable to pickle fn %s: %s' % (self.fn, e))
 
     self.args = pickler.loads(pickler.dumps(self.args))
     self.kwargs = pickler.loads(pickler.dumps(self.kwargs))

@@ -442,11 +442,10 @@ class BigQueryClient(object):
     bq_dataset_ref = self._client.dataset(dataset_name)
     try:
       bq_dataset = self._client.get_dataset(bq_dataset_ref)
-    except NotFound as not_found:
+    except NotFound:
       raise ValueError(
           'Dataset {} does not exist in your project. '
-          'You have to create table first.'.format(dataset_name)) \
-        from not_found
+          'You have to create table first.'.format(dataset_name))
     return bq_dataset
 
   def save(self, results):

@@ -174,7 +174,7 @@ class BlobStorageIO(object):
     except ResourceNotFoundError as e:
       message = e.reason
       code = e.status_code
-      raise BlobStorageError(message, code) from e
+      raise BlobStorageError(message, code)
 
   # We intentionally do not decorate this method with a retry, since the
   # underlying copy operation is already an idempotent operation protected
@@ -356,7 +356,7 @@ class BlobStorageIO(object):
     except ResourceNotFoundError as e:
       message = e.reason
       code = e.status_code
-      raise BlobStorageError(message, code) from e
+      raise BlobStorageError(message, code)
 
     return properties.size
 
@@ -379,7 +379,7 @@ class BlobStorageIO(object):
     except ResourceNotFoundError as e:
       message = e.reason
       code = e.status_code
-      raise BlobStorageError(message, code) from e
+      raise BlobStorageError(message, code)
 
     datatime = properties.last_modified
     return (
@@ -402,7 +402,7 @@ class BlobStorageIO(object):
     except ResourceNotFoundError as e:
       message = e.reason
       code = e.status_code
-      raise BlobStorageError(message, code) from e
+      raise BlobStorageError(message, code)
 
     return properties.etag
 
@@ -609,8 +609,7 @@ class BlobStorageDownloader(Downloader):
       properties = self._get_object_properties()
     except ResourceNotFoundError as http_error:
       if http_error.status_code == 404:
-        raise IOError(
-            errno.ENOENT, 'Not found: %s' % self._path) from http_error
+        raise IOError(errno.ENOENT, 'Not found: %s' % self._path)
       else:
         _LOGGER.error(
             'HTTP error while requesting file %s: %s', self._path, http_error)

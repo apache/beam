@@ -38,11 +38,10 @@ from cachetools.func import ttl_cache
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud import recommendationengine
-except ImportError as import_error:
+except ImportError:
   raise ImportError(
       'Google Cloud Recommendation AI not supported for this execution '
-      'environment (could not import google.cloud.recommendationengine).'
-  ) from import_error
+      'environment (could not import google.cloud.recommendationengine).')
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 __all__ = [

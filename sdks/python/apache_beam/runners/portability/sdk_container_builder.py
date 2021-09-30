@@ -173,7 +173,7 @@ class _SdkContainerImageLocalBuilder(SdkContainerImageBuilder):
     except subprocess.CalledProcessError as err:
       raise RuntimeError(
           'Failed to build sdk container with local docker, '
-          'stderr:\n %s.' % err.stderr) from err
+          'stderr:\n %s.' % err.stderr)
     else:
       _LOGGER.info(
           "Successfully built %s in %.2f seconds" %
@@ -186,7 +186,7 @@ class _SdkContainerImageLocalBuilder(SdkContainerImageBuilder):
       except subprocess.CalledProcessError as err:
         raise RuntimeError(
             'Failed to push prebuilt sdk container %s, stderr: \n%s' %
-            (container_image_name, err.stderr)) from err
+            (container_image_name, err.stderr))
       _LOGGER.info(
           "Successfully pushed %s in %.2f seconds" %
           (container_image_name, time.time() - now))
@@ -314,7 +314,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
             'Could not upload to GCS path %s: %s. Please verify '
             'that credentials are valid and that you have write '
             'access to the specified path.') %
-                      (gcs_location, reportable_errors[e.status_code])) from e
+                      (gcs_location, reportable_errors[e.status_code]))
       raise
     _LOGGER.info('Completed GCS upload to %s.', gcs_location)
 

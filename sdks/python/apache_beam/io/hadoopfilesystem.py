@@ -214,7 +214,7 @@ class HadoopFileSystem(FileSystem):
             _HDFS_PREFIX + self._join(server, path, res[0]),
             res[1][_FILE_STATUS_LENGTH])
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError('List operation failed', {url: e}) from e
+      raise BeamIOError('List operation failed', {url: e})
 
   @staticmethod
   def _add_compression(stream, path, mime_type, compression_type):
@@ -346,8 +346,7 @@ class HadoopFileSystem(FileSystem):
           self._hdfs_client.rename(rel_source, rel_destination)
         except hdfs.HdfsError as e:
           raise BeamIOError(
-              'libhdfs error in renaming %s to %s' % (source, destination),
-              e) from e
+              'libhdfs error in renaming %s to %s' % (source, destination), e)
       except Exception as e:  # pylint: disable=broad-except
         exceptions[(source, destination)] = e
 
