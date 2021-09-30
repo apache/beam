@@ -173,6 +173,10 @@ class DataLossReason(Flag):
   # be lost. Example: AfterCount(1) will stop firing after the first element.
   MAY_FINISH = auto()
 
+  # Deprecated: Beam will emit buffered data at GC time. Any other behavior
+  # should be treated as a bug with the runner used.
+  CONDITION_NOT_GUARANTEED = auto()
+
 
 # Convenience functions for checking if a flag is included. Each is equivalent
 # to `reason & flag == flag`
