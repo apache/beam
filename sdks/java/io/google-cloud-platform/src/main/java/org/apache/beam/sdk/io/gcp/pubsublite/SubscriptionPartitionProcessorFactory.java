@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.io.Serializable;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 
@@ -27,6 +28,6 @@ interface SubscriptionPartitionProcessorFactory extends Serializable {
 
   SubscriptionPartitionProcessor newProcessor(
       SubscriptionPartition subscriptionPartition,
-      RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker,
+      RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
       OutputReceiver<SequencedMessage> receiver);
 }
