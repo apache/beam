@@ -21,53 +21,62 @@ syntax = "proto3";
 option go_package= "backend/pkg/api";
 package proto;
 
+enum sdk {
+  JAVA = 0;
+  GO = 1;
+  PYTHON = 2;
+  SCIO = 3;
+}
+
 // CodeInfo represents a code text and options of SDK which executes the code.
 
-message CodeInfo {
+message CodeObject {
   string code = 1;
-  enum sdk {
-    JAVA = 0;
-    GO = 1;
-    PYTHON = 2;
-    SCIO = 3;
-  }
   sdk SDK = 2;
 }
 
 // PipelineInfo contains information of the pipeline id.
 
-message PipelineInfo {
+message PipelineMeta {
   int32 pipeline_id = 1;
 }
 
-// PipelineResult represents the result of the compiled and/or executed code.
+enum status {
+  EXECUTING = 0;
+  FINISHED = 1;
+  ERROR = 2;
+}
 
-message PipelineResult {
+// RunOutputResponse represents the result of the compiled and/or executed code.
+
+message RunOutputResponse {
   string output = 1;
+  status compilation_status = 2;
+}
+
+message CompileOutputResponse {
+  string output = 1;
+  status compilation_status = 2;
 }
 
 // StatusInfo contains information about the status of the code execution.
 
-message StatusInfo {
-  enum status {
-    EXECUTING = 0;
-    FINISHED = 1;
-    ERROR = 2;
-  }
-  status pipeline_status = 1;
+message StatusResponse {
+
+  status status = 1;
 }
 
 service Playground {
 
   // Submit the job for an execution and get the pipeline id.
-  rpc RunCode(CodeInfo) returns (PipelineInfo);
+  rpc RunCode(CodeObject) returns (PipelineMeta);
 
   // Get the status of pipeline execution.
-  rpc CheckStatus(PipelineInfo) returns (StatusInfo);
+  rpc CheckStatus(PipelineMeta) returns (StatusResponse);
 
   // Get the result of pipeline execution.
-  rpc GetRunOutput(PipelineInfo) returns (PipelineResult);
+  rpc GetRunOutput(PipelineMeta) returns (RunOutputResponse);
 
   // Get the result of pipeline compilation.
-  rpc GetCompileOutput(PipelineInfo) returns (PipelineResult);
+  rpc GetCompileOutput(PipelineMeta) returns (CompileOutputResponse);
 }
