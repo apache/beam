@@ -747,8 +747,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_, nested):
     # type: (create_InputStream, bool) -> IntervalWindow
     if not TYPE_CHECKING:
-      # pylint: disable=global-variable-not-assigned
-      global IntervalWindow
+      global IntervalWindow  # pylint: disable=global-variable-not-assigned
       if IntervalWindow is None:
         from apache_beam.transforms.window import IntervalWindow
     # instantiating with None is not part of the public interface

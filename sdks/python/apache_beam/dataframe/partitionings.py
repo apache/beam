@@ -195,7 +195,6 @@ class Arbitrary(Partitioning):
       random.shuffle(seq)
       return seq
 
-    # pylint: disable=bad-option-value
     part = pd.Series(shuffled(range(len(df))), index=df.index) % num_partitions
     for k in range(num_partitions):
       yield k, df[part == k]

@@ -23,7 +23,7 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 # mypy: check-untyped-defs
 
-import cProfile  # pylint: disable=bad-option-value
+import cProfile
 import io
 import logging
 import os
