@@ -283,20 +283,6 @@ def _build_job_labels(input_labels):
   return result
 
 
-def _build_table_labels(input_labels):
-  """Builds dataset label protobuf structure."""
-  input_labels = input_labels or {}
-  result = bigquery.Table.LabelsValue()
-
-  for k, v in input_labels.items():
-    result.additionalProperties.append(
-        bigquery.Table.LabelsValue.AdditionalProperty(
-            key=k,
-            value=v,
-        ))
-  return result
-
-
 def _build_dataset_labels(input_labels):
   """Builds dataset label protobuf structure."""
   input_labels = input_labels or {}
@@ -813,29 +799,6 @@ class BigQueryWrapper(object):
     response = self.client.tabledata.List(request)
     # The response is a bigquery.TableDataList instance.
     return response.totalRows == 0
-
-  @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def update_table_labels(self, project_id, dataset_id, table_id, labels):
-    table_reference = bigquery.TableReference(
-        projectId=project_id, datasetId=dataset_id, tableId=table_id)
-    table = bigquery.Table(
-        tableReference=table_reference, labels=_build_table_labels(labels))
-    request = bigquery.BigqueryTablesUpdateRequest(
-        projectId=project_id,
-        datasetId=dataset_id,
-        tableId=table_id,
-        table=table)
-    try:
-      self.client.tables.Update(request)
-    except HttpError as exn:
-      if exn.status_code == 404:
-        _LOGGER.warning(
-            'Table %s:%s.%s does not exist', project_id, dataset_id, table_id)
-        return
-      else:
-        raise
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,

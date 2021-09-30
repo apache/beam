@@ -1041,10 +1041,6 @@ class _CustomBigQueryStorageSource(BoundedSource):
     job_ref = job.jobReference
     bq.wait_for_bq_job(job_ref, max_retries=0)
     table_reference = bq._get_temp_table(self._get_parent_project())
-    bq.update_table_labels(
-        table_reference.projectId,
-        table_reference.datasetId,
-        table_reference.tableId, {'type': 'apache-beam-temp'})
     return table_reference
 
   def display_data(self):
@@ -1180,7 +1176,7 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
   def estimate_size(self):
     # The size of stream source cannot be estimate due to server-side liquid
     # sharding.
-    # TODO: Implement progress reporting.
+    # TODO(BEAM-12990): Implement progress reporting.
     return None
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
@@ -1195,7 +1191,7 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
         stop_position=None)
 
   def get_range_tracker(self, start_position, stop_position):
-    # TODO: Implement dynamic work rebalancing.
+    # TODO(BEAM-12989): Implement dynamic work rebalancing.
     assert start_position is None
     # Defaulting to the start of the stream.
     start_position = 0
@@ -2241,7 +2237,8 @@ class ReadFromBigQuery(PTransform):
     use_native_datetime (bool): By default this transform exports BigQuery
       DATETIME fields as formatted strings (for example:
       2021-01-01T12:59:59). If :data:`True`, BigQuery DATETIME fields will
-      be returned as native Python datetime objects.
+      be returned as native Python datetime objects. This can only be used when
+      'method' is 'DIRECT_READ'.
     table (str, callable, ValueProvider): The ID of the table, or a callable
       that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
       numbers ``0-9``, or underscores ``_``. If dataset argument is
