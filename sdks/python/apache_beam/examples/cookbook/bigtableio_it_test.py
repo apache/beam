@@ -179,8 +179,8 @@ class BigtableIOWriteTest(unittest.TestCase):
     with beam.Pipeline(options=pipeline_options) as pipeline:
       config_data = {
           'project_id': self.project,
-          'instance_id': self.instance,
-          'table_id': self.table
+          'instance_id': self.instance_id,
+          'table_id': self.table_id
       }
       _ = (
           pipeline
