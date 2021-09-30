@@ -189,9 +189,12 @@ public class TestBigQuery implements TestRule {
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
 
+    long randomNumber = ThreadLocalRandom.current().nextLong();
+    randomNumber = (randomNumber == Long.MIN_VALUE) ? 0 : Math.abs(randomNumber);
+
     return topicName.toString()
         + "_"
-        + String.valueOf(Math.abs(ThreadLocalRandom.current().nextLong()));
+        + String.valueOf(randomNumber);
   }
 
   public String tableSpec() {

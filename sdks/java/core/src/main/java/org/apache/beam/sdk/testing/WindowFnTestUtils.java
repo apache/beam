@@ -278,7 +278,7 @@ public class WindowFnTestUtils {
       List<Instant> outputInstants = new ArrayList<>();
       for (TimestampedValue<T> element : timestampValuesForWindow) {
         outputInstants.add(
-            assignOutputTime(timestampCombiner, new Instant(element.getTimestamp()), window));
+            assignOutputTime(timestampCombiner, element.getTimestamp(), window));
       }
 
       combinedOutputTimestamps.add(combineOutputTimes(timestampCombiner, outputInstants));

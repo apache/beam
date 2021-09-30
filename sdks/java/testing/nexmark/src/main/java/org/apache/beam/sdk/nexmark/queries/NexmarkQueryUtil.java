@@ -149,11 +149,11 @@ public class NexmarkQueryUtil {
             public void processElement(ProcessContext c) {
               Event e = c.element();
               if (e.bid != null) {
-                c.outputWithTimestamp(e, new Instant(e.bid.dateTime));
+                c.outputWithTimestamp(e, e.bid.dateTime);
               } else if (e.newPerson != null) {
-                c.outputWithTimestamp(e, new Instant(e.newPerson.dateTime));
+                c.outputWithTimestamp(e, e.newPerson.dateTime);
               } else if (e.newAuction != null) {
-                c.outputWithTimestamp(e, new Instant(e.newAuction.dateTime));
+                c.outputWithTimestamp(e, e.newAuction.dateTime);
               }
             }
           });
