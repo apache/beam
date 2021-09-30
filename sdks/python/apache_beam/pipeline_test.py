@@ -430,7 +430,7 @@ class PipelineTest(unittest.TestCase):
           self, applied_ptransform):
         return ToStringParDo().with_input_types(int).with_output_types(str)
 
-    for override, expected_type in [(NoTypeHintOverride(), typehints.Any),
+    for override, expected_type in [(NoTypeHintOverride(), int),
                                     (WithTypeHintOverride(), str)]:
       p = TestPipeline()
       pcoll = (
