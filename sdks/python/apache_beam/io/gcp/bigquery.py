@@ -649,6 +649,7 @@ class _BigQuerySource(dataflow_io.NativeSource):
 class _CustomBigQuerySource(BoundedSource):
   def __init__(
       self,
+      method,
       gcs_location=None,
       table=None,
       dataset=None,
@@ -685,6 +686,7 @@ class _CustomBigQuerySource(BoundedSource):
       self.use_legacy_sql = not use_standard_sql
       self.table_reference = None
 
+    self.method = method
     self.gcs_location = gcs_location
     self.project = project
     self.validate = validate
@@ -709,6 +711,7 @@ class _CustomBigQuerySource(BoundedSource):
   def display_data(self):
     export_format = 'JSON' if self.use_json_exports else 'AVRO'
     return {
+        'method': str(self.method),
         'table': str(self.table_reference),
         'query': str(self.query),
         'project': str(self.project),
@@ -937,6 +940,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
   def __init__(
       self,
+      method: str,
       table: Optional[Union[str, TableReference]] = None,
       dataset: Optional[str] = None,
       project: Optional[str] = None,
@@ -974,6 +978,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
       self.use_legacy_sql = not use_standard_sql
       self.table_reference = None
 
+    self.method = method
     self.project = project
     self.selected_fields = selected_fields
     self.row_restriction = row_restriction
@@ -1045,6 +1050,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
   def display_data(self):
     return {
+        'method': self.method,
         'output_format': 'ARROW' if self.use_native_datetime else 'AVRO',
         'project': str(self.project),
         'table_reference': str(self.table_reference),
@@ -2382,6 +2388,7 @@ class ReadFromBigQuery(PTransform):
             _CustomBigQuerySource(
                 gcs_location=self.gcs_location,
                 pipeline_options=pcoll.pipeline.options,
+                method=self.method,
                 job_name=job_name,
                 step_name=step_name,
                 unique_id=unique_id,
@@ -2416,6 +2423,7 @@ class ReadFromBigQuery(PTransform):
         | beam.io.Read(
             _CustomBigQueryStorageSource(
                 pipeline_options=pcoll.pipeline.options,
+                method=self.method,
                 use_native_datetime=self.use_native_datetime,
                 temp_table=temp_table_ref,
                 *self._args,
