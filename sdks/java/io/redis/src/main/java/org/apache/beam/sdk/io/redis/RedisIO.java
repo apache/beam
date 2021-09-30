@@ -355,8 +355,7 @@ public class RedisIO {
         }
       }
       if (bundle.size() > 0) {
-        List<KV<String, String>> kvs = fetchAndFlush(bundle);
-        for (KV<String, String> kv : kvs) {
+        for (KV<String, String> kv : fetchAndFlush(bundle)) {
           c.output(kv);
         }
       }
@@ -373,17 +372,15 @@ public class RedisIO {
     public ArrayList<OffsetRange> splitBlockWithLimit(long start, long end) {
       ArrayList<OffsetRange> offsetList = new ArrayList<>();
       long newStart = start;
-      long newEnd = start;
       while (true) {
         if (newStart + batchSize <= end) {
           offsetList.add(new OffsetRange(newStart, newStart + batchSize));
-          newEnd = newStart + batchSize;
-          newStart = newStart + batchSize + 1;
+          newStart = newStart + batchSize;
         } else {
           break;
         }
       }
-      if (newEnd < end) {
+      if (newStart < end) {
         offsetList.add(new OffsetRange(newStart, end));
       }
       return offsetList;

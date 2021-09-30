@@ -85,6 +85,38 @@ public class RedisIOTest {
   }
 
   @Test
+  public void testReadSplitBig() {
+    List<KV<String, String>> data = buildIncrementalData("bigset", 1000);
+    data.forEach(kv -> client.set(kv.getKey(), kv.getValue()));
+
+    PCollection<KV<String, String>> read =
+        p.apply(
+            "Read",
+            RedisIO.read()
+                .withEndpoint(REDIS_HOST, port)
+                .withKeyPattern("bigset*")
+                .withBatchSize(8));
+    PAssert.that(read).containsInAnyOrder(data);
+    p.run();
+  }
+
+  @Test
+  public void testReadSplitSmall() {
+    List<KV<String, String>> data = buildIncrementalData("smallset", 5);
+    data.forEach(kv -> client.set(kv.getKey(), kv.getValue()));
+
+    PCollection<KV<String, String>> read =
+        p.apply(
+            "Read",
+            RedisIO.read()
+                .withEndpoint(REDIS_HOST, port)
+                .withKeyPattern("smallset*")
+                .withBatchSize(20));
+    PAssert.that(read).containsInAnyOrder(data);
+    p.run();
+  }
+
+  @Test
   public void testReadWithKeyPattern() {
     List<KV<String, String>> data = buildIncrementalData("pattern", 10);
     data.forEach(kv -> client.set(kv.getKey(), kv.getValue()));
