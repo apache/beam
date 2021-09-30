@@ -22,12 +22,20 @@ import 'package:flutter_highlight/themes/vs.dart';
 import 'package:highlight/languages/java.dart';
 import 'package:highlight/languages/python.dart';
 import 'package:highlight/languages/go.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 class EditorTextArea extends StatefulWidget {
   final SDK sdk;
+  final ExampleModel? example;
+  final void Function(String) onSourceChange;
 
-  const EditorTextArea({Key? key, required this.sdk}) : super(key: key);
+  const EditorTextArea({
+    Key? key,
+    required this.sdk,
+    this.example,
+    required this.onSourceChange,
+  }) : super(key: key);
 
   @override
   _EditorTextAreaState createState() => _EditorTextAreaState();
@@ -40,8 +48,10 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   void initState() {
     super.initState();
     _codeController = CodeController(
+      text: widget.example?.sources[widget.sdk] ?? "",
       language: _getLanguageFromSdk(),
       theme: vsTheme,
+      onChange: (newSource) => widget.onSourceChange(newSource),
     );
   }
 

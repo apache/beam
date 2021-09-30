@@ -17,20 +17,10 @@
  */
 
 import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
 
-void main() {
-  test('Playground State initial value should be java', () {
-    final state = PlaygroundState();
-    expect(state.sdk, equals(SDK.java));
-  });
+class ExampleModel {
+  final Map<SDK, String> sources;
+  final String name;
 
-  test('Playground state should notify all listeners about sdk change', () {
-    final state = PlaygroundState();
-    state.addListener(() {
-      expect(state.sdk, SDK.go);
-    });
-    state.setSdk(SDK.go);
-  });
+  const ExampleModel(this.sources, this.name);
 }
