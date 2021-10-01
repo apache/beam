@@ -696,6 +696,8 @@ class BatchLoads<DestinationT, ElementT>
                 kmsKey,
                 rowWriterFactory.getSourceFormat(),
                 useAvroLogicalTypes,
+                // Note that we can't pass through the schema update options when creating temporary
+                // tables. They also shouldn't be needed. See BEAM-12482 for additional details.
                 Collections.emptySet()))
         .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));
   }
