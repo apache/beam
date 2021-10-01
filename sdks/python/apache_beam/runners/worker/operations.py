@@ -710,13 +710,12 @@ class DoOperation(Operation):
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
-      delayed_application = self.dofn_runner.process(o)
-      if delayed_application:
+      delayed_applications = self.dofn_runner.process(o)
+      if delayed_applications:
         assert self.execution_context is not None
-        # TODO(BEAM-77746): there's disagreement between subclasses
-        #  of DoFnRunner over the return type annotations of process().
-        self.execution_context.delayed_applications.append(
-            (self, delayed_application))  # type: ignore[arg-type]
+        for delayed_application in delayed_applications:
+          self.execution_context.delayed_applications.append(
+              (self, delayed_application))
 
   def finalize_bundle(self):
     # type: () -> None
