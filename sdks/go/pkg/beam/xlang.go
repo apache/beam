@@ -143,6 +143,23 @@ func CrossLanguage(
 	namedInputs map[string]PCollection,
 	namedOutputTypes map[string]FullType,
 ) map[string]PCollection {
+	namedOutputs, err := TryCrossLanguage(s, urn, payload, expansionAddr, namedInputs, namedOutputTypes)
+	if err != nil {
+		panic(errors.WithContextf(err, "tried cross-language for %v against %v and failed", urn, expansionAddr))
+	}
+	return namedOutputs
+}
+
+// TryCrossLanguage coordinates the core functions required to execute the cross-language transform.
+// See CrossLanguage for user documentation.
+func TryCrossLanguage(
+	s Scope,
+	urn string,
+	payload []byte,
+	expansionAddr string,
+	namedInputs map[string]PCollection,
+	namedOutputTypes map[string]FullType,
+) (map[string]PCollection, error) {
 	if !s.IsValid() {
 		panic(errors.New("invalid scope"))
 	}
@@ -150,41 +167,36 @@ func CrossLanguage(
 	inputsMap, inboundLinks := graph.NamedInboundLinks(mapPCollectionToNode(namedInputs))
 	outputsMap, outboundLinks := graph.NamedOutboundLinks(s.real, namedOutputTypes)
 
+	// Set the coder for outbound links for downstream validation.
+	for n, i := range outputsMap {
+		c := NewCoder(namedOutputTypes[n])
+		outboundLinks[i].To.Coder = c.coder
+	}
+
 	ext := graph.ExternalTransform{
 		Urn:           urn,
 		Payload:       payload,
 		ExpansionAddr: expansionAddr,
 	}.WithNamedInputs(inputsMap).WithNamedOutputs(outputsMap)
 
-	namedOutputs, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
-	if err != nil {
-		panic(errors.WithContextf(err, "tried cross-language and failed"))
-	}
-	return mapNodeToPCollection(namedOutputs)
-}
-
-// TryCrossLanguage coordinates the core functions required to execute the cross-language transform.
-// This is mainly intended for internal use. For the general-use entry point, see
-// beam.CrossLanguage.
-func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inbound, outs []*graph.Outbound) (map[string]*graph.Node, error) {
 	// Adding an edge in the graph corresponding to the ExternalTransform
-	edge, isBoundedUpdater := graph.NewCrossLanguage(s.real, s.scope, ext, ins, outs)
+	edge, isBoundedUpdater := graph.NewCrossLanguage(s.real, s.scope, &ext, inboundLinks, outboundLinks)
 
 	// Once the appropriate input and output nodes are added to the edge, a
 	// unique namespace can be requested.
 	ext.Namespace = graph.NewNamespace()
 
 	// Expand the transform into ext.Expanded.
-	if err := xlangx.Expand(edge, ext); err != nil {
+	if err := xlangx.Expand(edge, &ext); err != nil {
 		return nil, errors.WithContext(err, "expanding external transform")
 	}
 
 	// Ensures the expected named outputs are present
-	graphx.VerifyNamedOutputs(ext)
+	graphx.VerifyNamedOutputs(&ext)
 	// Using the expanded outputs, the graph's counterpart outputs are updated with bounded values
 	graphx.ResolveOutputIsBounded(edge, isBoundedUpdater)
 
-	return graphx.ExternalOutputs(edge), nil
+	return mapNodeToPCollection(graphx.ExternalOutputs(edge)), nil
 }
 
 // Wrapper functions to handle beam <-> graph boundaries
