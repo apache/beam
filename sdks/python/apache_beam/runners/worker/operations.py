@@ -715,7 +715,7 @@ class DoOperation(Operation):
         assert self.execution_context is not None
         for delayed_application in delayed_applications:
           self.execution_context.delayed_applications.append(
-            (self, delayed_application))
+              (self, delayed_application))
 
   def finalize_bundle(self):
     # type: () -> None
