@@ -16,13 +16,17 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
+// paddings
+const double kZeroPadding = 0.0;
+const double kSmPadding = 4.0;
+const double kMdPadding = 8.0;
+const double kLgPadding = 16.0;
 
-class LightColor {
-  static const Color primaryBackground = Colors.white;
-  static const Color secondaryBackground = Color(0xFFFCFCFC);
-  static const Color grey = Color(0xFFE5E5E5);
-  static const Color grey1 = Color(0xFFA0A4AB);
-  static const Color text = Color(0xFF242639);
-  static const Color primary = Color(0xFFE74D1A);
-}
+// border radius
+const double kBorderRadius = 8.0;
+
+// elevation
+const int kElevation = 1;
+
+// icon sizes
+const double kIconSizeMd = 24.0;

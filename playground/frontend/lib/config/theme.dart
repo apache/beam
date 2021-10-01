@@ -17,22 +17,70 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/colors.dart';
+import 'package:playground/constants/colors.dart';
+import 'package:playground/constants/sizes.dart';
+import 'package:provider/provider.dart';
 
-// TODO: add support for dart theme
-final theme = ThemeData(
+class ThemeProvider extends ChangeNotifier {
+  ThemeMode themeMode = ThemeMode.light;
+
+  bool get isDarkMode {
+    return themeMode == ThemeMode.dark;
+  }
+
+  void toggleTheme() {
+    themeMode = themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    notifyListeners();
+  }
+}
+
+final kLightTheme = ThemeData(
   brightness: Brightness.light,
-  primaryColor: LightColor.primary,
-  backgroundColor: LightColor.primaryBackground,
+  primaryColor: kLightPrimary,
+  backgroundColor: kLightPrimaryBackground,
   appBarTheme: const AppBarTheme(
-    color: LightColor.secondaryBackground,
+    color: kLightSecondaryBackground,
     elevation: 1,
     centerTitle: false,
+  ),
+  textButtonTheme: TextButtonThemeData(
+    style: TextButton.styleFrom(
+      primary: kLightText,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(kBorderRadius)),
+      ),
+    ),
+  ),
+);
+
+final kDarkTheme = ThemeData(
+  brightness: Brightness.dark,
+  primaryColor: kDarkPrimary,
+  backgroundColor: kDarkGrey,
+  appBarTheme: const AppBarTheme(
+    color: kDarkSecondaryBackground,
+    elevation: 1,
+    centerTitle: false,
+  ),
+  textButtonTheme: TextButtonThemeData(
+    style: TextButton.styleFrom(
+      primary: kDarkText,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(kBorderRadius)),
+      ),
+    ),
   ),
 );
 
 class ThemeColors {
-  static Color greyColor(BuildContext context) {
-    return LightColor.grey;
+  final bool isDark;
+
+  static ThemeColors of(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
+    return ThemeColors(theme.isDarkMode);
   }
+
+  ThemeColors(this.isDark);
+
+  Color get greyColor => isDark ? kDarkGrey : kLightGrey;
 }

@@ -17,21 +17,31 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/config/theme.dart';
+import 'package:playground/constants/sizes.dart';
+import 'package:provider/provider.dart';
 
-class Logo extends StatelessWidget {
-  const Logo({Key? key}) : super(key: key);
+class ToggleThemeButton extends StatelessWidget {
+  const ToggleThemeButton({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return RichText(
-      text: TextSpan(
-        style: theme.textTheme.headline6,
-        children: <TextSpan>[
-          TextSpan(text: 'Beam', style: TextStyle(color: theme.primaryColor)),
-          const TextSpan(text: ' Playground'),
-        ],
-      ),
-    );
+    return Consumer<ThemeProvider>(builder: (context, theme, child) {
+      final text = theme.isDarkMode ? "Light Mode" : "Dark Mode";
+      final icon = theme.isDarkMode
+          ? Icons.light_mode_outlined
+          : Icons.mode_night_outlined;
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: kSmPadding,
+          horizontal: kMdPadding,
+        ),
+        child: TextButton.icon(
+          icon: Icon(icon),
+          label: Text(text),
+          onPressed: theme.toggleTheme,
+        ),
+      );
+    });
   }
 }

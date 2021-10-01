@@ -18,9 +18,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
+import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
-typedef void SetSdk(SDK sdk);
+typedef SetSdk = void Function(SDK sdk);
 
 class SDKSelector extends StatelessWidget {
   final SDK sdk;
@@ -33,20 +34,20 @@ class SDKSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        vertical: 0.0,
-        horizontal: 16.0,
+        vertical: kZeroPadding,
+        horizontal: kLgPadding,
       ),
       decoration: BoxDecoration(
-        color: ThemeColors.greyColor(context),
-        borderRadius: BorderRadius.circular(8.0),
+        color: ThemeColors.of(context).greyColor,
+        borderRadius: BorderRadius.circular(kBorderRadius),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<SDK>(
           value: sdk,
           icon: const Icon(Icons.keyboard_arrow_down),
-          iconSize: 24,
-          elevation: 1,
-          borderRadius: BorderRadius.circular(8.0),
+          iconSize: kIconSizeMd,
+          elevation: kElevation,
+          borderRadius: BorderRadius.circular(kBorderRadius),
           alignment: Alignment.bottomCenter,
           onChanged: (SDK? newSdk) {
             if (newSdk != null) {

@@ -18,20 +18,16 @@
 
 import 'package:flutter/material.dart';
 
-class Logo extends StatelessWidget {
-  const Logo({Key? key}) : super(key: key);
+const Color kLightPrimaryBackground = Colors.white;
+const Color kLightSecondaryBackground = Color(0xFFFCFCFC);
+const Color kLightGrey = Color(0xFFE5E5E5);
+const Color kLightGrey1 = Color(0xFFA0A4AB);
+const Color kLightText = Color(0xFF242639);
+const Color kLightPrimary = Color(0xFFE74D1A);
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return RichText(
-      text: TextSpan(
-        style: theme.textTheme.headline6,
-        children: <TextSpan>[
-          TextSpan(text: 'Beam', style: TextStyle(color: theme.primaryColor)),
-          const TextSpan(text: ' Playground'),
-        ],
-      ),
-    );
-  }
-}
+const Color kDarkPrimaryBackground = Color(0xFF18181B);
+const Color kDarkSecondaryBackground = Color(0xFF2E2E34);
+const Color kDarkGrey = Color(0xFF3F3F46);
+const Color kDarkGrey1 = Color(0xFF606772);
+const Color kDarkText = Color(0xFFFFFFFF);
+const Color kDarkPrimary = Color(0xFFF26628);

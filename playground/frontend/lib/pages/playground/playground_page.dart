@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/components/toggle_theme_button/toggle_theme_button.dart';
 import 'package:provider/provider.dart';
 import 'package:playground/modules/output/components/output_area.dart';
 import 'package:playground/pages/playground/playground_state.dart';
@@ -37,7 +38,7 @@ class PlaygroundPage extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 16.0,
             children: [
-              const LogoComponent(),
+              const Logo(),
               Consumer<PlaygroundState>(
                 builder: (context, state, child) {
                   return SDKSelector(
@@ -48,6 +49,7 @@ class PlaygroundPage extends StatelessWidget {
               ),
             ],
           ),
+          actions: const [ToggleThemeButton()],
         ),
         body: Column(
           children: [
