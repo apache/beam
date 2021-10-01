@@ -117,7 +117,7 @@ public class SplittableParDoNaiveBounded {
               ParDo.of(
                       new NaiveProcessFn<
                           InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>(
-                          original.getFn()))
+                          original.getFn(), original.getSideInputMapping()))
                   .withSideInputs(original.getSideInputs())
                   .withOutputTags(original.getMainOutputTag(), original.getAdditionalOutputTags()));
     }
@@ -126,11 +126,13 @@ public class SplittableParDoNaiveBounded {
   static class NaiveProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
       extends DoFn<KV<InputT, RestrictionT>, OutputT> {
     private final DoFn<InputT, OutputT> fn;
+    private final Map<String, PCollectionView<?>> sideInputMapping;
 
     private transient @Nullable DoFnInvoker<InputT, OutputT> invoker;
 
-    NaiveProcessFn(DoFn<InputT, OutputT> fn) {
+    NaiveProcessFn(DoFn<InputT, OutputT> fn, Map<String, PCollectionView<?>> sideInputMapping) {
       this.fn = fn;
+      this.sideInputMapping = sideInputMapping;
     }
 
     @Setup
@@ -214,6 +216,16 @@ public class SplittableParDoNaiveBounded {
                     }
 
                     @Override
+                    public Object sideInput(String tagId) {
+                      PCollectionView<?> view = sideInputMapping.get(tagId);
+                      if (view == null) {
+                        throw new IllegalArgumentException(
+                            "calling getSideInput() with unknown view");
+                      }
+                      return c.sideInput(view);
+                    }
+
+                    @Override
                     public String getErrorContext() {
                       return NaiveProcessFn.class.getSimpleName()
                           + ".invokeGetInitialWatermarkEstimatorState";
@@ -258,6 +270,16 @@ public class SplittableParDoNaiveBounded {
                       @Override
                       public BoundedWindow window() {
                         return w;
+                      }
+
+                      @Override
+                      public Object sideInput(String tagId) {
+                        PCollectionView<?> view = sideInputMapping.get(tagId);
+                        if (view == null) {
+                          throw new IllegalArgumentException(
+                              "calling getSideInput() with unknown view");
+                        }
+                        return c.sideInput(view);
                       }
 
                       @Override
@@ -312,6 +334,16 @@ public class SplittableParDoNaiveBounded {
                   }
 
                   @Override
+                  public Object sideInput(String tagId) {
+                    PCollectionView<?> view = sideInputMapping.get(tagId);
+                    if (view == null) {
+                      throw new IllegalArgumentException(
+                          "calling getSideInput() with unknown view");
+                    }
+                    return c.sideInput(view);
+                  }
+
+                  @Override
                   public String getErrorContext() {
                     return NaiveProcessFn.class.getSimpleName() + ".invokeNewWatermarkEstimator";
                   }
@@ -319,7 +351,7 @@ public class SplittableParDoNaiveBounded {
         ProcessContinuation continuation =
             invoker.invokeProcessElement(
                 new NestedProcessContext<>(
-                    fn, c, c.element().getKey(), w, tracker, watermarkEstimator));
+                    fn, c, c.element().getKey(), w, tracker, watermarkEstimator, sideInputMapping));
         if (continuation.shouldResume()) {
           // Fetch the watermark before splitting to ensure that the watermark applies to both
           // the primary and the residual.
@@ -397,6 +429,7 @@ public class SplittableParDoNaiveBounded {
       private final InputT element;
       private final TrackerT tracker;
       private final WatermarkEstimatorT watermarkEstimator;
+      private final Map<String, PCollectionView<?>> sideInputMapping;
 
       private NestedProcessContext(
           DoFn<InputT, OutputT> fn,
@@ -404,13 +437,15 @@ public class SplittableParDoNaiveBounded {
           InputT element,
           BoundedWindow window,
           TrackerT tracker,
-          WatermarkEstimatorT watermarkEstimator) {
+          WatermarkEstimatorT watermarkEstimator,
+          Map<String, PCollectionView<?>> sideInputMapping) {
         fn.super();
         this.window = window;
         this.outerContext = outerContext;
         this.element = element;
         this.tracker = tracker;
         this.watermarkEstimator = watermarkEstimator;
+        this.sideInputMapping = sideInputMapping;
       }
 
       @Override
@@ -450,7 +485,11 @@ public class SplittableParDoNaiveBounded {
 
       @Override
       public Object sideInput(String tagId) {
-        throw new UnsupportedOperationException();
+        PCollectionView<?> view = sideInputMapping.get(tagId);
+        if (view == null) {
+          throw new IllegalArgumentException("calling getSideInput() with unknown view");
+        }
+        return sideInput(view);
       }
 
       @Override

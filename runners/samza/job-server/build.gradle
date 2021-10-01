@@ -96,7 +96,6 @@ createPortableValidatesRunnerTask(
             // TODO(BEAM-12821)
             excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
             excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
             excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
         },
         testFilter: {
