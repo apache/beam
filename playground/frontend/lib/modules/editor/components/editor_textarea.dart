@@ -19,11 +19,14 @@
 import 'package:flutter/material.dart';
 import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter_highlight/themes/vs.dart';
+import 'package:flutter_highlight/themes/darcula.dart';
 import 'package:highlight/languages/java.dart';
 import 'package:highlight/languages/python.dart';
 import 'package:highlight/languages/go.dart';
+import 'package:playground/config/theme.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:provider/provider.dart';
 
 class EditorTextArea extends StatefulWidget {
   final SDK sdk;
@@ -47,12 +50,18 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: true);
     _codeController = CodeController(
-      text: widget.example?.sources[widget.sdk] ?? "",
+      text: _codeController?.text ?? widget.example?.sources[widget.sdk] ?? "",
       language: _getLanguageFromSdk(),
-      theme: vsTheme,
+      theme: themeProvider.isDarkMode ? darculaTheme : vsTheme,
       onChange: (newSource) => widget.onSourceChange(newSource),
     );
+    super.didChangeDependencies();
   }
 
   @override
