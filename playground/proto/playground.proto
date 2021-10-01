@@ -21,7 +21,7 @@ syntax = "proto3";
 option go_package= "backend/pkg/api";
 package proto;
 
-enum sdk {
+enum Sdk {
   JAVA = 0;
   GO = 1;
   PYTHON = 2;
@@ -30,9 +30,9 @@ enum sdk {
 
 // CodeInfo represents a code text and options of SDK which executes the code.
 
-message CodeObject {
+message RunCodeObject {
   string code = 1;
-  sdk SDK = 2;
+  Sdk SDK = 2;
 }
 
 // PipelineInfo contains information of the pipeline id.
@@ -42,9 +42,10 @@ message PipelineMeta {
 }
 
 enum status {
-  EXECUTING = 0;
-  FINISHED = 1;
-  ERROR = 2;
+  SDK_UNSPECIFIED = 0;
+  SDK_EXECUTING = 1;
+  SDK_FINISHED = 2;
+  SDK_ERROR = 3;
 }
 
 // RunOutputResponse represents the result of the compiled and/or executed code.
@@ -66,10 +67,10 @@ message StatusResponse {
   status status = 1;
 }
 
-service Playground {
+service PlaygroundService {
 
   // Submit the job for an execution and get the pipeline id.
-  rpc RunCode(CodeObject) returns (PipelineMeta);
+  rpc RunCode(RunCodeObject) returns (PipelineMeta);
 
   // Get the status of pipeline execution.
   rpc CheckStatus(PipelineMeta) returns (StatusResponse);
