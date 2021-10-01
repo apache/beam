@@ -21,25 +21,45 @@
 package statecache
 
 import (
+	"io"
 	"sync"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
 type token string
 
-// ReusableInput is a resettable value, notably used to unwind iterators cheaply
-// and cache materialized side input across invocations.
+// FullValue represents the full runtime value for a data element, incl. the
+// implicit context. The result of a GBK or CoGBK is not a single FullValue.
+// The consumer is responsible for converting the values to the correct type.
+// To represent a nested KV with FullValues, assign a *FullValue to Elm/Elm2.
 //
-// Redefined from exec's input.go to avoid a cyclical dependency.
-type ReusableInput interface {
-	// Init initializes the value before use.
-	Init() error
-	// Value returns the side input value.
-	Value() interface{}
-	// Reset resets the value after use.
-	Reset() error
+// Copied from exec/fullvalue.go to avoid cyclical dependencies.
+type FullValue struct {
+	Elm  interface{} // Element or KV key.
+	Elm2 interface{} // KV value, if not invalid
+
+	Timestamp typex.EventTime
+	Windows   []typex.Window
+	Pane      typex.PaneInfo
+}
+
+// Stream is a FullValue reader. It returns io.EOF when complete, but can be
+// prematurely closed.
+//
+// Copied from exec/fullvalue.go to prevent cyclical dependencies.
+type Stream interface {
+	io.Closer
+	Read() (*FullValue, error)
+}
+
+// ReStream is a re-iterable stream, i.e., a Stream factory.
+//
+// Copied from exec/fullvalue.go to prevent cyclical dependencies.
+type ReStream interface {
+	Open() (Stream, error)
 }
 
 // SideInputCache stores a cache of reusable inputs for the purposes of
@@ -56,12 +76,13 @@ type ReusableInput interface {
 type SideInputCache struct {
 	capacity    int
 	mu          sync.Mutex
-	cache       map[token]ReusableInput
+	cache       map[token]ReStream
 	idsToTokens map[string]token
 	validTokens map[token]int8 // Maps tokens to active bundle counts
 	metrics     CacheMetrics
 }
 
+// CacheMetrics stores metrics for the cache across a pipeline run.
 type CacheMetrics struct {
 	Hits           int64
 	Misses         int64
@@ -78,7 +99,7 @@ func (c *SideInputCache) Init(cap int) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache = make(map[token]ReusableInput, cap)
+	c.cache = make(map[token]ReStream, cap)
 	c.idsToTokens = make(map[string]token)
 	c.validTokens = make(map[token]int8)
 	c.capacity = cap
@@ -89,7 +110,7 @@ func (c *SideInputCache) Init(cap int) error {
 // transform and side input IDs to cache tokens in the process. Should be called at the start of every
 // new ProcessBundleRequest. If the runner does not support caching, the passed cache token values
 // should be empty and all get/set requests will silently be no-ops.
-func (c *SideInputCache) SetValidTokens(cacheTokens ...fnpb.ProcessBundleRequest_CacheToken) {
+func (c *SideInputCache) SetValidTokens(cacheTokens ...*fnpb.ProcessBundleRequest_CacheToken) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, tok := range cacheTokens {
@@ -121,7 +142,7 @@ func (c *SideInputCache) setValidToken(transformID, sideInputID string, tok toke
 // CompleteBundle takes the cache tokens passed to set the valid tokens and decrements their
 // usage count for the purposes of maintaining a valid count of whether or not a value is
 // still in use. Should be called once ProcessBundle has completed.
-func (c *SideInputCache) CompleteBundle(cacheTokens ...fnpb.ProcessBundleRequest_CacheToken) {
+func (c *SideInputCache) CompleteBundle(cacheTokens ...*fnpb.ProcessBundleRequest_CacheToken) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, tok := range cacheTokens {
@@ -160,7 +181,7 @@ func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (
 // input has been cached. A query having a bad token (e.g. one that doesn't make a known
 // token or one that makes a known but currently invalid token) is treated the same as a
 // cache miss.
-func (c *SideInputCache) QueryCache(transformID, sideInputID string) ReusableInput {
+func (c *SideInputCache) QueryCache(transformID, sideInputID string) ReStream {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
@@ -182,7 +203,7 @@ func (c *SideInputCache) QueryCache(transformID, sideInputID string) ReusableInp
 // with its corresponding transform ID and side input ID. If the IDs do not pair with a known, valid token
 // then we silently do not cache the input, as this is an indication that the runner is treating that input
 // as uncacheable.
-func (c *SideInputCache) SetCache(transformID, sideInputID string, input ReusableInput) {
+func (c *SideInputCache) SetCache(transformID, sideInputID string, input ReStream) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
