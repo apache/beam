@@ -27,8 +27,4 @@ final class PerServerPublisherCache {
   private PerServerPublisherCache() {}
 
   static final PublisherCache PUBLISHER_CACHE = new PublisherCache();
-
-  static {
-    Runtime.getRuntime().addShutdownHook(new Thread(PUBLISHER_CACHE::close));
-  }
 }

@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import static com.google.cloud.pubsublite.internal.wire.ApiServiceUtils.blockingShutdown;
+import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
@@ -34,33 +35,29 @@ import org.joda.time.Instant;
 
 class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedMessage> {
   private final Duration maxSleepTime;
-  private final ManagedBacklogReaderFactory backlogReaderFactory;
   private final SubscriptionPartitionProcessorFactory processorFactory;
   private final SerializableFunction<SubscriptionPartition, InitialOffsetReader>
       offsetReaderFactory;
-  private final SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
+  private final SerializableBiFunction<
+          SubscriptionPartition, OffsetRange, RestrictionTracker<OffsetRange, OffsetByteProgress>>
       trackerFactory;
   private final SerializableFunction<SubscriptionPartition, Committer> committerFactory;
 
   PerSubscriptionPartitionSdf(
       Duration maxSleepTime,
-      ManagedBacklogReaderFactory backlogReaderFactory,
       SerializableFunction<SubscriptionPartition, InitialOffsetReader> offsetReaderFactory,
-      SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
+      SerializableBiFunction<
+              SubscriptionPartition,
+              OffsetRange,
+              RestrictionTracker<OffsetRange, OffsetByteProgress>>
           trackerFactory,
       SubscriptionPartitionProcessorFactory processorFactory,
       SerializableFunction<SubscriptionPartition, Committer> committerFactory) {
     this.maxSleepTime = maxSleepTime;
-    this.backlogReaderFactory = backlogReaderFactory;
     this.processorFactory = processorFactory;
     this.offsetReaderFactory = offsetReaderFactory;
     this.trackerFactory = trackerFactory;
     this.committerFactory = committerFactory;
-  }
-
-  @Teardown
-  public void teardown() {
-    backlogReaderFactory.close();
   }
 
   @GetInitialWatermarkEstimatorState
@@ -75,7 +72,7 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
 
   @ProcessElement
   public ProcessContinuation processElement(
-      RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker,
+      RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
       @Element SubscriptionPartition subscriptionPartition,
       OutputReceiver<SequencedMessage> receiver)
       throws Exception {
@@ -86,44 +83,38 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
       processor
           .lastClaimed()
           .ifPresent(
-              lastClaimedOffset -> {
+              lastClaimedOffset ->
+              /* TODO(boyuanzz): When default dataflow can use finalizers, undo this.
+              finalizer.afterBundleCommit(
+                  Instant.ofEpochMilli(Long.MAX_VALUE),
+                  () -> */ {
                 Committer committer = committerFactory.apply(subscriptionPartition);
                 committer.startAsync().awaitRunning();
                 // Commit the next-to-deliver offset.
                 try {
                   committer.commitOffset(Offset.of(lastClaimedOffset.value() + 1)).get();
+                } catch (ExecutionException e) {
+                  throw toCanonical(checkArgumentNotNull(e.getCause())).underlying;
                 } catch (Exception e) {
-                  throw ExtractStatus.toCanonical(e).underlying;
+                  throw toCanonical(e).underlying;
                 }
-                blockingShutdown(committer);
+                committer.stopAsync().awaitTerminated();
               });
       return result;
     }
   }
 
   @GetInitialRestriction
-  public OffsetByteRange getInitialRestriction(
-      @Element SubscriptionPartition subscriptionPartition) {
+  public OffsetRange getInitialRestriction(@Element SubscriptionPartition subscriptionPartition) {
     try (InitialOffsetReader reader = offsetReaderFactory.apply(subscriptionPartition)) {
       Offset offset = reader.read();
-      return OffsetByteRange.of(
-          new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */));
+      return new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */);
     }
   }
 
   @NewTracker
-  public TrackerWithProgress newTracker(
-      @Element SubscriptionPartition subscriptionPartition, @Restriction OffsetByteRange range) {
-    return trackerFactory.apply(backlogReaderFactory.newReader(subscriptionPartition), range);
-  }
-
-  @GetSize
-  public double getSize(
-      @Element SubscriptionPartition subscriptionPartition,
-      @Restriction OffsetByteRange restriction) {
-    if (restriction.getRange().getTo() != Long.MAX_VALUE) {
-      return restriction.getByteCount();
-    }
-    return newTracker(subscriptionPartition, restriction).getProgress().getWorkRemaining();
+  public RestrictionTracker<OffsetRange, OffsetByteProgress> newTracker(
+      @Element SubscriptionPartition subscriptionPartition, @Restriction OffsetRange range) {
+    return trackerFactory.apply(subscriptionPartition, range);
   }
 }
