@@ -166,14 +166,6 @@ public class PubsubLiteTableProvider extends InMemoryMetaTableProvider {
     return new RowHandler(schema);
   }
 
-  private static Optional<PTransform<PCollection<Failure>, PDone>> getDlqTransform(
-      JSONObject properties) {
-    if (!properties.containsKey("deadLetterQueue")) {
-      return Optional.empty();
-    }
-    return Optional.of(GenericDlq.getDlqTransform(properties.getString("deadLetterQueue")));
-  }
-
   private static <InputT, OutputT>
       PTransform<PCollection<? extends InputT>, PCollection<OutputT>> addDlqIfPresent(
           SimpleFunction<InputT, OutputT> transform, JSONObject properties) {

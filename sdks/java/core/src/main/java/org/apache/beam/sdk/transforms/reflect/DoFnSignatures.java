@@ -1318,7 +1318,7 @@ public class DoFnSignatures {
     if (fieldAccessString != null) {
       return Parameter.schemaElementParameter(paramT, fieldAccessString, param.getIndex());
     } else if (hasAnnotation(DoFn.Element.class, param.getAnnotations())) {
-      return (paramT.equals(inputT))
+      return paramT.equals(inputT)
           ? Parameter.elementParameter(paramT)
           : Parameter.schemaElementParameter(paramT, null, param.getIndex());
     } else if (hasAnnotation(DoFn.Restriction.class, param.getAnnotations())) {
@@ -1948,7 +1948,7 @@ public class DoFnSignatures {
     }
 
     Class<?> timerSpecRawType = field.getType();
-    if (!(timerSpecRawType.equals(TimerSpec.class))) {
+    if (!timerSpecRawType.equals(TimerSpec.class)) {
       errors.throwIllegalArgument(
           "%s annotation on non-%s field [%s]",
           format(DoFn.TimerId.class), format(TimerSpec.class), field.toString());
@@ -1984,7 +1984,7 @@ public class DoFnSignatures {
     }
 
     Class<?> timerSpecRawType = field.getType();
-    if (!(timerSpecRawType.equals(TimerSpec.class))) {
+    if (!timerSpecRawType.equals(TimerSpec.class)) {
       errors.throwIllegalArgument(
           "%s annotation on non-%s field [%s]",
           format(DoFn.TimerFamily.class), format(TimerSpec.class), field.toString());
@@ -2285,7 +2285,7 @@ public class DoFnSignatures {
       }
 
       Class<?> stateSpecRawType = field.getType();
-      if (!(TypeDescriptor.of(stateSpecRawType).isSubtypeOf(TypeDescriptor.of(StateSpec.class)))) {
+      if (!TypeDescriptor.of(stateSpecRawType).isSubtypeOf(TypeDescriptor.of(StateSpec.class))) {
         errors.throwIllegalArgument(
             "%s annotation on non-%s field [%s] that has class %s",
             format(DoFn.StateId.class),

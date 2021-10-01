@@ -108,17 +108,6 @@ public class Convert {
       this.outputTypeDescriptor = outputTypeDescriptor;
     }
 
-    private static @Nullable Schema getBoxedNestedSchema(Schema schema) {
-      if (schema.getFieldCount() != 1) {
-        return null;
-      }
-      FieldType fieldType = schema.getField(0).getType();
-      if (!fieldType.getTypeName().isCompositeType()) {
-        return null;
-      }
-      return fieldType.getRowSchema();
-    }
-
     @Override
     @SuppressWarnings("unchecked")
     public PCollection<OutputT> expand(PCollection<InputT> input) {

@@ -81,25 +81,10 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
     }
   }
 
-  private Session getSession(Read<T> read) {
-    Cluster cluster =
-        CassandraIO.getCluster(
-            read.hosts(),
-            read.port(),
-            read.username(),
-            read.password(),
-            read.localDc(),
-            read.consistencyLevel(),
-            read.connectTimeout(),
-            read.readTimeout());
-
-    return cluster.connect(read.keyspace().get());
-  }
-
   private static String generateRangeQuery(
       Read<?> spec, String partitionKey, Boolean hasRingRange) {
     final String rangeFilter =
-        (hasRingRange)
+        hasRingRange
             ? Joiner.on(" AND ")
                 .skipNulls()
                 .join(

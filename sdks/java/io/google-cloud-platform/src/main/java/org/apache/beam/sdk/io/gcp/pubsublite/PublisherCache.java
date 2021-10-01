@@ -66,7 +66,7 @@ class PublisherCache implements AutoCloseable {
 
   @Override
   public synchronized void close() {
-    livePublishers.forEach(((options, publisher) -> publisher.stopAsync()));
+    livePublishers.forEach((options, publisher) -> publisher.stopAsync());
     livePublishers.clear();
   }
 }

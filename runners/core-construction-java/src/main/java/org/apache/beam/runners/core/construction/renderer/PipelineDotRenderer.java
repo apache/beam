@@ -127,7 +127,4 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
     return x.replace("\"", "\\\"");
   }
 
-  private static String shortenTag(String tag) {
-    return tag.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
-  }
 }

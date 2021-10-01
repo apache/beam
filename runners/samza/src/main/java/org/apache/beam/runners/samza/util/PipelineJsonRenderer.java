@@ -196,10 +196,6 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     return x.replace("\"", "\\\"");
   }
 
-  private static String shortenTag(String tag) {
-    return tag.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
-  }
-
   private String assignNodeName(String nodeName) {
     return escapeString(nodeName.isEmpty() ? OUTERMOST_NODE : nodeName);
   }

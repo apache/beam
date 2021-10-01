@@ -278,14 +278,6 @@ public class TestBigQuery implements TestRule {
         .collect(Collectors.toList());
   }
 
-  private List<TableRow> beamRowsToBqRows(List<Row> bqRows) {
-    if (bqRows == null) {
-      return Collections.emptyList();
-    }
-
-    return bqRows.stream().map(BigQueryUtils::toTableRow).collect(Collectors.toList());
-  }
-
   private TableSchema getSchema(Bigquery bq) {
     try {
       return bq.tables()

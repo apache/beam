@@ -421,7 +421,7 @@ public class AvroUtils {
 
   @SuppressWarnings("unchecked")
   public static <T> SerializableFunction<Row, T> getFromRowFunction(Class<T> clazz) {
-    return (GenericRecord.class.equals(clazz))
+    return GenericRecord.class.equals(clazz)
         ? (SerializableFunction<Row, T>) getRowToGenericRecordFunction(null)
         : new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(clazz));
   }

@@ -1074,8 +1074,4 @@ public class ParDo {
       }
     }
   }
-
-  private static boolean isSplittable(DoFn<?, ?> fn) {
-    return DoFnSignatures.signatureForDoFn(fn).processElement().isSplittable();
-  }
 }

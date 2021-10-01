@@ -51,51 +51,6 @@ public class CEPPattern implements Serializable {
     this.patternCondition = CEPCall.of(patternDef);
   }
 
-  // support only simple match: LAST(*.$, 0) for now.
-  // TODO: remove this method after implementing NFA
-  private int evalOperation(CEPCall operation, CEPLiteral lit, Row rowEle) {
-    CEPOperator call = operation.getOperator();
-    List<CEPOperation> operands = operation.getOperands();
-
-    if (call.getCepKind() == CEPKind.LAST) {
-      CEPOperation opr0 = operands.get(0);
-      CEPLiteral opr1 = (CEPLiteral) operands.get(1);
-      if (opr0.getClass() == CEPFieldRef.class && opr1.getDecimal().equals(BigDecimal.ZERO)) {
-        int fIndex = ((CEPFieldRef) opr0).getIndex();
-        Schema.Field fd = mySchema.getField(fIndex);
-        Schema.FieldType dtype = fd.getType();
-
-        switch (dtype.getTypeName()) {
-          case BYTE:
-            return rowEle.getByte(fIndex).compareTo(lit.getByte());
-          case INT16:
-            return rowEle.getInt16(fIndex).compareTo(lit.getInt16());
-          case INT32:
-            return rowEle.getInt32(fIndex).compareTo(lit.getInt32());
-          case INT64:
-            return rowEle.getInt64(fIndex).compareTo(lit.getInt64());
-          case DECIMAL:
-            return rowEle.getDecimal(fIndex).compareTo(lit.getDecimal());
-          case FLOAT:
-            return rowEle.getFloat(fIndex).compareTo(lit.getFloat());
-          case DOUBLE:
-            return rowEle.getDouble(fIndex).compareTo(lit.getDouble());
-          case STRING:
-            return rowEle.getString(fIndex).compareTo(lit.getString());
-          case DATETIME:
-            return rowEle.getDateTime(fIndex).compareTo(lit.getDateTime());
-          case BOOLEAN:
-            return rowEle.getBoolean(fIndex).compareTo(lit.getBoolean());
-          default:
-            throw new UnsupportedOperationException(
-                "Specified column not comparable: " + fd.getName());
-        }
-      }
-    }
-    throw new UnsupportedOperationException(
-        "backward functions (PREV, NEXT) not supported for now");
-  }
-
   @Override
   public String toString() {
     return patternVar + quant.toString();
