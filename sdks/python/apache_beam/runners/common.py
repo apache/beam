@@ -567,9 +567,10 @@ class SimpleInvoker(DoFnInvoker):
                      additional_args=None,
                      additional_kwargs=None
                     ):
-    # type: (...) -> None
+    # type: (...) -> Iterable[SplitResultResidual]
     self.output_processor.process_outputs(
         windowed_value, self.process_method(windowed_value.value))
+    return []
 
 
 class PerWindowInvoker(DoFnInvoker):
