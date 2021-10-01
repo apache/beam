@@ -148,6 +148,7 @@ public class SplittableParDoProcessKeyedElementsOp<
     DoFnInvokers.tryInvokeSetupFor(processFn, pipelineOptions);
     processFn.setStateInternalsFactory(stateInternalsFactory);
     processFn.setTimerInternalsFactory(timerInternalsFactory);
+    processFn.setSideInputReader(NullSideInputReader.empty());
     processFn.setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             processElements.getFn(),

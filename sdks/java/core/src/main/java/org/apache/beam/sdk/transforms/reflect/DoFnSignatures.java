@@ -210,7 +210,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_SPLIT_RESTRICTION_PARAMETERS =
       ImmutableList.of(
@@ -221,7 +222,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_TRUNCATE_RESTRICTION_PARAMETERS =
@@ -232,7 +234,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_NEW_TRACKER_PARAMETERS =
       ImmutableList.of(
@@ -241,7 +244,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_GET_SIZE_PARAMETERS =
       ImmutableList.of(
@@ -250,7 +254,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_WATERMARK_ESTIMATOR_STATE_PARAMETERS =
@@ -260,7 +265,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_NEW_WATERMARK_ESTIMATOR_PARAMETERS =
@@ -271,7 +277,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {

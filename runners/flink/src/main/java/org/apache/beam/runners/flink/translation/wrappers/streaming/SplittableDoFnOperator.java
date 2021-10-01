@@ -130,6 +130,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
 
     ((ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
     ((ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
+    ((ProcessFn) doFn).setSideInputReader(sideInputReader);
     ((ProcessFn) doFn)
         .setProcessElementInvoker(
             new OutputAndTimeBoundedSplittableProcessElementInvoker<>(

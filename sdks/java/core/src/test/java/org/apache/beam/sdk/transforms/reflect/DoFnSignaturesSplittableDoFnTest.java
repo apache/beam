@@ -292,7 +292,8 @@ public class DoFnSignaturesSplittableDoFnTest {
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
-          @Timestamp Instant timestamp) {
+          @Timestamp Instant timestamp,
+          @SideInput("sideInput") String sideInput) {
         return null;
       }
 
@@ -305,7 +306,8 @@ public class DoFnSignaturesSplittableDoFnTest {
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
-          @Timestamp Instant timestamp) {}
+          @Timestamp Instant timestamp,
+          @SideInput("sideInput") String sideInput) {}
 
       @TruncateRestriction
       public TruncateResult<SomeRestriction> truncateRestriction(
@@ -315,7 +317,8 @@ public class DoFnSignaturesSplittableDoFnTest {
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
-          @Timestamp Instant timestamp) {
+          @Timestamp Instant timestamp,
+          @SideInput("sideInput") String sideInput) {
         return TruncateResult.of(null);
       }
 
@@ -326,7 +329,8 @@ public class DoFnSignaturesSplittableDoFnTest {
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
-          @Timestamp Instant timestamp) {
+          @Timestamp Instant timestamp,
+          @SideInput("sideInput") String sideInput) {
         return null;
       }
 
@@ -337,7 +341,8 @@ public class DoFnSignaturesSplittableDoFnTest {
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
-          @Timestamp Instant timestamp) {
+          @Timestamp Instant timestamp,
+          @SideInput("sideInput") String sideInput) {
         return 1.0;
       }
 
@@ -353,7 +358,8 @@ public class DoFnSignaturesSplittableDoFnTest {
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
-          @Timestamp Instant timestamp) {
+          @Timestamp Instant timestamp,
+          @SideInput("sideInput") String sideInput) {
         return null;
       }
 
@@ -370,7 +376,8 @@ public class DoFnSignaturesSplittableDoFnTest {
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
-          @Timestamp Instant timestamp) {
+          @Timestamp Instant timestamp,
+          @SideInput("sideInput") String sideInput) {
         return null;
       }
     }

@@ -162,7 +162,6 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesPythonExpansionService',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-  'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
