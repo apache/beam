@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import importlib
 import json
 import logging
 import tempfile
@@ -317,6 +318,13 @@ class GeneralUtilTest(unittest.TestCase):
         'pcoll_test_find_pcoll_name': pcoll,
     })
     self.assertEqual('pcoll_test_find_pcoll_name', utils.find_pcoll_name(pcoll))
+
+  def test_create_var_in_main(self):
+    name = 'test_create_var_in_main'
+    value = Record(0, 0, 0)
+    _ = utils.create_var_in_main(name, value)
+    main_session = importlib.import_module('__main__')
+    self.assertIs(getattr(main_session, name, None), value)
 
 
 if __name__ == '__main__':
