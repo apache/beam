@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -255,5 +256,32 @@ public class GroupNonMergingWindowsFunctions {
       return WindowedValue.of(
           KV.of(key, value), timestamp, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
     }
+  }
+
+  /**
+   * Creates composite key of K and W and group all values for that composite key with Spark's
+   * repartitionAndSortWithinPartitions. Stream of sorted by composite key's is transformed to key
+   * with iterator of all values for that key (via {@link GroupByKeyIterator}).
+   *
+   * <p>repartitionAndSortWithinPartitions is used because all values are not collected into memory
+   * at once, but streamed with iterator unlike GroupByKey (it minimizes memory pressure).
+   */
+  static <K, V, W extends BoundedWindow>
+  JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyInGlobalWindow(
+          JavaRDD<WindowedValue<KV<K, V>>> rdd,
+          Coder<K> keyCoder,
+          Coder<V> valueCoder,
+          Partitioner partitioner) {
+    JavaPairRDD<ByteArray, byte[]> rawKeyValues = rdd.mapToPair(wv -> new Tuple2<>(
+            new ByteArray(CoderHelpers.toByteArray(wv.getValue().getKey(), keyCoder)),
+                    CoderHelpers.toByteArray(wv.getValue().getValue(), valueCoder)));
+    return rawKeyValues.groupByKey().map(
+            kvs -> WindowedValue.timestampedValueInGlobalWindow(
+                    KV.of(
+                      CoderHelpers.fromByteArray(kvs._1.getValue(), keyCoder),
+                            Iterables.transform(
+                                    kvs._2, encodedValue -> CoderHelpers.fromByteArray(encodedValue, valueCoder))),
+                    GlobalWindow.INSTANCE.maxTimestamp(),
+                    PaneInfo.ON_TIME_AND_ONLY_FIRING));
   }
 }
