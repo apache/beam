@@ -85,4 +85,8 @@ message ProvisionInfo {
     // (optional) Runtime environment metadata that are static throughout the
     // pipeline execution.
     map<string, string> metadata = 13;
+
+    // (optional) If this environment supports SIBLING_WORKERS, used to indicate
+    // the ids of sibling workers, if any, that should be started.
+    repeated string sibling_worker_ids = 14;
 }
