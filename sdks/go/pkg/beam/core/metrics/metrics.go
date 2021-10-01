@@ -483,6 +483,7 @@ func (mr Results) AllMetrics() QueryResults {
 }
 
 // TODO(BEAM-11217): Implement querying metrics by DoFn
+
 // SingleResult interface facilitates metrics query filtering methods.
 type SingleResult interface {
 	Name() string
