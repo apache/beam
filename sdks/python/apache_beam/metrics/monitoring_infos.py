@@ -111,6 +111,11 @@ SPANNER_TABLE_ID = (
     common_urns.monitoring_info_labels.SPANNER_TABLE_ID.label_props.name)
 SPANNER_QUERY_NAME = (
     common_urns.monitoring_info_labels.SPANNER_QUERY_NAME.label_props.name)
+BIGTABLE_PROJECT_ID_LABEL = (
+    common_urns.monitoring_info_labels.BIGTABLE_PROJECT_ID.label_props.name)
+INSTANCE_ID_LABEL = (
+    common_urns.monitoring_info_labels.INSTANCE_ID.label_props.name)
+TABLE_ID_LABEL = common_urns.monitoring_info_labels.TABLE_ID.label_props.name
 
 
 def extract_counter_value(monitoring_info_proto):

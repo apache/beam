@@ -56,3 +56,7 @@ jackson-bom:
   '2.12.4':
     license: "https://raw.githubusercontent.com/FasterXML/jackson-bom/master/LICENSE"
     type: "Apache License 2.0"
+junit-dep:
+  '4.11':
+    license: "https://opensource.org/licenses/cpl1.0.txt"
+    type: "Common Public License Version 1.0"

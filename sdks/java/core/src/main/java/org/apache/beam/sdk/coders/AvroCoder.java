@@ -117,9 +117,19 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(TypeDescriptor<T> type) {
+    return of(type, true);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the provided element type, respecting whether to use
+   * Avro's Reflect* or Specific* suite for encoding and decoding.
+   *
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(TypeDescriptor<T> type, boolean useReflectApi) {
     @SuppressWarnings("unchecked")
     Class<T> clazz = (Class<T>) type.getRawType();
-    return of(clazz);
+    return of(clazz, useReflectApi);
   }
 
   /**
@@ -128,7 +138,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> clazz) {
-    return of(clazz, false);
+    return of(clazz, true);
   }
 
   /**
@@ -140,8 +150,8 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Returns an {@code AvroCoder} instance for the given class using Avro's Reflection API for
-   * encoding and decoding.
+   * Returns an {@code AvroCoder} instance for the given class, respecting whether to use Avro's
+   * Reflect* or Specific* suite for encoding and decoding.
    *
    * @param <T> the element type
    */
@@ -158,12 +168,12 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> type, Schema schema) {
-    return of(type, schema, false);
+    return of(type, schema, true);
   }
 
   /**
-   * Returns an {@code AvroCoder} instance for the given class and schema using Avro's Reflection
-   * API for encoding and decoding.
+   * Returns an {@code AvroCoder} instance for the given class and schema, respecting whether to use
+   * Avro's Reflect* or Specific* suite for encoding and decoding.
    *
    * @param <T> the element type
    */
