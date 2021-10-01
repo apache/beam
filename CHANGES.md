@@ -108,6 +108,7 @@
 
 ## I/Os
 
+* `DebeziumIO` now uses Debezium 1.7.0.Final ([BEAM-12993](https://issues.apache.org/jira/browse/BEAM-12993)).
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## New Features / Improvements
