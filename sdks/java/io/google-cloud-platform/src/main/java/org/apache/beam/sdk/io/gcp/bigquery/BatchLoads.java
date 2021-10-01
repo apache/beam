@@ -696,7 +696,7 @@ class BatchLoads<DestinationT, ElementT>
                 kmsKey,
                 rowWriterFactory.getSourceFormat(),
                 useAvroLogicalTypes,
-                schemaUpdateOptions))
+                Collections.emptySet()))
         .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));
   }
 
