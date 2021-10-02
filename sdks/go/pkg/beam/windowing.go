@@ -29,30 +29,38 @@ type WindowIntoOption interface {
 }
 
 type windowTrigger struct {
-	Name window.Trigger
+	trigger window.Trigger
 }
 
 func (t windowTrigger) windowIntoOption() {}
 
 // Trigger applies the given trigger to the window.
+//
+// Trigger support in the Go SDK is currently experimental
+// and may have breaking changes made to it.
+// Use at your own discretion.
 func Trigger(tr window.Trigger) WindowIntoOption {
-	return windowTrigger{Name: tr}
+	return windowTrigger{trigger: tr}
 }
 
 type accumulationMode struct {
-	Mode window.AccumulationMode
+	mode window.AccumulationMode
 }
 
 func (m accumulationMode) windowIntoOption() {}
 
 // PanesAccumulate applies an Accumulating AccumulationMode to the window.
+// After a pane fires, already processed elements will accumulate and
+// elements will be repeated in subseqent firings for the window.
 func PanesAccumulate() WindowIntoOption {
-	return accumulationMode{Mode: window.Accumulating}
+	return accumulationMode{mode: window.Accumulating}
 }
 
 // PanesDiscard applies a Discarding AccumulationMode to the window.
+// After a pane fires, already processed elements will be discarded
+// and not included in later firings for the window.
 func PanesDiscard() WindowIntoOption {
-	return accumulationMode{Mode: window.Discarding}
+	return accumulationMode{mode: window.Discarding}
 }
 
 type allowedLateness struct {
@@ -83,9 +91,12 @@ func TryWindowInto(s Scope, wfn *window.Fn, col PCollection, opts ...WindowIntoO
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case windowTrigger:
-			ws.Trigger = opt.Name
+			// TODO(BEAM-3304): call validation on trigger construction here
+			// so local errors can be returned to the user in their pipeline
+			// context instead of at pipeline translation time.
+			ws.Trigger = opt.trigger
 		case accumulationMode:
-			ws.AccumulationMode = opt.Mode
+			ws.AccumulationMode = opt.mode
 		case allowedLateness:
 			ws.AllowedLateness = int(opt.delay / time.Millisecond)
 		default:
