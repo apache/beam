@@ -134,9 +134,7 @@ func (tr Trigger) AlignedTo(period time.Duration, offset time.Time) Trigger {
 	offsetMillis := int64(0)
 	if !offset.IsZero() {
 		// TODO: Change to call UnixMilli() once we move to only supporting a go version > 1.17.
-		offsetMillis = int64(
-			time.Microsecond * time.Duration(offset.UnixMicro()) / time.Millisecond,
-		)
+		offsetMillis = offset.Unix()*1e3 + int64(offset.Nanosecond())/1e6
 	}
 	tr.TimestampTransforms = append(tr.TimestampTransforms, AlignToTransform{
 		Period: int64(period / time.Millisecond),
