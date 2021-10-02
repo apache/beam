@@ -1834,7 +1834,7 @@ a single global window and specify a trigger.
 
 ### 4.5. Additional outputs {#additional-outputs}
 
-{{< paragraph class="language-java language-python" >}}
+{{< paragraph class="language-java language-py" >}}
 While `ParDo` always produces a main output `PCollection` (as the return value
 from `apply`), you can also have your `ParDo` produce any number of additional
 output `PCollection`s. If you choose to have multiple outputs, your `ParDo`
@@ -2667,7 +2667,7 @@ In Python you can use the following set of classes to represent the purchase sch
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-In Go, schema encoding used by default for struct types, with Exported fields becoming part of the schema.
+In Go, schema encoding is used by default for struct types, with Exported fields becoming part of the schema.
 Beam will automatically infer the schema based on the fields and field tags of the struct, and their order.
 {{< /paragraph >}}
 
@@ -3308,7 +3308,8 @@ type Transaction struct{
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
-Overriding schema field names is useful for compatibility cross language transforms.
+Overriding schema field names is useful for compatibility cross language transforms,
+as schema fields may have different requirements or restrictions from Go exported fields.
 {{< /paragraph >}}
 
 ### 6.6. Using Schema Transforms {#using-schemas}
@@ -3318,7 +3319,7 @@ named fields allows for simple and readable aggregations that reference fields b
 a SQL expression.
 
 {{< paragraph class="language-go" >}}
-Beam does not yet support Schema transforms natively in Go.
+Beam does not yet support Schema transforms natively in Go. However, it will be implemented with the following behavior.
 {{< /paragraph >}}
 
 #### 6.6.1. Field selection syntax
@@ -4174,7 +4175,7 @@ for a Python type. You can use `coders.registry` to access the `CoderRegistry`.
 This allows you to determine (or set) the default Coder for a Python type.
 {{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}
+{{< paragraph class="language-go" >}}
 You can use the `beam.NewCoder` function to determine the default Coder for a Go type.
 {{< /paragraph >}}
 
@@ -4239,7 +4240,8 @@ func init() {
 
 #### 7.2.3. Annotating a custom data type with a default coder {#annotating-custom-type-default-coder}
 
-{{< paragraph class="language-java" >}}
+<span class="language-java">
+
 If your pipeline program defines a custom data type, you can use the
 `@DefaultCoder` annotation to specify the coder to use with that type.
 By default, Beam will use `SerializableCoder` which uses Java serialization,
@@ -4252,10 +4254,11 @@ but it has drawbacks:
 
    For key/value pairs, the correctness of key-based operations
    (GroupByKey, Combine) and per-key State depends on having a deterministic
-   coder for the key.
+   coder for the key
 
 You can use the `@DefaultCoder` annotation to set a new default as follows:
-{{< /paragraph >}}
+
+</span>
 
 {{< highlight java >}}
 @DefaultCoder(AvroCoder.class)
@@ -4282,15 +4285,10 @@ public class MyCustomDataType {
 }
 {{< /highlight >}}
 
-{{< paragraph class="language-py" >}}
-The Beam SDK for Python does not support annotating data types with a default
-coder. If you would like to set a default coder, use the method described in the
-previous section, *Setting the default coder for a type*.
-{{< /paragraph >}}
-
-{{< paragraph class="language-go" >}}
-The Beam SDK for Go does not support annotating data types with a default
-coder. If you would like to set a default coder, use the method described in the
+{{< paragraph class="language-py language-go" >}}
+The Beam SDK for <span class="language-py">Python</span><span class="language-go">Go</span>
+does not support annotating data types with a default coder.
+If you would like to set a default coder, use the method described in the
 previous section, *Setting the default coder for a type*.
 {{< /paragraph >}}
 
