@@ -17,6 +17,7 @@ package beam
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -27,31 +28,42 @@ type WindowIntoOption interface {
 	windowIntoOption()
 }
 
-type WindowTrigger struct {
+type windowTrigger struct {
 	Name window.Trigger
 }
 
-func (t WindowTrigger) windowIntoOption() {}
+func (t windowTrigger) windowIntoOption() {}
 
-// Trigger applies `tr` trigger to the window.
-func Trigger(tr window.Trigger) WindowTrigger {
-	return WindowTrigger{Name: tr}
+// Trigger applies the given trigger to the window.
+func Trigger(tr window.Trigger) WindowIntoOption {
+	return windowTrigger{Name: tr}
 }
 
-type AccumulationMode struct {
+type accumulationMode struct {
 	Mode window.AccumulationMode
 }
 
-func (m AccumulationMode) windowIntoOption() {}
+func (m accumulationMode) windowIntoOption() {}
 
 // PanesAccumulate applies an Accumulating AccumulationMode to the window.
-func PanesAccumulate() AccumulationMode {
-	return AccumulationMode{Mode: window.Accumulating}
+func PanesAccumulate() WindowIntoOption {
+	return accumulationMode{Mode: window.Accumulating}
 }
 
 // PanesDiscard applies a Discarding AccumulationMode to the window.
-func PanesDiscard() AccumulationMode {
-	return AccumulationMode{Mode: window.Discarding}
+func PanesDiscard() WindowIntoOption {
+	return accumulationMode{Mode: window.Discarding}
+}
+
+type allowedLateness struct {
+	delay time.Duration
+}
+
+func (m allowedLateness) windowIntoOption() {}
+
+// AllowedLateness configures for how long data may arrive after the end of a window.
+func AllowedLateness(delay time.Duration) WindowIntoOption {
+	return allowedLateness{delay: delay}
 }
 
 // WindowInto applies the windowing strategy to each element.
@@ -70,10 +82,12 @@ func TryWindowInto(s Scope, wfn *window.Fn, col PCollection, opts ...WindowIntoO
 	ws := window.WindowingStrategy{Fn: wfn, Trigger: window.Trigger{}}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
-		case WindowTrigger:
+		case windowTrigger:
 			ws.Trigger = opt.Name
-		case AccumulationMode:
+		case accumulationMode:
 			ws.AccumulationMode = opt.Mode
+		case allowedLateness:
+			ws.AllowedLateness = int(opt.delay / time.Millisecond)
 		default:
 			panic(fmt.Sprintf("Unknown WindowInto option type: %T: %v", opt, opt))
 		}
