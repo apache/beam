@@ -41,7 +41,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * <pre><code> class SomeDoFn extends{@literal DoFn<String, String>} {
  *   private Counter counter = Metrics.counter(SomeDoFn.class, "my-counter");
  *
- *  {@literal @}ProcessElement
+ *   &#64;ProcessElement
  *   public void processElement(ProcessContext c) {
  *     counter.inc();
  *     Metrics.counter(SomeDoFn.class, "my-counter2").inc();
