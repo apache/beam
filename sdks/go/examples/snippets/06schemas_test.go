@@ -25,8 +25,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder/testutil"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -136,7 +136,7 @@ func TestSchemaTypes(t *testing.T) {
 				}
 				if d := cmp.Diff(test.st, got,
 					protocmp.Transform(),
-					protocmp.IgnoreFields(proto.MessageV2(&pipepb.Schema{}), "id", "options"),
+					protocmp.IgnoreFields(proto.Message(&pipepb.Schema{}), "id", "options"),
 				); d != "" {
 					t.Errorf("diff (-want, +got): %v", d)
 				}
