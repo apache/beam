@@ -5898,7 +5898,7 @@ determined by the input data, or depend on a different branch of your pipeline.&
 &lt;span class="kd">var&lt;/span> &lt;span class="nx">cutOff&lt;/span> &lt;span class="kt">float64&lt;/span>
 &lt;span class="nx">ok&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">lengthCutOffIter&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">cutOff&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="k">if&lt;/span> &lt;span class="p">!&lt;/span>&lt;span class="nx">ok&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Errorf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;No length cutoff provided.&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Errorf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;no length cutoff provided&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="k">if&lt;/span> &lt;span class="nb">float64&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">&amp;gt;&lt;/span> &lt;span class="nx">cutOff&lt;/span> &lt;span class="p">{&lt;/span>
 &lt;span class="nf">emitAboveCutoff&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
@@ -5948,7 +5948,7 @@ a different view of the side input each time.&lt;/p>
 latest trigger firing. This is particularly useful if you use a side input with
 a single global window and specify a trigger.&lt;/p>
 &lt;h3 id="additional-outputs">4.5. Additional outputs&lt;/h3>
-&lt;p class="language-java language-python">While &lt;code>ParDo&lt;/code> always produces a main output &lt;code>PCollection&lt;/code> (as the return value
+&lt;p class="language-java language-py">While &lt;code>ParDo&lt;/code> always produces a main output &lt;code>PCollection&lt;/code> (as the return value
 from &lt;code>apply&lt;/code>), you can also have your &lt;code>ParDo&lt;/code> produce any number of additional
 output &lt;code>PCollection&lt;/code>s. If you choose to have multiple outputs, your &lt;code>ParDo&lt;/code>
 returns all of the output &lt;code>PCollection&lt;/code>s (including the main output) bundled
@@ -6875,6 +6875,8 @@ having Beam understand their element schemas.&lt;/p>
 &lt;p class="language-java">In Java you could use the following set of classes to represent the purchase schema. Beam will automatically
 infer the correct schema based on the members of the class.&lt;/p>
 &lt;p class="language-py">In Python you can use the following set of classes to represent the purchase schema. Beam will automatically infer the correct schema based on the members of the class.&lt;/p>
+&lt;p class="language-go">In Go, schema encoding is used by default for struct types, with Exported fields becoming part of the schema.
+Beam will automatically infer the schema based on the fields and field tags of the struct, and their order.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6939,6 +6941,38 @@ infer the correct schema based on the members of the class.&lt;/p>
 &lt;span class="k">class&lt;/span> &lt;span class="nc">Transaction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">bank&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
 &lt;span class="n">purchase_amount&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">float&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">type&lt;/span> &lt;span class="nx">Purchase&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// ID of the user who made the purchase.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">UserID&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="s">`beam:&amp;#34;userId&amp;#34;`&lt;/span>
+&lt;span class="c1">// Identifier of the item that was purchased.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">ItemID&lt;/span> &lt;span class="kt">int64&lt;/span> &lt;span class="s">`beam:&amp;#34;itemId&amp;#34;`&lt;/span>
+&lt;span class="c1">// The shipping address, a nested type.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">ShippingAddress&lt;/span> &lt;span class="nx">ShippingAddress&lt;/span> &lt;span class="s">`beam:&amp;#34;shippingAddress&amp;#34;`&lt;/span>
+&lt;span class="c1">// The cost of the item in cents.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">Cost&lt;/span> &lt;span class="kt">int64&lt;/span> &lt;span class="s">`beam:&amp;#34;cost&amp;#34;`&lt;/span>
+&lt;span class="c1">// The transactions that paid for this purchase.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// A slice since the purchase might be spread out over multiple
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// credit cards.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">Transactions&lt;/span> &lt;span class="p">[]&lt;/span>&lt;span class="nx">Transaction&lt;/span> &lt;span class="s">`beam:&amp;#34;transactions&amp;#34;`&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">type&lt;/span> &lt;span class="nx">ShippingAddress&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">StreetAddress&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="s">`beam:&amp;#34;streetAddress&amp;#34;`&lt;/span>
+&lt;span class="nx">City&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="s">`beam:&amp;#34;city&amp;#34;`&lt;/span>
+&lt;span class="nx">State&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="kt">string&lt;/span> &lt;span class="s">`beam:&amp;#34;state&amp;#34;`&lt;/span>
+&lt;span class="nx">Country&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="s">`beam:&amp;#34;country&amp;#34;`&lt;/span>
+&lt;span class="nx">PostCode&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="s">`beam:&amp;#34;postCode&amp;#34;`&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">type&lt;/span> &lt;span class="nx">Transaction&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">Bank&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="s">`beam:&amp;#34;bank&amp;#34;`&lt;/span>
+&lt;span class="nx">PurchaseAmount&lt;/span> &lt;span class="kt">float64&lt;/span> &lt;span class="s">`beam:&amp;#34;purchaseAmount&amp;#34;`&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java">Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
@@ -7087,6 +7121,9 @@ a nanosecond timestamp, with the INT64 field representing seconds and the INT32 
 limited-precision decimal type would have an integer argument indicating how many digits of precision are represented.
 The argument is represented by a schema type, so can itself be a complex type.&lt;/p>
 &lt;p class="language-java">In Java, a logical type is specified as a subclass of the &lt;code>LogicalType&lt;/code> class. A custom Java class can be specified to represent the logical type and conversion functions must be supplied to convert back and forth between this Java class and the underlying Schema type representation. For example, the logical type representing nanosecond timestamp might be implemented as follows&lt;/p>
+&lt;p class="language-go">In Go, a logical type is specified with a custom implementation of the &lt;code>beam.SchemaProvider&lt;/code> interface.
+For example, the logical type provider representing nanosecond timestamps
+might be implemented as follows&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -7110,9 +7147,91 @@ The argument is represented by a schema type, so can itself be a complex type.&l
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// Define a logical provider like so:
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// TimestampNanos is a logical type using time.Time, but
+&lt;/span>&lt;span class="c1">// encodes as a schema type.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">type&lt;/span> &lt;span class="nx">TimestampNanos&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Time&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">tn&lt;/span> &lt;span class="nx">TimestampNanos&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">Seconds&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="kt">int64&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Time&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">tn&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nf">Unix&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">tn&lt;/span> &lt;span class="nx">TimestampNanos&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">Nanos&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="kt">int32&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nb">int32&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Time&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">tn&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nf">UnixNano&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="mi">1000000000&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// tnStorage is the storage schema for TimestampNanos.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">type&lt;/span> &lt;span class="nx">tnStorage&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">Seconds&lt;/span> &lt;span class="kt">int64&lt;/span> &lt;span class="s">`beam:&amp;#34;seconds&amp;#34;`&lt;/span>
+&lt;span class="nx">Nanos&lt;/span> &lt;span class="kt">int32&lt;/span> &lt;span class="s">`beam:&amp;#34;nanos&amp;#34;`&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">var&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="c1">// reflect.Type of the Value type of TimestampNanos
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">tnType&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">TimestampNanos&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)).&lt;/span>&lt;span class="nf">Elem&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="nx">tnStorageType&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">tnStorage&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)).&lt;/span>&lt;span class="nf">Elem&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// TimestampNanosProvider implements the beam.SchemaProvider interface.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">type&lt;/span> &lt;span class="nx">TimestampNanosProvider&lt;/span> &lt;span class="kd">struct&lt;/span>&lt;span class="p">{}&lt;/span>
+&lt;span class="c1">// FromLogicalType converts checks if the given type is TimestampNanos, and if so
+&lt;/span>&lt;span class="c1">// returns the storage type.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">TimestampNanosProvider&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">FromLogicalType&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">rt&lt;/span> &lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Type&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Type&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">error&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">rt&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="nx">tnType&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Errorf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;unable to provide schema.LogicalType for type %v, want %v&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">rt&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">tnType&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">tnStorageType&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// BuildEncoder builds a Beam schema encoder for the TimestampNanos type.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">TimestampNanosProvider&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">BuildEncoder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">rt&lt;/span> &lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Type&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kd">interface&lt;/span>&lt;span class="p">{},&lt;/span> &lt;span class="nx">io&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Writer&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">error&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">error&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">_&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">FromLogicalType&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">rt&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="nx">enc&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">coder&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RowEncoderForStruct&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">tnStorageType&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">iface&lt;/span> &lt;span class="kd">interface&lt;/span>&lt;span class="p">{},&lt;/span> &lt;span class="nx">w&lt;/span> &lt;span class="nx">io&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Writer&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">error&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">v&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">iface&lt;/span>&lt;span class="p">.(&lt;/span>&lt;span class="nx">TimestampNanos&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nf">enc&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">tnStorage&lt;/span>&lt;span class="p">{&lt;/span>
+&lt;span class="nx">Seconds&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">v&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Seconds&lt;/span>&lt;span class="p">(),&lt;/span>
+&lt;span class="nx">Nanos&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">v&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Nanos&lt;/span>&lt;span class="p">(),&lt;/span>
+&lt;span class="p">},&lt;/span> &lt;span class="nx">w&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">},&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// BuildDecoder builds a Beam schema decoder for the TimestampNanos type.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">TimestampNanosProvider&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">BuildDecoder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">rt&lt;/span> &lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Type&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">io&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Reader&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="kd">interface&lt;/span>&lt;span class="p">{},&lt;/span> &lt;span class="kt">error&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="kt">error&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">_&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">FromLogicalType&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">rt&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="nx">dec&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">coder&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RowDecoderForStruct&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">tnStorageType&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">r&lt;/span> &lt;span class="nx">io&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Reader&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="kd">interface&lt;/span>&lt;span class="p">{},&lt;/span> &lt;span class="kt">error&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">dec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">r&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="nx">tn&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.(&lt;/span>&lt;span class="nx">tnStorage&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nf">TimestampNanos&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Unix&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">tn&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Seconds&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">int64&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">tn&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Nanos&lt;/span>&lt;span class="p">))),&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">},&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// Register it like so:
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterSchemaProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">tnType&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">TimestampNanosProvider&lt;/span>&lt;span class="p">{})&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="built-in-logical-types">6.4.2. Useful logical types&lt;/h4>
+&lt;p class="language-py">Currently the Python SDK provides minimal convenience logical types,
+other than to handle &lt;code>MicrosInstant&lt;/code>.&lt;/p>
+&lt;p class="language-go">Currently the Go SDK provides minimal convenience logical types,
+other than to handle additional integer primitives, and &lt;code>time.Time&lt;/code>.&lt;/p>
 &lt;h5 id="enumerationtype">&lt;strong>EnumerationType&lt;/strong>&lt;/h5>
-&lt;p>This logical type allows creating an enumeration type consisting of a set of named constants.&lt;/p>
+&lt;p class="language-py">This convenience builder doesn&amp;rsquo;t yet exist for the Python SDK.&lt;/p>
+&lt;p class="language-go">This convenience builder doesn&amp;rsquo;t yet exist for the Go SDK.&lt;/p>
+&lt;p class="language-java">This logical type allows creating an enumeration type consisting of a set of named constants.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -7124,7 +7243,7 @@ The argument is represented by a schema type, so can itself be a complex type.&l
 &lt;span class="o">.&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>The value of this field is stored in the row as an INT32 type, however the logical type defines a value type that lets
+&lt;p class="language-java">The value of this field is stored in the row as an INT32 type, however the logical type defines a value type that lets
 you access the enumeration either as a string or a value. For example:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -7136,7 +7255,7 @@ you access the enumeration either as a string or a value. For example:&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">enumValue&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">toString&lt;/span>&lt;span class="o">();&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="n">Returns&lt;/span> &lt;span class="s">&amp;#34;RED&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">string&lt;/span> &lt;span class="n">value&lt;/span> &lt;span class="n">of&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">constant&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>Given a row object with an enumeration field, you can also extract the field as the enumeration value.&lt;/p>
+&lt;p class="language-java">Given a row object with an enumeration field, you can also extract the field as the enumeration value.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -7145,10 +7264,12 @@ you access the enumeration either as a string or a value. For example:&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">EnumerationType&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Value&lt;/span> &lt;span class="n">enumValue&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getLogicalTypeValue&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;color&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">EnumerationType&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Value&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>Automatic schema inference from Java POJOs and JavaBeans automatically converts Java enums to EnumerationType logical
+&lt;p class="language-java">Automatic schema inference from Java POJOs and JavaBeans automatically converts Java enums to EnumerationType logical
 types.&lt;/p>
 &lt;h5 id="oneoftype">&lt;strong>OneOfType&lt;/strong>&lt;/h5>
-&lt;p>OneOfType allows creating a disjoint union type over a set of schema fields. For example:&lt;/p>
+&lt;p class="language-py">This convenience builder doesn&amp;rsquo;t yet exist for the Python SDK.&lt;/p>
+&lt;p class="language-go">This convenience builder doesn&amp;rsquo;t yet exist for the Go SDK.&lt;/p>
+&lt;p class="language-java">OneOfType allows creating a disjoint union type over a set of schema fields. For example:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -7163,7 +7284,7 @@ types.&lt;/p>
 &lt;span class="o">.&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>The value of this field is stored in the row as another Row type, where all the fields are marked as nullable. The
+&lt;p class="language-java">The value of this field is stored in the row as another Row type, where all the fields are marked as nullable. The
 logical type however defines a Value object that contains an enumeration value indicating which field was set and allows
 getting just that field:&lt;/p>
 &lt;div class='language-java snippet'>
@@ -7188,12 +7309,27 @@ getting just that field:&lt;/p>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>In the above example we used the field names in the switch statement for clarity, however the enum integer values could
+&lt;p class="language-java">In the above example we used the field names in the switch statement for clarity, however the enum integer values could
 also be used.&lt;/p>
 &lt;h3 id="creating-schemas">6.5. Creating Schemas&lt;/h3>
-&lt;p>In order to take advantage of schemas, your &lt;code>PCollection&lt;/code>s must have a schema attached to it. Often, the source itself will attach a schema to the PCollection. For example, when using &lt;code>AvroIO&lt;/code> to read Avro files, the source can automatically infer a Beam schema from the Avro schema and attach that to the Beam &lt;code>PCollection&lt;/code>. However not all sources produce schemas. In addition, often Beam pipelines have intermediate stages and types, and those also can benefit from the expressiveness of schemas.&lt;/p>
+&lt;p>In order to take advantage of schemas, your &lt;code>PCollection&lt;/code>s must have a schema attached to it.
+Often, the source itself will attach a schema to the PCollection.
+For example, when using &lt;code>AvroIO&lt;/code> to read Avro files, the source can automatically infer a Beam schema from the Avro schema and attach that to the Beam &lt;code>PCollection&lt;/code>.
+However not all sources produce schemas.
+In addition, often Beam pipelines have intermediate stages and types, and those also can benefit from the expressiveness of schemas.&lt;/p>
 &lt;h4 id="inferring-schemas">6.5.1. Inferring schemas&lt;/h4>
-&lt;p class="language-java">Beam is able to infer schemas from a variety of common Java types. The &lt;code>@DefaultSchema&lt;/code> annotation can be used to tell Beam to infer schemas from a specific type. The annotation takes a &lt;code>SchemaProvider&lt;/code> as an argument, and &lt;code>SchemaProvider&lt;/code> classes are already built in for common Java types. The &lt;code>SchemaRegistry&lt;/code> can also be invoked programmatically for cases where it is not practical to annotate the Java type itself.&lt;/p>
+&lt;nav class="language-switcher">
+&lt;strong>Adapt for:&lt;/strong>
+&lt;ul>
+&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
+&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;li data-type="language-go">Go SDK&lt;/li>
+&lt;/ul>
+&lt;/nav>
+&lt;p class="language-java">Beam is able to infer schemas from a variety of common Java types.
+The &lt;code>@DefaultSchema&lt;/code> annotation can be used to tell Beam to infer schemas from a specific type.
+The annotation takes a &lt;code>SchemaProvider&lt;/code> as an argument, and &lt;code>SchemaProvider&lt;/code> classes are already built in for common Java types.
+The &lt;code>SchemaRegistry&lt;/code> can also be invoked programmatically for cases where it is not practical to annotate the Java type itself.&lt;/p>
 &lt;p class="language-java">&lt;strong>Java POJOs&lt;/strong>&lt;/p>
 &lt;p class="language-java">A POJO (Plain Old Java Object) is a Java object that is not bound by any restriction other than the Java Language
 Specification. A POJO can contain member variables that are primitives, that are other POJOs, or are collections maps or
@@ -7359,10 +7495,48 @@ correctly infers types with &lt;code>beam.Row&lt;/code> or with &lt;code>Select&
 &lt;span class="n">purchase_amount&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">float&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;purchase_amount&amp;#34;&lt;/span>&lt;span class="p">])))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;p class="language-go">Beam currently only infers schemas for exported fields in Go structs.&lt;/p>
+&lt;p class="language-go">&lt;strong>Structs&lt;/strong>&lt;/p>
+&lt;p class="language-go">Beam will automatically infer schemas for all Go structs used
+as PCollection elements, and default to encoding them using
+schema encoding.&lt;/p>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">type&lt;/span> &lt;span class="nx">Transaction&lt;/span> &lt;span class="kd">struct&lt;/span>&lt;span class="p">{&lt;/span>
+&lt;span class="nx">Bank&lt;/span> &lt;span class="kt">string&lt;/span>
+&lt;span class="nx">PurchaseAmount&lt;/span> &lt;span class="kt">float64&lt;/span>
+&lt;span class="nx">checksum&lt;/span> &lt;span class="p">[]&lt;/span>&lt;span class="kt">byte&lt;/span> &lt;span class="c1">// ignored
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-go">Unexported fields are ignored, and cannot be automatically infered as part of the schema.
+Fields of type func, channel, unsafe.Pointer, or uintptr will be ignored by inference.
+Fields of interface types are ignored, unless a schema provider
+is registered for them.&lt;/p>
+&lt;p class="language-go">By default, schema field names will match the exported struct field names.
+In the above example, &amp;ldquo;Bank&amp;rdquo; and &amp;ldquo;PurchaseAmount&amp;rdquo; are the schema field names.
+A schema field name can be overridden with a struct tag for the field.&lt;/p>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">type&lt;/span> &lt;span class="nx">Transaction&lt;/span> &lt;span class="kd">struct&lt;/span>&lt;span class="p">{&lt;/span>
+&lt;span class="nx">Bank&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="s">`beam:&amp;#34;bank&amp;#34;`&lt;/span>
+&lt;span class="nx">PurchaseAmount&lt;/span> &lt;span class="kt">float64&lt;/span> &lt;span class="s">`beam:&amp;#34;purchase_amount&amp;#34;`&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-go">Overriding schema field names is useful for compatibility cross language transforms,
+as schema fields may have different requirements or restrictions from Go exported fields.&lt;/p>
 &lt;h3 id="using-schemas">6.6. Using Schema Transforms&lt;/h3>
 &lt;p>A schema on a &lt;code>PCollection&lt;/code> enables a rich variety of relational transforms. The fact that each record is composed of
 named fields allows for simple and readable aggregations that reference fields by name, similar to the aggregations in
 a SQL expression.&lt;/p>
+&lt;p class="language-go">Beam does not yet support Schema transforms natively in Go. However, it will be implemented with the following behavior.&lt;/p>
 &lt;h4 id="661-field-selection-syntax">6.6.1. Field selection syntax&lt;/h4>
 &lt;p>The advantage of schemas is that they allow referencing of element fields by name. Beam provides a selection syntax for
 referencing fields, including nested and repeated fields. This syntax is used by all of the schema transforms when
@@ -7892,6 +8066,7 @@ pipeline will fail to launch.&lt;/p>
 &lt;p>A &lt;code>PCollection&lt;/code> with a schema can apply a &lt;code>ParDo&lt;/code>, just like any other &lt;code>PCollection&lt;/code>. However the Beam runner is aware
 of schemas when applying a &lt;code>ParDo&lt;/code>, which enables additional functionality.&lt;/p>
 &lt;h5 id="input-conversion">&lt;strong>Input conversion&lt;/strong>&lt;/h5>
+&lt;p class="language-go">Beam does not yet support input conversion in Go.&lt;/p>
 &lt;p>Since Beam knows the schema of the source &lt;code>PCollection&lt;/code>, it can automatically convert the elements to any Java type for
 which a matching schema is known. For example, using the above-mentioned Transaction schema, say we have the following
 &lt;code>PCollection&lt;/code>:&lt;/p>
@@ -7967,6 +8142,14 @@ using the above-described selection expressions, as follows:&lt;/p>
 &lt;p>For more information, see the section on field-selection expressions. When selecting subschemas, Beam will
 automatically convert to any matching schema type, just like when reading the entire row.&lt;/p>
 &lt;h2 id="data-encoding-and-type-safety">7. Data encoding and type safety&lt;/h2>
+&lt;nav class="language-switcher">
+&lt;strong>Adapt for:&lt;/strong>
+&lt;ul>
+&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
+&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;li data-type="language-go">Go SDK&lt;/li>
+&lt;/ul>
+&lt;/nav>
 &lt;p>When Beam runners execute your pipeline, they often need to materialize the
 intermediate data in your &lt;code>PCollection&lt;/code>s, which requires converting elements to
 and from byte strings. The Beam SDKs use objects called &lt;code>Coder&lt;/code>s to describe how
@@ -7988,6 +8171,12 @@ subclasses that work with a variety of standard Python types, such as primitive
 types, Tuple, Iterable, StringUtf8 and more. You can find all of the available
 Coder subclasses in the
 &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/coders">apache_beam.coders&lt;/a>
+package.&lt;/p>
+&lt;p class="language-go">Standard Go types like &lt;code>int&lt;/code>, &lt;code>int64&lt;/code> &lt;code>float64&lt;/code>, &lt;code>[]byte&lt;/code>, and &lt;code>string&lt;/code> and more are coded using builtin coders.
+Structs and pointers to structs default using Beam Schema Row encoding.
+However, users can build and register custom coders with &lt;code>beam.RegisterCoder&lt;/code>.
+You can find available Coder functions in the
+&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coders">coder&lt;/a>
 package.&lt;/p>
 &lt;blockquote>
 &lt;p>Note that coders do not necessarily have a 1:1 relationship with types. For
@@ -8016,6 +8205,8 @@ mapping of Java types to the default coders that the pipeline should use for
 &lt;p class="language-py">The Beam SDK for Python has a &lt;code>CoderRegistry&lt;/code> that represents a mapping of
 Python types to the default coder that should be used for &lt;code>PCollection&lt;/code>s of each
 type.&lt;/p>
+&lt;p class="language-go">The Beam SDK for Go allows users to register default coder
+implementations with &lt;code>beam.RegisterCoder&lt;/code>.&lt;/p>
 &lt;p class="language-java">By default, the Beam SDK for Java automatically infers the &lt;code>Coder&lt;/code> for the
 elements of a &lt;code>PCollection&lt;/code> produced by a &lt;code>PTransform&lt;/code> using the type parameter
 from the transform&amp;rsquo;s function object, such as &lt;code>DoFn&lt;/code>. In the case of &lt;code>ParDo&lt;/code>,
@@ -8032,13 +8223,20 @@ with the typehints &lt;code>@beam.typehints.with_input_types(int)&lt;/code> and
 and produces an output element of type str. In such a case, the Beam SDK for
 Python will automatically infer the default &lt;code>Coder&lt;/code> for the output &lt;code>PCollection&lt;/code>
 (in the default pipeline &lt;code>CoderRegistry&lt;/code>, this is &lt;code>BytesCoder&lt;/code>).&lt;/p>
+&lt;p class="language-go">By default, the Beam SDK for Go automatically infers the &lt;code>Coder&lt;/code> for the elements of an output &lt;code>PCollection&lt;/code> by the output of the transform&amp;rsquo;s function object, such as a &lt;code>DoFn&lt;/code>.
+In the case of &lt;code>ParDo&lt;/code>, for example a &lt;code>DoFn&lt;/code>
+with the parameters of &lt;code>v int, emit func(string)&lt;/code> accepts an input element of type &lt;code>int&lt;/code>
+and produces an output element of type &lt;code>string&lt;/code>.
+In such a case, the Beam SDK for Go will automatically infer the default &lt;code>Coder&lt;/code> for the output &lt;code>PCollection&lt;/code> to be the &lt;code>string_utf8&lt;/code> coder.&lt;/p>
+&lt;span class="language-java">
 &lt;blockquote>
-&lt;p>NOTE: If you create your &lt;code>PCollection&lt;/code> from in-memory data by using the
+&lt;p>&lt;strong>Note:&lt;/strong> If you create your &lt;code>PCollection&lt;/code> from in-memory data by using the
 &lt;code>Create&lt;/code> transform, you cannot rely on coder inference and default coders.
 &lt;code>Create&lt;/code> does not have access to any typing information for its arguments, and
 may not be able to infer a coder if the argument list contains a value whose
 exact run-time class doesn&amp;rsquo;t have a default coder registered.&lt;/p>
 &lt;/blockquote>
+&lt;/span>
 &lt;p class="language-java">When using &lt;code>Create&lt;/code>, the simplest way to ensure that you have the correct coder
 is by invoking &lt;code>withCoder&lt;/code> when you apply the &lt;code>Create&lt;/code> transform.&lt;/p>
 &lt;h3 id="default-coders-and-the-coderregistry">7.2. Default coders and the CoderRegistry&lt;/h3>
@@ -8153,8 +8351,9 @@ this pipeline, verify that Integer values are encoded using
 &lt;p class="language-py">You can use the method &lt;code>CoderRegistry.get_coder&lt;/code> to determine the default Coder
 for a Python type. You can use &lt;code>coders.registry&lt;/code> to access the &lt;code>CoderRegistry&lt;/code>.
 This allows you to determine (or set) the default Coder for a Python type.&lt;/p>
+&lt;p class="language-go">You can use the &lt;code>beam.NewCoder&lt;/code> function to determine the default Coder for a Go type.&lt;/p>
 &lt;h4 id="setting-default-coder">7.2.2. Setting the default coder for a type&lt;/h4>
-&lt;p>To set the default Coder for a
+&lt;p class="language-java language-py">To set the default Coder for a
 &lt;span class="language-java">Java&lt;/span>&lt;span class="language-py">Python&lt;/span>
 type for a particular pipeline, you obtain and modify the pipeline&amp;rsquo;s
 &lt;code>CoderRegistry&lt;/code>. You use the method
@@ -8164,10 +8363,13 @@ to get the &lt;code>CoderRegistry&lt;/code> object, and then use the method
 &lt;span class="language-java">&lt;code>CoderRegistry.registerCoder&lt;/code>&lt;/span>
 &lt;span class="language-py">&lt;code>CoderRegistry.register_coder&lt;/code>&lt;/span>
 to register a new &lt;code>Coder&lt;/code> for the target type.&lt;/p>
-&lt;p>The following example code demonstrates how to set a default Coder, in this case
+&lt;p class="language-go">To set the default Coder for a Go type you use the function &lt;code>beam.RegisterCoder&lt;/code> to register a encoder and decoder functions for the target type.
+However, built in types like &lt;code>int&lt;/code>, &lt;code>string&lt;/code>, &lt;code>float64&lt;/code>, etc cannot have their coders overridde.&lt;/p>
+&lt;p class="language-java language-py">The following example code demonstrates how to set a default Coder, in this case
 &lt;code>BigEndianIntegerCoder&lt;/code>, for
 &lt;span class="language-java">Integer&lt;/span>&lt;span class="language-py">int&lt;/span>
 values for a pipeline.&lt;/p>
+&lt;p class="language-go">The following example code demonstrates how to set a custom Coder for &lt;code>MyCustomType&lt;/code> elements.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -8187,8 +8389,26 @@ values for a pipeline.&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">apache_beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">registry&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">register_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">BigEndianIntegerCoder&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">type&lt;/span> &lt;span class="nx">MyCustomType&lt;/span> &lt;span class="kd">struct&lt;/span>&lt;span class="p">{&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// See documentation on beam.RegisterCoder for other supported coder forms.
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">encode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">MyCustomType&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">[]&lt;/span>&lt;span class="kt">byte&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">decode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">b&lt;/span> &lt;span class="p">[]&lt;/span>&lt;span class="kt">byte&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">MyCustomType&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterCoder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">MyCustomType&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)).&lt;/span>&lt;span class="nf">Elem&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="nx">encode&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">decode&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="annotating-custom-type-default-coder">7.2.3. Annotating a custom data type with a default coder&lt;/h4>
-&lt;p class="language-java">&lt;p>If your pipeline program defines a custom data type, you can use the
+&lt;span class="language-java">
+&lt;p>If your pipeline program defines a custom data type, you can use the
 &lt;code>@DefaultCoder&lt;/code> annotation to specify the coder to use with that type.
 By default, Beam will use &lt;code>SerializableCoder&lt;/code> which uses Java serialization,
 but it has drawbacks:&lt;/p>
@@ -8202,11 +8422,11 @@ See this &lt;a href="https://blog.softwaremill.com/the-best-serialization-strate
 equivalent objects.&lt;/p>
 &lt;p>For key/value pairs, the correctness of key-based operations
 (GroupByKey, Combine) and per-key State depends on having a deterministic
-coder for the key.&lt;/p>
+coder for the key&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;p>You can use the &lt;code>@DefaultCoder&lt;/code> annotation to set a new default as follows:&lt;/p>
-&lt;/p>
+&lt;/span>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -8236,8 +8456,9 @@ the &lt;code>@DefaultCoder&lt;/code> annotation, your coder class must implement
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p class="language-py">The Beam SDK for Python does not support annotating data types with a default
-coder. If you would like to set a default coder, use the method described in the
+&lt;p class="language-py language-go">The Beam SDK for &lt;span class="language-py">Python&lt;/span>&lt;span class="language-go">Go&lt;/span>
+does not support annotating data types with a default coder.
+If you would like to set a default coder, use the method described in the
 previous section, &lt;em>Setting the default coder for a type&lt;/em>.&lt;/p>
 &lt;h2 id="windowing">8. Windowing&lt;/h2>
 &lt;p>Windowing subdivides a &lt;code>PCollection&lt;/code> according to the timestamps of its
