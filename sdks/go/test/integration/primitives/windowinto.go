@@ -175,7 +175,7 @@ func TriggerAfterProcessingTime(s beam.Scope) {
 
 	validateEquals(s.Scope("Global"), window.NewGlobalWindows(), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerAfterProcessingTime(5000)),
+			beam.Trigger(window.TriggerAfterProcessingTime().PlusDelay(5 * time.Second)),
 		}, 6.0)
 }
 
