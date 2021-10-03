@@ -24,20 +24,22 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MetadataCoder;
 
 /** A {@link Coder} for {@link FileIO.ReadableFile}. */
 public class ReadableFileCoder extends AtomicCoder<FileIO.ReadableFile> {
   private static final ReadableFileCoder INSTANCE = new ReadableFileCoder();
-  private final AtomicCoder<Metadata> metadataCoder;
+  private AtomicCoder<Metadata> metadataCoder;
 
   /** Returns the instance of {@link ReadableFileCoder}. */
   public static ReadableFileCoder of() {
-    this.metadataCoder = MetadataCoder.of();
+    INSTANCE.metadataCoder = MetadataCoder.of();
     return INSTANCE;
   }
 
   public static ReadableFileCoder of(AtomicCoder<Metadata> metadataCoder) {
-    this.metadataCoder = metadataCoder;
+    INSTANCE.metadataCoder = metadataCoder;
     return INSTANCE;
   }
 
