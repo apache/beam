@@ -18,7 +18,6 @@ package statecache
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
@@ -30,7 +29,7 @@ type TestReusableInput struct {
 	value       interface{}
 }
 
-func makeTestReusableInput(transformID, sideInputID string, value interface{}) exec.ReusableInput {
+func makeTestReusableInput(transformID, sideInputID string, value interface{}) ReusableInput {
 	return &TestReusableInput{transformID: transformID, sideInputID: sideInputID, value: value}
 }
 

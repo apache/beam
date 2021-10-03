@@ -36,11 +36,6 @@
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Go SDK pipelines require new import paths to use this release due to migration to Go Modules.
-  * `go.mod` files will need to change to require `github.com/apache/beam/sdks/v2`.
-  * Code depending on beam imports need to include v2 on the module path.
-    * Fix by'v2' to the import paths, turning  `.../sdks/go/...` to `.../sdks/v2/go/...`
-  * No other code change should be required to use v2.33.0 of the Go SDK.
 
 ## Deprecations
 
@@ -66,6 +61,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* `ReadFromBigQuery` and `ReadAllFromBigQuery` now run queries with BATCH priority by default. The `query_priority` parameter is introduced to the same transforms to allow configuring the query priority (Python) ([BEAM-12913](https://issues.apache.org/jira/browse/BEAM-12913)).
 
 ## New Features / Improvements
 
@@ -75,12 +71,8 @@
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Go SDK pipelines require new import paths to use this release due to migration to Go Modules.
-  * `go.mod` files will need to change to require `github.com/apache/beam/sdks/v2`.
-  * Code depending on beam imports need to include v2 on the module path.
-    * Fix by'v2' to the import paths, turning  `.../sdks/go/...` to `.../sdks/v2/go/...`
-  * No other code change should be required to use v2.33.0 of the Go SDK.
 * SQL Rows are no longer flattened ([BEAM-5505](https://issues.apache.org/jira/browse/BEAM-5505)).
+* [Go SDK] beam.TryCrossLanguage's signature now matches beam.CrossLanguage. Like other Try functions it returns an error instead of panicking. ([BEAM-9918](https://issues.apache.org/jira/browse/BEAM-9918)).
 
 ## Deprecations
 
@@ -91,6 +83,7 @@
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Fixed error while writing multiple DeferredFrames to csv (Python)
 ([BEAM-12701](https://issues.apache.org/jira/browse/BEAM-12701)).
+* Fixed top.SmallestPerKey implementation in the Go SDK ([BEAM-12946](https://issues.apache.org/jira/browse/BEAM-12946)).
 
 ## Known Issues
 
@@ -115,6 +108,7 @@
 
 ## I/Os
 
+* `DebeziumIO` now uses Debezium 1.7.0.Final ([BEAM-12993](https://issues.apache.org/jira/browse/BEAM-12993)).
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## New Features / Improvements
@@ -126,6 +120,11 @@
 
 * Python GBK by defualt will fail on unbounded PCollections that have global windowing and a default trigger. The `--allow_unsafe_triggers` flag can be used to override this. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 * Python GBK will fail if it detects an unsafe trigger unless the `--allow_unsafe_triggers` flag is set. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
+* Go SDK pipelines require new import paths to use this release due to migration to Go Modules.
+  * `go.mod` files will need to change to require `github.com/apache/beam/sdks/v2`.
+  * Code depending on beam imports need to include v2 on the module path.
+    * Fix by'v2' to the import paths, turning  `.../sdks/go/...` to `.../sdks/v2/go/...`
+  * No other code change should be required to use v2.33.0 of the Go SDK.
 
 ## Deprecations
 

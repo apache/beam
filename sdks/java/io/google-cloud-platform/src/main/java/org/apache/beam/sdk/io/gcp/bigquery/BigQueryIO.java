@@ -2622,7 +2622,7 @@ public class BigQueryIO {
         if (getJsonTableRef() != null) {
           dynamicDestinations =
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
-                  getJsonTableRef(), getTableDescription());
+                  getJsonTableRef(), getTableDescription(), getClustering() != null);
         } else if (getTableFunction() != null) {
           dynamicDestinations =
               new TableFunctionDestinations<>(getTableFunction(), getClustering() != null);

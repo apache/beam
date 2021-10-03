@@ -190,6 +190,18 @@ class PipelineFragment(object):
             break
           # Mark the AppliedPTransform as necessary.
           necessary_transforms.add(producer)
+
+          # Also mark composites that are not the root transform. If the root
+          # transform is added, then all transforms are incorrectly marked as
+          # necessary. If composites are not handled, then there will be
+          # orphaned PCollections.
+          if producer.parent is not None:
+            necessary_transforms.update(producer.parts)
+
+            # This will recursively add all the PCollections in this composite.
+            for part in producer.parts:
+              updated_all_inputs.update(part.outputs.values())
+
           # Record all necessary input and side input PCollections.
           updated_all_inputs.update(producer.inputs)
           # pylint: disable=map-builtin-not-iterating

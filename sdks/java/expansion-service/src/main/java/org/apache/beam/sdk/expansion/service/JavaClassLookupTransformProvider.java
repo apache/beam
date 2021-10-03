@@ -234,7 +234,15 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
             .filter(m -> PTransform.class.isAssignableFrom(m.getReturnType()))
             .collect(Collectors.toList());
 
-    if (matchingMethods.size() != 1) {
+    if (matchingMethods.size() == 0) {
+      throw new RuntimeException(
+          "Could not find a matching method in transform "
+              + transform
+              + " for BuilderMethod"
+              + builderMethod
+              + ". When using field names, make sure they are available in the compiled"
+              + " Java class.");
+    } else if (matchingMethods.size() > 1) {
       throw new RuntimeException(
           "Expected to find exactly one matching method in transform "
               + transform
@@ -286,12 +294,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       boolean ignoreFieldName =
           FIELD_NAME_IGNORE_PATTERN.matcher(parameterFromPayload.getName()).matches();
 
-      // Parameter name was generated during reflection and hence should not be used for validation.
-      boolean reflectionGeneratedFieldName = paramNameFromReflection.startsWith("arg");
-
-      if (!reflectionGeneratedFieldName
-          && !ignoreFieldName
-          && !paramNameFromReflection.equals(parameterFromPayload.getName())) {
+      if (!ignoreFieldName && !paramNameFromReflection.equals(parameterFromPayload.getName())) {
         // Parameter name through reflection is from the class file (not through synthesizing,
         // hence we can validate names)
         return false;
@@ -419,7 +422,12 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
             .filter(c -> c.getParameterCount() == payload.getConstructorSchema().getFieldsCount())
             .filter(c -> parametersCompatible(c.getParameters(), constructorRow))
             .collect(Collectors.toList());
-    if (mappingConstructors.size() != 1) {
+
+    if (mappingConstructors.size() == 0) {
+      throw new RuntimeException(
+          "Could not find a matching constructor. When using field names, make sure they are "
+              + "available in the compiled Java class.");
+    } else if (mappingConstructors.size() != 1) {
       throw new RuntimeException(
           "Expected to find a single mapping constructor but found " + mappingConstructors.size());
     }
@@ -464,7 +472,11 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
             .filter(m -> parametersCompatible(m.getParameters(), constructorRow))
             .collect(Collectors.toList());
 
-    if (mappingConstructorMethods.size() != 1) {
+    if (mappingConstructorMethods.size() == 0) {
+      throw new RuntimeException(
+          "Could not find a matching constructor method. When using field names, make sure they "
+              + "are available in the compiled Java class.");
+    } else if (mappingConstructorMethods.size() != 1) {
       throw new RuntimeException(
           "Expected to find a single mapping constructor method but found "
               + mappingConstructorMethods.size()
