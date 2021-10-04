@@ -92,7 +92,7 @@ class ByteCountingOutputStream(OutputStream):
   A pure Python implementation of stream.ByteCountingOutputStream."""
   def __init__(self):
     # Note that we don't actually use any of the data initialized by our super.
-    super(ByteCountingOutputStream, self).__init__()
+    super().__init__()
     self.count = 0
 
   def write(self, byte_array, nested=False):

@@ -51,7 +51,7 @@ class RampupThrottlingFn(DoFn):
        num_workers: A hint for the expected number of workers, used to derive
                     the local rate limit.
      """
-    super(RampupThrottlingFn, self).__init__(*unused_args, **unused_kwargs)
+    super().__init__(*unused_args, **unused_kwargs)
     self._num_workers = num_workers
     self._successful_ops = util.MovingSum(window_ms=1000, bucket_ms=1000)
     self._first_instant = datetime.datetime.now()

@@ -29,10 +29,10 @@ import unittest
 import zlib
 
 import apache_beam as beam
-import apache_beam.io.source_test_utils as source_test_utils
 from apache_beam import coders
 from apache_beam.io import ReadAllFromText
 from apache_beam.io import iobase
+from apache_beam.io import source_test_utils
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.textio import _TextSink as TextSink
 from apache_beam.io.textio import _TextSource as TextSource
@@ -1018,7 +1018,7 @@ class TextSourceTest(unittest.TestCase):
 
 class TextSinkTest(unittest.TestCase):
   def setUp(self):
-    super(TextSinkTest, self).setUp()
+    super().setUp()
     self.lines = [b'Line %d' % d for d in range(100)]
     self.tempdir = tempfile.mkdtemp()
     self.path = self._create_temp_file()

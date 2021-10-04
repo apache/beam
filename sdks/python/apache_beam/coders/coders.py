@@ -730,7 +730,7 @@ class _PickleCoderBase(FastCoder):
     return False
 
   def as_cloud_object(self, coders_context=None, is_pair_like=True):
-    value = super(_PickleCoderBase, self).as_cloud_object(coders_context)
+    value = super().as_cloud_object(coders_context)
     # We currently use this coder in places where we cannot infer the coder to
     # use for the value type in a more granular way.  In places where the
     # service expects a pair, it checks for the "is_pair_like" key, in which
@@ -767,7 +767,7 @@ class _PickleCoderBase(FastCoder):
 class _MemoizingPickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality with memoization."""
   def __init__(self, cache_size=16):
-    super(_MemoizingPickleCoder, self).__init__()
+    super().__init__()
     self.cache_size = cache_size
 
   def _create_impl(self):
@@ -867,7 +867,7 @@ class FastPrimitivesCoder(FastCoder):
     return Any
 
   def as_cloud_object(self, coders_context=None, is_pair_like=True):
-    value = super(FastCoder, self).as_cloud_object(coders_context)
+    value = super().as_cloud_object(coders_context)
     # We currently use this coder in places where we cannot infer the coder to
     # use for the value type in a more granular way.  In places where the
     # service expects a pair, it checks for the "is_pair_like" key, in which
@@ -1088,7 +1088,7 @@ class TupleCoder(FastCoder):
           ],
       }
 
-    return super(TupleCoder, self).as_cloud_object(coders_context)
+    return super().as_cloud_object(coders_context)
 
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
@@ -1250,7 +1250,7 @@ class GlobalWindowCoder(SingletonCoder):
   """Coder for global windows."""
   def __init__(self):
     from apache_beam.transforms import window
-    super(GlobalWindowCoder, self).__init__(window.GlobalWindow())
+    super().__init__(window.GlobalWindow())
 
   def as_cloud_object(self, coders_context=None):
     return {
@@ -1357,7 +1357,7 @@ Coder.register_structured_urn(
 class ParamWindowedValueCoder(WindowedValueCoder):
   """A coder used for parameterized windowed values."""
   def __init__(self, payload, components):
-    super(ParamWindowedValueCoder, self).__init__(components[0], components[1])
+    super().__init__(components[0], components[1])
     self.payload = payload
 
   def _create_impl(self):

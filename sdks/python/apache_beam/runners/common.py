@@ -112,7 +112,7 @@ class DataflowNameContext(NameContext):
       user_name: The full user-given name of the step (e.g. Foo/Bar/ParDo(Far)).
       system_name: The step name in the optimized graph (e.g. s2-1).
     """
-    super(DataflowNameContext, self).__init__(step_name)
+    super().__init__(step_name)
     self.user_name = user_name
     self.system_name = system_name
 
@@ -557,7 +557,7 @@ class SimpleInvoker(DoFnInvoker):
                signature  # type: DoFnSignature
               ):
     # type: (...) -> None
-    super(SimpleInvoker, self).__init__(output_processor, signature)
+    super().__init__(output_processor, signature)
     self.process_method = signature.process_method.method_value
 
   def invoke_process(self,
@@ -586,7 +586,7 @@ class PerWindowInvoker(DoFnInvoker):
                user_state_context,  # type: Optional[userstate.UserStateContext]
                bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
               ):
-    super(PerWindowInvoker, self).__init__(output_processor, signature)
+    super().__init__(output_processor, signature)
     self.side_inputs = side_inputs
     self.context = context
     self.process_method = signature.process_method.method_value
