@@ -953,7 +953,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
   def __init__(
       self,
       method: str,
-      query_priority: [str] = 'BATCH',
+      query_priority: [BigQueryQueryPriority] = BigQueryQueryPriority.BATCH,
       table: Optional[Union[str, TableReference]] = None,
       dataset: Optional[str] = None,
       project: Optional[str] = None,
