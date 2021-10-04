@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/components/toggle_theme_button/toggle_theme_button.dart';
+import 'package:playground/constants/sizes.dart';
 import 'package:playground/pages/playground/components/playground_page_providers.dart';
 import 'package:provider/provider.dart';
 import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
@@ -36,7 +37,7 @@ class PlaygroundPage extends StatelessWidget {
         appBar: AppBar(
           title: Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16.0,
+            spacing: kLgSpacing,
             children: [
               const Logo(),
               Consumer<PlaygroundState>(
@@ -54,7 +55,8 @@ class PlaygroundPage extends StatelessWidget {
         body: Column(
           children: [
             const Expanded(child: CodeTextAreaWrapper()),
-            Container(height: 16.0, color: Theme.of(context).backgroundColor),
+            Container(
+                height: kLgSpacing, color: Theme.of(context).backgroundColor),
             const Expanded(child: OutputArea()),
           ],
         ),
