@@ -103,6 +103,8 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	// per-unit, to avoid the constant allocation overhead.
 	n.ctx = metrics.SetPTransformID(ctx, n.PID)
 
+	metrics.GetStore(ctx).SetState(metrics.StartBundle)
+
 	if err := MultiStartBundle(n.ctx, id, data, n.Out...); err != nil {
 		return n.fail(err)
 	}
@@ -120,6 +122,9 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 	if n.status != Active {
 		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
+
+	metrics.GetStore(n.ctx).SetState(metrics.ProcessBundle)
+	metrics.GetStore(n.ctx).IncTransitions()
 
 	return n.processMainInput(&MainInput{Key: *elm, Values: values})
 }
@@ -197,6 +202,9 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	}
 	n.status = Up
 	n.inv.Reset()
+
+	metrics.GetStore(n.ctx).SetState(metrics.FinishBundle)
+	metrics.GetStore(n.ctx).IncTransitions()
 
 	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)

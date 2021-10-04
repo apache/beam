@@ -19,7 +19,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -225,6 +227,37 @@ func TestCircleBuffer(t *testing.T) {
 			want := instructionID(fmt.Sprintf("i%v", i))
 			if got != want {
 				t.Fatalf("c.Insert(%v) = %v,%v; want %v", insrt, got, ok, want)
+			}
+		}
+	})
+}
+
+func TestSampler(t *testing.T) {
+	t.Run("Sampling", func(t *testing.T) {
+		s := newSampler(&metrics.ExecutionStateTracker{}, &metrics.Store{}, "sample")
+		go s.startSampler()
+
+		s.e.CurrentState = metrics.StartBundle
+		s.e.State.State = metrics.StartBundle
+		time.Sleep(500 * time.Millisecond)
+
+		s.e.CurrentState = metrics.ProcessBundle
+		s.e.NumberOfTransitions += 1
+		time.Sleep(500 * time.Millisecond)
+
+		s.e.CurrentState = metrics.FinishBundle
+		s.e.NumberOfTransitions += 1
+		time.Sleep(500 * time.Millisecond)
+		s.stopSampler()
+		s.sample()
+
+		for l, s := range s.store.GetRegistry() {
+			if l.Transform() == "sample" {
+				if len(s) != 3 {
+					t.Fatalf("len(s) = %v, want 3", len(s))
+				}
+			} else {
+				t.Fatalf("incorrect transform %v, want sample", l.Transform())
 			}
 		}
 	})

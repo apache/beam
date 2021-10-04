@@ -91,6 +91,8 @@ type Extractor struct {
 	DistributionInt64 func(labels Labels, count, sum, min, max int64)
 	// GaugeInt64 extracts data from Gauge Int64 counters.
 	GaugeInt64 func(labels Labels, v int64, t time.Time)
+	// MsecsInt64 extracts data from StateRegistry of ExecutionState
+	MsecsInt64 func(labels Labels, stateRegistry []ExecutionState)
 }
 
 // ExtractFrom the given metrics Store all the metrics for
@@ -123,6 +125,9 @@ func (e Extractor) ExtractFrom(store *Store) error {
 			}
 		}
 	}
+	for l, um := range store.stateRegistry {
+		e.MsecsInt64(l, um)
+	}
 	return nil
 }
 
@@ -145,16 +150,68 @@ type ptCounterSet struct {
 	gauges        map[nameHash]*gauge
 }
 
+// Bundle processing state (START_BUNDLE, PROCESS_BUNDLE, FINISH_BUNDLE)
+type BundleProcState string
+
+const (
+	StartBundle   BundleProcState = "START_BUNDLE"
+	ProcessBundle BundleProcState = "PROCESS_BUNDLE"
+	FinishBundle  BundleProcState = "FINISH_BUNDLE"
+)
+
+// ExecutionState stores the information about a bundle in a particular state.
+type ExecutionState struct {
+	State           BundleProcState
+	IsProcessing    bool // set to true when sent as a response to ProcessBundleProgress Request
+	TotalTimeMillis int64
+}
+
+// ExecutionStateTracker stores information about a bundle for execution time metrics.
+type ExecutionStateTracker struct {
+	CurrentState              BundleProcState
+	State                     ExecutionState
+	NumberOfTransitions       int
+	MillisSinceLastTransition int
+	TransitionsAtLastSample   int
+	LastSampleTimeMillis      int
+}
+
 // Store retains per transform countersets, intended for per bundle use.
 type Store struct {
 	mu  sync.RWMutex
 	css []*ptCounterSet
 
 	store map[Labels]userMetric
+
+	executionStore ExecutionStateTracker
+	stateRegistry  map[Labels][]ExecutionState
 }
 
 func newStore() *Store {
-	return &Store{store: make(map[Labels]userMetric)}
+	return &Store{store: make(map[Labels]userMetric), stateRegistry: make(map[Labels][]ExecutionState)}
+}
+
+func (s *Store) AddState(e ExecutionState, pid string) {
+	label := PTransformLabels(pid)
+	if s.stateRegistry == nil {
+		s.stateRegistry = make(map[Labels][]ExecutionState)
+	}
+	s.stateRegistry[label] = append(s.stateRegistry[label], e)
+}
+
+func (s *Store) SetState(bs BundleProcState) {
+	if bs == StartBundle {
+		s.executionStore.State.State = bs
+	}
+	s.executionStore.CurrentState = bs
+}
+
+func (s *Store) IncTransitions() {
+	s.executionStore.NumberOfTransitions += 1
+}
+
+func (s *Store) GetRegistry() map[Labels][]ExecutionState {
+	return s.stateRegistry
 }
 
 // storeMetric stores a metric away on its first use so it may be retrieved later on.

@@ -155,6 +155,11 @@ func GetStore(ctx context.Context) *Store {
 	return nil
 }
 
+func GetExecutionStore(ctx context.Context) *ExecutionStateTracker {
+	store := GetStore(ctx)
+	return &store.executionStore
+}
+
 const (
 	bundleIDUnset     = "(bundle id unset)"
 	ptransformIDUnset = "(ptransform id unset)"
