@@ -5141,7 +5141,7 @@ There are three types of metrics that are supported for the moment: `Counter`, `
 
 {{< paragraph class="language-go" >}}
 In the Beam SDK for Go, a `context.Context` provided by the framework must be passed to the metric
-or the metric value will not be recorded. The framework will automatically provide a valid 
+or the metric value will not be recorded. The framework will automatically provide a valid
 `context.Context` to `ProcessElement` and similar methods when it's the first parameter.
 {{< /paragraph >}}
 
@@ -5254,7 +5254,7 @@ public interface MetricResult<T> {
 }
 {{< /highlight >}}
 
-{{< highlight go >}} 
+{{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_query >}}
 {{< /highlight >}}
 
