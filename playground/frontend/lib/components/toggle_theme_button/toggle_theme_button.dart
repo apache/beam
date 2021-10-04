@@ -21,13 +21,16 @@ import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:provider/provider.dart';
 
+const kLightMode = "Light Mode";
+const kDartMode = "Dark Mode";
+
 class ToggleThemeButton extends StatelessWidget {
   const ToggleThemeButton({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(builder: (context, theme, child) {
-      final text = theme.isDarkMode ? "Light Mode" : "Dark Mode";
+      final text = theme.isDarkMode ? kLightMode : kDartMode;
       final icon = theme.isDarkMode
           ? Icons.light_mode_outlined
           : Icons.mode_night_outlined;
