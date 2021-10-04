@@ -16,15 +16,24 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/playground_app.dart';
+enum SDK {
+  java,
+  go,
+  python,
+  scio,
+}
 
-void main() {
-  testWidgets('Home Page', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const PlaygroundApp());
-
-    // Verify that Playground text is displayed
-    expect(find.text('Playground'), findsOneWidget);
-  });
+extension SDKToString on SDK {
+  String get displayName {
+    switch (this) {
+      case SDK.go:
+        return "Go";
+      case SDK.java:
+        return "Java";
+      case SDK.python:
+        return "Python";
+      case SDK.scio:
+        return "SCIO";
+    }
+  }
 }

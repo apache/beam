@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/playground_app.dart';
+import 'package:flutter/material.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-void main() {
-  testWidgets('Home Page', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const PlaygroundApp());
+class PlaygroundState with ChangeNotifier {
+  SDK sdk = SDK.java;
 
-    // Verify that Playground text is displayed
-    expect(find.text('Playground'), findsOneWidget);
-  });
+  setSdk(SDK sdk) {
+    this.sdk = sdk;
+    notifyListeners();
+  }
 }

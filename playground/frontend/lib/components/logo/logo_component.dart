@@ -16,15 +16,22 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/playground_app.dart';
+import 'package:flutter/material.dart';
 
-void main() {
-  testWidgets('Home Page', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const PlaygroundApp());
+class Logo extends StatelessWidget {
+  const Logo({Key? key}) : super(key: key);
 
-    // Verify that Playground text is displayed
-    expect(find.text('Playground'), findsOneWidget);
-  });
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return RichText(
+      text: TextSpan(
+        style: theme.textTheme.headline6,
+        children: <TextSpan>[
+          TextSpan(text: 'Beam', style: TextStyle(color: theme.primaryColor)),
+          const TextSpan(text: ' Playground'),
+        ],
+      ),
+    );
+  }
 }
