@@ -34,9 +34,9 @@ import hamcrest as hc
 import pytest
 
 import apache_beam as beam
-import apache_beam.pvalue as pvalue
 import apache_beam.transforms.combiners as combine
-import apache_beam.typehints as typehints
+from apache_beam import pvalue
+from apache_beam import typehints
 from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter

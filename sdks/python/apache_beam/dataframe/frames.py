@@ -3463,7 +3463,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     :param grouping_indexes: list of index names (or index level numbers) to be
         grouped.
     :param kwargs: Keywords args passed to the original groupby(..) call."""
-    super(DeferredGroupBy, self).__init__(expr)
+    super().__init__(expr)
     self._ungrouped = ungrouped
     self._ungrouped_with_index = ungrouped_with_index
     self._projection = projection

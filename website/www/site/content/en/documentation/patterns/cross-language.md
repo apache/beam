@@ -95,7 +95,7 @@ URN = "beam:transforms:xlang:pythontransform"
 @ptransform.PTransform.register_urn(URN, None)
 class PythonTransform(ptransform.PTransform):
     def __init__(self):
-        super(PythonTransform, self).__init__()
+        super().__init__()
 
     def expand(self, pcoll):
         return (pcoll

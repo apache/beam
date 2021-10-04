@@ -130,7 +130,7 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     cls.spark_job_server_jar = spark_job_server_jar
 
   def create_options(self):
-    options = super(SparkRunnerTest, self).create_options()
+    options = super().create_options()
     options.view_as(PortableOptions).environment_type = self.environment_type
     options.view_as(
         PortableOptions).environment_options = self.environment_options
@@ -175,8 +175,7 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
     # https://jira.apache.org/jira/browse/BEAM-7236
-    super(SparkRunnerTest,
-          self).test_flattened_side_input(with_transcoding=False)
+    super().test_flattened_side_input(with_transcoding=False)
 
   def test_custom_merging_window(self):
     raise unittest.SkipTest("BEAM-11004")

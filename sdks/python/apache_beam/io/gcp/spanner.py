@@ -246,7 +246,7 @@ class ReadFromSpanner(ExternalTransform):
       assert timestamp_bound_mode is TimestampBoundMode.MIN_READ_TIMESTAMP\
              or timestamp_bound_mode is TimestampBoundMode.READ_TIMESTAMP
 
-    super(ReadFromSpanner, self).__init__(
+    super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             ReadFromSpannerSchema(

@@ -51,7 +51,7 @@ class PipelineInstrumentTest(unittest.TestCase):
   def test_pcoll_to_pcoll_id(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
     ie.current_env().set_cache_manager(InMemoryCache(), p)
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     init_pcoll = p | 'Init Create' >> beam.Impulse()
     _, ctx = p.to_runner_api(return_context=True)
     self.assertEqual(
@@ -81,7 +81,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # in the original instance and if the evaluation has changed since last
     # execution.
     p2_id_runner = beam.Pipeline(interactive_runner.InteractiveRunner())
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     init_pcoll_2 = p2_id_runner | 'Init Create' >> beam.Create(range(10))
     ie.current_env().add_derived_pipeline(p_id_runner, p2_id_runner)
 
@@ -94,7 +94,7 @@ class PipelineInstrumentTest(unittest.TestCase):
   def test_cache_key(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
     ie.current_env().set_cache_manager(InMemoryCache(), p)
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     init_pcoll = p | 'Init Create' >> beam.Create(range(10))
     squares = init_pcoll | 'Square' >> beam.Map(lambda x: x * x)
     cubes = init_pcoll | 'Cube' >> beam.Map(lambda x: x**3)
@@ -114,7 +114,7 @@ class PipelineInstrumentTest(unittest.TestCase):
   def test_cacheables(self):
     p_cacheables = beam.Pipeline(interactive_runner.InteractiveRunner())
     ie.current_env().set_cache_manager(InMemoryCache(), p_cacheables)
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     init_pcoll = p_cacheables | 'Init Create' >> beam.Create(range(10))
     squares = init_pcoll | 'Square' >> beam.Map(lambda x: x * x)
     cubes = init_pcoll | 'Cube' >> beam.Map(lambda x: x**3)
@@ -185,7 +185,7 @@ class PipelineInstrumentTest(unittest.TestCase):
   def _example_pipeline(self, watch=True, bounded=True):
     p_example = beam.Pipeline(interactive_runner.InteractiveRunner())
     ie.current_env().set_cache_manager(InMemoryCache(), p_example)
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     if bounded:
       source = beam.Create(range(10))
     else:
@@ -263,8 +263,8 @@ class PipelineInstrumentTest(unittest.TestCase):
       def visit_transform(self, transform_node):
         if transform_node.inputs:
           main_inputs = dict(transform_node.main_inputs)
-          for tag in main_inputs.keys():
-            if main_inputs[tag] == init_pcoll:
+          for tag, main_input in main_inputs.items():
+            if main_input == init_pcoll:
               main_inputs[tag] = cached_init_pcoll
           transform_node.main_inputs = main_inputs
 
@@ -780,7 +780,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Deliberately not assign the result to a variable to make it a
     # "side effect" transform. Note we never watch anything from
     # the pipeline defined locally either.
-    # pylint: disable=range-builtin-not-iterating,expression-not-assigned
+    # pylint: disable=bad-option-value,expression-not-assigned
     pipeline_with_side_effect | 'Init Create' >> beam.Create(range(10))
     pipeline_instrument = instr.build_pipeline_instrument(
         pipeline_with_side_effect)

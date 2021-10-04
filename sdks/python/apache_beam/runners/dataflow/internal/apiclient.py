@@ -163,7 +163,7 @@ class Environment(object):
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
     self._proto_pipeline = proto_pipeline
-    self._sdk_image_overrides = _sdk_image_overrides or dict()
+    self._sdk_image_overrides = _sdk_image_overrides or {}
 
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
@@ -554,8 +554,7 @@ class DataflowApplicationClient(object):
     worker_options = pipeline_options.view_as(WorkerOptions)
     sdk_overrides = worker_options.sdk_harness_container_image_overrides
     return (
-        dict(s.split(',', 1)
-             for s in sdk_overrides) if sdk_overrides else dict())
+        dict(s.split(',', 1) for s in sdk_overrides) if sdk_overrides else {})
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -1031,7 +1030,7 @@ class MetricUpdateTranslators(object):
 
 class _LegacyDataflowStager(Stager):
   def __init__(self, dataflow_application_client):
-    super(_LegacyDataflowStager, self).__init__()
+    super().__init__()
     self._dataflow_application_client = dataflow_application_client
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):

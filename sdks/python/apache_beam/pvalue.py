@@ -492,14 +492,14 @@ class AsSingleton(AsSideInput):
 
   def __init__(self, pcoll, default_value=_NO_DEFAULT):
     # type: (PCollection, Any) -> None
-    super(AsSingleton, self).__init__(pcoll)
+    super().__init__(pcoll)
     self.default_value = default_value
 
   def __repr__(self):
     return 'AsSingleton(%s)' % self.pvalue
 
   def _view_options(self):
-    base = super(AsSingleton, self)._view_options()
+    base = super()._view_options()
     if self.default_value != AsSingleton._NO_DEFAULT:
       return dict(base, default=self.default_value)
     return base

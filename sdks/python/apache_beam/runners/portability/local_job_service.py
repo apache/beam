@@ -74,7 +74,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     subprocesses for the runner and worker(s).
     """
   def __init__(self, staging_dir=None):
-    super(LocalJobServicer, self).__init__()
+    super().__init__()
     self._cleanup_staging_dir = staging_dir is None
     self._staging_dir = staging_dir or tempfile.mkdtemp()
     self._artifact_service = artifact_service.ArtifactStagingService(
@@ -234,8 +234,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
                artifact_staging_endpoint,  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
                artifact_service,  # type: artifact_service.ArtifactStagingService
               ):
-    super(BeamJob,
-          self).__init__(job_id, provision_info.job_name, pipeline, options)
+    super().__init__(job_id, provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
     self._artifact_service = artifact_service
@@ -246,7 +245,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
   def set_state(self, new_state):
     """Set the latest state as an int enum and notify consumers"""
-    timestamp = super(BeamJob, self).set_state(new_state)
+    timestamp = super().set_state(new_state)
     if timestamp is not None:
       # Inform consumers of the new state.
       for queue in self._state_queues:
@@ -389,7 +388,7 @@ class JobLogHandler(logging.Handler):
   }
 
   def __init__(self, log_queues):
-    super(JobLogHandler, self).__init__()
+    super().__init__()
     self._last_id = 0
     self._logged_thread = None
     self._log_queues = log_queues

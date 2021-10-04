@@ -42,7 +42,7 @@ from apache_beam.io.filesystem import FileSystem
 
 class TestingFileSystem(FileSystem):
   def __init__(self, pipeline_options, has_dirs=False):
-    super(TestingFileSystem, self).__init__(pipeline_options)
+    super().__init__(pipeline_options)
     self._has_dirs = has_dirs
     self._files = {}
 
@@ -499,7 +499,7 @@ atomized in instants hammered around the
       return b''.join(byte_list)
 
     def create_test_file(compression_type, lines):
-      filenames = list()
+      filenames = []
       file_name = self._create_temp_file()
       if compression_type == CompressionTypes.BZIP2:
         compress_factory = bz2.BZ2File

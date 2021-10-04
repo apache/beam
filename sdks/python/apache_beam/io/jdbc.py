@@ -183,7 +183,7 @@ class WriteToJdbc(ExternalTransform):
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
 
-    super(WriteToJdbc, self).__init__(
+    super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             JdbcConfigSchema(
@@ -269,7 +269,7 @@ class ReadFromJdbc(ExternalTransform):
                                  passed as list of strings
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(ReadFromJdbc, self).__init__(
+    super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             JdbcConfigSchema(

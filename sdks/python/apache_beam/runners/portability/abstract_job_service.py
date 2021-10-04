@@ -321,7 +321,7 @@ class UberJarBeamJob(AbstractBeamJob):
       pipeline,
       options,
       artifact_port=0):
-    super(UberJarBeamJob, self).__init__(job_id, job_name, pipeline, options)
+    super().__init__(job_id, job_name, pipeline, options)
     self._executable_jar = executable_jar
     self._jar_uploaded = False
     self._artifact_port = artifact_port

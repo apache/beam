@@ -185,6 +185,7 @@ class RowCoderTest(unittest.TestCase):
     )
 
     # Encode max+1/min-1 ints to make sure they DO throw an error
+    # pylint: disable=cell-var-from-loop
     for case in overflow:
       self.assertRaises(OverflowError, lambda: c.encode(case))
 

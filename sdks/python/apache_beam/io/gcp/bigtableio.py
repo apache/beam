@@ -58,7 +58,7 @@ try:
   class _MutationsBatcher(MutationsBatcher):
     def __init__(
         self, table, flush_count=FLUSH_COUNT, max_row_bytes=MAX_ROW_BYTES):
-      super(_MutationsBatcher, self).__init__(table, flush_count, max_row_bytes)
+      super().__init__(table, flush_count, max_row_bytes)
       self.rows = []
 
     def set_flush_callback(self, callback_fn):
@@ -95,7 +95,7 @@ class _BigTableWriteFn(beam.DoFn):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(_BigTableWriteFn, self).__init__()
+    super().__init__()
     self.beam_options = {
         'project_id': project_id,
         'instance_id': instance_id,
@@ -192,7 +192,7 @@ class WriteToBigTable(beam.PTransform):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(WriteToBigTable, self).__init__()
+    super().__init__()
     self.beam_options = {
         'project_id': project_id,
         'instance_id': instance_id,

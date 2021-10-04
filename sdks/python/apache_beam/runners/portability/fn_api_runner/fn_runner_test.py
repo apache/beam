@@ -1086,10 +1086,10 @@ class FnApiRunnerTest(unittest.TestCase):
     if assert_using_counter_names:
       if pipeline_options.view_as(StandardOptions).streaming:
         self.assertFalse(
-            any([re.match(packed_step_name_regex, s) for s in step_names]))
+            any(re.match(packed_step_name_regex, s) for s in step_names))
       else:
         self.assertTrue(
-            any([re.match(packed_step_name_regex, s) for s in step_names]))
+            any(re.match(packed_step_name_regex, s) for s in step_names))
 
   @retry(stop=stop_after_attempt(3))
   def test_pack_combiners(self):
@@ -1970,8 +1970,7 @@ class OffsetRangeProvider(beam.transforms.core.RestrictionProvider):
       class CheckpointOnlyOffsetRestrictionTracker(
           restriction_trackers.OffsetRestrictionTracker):
         def try_split(self, unused_fraction_of_remainder):
-          return super(CheckpointOnlyOffsetRestrictionTracker,
-                       self).try_split(0.0)
+          return super().try_split(0.0)
 
       return CheckpointOnlyOffsetRestrictionTracker(restriction)
     if self.use_bounded_offset_range:
@@ -1987,7 +1986,7 @@ class OffsetRangeProvider(beam.transforms.core.RestrictionProvider):
 
 class OffsetRangeProviderWithTruncate(OffsetRangeProvider):
   def __init__(self):
-    super(OffsetRangeProviderWithTruncate, self).__init__(True)
+    super().__init__(True)
 
   def truncate(self, element, restriction):
     return restriction_trackers.OffsetRange(

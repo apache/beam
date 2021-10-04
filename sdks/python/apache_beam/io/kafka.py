@@ -171,7 +171,7 @@ class ReadFromKafka(ExternalTransform):
           'timestamp_policy should be one of '
           '[ProcessingTime, CreateTime, LogAppendTime]')
 
-    super(ReadFromKafka, self).__init__(
+    super().__init__(
         self.URN_WITH_METADATA if with_metadata else self.URN_WITHOUT_METADATA,
         NamedTupleBasedPayloadBuilder(
             ReadFromKafkaSchema(
@@ -234,7 +234,7 @@ class WriteToKafka(ExternalTransform):
         Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(WriteToKafka, self).__init__(
+    super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             WriteToKafkaSchema(

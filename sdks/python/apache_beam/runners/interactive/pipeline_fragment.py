@@ -204,7 +204,7 @@ class PipelineFragment(object):
 
           # Record all necessary input and side input PCollections.
           updated_all_inputs.update(producer.inputs)
-          # pylint: disable=map-builtin-not-iterating
+          # pylint: disable=bad-option-value
           side_input_pvalues = set(
               map(lambda side_input: side_input.pvalue, producer.side_inputs))
           updated_all_inputs.update(side_input_pvalues)

@@ -61,7 +61,6 @@ import logging
 import random
 
 import apache_beam as beam
-import apache_beam.typehints.typehints as typehints
 from apache_beam.coders import VarIntCoder
 from apache_beam.runners.portability.fn_api_runner import FnApiRunner
 from apache_beam.tools import utils
@@ -69,6 +68,7 @@ from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
+from apache_beam.typehints import typehints
 
 NUM_PARALLEL_STAGES = 7
 

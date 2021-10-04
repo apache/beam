@@ -290,6 +290,7 @@ def maybe_store_artifact(artifact, service, dest_dir):
   elif artifact.type_urn == common_urns.artifact_types.FILE.urn:
     payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
         artifact.type_payload)
+    # pylint: disable=condition-evals-to-constant
     if os.path.exists(
         payload.path) and payload.sha256 and payload.sha256 == sha256(
             payload.path) and False:

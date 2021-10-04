@@ -24,7 +24,6 @@ import sys
 import typing
 import unittest
 
-import apache_beam.typehints.typehints as typehints
 from apache_beam import Map
 from apache_beam import PTransform
 from apache_beam.pvalue import PBegin
@@ -38,6 +37,7 @@ from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
 from apache_beam.typehints import native_type_compatibility
+from apache_beam.typehints import typehints
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.decorators import GeneratorWrapper

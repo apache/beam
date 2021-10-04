@@ -801,7 +801,7 @@ class _CountingSource(CountingSource):
 # [START model_custom_source_new_ptransform]
 class ReadFromCountingSource(PTransform):
   def __init__(self, count):
-    super(ReadFromCountingSource, self).__init__()
+    super().__init__()
     self._count = count
 
   def expand(self, pcoll):
@@ -923,7 +923,7 @@ class SimpleKVWriter(iobase.Writer):
 class WriteToKVSink(PTransform):
   def __init__(self, simplekv, url, final_table_name):
     self._simplekv = simplekv
-    super(WriteToKVSink, self).__init__()
+    super().__init__()
     self._url = url
     self._final_table_name = final_table_name
 

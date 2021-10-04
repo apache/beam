@@ -153,7 +153,7 @@ class WriteToKinesis(ExternalTransform):
         Example: {'CollectionMaxCount': '1000', 'ConnectTimeout': '10000'}
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(WriteToKinesis, self).__init__(
+    super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             WriteToKinesisSchema(
@@ -277,7 +277,7 @@ class ReadDataFromKinesis(ExternalTransform):
     ):
       logging.warning('Provided timestamp emplaced not in the past.')
 
-    super(ReadDataFromKinesis, self).__init__(
+    super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             ReadFromKinesisSchema(

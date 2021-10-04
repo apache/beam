@@ -75,7 +75,7 @@ class AvroBase(object):
   _temp_files = []  # type: List[str]
 
   def __init__(self, methodName='runTest'):
-    super(AvroBase, self).__init__(methodName)
+    super().__init__(methodName)
     self.RECORDS = RECORDS
     self.SCHEMA_STRING = '''
           {"namespace": "example.avro",
@@ -447,7 +447,7 @@ class AvroBase(object):
     'See: BEAM-6522.')
 class TestAvro(AvroBase, unittest.TestCase):
   def __init__(self, methodName='runTest'):
-    super(TestAvro, self).__init__(methodName)
+    super().__init__(methodName)
     self.use_fastavro = False
     self.SCHEMA = Parse(self.SCHEMA_STRING)
 
@@ -477,7 +477,7 @@ class TestAvro(AvroBase, unittest.TestCase):
 
 class TestFastAvro(AvroBase, unittest.TestCase):
   def __init__(self, methodName='runTest'):
-    super(TestFastAvro, self).__init__(methodName)
+    super().__init__(methodName)
     self.use_fastavro = True
     self.SCHEMA = parse_schema(json.loads(self.SCHEMA_STRING))
 
