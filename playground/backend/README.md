@@ -49,7 +49,7 @@ Run the following command from `/playground` directory:
 
 ```
 protoc --go_out=backend/pkg/api --go_opt=paths=source_relative \
---go-grpc_out=backend/pkg/api --go-grpc_opt=paths=source_relative --proto_path=proto \
+--go-grpc_out=backend/pkg/api --go-grpc_opt=paths=source_relative --proto_path=playground/v1 \
 playground.proto
 ```
 
@@ -89,7 +89,7 @@ One more way to run the server is to run it locally how it is described above.
 ## Calling the server from another client
 
 To call the server from another client – models and client code should be generated using the
-`playground/proto/playground.proto` file. More information about generating models and client's code using `.proto`
+`playground/playground/v1/playground.proto` file. More information about generating models and client's code using `.proto`
 files for each language can be found [here](https://grpc.io/docs/languages/).
 
 ## Deployment
