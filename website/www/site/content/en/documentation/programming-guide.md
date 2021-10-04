@@ -5139,6 +5139,12 @@ after jobs have completed.
 There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and
 `Gauge`.
 
+{{< paragraph class="language-go" >}}
+In the Beam SDK for Go, a `context.Context` provided by the framework must be passed to the metric
+or the metric value will not be recorded. The framework will automatically provide a valid
+`context.Context` to `ProcessElement` and similar methods when it's the first parameter.
+{{< /paragraph >}}
+
 **Counter**: A metric that reports a single long value and can be incremented or decremented.
 
 {{< highlight java >}}
@@ -5149,6 +5155,16 @@ public void processElement(ProcessContext context) {
   // count the elements
   counter.inc();
   ...
+}
+{{< /highlight >}}
+
+{{< highlight go >}}
+var counter = beam.NewCounter("namespace", "counter1")
+
+func (fn *MyDoFn) ProcessElement(ctx context.Context, ...) {
+	// count the elements
+	counter.Inc(ctx, 1)
+	...
 }
 {{< /highlight >}}
 
@@ -5163,6 +5179,16 @@ public void processElement(ProcessContext context) {
     // create a distribution (histogram) of the values
     distribution.update(element);
     ...
+}
+{{< /highlight >}}
+
+{{< highlight go >}}
+var distribution = beam.NewDistribution("namespace", "distribution1")
+
+func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
+    // create a distribution (histogram) of the values
+	distribution.Inc(ctx, v)
+	...
 }
 {{< /highlight >}}
 
@@ -5181,10 +5207,29 @@ public void processElement(ProcessContext context) {
 }
 {{< /highlight >}}
 
+{{< highlight go >}}
+var gauge = beam.NewGauge("namespace", "gauge1")
+
+func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
+  // create a gauge (latest value received) of the values
+	gauge.Set(ctx, v)
+	...
+}
+{{< /highlight >}}
+
 ### 10.3. Querying metrics {#querying-metrics}
+{{< paragraph class="language-java language-python">}}
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
 accessing metrics. The main method available in `MetricResults` allows querying for all metrics
 matching a given filter.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go">}}
+`beam.PipelineResult` has a method `Metrics()` which returns a `metrics.Results` object that allows
+accessing metrics. The main method available in `metrics.Results` allows querying for all metrics
+matching a given filter.  It takes in a predicate with a `SingleResult` parameter type, which can
+be used for custom filters.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 public interface PipelineResult {
@@ -5207,6 +5252,10 @@ public interface MetricResult<T> {
   T getCommitted();
   T getAttempted();
 }
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_query >}}
 {{< /highlight >}}
 
 ### 10.4. Using metrics in pipeline {#using-metrics}
@@ -5245,6 +5294,10 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
     context.output(context.element());
   }
 }
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_pipeline >}}
 {{< /highlight >}}
 
 ### 10.5. Export metrics {#export-metrics}
