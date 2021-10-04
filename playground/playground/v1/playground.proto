@@ -42,12 +42,12 @@ message RunCodeRequest {
   Sdk sdk = 2;
 }
 
-// RunCodeResponse contains information of the pipeline id.
+// RunCodeResponse contains information of the pipeline uuid.
 message RunCodeResponse {
   string pipeline_uuid = 1;
 }
 
-// CheckStatusRequest contains information of the pipeline id.
+// CheckStatusRequest contains information of the pipeline uuid.
 message CheckStatusRequest {
   string pipeline_uuid = 1;
 }
@@ -57,7 +57,7 @@ message CheckStatusResponse {
   Status status = 1;
 }
 
-// GetCompileOutputRequest contains information of the pipeline id.
+// GetCompileOutputRequest contains information of the pipeline uuid.
 message GetCompileOutputRequest {
   string pipeline_uuid = 1;
 }
@@ -68,7 +68,7 @@ message GetCompileOutputResponse {
   Status compilation_status = 2;
 }
 
-// GetRunOutputRequest contains information of the pipeline id.
+// GetRunOutputRequest contains information of the pipeline uuid.
 message GetRunOutputRequest {
   string pipeline_uuid = 1;
 }
@@ -81,7 +81,7 @@ message GetRunOutputResponse {
 
 service PlaygroundService {
 
-  // Submit the job for an execution and get the pipeline id.
+  // Submit the job for an execution and get the pipeline uuid.
   rpc RunCode(RunCodeRequest) returns (RunCodeResponse);
 
   // Get the status of pipeline execution.
