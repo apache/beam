@@ -288,9 +288,7 @@ public class SchemaTranslationTest {
     }
   }
 
-  /** Tests that we raise helpful errors when decoding bad {@link Schema}
-   *  protos.
-   **/
+  /** Tests that we raise helpful errors when decoding bad {@link Schema} protos. */
   @RunWith(JUnit4.class)
   public static class DecodeErrorTest {
 
