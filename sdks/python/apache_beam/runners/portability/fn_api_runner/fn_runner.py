@@ -82,7 +82,6 @@ if TYPE_CHECKING:
   from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandler
 
 _LOGGER = logging.getLogger(__name__)
-# _LOGGER.setLevel('DEBUG')
 
 T = TypeVar('T')
 
@@ -749,11 +748,19 @@ class FnApiRunner(runner.PipelineRunner):
         buffer = runner_execution_context.pcoll_buffers.get(
             buffer_id, ListBuffer(None))
 
-        if buffer and buffer_id in buffers_to_clean:
+        if (buffer_id in runner_execution_context.pcoll_buffers
+            and buffer_id not in buffers_to_clean):
+          buffers_to_clean.add(buffer_id)
+        elif buffer and buffer_id in buffers_to_clean:
+          # If the buffer_id has already been added to buffers_to_clean, this
+          # means that the buffer is being consumed by two separate stages,
+          # so we create a copy of the buffer for every new stage.
           runner_execution_context.pcoll_buffers[buffer_id] = buffer.copy()
           buffer = runner_execution_context.pcoll_buffers[buffer_id]
-        if buffer_id in runner_execution_context.pcoll_buffers:
-          buffers_to_clean.add(buffer_id)
+
+        # If the buffer has already been added to be consumed by
+        # (stage, transform), then we don't need to add it again. This case
+        # can happen whenever we flatten the same PCollection with itself.
         if (consuming_stage_name, consuming_transform,
             buffer_id) in known_consumers:
           continue

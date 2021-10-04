@@ -764,7 +764,12 @@ class FnApiRunnerExecutionContext(object):
         buffer_id = t.spec.payload
         if t.spec.urn == bundle_processor.DATA_INPUT_URN:
           self.input_transform_to_buffer_id[t.unique_name] = buffer_id
-          if t.spec.payload != translations.IMPULSE_BUFFER:
+          if t.spec.payload == translations.IMPULSE_BUFFER:
+            # Impulse data is not produced by any PTransform.
+            self.pcollection_to_producer_transform[
+              translations.IMPULSE_BUFFER] = None
+          else:
+            assert t.spec.payload != translations.IMPULSE_BUFFER:
             _, input_pcoll = split_buffer_id(buffer_id)
             # Adding PCollections that may not have a producer.
             # This is necessary, for example, for the case where we pass an
@@ -777,10 +782,6 @@ class FnApiRunnerExecutionContext(object):
                 ) not in self.buffer_id_to_consumer_pairs[buffer_id]:
               self.buffer_id_to_consumer_pairs[buffer_id].add(
                   (s.name, t.unique_name))
-          elif t.spec.payload == translations.IMPULSE_BUFFER:
-            # Impulse data is not produced by any PTransform.
-            self.pcollection_to_producer_transform[
-                translations.IMPULSE_BUFFER] = None
         elif t.spec.urn == bundle_processor.DATA_OUTPUT_URN:
           _, output_pcoll = split_buffer_id(buffer_id)
           self.pcollection_to_producer_transform[output_pcoll] = t.unique_name
