@@ -953,6 +953,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
   def __init__(
       self,
       method: str,
+      query_priority: [str] = 'BATCH',
       table: Optional[Union[str, TableReference]] = None,
       dataset: Optional[str] = None,
       project: Optional[str] = None,
@@ -1001,6 +1002,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self.flatten_results = flatten_results
     self.kms_key = kms_key
     self.temp_table = temp_table
+    self.query_priority = query_priority
     self.use_native_datetime = use_native_datetime
     self._job_name = job_name or 'BQ_DIRECT_READ_JOB'
     self._step_name = step_name
@@ -1054,7 +1056,10 @@ class _CustomBigQueryStorageSource(BoundedSource):
         self.use_legacy_sql,
         self.flatten_results,
         job_id=query_job_name,
-        kms_key=self.kms_key)
+        priority=self.query_priority,
+        kms_key=self.kms_key,
+        job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
+            self.bigquery_job_labels))
     job_ref = job.jobReference
     bq.wait_for_bq_job(job_ref, max_retries=0)
     table_reference = bq._get_temp_table(self._get_parent_project())
@@ -1090,6 +1095,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
           self.use_legacy_sql,
           self.flatten_results,
           job_id=query_job_name,
+          priority=self.query_priority,
           dry_run=True,
           kms_key=self.kms_key,
           job_labels=self._get_bq_metadata().add_additional_bq_job_labels(

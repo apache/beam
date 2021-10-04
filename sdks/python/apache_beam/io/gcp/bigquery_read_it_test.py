@@ -285,7 +285,8 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
         query,
         use_legacy_sql=False,
         flatten_results=False,
-        job_id=query_job_name)
+        job_id=query_job_name,
+        priority=beam.io.BigQueryQueryPriority.BATCH)
     job_ref = job.jobReference
     cls.bigquery_client.wait_for_bq_job(job_ref, max_retries=0)
     return cls.bigquery_client._get_temp_table(project)
