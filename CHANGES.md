@@ -73,6 +73,7 @@
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * SQL Rows are no longer flattened ([BEAM-5505](https://issues.apache.org/jira/browse/BEAM-5505)).
 * [Go SDK] beam.TryCrossLanguage's signature now matches beam.CrossLanguage. Like other Try functions it returns an error instead of panicking. ([BEAM-9918](https://issues.apache.org/jira/browse/BEAM-9918)).
+* [BEAM-12925](https://jira.apache.org/jira/browse/BEAM-12925) was fixed. It used to silently pass incorrect null data read from JdbcIO. Pipelines affected by this will now start throwing failures instead of silently passing incorrect data.
 
 ## Deprecations
 
