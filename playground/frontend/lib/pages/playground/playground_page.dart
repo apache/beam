@@ -18,8 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/components/toggle_theme_button/toggle_theme_button.dart';
-import 'package:playground/modules/examples/repositories/example_repository.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
+import 'package:playground/pages/playground/components/playground_page_providers.dart';
 import 'package:provider/provider.dart';
 import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
 import 'package:playground/modules/output/components/output_area.dart';
@@ -32,25 +31,7 @@ class PlaygroundPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<ExampleState>(
-          create: (context) => ExampleState(ExampleRepository()),
-        ),
-        ChangeNotifierProxyProvider<ExampleState, PlaygroundState>(
-          create: (context) => PlaygroundState(),
-          update: (context, exampleState, playground) {
-            if (playground == null) {
-              return PlaygroundState();
-            }
-            if (exampleState.examples?.isNotEmpty ?? false) {
-              return PlaygroundState(
-                  playground.sdk, exampleState.examples!.first);
-            }
-            return playground;
-          },
-        ),
-      ],
+    return PlaygroundPageProviders(
       child: Scaffold(
         appBar: AppBar(
           title: Wrap(
