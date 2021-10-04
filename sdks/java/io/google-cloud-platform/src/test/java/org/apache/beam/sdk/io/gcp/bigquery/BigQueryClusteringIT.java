@@ -157,8 +157,7 @@ public class BigQueryClusteringIT {
             BigQueryIO.writeTableRows()
                 .to(
                     (ValueInSingleWindow<TableRow> vsw) ->
-                        new TableDestination(
-                            String.format("%s.%s", DATASET_NAME, tableName)))
+                        new TableDestination(String.format("%s.%s", DATASET_NAME, tableName)))
                 .withClustering(CLUSTERING)
                 .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
