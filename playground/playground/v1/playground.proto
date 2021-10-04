@@ -44,12 +44,12 @@ message RunCodeRequest {
 
 // RunCodeResponse contains information of the pipeline id.
 message RunCodeResponse {
-  int32 pipeline_id = 1;
+  string pipeline_uuid = 1;
 }
 
 // CheckStatusRequest contains information of the pipeline id.
 message CheckStatusRequest {
-  int32 pipeline_id = 1;
+  string pipeline_uuid = 1;
 }
 
 // StatusInfo contains information about the status of the code execution.
@@ -59,7 +59,7 @@ message CheckStatusResponse {
 
 // GetCompileOutputRequest contains information of the pipeline id.
 message GetCompileOutputRequest {
-  int32 pipeline_id = 1;
+  string pipeline_uuid = 1;
 }
 
 // GetCompileOutputResponse represents the result of the compiled code.
@@ -70,7 +70,7 @@ message GetCompileOutputResponse {
 
 // GetRunOutputRequest contains information of the pipeline id.
 message GetRunOutputRequest {
-  int32 pipeline_id = 1;
+  string pipeline_uuid = 1;
 }
 
 // RunOutputResponse represents the result of the executed code.
