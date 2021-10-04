@@ -16,15 +16,17 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/playground_app.dart';
+// paddings
+const double kZeroPadding = 0.0;
+const double kSmPadding = 4.0;
+const double kMdPadding = 8.0;
+const double kLgPadding = 16.0;
 
-void main() {
-  testWidgets('Home Page', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const PlaygroundApp());
+// border radius
+const double kBorderRadius = 8.0;
 
-    // Verify that Playground text is displayed
-    expect(find.text('Playground'), findsOneWidget);
-  });
-}
+// elevation
+const int kElevation = 1;
+
+// icon sizes
+const double kIconSizeMd = 24.0;

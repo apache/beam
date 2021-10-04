@@ -17,8 +17,28 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/playground_app.dart';
+import 'package:playground/config/theme.dart';
+import 'package:playground/pages/playground/playground_page.dart';
+import 'package:provider/provider.dart';
 
-void main() {
-  runApp(const PlaygroundApp());
+class PlaygroundApp extends StatelessWidget {
+  const PlaygroundApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) => ThemeProvider(),
+      builder: (context, _) {
+        final themeProvider = Provider.of<ThemeProvider>(context);
+        return MaterialApp(
+          title: 'Apache Beam Playground',
+          themeMode: themeProvider.themeMode,
+          theme: kLightTheme,
+          darkTheme: kDarkTheme,
+          home: const PlaygroundPage(),
+          debugShowCheckedModeBanner: false,
+        );
+      },
+    );
+  }
 }

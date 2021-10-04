@@ -16,15 +16,13 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/playground_app.dart';
+import 'package:flutter/material.dart';
 
-void main() {
-  testWidgets('Home Page', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const PlaygroundApp());
+class EditorTextArea extends StatelessWidget {
+  const EditorTextArea({Key? key}) : super(key: key);
 
-    // Verify that Playground text is displayed
-    expect(find.text('Playground'), findsOneWidget);
-  });
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Editor Text Area'));
+  }
 }
