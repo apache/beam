@@ -17,10 +17,10 @@
  */
 
 // paddings
-const double kZeroPadding = 0.0;
-const double kSmPadding = 4.0;
-const double kMdPadding = 8.0;
-const double kLgPadding = 16.0;
+const double kZeroSpacing = 0.0;
+const double kSmSpacing = 4.0;
+const double kMdSpacing = 8.0;
+const double kLgSpacing = 16.0;
 
 // border radius
 const double kBorderRadius = 8.0;

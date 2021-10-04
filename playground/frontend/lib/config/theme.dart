@@ -34,42 +34,39 @@ class ThemeProvider extends ChangeNotifier {
   }
 }
 
-final kLightTheme = ThemeData(
-  brightness: Brightness.light,
-  primaryColor: kLightPrimary,
-  backgroundColor: kLightPrimaryBackground,
-  appBarTheme: const AppBarTheme(
-    color: kLightSecondaryBackground,
-    elevation: 1,
-    centerTitle: false,
-  ),
-  textButtonTheme: TextButtonThemeData(
+TextButtonThemeData createTextButtonTheme(Color textColor) {
+  return TextButtonThemeData(
     style: TextButton.styleFrom(
-      primary: kLightText,
+      primary: textColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(kBorderRadius)),
       ),
     ),
-  ),
+  );
+}
+
+AppBarTheme createAppBarTheme(Color backgroundColor) {
+  return AppBarTheme(
+    color: backgroundColor,
+    elevation: 1,
+    centerTitle: false,
+  );
+}
+
+final kLightTheme = ThemeData(
+  brightness: Brightness.light,
+  primaryColor: kLightPrimary,
+  backgroundColor: kLightPrimaryBackground,
+  appBarTheme: createAppBarTheme(kLightSecondaryBackground),
+  textButtonTheme: createTextButtonTheme(kLightText),
 );
 
 final kDarkTheme = ThemeData(
   brightness: Brightness.dark,
   primaryColor: kDarkPrimary,
   backgroundColor: kDarkGrey,
-  appBarTheme: const AppBarTheme(
-    color: kDarkSecondaryBackground,
-    elevation: 1,
-    centerTitle: false,
-  ),
-  textButtonTheme: TextButtonThemeData(
-    style: TextButton.styleFrom(
-      primary: kDarkText,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(kBorderRadius)),
-      ),
-    ),
-  ),
+  appBarTheme: createAppBarTheme(kDarkSecondaryBackground),
+  textButtonTheme: createTextButtonTheme(kDarkText),
 );
 
 class ThemeColors {

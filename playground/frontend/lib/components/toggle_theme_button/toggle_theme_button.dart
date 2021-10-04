@@ -36,8 +36,8 @@ class ToggleThemeButton extends StatelessWidget {
           : Icons.mode_night_outlined;
       return Padding(
         padding: const EdgeInsets.symmetric(
-          vertical: kSmPadding,
-          horizontal: kMdPadding,
+          vertical: kSmSpacing,
+          horizontal: kMdSpacing,
         ),
         child: TextButton.icon(
           icon: Icon(icon),
