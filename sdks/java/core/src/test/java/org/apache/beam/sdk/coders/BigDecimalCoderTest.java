@@ -47,7 +47,7 @@ public class BigDecimalCoderTest {
           new BigDecimal(-1),
           BigDecimal.ZERO,
           BigDecimal.ONE,
-          new BigDecimal(13.258),
+          new BigDecimal("13.258"),
           new BigDecimal(Double.MAX_VALUE),
           new BigDecimal(Double.MAX_VALUE).multiply(BigDecimal.TEN));
 

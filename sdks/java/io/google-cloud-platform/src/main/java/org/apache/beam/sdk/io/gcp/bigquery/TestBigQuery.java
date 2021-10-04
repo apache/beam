@@ -192,9 +192,7 @@ public class TestBigQuery implements TestRule {
     long randomNumber = ThreadLocalRandom.current().nextLong();
     randomNumber = (randomNumber == Long.MIN_VALUE) ? 0 : Math.abs(randomNumber);
 
-    return topicName.toString()
-        + "_"
-        + String.valueOf(randomNumber);
+    return topicName.toString() + "_" + String.valueOf(randomNumber);
   }
 
   public String tableSpec() {

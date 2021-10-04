@@ -31,8 +31,6 @@ import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.value.AutoValue;
@@ -53,7 +51,6 @@ import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -512,22 +509,6 @@ public class CommonCoderTest {
       assertEquals(expectedValue, actualValue);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
-    }
-  }
-
-  /**
-   * Utility for adding new entries to the common coder spec -- prints the serialized bytes of the
-   * given value in the given context using JSON-escaped strings.
-   */
-  private static <T> String jsonByteString(Coder<T> coder, T value, Context context)
-      throws CoderException {
-    byte[] bytes = CoderUtils.encodeToByteArray(coder, value, context);
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
-    try {
-      return mapper.writeValueAsString(new String(bytes, StandardCharsets.ISO_8859_1));
-    } catch (JsonProcessingException e) {
-      throw new CoderException(String.format("Unable to encode %s with coder %s", value, coder), e);
     }
   }
 }

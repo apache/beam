@@ -27,7 +27,6 @@ import static java.sql.JDBCType.NUMERIC;
 import static java.sql.JDBCType.NVARCHAR;
 import static java.sql.JDBCType.VARBINARY;
 import static java.sql.JDBCType.VARCHAR;
-import static java.sql.JDBCType.valueOf;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;

@@ -207,7 +207,7 @@ public class ReadTest implements Serializable {
                 newUnboundedReadInterceptingWatermark(
                     numElements,
                     (Serializable & Consumer<Instant>)
-                        (instant -> STATIC_INSTANT_LIST_MAP.get(uuid).add(instant))))
+                        instant -> STATIC_INSTANT_LIST_MAP.get(uuid).add(instant)))
             .apply(
                 Window.<Long>into(new GlobalWindows())
                     .discardingFiredPanes()

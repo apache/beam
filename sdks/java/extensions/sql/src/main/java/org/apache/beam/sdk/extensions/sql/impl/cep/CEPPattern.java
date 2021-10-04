@@ -18,11 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
-import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
 
 /** Core pattern class that stores the definition of a single pattern. */

@@ -29,7 +29,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
-import org.joda.time.Instant;
 
 /** Utilities for working with NEXmark data stream. */
 @SuppressWarnings({

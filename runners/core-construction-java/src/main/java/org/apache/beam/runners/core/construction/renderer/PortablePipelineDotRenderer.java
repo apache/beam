@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.core.construction.renderer;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;

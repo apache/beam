@@ -93,7 +93,8 @@ public abstract class PortablePipelineJarUtils {
   }
 
   /** Populates {@code builder} using the JSON resource specified by {@code resourcePath}. */
-  private static void parseJsonResource(String resourcePath, Message.Builder builder) throws IOException {
+  private static void parseJsonResource(String resourcePath, Message.Builder builder)
+      throws IOException {
     try (InputStream inputStream = getResourceFromClassPath(resourcePath)) {
       String contents = new String(ByteStreams.toByteArray(inputStream), StandardCharsets.UTF_8);
       JsonFormat.parser().merge(contents, builder);

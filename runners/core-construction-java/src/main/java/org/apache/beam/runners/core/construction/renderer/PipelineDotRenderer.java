@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.core.construction.renderer;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -126,5 +125,4 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
   private static String escapeString(String x) {
     return x.replace("\"", "\\\"");
   }
-
 }

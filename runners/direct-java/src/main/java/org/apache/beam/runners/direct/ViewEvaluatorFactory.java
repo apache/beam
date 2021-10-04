@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectWriteViewVisitor.WriteView;
-import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;

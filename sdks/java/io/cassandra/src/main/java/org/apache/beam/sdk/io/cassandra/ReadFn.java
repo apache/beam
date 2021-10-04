@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.cassandra;
 
-import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ColumnMetadata;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
