@@ -21,46 +21,14 @@
 package statecache
 
 import (
-	"io"
 	"sync"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
 type token string
-
-// FullValue represents the full runtime value for a data element, incl. the
-// implicit context. The result of a GBK or CoGBK is not a single FullValue.
-// The consumer is responsible for converting the values to the correct type.
-// To represent a nested KV with FullValues, assign a *FullValue to Elm/Elm2.
-//
-// Copied from exec/fullvalue.go to avoid cyclical dependencies.
-type FullValue struct {
-	Elm  interface{} // Element or KV key.
-	Elm2 interface{} // KV value, if not invalid
-
-	Timestamp typex.EventTime
-	Windows   []typex.Window
-	Pane      typex.PaneInfo
-}
-
-// Stream is a FullValue reader. It returns io.EOF when complete, but can be
-// prematurely closed.
-//
-// Copied from exec/fullvalue.go to prevent cyclical dependencies.
-type Stream interface {
-	io.Closer
-	Read() (*FullValue, error)
-}
-
-// ReStream is a re-iterable stream, i.e., a Stream factory.
-//
-// Copied from exec/fullvalue.go to prevent cyclical dependencies.
-type ReStream interface {
-	Open() (Stream, error)
-}
 
 // SideInputCache stores a cache of reusable inputs for the purposes of
 // eliminating redundant calls to the runner during execution of ParDos
@@ -76,7 +44,7 @@ type ReStream interface {
 type SideInputCache struct {
 	capacity    int
 	mu          sync.Mutex
-	cache       map[token]ReStream
+	cache       map[token]exec.ReStream
 	idsToTokens map[string]token
 	validTokens map[token]int8 // Maps tokens to active bundle counts
 	metrics     CacheMetrics
@@ -99,7 +67,7 @@ func (c *SideInputCache) Init(cap int) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache = make(map[token]ReStream, cap)
+	c.cache = make(map[token]exec.ReStream, cap)
 	c.idsToTokens = make(map[string]token)
 	c.validTokens = make(map[token]int8)
 	c.capacity = cap
@@ -181,7 +149,7 @@ func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (
 // input has been cached. A query having a bad token (e.g. one that doesn't make a known
 // token or one that makes a known but currently invalid token) is treated the same as a
 // cache miss.
-func (c *SideInputCache) QueryCache(transformID, sideInputID string) ReStream {
+func (c *SideInputCache) QueryCache(transformID, sideInputID string) exec.ReStream {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
@@ -203,7 +171,7 @@ func (c *SideInputCache) QueryCache(transformID, sideInputID string) ReStream {
 // with its corresponding transform ID and side input ID. If the IDs do not pair with a known, valid token
 // then we silently do not cache the input, as this is an indication that the runner is treating that input
 // as uncacheable.
-func (c *SideInputCache) SetCache(transformID, sideInputID string, input ReStream) {
+func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.ReStream) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)

@@ -18,6 +18,7 @@ package statecache
 import (
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
@@ -25,7 +26,7 @@ type TestReStream struct {
 	value interface{}
 }
 
-func (r *TestReStream) Open() (Stream, error) {
+func (r *TestReStream) Open() (exec.Stream, error) {
 	return &TestFixedStream{value: r.value}, nil
 }
 
@@ -37,15 +38,15 @@ func (s *TestFixedStream) Close() error {
 	return nil
 }
 
-func (s *TestFixedStream) Read() (*FullValue, error) {
-	return &FullValue{Elm: s.value}, nil
+func (s *TestFixedStream) Read() (*exec.FullValue, error) {
+	return &exec.FullValue{Elm: s.value}, nil
 }
 
-func makeTestReStream(value interface{}) ReStream {
+func makeTestReStream(value interface{}) exec.ReStream {
 	return &TestReStream{value: value}
 }
 
-func getValue(rs ReStream) interface{} {
+func getValue(rs exec.ReStream) interface{} {
 	stream, _ := rs.Open()
 	fullVal, _ := stream.Read()
 	return fullVal.Elm
