@@ -18,6 +18,8 @@ limitations under the License.
 
 # Beam DataFrames overview
 
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/dataframes.ipynb" >}}
+
 The Apache Beam Python SDK provides a DataFrame API for working with pandas-like [DataFrame](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html) objects. The feature lets you convert a PCollection to a DataFrame and then interact with the DataFrame using the standard methods available on the pandas DataFrame API. The DataFrame API is built on top of the pandas implementation, and pandas DataFrame methods are invoked on subsets of the datasets in parallel. The big difference between Beam DataFrames and pandas DataFrames is that operations are deferred by the Beam API, to support the Beam parallel processing model. (To learn more about differences between the DataFrame implementations, see [Differences from pandas](/documentation/dsls/dataframes/differences-from-pandas/).)
 
 You can think of Beam DataFrames as a domain-specific language (DSL) for Beam pipelines. Similar to [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/), DataFrames is a DSL built into the Beam Python SDK. Using this DSL, you can create pipelines without referencing standard Beam constructs like [ParDo](https://beam.apache.org/documentation/transforms/python/elementwise/pardo/) or [CombinePerKey](https://beam.apache.org/documentation/transforms/python/aggregation/combineperkey/).
@@ -28,9 +30,18 @@ The Beam DataFrame API is intended to provide access to a familiar programming i
 
 If you’re new to pandas DataFrames, you can get started by reading [10 minutes to pandas](https://pandas.pydata.org/pandas-docs/stable/user_guide/10min.html), which shows you how to import and work with the `pandas` package. pandas is an open-source Python library for data manipulation and analysis. It provides data structures that simplify working with relational or labeled data. One of these data structures is the [DataFrame](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html), which contains two-dimensional tabular data and provides labeled rows and columns for the data.
 
-## Using DataFrames
+## Pre-requisites
 
-To use Beam DataFrames, you need to install Apache Beam version 2.26.0 or higher (for complete setup instructions, see the [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/)) and pandas version 1.0 or higher. You can use DataFrames as shown in the following example, which reads New York City taxi data from a CSV file, performs a grouped aggregation, and writes the output back to CSV:
+To use Beam DataFrames, you need to install Beam python version 2.26.0 or higher (for complete setup instructions, see the [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/)) and a supported `pandas` version. In Beam 2.34.0 and newer the easiest way to do this is with the "dataframe" extra:
+
+```
+pip install apache_beam[dataframe]
+```
+
+Note that the _same_ `pandas` version should be installed on workers when executing DataFrame API pipelines on distributed runners.  Reference [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt) for the Beam release you are using to see what version of `pandas` will be used by default on workers.
+
+## Using DataFrames
+You can use DataFrames as shown in the following example, which reads New York City taxi data from a CSV file, performs a grouped aggregation, and writes the output back to CSV:
 
 {{< highlight py >}}
 from apache_beam.dataframe.io import read_csv
@@ -45,7 +56,7 @@ pandas is able to infer column names from the first row of the CSV data, which i
 
 In this example, the only traditional Beam type is the `Pipeline` instance. Otherwise the example is written completely with the DataFrame API. This is possible because the Beam DataFrame API includes its own IO operations (for example, `read_csv` and `to_csv`) based on the pandas native implementations. `read_*` and `to_*` operations support file patterns and any Beam-compatible file system. The grouping is accomplished with a group-by-key, and arbitrary pandas operations (in this case, `sum`) can be applied before the final write that occurs with `to_csv`.
 
-The Beam DataFrame API aims to be compatible with the native pandas implementation, with a few caveats detailed below in [Differences from standard pandas]({{< ref "#differences_from_standard_pandas" >}}).
+The Beam DataFrame API aims to be compatible with the native pandas implementation, with a few caveats detailed below in [Differences from standard pandas](/documentation/dsls/dataframes/differences-from-pandas/).
 
 ## Embedding DataFrames in a pipeline
 
@@ -115,3 +126,5 @@ pc1, pc2 = {'a': pc} | DataframeTransform(lambda a: expr1, expr2)
 
 [pydoc_dataframe_transform]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform
 [pydoc_sql_transform]: https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/dataframes.ipynb" >}}

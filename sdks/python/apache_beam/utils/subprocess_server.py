@@ -159,7 +159,7 @@ class JavaJarServer(SubprocessServer):
       dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
   def __init__(self, stub_class, path_to_jar, java_arguments):
-    super(JavaJarServer, self).__init__(
+    super().__init__(
         stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
     self._existing_service = path_to_jar if _is_service_endpoint(
         path_to_jar) else None
@@ -172,13 +172,13 @@ class JavaJarServer(SubprocessServer):
         raise RuntimeError(
             'Java must be installed on this system to use this '
             'transform/runner.')
-      return super(JavaJarServer, self).start_process()
+      return super().start_process()
 
   def stop_process(self):
     if self._existing_service:
       pass
     else:
-      return super(JavaJarServer, self).stop_process()
+      return super().stop_process()
 
   @classmethod
   def jar_name(cls, artifact_id, version, classifier=None, appendix=None):

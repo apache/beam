@@ -18,7 +18,9 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThrows;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,6 +46,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
@@ -282,6 +285,34 @@ public class SchemaTranslationTest {
       SchemaApi.Schema reencodedSchemaProto = SchemaTranslation.schemaToProto(decodedSchema, true);
 
       assertThat(reencodedSchemaProto, equalTo(schemaProto));
+    }
+  }
+
+  /** Tests that we raise helpful errors when decoding bad {@link Schema} protos. */
+  @RunWith(JUnit4.class)
+  public static class DecodeErrorTest {
+
+    @Test
+    public void typeInfoNotSet() {
+      SchemaApi.Schema.Builder builder = SchemaApi.Schema.newBuilder();
+
+      builder.addFields(
+          SchemaApi.Field.newBuilder()
+              .setName("field_no_typeInfo")
+              .setType(SchemaApi.FieldType.newBuilder())
+              .setId(0)
+              .setEncodingPosition(0)
+              .build());
+
+      IllegalArgumentException exception =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> {
+                SchemaTranslation.schemaFromProto(builder.build());
+              });
+
+      assertThat(exception.getMessage(), containsString("field_no_typeInfo"));
+      assertThat(exception.getCause().getMessage(), containsString("TYPEINFO_NOT_SET"));
     }
   }
 }

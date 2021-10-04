@@ -84,19 +84,16 @@ public class CachingBeamFnStateClientTest {
     CachingBeamFnStateClient cachingClient =
         new CachingBeamFnStateClient(fakeClient, stateCache, cacheTokenList);
 
-    CompletableFuture<BeamFnApi.StateResponse> response1 = new CompletableFuture<>();
-    CompletableFuture<BeamFnApi.StateResponse> response2 = new CompletableFuture<>();
-
     StateRequest.Builder request =
         StateRequest.newBuilder()
             .setStateKey(key("A"))
             .setGet(BeamFnApi.StateGetRequest.newBuilder().build());
 
-    cachingClient.handle(request, response1);
+    CompletableFuture<BeamFnApi.StateResponse> response1 = cachingClient.handle(request);
     assertEquals(1, fakeClient.getCallCount());
     request.clearId();
 
-    cachingClient.handle(request, response2);
+    CompletableFuture<BeamFnApi.StateResponse> response2 = cachingClient.handle(request);
     assertEquals(2, fakeClient.getCallCount());
   }
 
@@ -301,8 +298,7 @@ public class CachingBeamFnStateClientTest {
             .setStateKey(key)
             .setAppend(StateAppendRequest.newBuilder().setData(data));
 
-    CompletableFuture<StateResponse> appendResponse = new CompletableFuture<>();
-    cachingClient.handle(appendRequestBuilder, appendResponse);
+    CompletableFuture<StateResponse> appendResponse = cachingClient.handle(appendRequestBuilder);
     appendResponse.get();
   }
 
@@ -310,8 +306,7 @@ public class CachingBeamFnStateClientTest {
     StateRequest.Builder clearRequestBuilder =
         StateRequest.newBuilder().setStateKey(key).setClear(StateClearRequest.getDefaultInstance());
 
-    CompletableFuture<StateResponse> clearResponse = new CompletableFuture<>();
-    cachingClient.handle(clearRequestBuilder, clearResponse);
+    CompletableFuture<StateResponse> clearResponse = cachingClient.handle(clearRequestBuilder);
     clearResponse.get();
   }
 
@@ -324,8 +319,7 @@ public class CachingBeamFnStateClientTest {
       requestBuilder
           .clearId()
           .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken));
-      CompletableFuture<StateResponse> getResponse = new CompletableFuture<>();
-      cachingClient.handle(requestBuilder, getResponse);
+      CompletableFuture<StateResponse> getResponse = cachingClient.handle(requestBuilder);
       continuationToken = getResponse.get().getGet().getContinuationToken();
       allData = allData.concat(getResponse.get().getGet().getData());
     } while (!continuationToken.equals(ByteString.EMPTY));

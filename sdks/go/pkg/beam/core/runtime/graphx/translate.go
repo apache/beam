@@ -1042,16 +1042,34 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 			},
 		}
 	case window.AfterProcessingTimeTrigger:
-		// TODO(BEAM-3304) Right now would work only for single delay value.
-		// could be configured to take more than one delay values later.
-		ttd := &pipepb.TimestampTransform{
-			TimestampTransform: &pipepb.TimestampTransform_Delay_{
-				Delay: &pipepb.TimestampTransform_Delay{DelayMillis: t.Delay},
-			}}
-		tt := []*pipepb.TimestampTransform{ttd}
+		if len(t.TimestampTransforms) == 0 {
+			panic("AfterProcessingTime trigger set without a delay or alignment.")
+		}
+		tts := []*pipepb.TimestampTransform{}
+		for _, tt := range t.TimestampTransforms {
+			var ttp *pipepb.TimestampTransform
+			switch tt := tt.(type) {
+			case window.DelayTransform:
+				ttp = &pipepb.TimestampTransform{
+					TimestampTransform: &pipepb.TimestampTransform_Delay_{
+						Delay: &pipepb.TimestampTransform_Delay{DelayMillis: tt.Delay},
+					}}
+			case window.AlignToTransform:
+				ttp = &pipepb.TimestampTransform{
+					TimestampTransform: &pipepb.TimestampTransform_AlignTo_{
+						AlignTo: &pipepb.TimestampTransform_AlignTo{
+							Period: tt.Period,
+							Offset: tt.Offset,
+						},
+					}}
+			}
+			tts = append(tts, ttp)
+		}
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterProcessingTime_{
-				AfterProcessingTime: &pipepb.Trigger_AfterProcessingTime{TimestampTransforms: tt},
+				AfterProcessingTime: &pipepb.Trigger_AfterProcessingTime{
+					TimestampTransforms: tts,
+				},
 			},
 		}
 	case window.ElementCountTrigger:
@@ -1061,12 +1079,15 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 			},
 		}
 	case window.AfterEndOfWindowTrigger:
-		// TODO: change it to take user config triggers for early and late firings
+		var lateTrigger *pipepb.Trigger
+		if t.LateTrigger != nil {
+			lateTrigger = makeTrigger(*t.LateTrigger)
+		}
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterEndOfWindow_{
 				AfterEndOfWindow: &pipepb.Trigger_AfterEndOfWindow{
-					EarlyFirings: makeTrigger(window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 1}),
-					LateFirings:  nil,
+					EarlyFirings: makeTrigger(*t.EarlyTrigger),
+					LateFirings:  lateTrigger,
 				},
 			},
 		}

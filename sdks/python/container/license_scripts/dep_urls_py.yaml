@@ -48,6 +48,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/chardet/chardet/master/LICENSE"
   certifi:
     license: "https://raw.githubusercontent.com/certifi/python-certifi/master/LICENSE"
+  clang:
+    license: "https://raw.githubusercontent.com/llvm/llvm-project/main/clang/LICENSE.TXT"
   cython:
     license: "https://raw.githubusercontent.com/cython/cython/master/LICENSE.txt"
   dataclasses:

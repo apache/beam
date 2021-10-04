@@ -332,6 +332,12 @@ class BeamModulePlugin implements Plugin<Project> {
       "--environment_cache_millis=10000",
       "--experiments=beam_fn_api",
     ]
+    // Go script options to use.
+    List<String> goScriptOptions = [
+      "--runner portable",
+      "--endpoint localhost:8099",
+      "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\""
+    ]
     // Additional pytest options
     List<String> pytestOptions = []
     // Job server startup task.
@@ -446,7 +452,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def errorprone_version = "2.3.4"
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.2"
-    def google_cloud_pubsublite_version = "0.13.2"
+    def google_cloud_pubsublite_version = "1.0.4"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -510,6 +516,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_sdk_core                      : "software.amazon.awssdk:sdk-core:$aws_java_sdk2_version",
         aws_java_sdk2_sns                           : "software.amazon.awssdk:sns:$aws_java_sdk2_version",
         aws_java_sdk2_sqs                           : "software.amazon.awssdk:sqs:$aws_java_sdk2_version",
+        aws_java_sdk2_sts                           : "software.amazon.awssdk:sts:$aws_java_sdk2_version",
         aws_java_sdk2_s3                            : "software.amazon.awssdk:s3:$aws_java_sdk2_version",
         aws_java_sdk2_http_client_spi               : "software.amazon.awssdk:http-client-spi:$aws_java_sdk2_version",
         aws_java_sdk2_regions                       : "software.amazon.awssdk:regions:$aws_java_sdk2_version",
@@ -2092,6 +2099,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(":sdks:python")
       project.evaluationDependsOn(":sdks:java:testing:expansion-service")
       project.evaluationDependsOn(":runners:core-construction-java")
+      project.evaluationDependsOn(":sdks:go:test")
 
       // Task for launching expansion services
       def envDir = project.project(":sdks:python").envdir
@@ -2216,7 +2224,7 @@ class BeamModulePlugin implements Plugin<Project> {
       cleanupTask.mustRunAfter javaUsingPythonOnlyTask
       config.cleanupJobServer.mustRunAfter javaUsingPythonOnlyTask
 
-      // Task for running testcases in Python SDK
+      // Task for running SQL testcases in Python SDK
       def beamPythonTestPipelineOptions = [
         "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
         "test_opts":  config.pytestOptions,
@@ -2236,6 +2244,19 @@ class BeamModulePlugin implements Plugin<Project> {
       mainTask.dependsOn pythonSqlTask
       cleanupTask.mustRunAfter pythonSqlTask
       config.cleanupJobServer.mustRunAfter pythonSqlTask
+
+      // Task for running Java testcases in Go SDK.
+      def scriptOptions = [
+        "--test_expansion_addr localhost:${javaPort}",
+      ]
+      scriptOptions.addAll(config.goScriptOptions)
+      def goTask = project.project(":sdks:go:test:").goIoValidatesRunnerTask(project, config.name+"GoUsingJava", scriptOptions)
+      goTask.description = "Validates runner for cross-language capability of using Java transforms from Go SDK"
+      goTask.dependsOn setupTask
+      goTask.dependsOn config.startJobServer
+      mainTask.dependsOn goTask
+      cleanupTask.mustRunAfter goTask
+      config.cleanupJobServer.mustRunAfter goTask
     }
 
     /** ***********************************************************************************************/
@@ -2316,7 +2337,7 @@ class BeamModulePlugin implements Plugin<Project> {
           def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 ${distTarBall}[gcp,test,aws,azure]"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 ${distTarBall}[gcp,test,aws,azure,dataframe]"
           }
         }
       }

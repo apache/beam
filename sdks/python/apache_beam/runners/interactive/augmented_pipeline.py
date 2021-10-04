@@ -52,8 +52,8 @@ class AugmentedPipeline:
       pcolls: cacheable pcolls to be computed/retrieved. If the set is
         empty, all intermediate pcolls assigned to variables are applicable.
     """
-    assert not pcolls or all([pcoll.pipeline is user_pipeline for pcoll in
-      pcolls]), 'All %s need to belong to %s' % (pcolls, user_pipeline)
+    assert not pcolls or all(pcoll.pipeline is user_pipeline for pcoll in
+      pcolls), 'All %s need to belong to %s' % (pcolls, user_pipeline)
     self._user_pipeline = user_pipeline
     self._pcolls = pcolls
     self._cache_manager = ie.current_env().get_cache_manager(
@@ -86,9 +86,7 @@ class AugmentedPipeline:
         if (isinstance(val, beam.pvalue.PCollection) and
             val.pipeline is self._user_pipeline and
             (not self._pcolls or val in self._pcolls)):
-          pcoll_id = self._context.pcollections.get_id(val)
           c[val] = Cacheable(
-              pcoll_id=pcoll_id,
               var=key,
               pcoll=val,
               version=str(id(val)),

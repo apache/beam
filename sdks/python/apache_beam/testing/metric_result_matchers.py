@@ -80,8 +80,8 @@ class MetricResultMatcher(BaseMatcher):
     self.step = _matcher_or_equal_to(step)
     self.attempted = _matcher_or_equal_to(attempted)
     self.committed = _matcher_or_equal_to(committed)
-    labels = labels or dict()
-    self.label_matchers = dict()
+    labels = labels or {}
+    self.label_matchers = {}
     for (k, v) in labels.items():
       self.label_matchers[_matcher_or_equal_to(k)] = _matcher_or_equal_to(v)
 

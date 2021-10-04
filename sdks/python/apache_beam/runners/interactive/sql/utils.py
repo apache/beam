@@ -28,7 +28,6 @@ from typing import NamedTuple
 
 import apache_beam as beam
 from apache_beam.runners.interactive import interactive_beam as ib
-from apache_beam.runners.interactive import interactive_environment as ie
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,10 +36,11 @@ def is_namedtuple(cls: type) -> bool:
   """Determines if a class is built from typing.NamedTuple."""
   return (
       isinstance(cls, type) and issubclass(cls, tuple) and
-      hasattr(cls, '_fields') and hasattr(cls, '_field_types'))
+      hasattr(cls, '_fields') and hasattr(cls, '__annotations__'))
 
 
-def register_coder_for_schema(schema: NamedTuple) -> None:
+def register_coder_for_schema(
+    schema: NamedTuple, verbose: bool = False) -> None:
   """Registers a RowCoder for the given schema if hasn't.
 
   Notifies the user of what code has been implicitly executed.
@@ -49,30 +49,21 @@ def register_coder_for_schema(schema: NamedTuple) -> None:
       'Schema %s is not a typing.NamedTuple.' % schema)
   coder = beam.coders.registry.get_coder(schema)
   if not isinstance(coder, beam.coders.RowCoder):
-    _LOGGER.warning(
-        'Schema %s has not been registered to use a RowCoder. '
-        'Automatically registering it by running: '
-        'beam.coders.registry.register_coder(%s, '
-        'beam.coders.RowCoder)',
-        schema.__name__,
-        schema.__name__)
+    if verbose:
+      _LOGGER.warning(
+          'Schema %s has not been registered to use a RowCoder. '
+          'Automatically registering it by running: '
+          'beam.coders.registry.register_coder(%s, '
+          'beam.coders.RowCoder)',
+          schema.__name__,
+          schema.__name__)
     beam.coders.registry.register_coder(schema, beam.coders.RowCoder)
 
 
-def pcolls_by_name() -> Dict[str, beam.PCollection]:
-  """Finds all PCollections by their variable names defined in the notebook."""
-  inspectables = ie.current_env().inspector.inspectables
-  pcolls = {}
-  for _, inspectable in inspectables.items():
-    metadata = inspectable['metadata']
-    if metadata['type'] == 'pcollection':
-      pcolls[metadata['name']] = inspectable['value']
-  return pcolls
-
-
 def find_pcolls(
-    sql: str, pcolls: Dict[str,
-                           beam.PCollection]) -> Dict[str, beam.PCollection]:
+    sql: str,
+    pcolls: Dict[str, beam.PCollection],
+    verbose: bool = False) -> Dict[str, beam.PCollection]:
   """Finds all PCollections used in the given sql query.
 
   It does a simple word by word match and calls ib.collect for each PCollection
@@ -83,8 +74,9 @@ def find_pcolls(
     if word in pcolls:
       found[word] = pcolls[word]
   if found:
-    _LOGGER.info('Found PCollections used in the magic: %s.', found)
-    _LOGGER.info('Collecting data...')
+    if verbose:
+      _LOGGER.info('Found PCollections used in the magic: %s.', found)
+      _LOGGER.info('Collecting data...')
     for name, pcoll in found.items():
       try:
         _ = ib.collect(pcoll)
@@ -100,7 +92,6 @@ def find_pcolls(
             name,
             sql)
         raise
-    _LOGGER.info('Done collecting data.')
   return found
 
 
@@ -123,3 +114,12 @@ def replace_single_pcoll_token(sql: str, pcoll_name: str) -> str:
     if token_location < len(words) and words[token_location] == pcoll_name:
       words[token_location] = 'PCOLLECTION'
   return ' '.join(words)
+
+
+def pformat_namedtuple(schema: NamedTuple) -> str:
+  return '{}({})'.format(
+      schema.__name__,
+      ', '.join([
+          '{}: {}'.format(k, v.__name__) for k,
+          v in schema.__annotations__.items()
+      ]))

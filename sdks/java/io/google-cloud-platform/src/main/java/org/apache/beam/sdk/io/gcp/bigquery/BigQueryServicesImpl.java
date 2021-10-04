@@ -83,6 +83,11 @@ import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Int64Value;
+import com.google.rpc.RetryInfo;
+import io.grpc.Metadata;
+import io.grpc.Status;
+import io.grpc.Status.Code;
+import io.grpc.protobuf.ProtoUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -161,6 +166,9 @@ class BigQueryServicesImpl implements BigQueryServices {
       ImmutableMap.of(
           MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
           MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
+
+  private static final Metadata.Key<RetryInfo> KEY_RETRY_INFO =
+      ProtoUtils.keyForProto(RetryInfo.getDefaultInstance());
 
   @Override
   public JobService getJobService(BigQueryOptions options) {
@@ -1304,6 +1312,32 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   static class StorageClientImpl implements StorageClient {
 
+    // If client retries ReadRows requests due to RESOURCE_EXHAUSTED error, bump
+    // throttlingMsecs according to delay. Runtime can use this information for
+    // autoscaling decisions.
+    @VisibleForTesting
+    public static class RetryAttemptCounter implements BigQueryReadSettings.RetryAttemptListener {
+      public final Counter throttlingMsecs =
+          Metrics.counter(StorageClientImpl.class, "throttling-msecs");
+
+      @SuppressWarnings("ProtoDurationGetSecondsGetNano")
+      @Override
+      public void onRetryAttempt(Status status, Metadata metadata) {
+        if (status != null
+            && status.getCode() == Code.RESOURCE_EXHAUSTED
+            && metadata != null
+            && metadata.containsKey(KEY_RETRY_INFO)) {
+          RetryInfo retryInfo = metadata.get(KEY_RETRY_INFO);
+          if (retryInfo.hasRetryDelay()) {
+            long delay =
+                retryInfo.getRetryDelay().getSeconds() * 1000
+                    + retryInfo.getRetryDelay().getNanos() / 1000000;
+            throttlingMsecs.inc(delay);
+          }
+        }
+      }
+    }
+
     private static final HeaderProvider USER_AGENT_HEADER_PROVIDER =
         FixedHeaderProvider.create(
             "user-agent", "Apache_Beam_Java/" + ReleaseInfo.getReleaseInfo().getVersion());
@@ -1317,7 +1351,8 @@ class BigQueryServicesImpl implements BigQueryServices {
               .setTransportChannelProvider(
                   BigQueryReadSettings.defaultGrpcTransportProviderBuilder()
                       .setHeaderProvider(USER_AGENT_HEADER_PROVIDER)
-                      .build());
+                      .build())
+              .setReadRowsRetryAttemptListener(new RetryAttemptCounter());
 
       UnaryCallSettings.Builder<CreateReadSessionRequest, ReadSession> createReadSessionSettings =
           settingsBuilder.getStubSettingsBuilder().createReadSessionSettings();

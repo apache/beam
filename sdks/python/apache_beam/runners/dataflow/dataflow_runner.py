@@ -138,7 +138,7 @@ class DataflowRunner(PipelineRunner):
 
   def apply(self, transform, input, options):
     self._maybe_add_unified_worker_missing_options(options)
-    return super(DataflowRunner, self).apply(transform, input, options)
+    return super().apply(transform, input, options)
 
   def _get_unique_step_name(self):
     self._unique_step_id += 1
@@ -1667,5 +1667,5 @@ class DataflowPipelineResult(PipelineResult):
 class DataflowRuntimeException(Exception):
   """Indicates an error has occurred in running this pipeline."""
   def __init__(self, msg, result):
-    super(DataflowRuntimeException, self).__init__(msg)
+    super().__init__(msg)
     self.result = result
