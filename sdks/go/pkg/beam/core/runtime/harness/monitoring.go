@@ -179,7 +179,7 @@ func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, m
 				if err != nil {
 					panic(err)
 				}
-				payloads[getShortID(l, metricsx.UrnUserLatestMsInt64)] = payload
+				payloads[getShortID(l, getUrn(state.State))] = payload
 
 				monitoringInfo = append(monitoringInfo,
 					&pipepb.MonitoringInfo{

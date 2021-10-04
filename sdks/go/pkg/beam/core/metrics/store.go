@@ -191,6 +191,7 @@ func newStore() *Store {
 	return &Store{store: make(map[Labels]userMetric), stateRegistry: make(map[Labels][]ExecutionState)}
 }
 
+// AddState adds an ExecutionState of a PTransform to the stateRegistry.
 func (s *Store) AddState(e ExecutionState, pid string) {
 	label := PTransformLabels(pid)
 	if s.stateRegistry == nil {
@@ -199,6 +200,8 @@ func (s *Store) AddState(e ExecutionState, pid string) {
 	s.stateRegistry[label] = append(s.stateRegistry[label], e)
 }
 
+// SetState updates the state of a bundle.
+// For the bundle in start state, update the ExecutionState struct as well.
 func (s *Store) SetState(bs BundleProcState) {
 	if bs == StartBundle {
 		s.executionStore.State.State = bs
@@ -206,10 +209,12 @@ func (s *Store) SetState(bs BundleProcState) {
 	s.executionStore.CurrentState = bs
 }
 
+// IncTransitions increment the number of transitions by 1.
 func (s *Store) IncTransitions() {
 	s.executionStore.NumberOfTransitions += 1
 }
 
+// GetRegistry return the state registry.
 func (s *Store) GetRegistry() map[Labels][]ExecutionState {
 	return s.stateRegistry
 }

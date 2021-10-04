@@ -273,17 +273,20 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 	return plan, nil
 }
 
+// Sampler provides methods for implementing state sampling
+// to track execution time metrics.
 type Sampler interface {
 	startSampler()
 	stopSampler()
 	sample()
 }
 
+// StateSampler tracks the state of a bundle.
 type StateSampler struct {
-	done  chan (int)
+	done  chan (int) // signal to stop sampling
 	e     *metrics.ExecutionStateTracker
 	store *metrics.Store
-	pid   string
+	pid   string // PTransform ID
 }
 
 func newSampler(e *metrics.ExecutionStateTracker, store *metrics.Store, pid string) StateSampler {
