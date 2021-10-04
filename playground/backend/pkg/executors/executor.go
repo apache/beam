@@ -13,19 +13,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Interface for all executors (Java/Python/Go/SCIO)
+// Package executors
 package executors
 
-type executor interface {
-	// Validate validates executable file.
+// Executor interface for all executors (Java/Python/Go/SCIO)
+type Executor interface {
+	// Validate checks that the file exists and that extension of the file matches the SDK.
 	// Return result of validation (true/false) and error if it occurs
-	Validate(filePath string) (bool, error)
+	Validate(fileName string) (bool, error)
 
-	// Compile compiles executable file.
+	// Compile compiles the code and creates executable file.
 	// Return error if it occurs
-	Compile(filePath string) error
+	Compile(fileName string) error
 
-	// Run runs executable file.
+	// Run runs the executable file.
 	// Return logs and error if it occurs
-	Run(filePath string) (string, error)
+	Run(fileName string) (string, error)
 }
