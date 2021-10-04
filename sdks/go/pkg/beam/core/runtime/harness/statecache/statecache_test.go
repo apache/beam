@@ -18,35 +18,38 @@ package statecache
 import (
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
-// TestReusableInput implements the ReusableInput interface for the purposes
-// of testing.
-type TestReusableInput struct {
-	transformID string
-	sideInputID string
-	value       interface{}
+type TestReStream struct {
+	value interface{}
 }
 
-func makeTestReusableInput(transformID, sideInputID string, value interface{}) ReusableInput {
-	return &TestReusableInput{transformID: transformID, sideInputID: sideInputID, value: value}
+func (r *TestReStream) Open() (exec.Stream, error) {
+	return &TestFixedStream{value: r.value}, nil
 }
 
-// Init is a ReusableInput interface method, this is a no-op.
-func (r *TestReusableInput) Init() error {
+type TestFixedStream struct {
+	value interface{}
+}
+
+func (s *TestFixedStream) Close() error {
 	return nil
 }
 
-// Value returns the stored value in the TestReusableInput.
-func (r *TestReusableInput) Value() interface{} {
-	return r.value
+func (s *TestFixedStream) Read() (*exec.FullValue, error) {
+	return &exec.FullValue{Elm: s.value}, nil
 }
 
-// Reset clears the value in the TestReusableInput.
-func (r *TestReusableInput) Reset() error {
-	r.value = nil
-	return nil
+func makeTestReStream(value interface{}) exec.ReStream {
+	return &TestReStream{value: value}
+}
+
+func getValue(rs exec.ReStream) interface{} {
+	stream, _ := rs.Open()
+	fullVal, _ := stream.Read()
+	return fullVal.Elm
 }
 
 func TestInit(t *testing.T) {
@@ -83,7 +86,7 @@ func TestSetCache_UncacheableCase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cache init failed, got %v", err)
 	}
-	input := makeTestReusableInput("t1", "s1", 10)
+	input := makeTestReStream(10)
 	s.SetCache("t1", "s1", input)
 	output := s.QueryCache("t1", "s1")
 	if output != nil {
@@ -101,31 +104,31 @@ func TestSetCache_CacheableCase(t *testing.T) {
 	sideID := "s1"
 	tok := token("tok1")
 	s.setValidToken(transID, sideID, tok)
-	input := makeTestReusableInput(transID, sideID, 10)
+	input := makeTestReStream(10)
 	s.SetCache(transID, sideID, input)
 	output := s.QueryCache(transID, sideID)
 	if output == nil {
 		t.Fatalf("call to query cache missed when should have hit")
 	}
-	val, ok := output.Value().(int)
+	val, ok := getValue(output).(int)
 	if !ok {
-		t.Errorf("failed to convert value to integer, got %v", output.Value())
+		t.Errorf("failed to convert value to integer, got %v", getValue(output))
 	}
 	if val != 10 {
 		t.Errorf("element mismatch, expected 10, got %v", val)
 	}
 }
 
-func makeRequest(transformID, sideInputID string, t token) fnpb.ProcessBundleRequest_CacheToken {
-	var tok fnpb.ProcessBundleRequest_CacheToken
-	var wrap fnpb.ProcessBundleRequest_CacheToken_SideInput_
-	var side fnpb.ProcessBundleRequest_CacheToken_SideInput
-	side.TransformId = transformID
-	side.SideInputId = sideInputID
-	wrap.SideInput = &side
-	tok.Type = &wrap
-	tok.Token = []byte(t)
-	return tok
+func makeRequest(transformID, sideInputID string, t token) *fnpb.ProcessBundleRequest_CacheToken {
+	return &fnpb.ProcessBundleRequest_CacheToken{
+		Token: []byte(t),
+		Type: &fnpb.ProcessBundleRequest_CacheToken_SideInput_{
+			SideInput: &fnpb.ProcessBundleRequest_CacheToken_SideInput{
+				TransformId: transformID,
+				SideInputId: sideInputID,
+			},
+		},
+	}
 }
 
 func TestSetValidTokens(t *testing.T) {
@@ -157,7 +160,7 @@ func TestSetValidTokens(t *testing.T) {
 		t.Fatalf("cache init failed, got %v", err)
 	}
 
-	var tokens []fnpb.ProcessBundleRequest_CacheToken
+	var tokens []*fnpb.ProcessBundleRequest_CacheToken
 	for _, input := range inputs {
 		t := makeRequest(input.transformID, input.sideInputID, input.tok)
 		tokens = append(tokens, t)
@@ -243,14 +246,14 @@ func TestSetCache_Eviction(t *testing.T) {
 	}
 
 	tokOne := makeRequest("t1", "s1", "tok1")
-	inOne := makeTestReusableInput("t1", "s1", 10)
+	inOne := makeTestReStream(10)
 	s.SetValidTokens(tokOne)
 	s.SetCache("t1", "s1", inOne)
 	// Mark bundle as complete, drop count for tokOne to 0
 	s.CompleteBundle(tokOne)
 
 	tokTwo := makeRequest("t2", "s2", "tok2")
-	inTwo := makeTestReusableInput("t2", "s2", 20)
+	inTwo := makeTestReStream(20)
 	s.SetValidTokens(tokTwo)
 	s.SetCache("t2", "s2", inTwo)
 
@@ -270,10 +273,10 @@ func TestSetCache_EvictionFailure(t *testing.T) {
 	}
 
 	tokOne := makeRequest("t1", "s1", "tok1")
-	inOne := makeTestReusableInput("t1", "s1", 10)
+	inOne := makeTestReStream(10)
 
 	tokTwo := makeRequest("t2", "s2", "tok2")
-	inTwo := makeTestReusableInput("t2", "s2", 20)
+	inTwo := makeTestReStream(20)
 
 	s.SetValidTokens(tokOne, tokTwo)
 	s.SetCache("t1", "s1", inOne)
