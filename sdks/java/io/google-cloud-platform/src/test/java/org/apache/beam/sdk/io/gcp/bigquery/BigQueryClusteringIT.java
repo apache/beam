@@ -108,7 +108,7 @@ public class BigQueryClusteringIT {
     @Override
     public TableDestination getDestination(ValueInSingleWindow<TableRow> element) {
       return new TableDestination(
-          String.format("%s.%s", DATASET_NAME, tableName), null, CLUSTERING);
+          String.format("%s.%s", DATASET_NAME, tableName), null, null, CLUSTERING);
     }
 
     @Override
@@ -157,7 +157,7 @@ public class BigQueryClusteringIT {
             BigQueryIO.writeTableRows()
                 .to(
                     (ValueInSingleWindow<TableRow> vsw) ->
-                        new TableDestination(String.format("%s.%s", DATASET_NAME, tableName)))
+                        new TableDestination(String.format("%s.%s", DATASET_NAME, tableName), null, null, CLUSTERING))
                 .withClustering(CLUSTERING)
                 .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
