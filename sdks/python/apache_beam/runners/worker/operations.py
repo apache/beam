@@ -21,6 +21,7 @@
 """Worker operations executor."""
 
 # pytype: skip-file
+# pylint: disable=super-with-arguments
 
 import collections
 import logging

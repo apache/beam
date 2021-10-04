@@ -286,7 +286,7 @@ class TestStream(PTransform):
       endpoint: (str) a URL locating a TestStreamService.
     """
 
-    super(TestStream, self).__init__()
+    super().__init__()
     assert coder is not None
 
     self.coder = coder

@@ -38,7 +38,7 @@ def _call_on_first_arg(name):
 
 
 def _maybe_wrap_constant_expr(res):
-  if type(res) in frame_base.DeferredBase._pandas_type_map.keys():
+  if type(res) in frame_base.DeferredBase._pandas_type_map:
     return frame_base.DeferredBase.wrap(
         expressions.ConstantExpression(res, res[0:0]))
   else:

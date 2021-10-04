@@ -45,8 +45,8 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     self.assertFalse(self._is_variable_watched(variable_name, variable_val))
 
   def _is_variable_watched(self, variable_name, variable_val):
-    return any([(variable_name, variable_val) in watching
-                for watching in ie.current_env().watching()])
+    return any((variable_name, variable_val) in watching
+               for watching in ie.current_env().watching())
 
   def _a_function_with_local_watched(self):
     local_var_watched = 123  # pylint: disable=possibly-unused-variable

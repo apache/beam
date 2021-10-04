@@ -42,7 +42,7 @@ class FlinkRunner(portable_runner.PortableRunner):
         not portable_options.environment_type and
         not portable_options.output_executable_path):
       portable_options.environment_type = 'LOOPBACK'
-    return super(FlinkRunner, self).run_pipeline(pipeline, options)
+    return super().run_pipeline(pipeline, options)
 
   def default_job_server(self, options):
     flink_options = options.view_as(pipeline_options.FlinkRunnerOptions)
@@ -82,7 +82,7 @@ class FlinkRunner(portable_runner.PortableRunner):
 
 class FlinkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
-    super(FlinkJarJobServer, self).__init__(options)
+    super().__init__(options)
     options = options.view_as(pipeline_options.FlinkRunnerOptions)
     self._jar = options.flink_job_server_jar
     self._master_url = options.flink_master

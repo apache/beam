@@ -189,7 +189,7 @@ def int64_counter(urn, metric, ptransform=None, pcollection=None, labels=None):
     ptransform: The ptransform id used as a label.
     pcollection: The pcollection id used as a label.
   """
-  labels = labels or dict()
+  labels = labels or {}
   labels.update(create_labels(ptransform=ptransform, pcollection=pcollection))
   if isinstance(metric, int):
     metric = coders.VarIntCoder().encode(metric)
@@ -292,7 +292,7 @@ def create_monitoring_info(urn, type_urn, payload, labels=None):
     labels: The label dictionary to use in the MonitoringInfo.
   """
   return metrics_pb2.MonitoringInfo(
-      urn=urn, type=type_urn, labels=labels or dict(), payload=payload)
+      urn=urn, type=type_urn, labels=labels or {}, payload=payload)
 
 
 def is_counter(monitoring_info_proto):

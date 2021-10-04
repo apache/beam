@@ -60,8 +60,8 @@ def generate_urn_files(log, out_dir):
   This is executed at build time rather than dynamically on import to ensure
   that it is compatible with static type checkers like mypy.
   """
-  import google.protobuf.message as message
   import google.protobuf.pyext._message as pyext_message
+  from google.protobuf import message
 
   class Context(object):
     INDENT = '  '
@@ -307,6 +307,7 @@ def generate_proto_files(force=False, log=None):
       p.join()
       if p.exitcode:
         raise ValueError("Proto generation failed (see log for details).")
+
     else:
       log.info('Regenerating Python proto definitions (%s).' % regenerate)
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')

@@ -105,7 +105,7 @@ class HadoopFileSystem(FileSystem):
     Connection configuration is done by passing pipeline options.
     See :class:`~apache_beam.options.pipeline_options.HadoopFileSystemOptions`.
     """
-    super(HadoopFileSystem, self).__init__(pipeline_options)
+    super().__init__(pipeline_options)
     logging.getLogger('hdfs.client').setLevel(logging.WARN)
     if pipeline_options is None:
       raise ValueError('pipeline_options is not set')

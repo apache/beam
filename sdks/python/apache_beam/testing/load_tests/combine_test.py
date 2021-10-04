@@ -82,7 +82,7 @@ from apache_beam.transforms.combiners import window
 
 class CombineTest(LoadTest):
   def __init__(self):
-    super(CombineTest, self).__init__()
+    super().__init__()
     self.fanout = self.get_option_or_default('fanout', 1)
     try:
       self.top_count = int(self.pipeline.get_option('top_count'))

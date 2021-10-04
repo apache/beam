@@ -140,7 +140,7 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     """
     :param tuple_instance: an instance of a typing.NamedTuple
     """
-    super(NamedTupleBasedPayloadBuilder, self).__init__()
+    super().__init__()
     self._tuple_instance = tuple_instance
 
   def _get_named_tuple_instance(self):
@@ -636,7 +636,7 @@ class ExpansionAndArtifactRetrievalStub(
   def __init__(self, channel, **kwargs):
     self._channel = channel
     self._kwargs = kwargs
-    super(ExpansionAndArtifactRetrievalStub, self).__init__(channel, **kwargs)
+    super().__init__(channel, **kwargs)
 
   def artifact_service(self):
     return beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
@@ -686,7 +686,7 @@ class BeamJarExpansionService(JavaJarExpansionService):
   def __init__(self, gradle_target, extra_args=None, gradle_appendix=None):
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
         gradle_target, gradle_appendix)
-    super(BeamJarExpansionService, self).__init__(path_to_jar, extra_args)
+    super().__init__(path_to_jar, extra_args)
 
 
 def memoize(func):

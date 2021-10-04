@@ -48,7 +48,7 @@ class BigqueryV2(base_api.BaseApiClient):
                additional_http_headers=None, response_encoding=None):
     """Create a new bigquery handle."""
     url = url or self.BASE_URL
-    super(BigqueryV2, self).__init__(
+    super().__init__(
         url, credentials=credentials,
         get_credentials=get_credentials, http=http, model=model,
         log_request=log_request, log_response=log_response,
@@ -71,7 +71,7 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'datasets'
 
     def __init__(self, client):
-      super(BigqueryV2.DatasetsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -237,7 +237,7 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'jobs'
 
     def __init__(self, client):
-      super(BigqueryV2.JobsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           'Insert': base_api.ApiUploadInfo(
               accept=['*/*'],
@@ -415,7 +415,7 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'models'
 
     def __init__(self, client):
-      super(BigqueryV2.ModelsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -533,7 +533,7 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'projects'
 
     def __init__(self, client):
-      super(BigqueryV2.ProjectsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -595,7 +595,7 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'routines'
 
     def __init__(self, client):
-      super(BigqueryV2.RoutinesService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -740,7 +740,7 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'rowAccessPolicies'
 
     def __init__(self, client):
-      super(BigqueryV2.RowAccessPoliciesService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -777,7 +777,7 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'tabledata'
 
     def __init__(self, client):
-      super(BigqueryV2.TabledataService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -839,7 +839,7 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'tables'
 
     def __init__(self, client):
-      super(BigqueryV2.TablesService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
