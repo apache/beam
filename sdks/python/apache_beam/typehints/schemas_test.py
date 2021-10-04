@@ -275,6 +275,19 @@ class SchemaTest(unittest.TestCase):
     self.assertTrue(hasattr(MyCuteClass, '_beam_schema_id'))
     self.assertEqual(MyCuteClass._beam_schema_id, schema.id)
 
+  def test_schema_with_bad_field_raises_helpful_error(self):
+    schema_proto = schema_pb2.Schema(
+        fields=[
+            schema_pb2.Field(
+                name="type_with_no_typeinfo", type=schema_pb2.FieldType())
+        ])
+
+    # Should raise an exception referencing the problem field
+    self.assertRaisesRegex(
+        ValueError,
+        "type_with_no_typeinfo",
+        lambda: named_tuple_from_schema(schema_proto))
+
 
 if __name__ == '__main__':
   unittest.main()

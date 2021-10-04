@@ -256,6 +256,17 @@ class RowCoderTest(unittest.TestCase):
 
     self.assertEqual(value, coder.decode(coder.encode(value)))
 
+  def test_row_coder_fail_early_bad_schema(self):
+    schema_proto = schema_pb2.Schema(
+        fields=[
+            schema_pb2.Field(
+                name="type_with_no_typeinfo", type=schema_pb2.FieldType())
+        ])
+
+    # Should raise an exception referencing the problem field
+    self.assertRaisesRegex(
+        ValueError, "type_with_no_typeinfo", lambda: RowCoder(schema_proto))
+
 
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
