@@ -121,7 +121,7 @@
   * Code depending on beam imports need to include v2 on the module path.
     * Fix by'v2' to the import paths, turning  `.../sdks/go/...` to `.../sdks/v2/go/...`
   * No other code change should be required to use v2.33.0 of the Go SDK.
-* Since release 2.30.0, "The AvroCoder changes for BEAM-2303 \[changed\] the reader/writer from the Avro ReflectDatum* classes to the SpecificDatum* classes" (Java). The `useReflectApi` setting, introduced in this release, allows reverting to the previous behavior ([BEAM-12628](https://issues.apache.org/jira/browse/BEAM-12628)).
+* Since release 2.30.0, "The AvroCoder changes for BEAM-2303 \[changed\] the reader/writer from the Avro ReflectDatum* classes to the SpecificDatum* classes" (Java). This default behavior change has been reverted in this release. Use the `useReflectApi` setting to control it ([BEAM-12628](https://issues.apache.org/jira/browse/BEAM-12628)).
 
 ## Deprecations
 
