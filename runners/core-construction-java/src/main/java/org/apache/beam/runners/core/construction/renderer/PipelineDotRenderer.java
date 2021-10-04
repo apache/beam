@@ -22,8 +22,6 @@ import com.google.errorprone.annotations.FormatString;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.google.errorprone.annotations.FormatMethod;
-import com.google.errorprone.annotations.FormatString;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;

@@ -25,9 +25,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
-
-import com.google.errorprone.annotations.FormatMethod;
-import com.google.errorprone.annotations.FormatString;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core.construction.renderer;
 
-import com.google.errorprone.annotations.FormatMethod;
-import com.google.errorprone.annotations.FormatString;
 import java.util.HashMap;
 import java.util.Map;
 
