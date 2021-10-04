@@ -351,7 +351,12 @@ class SchemaUtil {
     public Row mapRow(ResultSet rs) throws Exception {
       Row.Builder rowBuilder = Row.withSchema(schema);
       for (int i = 0; i < schema.getFieldCount(); i++) {
-        rowBuilder.addValue(fieldExtractors.get(i).extract(rs, i + 1));
+        Object value = fieldExtractors.get(i).extract(rs, i + 1);
+        if (rs.wasNull()) {
+          rowBuilder.addValue(null);
+        } else {
+          rowBuilder.addValue(value);
+        }
       }
       return rowBuilder.build();
     }
