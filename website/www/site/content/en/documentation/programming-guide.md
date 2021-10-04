@@ -1462,7 +1462,8 @@ applying `Combine`:
 
 {{< paragraph class="language-go" >}}
 If your `PCollection` uses any non-global windowing function, the Beam Go SDK
-behaves the same way as with global windowing.
+behaves the same way as with global windowing. Windows that are empty in the input
+  `PCollection` will likewise be empty in the output collection.
 {{< /paragraph >}}
 
 ##### 4.2.4.6. Combining values in a keyed PCollection {#combining-values-in-a-keyed-pcollection}
@@ -1651,7 +1652,7 @@ thought to ensure correctness when there are external side effects.
 
 <span class="language-java language-py">
 
-> **Note:** These requirements apply to subclasses of `DoFn`</span> (a function object
+> **Note:** These requirements apply to subclasses of `DoFn`(a function object
 > used with the [ParDo](#pardo) transform), `CombineFn` (a function object used
 > with the [Combine](#combine) transform), and `WindowFn` (a function object
 > used with the [Window](#windowing) transform).
@@ -1660,7 +1661,7 @@ thought to ensure correctness when there are external side effects.
 
 <span class="language-go">
 
-> **Note:** These requirements apply to `DoFn`s</span> (a function object
+> **Note:** These requirements apply to `DoFn`s (a function object
 > used with the [ParDo](#pardo) transform), `CombineFn`s (a function object used
 > with the [Combine](#combine) transform), and `WindowFn`s (a function object
 > used with the [Window](#windowing) transform).
@@ -4414,7 +4415,7 @@ You can define different kinds of windows to divide the elements of your
 *  Sliding Time Windows
 *  Per-Session Windows
 *  Single Global Window
-*  Calendar-based Windows (not supported by the Beam SDK for Python)
+*  Calendar-based Windows (not supported by the Beam SDK for Python or Go)
 
 You can also define your own `WindowFn` if you have a more complex need.
 
@@ -4519,6 +4520,10 @@ into fixed windows, each 60 seconds in length:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_fixed_windows >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_fixed_windows >}}
+{{< /highlight >}}
+
 #### 8.3.2. Sliding time windows {#using-sliding-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
@@ -4535,6 +4540,10 @@ begins every five seconds:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_sliding_windows >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_sliding_windows >}}
+{{< /highlight >}}
+
 #### 8.3.3. Session windows {#using-session-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
@@ -4549,6 +4558,10 @@ least 10 minutes (600 seconds):
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_session_windows >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_session_windows >}}
 {{< /highlight >}}
 
 Note that the sessions are per-key — each key in the collection will have its
@@ -4568,6 +4581,10 @@ a single global window for a `PCollection`:
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_global_window >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_global_window >}}
 {{< /highlight >}}
 
 ### 8.4. Watermarks and late data {#watermarks-and-late-data}
@@ -4637,6 +4654,10 @@ the end of a window.
               allowed_lateness=Duration(seconds=2*24*60*60)) # 2 days
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_allowed_lateness >}}
+{{< /highlight >}}
+
 When you set `.withAllowedLateness` on a `PCollection`, that allowed lateness
 propagates forward to any subsequent `PCollection` derived from the first
 `PCollection` you applied allowed lateness to. If you want to change the allowed
@@ -4681,7 +4702,20 @@ with a `DoFn` to attach the timestamps to each element in your `PCollection`.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_timestamp >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_timestamp >}}
+
+// Use the DoFn with ParDo as normal.
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_timestamp_pipeline >}}
+{{< /highlight >}}
+
 ## 9. Triggers {#triggers}
+
+<span class="language-go">
+
+> **Note:** The Trigger API in the Beam SDK for Go is currently experimental and subject to change.
+
+</span>
 
 When collecting and grouping data into windows, Beam uses **triggers** to
 determine when to emit the aggregated results of each window (referred to as a
@@ -4772,7 +4806,7 @@ firings:
 {{< /highlight >}}
 
 {{< highlight go >}}
-  {{< code_sample "sdks/go/examples/snippets/09triggers.go" after_window_trigger >}}
+{{< code_sample "sdks/go/examples/snippets/09triggers.go" after_window_trigger >}}
 {{< /highlight >}}
 
 #### 9.1.1. Default trigger {#default-trigger}
@@ -4845,9 +4879,10 @@ sets the window's **accumulation mode**.
 
 {{< paragraph class="language-go" >}}
 You set the trigger(s) for a `PCollection` by passing in the `beam.Trigger` parameter
-when you use the `beam.WindowInto` transform. This code sample sets an Always
-trigger for a `PCollection`, which emits results every time an element in that window has been processed. The `beam.AccumulationMode` parameter
-sets the window's **accumulation mode**.
+when you use the `beam.WindowInto` transform. This code sample sets a time-based
+trigger for a `PCollection`, which emits results one minute after the first
+element in that window has been processed.
+ The `beam.AccumulationMode` parameter sets the window's **accumulation mode**.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -4866,7 +4901,7 @@ sets the window's **accumulation mode**.
 {{< /highlight >}}
 
 {{< highlight go >}}
-  {{< code_sample "sdks/go/examples/snippets/09triggers.go" always_trigger >}}
+{{< code_sample "sdks/go/examples/snippets/09triggers.go" setting_a_trigger >}}
 {{< /highlight >}}
 
 #### 9.4.1. Window accumulation modes {#window-accumulation-modes}
@@ -4946,8 +4981,10 @@ your windowing configuration. This gives your trigger the opportunity to react
 to the late data. If allowed lateness is set, the default trigger will emit new
 results immediately whenever late data arrives.
 
-You set the allowed lateness by using `.withAllowedLateness()` when you set your
-windowing function:
+You set the allowed lateness by using <span class="language-java">`.withAllowedLateness()`</span>
+<span class="language-py">`allowed_lateness`</span>
+<span class="language-go">`beam.AllowedLateness()`</span>
+when you set your windowing function:
 
 {{< highlight java >}}
   PCollection<String> pc = ...;
@@ -4967,10 +5004,17 @@ windowing function:
 
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/09triggers.go" setting_allowed_lateness >}}
+{{< /highlight >}}
+
 This allowed lateness propagates to all `PCollection`s derived as a result of
 applying transforms to the original `PCollection`. If you want to change the
 allowed lateness later in your pipeline, you can apply
-`Window.configure().withAllowedLateness()` again, explicitly.
+<span class="language-java">`Window.configure().withAllowedLateness()`</span>
+<span class="language-py">`allowed_lateness`</span>
+<span class="language-go">`beam.AllowedLateness()`</span>
+again, explicitly.
 
 
 ### 9.5. Composite triggers {#composite-triggers}
@@ -5041,6 +5085,10 @@ example trigger code fires on the following conditions:
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_triggers >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/09triggers.go" model_composite_triggers >}}
 {{< /highlight >}}
 
 #### 9.5.3. Other composite triggers {#other-composite-triggers}
