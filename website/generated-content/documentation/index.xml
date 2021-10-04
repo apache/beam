@@ -978,7 +978,7 @@ to &lt;code>_CountingSource&lt;/code>. Then, create the wrapper &lt;code>PTransf
 &lt;/a>
 &lt;pre>&lt;code>class ReadFromCountingSource(PTransform):
 def __init__(self, count):
-super(ReadFromCountingSource, self).__init__()
+super().__init__()
 self._count = count
 def expand(self, pcoll):
 return pcoll | iobase.Read(_CountingSource(self._count))&lt;/code>&lt;/pre>
@@ -1003,7 +1003,7 @@ numbers = pipeline | &amp;#39;ProduceNumbers&amp;#39; &amp;gt;&amp;gt; ReadFromC
 &lt;pre>&lt;code>class WriteToKVSink(PTransform):
 def __init__(self, simplekv, url, final_table_name):
 self._simplekv = simplekv
-super(WriteToKVSink, self).__init__()
+super().__init__()
 self._url = url
 self._final_table_name = final_table_name
 def expand(self, pcoll):
@@ -5509,7 +5509,8 @@ the pipeline.&lt;/li>
 &lt;/ul>
 &lt;/span>
 &lt;p class="language-go">If your &lt;code>PCollection&lt;/code> uses any non-global windowing function, the Beam Go SDK
-behaves the same way as with global windowing.&lt;/p>
+behaves the same way as with global windowing. Windows that are empty in the input
+&lt;code>PCollection&lt;/code> will likewise be empty in the output collection.&lt;/p>
 &lt;h5 id="combining-values-in-a-keyed-pcollection">4.2.4.6. Combining values in a keyed PCollection&lt;/h5>
 &lt;p>After creating a keyed PCollection (for example, by using a &lt;code>GroupByKey&lt;/code>
 transform), a common pattern is to combine the collection of values associated
@@ -5724,7 +5725,7 @@ Non-idempotent functions are supported by Beam, but require additional
 thought to ensure correctness when there are external side effects.&lt;/p>
 &lt;span class="language-java language-py">
 &lt;blockquote>
-&lt;p>&lt;strong>Note:&lt;/strong> These requirements apply to subclasses of &lt;code>DoFn&lt;/code>&lt;/span> (a function object
+&lt;p>&lt;strong>Note:&lt;/strong> These requirements apply to subclasses of &lt;code>DoFn&lt;/code>(a function object
 used with the &lt;a href="#pardo">ParDo&lt;/a> transform), &lt;code>CombineFn&lt;/code> (a function object used
 with the &lt;a href="#combine">Combine&lt;/a> transform), and &lt;code>WindowFn&lt;/code> (a function object
 used with the &lt;a href="#windowing">Window&lt;/a> transform).&lt;/p>
@@ -5732,7 +5733,7 @@ used with the &lt;a href="#windowing">Window&lt;/a> transform).&lt;/p>
 &lt;/span>
 &lt;span class="language-go">
 &lt;blockquote>
-&lt;p>&lt;strong>Note:&lt;/strong> These requirements apply to &lt;code>DoFn&lt;/code>s&lt;/span> (a function object
+&lt;p>&lt;strong>Note:&lt;/strong> These requirements apply to &lt;code>DoFn&lt;/code>s (a function object
 used with the &lt;a href="#pardo">ParDo&lt;/a> transform), &lt;code>CombineFn&lt;/code>s (a function object used
 with the &lt;a href="#combine">Combine&lt;/a> transform), and &lt;code>WindowFn&lt;/code>s (a function object
 used with the &lt;a href="#windowing">Window&lt;/a> transform).&lt;/p>
@@ -8558,7 +8559,7 @@ window.&lt;/p>
 &lt;li>Sliding Time Windows&lt;/li>
 &lt;li>Per-Session Windows&lt;/li>
 &lt;li>Single Global Window&lt;/li>
-&lt;li>Calendar-based Windows (not supported by the Beam SDK for Python)&lt;/li>
+&lt;li>Calendar-based Windows (not supported by the Beam SDK for Python or Go)&lt;/li>
 &lt;/ul>
 &lt;p>You can also define your own &lt;code>WindowFn&lt;/code> if you have a more complex need.&lt;/p>
 &lt;p>Note that each element can logically belong to more than one window, depending
@@ -8648,6 +8649,16 @@ into fixed windows, each 60 seconds in length:&lt;/p>
 &lt;span class="n">items&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;window&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">window&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">FixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">fixedWindowedItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Second&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="using-sliding-time-windows">8.3.2. Sliding time windows&lt;/h4>
 &lt;p>The following example code shows how to apply &lt;code>Window&lt;/code> to divide a &lt;code>PCollection&lt;/code>
 into sliding time windows. Each window is 30 seconds in length, and a new window
@@ -8670,6 +8681,16 @@ begins every five seconds:&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">window&lt;/span>
 &lt;span class="n">sliding_windowed_items&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">items&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;window&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">window&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">SlidingWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">30&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">slidingWindowedItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewSlidingWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Second&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">30&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Second&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="using-session-windows">8.3.3. Session windows&lt;/h4>
@@ -8696,6 +8717,16 @@ least 10 minutes (600 seconds):&lt;/p>
 &lt;span class="n">items&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;window&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">window&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Sessions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">60&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">sessionWindowedItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewSessions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">600&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Second&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>Note that the sessions are per-key — each key in the collection will have its
 own session groupings depending on the data distribution.&lt;/p>
 &lt;h4 id="using-single-global-window">8.3.4. Single global window&lt;/h4>
@@ -8720,6 +8751,16 @@ a single global window for a &lt;code>PCollection&lt;/code>:&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">window&lt;/span>
 &lt;span class="n">global_windowed_items&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">items&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;window&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">window&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GlobalWindows&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">globalWindowedItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewGlobalWindows&lt;/span>&lt;span class="p">(),&lt;/span>
+&lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="watermarks-and-late-data">8.4. Watermarks and late data&lt;/h3>
@@ -8786,6 +8827,17 @@ the end of a window.&lt;/p>
 &lt;span class="n">allowed_lateness&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seconds&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="mi">24&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="c1"># 2 days&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">windowedItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">items&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AllowedLateness&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="mi">24&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Hour&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="c1">// 2 days
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>When you set &lt;code>.withAllowedLateness&lt;/code> on a &lt;code>PCollection&lt;/code>, that allowed lateness
 propagates forward to any subsequent &lt;code>PCollection&lt;/code> derived from the first
 &lt;code>PCollection&lt;/code> you applied allowed lateness to. If you want to change the allowed
@@ -8840,7 +8892,29 @@ with a &lt;code>DoFn&lt;/code> to attach the timestamps to each element in your 
 &lt;span class="n">timestamped_items&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">items&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;timestamp&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">AddTimestampDoFn&lt;/span>&lt;span class="p">())&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// AddTimestampDoFn extracts an event time from a LogEntry.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="nf">AddTimestampDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">element&lt;/span> &lt;span class="nx">LogEntry&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emit&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">EventTime&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">LogEntry&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">et&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">extractEventTime&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">element&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Defining an emitter with beam.EventTime as the first parameter
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// allows the DoFn to set the event time for the emitted element.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nf">emit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">mtime&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">FromTime&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">et&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">element&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// Use the DoFn with ParDo as normal.
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="nx">stampedLogs&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">AddTimestampDoFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">unstampedLogs&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h2 id="triggers">9. Triggers&lt;/h2>
+&lt;span class="language-go">
+&lt;blockquote>
+&lt;p>&lt;strong>Note:&lt;/strong> The Trigger API in the Beam SDK for Go is currently experimental and subject to change.&lt;/p>
+&lt;/blockquote>
+&lt;/span>
 &lt;p>When collecting and grouping data into windows, Beam uses &lt;strong>triggers&lt;/strong> to
 determine when to emit the aggregated results of each window (referred to as a
 &lt;em>pane&lt;/em>). If you use Beam&amp;rsquo;s default windowing configuration and &lt;a href="#default-trigger">default
@@ -8936,8 +9010,10 @@ firings:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">
-&lt;span class="nx">trigger&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterEndOfWindow&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nf">EarlyFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterProcessingTime&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60000&lt;/span>&lt;span class="p">)).&lt;/span>&lt;span class="nf">LateFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerRepeat&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterCount&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">trigger&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterEndOfWindow&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nf">EarlyFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nf">PlusDelay&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Second&lt;/span>&lt;span class="p">)).&lt;/span>
+&lt;span class="nf">LateFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerRepeat&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterCount&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="default-trigger">9.1.1. Default trigger&lt;/h4>
@@ -8992,9 +9068,10 @@ trigger for a &lt;code>PCollection&lt;/code>, which emits results one minute aft
 element in that window has been processed. The &lt;code>accumulation_mode&lt;/code> parameter
 sets the window&amp;rsquo;s &lt;strong>accumulation mode&lt;/strong>.&lt;/p>
 &lt;p class="language-go">You set the trigger(s) for a &lt;code>PCollection&lt;/code> by passing in the &lt;code>beam.Trigger&lt;/code> parameter
-when you use the &lt;code>beam.WindowInto&lt;/code> transform. This code sample sets an Always
-trigger for a &lt;code>PCollection&lt;/code>, which emits results every time an element in that window has been processed. The &lt;code>beam.AccumulationMode&lt;/code> parameter
-sets the window&amp;rsquo;s &lt;strong>accumulation mode&lt;/strong>.&lt;/p>
+when you use the &lt;code>beam.WindowInto&lt;/code> transform. This code sample sets a time-based
+trigger for a &lt;code>PCollection&lt;/code>, which emits results one minute after the first
+element in that window has been processed.
+The &lt;code>beam.AccumulationMode&lt;/code> parameter sets the window&amp;rsquo;s &lt;strong>accumulation mode&lt;/strong>.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -9023,10 +9100,13 @@ sets the window&amp;rsquo;s &lt;strong>accumulation mode&lt;/strong>.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">
-&lt;span class="nx">windowSize&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="mi">10&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Second&lt;/span>
-&lt;span class="nx">trigger&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAlways&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">windowSize&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">pCollection&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">trigger&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">PanesDiscard&lt;/span>&lt;span class="p">())&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">windowedItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">pcollection&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nf">PlusDelay&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">)),&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AllowedLateness&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">30&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">PanesDiscard&lt;/span>&lt;span class="p">(),&lt;/span>
+&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="window-accumulation-modes">9.4.1. Window accumulation modes&lt;/h4>
@@ -9079,8 +9159,10 @@ passes the end of the window, you can apply an &lt;em>allowed lateness&lt;/em> w
 your windowing configuration. This gives your trigger the opportunity to react
 to the late data. If allowed lateness is set, the default trigger will emit new
 results immediately whenever late data arrives.&lt;/p>
-&lt;p>You set the allowed lateness by using &lt;code>.withAllowedLateness()&lt;/code> when you set your
-windowing function:&lt;/p>
+&lt;p>You set the allowed lateness by using &lt;span class="language-java">&lt;code>.withAllowedLateness()&lt;/code>&lt;/span>
+&lt;span class="language-py">&lt;code>allowed_lateness&lt;/code>&lt;/span>
+&lt;span class="language-go">&lt;code>beam.AllowedLateness()&lt;/code>&lt;/span>
+when you set your windowing function:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -9106,10 +9188,26 @@ windowing function:&lt;/p>
 &lt;span class="o">|&lt;/span> &lt;span class="o">...&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">allowedToBeLateItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">pcollection&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nf">PlusDelay&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">)),&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AllowedLateness&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">30&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>This allowed lateness propagates to all &lt;code>PCollection&lt;/code>s derived as a result of
 applying transforms to the original &lt;code>PCollection&lt;/code>. If you want to change the
 allowed lateness later in your pipeline, you can apply
-&lt;code>Window.configure().withAllowedLateness()&lt;/code> again, explicitly.&lt;/p>
+&lt;span class="language-java">&lt;code>Window.configure().withAllowedLateness()&lt;/code>&lt;/span>
+&lt;span class="language-py">&lt;code>allowed_lateness&lt;/code>&lt;/span>
+&lt;span class="language-go">&lt;code>beam.AllowedLateness()&lt;/code>&lt;/span>
+again, explicitly.&lt;/p>
 &lt;h3 id="composite-triggers">9.5. Composite triggers&lt;/h3>
 &lt;p>You can combine multiple triggers to form &lt;strong>composite triggers&lt;/strong>, and can
 specify a trigger to emit results repeatedly, at most once, or under other
@@ -9191,6 +9289,20 @@ trigger stops executing&lt;/li>
 &lt;span class="n">trigger&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">AfterWatermark&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">late&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">AfterProcessingTime&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">60&lt;/span>&lt;span class="p">)),&lt;/span>
 &lt;span class="n">allowed_lateness&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="n">accumulation_mode&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">AccumulationMode&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DISCARDING&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">compositeTriggerItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">pcollection&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterEndOfWindow&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nf">LateFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nf">PlusDelay&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">))),&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AllowedLateness&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="mi">24&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Hour&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="other-composite-triggers">9.5.3. Other composite triggers&lt;/h4>
@@ -14000,7 +14112,7 @@ limitations under the License.
 &lt;span class="nd">@ptransform.PTransform.register_urn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">URN&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">None&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="k">class&lt;/span> &lt;span class="nc">PythonTransform&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ptransform&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PTransform&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="nb">super&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">PythonTransform&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Input preparation&amp;#34;&lt;/span>

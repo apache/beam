@@ -49,7 +49,7 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
 </span><span class=s2>  &#34;&#34;&#34;</span>
   <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>field</span><span class=p>):</span>
     <span class=c1># TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.</span>
-    <span class=c1># super(ExtractAndSumScore, self).__init__()</span>
+    <span class=c1># super().__init__()</span>
     <span class=n>beam</span><span class=o>.</span><span class=n>PTransform</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span>
     <span class=bp>self</span><span class=o>.</span><span class=n>field</span> <span class=o>=</span> <span class=n>field</span>
 
@@ -179,7 +179,7 @@ logical windows based on when those scores occurred in event time.</em></p><p>No
 <span class=o>}</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>class</span> <span class=nc>HourlyTeamScore</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>PTransform</span><span class=p>):</span>
   <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>start_min</span><span class=p>,</span> <span class=n>stop_min</span><span class=p>,</span> <span class=n>window_duration</span><span class=p>):</span>
     <span class=c1># TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.</span>
-    <span class=c1># super(HourlyTeamScore, self).__init__()</span>
+    <span class=c1># super().__init__()</span>
     <span class=n>beam</span><span class=o>.</span><span class=n>PTransform</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span>
     <span class=bp>self</span><span class=o>.</span><span class=n>start_timestamp</span> <span class=o>=</span> <span class=n>str2timestamp</span><span class=p>(</span><span class=n>start_min</span><span class=p>)</span>
     <span class=bp>self</span><span class=o>.</span><span class=n>stop_timestamp</span> <span class=o>=</span> <span class=n>str2timestamp</span><span class=p>(</span><span class=n>stop_min</span><span class=p>)</span>
@@ -328,7 +328,7 @@ ten minutes after data is received.</em></p><p>As processing time advances and m
 </span><span class=s2>  &#34;&#34;&#34;</span>
   <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>allowed_lateness</span><span class=p>):</span>
     <span class=c1># TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.</span>
-    <span class=c1># super(CalculateUserScores, self).__init__()</span>
+    <span class=c1># super().__init__()</span>
     <span class=n>beam</span><span class=o>.</span><span class=n>PTransform</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span>
     <span class=bp>self</span><span class=o>.</span><span class=n>allowed_lateness_seconds</span> <span class=o>=</span> <span class=n>allowed_lateness</span> <span class=o>*</span> <span class=mi>60</span>
 
@@ -387,7 +387,7 @@ late results.</em></p><p>The dotted line in the diagram is the &ldquo;ideal&rdqu
 </span><span class=s2>  &#34;&#34;&#34;</span>
   <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>team_window_duration</span><span class=p>,</span> <span class=n>allowed_lateness</span><span class=p>):</span>
     <span class=c1># TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.</span>
-    <span class=c1># super(CalculateTeamScores, self).__init__()</span>
+    <span class=c1># super().__init__()</span>
     <span class=n>beam</span><span class=o>.</span><span class=n>PTransform</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span>
     <span class=bp>self</span><span class=o>.</span><span class=n>team_window_duration</span> <span class=o>=</span> <span class=n>team_window_duration</span> <span class=o>*</span> <span class=mi>60</span>
     <span class=bp>self</span><span class=o>.</span><span class=n>allowed_lateness_seconds</span> <span class=o>=</span> <span class=n>allowed_lateness</span> <span class=o>*</span> <span class=mi>60</span>
