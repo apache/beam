@@ -116,8 +116,6 @@
 
 ## Breaking Changes
 
-* Python GBK by default will fail on unbounded PCollections that have global windowing and a default trigger. The `--allow_unsafe_triggers` flag can be used to override this. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
-* Python GBK will fail if it detects an unsafe trigger unless the `--allow_unsafe_triggers` flag is set. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 * Go SDK pipelines require new import paths to use this release due to migration to Go Modules.
   * `go.mod` files will need to change to require `github.com/apache/beam/sdks/v2`.
   * Code depending on beam imports need to include v2 on the module path.
@@ -125,18 +123,16 @@
   * No other code change should be required to use v2.33.0 of the Go SDK.
 * Since release 2.30.0, "The AvroCoder changes for BEAM-2303 \[changed\] the reader/writer from the Avro ReflectDatum* classes to the SpecificDatum* classes" (Java). The `useReflectApi` setting, introduced in this release, allows reverting to the previous behavior ([BEAM-12628](https://issues.apache.org/jira/browse/BEAM-12628)).
 
-<!--
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
--->
+* Python GBK will stop supporting unbounded PCollections that have global windowing and a default trigger in Beam 2.34. This can be overriden with `--allow_unsafe_triggers`. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
+* Python GBK will start requiring safe triggers or the `--allow_unsafe_triggers` flag starting with Beam 2.34. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 
 ## Known Issues
 
 * The Python SDK's `allow_unsafe_triggers` check may incorrectly classify triggers wrapped in `Repeatedly` as unsafe. The workaround is to pass the `--allow_unsafe_triggers` option to the pipeline (a warning will still be issued) ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 * Spark 2.x users will need to update Spark's Jackson runtime dependencies (`spark.jackson.version`) to at least version 2.9.2, due to Beam updating its dependencies.
-* Go SDK jobs may produce "Failed to deduce Step from MonitoringInfo" messages following successful job execution. The messages are benign and don't indicate job failure. These are due to not yet handling PCollection metrics. 
-
+* Go SDK jobs may produce "Failed to deduce Step from MonitoringInfo" messages following successful job execution. The messages are benign and don't indicate job failure. These are due to not yet handling PCollection metrics.
 
 # [2.32.0] - 2021-08-25
 
