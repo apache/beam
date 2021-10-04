@@ -442,8 +442,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
       }
 
-      filesToStage =
-          detectClassPathResourcesToStage(classLoader, pipeline.getOptions());
+      filesToStage = detectClassPathResourcesToStage(classLoader, pipeline.getOptions());
       if (filesToStage.isEmpty()) {
         throw new IllegalArgumentException("No classpath elements found.");
       }
