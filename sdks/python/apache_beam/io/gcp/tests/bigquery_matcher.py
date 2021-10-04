@@ -148,8 +148,7 @@ class BigqueryFullResultMatcher(BigqueryMatcher):
       query: The query (string) to perform.
       data: List of tuples with the expected data.
     """
-    super(BigqueryFullResultMatcher,
-          self).__init__(project, query, 'unused_checksum')
+    super().__init__(project, query, 'unused_checksum')
     self.expected_data = data
     self.actual_data = None
 
@@ -191,8 +190,7 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
   DEFAULT_TIMEOUT = 5 * 60
 
   def __init__(self, project, query, data, timeout=DEFAULT_TIMEOUT):
-    super(BigqueryFullResultStreamingMatcher,
-          self).__init__(project, query, data)
+    super().__init__(project, query, data)
     self.timeout = timeout
 
   def _get_query_result(self):

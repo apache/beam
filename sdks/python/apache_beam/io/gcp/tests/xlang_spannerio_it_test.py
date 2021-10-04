@@ -227,7 +227,7 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
       _ = (
           p
           | 'Impulse' >> beam.Impulse()
-          | 'Generate' >> beam.FlatMap(lambda x: range(num_rows))  # pylint: disable=range-builtin-not-iterating
+          | 'Generate' >> beam.FlatMap(lambda x: range(num_rows))  # pylint: disable=bad-option-value
           | 'Map to row' >> beam.Map(to_row_fn).with_output_types(row_type)
           | 'Write to Spanner' >> spanner_transform(
               instance_id=self.instance_id,

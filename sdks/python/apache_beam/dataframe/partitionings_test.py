@@ -24,7 +24,7 @@ from apache_beam.dataframe.partitionings import Singleton
 
 
 class PartitioningsTest(unittest.TestCase):
-  # pylint: disable=range-builtin-not-iterating
+  # pylint: disable=bad-option-value
 
   multi_index_df = pd.DataFrame({
       'shape': ['dodecahedron', 'icosahedron'] * 12,
