@@ -69,7 +69,7 @@ func (s *ScopedStateReader) OpenIterable(ctx context.Context, id exec.StreamID, 
 }
 
 // GetSideInputCache returns a pointer to the SideInputCache being used by the SDK harness.
-func (s *ScopedStateReader) GetSideInputCache() *statecache.SideInputCache {
+func (s *ScopedStateReader) GetSideInputCache() exec.SideCache {
 	return s.cache
 }
 
