@@ -16,15 +16,21 @@
  * limitations under the License.
  */
 
+import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/playground_app.dart';
+import 'package:playground/pages/playground/playground_state.dart';
 
 void main() {
-  testWidgets('Home Page', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const PlaygroundApp());
+  test('Playground State initial value should be java', () {
+    final state = PlaygroundState();
+    expect(state.sdk, equals(SDK.java));
+  });
 
-    // Verify that Playground text is displayed
-    expect(find.text('Playground'), findsOneWidget);
+  test('Playground state should notify all listeners about sdk change', () {
+    final state = PlaygroundState();
+    state.addListener(() {
+      expect(state.sdk, SDK.go);
+    });
+    state.setSdk(SDK.go);
   });
 }
