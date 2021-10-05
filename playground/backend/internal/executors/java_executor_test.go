@@ -16,7 +16,7 @@
 package executors
 
 import (
-	"beam.apache.org/playground/backend/pkg/fs_tool"
+	"beam.apache.org/playground/backend/internal/fs_tool"
 	"strconv"
 	"testing"
 )
