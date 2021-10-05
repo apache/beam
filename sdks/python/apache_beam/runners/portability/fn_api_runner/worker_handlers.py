@@ -470,19 +470,16 @@ class GrpcServer(object):
     self.state = state
     self.provision_info = provision_info
     self.control_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=options)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     self.control_port = self.control_server.add_insecure_port('[::]:0')
     self.control_address = 'localhost:%s' % self.control_port
 
     self.data_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=options)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=options)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
     self.control_handler = BeamFnControlServicer(worker_manager)
@@ -516,8 +513,7 @@ class GrpcServer(object):
         GrpcStateServicer(state), self.state_server)
 
     self.logging_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=options)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     self.logging_port = self.logging_server.add_insecure_port('[::]:0')
     beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
         BasicLoggingService(), self.logging_server)
