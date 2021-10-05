@@ -88,8 +88,8 @@ var flinkFilters = []string{
 }
 
 var samzaFilters = []string{
-	// XLang tests no supported by samza runner.
-	"TestXLang.*",
+	// TODO(BEAM-13007): Broke recently.
+	"TestXLang_CoGroupBy.*",
 	// TODO(BEAM-12608): Samza tests invalid encoding.
 	"TestReshuffle",
 	"TestReshuffleKV",
@@ -97,7 +97,7 @@ var samzaFilters = []string{
 	"TestTestStream.*",
 	// The trigger tests uses TestStream
 	"TestTrigger.*",
-	// Samza doesn't yet support post job metrics, used by WordCount
+	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
 }
 
