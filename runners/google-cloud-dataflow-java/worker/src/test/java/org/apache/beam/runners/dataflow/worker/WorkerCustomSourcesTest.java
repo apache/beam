@@ -76,6 +76,7 @@ import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
 import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
@@ -519,9 +520,12 @@ public class WorkerCustomSourcesTest {
             Long.MAX_VALUE);
 
     options.setNumWorkers(5);
+    int maxElements = 10;
+    DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+    debugOptions.setUnboundedReaderMaxElements(maxElements);
 
     ByteString state = ByteString.EMPTY;
-    for (int i = 0; i < 10 * WorkerCustomSources.maxUnboundedBundleSize;
+    for (int i = 0; i < 10 * maxElements;
     /* Incremented in inner loop */ ) {
       // Initialize streaming context with state from previous iteration.
       context.start(
@@ -565,12 +569,12 @@ public class WorkerCustomSourcesTest {
         numReadOnThisIteration++;
       }
       Instant afterReading = Instant.now();
+      long maxReadSec = debugOptions.getUnboundedReaderMaxReadTimeSec();
       assertThat(
           new Duration(beforeReading, afterReading).getStandardSeconds(),
-          lessThanOrEqualTo(
-              WorkerCustomSources.MAX_UNBOUNDED_BUNDLE_READ_TIME.getStandardSeconds() + 1));
+          lessThanOrEqualTo(maxReadSec + 1));
       assertThat(
-          numReadOnThisIteration, lessThanOrEqualTo(WorkerCustomSources.maxUnboundedBundleSize));
+          numReadOnThisIteration, lessThanOrEqualTo(debugOptions.getUnboundedReaderMaxElements()));
 
       // Extract and verify state modifications.
       context.flushState();

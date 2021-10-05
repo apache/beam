@@ -1718,7 +1718,14 @@ message LabelledPayload {
     string string_value = 2;
     bool bool_value = 3;
     double double_value = 4;
+    int64 int_value = 5;
   }
+
+  // (Required) The key identifies the actual content of the metadata.
+  string key = 6;
+
+  // (Required) The namespace describes the context that specified the key.
+  string namespace = 7;
 }
 
 // Static display data associated with a pipeline component. Display data is

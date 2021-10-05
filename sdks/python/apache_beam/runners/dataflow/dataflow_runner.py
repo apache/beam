@@ -138,7 +138,7 @@ class DataflowRunner(PipelineRunner):
 
   def apply(self, transform, input, options):
     self._maybe_add_unified_worker_missing_options(options)
-    return super(DataflowRunner, self).apply(transform, input, options)
+    return super().apply(transform, input, options)
 
   def _get_unique_step_name(self):
     self._unique_step_id += 1
@@ -507,13 +507,6 @@ class DataflowRunner(PipelineRunner):
       # Performing configured PTransform overrides which should not be reflected
       # in the proto representation of the graph.
       pipeline.replace_all(DataflowRunner._NON_PORTABLE_PTRANSFORM_OVERRIDES)
-
-    # Always upload graph out-of-band when explicitly using runner v2 with
-    # use_portable_job_submission to avoid irrelevant large graph limits.
-    if (apiclient._use_unified_worker(debug_options) and
-        debug_options.lookup_experiment('use_portable_job_submission') and
-        not debug_options.lookup_experiment('upload_graph')):
-      debug_options.add_experiment("upload_graph")
 
     # Add setup_options for all the BeamPlugin imports
     setup_options = options.view_as(SetupOptions)
@@ -1674,5 +1667,5 @@ class DataflowPipelineResult(PipelineResult):
 class DataflowRuntimeException(Exception):
   """Indicates an error has occurred in running this pipeline."""
   def __init__(self, msg, result):
-    super(DataflowRuntimeException, self).__init__(msg)
+    super().__init__(msg)
     self.result = result

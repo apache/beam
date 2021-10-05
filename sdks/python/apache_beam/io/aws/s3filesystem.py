@@ -42,7 +42,7 @@ class S3FileSystem(FileSystem):
     Connection configuration is done by passing pipeline options.
     See :class:`~apache_beam.options.pipeline_options.S3Options`.
     """
-    super(S3FileSystem, self).__init__(pipeline_options)
+    super().__init__(pipeline_options)
     self._options = pipeline_options
 
   @classmethod

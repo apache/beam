@@ -394,6 +394,12 @@ class Pipeline(object):
 
     self.visit(TransformUpdater(self))
 
+    # Ensure no type information is lost.
+    for old, new in output_map.items():
+      if new.element_type == typehints.Any:
+        # TODO(robertwb): Perhaps take the intersection?
+        new.element_type = old.element_type
+
     # Adjusting inputs and outputs
     class InputOutputUpdater(PipelineVisitor):  # pylint: disable=used-before-assignment
       """"A visitor that records input and output values to be replaced.
@@ -458,15 +464,15 @@ class Pipeline(object):
 
     self.visit(InputOutputUpdater(self))
 
-    for transform in output_replacements:
-      for tag, output in output_replacements[transform]:
+    for transform, output_replacement in output_replacements.items():
+      for tag, output in output_replacement:
         transform.replace_output(output, tag=tag)
 
-    for transform in input_replacements:
-      transform.replace_inputs(input_replacements[transform])
+    for transform, input_replacement in input_replacements.items():
+      transform.replace_inputs(input_replacement)
 
-    for transform in side_input_replacements:
-      transform.replace_side_inputs(side_input_replacements[transform])
+    for transform, side_input_replacement in side_input_replacements.items():
+      transform.replace_side_inputs(side_input_replacement)
 
   def _check_replacement(self, override):
     # type: (PTransformOverride) -> None

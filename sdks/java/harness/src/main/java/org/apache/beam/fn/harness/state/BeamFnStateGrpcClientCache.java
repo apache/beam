@@ -93,15 +93,16 @@ public class BeamFnStateGrpcClientCache {
     }
 
     @Override
-    public void handle(
-        StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
+    public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
       requestBuilder.setId(idGenerator.getId());
       StateRequest request = requestBuilder.build();
+      CompletableFuture<StateResponse> response = new CompletableFuture<>();
       outstandingRequests.put(request.getId(), response);
 
       // If the server closes, gRPC will throw an error if onNext is called.
       LOG.debug("Sending StateRequest {}", request);
       outboundObserver.onNext(request);
+      return response;
     }
 
     private synchronized void closeAndCleanUp(RuntimeException cause) {

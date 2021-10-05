@@ -70,7 +70,8 @@
 #        jar from the appropriate gradle module, which may not succeed.
 
 set -e
-set -v
+trap '! [[ "$BASH_COMMAND" =~ ^(echo|read|if|ARGS|shift|SOCKET_SCRIPT|\[\[) ]] && \
+cmd=`eval echo "$BASH_COMMAND" 2>/dev/null` && echo "\$ $cmd"' DEBUG
 
 # Default test targets.
 TESTS="./test/integration/... ./test/regression"
@@ -395,7 +396,7 @@ ARGS="$ARGS $PIPELINE_OPTS"
 
 cd sdks/go
 echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-go test -v $TESTS $ARGS \
+go test -v $TESTS $ARGS 1>&2 \
     || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 cd ../..
 

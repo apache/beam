@@ -96,7 +96,7 @@ def read_watermark(watermark_state):
 class TriggerMergeContext(WindowFn.MergeContext):
   def __init__(
       self, all_windows, context: 'FnRunnerStatefulTriggerContext', windowing):
-    super(TriggerMergeContext, self).__init__(all_windows)
+    super().__init__(all_windows)
     self.trigger_context = context
     self.windowing = windowing
     self.merged_away: typing.Dict[BoundedWindow, BoundedWindow] = {}

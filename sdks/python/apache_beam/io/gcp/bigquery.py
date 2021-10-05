@@ -2068,7 +2068,8 @@ class ReadAllFromBigQuery(PTransform):
       validate: bool = False,
       kms_key: str = None,
       temp_dataset: Union[str, DatasetReference] = None,
-      bigquery_job_labels: Dict[str, str] = None):
+      bigquery_job_labels: Dict[str, str] = None,
+      query_priority: str = BigQueryQueryPriority.BATCH):
     if gcs_location:
       if not isinstance(gcs_location, (str, ValueProvider)):
         raise TypeError(
@@ -2081,6 +2082,7 @@ class ReadAllFromBigQuery(PTransform):
     self.kms_key = kms_key
     self.bigquery_job_labels = bigquery_job_labels
     self.temp_dataset = temp_dataset
+    self.query_priority = query_priority
 
   def expand(self, pcoll):
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
@@ -2105,7 +2107,8 @@ class ReadAllFromBigQuery(PTransform):
             unique_id=unique_id,
             kms_key=self.kms_key,
             project=project,
-            temp_dataset=self.temp_dataset)).with_outputs(
+            temp_dataset=self.temp_dataset,
+            query_priority=self.query_priority)).with_outputs(
         "location_to_cleanup", main="files_to_read")
     )
 

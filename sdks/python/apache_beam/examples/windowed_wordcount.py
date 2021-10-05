@@ -27,7 +27,7 @@ import argparse
 import logging
 
 import apache_beam as beam
-import apache_beam.transforms.window as window
+from apache_beam.transforms import window
 
 TABLE_SCHEMA = (
     'word:STRING, count:INTEGER, '
