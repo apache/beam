@@ -16,14 +16,13 @@
 package executors
 
 import (
-	"beam.apache.org/playground/backend/pkg/executors"
 	"beam.apache.org/playground/backend/pkg/fs_tool"
 	"strconv"
 	"testing"
 )
 
 var (
-	javaExecutor *executors.JavaExecutor
+	javaExecutor *JavaExecutor
 	javaFS       *fs_tool.JavaFileSystemService
 	fileName     string
 )
@@ -48,7 +47,7 @@ func setup() error {
 	if err != nil {
 		return err
 	}
-	javaExecutor = executors.NewJavaExecutor(javaFS)
+	javaExecutor = NewJavaExecutor(javaFS)
 	return nil
 }
 
