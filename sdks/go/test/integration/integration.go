@@ -88,8 +88,6 @@ var flinkFilters = []string{
 }
 
 var samzaFilters = []string{
-	// TODO(BEAM-13007): Broke recently.
-	"TestXLang_CoGroupBy.*",
 	// TODO(BEAM-12608): Samza tests invalid encoding.
 	"TestReshuffle",
 	"TestReshuffleKV",
