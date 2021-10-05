@@ -963,6 +963,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
       pipeline_options: Optional[GoogleCloudOptions] = None,
       unique_id: Optional[uuid.UUID] = None,
       bigquery_job_labels: Optional[Dict] = None,
+      bigquery_dataset_labels: Optional[Dict] = None,
       job_name: Optional[str] = None,
       step_name: Optional[str] = None,
       use_standard_sql: Optional[bool] = False,
@@ -998,6 +999,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self.pipeline_options = pipeline_options
     self.split_result = None
     self.bigquery_job_labels = bigquery_job_labels or {}
+    self.bigquery_dataset_labels = bigquery_dataset_labels or {}
     self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
     self.flatten_results = flatten_results
     self.kms_key = kms_key
@@ -1040,40 +1042,31 @@ class _CustomBigQueryStorageSource(BoundedSource):
       return
     location = bq.get_query_location(
         self._get_parent_project(), self.query.get(), self.use_legacy_sql)
+    _LOGGER.warning("### Labels: %s", str(self.bigquery_dataset_labels))
     bq.create_temporary_dataset(
-        self._get_parent_project(), location, {'type': 'apache-beam-temp'})
+        self._get_parent_project(), location, self.bigquery_dataset_labels)
 
   @check_accessible(['query'])
-  def _execute_query(self, bq, sleep_duration_sec=5, max_retries=3):
-    retry = 0
-    while True:
-      retry += 1
-      query_job_name = bigquery_tools.generate_bq_job_name(
-          self._job_name,
-          self._source_uuid,
-          bigquery_tools.BigQueryJobTypes.QUERY,
-          '%s_%s' % (int(time.time()), random.randint(0, 1000)))
-      job = bq._start_query_job(
-          self._get_parent_project(),
-          self.query.get(),
-          self.use_legacy_sql,
-          self.flatten_results,
-          job_id=query_job_name,
-          priority=self.query_priority,
-          kms_key=self.kms_key,
-          job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
-              self.bigquery_job_labels))
-      job_ref = job.jobReference
-      try:
-        bq.wait_for_bq_job(job_ref, max_retries=0)
-      except RuntimeError as error:
-        if retry <= max_retries:
-          time.sleep(sleep_duration_sec)
-          continue
-        else:
-          raise error
-      table_reference = bq._get_temp_table(self._get_parent_project())
-      return table_reference
+  def _execute_query(self, bq):
+    query_job_name = bigquery_tools.generate_bq_job_name(
+        self._job_name,
+        self._source_uuid,
+        bigquery_tools.BigQueryJobTypes.QUERY,
+        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
+    job = bq._start_query_job(
+        self._get_parent_project(),
+        self.query.get(),
+        self.use_legacy_sql,
+        self.flatten_results,
+        job_id=query_job_name,
+        priority=self.query_priority,
+        kms_key=self.kms_key,
+        job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
+            self.bigquery_job_labels))
+    job_ref = job.jobReference
+    bq.wait_for_bq_job(job_ref, max_retries=0)
+    table_reference = bq._get_temp_table(self._get_parent_project())
+    return table_reference
 
   def display_data(self):
     return {
@@ -2381,6 +2374,9 @@ class ReadFromBigQuery(PTransform):
         gcs_location = StaticValueProvider(str, gcs_location)
 
     self.gcs_location = gcs_location
+    self.bigquery_dataset_labels = {
+        'type': 'bq_direct_read_' + str(uuid.uuid4())[0:10]
+    }
     self._args = args
     self._kwargs = kwargs
 
@@ -2442,16 +2438,20 @@ class ReadFromBigQuery(PTransform):
     else:
       project_id = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
 
-    def _get_project_name(unused_elm):
+    def _get_pipeline_details(unused_elm):
+      pipeline_details = {}
       if temp_table_ref is not None:
-        return temp_table_ref
+        pipeline_details['temp_table_ref'] = temp_table_ref
       elif project_id is not None:
-        return project_id
+        pipeline_details['project_id'] = project_id
+        pipeline_details[
+            'bigquery_dataset_labels'] = self.bigquery_dataset_labels
+      return pipeline_details
 
     project_to_cleanup_pcoll = beam.pvalue.AsList(
         pcoll.pipeline
         | 'ProjectToCleanupImpulse' >> beam.Create([None])
-        | 'MapProjectToCleanup' >> beam.Map(_get_project_name))
+        | 'MapProjectToCleanup' >> beam.Map(_get_pipeline_details))
 
     return (
         pcoll
@@ -2461,6 +2461,7 @@ class ReadFromBigQuery(PTransform):
                 method=self.method,
                 use_native_datetime=self.use_native_datetime,
                 temp_table=temp_table_ref,
+                bigquery_dataset_labels=self.bigquery_dataset_labels,
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanupTempDatasets(project_to_cleanup_pcoll))

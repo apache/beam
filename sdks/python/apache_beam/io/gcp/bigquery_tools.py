@@ -300,6 +300,13 @@ def _build_dataset_labels(input_labels):
   return result
 
 
+def _build_filter_from_labels(labels):
+  filter_str = ''
+  for key, value in labels.items():
+    filter_str += 'labels.' + key + ':' + value + ' '
+  return filter_str
+
+
 class BigQueryWrapper(object):
   """BigQuery client wrapper with utilities for querying.
 
@@ -919,14 +926,15 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _clean_up_beam_labelled_temporary_datasets(
-      self, project_id, dataset_id=None, table_id=None):
-    # Deletes ALL datasets that have been labelled `type:apache-beam-temp` in
-    # project.
-    if not self.is_user_configured_dataset() and table_id is None:
+      self, project_id, dataset_id=None, table_id=None, labels=None):
+    if isinstance(labels, dict):
+      filter_str = _build_filter_from_labels(labels)
+
+    if not self.is_user_configured_dataset() and labels is not None:
       response = (
           self.client.datasets.List(
               bigquery.BigqueryDatasetsListRequest(
-                  projectId=project_id, filter='labels.type:apache-beam-temp')))
+                  projectId=project_id, filter=filter_str)))
       for dataset in response.datasets:
         try:
           dataset_id = dataset.datasetReference.datasetId

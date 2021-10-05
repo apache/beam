@@ -149,16 +149,19 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
         yield element
 
     class CleanUpProjects(beam.DoFn):
-      def process(self, unused_element, unused_signal, project_or_table):
+      def process(self, unused_element, unused_signal, pipeline_details):
         bq = bigquery_tools.BigQueryWrapper()
-        project_or_table = project_or_table[0]
-        if isinstance(project_or_table, TableReference):
+        pipeline_details = pipeline_details[0]
+        if 'temp_table_ref' in pipeline_details.keys():
+          temp_table_ref = pipeline_details['temp_table_ref']
           bq._clean_up_beam_labelled_temporary_datasets(
-              project_or_table.projectId,
-              project_or_table.datasetId,
-              project_or_table.tableId)
-        else:
-          bq._clean_up_beam_labelled_temporary_datasets(project_or_table)
+              project_id=temp_table_ref.projectId,
+              dataset_id=temp_table_ref.datasetId,
+              table_id=temp_table_ref.tableId)
+        elif 'project_id' in pipeline_details.keys():
+          bq._clean_up_beam_labelled_temporary_datasets(
+              project_id=pipeline_details['project_id'],
+              labels=pipeline_details['bigquery_dataset_labels'])
 
     main_output, cleanup_signal = input | beam.ParDo(
         PassThrough()).with_outputs(
