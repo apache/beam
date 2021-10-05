@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
+import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
@@ -35,8 +36,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfigurationPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -49,6 +52,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.AllowList;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -70,6 +74,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
@@ -172,8 +177,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       return configurationClass;
     }
 
-    private static <ConfigT> Row decodeRow(ExternalConfigurationPayload payload) {
-      Schema payloadSchema = SchemaTranslation.schemaFromProto(payload.getSchema());
+    static <ConfigT> Row decodeConfigObjectRow(SchemaApi.Schema schema, ByteString payload) {
+      Schema payloadSchema = SchemaTranslation.schemaFromProto(schema);
 
       if (payloadSchema.getFieldCount() == 0) {
         return Row.withSchema(Schema.of()).build();
@@ -200,7 +205,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
       Row configRow;
       try {
-        configRow = RowCoder.of(payloadSchema).decode(payload.getPayload().newInput());
+        configRow = RowCoder.of(payloadSchema).decode(payload.newInput());
       } catch (IOException e) {
         throw new RuntimeException("Error decoding payload", e);
       }
@@ -247,7 +252,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       SerializableFunction<Row, ConfigT> fromRowFunc =
           SCHEMA_REGISTRY.getFromRowFunction(configurationClass);
 
-      Row payloadRow = decodeRow(payload);
+      Row payloadRow = decodeConfigObjectRow(payload.getSchema(), payload.getPayload());
 
       if (!payloadRow.getSchema().assignableTo(configSchema)) {
         throw new IllegalArgumentException(
@@ -263,7 +268,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     private static <ConfigT> ConfigT payloadToConfigSetters(
         ExternalConfigurationPayload payload, Class<ConfigT> configurationClass)
         throws ReflectiveOperationException {
-      Row configRow = decodeRow(payload);
+      Row configRow = decodeConfigObjectRow(payload.getSchema(), payload.getPayload());
 
       Constructor<ConfigT> constructor = configurationClass.getDeclaredConstructor();
       constructor.setAccessible(true);
@@ -429,19 +434,21 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
               + "native Read transform, your Pipeline will fail during Pipeline submission.");
     }
 
-    ClassLoader classLoader = Environments.class.getClassLoader();
-    if (classLoader == null) {
-      throw new RuntimeException(
-          "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
-    }
+    List<String> filesToStage = pipelineOptions.as(PortablePipelineOptions.class).getFilesToStage();
+    if (filesToStage == null || filesToStage.isEmpty()) {
+      ClassLoader classLoader = Environments.class.getClassLoader();
+      if (classLoader == null) {
+        throw new RuntimeException(
+            "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
+      }
 
-    List<String> classpathResources =
-        detectClassPathResourcesToStage(classLoader, pipeline.getOptions());
-    if (classpathResources.isEmpty()) {
-      throw new IllegalArgumentException("No classpath elements found.");
+      filesToStage = detectClassPathResourcesToStage(classLoader, pipeline.getOptions());
+      if (filesToStage.isEmpty()) {
+        throw new IllegalArgumentException("No classpath elements found.");
+      }
+      LOG.debug("Staging to files from the classpath: {}", filesToStage.size());
     }
-    LOG.debug("Staging to files from the classpath: {}", classpathResources.size());
-    pipeline.getOptions().as(PortablePipelineOptions.class).setFilesToStage(classpathResources);
+    pipeline.getOptions().as(PortablePipelineOptions.class).setFilesToStage(filesToStage);
 
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(request.getComponents()).withPipeline(pipeline);
@@ -459,13 +466,22 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                       }
                     }));
 
-    @Nullable
-    TransformProvider transformProvider =
-        getRegisteredTransforms().get(request.getTransform().getSpec().getUrn());
-    if (transformProvider == null) {
-      throw new UnsupportedOperationException(
-          "Unknown urn: " + request.getTransform().getSpec().getUrn());
+    String urn = request.getTransform().getSpec().getUrn();
+
+    TransformProvider transformProvider = null;
+    if (getUrn(ExpansionMethods.Enum.JAVA_CLASS_LOOKUP).equals(urn)) {
+      AllowList allowList =
+          pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
+      assert allowList != null;
+      transformProvider = new JavaClassLookupTransformProvider(allowList);
+    } else {
+      transformProvider = getRegisteredTransforms().get(urn);
+      if (transformProvider == null) {
+        throw new UnsupportedOperationException(
+            "Unknown urn: " + request.getTransform().getSpec().getUrn());
+      }
     }
+
     Map<String, PCollection<?>> outputs =
         transformProvider.apply(
             pipeline,
@@ -562,6 +578,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public static void main(String[] args) throws Exception {
     int port = Integer.parseInt(args[0]);
     System.out.println("Starting expansion service at localhost:" + port);
+
+    // Register the options class used by the expansion service.
+    PipelineOptionsFactory.register(ExpansionServiceOptions.class);
+
     @SuppressWarnings("nullness")
     ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
     for (Map.Entry<String, TransformProvider> entry :

@@ -118,7 +118,7 @@ class _TextSource(filebasedsource.FileBasedSource):
     Please refer to documentation in class `ReadFromText` for the rest
     of the arguments.
     """
-    super(_TextSource, self).__init__(
+    super().__init__(
         file_pattern,
         min_bundle_size,
         compression_type=compression_type,
@@ -139,7 +139,7 @@ class _TextSource(filebasedsource.FileBasedSource):
     self._header_matcher, self._header_processor = header_processor_fns
 
   def display_data(self):
-    parent_dd = super(_TextSource, self).display_data()
+    parent_dd = super().display_data()
     parent_dd['strip_newline'] = DisplayDataItem(
         self._strip_trailing_newlines, label='Strip Trailing New Lines')
     parent_dd['buffer_size'] = DisplayDataItem(
@@ -327,8 +327,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
 class _TextSourceWithFilename(_TextSource):
   def read_records(self, file_name, range_tracker):
-    records = super(_TextSourceWithFilename,
-                    self).read_records(file_name, range_tracker)
+    records = super().read_records(file_name, range_tracker)
     for record in records:
       yield (file_name, record)
 
@@ -383,7 +382,7 @@ class _TextSink(filebasedsink.FileBasedSink):
     Returns:
       A _TextSink object usable for writing.
     """
-    super(_TextSink, self).__init__(
+    super().__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
         num_shards=num_shards,
@@ -396,7 +395,7 @@ class _TextSink(filebasedsink.FileBasedSink):
     self._footer = footer
 
   def open(self, temp_path):
-    file_handle = super(_TextSink, self).open(temp_path)
+    file_handle = super().open(temp_path)
     if self._header is not None:
       file_handle.write(coders.ToBytesCoder().encode(self._header))
       if self._append_trailing_newlines:
@@ -408,10 +407,10 @@ class _TextSink(filebasedsink.FileBasedSink):
       file_handle.write(coders.ToBytesCoder().encode(self._footer))
       if self._append_trailing_newlines:
         file_handle.write(b'\n')
-    super(_TextSink, self).close(file_handle)
+    super().close(file_handle)
 
   def display_data(self):
-    dd_parent = super(_TextSink, self).display_data()
+    dd_parent = super().display_data()
     dd_parent['append_newline'] = DisplayDataItem(
         self._append_trailing_newlines, label='Append Trailing New Lines')
     return dd_parent
@@ -493,7 +492,7 @@ class ReadAllFromText(PTransform):
         name and the value being the actual data. If False, it only returns
         the data.
     """
-    super(ReadAllFromText, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     source_from_file = partial(
         _create_text_source,
         min_bundle_size=min_bundle_size,
@@ -564,7 +563,7 @@ class ReadFromText(PTransform):
       coder (~apache_beam.coders.coders.Coder): Coder used to decode each line.
     """
 
-    super(ReadFromText, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self._source = self._source_class(
         file_pattern,
         min_bundle_size,

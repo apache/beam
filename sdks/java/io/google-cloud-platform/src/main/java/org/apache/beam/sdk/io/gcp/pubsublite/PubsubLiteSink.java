@@ -28,16 +28,14 @@ import com.google.cloud.pubsublite.MessageMetadata;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.Publisher;
+import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOrError.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 
 /** A sink which publishes messages to Pub/Sub Lite. */
 @SuppressWarnings({
@@ -55,8 +53,6 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
 
   @GuardedBy("this")
   private transient Deque<CheckedApiException> errorsSinceLastFinish;
-
-  private static final Executor executor = Executors.newCachedThreadPool();
 
   PubsubLiteSink(PublisherOptions options) {
     this.options = options;
@@ -89,7 +85,7 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
             onFailure.accept(t);
           }
         },
-        MoreExecutors.directExecutor());
+        SystemExecutors.getFuturesExecutor());
     if (!options.usesCache()) {
       publisher.startAsync();
     }
@@ -130,7 +126,7 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
             onFailure.accept(t);
           }
         },
-        executor);
+        SystemExecutors.getFuturesExecutor());
   }
 
   // Intentionally don't flush on bundle finish to allow multi-sink client reuse.

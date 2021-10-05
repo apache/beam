@@ -175,7 +175,7 @@ else:
       self.baseline_directory = os.path.join(os.getcwd(), self._golden_dir)
       self.output_directory = os.path.join(
           os.getcwd(), self._test_notebook_dir, 'output')
-      super(BaseTestCase, self).__init__(*args, **kwargs)
+      super().__init__(*args, **kwargs)
 
     @classmethod
     def get_web_driver(cls):
@@ -195,7 +195,7 @@ else:
                                                 self._golden_dir,
                                                 self._cleanup) as test_env:
         self._test_env = test_env
-        super(BaseTestCase, self).run(result)
+        super().run(result)
 
     def explicit_wait(self):
       """Wait for common elements to be visible."""

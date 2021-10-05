@@ -71,7 +71,7 @@ except ImportError:
 # composite transforms support display data.
 class SpecialParDo(beam.ParDo):
   def __init__(self, fn, now):
-    super(SpecialParDo, self).__init__(fn)
+    super().__init__(fn)
     self.fn = fn
     self.now = now
 

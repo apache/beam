@@ -78,7 +78,7 @@ class AvroTestCoder(coders.AvroGenericCoder):
   """
 
   def __init__(self):
-    super(AvroTestCoder, self).__init__(self.SCHEMA)
+    super().__init__(self.SCHEMA)
 
 
 coders.registry.register_coder(AvroRecord, AvroTestCoder)

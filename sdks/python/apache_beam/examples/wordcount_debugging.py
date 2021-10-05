@@ -60,7 +60,7 @@ class FilterTextFn(beam.DoFn):
   """A DoFn that filters for a specific key based on a regular expression."""
   def __init__(self, pattern):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(FilterTextFn, self).__init__()
+    # super().__init__()
     beam.DoFn.__init__(self)
     self.pattern = pattern
     # A custom metric can track values in your pipeline as it runs. Those

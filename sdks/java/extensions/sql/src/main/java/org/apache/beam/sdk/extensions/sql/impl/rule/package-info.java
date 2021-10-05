@@ -17,7 +17,7 @@
  */
 
 /**
- * {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule} to generate
+ * {@link org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRule} to generate
  * {@link org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode}.
  */
 @DefaultAnnotation(NonNull.class)

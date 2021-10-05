@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.BeanProperty;
+import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -501,7 +502,9 @@ public class PipelineOptionsFactory {
   private static final DefaultDeserializationContext DESERIALIZATION_CONTEXT =
       new DefaultDeserializationContext.Impl(MAPPER.getDeserializationContext().getFactory())
           .createInstance(
-              MAPPER.getDeserializationConfig(), new TokenBuffer(MAPPER, false).asParser(), null);
+              MAPPER.getDeserializationConfig(),
+              new TokenBuffer(MAPPER, false).asParser(),
+              new InjectableValues.Std());
 
   static final DefaultSerializerProvider SERIALIZER_PROVIDER =
       new DefaultSerializerProvider.Impl()

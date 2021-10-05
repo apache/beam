@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import java.util.Map;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** SqlOperatorMappingTable. */
@@ -31,9 +31,9 @@ class SqlOperatorMappingTable {
   static final Map<String, SqlOperator> ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR =
       ImmutableMap.<String, SqlOperator>builder()
           // grouped window function
-          .put("TUMBLE", SqlStdOperatorTable.TUMBLE)
-          .put("HOP", SqlStdOperatorTable.HOP)
-          .put("SESSION", SqlStdOperatorTable.SESSION)
+          .put("TUMBLE", SqlStdOperatorTable.TUMBLE_OLD)
+          .put("HOP", SqlStdOperatorTable.HOP_OLD)
+          .put("SESSION", SqlStdOperatorTable.SESSION_OLD)
 
           // ZetaSQL functions
           .put("$and", SqlStdOperatorTable.AND)
@@ -46,7 +46,6 @@ class SqlOperatorMappingTable {
           .put("$less", SqlStdOperatorTable.LESS_THAN)
           .put("$less_or_equal", SqlStdOperatorTable.LESS_THAN_OR_EQUAL)
           .put("$like", SqlOperators.LIKE)
-          .put("$in", SqlStdOperatorTable.IN)
           .put("$is_null", SqlStdOperatorTable.IS_NULL)
           .put("$is_true", SqlStdOperatorTable.IS_TRUE)
           .put("$is_false", SqlStdOperatorTable.IS_FALSE)
@@ -73,8 +72,7 @@ class SqlOperatorMappingTable {
           .put("sum", SqlStdOperatorTable.SUM)
           .put("any_value", SqlStdOperatorTable.ANY_VALUE)
           .put("count", SqlStdOperatorTable.COUNT)
-          // .put("bit_and", SqlStdOperatorTable.BIT_AND) //JIRA link:
-          // https://issues.apache.org/jira/browse/BEAM-10379
+          .put("bit_and", SqlStdOperatorTable.BIT_AND)
           .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
           .put("array_agg", SqlOperators.ARRAY_AGG_FN)
           .put("bit_or", SqlStdOperatorTable.BIT_OR)
@@ -105,5 +103,6 @@ class SqlOperatorMappingTable {
           .put("coalesce", new SqlCoalesceOperatorRewriter())
           .put("ifnull", new SqlIfNullOperatorRewriter())
           .put("nullif", new SqlNullIfOperatorRewriter())
+          .put("$in", new SqlInOperatorRewriter())
           .build();
 }

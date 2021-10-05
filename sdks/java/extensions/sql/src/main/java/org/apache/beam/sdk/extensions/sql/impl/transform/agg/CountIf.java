@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.transforms.Combine;
 
 /**
@@ -32,7 +33,7 @@ public class CountIf {
 
   public static class CountIfFn extends Combine.CombineFn<Boolean, CountIfFn.Accum, Long> {
 
-    public static class Accum {
+    public static class Accum implements Serializable {
       boolean isExpressionFalse = true;
       long countIfResult = 0L;
     }
@@ -56,6 +57,7 @@ public class CountIf {
       CountIfFn.Accum merged = createAccumulator();
       for (CountIfFn.Accum accum : accums) {
         if (!accum.isExpressionFalse) {
+          merged.isExpressionFalse = false;
           merged.countIfResult += accum.countIfResult;
         }
       }

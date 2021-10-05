@@ -106,7 +106,7 @@ class ControlConnection(object):
     self._push_queue = queue.Queue(
     )  # type: queue.Queue[Union[beam_fn_api_pb2.InstructionRequest, Sentinel]]
     self._input = None  # type: Optional[Iterable[beam_fn_api_pb2.InstructionResponse]]
-    self._futures_by_id = dict()  # type: Dict[str, ControlFuture]
+    self._futures_by_id = {}  # type: Dict[str, ControlFuture]
     self._read_thread = threading.Thread(
         name='beam_control_read', target=self._read)
     self._state = BeamFnControlServicer.UNSTARTED_STATE
@@ -354,7 +354,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
                worker_manager,  # type: WorkerHandlerManager
               ):
     # type: (...) -> None
-    super(EmbeddedWorkerHandler, self).__init__(
+    super().__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self  # type: ignore  # need Protocol to describe this
     self.data_conn = self.data_plane_handler
@@ -548,7 +548,7 @@ class GrpcWorkerHandler(WorkerHandler):
               ):
     # type: (...) -> None
     self._grpc_server = grpc_server
-    super(GrpcWorkerHandler, self).__init__(
+    super().__init__(
         self._grpc_server.control_handler,
         self._grpc_server.data_plane_handler,
         state,
@@ -591,7 +591,7 @@ class GrpcWorkerHandler(WorkerHandler):
     # type: () -> None
     self.control_conn.close()
     self.data_conn.close()
-    super(GrpcWorkerHandler, self).close()
+    super().close()
 
   def port_from_worker(self, port):
     # type: (int) -> str
@@ -612,8 +612,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(ExternalWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
     self._external_payload = external_payload
 
   def start_worker(self):
@@ -657,8 +656,7 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(EmbeddedGrpcWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
 
     from apache_beam.transforms.environments import EmbeddedPythonGrpcEnvironment
     config = EmbeddedPythonGrpcEnvironment.parse_config(payload.decode('utf-8'))
@@ -697,8 +695,7 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(SubprocessSdkWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
     self._worker_command_line = worker_command_line
 
   def start_worker(self):
@@ -728,8 +725,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(DockerSdkWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
     self._container_image = payload.container_image
     self._container_id = None  # type: Optional[bytes]
 
@@ -743,7 +739,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
       # Gets ipv4 address of current host. Note the host is not guaranteed to
       # be localhost because the python SDK could be running within a container.
       return socket.gethostbyname(socket.getfqdn())
-    return super(DockerSdkWorkerHandler, self).host_from_worker()
+    return super().host_from_worker()
 
   def start_worker(self):
     # type: () -> None
@@ -813,7 +809,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
                   'SDK exited unexpectedly. '
                   'Final status is %s. Final log line is %s' % (
                       status.decode('utf-8'),
-                      logs.decode('utf-8').strip().split('\n')[-1])))
+                      logs.decode('utf-8').strip().rsplit('\n',
+                                                          maxsplit=1)[-1])))
       time.sleep(5)
 
   def stop_worker(self):
