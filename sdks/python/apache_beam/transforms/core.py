@@ -1225,7 +1225,7 @@ class ParDo(PTransformWithSideInputs):
     from apache_beam.runners.common import DoFnSignature
     self._signature = DoFnSignature(self.fn)
 
-  def with_dead_letters(
+  def with_exception_handling(
       self,
       main_tag='good',
       dead_letter_tag='bad',
@@ -1233,9 +1233,11 @@ class ParDo(PTransformWithSideInputs):
       exc_class=Exception,
       partial=False,
       use_subprocess=False,
-      threshold=.999,
+      threshold=1,
       threshold_windowing=None):
     """Automatically provides a dead letter output for skipping bad records.
+    This can allow a pipeline to continue successfully rather than fail or
+    continuously throw errors on retry when bad elements are encountered.
 
     This returns a tagged output with two PCollections, the first being the
     results of successfully processing the input PCollection, and the second
@@ -1244,7 +1246,7 @@ class ParDo(PTransformWithSideInputs):
 
     For example, one would write::
 
-        good, bad = Map(maybe_error_raising_function).with_dead_letters()
+        good, bad = Map(maybe_error_raising_function).with_exception_handling()
 
     and `good` will be a PCollection of mapped records and `bad` will contain
     those that raised exceptions.
@@ -1259,14 +1261,20 @@ class ParDo(PTransformWithSideInputs):
           Optional, defaults to 'bad'.
       exc_class: An exception class, or tuple of exception classes, to catch.
           Optional, defaults to 'Exception'.
-      partial: Whether to emit outputs as they're produced (which could result
-          in partial outputs for a ParDo or FlatMap that throws an error part
-          way through execution) or buffer all outputs until successful
-          processing of the entire element. Optional, defaults to False.
+      partial: Whether to emit outputs for an element as they're produced
+          (which could result in partial outputs for a ParDo or FlatMap that
+          throws an error part way through execution) or buffer all outputs
+          until successful processing of the entire element. Optional,
+          defaults to False.
       use_subprocess: Whether to execute the DoFn logic in a subprocess. This
-          allows one to recover from errors that crash the process (e.g. from
-          an underlying C/C++ library), but is slower as elements and results
-          must cross a process boundary. Optional, defaults to False.
+          allows one to recover from errors that can crash the calling process
+          (e.g. from an underlying C/C++ library causing a segfault), but is
+          slower as elements and results must cross a process boundary.  Note
+          that this starts up a long-running process that is used to handle
+          all the elements (until hard failure, which should be rare) rather
+          than a new process per element, so the overhead should be minimal
+          (and can be amortized if there's any per-process or per-bundle
+          initialization that needs to be done). Optional, defaults to False.
       threshold: An upper bound on the ratio of records that can be bad before
           aborting the entire pipeline. Optional, defaults to 1.0 (meaning
           up to 100% of records can be bad and the pipeline will still succeed).
@@ -1274,7 +1282,7 @@ class ParDo(PTransformWithSideInputs):
           defaults to the windowing of the input.
     """
     args, kwargs = self.raw_side_inputs
-    return self.label >> _DeadLetterPattern(
+    return self.label >> _ExceptionHandlingWrapper(
         self.fn,
         args,
         kwargs,
@@ -1800,7 +1808,8 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   return pardo
 
 
-class _DeadLetterPattern(ptransform.PTransform):
+class _ExceptionHandlingWrapper(ptransform.PTransform):
+  """Implementation of ParDo.with_exception_handling."""
   def __init__(
       self,
       fn,
@@ -1828,7 +1837,7 @@ class _DeadLetterPattern(ptransform.PTransform):
 
   def expand(self, pcoll):
     result = pcoll | ParDo(
-        _DeadLetterDoFn(
+        _ExceptionHandlingWrapperDoFn(
             _SubprocessDoFn(self._fn) if self._use_subprocess else self._fn,
             self._dead_letter_tag,
             self._exc_class,
@@ -1854,11 +1863,12 @@ class _DeadLetterPattern(ptransform.PTransform):
           MaybeWindow() | Map(lambda _: 1)
           | CombineGlobally(sum).without_defaults())
 
-      def check_threshold(bad, total, threshold):
+      def check_threshold(bad, total, threshold, window=DoFn.WindowParam):
         if bad > total * threshold:
           raise ValueError(
-              "Too many bad elements: %s / %s = %s > %s" %
-              (bad, total, bad / total, threshold))
+              'The number of failing elements within the window %r '
+              'exceeded threshold: %s / %s = %s > %s' %
+              (window, bad, total, bad / total, threshold))
 
       _ = bad_count_pcoll | Map(
           check_threshold, input_count_view, self._threshold)
@@ -1866,8 +1876,7 @@ class _DeadLetterPattern(ptransform.PTransform):
     return result
 
 
-class _DeadLetterDoFn(DoFn):
-  """Implementation of ParDo.with_dead_letters."""
+class _ExceptionHandlingWrapperDoFn(DoFn):
   def __init__(self, fn, dead_letter_tag, exc_class, partial):
     self._fn = fn
     self._dead_letter_tag = dead_letter_tag
@@ -1876,7 +1885,7 @@ class _DeadLetterDoFn(DoFn):
 
   def __getattribute__(self, name):
     if (name.startswith('__') or name in self.__dict__ or
-        name in _DeadLetterDoFn.__dict__):
+        name in _ExceptionHandlingWrapperDoFn.__dict__):
       return object.__getattribute__(self, name)
     else:
       return getattr(self._fn, name)

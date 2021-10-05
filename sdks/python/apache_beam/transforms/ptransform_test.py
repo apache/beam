@@ -2561,7 +2561,7 @@ class DeadLettersTest(unittest.TestCase):
       good, bad = (
           p
           | beam.Create([-1, 10, -100, 2, 0])
-          | beam.Map(self.exception_if_negative).with_dead_letters())
+          | beam.Map(self.exception_if_negative).with_exception_handling())
       assert_that(good, equal_to([0, 2, 10]), label='CheckGood')
       assert_that(
           bad |
@@ -2574,7 +2574,7 @@ class DeadLettersTest(unittest.TestCase):
       good, _ = (
           p
           | beam.Create([-1, 10, -100, 2, 0])
-          | beam.Map(self.exception_if_negative).with_dead_letters(
+          | beam.Map(self.exception_if_negative).with_exception_handling(
               use_subprocess=self.use_subprocess,
               exc_class=(ValueError, TypeError)))
       assert_that(good, equal_to([0, 2, 10]), label='CheckGood')
@@ -2584,7 +2584,7 @@ class DeadLettersTest(unittest.TestCase):
         good, _ = (
             p
             | beam.Create([-1, 10, -100, 2, 0])
-            | beam.Map(self.die_if_negative).with_dead_letters(
+            | beam.Map(self.die_if_negative).with_exception_handling(
                 use_subprocess=self.use_subprocess,
                 exc_class=TypeError))
 
@@ -2594,7 +2594,7 @@ class DeadLettersTest(unittest.TestCase):
       good, _ = (
           p
           | beam.Create([(1, 2), (3, 2), (1, -10)])
-          | beam.MapTuple(self.die_if_less).with_dead_letters(
+          | beam.MapTuple(self.die_if_less).with_exception_handling(
               use_subprocess=self.use_subprocess))
       assert_that(good, equal_to([(3, 2), (1, -10)]), label='CheckGood')
 
@@ -2605,19 +2605,20 @@ class DeadLettersTest(unittest.TestCase):
 
       assert_that((
           input
-          | 'Default' >> beam.Map(self.die_if_less).with_dead_letters(
+          | 'Default' >> beam.Map(self.die_if_less).with_exception_handling(
               use_subprocess=self.use_subprocess)).good,
                   equal_to([(10, 0), (100, 0)]),
                   label='CheckDefault')
       assert_that((
           input
-          | 'Pos' >> beam.Map(self.die_if_less, 20).with_dead_letters(
+          | 'Pos' >> beam.Map(self.die_if_less, 20).with_exception_handling(
               use_subprocess=self.use_subprocess)).good,
                   equal_to([(100, 20)]),
                   label='PosSideInput')
       assert_that((
           input
-          | 'Key' >> beam.Map(self.die_if_less, bound=30).with_dead_letters(
+          |
+          'Key' >> beam.Map(self.die_if_less, bound=30).with_exception_handling(
               use_subprocess=self.use_subprocess)).good,
                   equal_to([(100, 30)]),
                   label='KeySideInput')
@@ -2637,7 +2638,7 @@ class DeadLettersTest(unittest.TestCase):
       results = (
           p
           | beam.Create([1, -1, 2, -2, 3])
-          | beam.Map(die_on_negative_even_odd).with_dead_letters(
+          | beam.Map(die_on_negative_even_odd).with_exception_handling(
               use_subprocess=self.use_subprocess))
       assert_that(results.even, equal_to([2]), label='CheckEven')
       assert_that(results.odd, equal_to([1, 3]), label='CheckOdd')
@@ -2656,7 +2657,7 @@ class DeadLettersTest(unittest.TestCase):
           p
           | beam.Create([-1, 0, 1])
           | beam.Map(lambda x: TimestampedValue(x, x))
-          | beam.Map(die_if_negative_with_timestamp).with_dead_letters(
+          | beam.Map(die_if_negative_with_timestamp).with_exception_handling(
               use_subprocess=self.use_subprocess))
       assert_that(good, equal_to([(0, Timestamp(0)), (1, Timestamp(1))]))
 
@@ -2692,7 +2693,7 @@ class DeadLettersTest(unittest.TestCase):
       good, _ = (
           p
           | beam.Create([-1, 0, 1, -10, 10])
-          | beam.ParDo(MyDoFn()).with_dead_letters(
+          | beam.ParDo(MyDoFn()).with_exception_handling(
               use_subprocess=self.use_subprocess))
       assert_that(good, equal_to(['start_bundle'] * 3))
 
@@ -2711,15 +2712,15 @@ class DeadLettersTest(unittest.TestCase):
 
       assert_that((
           input
-          | 'Partial' >> beam.FlatMap(die_if_negative_iter).with_dead_letters(
-              partial=True)).good,
+          | 'Partial' >> beam.FlatMap(
+              die_if_negative_iter).with_exception_handling(partial=True)).good,
                   equal_to([2, 3, 33, 4, 44]),
                   'CheckPartial')
 
       assert_that((
           input
-          | 'Complete' >> beam.FlatMap(die_if_negative_iter).with_dead_letters(
-              partial=False)).good,
+          | 'Complete' >> beam.FlatMap(die_if_negative_iter).
+          with_exception_handling(partial=False)).good,
                   equal_to([4, 44]),
                   'CheckComplete')
 
@@ -2729,28 +2730,26 @@ class DeadLettersTest(unittest.TestCase):
       _ = (
           p
           | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
-          | beam.Map(self.die_if_negative).with_dead_letters(
+          | beam.Map(self.die_if_negative).with_exception_handling(
               threshold=0.5, use_subprocess=self.use_subprocess))
 
     # The threshold is too low enough.
-    with self.assertRaisesRegex(Exception,
-                                "Too many bad elements: 2 / 8 = 0.25 > 0.1"):
+    with self.assertRaisesRegex(Exception, "2 / 8 = 0.25 > 0.1"):
       with TestPipeline() as p:
         _ = (
             p
             | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
-            | beam.Map(self.die_if_negative).with_dead_letters(
+            | beam.Map(self.die_if_negative).with_exception_handling(
                 threshold=0.1, use_subprocess=self.use_subprocess))
 
     # The threshold is too low per window.
-    with self.assertRaisesRegex(Exception,
-                                "Too many bad elements: 2 / 2 = 1.0 > 0.5"):
+    with self.assertRaisesRegex(Exception, "2 / 2 = 1.0 > 0.5"):
       with TestPipeline() as p:
         _ = (
             p
             | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
             | beam.Map(lambda x: TimestampedValue(x, x))
-            | beam.Map(self.die_if_negative).with_dead_letters(
+            | beam.Map(self.die_if_negative).with_exception_handling(
                 threshold=0.5,
                 threshold_windowing=window.FixedWindows(10),
                 use_subprocess=self.use_subprocess))
