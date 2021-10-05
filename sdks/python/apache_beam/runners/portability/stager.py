@@ -98,6 +98,8 @@ class Stager(object):
   Implementation of this stager has to implement :func:`stage_artifact` and
   :func:`commit_manifest`.
   """
+  _DEFAULT_CHUNK_SIZE = 2 << 20
+
   def stage_artifact(self, local_path_to_artifact, artifact_name):
     # type: (str, str) -> None
 
@@ -464,14 +466,22 @@ class Stager(object):
         raise
     else:
       try:
-        FileSystems.copy([from_url], [to_path])
+        read_handle = FileSystems.open(from_url)
+        with read_handle as fin:
+          with open(to_path, 'wb') as f:
+            while True:
+              chunk = fin.read(Stager._DEFAULT_CHUNK_SIZE)
+              if not chunk:
+                break
+              f.write(chunk)
         _LOGGER.info('Copied remote file from %s to %s.', from_url, to_path)
         return
-      except Exception:
+      except Exception as e:
         _LOGGER.info(
             'Failed to download file from %s via apache_beam.io.filesystems.'
-            'Trying to copy directly.',
-            from_url)
+            'Trying to copy directly. %s',
+            from_url,
+            repr(e))
       if not os.path.isdir(os.path.dirname(to_path)):
         _LOGGER.info(
             'Created folder (since we have not done yet, and any errors '
