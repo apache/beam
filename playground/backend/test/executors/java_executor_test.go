@@ -61,7 +61,7 @@ func teardown() {
 
 func TestValidateJavaFile(t *testing.T) {
 	_, _ = javaFS.CreateExecutableFile(javaCode, pipelineId)
-	fileName = javaFS.GetJavaExecutableFileName(pipelineId)
+	fileName = javaFS.GetExecutableFileName(pipelineId)
 	expected := true
 	validated, err := javaExecutor.Validate(fileName)
 	if expected != validated || err != nil {
@@ -71,7 +71,7 @@ func TestValidateJavaFile(t *testing.T) {
 }
 
 func TestCompileJavaFile(t *testing.T) {
-	fileName = javaFS.GetJavaExecutableFileName(pipelineId)
+	fileName = javaFS.GetExecutableFileName(pipelineId)
 	err := javaExecutor.Compile(fileName)
 	if err != nil {
 		t.Fatalf("TestCompileJavaFile: Unexpexted error at compiliation: %s ", err.Error())

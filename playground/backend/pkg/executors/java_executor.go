@@ -44,12 +44,12 @@ type JavaExecutor struct {
 	fs fs_tool.JavaFileSystemService
 }
 
-func (javaExec JavaExecutor) Validate(fileName string) (bool, error) {
+func (javaExec *JavaExecutor) Validate(fileName string) (bool, error) {
 	filePath := filepath.Join(javaExec.fs.GetSrcPath(), fileName)
 	return fs_tool.CheckPathIsValid(filePath, javaExtension)
 }
 
-func (javaExec JavaExecutor) Compile(fileName string) error {
+func (javaExec *JavaExecutor) Compile(fileName string) error {
 	cmd := exec.Command("javac", "-d", javaExec.fs.GetBinPath(), "-classpath", beamJarPath,
 		filepath.Join(javaExec.fs.GetSrcPath(), fileName))
 	out, err := cmd.CombinedOutput()
@@ -59,7 +59,7 @@ func (javaExec JavaExecutor) Compile(fileName string) error {
 	return nil
 }
 
-func (javaExec JavaExecutor) Run(className string) (string, error) {
+func (javaExec *JavaExecutor) Run(className string) (string, error) {
 	fullClassPath := strings.Join([]string{javaExec.fs.GetBinPath(), beamJarPath, runnerJarPath, slf4jPath}, ":")
 	cmd := exec.Command("java", "-cp", fullClassPath, className)
 	out, err := cmd.Output()
