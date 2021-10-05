@@ -652,7 +652,7 @@ class JavaJarExpansionService(object):
   """
   def __init__(self, path_to_jar, extra_args=None):
     if extra_args is None:
-      extra_args = ['{{PORT}}']
+      extra_args = ['{{PORT}}', f'--filesToStage={path_to_jar}']
     self._path_to_jar = path_to_jar
     self._extra_args = extra_args
     self._service_count = 0
