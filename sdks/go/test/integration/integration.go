@@ -88,6 +88,8 @@ var flinkFilters = []string{
 }
 
 var samzaFilters = []string{
+	// XLang tests no supported by samza runner.
+	"TestXLang.*",
 	// TODO(BEAM-12608): Samza tests invalid encoding.
 	"TestReshuffle",
 	"TestReshuffleKV",
