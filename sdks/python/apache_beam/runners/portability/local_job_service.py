@@ -130,8 +130,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
                ("grpc.http2.max_pings_without_data", 0),
                ("grpc.http2.max_ping_strikes", 0)]
     self._server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=options)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     port = self._server.add_insecure_port(
         '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
@@ -188,8 +187,7 @@ class SubprocessSdkWorker(object):
     options = [("grpc.http2.max_pings_without_data", 0),
                ("grpc.http2.max_ping_strikes", 0)]
     logging_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=options)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     logging_port = logging_server.add_insecure_port('[::]:0')
     logging_server.start()
     logging_servicer = BeamFnLoggingServicer()

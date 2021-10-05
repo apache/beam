@@ -79,8 +79,7 @@ class BeamFnExternalWorkerPoolServicer(
     options = [("grpc.http2.max_pings_without_data", 0),
                ("grpc.http2.max_ping_strikes", 0)]
     worker_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=options)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     worker_address = 'localhost:%s' % worker_server.add_insecure_port(
         '[::]:%s' % port)
     worker_pool = cls(
