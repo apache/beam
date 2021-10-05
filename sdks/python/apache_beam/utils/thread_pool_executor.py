@@ -41,7 +41,7 @@ class _WorkItem(object):
 
 class _Worker(threading.Thread):
   def __init__(self, idle_worker_queue, work_item):
-    super(_Worker, self).__init__()
+    super().__init__()
     self._idle_worker_queue = idle_worker_queue
     self._work_item = work_item
     self._wake_semaphore = threading.Semaphore(0)

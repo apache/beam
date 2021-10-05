@@ -81,7 +81,7 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
 class MyFileBasedSink(filebasedsink.FileBasedSink):
   def open(self, temp_path):
     # TODO: Fix main session pickling.
-    # file_handle = super(MyFileBasedSink, self).open(temp_path)
+    # file_handle = super().open(temp_path)
     file_handle = filebasedsink.FileBasedSink.open(self, temp_path)
     file_handle.write(b'[start]')
     return file_handle
@@ -94,7 +94,7 @@ class MyFileBasedSink(filebasedsink.FileBasedSink):
   def close(self, file_handle):
     file_handle.write(b'[end]')
     # TODO: Fix main session pickling.
-    # file_handle = super(MyFileBasedSink, self).close(file_handle)
+    # file_handle = super().close(file_handle)
     file_handle = filebasedsink.FileBasedSink.close(self, file_handle)
 
 

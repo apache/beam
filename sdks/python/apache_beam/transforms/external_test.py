@@ -335,7 +335,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
           mapping: typing.Mapping[str, float],
           optional_integer: typing.Optional[int] = None,
           expansion_service=None):
-        super(AnnotatedTransform, self).__init__(
+        super().__init__(
             self.URN,
             AnnotationBasedPayloadBuilder(
                 self,
@@ -363,7 +363,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
           mapping: typehints.Dict[str, float],
           optional_integer: typehints.Optional[int] = None,
           expansion_service=None):
-        super(AnnotatedTransform, self).__init__(
+        super().__init__(
             self.URN,
             AnnotationBasedPayloadBuilder(
                 self,

@@ -111,7 +111,7 @@ class _CombiningValueStateTag(_StateTag):
 
   # TODO(robertwb): Also store the coder (perhaps extracted from the combine_fn)
   def __init__(self, tag, combine_fn):
-    super(_CombiningValueStateTag, self).__init__(tag)
+    super().__init__(tag)
     if not combine_fn:
       raise ValueError('combine_fn must be specified.')
     if not isinstance(combine_fn, core.CombineFn):
@@ -148,7 +148,7 @@ class _ListStateTag(_StateTag):
 
 class _WatermarkHoldStateTag(_StateTag):
   def __init__(self, tag, timestamp_combiner_impl):
-    super(_WatermarkHoldStateTag, self).__init__(tag)
+    super().__init__(tag)
     self.timestamp_combiner_impl = timestamp_combiner_impl
 
   def __repr__(self):
@@ -1236,7 +1236,7 @@ class TriggerDriver(metaclass=ABCMeta):
 class _UnwindowedValues(observable.ObservableMixin):
   """Exposes iterable of windowed values as iterable of unwindowed values."""
   def __init__(self, windowed_values):
-    super(_UnwindowedValues, self).__init__()
+    super().__init__()
     self._windowed_values = windowed_values
 
   def __iter__(self):

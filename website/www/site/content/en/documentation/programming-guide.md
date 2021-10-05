@@ -1462,7 +1462,8 @@ applying `Combine`:
 
 {{< paragraph class="language-go" >}}
 If your `PCollection` uses any non-global windowing function, the Beam Go SDK
-behaves the same way as with global windowing.
+behaves the same way as with global windowing. Windows that are empty in the input
+  `PCollection` will likewise be empty in the output collection.
 {{< /paragraph >}}
 
 ##### 4.2.4.6. Combining values in a keyed PCollection {#combining-values-in-a-keyed-pcollection}
@@ -1651,7 +1652,7 @@ thought to ensure correctness when there are external side effects.
 
 <span class="language-java language-py">
 
-> **Note:** These requirements apply to subclasses of `DoFn`</span> (a function object
+> **Note:** These requirements apply to subclasses of `DoFn`(a function object
 > used with the [ParDo](#pardo) transform), `CombineFn` (a function object used
 > with the [Combine](#combine) transform), and `WindowFn` (a function object
 > used with the [Window](#windowing) transform).
@@ -1660,7 +1661,7 @@ thought to ensure correctness when there are external side effects.
 
 <span class="language-go">
 
-> **Note:** These requirements apply to `DoFn`s</span> (a function object
+> **Note:** These requirements apply to `DoFn`s (a function object
 > used with the [ParDo](#pardo) transform), `CombineFn`s (a function object used
 > with the [Combine](#combine) transform), and `WindowFn`s (a function object
 > used with the [Window](#windowing) transform).
@@ -1834,7 +1835,7 @@ a single global window and specify a trigger.
 
 ### 4.5. Additional outputs {#additional-outputs}
 
-{{< paragraph class="language-java language-python" >}}
+{{< paragraph class="language-java language-py" >}}
 While `ParDo` always produces a main output `PCollection` (as the return value
 from `apply`), you can also have your `ParDo` produce any number of additional
 output `PCollection`s. If you choose to have multiple outputs, your `ParDo`
@@ -2666,6 +2667,11 @@ infer the correct schema based on the members of the class.
 In Python you can use the following set of classes to represent the purchase schema. Beam will automatically infer the correct schema based on the members of the class.
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+In Go, schema encoding is used by default for struct types, with Exported fields becoming part of the schema.
+Beam will automatically infer the schema based on the fields and field tags of the struct, and their order.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 @DefaultSchema(JavaBeanSchema.class)
 public class Purchase {
@@ -2729,6 +2735,10 @@ class ShippingAddress(typing.NamedTuple):
 class Transaction(typing.NamedTuple):
   bank: str
   purchase_amount: float
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/06schemas.go" schema_define >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -2887,6 +2897,13 @@ The argument is represented by a schema type, so can itself be a complex type.
 In Java, a logical type is specified as a subclass of the `LogicalType` class. A custom Java class can be specified to represent the logical type and conversion functions must be supplied to convert back and forth between this Java class and the underlying Schema type representation. For example, the logical type representing nanosecond timestamp might be implemented as follows
 {{< /paragraph >}}
 
+
+{{< paragraph class="language-go" >}}
+In Go, a logical type is specified with a custom implementation of the `beam.SchemaProvider` interface.
+For example, the logical type provider representing nanosecond timestamps
+might be implemented as follows
+{{< /paragraph >}}
+
 {{< highlight java >}}
 // A Logical type using java.time.Instant to represent the logical type.
 public class TimestampNanos implements LogicalType<Instant, Row> {
@@ -2909,11 +2926,39 @@ public class TimestampNanos implements LogicalType<Instant, Row> {
 }
 {{< /highlight >}}
 
+{{< highlight go >}}
+// Define a logical provider like so:
+{{< code_sample "sdks/go/examples/snippets/06schemas.go" schema_logical_provider >}}
+
+// Register it like so:
+{{< code_sample "sdks/go/examples/snippets/06schemas.go" schema_logical_register >}}
+{{< /highlight >}}
+
 #### 6.4.2. Useful logical types {#built-in-logical-types}
+
+{{< paragraph class="language-py" >}}
+Currently the Python SDK provides minimal convenience logical types,
+other than to handle `MicrosInstant`.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Currently the Go SDK provides minimal convenience logical types,
+other than to handle additional integer primitives, and `time.Time`.
+{{< /paragraph >}}
 
 ##### **EnumerationType**
 
+{{< paragraph class="language-py" >}}
+This convenience builder doesn't yet exist for the Python SDK.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+This convenience builder doesn't yet exist for the Go SDK.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 This logical type allows creating an enumeration type consisting of a set of named constants.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 Schema schema = Schema.builder()
@@ -2922,8 +2967,10 @@ Schema schema = Schema.builder()
      .build();
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 The value of this field is stored in the row as an INT32 type, however the logical type defines a value type that lets
 you access the enumeration either as a string or a value. For example:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 EnumerationType.Value enumValue = enumType.valueOf("RED");
@@ -2931,18 +2978,32 @@ enumValue.getValue();  // Returns 0, the integer value of the constant.
 enumValue.toString();  // Returns "RED", the string value of the constant
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 Given a row object with an enumeration field, you can also extract the field as the enumeration value.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 EnumerationType.Value enumValue = row.getLogicalTypeValue("color", EnumerationType.Value.class);
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 Automatic schema inference from Java POJOs and JavaBeans automatically converts Java enums to EnumerationType logical
 types.
+{{< /paragraph >}}
 
 ##### **OneOfType**
 
+{{< paragraph class="language-py" >}}
+This convenience builder doesn't yet exist for the Python SDK.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+This convenience builder doesn't yet exist for the Go SDK.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
 OneOfType allows creating a disjoint union type over a set of schema fields. For example:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 Schema schema = Schema.builder()
@@ -2954,9 +3015,11 @@ Schema schema = Schema.builder()
       .build();
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 The value of this field is stored in the row as another Row type, where all the fields are marked as nullable. The
 logical type however defines a Value object that contains an enumeration value indicating which field was set and allows
  getting just that field:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 // Returns an enumeration indicating all possible case values for the enum.
@@ -2978,17 +3041,28 @@ switch (oneOfValue.getCaseEnumType().toString()) {
 }
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 In the above example we used the field names in the switch statement for clarity, however the enum integer values could
  also be used.
+{{< /paragraph >}}
 
 ### 6.5. Creating Schemas {#creating-schemas}
 
-In order to take advantage of schemas, your `PCollection`s must have a schema attached to it. Often, the source itself will attach a schema to the PCollection. For example, when using `AvroIO` to read Avro files, the source can automatically infer a Beam schema from the Avro schema and attach that to the Beam `PCollection`. However not all sources produce schemas. In addition, often Beam pipelines have intermediate stages and types, and those also can benefit from the expressiveness of schemas.
+In order to take advantage of schemas, your `PCollection`s must have a schema attached to it.
+Often, the source itself will attach a schema to the PCollection.
+For example, when using `AvroIO` to read Avro files, the source can automatically infer a Beam schema from the Avro schema and attach that to the Beam `PCollection`.
+However not all sources produce schemas.
+In addition, often Beam pipelines have intermediate stages and types, and those also can benefit from the expressiveness of schemas.
 
 #### 6.5.1. Inferring schemas {#inferring-schemas}
 
+{{< language-switcher java py go >}}
+
 {{< paragraph class="language-java" >}}
-Beam is able to infer schemas from a variety of common Java types. The `@DefaultSchema` annotation can be used to tell Beam to infer schemas from a specific type. The annotation takes a `SchemaProvider` as an argument, and `SchemaProvider` classes are already built in for common Java types. The `SchemaRegistry` can also be invoked programmatically for cases where it is not practical to annotate the Java type itself.
+Beam is able to infer schemas from a variety of common Java types.
+The `@DefaultSchema` annotation can be used to tell Beam to infer schemas from a specific type.
+The annotation takes a `SchemaProvider` as an argument, and `SchemaProvider` classes are already built in for common Java types.
+The `SchemaRegistry` can also be invoked programmatically for cases where it is not practical to annotate the Java type itself.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
@@ -3191,12 +3265,63 @@ output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=str(item["bank"]),
                                                       purchase_amount=float(item["purchase_amount"])))
 {{< /highlight >}}
 
+{{< paragraph class="language-go" >}}
+Beam currently only infers schemas for exported fields in Go structs.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+**Structs**
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Beam will automatically infer schemas for all Go structs used
+as PCollection elements, and default to encoding them using
+schema encoding.
+{{< /paragraph >}}
+
+{{< highlight go >}}
+type Transaction struct{
+  Bank string
+  PurchaseAmount float64
+
+  checksum []byte // ignored
+}
+{{< /highlight >}}
+
+{{< paragraph class="language-go" >}}
+Unexported fields are ignored, and cannot be automatically infered as part of the schema.
+Fields of type  func, channel, unsafe.Pointer, or uintptr will be ignored by inference.
+Fields of interface types are ignored, unless a schema provider
+is registered for them.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+By default, schema field names will match the exported struct field names.
+In the above example, "Bank" and "PurchaseAmount" are the schema field names.
+A schema field name can be overridden with a struct tag for the field.
+{{< /paragraph >}}
+
+{{< highlight go >}}
+type Transaction struct{
+  Bank           string  `beam:"bank"`
+  PurchaseAmount float64 `beam:"purchase_amount"`
+}
+{{< /highlight >}}
+
+{{< paragraph class="language-go" >}}
+Overriding schema field names is useful for compatibility cross language transforms,
+as schema fields may have different requirements or restrictions from Go exported fields.
+{{< /paragraph >}}
 
 ### 6.6. Using Schema Transforms {#using-schemas}
 
 A schema on a `PCollection` enables a rich variety of relational transforms. The fact that each record is composed of
 named fields allows for simple and readable aggregations that reference fields by name, similar to the aggregations in
 a SQL expression.
+
+{{< paragraph class="language-go" >}}
+Beam does not yet support Schema transforms natively in Go. However, it will be implemented with the following behavior.
+{{< /paragraph >}}
 
 #### 6.6.1. Field selection syntax
 
@@ -3723,6 +3848,10 @@ A `PCollection` with a schema can apply a `ParDo`, just like any other `PCollect
 
 ##### **Input conversion**
 
+{{< paragraph class="language-go" >}}
+Beam does not yet support input conversion in Go.
+{{< /paragraph >}}
+
 Since Beam knows the schema of the source `PCollection`, it can automatically convert the elements to any Java type for
 which a matching schema is known. For example, using the above-mentioned Transaction schema, say we have the following
 `PCollection`:
@@ -3789,6 +3918,8 @@ automatically convert to any matching schema type, just like when reading the en
 
 ## 7. Data encoding and type safety {#data-encoding-and-type-safety}
 
+{{< language-switcher java py go >}}
+
 When Beam runners execute your pipeline, they often need to materialize the
 intermediate data in your `PCollection`s, which requires converting elements to
 and from byte strings. The Beam SDKs use objects called `Coder`s to describe how
@@ -3814,6 +3945,15 @@ subclasses that work with a variety of standard Python types, such as primitive
 types, Tuple, Iterable, StringUtf8 and more. You can find all of the available
 Coder subclasses in the
 [apache_beam.coders](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/coders)
+package.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Standard Go types like `int`, `int64` `float64`, `[]byte`, and `string` and more are coded using builtin coders.
+Structs and pointers to structs default using Beam Schema Row encoding.
+However, users can build and register custom coders with `beam.RegisterCoder`.
+You can find available Coder functions in the
+[coder](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coders)
 package.
 {{< /paragraph >}}
 
@@ -3858,6 +3998,11 @@ Python types to the default coder that should be used for `PCollection`s of each
 type.
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+The Beam SDK for Go allows users to register default coder
+implementations with `beam.RegisterCoder`.
+{{< /paragraph >}}
+
 {{< paragraph class="language-java" >}}
 By default, the Beam SDK for Java automatically infers the `Coder` for the
 elements of a `PCollection` produced by a `PTransform` using the type parameter
@@ -3880,11 +4025,23 @@ Python will automatically infer the default `Coder` for the output `PCollection`
 (in the default pipeline `CoderRegistry`, this is `BytesCoder`).
 {{< /paragraph >}}
 
-> NOTE: If you create your `PCollection` from in-memory data by using the
+{{< paragraph class="language-go" >}}
+By default, the Beam SDK for Go automatically infers the `Coder` for the elements of an output `PCollection` by the output of the transform's function object, such as a `DoFn`.
+ In the case of `ParDo`, for example a `DoFn`
+with the parameters of `v int, emit func(string)` accepts an input element of type `int`
+and produces an output element of type `string`.
+In such a case, the Beam SDK for Go will automatically infer the default `Coder` for the output `PCollection` to be the `string_utf8` coder.
+{{< /paragraph >}}
+
+<span class="language-java">
+
+> **Note:** If you create your `PCollection` from in-memory data by using the
 > `Create` transform, you cannot rely on coder inference and default coders.
 > `Create` does not have access to any typing information for its arguments, and
 > may not be able to infer a coder if the argument list contains a value whose
 > exact run-time class doesn't have a default coder registered.
+
+</span>
 
 {{< paragraph class="language-java" >}}
 When using `Create`, the simplest way to ensure that you have the correct coder
@@ -4019,8 +4176,13 @@ for a Python type. You can use `coders.registry` to access the `CoderRegistry`.
 This allows you to determine (or set) the default Coder for a Python type.
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+You can use the `beam.NewCoder` function to determine the default Coder for a Go type.
+{{< /paragraph >}}
+
 #### 7.2.2. Setting the default coder for a type {#setting-default-coder}
 
+{{< paragraph class="language-java language-py" >}}
 To set the default Coder for a
 <span class="language-java">Java</span><span class="language-py">Python</span>
 type for a particular pipeline, you obtain and modify the pipeline's
@@ -4031,11 +4193,23 @@ to get the `CoderRegistry` object, and then use the method
 <span class="language-java">`CoderRegistry.registerCoder`</span>
 <span class="language-py">`CoderRegistry.register_coder`</span>
 to register a new `Coder` for the target type.
+{{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+To set the default Coder for a Go type you use the function `beam.RegisterCoder` to register a encoder and decoder functions for the target type.
+However, built in types like `int`, `string`, `float64`, etc cannot have their coders overridde.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java language-py" >}}
 The following example code demonstrates how to set a default Coder, in this case
 `BigEndianIntegerCoder`, for
 <span class="language-java">Integer</span><span class="language-py">int</span>
 values for a pipeline.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+The following example code demonstrates how to set a custom Coder for `MyCustomType` elements.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 PipelineOptions options = PipelineOptionsFactory.create();
@@ -4049,9 +4223,26 @@ cr.registerCoder(Integer.class, BigEndianIntegerCoder.class);
 apache_beam.coders.registry.register_coder(int, BigEndianIntegerCoder)
 {{< /highlight >}}
 
+{{< highlight go >}}
+type MyCustomType struct{
+  ...
+}
+
+// See documentation on beam.RegisterCoder for other supported coder forms.
+
+func encode(MyCustomType) []byte { ... }
+
+func decode(b []byte) MyCustomType { ... }
+
+func init() {
+  beam.RegisterCoder(reflect.TypeOf((*MyCustomType)(nil)).Elem(), encode, decode)
+}
+{{< /highlight >}}
+
 #### 7.2.3. Annotating a custom data type with a default coder {#annotating-custom-type-default-coder}
 
-{{< paragraph class="language-java" >}}
+<span class="language-java">
+
 If your pipeline program defines a custom data type, you can use the
 `@DefaultCoder` annotation to specify the coder to use with that type.
 By default, Beam will use `SerializableCoder` which uses Java serialization,
@@ -4064,10 +4255,11 @@ but it has drawbacks:
 
    For key/value pairs, the correctness of key-based operations
    (GroupByKey, Combine) and per-key State depends on having a deterministic
-   coder for the key.
+   coder for the key
 
 You can use the `@DefaultCoder` annotation to set a new default as follows:
-{{< /paragraph >}}
+
+</span>
 
 {{< highlight java >}}
 @DefaultCoder(AvroCoder.class)
@@ -4094,9 +4286,10 @@ public class MyCustomDataType {
 }
 {{< /highlight >}}
 
-{{< paragraph class="language-py" >}}
-The Beam SDK for Python does not support annotating data types with a default
-coder. If you would like to set a default coder, use the method described in the
+{{< paragraph class="language-py language-go" >}}
+The Beam SDK for <span class="language-py">Python</span><span class="language-go">Go</span>
+does not support annotating data types with a default coder.
+If you would like to set a default coder, use the method described in the
 previous section, *Setting the default coder for a type*.
 {{< /paragraph >}}
 
@@ -4222,7 +4415,7 @@ You can define different kinds of windows to divide the elements of your
 *  Sliding Time Windows
 *  Per-Session Windows
 *  Single Global Window
-*  Calendar-based Windows (not supported by the Beam SDK for Python)
+*  Calendar-based Windows (not supported by the Beam SDK for Python or Go)
 
 You can also define your own `WindowFn` if you have a more complex need.
 
@@ -4327,6 +4520,10 @@ into fixed windows, each 60 seconds in length:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_fixed_windows >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_fixed_windows >}}
+{{< /highlight >}}
+
 #### 8.3.2. Sliding time windows {#using-sliding-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
@@ -4343,6 +4540,10 @@ begins every five seconds:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_sliding_windows >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_sliding_windows >}}
+{{< /highlight >}}
+
 #### 8.3.3. Session windows {#using-session-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
@@ -4357,6 +4558,10 @@ least 10 minutes (600 seconds):
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_session_windows >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_session_windows >}}
 {{< /highlight >}}
 
 Note that the sessions are per-key — each key in the collection will have its
@@ -4376,6 +4581,10 @@ a single global window for a `PCollection`:
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_global_window >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_global_window >}}
 {{< /highlight >}}
 
 ### 8.4. Watermarks and late data {#watermarks-and-late-data}
@@ -4445,6 +4654,10 @@ the end of a window.
               allowed_lateness=Duration(seconds=2*24*60*60)) # 2 days
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_allowed_lateness >}}
+{{< /highlight >}}
+
 When you set `.withAllowedLateness` on a `PCollection`, that allowed lateness
 propagates forward to any subsequent `PCollection` derived from the first
 `PCollection` you applied allowed lateness to. If you want to change the allowed
@@ -4489,7 +4702,20 @@ with a `DoFn` to attach the timestamps to each element in your `PCollection`.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_timestamp >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_timestamp >}}
+
+// Use the DoFn with ParDo as normal.
+{{< code_sample "sdks/go/examples/snippets/08windowing.go" setting_timestamp_pipeline >}}
+{{< /highlight >}}
+
 ## 9. Triggers {#triggers}
+
+<span class="language-go">
+
+> **Note:** The Trigger API in the Beam SDK for Go is currently experimental and subject to change.
+
+</span>
 
 When collecting and grouping data into windows, Beam uses **triggers** to
 determine when to emit the aggregated results of each window (referred to as a
@@ -4580,7 +4806,7 @@ firings:
 {{< /highlight >}}
 
 {{< highlight go >}}
-  {{< code_sample "sdks/go/examples/snippets/09triggers.go" after_window_trigger >}}
+{{< code_sample "sdks/go/examples/snippets/09triggers.go" after_window_trigger >}}
 {{< /highlight >}}
 
 #### 9.1.1. Default trigger {#default-trigger}
@@ -4653,9 +4879,10 @@ sets the window's **accumulation mode**.
 
 {{< paragraph class="language-go" >}}
 You set the trigger(s) for a `PCollection` by passing in the `beam.Trigger` parameter
-when you use the `beam.WindowInto` transform. This code sample sets an Always
-trigger for a `PCollection`, which emits results every time an element in that window has been processed. The `beam.AccumulationMode` parameter
-sets the window's **accumulation mode**.
+when you use the `beam.WindowInto` transform. This code sample sets a time-based
+trigger for a `PCollection`, which emits results one minute after the first
+element in that window has been processed.
+ The `beam.AccumulationMode` parameter sets the window's **accumulation mode**.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -4674,7 +4901,7 @@ sets the window's **accumulation mode**.
 {{< /highlight >}}
 
 {{< highlight go >}}
-  {{< code_sample "sdks/go/examples/snippets/09triggers.go" always_trigger >}}
+{{< code_sample "sdks/go/examples/snippets/09triggers.go" setting_a_trigger >}}
 {{< /highlight >}}
 
 #### 9.4.1. Window accumulation modes {#window-accumulation-modes}
@@ -4754,8 +4981,10 @@ your windowing configuration. This gives your trigger the opportunity to react
 to the late data. If allowed lateness is set, the default trigger will emit new
 results immediately whenever late data arrives.
 
-You set the allowed lateness by using `.withAllowedLateness()` when you set your
-windowing function:
+You set the allowed lateness by using <span class="language-java">`.withAllowedLateness()`</span>
+<span class="language-py">`allowed_lateness`</span>
+<span class="language-go">`beam.AllowedLateness()`</span>
+when you set your windowing function:
 
 {{< highlight java >}}
   PCollection<String> pc = ...;
@@ -4775,10 +5004,17 @@ windowing function:
 
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/09triggers.go" setting_allowed_lateness >}}
+{{< /highlight >}}
+
 This allowed lateness propagates to all `PCollection`s derived as a result of
 applying transforms to the original `PCollection`. If you want to change the
 allowed lateness later in your pipeline, you can apply
-`Window.configure().withAllowedLateness()` again, explicitly.
+<span class="language-java">`Window.configure().withAllowedLateness()`</span>
+<span class="language-py">`allowed_lateness`</span>
+<span class="language-go">`beam.AllowedLateness()`</span>
+again, explicitly.
 
 
 ### 9.5. Composite triggers {#composite-triggers}
@@ -4851,6 +5087,10 @@ example trigger code fires on the following conditions:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_triggers >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/09triggers.go" model_composite_triggers >}}
+{{< /highlight >}}
+
 #### 9.5.3. Other composite triggers {#other-composite-triggers}
 
 You can also build other sorts of composite triggers. The following example code
@@ -4899,6 +5139,12 @@ after jobs have completed.
 There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and
 `Gauge`.
 
+{{< paragraph class="language-go" >}}
+In the Beam SDK for Go, a `context.Context` provided by the framework must be passed to the metric
+or the metric value will not be recorded. The framework will automatically provide a valid
+`context.Context` to `ProcessElement` and similar methods when it's the first parameter.
+{{< /paragraph >}}
+
 **Counter**: A metric that reports a single long value and can be incremented or decremented.
 
 {{< highlight java >}}
@@ -4909,6 +5155,16 @@ public void processElement(ProcessContext context) {
   // count the elements
   counter.inc();
   ...
+}
+{{< /highlight >}}
+
+{{< highlight go >}}
+var counter = beam.NewCounter("namespace", "counter1")
+
+func (fn *MyDoFn) ProcessElement(ctx context.Context, ...) {
+	// count the elements
+	counter.Inc(ctx, 1)
+	...
 }
 {{< /highlight >}}
 
@@ -4923,6 +5179,16 @@ public void processElement(ProcessContext context) {
     // create a distribution (histogram) of the values
     distribution.update(element);
     ...
+}
+{{< /highlight >}}
+
+{{< highlight go >}}
+var distribution = beam.NewDistribution("namespace", "distribution1")
+
+func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
+    // create a distribution (histogram) of the values
+	distribution.Inc(ctx, v)
+	...
 }
 {{< /highlight >}}
 
@@ -4941,10 +5207,29 @@ public void processElement(ProcessContext context) {
 }
 {{< /highlight >}}
 
+{{< highlight go >}}
+var gauge = beam.NewGauge("namespace", "gauge1")
+
+func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
+  // create a gauge (latest value received) of the values
+	gauge.Set(ctx, v)
+	...
+}
+{{< /highlight >}}
+
 ### 10.3. Querying metrics {#querying-metrics}
+{{< paragraph class="language-java language-python">}}
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
 accessing metrics. The main method available in `MetricResults` allows querying for all metrics
 matching a given filter.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go">}}
+`beam.PipelineResult` has a method `Metrics()` which returns a `metrics.Results` object that allows
+accessing metrics. The main method available in `metrics.Results` allows querying for all metrics
+matching a given filter.  It takes in a predicate with a `SingleResult` parameter type, which can
+be used for custom filters.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 public interface PipelineResult {
@@ -4967,6 +5252,10 @@ public interface MetricResult<T> {
   T getCommitted();
   T getAttempted();
 }
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_query >}}
 {{< /highlight >}}
 
 ### 10.4. Using metrics in pipeline {#using-metrics}
@@ -5005,6 +5294,10 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
     context.output(context.element());
   }
 }
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_pipeline >}}
 {{< /highlight >}}
 
 ### 10.5. Export metrics {#export-metrics}

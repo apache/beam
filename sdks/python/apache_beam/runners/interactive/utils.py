@@ -150,8 +150,8 @@ def register_ipython_log_handler():
   # will be triggered at the "root"'s own logging level. And if a child logger
   # sets its logging level, it can take control back.
   interactive_root_logger = logging.getLogger('apache_beam.runners.interactive')
-  if any([isinstance(h, IPythonLogHandler)
-          for h in interactive_root_logger.handlers]):
+  if any(isinstance(h, IPythonLogHandler)
+         for h in interactive_root_logger.handlers):
     return
   interactive_root_logger.setLevel(logging.INFO)
   interactive_root_logger.addHandler(IPythonLogHandler())

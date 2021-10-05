@@ -353,7 +353,7 @@ class _CsvSplitter(_DelimSplitter):
           'for splittable csv reads.')
     if kwargs.get('skipfooter', 0):
       raise ValueError('Splittablility incompatible with skipping footers.')
-    super(_CsvSplitter, self).__init__(
+    super().__init__(
         _maybe_encode(kwargs.get('lineterminator', b'\n')),
         _DEFAULT_BYTES_CHUNKSIZE)
     self._kwargs = kwargs

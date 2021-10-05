@@ -59,6 +59,10 @@ class RowCoder(FastCoder):
         to encode/decode.
     """
     self.schema = schema
+
+    # Eagerly generate type hint to escalate any issues with the Schema proto
+    self._type_hint = named_tuple_from_schema(self.schema)
+
     # Use non-null coders because null values are represented separately
     self.components = [
         _nonnull_coder_from_type(field.type) for field in self.schema.fields
@@ -71,7 +75,7 @@ class RowCoder(FastCoder):
     return all(c.is_deterministic() for c in self.components)
 
   def to_type_hint(self):
-    return named_tuple_from_schema(self.schema)
+    return self._type_hint
 
   def __hash__(self):
     return hash(self.schema.SerializeToString())
