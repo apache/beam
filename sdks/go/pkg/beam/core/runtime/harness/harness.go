@@ -317,8 +317,9 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(ctx, instID, "Failed: %v", err)
 		}
 
+		// TODO(BEAM-11097): Get and set valid tokens in cache
 		data := NewScopedDataManager(c.data, instID)
-		state := NewScopedStateReader(c.state, instID)
+		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
 		err = plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
 		data.Close()
 		state.Close()

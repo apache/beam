@@ -148,7 +148,7 @@ REQUIRED_PACKAGES = [
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
-    'pyarrow>=0.15.1,<5.0.0',
+    'pyarrow>=0.15.1,<6.0.0',
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
@@ -165,7 +165,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
     'mock>=1.0.1,<3.0.0',
-    'pandas>=1.0,<1.3.0',
+    'pandas<2.0.0',
     'parameterized>=0.7.1,<0.8.0',
     'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
     'pyyaml>=3.12,<6.0.0',
@@ -215,7 +215,7 @@ INTERACTIVE_BEAM = [
 INTERACTIVE_BEAM_TEST = [
     # notebok utils
     'nbformat>=5.0.5,<6',
-    'nbconvert>=5.6.1,<6',
+    'nbconvert>=6.2.0,<7',
     # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
@@ -242,7 +242,7 @@ def generate_protos_first(original_cmd):
     class cmd(original_cmd, object):
       def run(self):
         gen_protos.generate_proto_files()
-        super(cmd, self).run()
+        super().run()
 
     return cmd
   except ImportError:
@@ -305,7 +305,8 @@ setuptools.setup(
         'interactive': INTERACTIVE_BEAM,
         'interactive_test': INTERACTIVE_BEAM_TEST,
         'aws': AWS_REQUIREMENTS,
-        'azure': AZURE_REQUIREMENTS
+        'azure': AZURE_REQUIREMENTS,
+        'dataframe': ['pandas>=1.0,<1.4']
     },
     zip_safe=False,
     # PyPI package information.

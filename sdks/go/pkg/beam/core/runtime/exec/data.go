@@ -44,6 +44,16 @@ type DataContext struct {
 	State StateReader
 }
 
+// SideCache manages cached ReStream values for side inputs that can be re-used across
+// bundles.
+type SideCache interface {
+	// QueryCache checks the cache for a ReStream corresponding to the transform and
+	// side input being used.
+	QueryCache(transformID, sideInputID string) ReStream
+	// SetCache places a ReStream into the cache for a transform and side input.
+	SetCache(transformID, sideInputID string, input ReStream)
+}
+
 // DataManager manages external data byte streams. Each data stream can be
 // opened by one consumer only.
 type DataManager interface {
@@ -59,6 +69,8 @@ type StateReader interface {
 	OpenSideInput(ctx context.Context, id StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error)
 	// OpenIterable opens a byte stream for reading unwindowed iterables from the runner.
 	OpenIterable(ctx context.Context, id StreamID, key []byte) (io.ReadCloser, error)
+	// GetSideInputCache returns the SideInputCache being used at the harness level.
+	GetSideInputCache() SideCache
 }
 
 // TODO(herohde) 7/20/2018: user state management

@@ -669,7 +669,7 @@ class ReadFromSpanner(PTransform):
     return p
 
   def display_data(self):
-    res = dict()
+    res = {}
     sql = []
     table = []
     if self._read_operations is not None:

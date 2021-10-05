@@ -109,11 +109,11 @@ class FastavroIT(unittest.TestCase):
     batch_size = self.test_pipeline.get_option('batch-size')
     batch_size = int(batch_size) if batch_size else 10000
 
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     batches = range(int(num_records / batch_size))
 
     def batch_indices(start):
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       return range(start * batch_size, (start + 1) * batch_size)
 
     # A `PCollection` with `num_records` avro records

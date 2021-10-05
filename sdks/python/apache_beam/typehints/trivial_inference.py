@@ -53,7 +53,7 @@ def instance_to_type(o):
         (name, instance_to_type(value)) for name, value in o.as_dict().items()
     ])
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
-    # pylint: disable=deprecated-types-field
+    # pylint: disable=bad-option-value
     if t == BoundMethod:
       return types.MethodType
     return t

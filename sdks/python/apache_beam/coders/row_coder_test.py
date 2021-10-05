@@ -186,6 +186,7 @@ class RowCoderTest(unittest.TestCase):
     )
 
     # Encode max+1/min-1 ints to make sure they DO throw an error
+    # pylint: disable=cell-var-from-loop
     for case in overflow:
       self.assertRaises(OverflowError, lambda: c.encode(case))
 
@@ -298,6 +299,17 @@ class RowCoderTest(unittest.TestCase):
     self.assertEqual(
         New("foo", "baz", None),
         new_coder.decode(old_coder.encode(Old("foo", "baz"))))
+
+  def test_row_coder_fail_early_bad_schema(self):
+    schema_proto = schema_pb2.Schema(
+        fields=[
+            schema_pb2.Field(
+                name="type_with_no_typeinfo", type=schema_pb2.FieldType())
+        ])
+
+    # Should raise an exception referencing the problem field
+    self.assertRaisesRegex(
+        ValueError, "type_with_no_typeinfo", lambda: RowCoder(schema_proto))
 
 
 if __name__ == "__main__":

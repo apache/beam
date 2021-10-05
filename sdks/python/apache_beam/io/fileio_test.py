@@ -102,7 +102,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
         '%s%s' % (self._new_tempdir(), os.sep)
     ]
 
-    files = list()
+    files = []
     files.append(self._create_temp_file(dir=directories[0]))
     files.append(self._create_temp_file(dir=directories[0]))
 
@@ -122,7 +122,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
         '%s%s' % (self._new_tempdir(), os.sep)
     ]
 
-    files = list()
+    files = []
     files.append(self._create_temp_file(dir=directories[0]))
     files.append(self._create_temp_file(dir=directories[0]))
 

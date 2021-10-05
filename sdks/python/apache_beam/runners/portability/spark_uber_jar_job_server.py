@@ -45,7 +45,7 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   the pipeline artifacts.
   """
   def __init__(self, rest_url, options):
-    super(SparkUberJarJobServer, self).__init__()
+    super().__init__()
     self._rest_url = rest_url
     self._artifact_port = (
         options.view_as(pipeline_options.JobServerOptions).artifact_port)
@@ -108,7 +108,7 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
       pipeline,
       options,
       artifact_port=0):
-    super(SparkBeamJob, self).__init__(
+    super().__init__(
         executable_jar,
         job_id,
         job_name,
@@ -218,7 +218,7 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
     timestamp = self.set_state(state)
     if timestamp is None:
       # State has not changed since last check. Use previous timestamp.
-      return super(SparkBeamJob, self).get_state()
+      return super().get_state()
     else:
       return state, timestamp
 
