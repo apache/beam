@@ -9364,6 +9364,9 @@ after jobs have completed.&lt;/p>
 &lt;h3 id="types-of-metrics">10.2. Types of metrics&lt;/h3>
 &lt;p>There are three types of metrics that are supported for the moment: &lt;code>Counter&lt;/code>, &lt;code>Distribution&lt;/code> and
 &lt;code>Gauge&lt;/code>.&lt;/p>
+&lt;p class="language-go">In the Beam SDK for Go, a &lt;code>context.Context&lt;/code> provided by the framework must be passed to the metric
+or the metric value will not be recorded. The framework will automatically provide a valid
+&lt;code>context.Context&lt;/code> to &lt;code>ProcessElement&lt;/code> and similar methods when it&amp;rsquo;s the first parameter.&lt;/p>
 &lt;p>&lt;strong>Counter&lt;/strong>: A metric that reports a single long value and can be incremented or decremented.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -9377,6 +9380,19 @@ after jobs have completed.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">counter&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">inc&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="o">...&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">var&lt;/span> &lt;span class="nx">counter&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewCounter&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;namespace&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;counter1&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">MyDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Context&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">...&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// count the elements
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">counter&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Inc&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>&lt;strong>Distribution&lt;/strong>: A metric that reports information about the distribution of reported values.&lt;/p>
@@ -9393,6 +9409,19 @@ after jobs have completed.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">distribution&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">update&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="o">);&lt;/span>
 &lt;span class="o">...&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">var&lt;/span> &lt;span class="nx">distribution&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewDistribution&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;namespace&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;distribution1&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">MyDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Context&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">v&lt;/span> &lt;span class="kt">int64&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">...&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// create a distribution (histogram) of the values
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">distribution&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Inc&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">v&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>&lt;strong>Gauge&lt;/strong>: A metric that reports the latest value out of reported values. Since metrics are
@@ -9412,10 +9441,27 @@ collected from many workers the value may not be the absolute last, but one of t
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">var&lt;/span> &lt;span class="nx">gauge&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewGauge&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;namespace&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;gauge1&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">MyDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Context&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">v&lt;/span> &lt;span class="kt">int64&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">...&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// create a gauge (latest value received) of the values
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">gauge&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">v&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h3 id="querying-metrics">10.3. Querying metrics&lt;/h3>
-&lt;p>&lt;code>PipelineResult&lt;/code> has a method &lt;code>metrics()&lt;/code> which returns a &lt;code>MetricResults&lt;/code> object that allows
+&lt;p class="language-java language-python">&lt;code>PipelineResult&lt;/code> has a method &lt;code>metrics()&lt;/code> which returns a &lt;code>MetricResults&lt;/code> object that allows
 accessing metrics. The main method available in &lt;code>MetricResults&lt;/code> allows querying for all metrics
 matching a given filter.&lt;/p>
+&lt;p class="language-go">&lt;code>beam.PipelineResult&lt;/code> has a method &lt;code>Metrics()&lt;/code> which returns a &lt;code>metrics.Results&lt;/code> object that allows
+accessing metrics. The main method available in &lt;code>metrics.Results&lt;/code> allows querying for all metrics
+matching a given filter. It takes in a predicate with a &lt;code>SingleResult&lt;/code> parameter type, which can
+be used for custom filters.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -9438,6 +9484,18 @@ matching a given filter.&lt;/p>
 &lt;span class="n">T&lt;/span> &lt;span class="nf">getCommitted&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="n">T&lt;/span> &lt;span class="nf">getAttempted&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="nf">queryMetrics&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">pr&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PipelineResult&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">ns&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">n&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">metrics&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">QueryResults&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">pr&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Metrics&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nf">Query&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">r&lt;/span> &lt;span class="nx">metrics&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">SingleResult&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">bool&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">r&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Namespace&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">ns&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">r&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Name&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">n&lt;/span>
+&lt;span class="p">})&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="using-metrics">10.4. Using metrics in pipeline&lt;/h3>
@@ -9474,6 +9532,48 @@ matching a given filter.&lt;/p>
 &lt;span class="n">context&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">output&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">context&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">element&lt;/span>&lt;span class="o">());&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="nf">addMetricDoFnToPipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">input&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">MyMetricsDoFn&lt;/span>&lt;span class="p">{},&lt;/span> &lt;span class="nx">input&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">executePipelineAndGetMetrics&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Context&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">p&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Pipeline&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">metrics&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">QueryResults&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">error&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">pr&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Run&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">runner&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">p&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">metrics&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">QueryResults&lt;/span>&lt;span class="p">{},&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// Request the metric called &amp;#34;counter1&amp;#34; in namespace called &amp;#34;namespace&amp;#34;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">ms&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">pr&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Metrics&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nf">Query&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">r&lt;/span> &lt;span class="nx">metrics&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">SingleResult&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">bool&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">r&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Namespace&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="s">&amp;#34;namespace&amp;#34;&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">r&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Name&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="s">&amp;#34;counter1&amp;#34;&lt;/span>
+&lt;span class="p">})&lt;/span>
+&lt;span class="c1">// Print the metric value - there should be only one line because there is
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// only one metric called &amp;#34;counter1&amp;#34; in the namespace called &amp;#34;namespace&amp;#34;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="nx">_&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">c&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="k">range&lt;/span> &lt;span class="nx">ms&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Counters&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Println&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">c&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Namespace&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="s">&amp;#34;-&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Name&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="s">&amp;#34;:&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Committed&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">ms&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">type&lt;/span> &lt;span class="nx">MyMetricsDoFn&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">counter&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Counter&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterType&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">MyMetricsDoFn&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">MyMetricsDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">Setup&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// While metrics can be defined in package scope or dynamically
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// it&amp;#39;s most efficient to include them in the DoFn.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">fn&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">counter&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewCounter&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;namespace&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;counter1&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">MyMetricsDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Context&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">v&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">V&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emit&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">V&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// count the elements
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">fn&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">counter&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Inc&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nf">emit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">v&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="export-metrics">10.5. Export metrics&lt;/h3>
