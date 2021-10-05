@@ -1044,26 +1044,36 @@ class _CustomBigQueryStorageSource(BoundedSource):
         self._get_parent_project(), location, {'type': 'apache-beam-temp'})
 
   @check_accessible(['query'])
-  def _execute_query(self, bq):
-    query_job_name = bigquery_tools.generate_bq_job_name(
-        self._job_name,
-        self._source_uuid,
-        bigquery_tools.BigQueryJobTypes.QUERY,
-        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
-    job = bq._start_query_job(
-        self._get_parent_project(),
-        self.query.get(),
-        self.use_legacy_sql,
-        self.flatten_results,
-        job_id=query_job_name,
-        priority=self.query_priority,
-        kms_key=self.kms_key,
-        job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
-            self.bigquery_job_labels))
-    job_ref = job.jobReference
-    bq.wait_for_bq_job(job_ref, max_retries=0)
-    table_reference = bq._get_temp_table(self._get_parent_project())
-    return table_reference
+  def _execute_query(self, bq, sleep_duration_sec=5, max_retries=3):
+    retry = 0
+    while True:
+      retry += 1
+      query_job_name = bigquery_tools.generate_bq_job_name(
+          self._job_name,
+          self._source_uuid,
+          bigquery_tools.BigQueryJobTypes.QUERY,
+          '%s_%s' % (int(time.time()), random.randint(0, 1000)))
+      job = bq._start_query_job(
+          self._get_parent_project(),
+          self.query.get(),
+          self.use_legacy_sql,
+          self.flatten_results,
+          job_id=query_job_name,
+          priority=self.query_priority,
+          kms_key=self.kms_key,
+          job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
+              self.bigquery_job_labels))
+      job_ref = job.jobReference
+      try:
+        bq.wait_for_bq_job(job_ref, max_retries=0)
+      except RuntimeError as error:
+        if retry <= max_retries:
+          time.sleep(sleep_duration_sec)
+          continue
+        else:
+          raise error
+      table_reference = bq._get_temp_table(self._get_parent_project())
+      return table_reference
 
   def display_data(self):
     return {
