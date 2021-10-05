@@ -1193,12 +1193,32 @@ class TupleSequenceCoderImpl(SequenceCoderImpl):
     return tuple(components)
 
 
+class _AbstractIterable(object):
+  """Wraps an iterable hiding methdos that might not always be available."""
+  def __init__(self, contents):
+    self._contents = contents
+
+  def __iter__(self):
+    return iter(self._contents)
+
+
+FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
+
+
 class IterableCoderImpl(SequenceCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for homogeneous iterable objects."""
   def _construct_from_sequence(self, components):
-    return components
+    return _AbstractIterable(components)
+
+
+class ListCoderImpl(SequenceCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for homogeneous list objects."""
+  def _construct_from_sequence(self, components):
+    return components if isinstance(components, list) else list(components)
 
 
 class PaneInfoEncoding(object):
