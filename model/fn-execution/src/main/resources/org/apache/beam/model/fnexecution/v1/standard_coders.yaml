@@ -410,6 +410,26 @@ examples:
   "\x01\x00\x00\x00\x00\x04\neverything\x00\x02is\x00\x05null!\x00\r\xc2\xaf\\_(\xe3\x83\x84)_/\xc2\xaf\x00": {f_map: {"everything": null, "is": null, "null!": null, "¯\\_(ツ)_/¯": null}}
 
 ---
+# Binary data generated with the python SDK:
+# 
+# fields = [("foo", str), ("bar", str)]
+# schema = typing.NamedTuple( "test", fields)
+# coder = RowCoder.from_type_hint(schema, None)
+# examples = (
+#             coder.encode(schema(foo="str1",bar="str2")),
+#             coder.encode(schema(bar="str2",foo="str1"))
+#            )
+# print("schema = %s" % coder.schema.SerializeToString())
+# for example in examples:
+#   print("example = %s" % example)
+coder:
+  urn: "beam:coder:row:v1"
+  payload: "\n\t\n\x03foo\x1a\x02\x10\x07\n\x0b\n\x03bar\x1a\x02\x10\x07(\x01\x12$3891369e-e931-41b1-8869-9825a8e2dd64"
+examples:
+  "\x02\x00\x04str1\x04str2": {bar: "str2", foo: "str1"}
+  "\x02\x00\x04str1\x04str2": {foo: "str1", bar: "str2"}
+
+---
 
 coder:
   urn: "beam:coder:row:v1"
