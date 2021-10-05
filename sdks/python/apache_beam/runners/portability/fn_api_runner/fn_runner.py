@@ -748,8 +748,8 @@ class FnApiRunner(runner.PipelineRunner):
         buffer = runner_execution_context.pcoll_buffers.get(
             buffer_id, ListBuffer(None))
 
-        if (buffer_id in runner_execution_context.pcoll_buffers
-            and buffer_id not in buffers_to_clean):
+        if (buffer_id in runner_execution_context.pcoll_buffers and
+            buffer_id not in buffers_to_clean):
           buffers_to_clean.add(buffer_id)
         elif buffer and buffer_id in buffers_to_clean:
           # If the buffer_id has already been added to buffers_to_clean, this

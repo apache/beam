@@ -767,9 +767,9 @@ class FnApiRunnerExecutionContext(object):
           if t.spec.payload == translations.IMPULSE_BUFFER:
             # Impulse data is not produced by any PTransform.
             self.pcollection_to_producer_transform[
-              translations.IMPULSE_BUFFER] = None
+                translations.IMPULSE_BUFFER] = None
           else:
-            assert t.spec.payload != translations.IMPULSE_BUFFER:
+            assert t.spec.payload != translations.IMPULSE_BUFFER
             _, input_pcoll = split_buffer_id(buffer_id)
             # Adding PCollections that may not have a producer.
             # This is necessary, for example, for the case where we pass an
