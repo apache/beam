@@ -1028,7 +1028,6 @@ class TextSourceTest(unittest.TestCase):
         b'\n',
         b'\r\n',
         b'*|',
-        '*|',
         b'*',
         b'***',
     ]
