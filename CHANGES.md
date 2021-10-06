@@ -108,6 +108,7 @@
     * Easier path to contribute to the Go SDK, no need to set up a GO_PATH.
     * Minimum Go version is now Go v1.16
   * See the announcement blogpost for full information (TODO(lostluck): Add link once published.)
+* Python's ParDo (Map, FlatMap, etc.) transforms now suport a `with_exception_handling` option for easily ignoring bad records and implementing the dead letter pattern.
 
 ## I/Os
 
