@@ -174,6 +174,7 @@ public class SamzaPipelineTranslator {
     public Map<String, TransformTranslator<?>> getTransformTranslators() {
       return ImmutableMap.<String, TransformTranslator<?>>builder()
           .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator<>())
+          .put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslator<>())
           .put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, new ReshuffleTranslator<>())
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoBoundMultiTranslator<>())
           .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
