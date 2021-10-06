@@ -424,10 +424,10 @@ examples:
 #   print("example = %s" % example)
 coder:
   urn: "beam:coder:row:v1"
-  payload: "\n\t\n\x03foo\x1a\x02\x10\x07\n\x0b\n\x03bar\x1a\x02\x10\x07(\x01\x12$3891369e-e931-41b1-8869-9825a8e2dd64"
+  payload: "\n\t\n\x03str\x1a\x02\x10\x07\n\x0e\n\x06f_bool\x1a\x02\x10\x08(\x01\x12$aae97d5f-8c88-42b1-a03a-9634f3ed9b29"
 examples:
-  "\x02\x00\x04str1\x04str2": {bar: "str2", foo: "str1"}
-  "\x02\x00\x04str1\x04str2": {foo: "str1", bar: "str2"}
+  "\x02\x00\x04str2\x00": {str: "str2", f_bool: False}
+  "\x02\x00\x04str2\x00": {f_bool: False, str: "str2"}
 
 ---
 
