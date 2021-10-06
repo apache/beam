@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core.construction;
 
 import com.google.auto.service.AutoService;
-import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -26,6 +25,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Utility methods for translating a {@link Reshuffle} to and from {@link RunnerApi}
@@ -36,26 +36,43 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 })
 public class ReshuffleTranslation {
 
-  static class ReshuffleTranslator implements TransformPayloadTranslator<Reshuffle<?, ?>> {
+  static class ReshufflePerKeyTranslator
+      implements TransformPayloadTranslator<Reshuffle.PerKey<?, ?>> {
     @Override
-    public String getUrn(Reshuffle<?, ?> transform) {
-      return PTransformTranslation.RESHUFFLE_URN;
+    public String getUrn(Reshuffle.PerKey<?, ?> transform) {
+      return PTransformTranslation.RESHUFFLE_PER_KEY_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, Reshuffle<?, ?>> transform, SdkComponents components) {
+        AppliedPTransform<?, ?, Reshuffle.PerKey<?, ?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
     }
   }
 
-  /** Registers {@link ReshuffleTranslator}. */
+  static class ReshufflePerRandomKeyTranslator
+      implements TransformPayloadTranslator<Reshuffle.PerRandomKey<?>> {
+    @Override
+    public String getUrn(Reshuffle.PerRandomKey<?> transform) {
+      return PTransformTranslation.RESHUFFLE_PER_RANDOM_KEY_URN;
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, Reshuffle.PerRandomKey<?>> transform, SdkComponents components) {
+      return FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
+    }
+  }
+
+  /** Registers {@link ReshufflePerKeyTranslator} and {@link ReshufflePerRandomKeyTranslator}. */
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
-      return Collections.singletonMap(Reshuffle.class, new ReshuffleTranslator());
+      return ImmutableMap.of(
+          Reshuffle.PerKey.class, new ReshufflePerKeyTranslator(),
+          Reshuffle.PerRandomKey.class, new ReshufflePerRandomKeyTranslator());
     }
   }
 }

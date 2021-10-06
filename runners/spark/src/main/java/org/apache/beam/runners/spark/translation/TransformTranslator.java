@@ -698,10 +698,10 @@ public final class TransformTranslator {
     };
   }
 
-  private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle<K, V>> reshuffle() {
-    return new TransformEvaluator<Reshuffle<K, V>>() {
+  private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle.PerKey<K, V>> reshuffle() {
+    return new TransformEvaluator<Reshuffle.PerKey<K, V>>() {
       @Override
-      public void evaluate(Reshuffle<K, V> transform, EvaluationContext context) {
+      public void evaluate(Reshuffle.PerKey<K, V> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<KV<K, V>>> inRDD =
             ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
@@ -749,7 +749,7 @@ public final class TransformTranslator {
     EVALUATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, flattenPColl());
     EVALUATORS.put(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN, createPCollView());
     EVALUATORS.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, window());
-    EVALUATORS.put(PTransformTranslation.RESHUFFLE_URN, reshuffle());
+    EVALUATORS.put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, reshuffle());
   }
 
   private static @Nullable TransformEvaluator<?> getTranslator(PTransform<?, ?> transform) {

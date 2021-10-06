@@ -365,6 +365,11 @@ message StandardPTransforms {
     // Represents the GroupIntoBatches.WithShardedKey operation.
     // Payload: GroupIntoBatchesPayload
     GROUP_INTO_BATCHES_WITH_SHARDED_KEY = 6 [(beam_urn) = "beam:transform:group_into_batches_with_sharded_key:v1"];
+
+    // Represents the Reshuffle.perKey() operation.
+    RESHUFFLE_PER_KEY = 7 [(beam_urn) = "beam:transform:reshuffle_per_key:v1"];
+
+    RESHUFFLE_PER_RANDOM_KEY = 8 [(beam_urn) = "beam:transform:reshuffle_per_random_key:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {

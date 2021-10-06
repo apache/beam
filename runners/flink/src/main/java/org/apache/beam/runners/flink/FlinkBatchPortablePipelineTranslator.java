@@ -151,7 +151,7 @@ public class FlinkBatchPortablePipelineTranslator
     translatorMap.put(
         ExecutableStage.URN, FlinkBatchPortablePipelineTranslator::translateExecutableStage);
     translatorMap.put(
-        PTransformTranslation.RESHUFFLE_URN,
+        PTransformTranslation.RESHUFFLE_PER_KEY_URN,
         FlinkBatchPortablePipelineTranslator::translateReshuffle);
 
     return new FlinkBatchPortablePipelineTranslator(translatorMap.build());
@@ -248,7 +248,7 @@ public class FlinkBatchPortablePipelineTranslator
   public static class IsFlinkNativeTransform implements NativeTransforms.IsNativeTransform {
     @Override
     public boolean test(RunnerApi.PTransform pTransform) {
-      return PTransformTranslation.RESHUFFLE_URN.equals(
+      return PTransformTranslation.RESHUFFLE_PER_KEY_URN.equals(
           PTransformTranslation.urnForTransformOrNull(pTransform));
     }
   }

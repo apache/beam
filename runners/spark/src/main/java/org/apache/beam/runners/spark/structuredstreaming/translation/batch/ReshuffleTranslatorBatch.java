@@ -22,8 +22,8 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTr
 import org.apache.beam.sdk.transforms.Reshuffle;
 
 /** TODO: Should be removed if {@link Reshuffle} won't be translated. */
-class ReshuffleTranslatorBatch<K, InputT> implements TransformTranslator<Reshuffle<K, InputT>> {
+class ReshuffleTranslatorBatch<K, InputT> implements TransformTranslator<Reshuffle.PerKey<K, InputT>> {
 
   @Override
-  public void translateTransform(Reshuffle<K, InputT> transform, AbstractTranslationContext context) {}
+  public void translateTransform(Reshuffle.PerKey<K, InputT> transform, AbstractTranslationContext context) {}
 }

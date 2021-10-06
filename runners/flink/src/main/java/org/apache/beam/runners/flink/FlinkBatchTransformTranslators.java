@@ -128,7 +128,7 @@ class FlinkBatchTransformTranslators {
         new NonMergingGroupByKeyTranslatorBatch<>());
     TRANSLATORS.put(
         PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch<>());
-    TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch<>());
+    TRANSLATORS.put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, new ReshuffleTranslatorBatch<>());
     TRANSLATORS.put(
         PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionTranslatorBatch<>());
     TRANSLATORS.put(
@@ -391,11 +391,11 @@ class FlinkBatchTransformTranslators {
   }
 
   private static class ReshuffleTranslatorBatch<K, InputT>
-      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Reshuffle<K, InputT>> {
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Reshuffle.PerKey<K, InputT>> {
 
     @Override
     public void translateNode(
-        Reshuffle<K, InputT> transform, FlinkBatchTranslationContext context) {
+        Reshuffle.PerKey<K, InputT> transform, FlinkBatchTranslationContext context) {
       final DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
       // Construct an instance of CoderTypeInformation which contains the pipeline options.
