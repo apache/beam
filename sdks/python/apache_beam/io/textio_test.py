@@ -1052,34 +1052,6 @@ class TextSourceTest(unittest.TestCase):
 
       self.assertEqual(read_data, expected_data)
 
-  def test_read_with_customer_delimiter(self):
-    delimiters = [
-        b'\n',
-        b'\r\n',
-        b'*|',
-        b'*',
-        b'***',
-    ]
-
-    for delimiter in delimiters:
-      file_name, expected_data = write_data(
-        10,
-        eol=EOL.CUSTOM_DELIMITER,
-        custom_delimiter=delimiter)
-
-      assert len(expected_data) == 10
-      source = TextSource(
-          file_pattern=file_name,
-          min_bundle_size=0,
-          compression_type=CompressionTypes.UNCOMPRESSED,
-          strip_trailing_newlines=True,
-          coder=coders.StrUtf8Coder(),
-          delimiter=delimiter)
-      range_tracker = source.get_range_tracker(None, None)
-      read_data = list(source.read(range_tracker))
-
-      self.assertEqual(read_data, expected_data)
-
 
 class TextSinkTest(unittest.TestCase):
   def setUp(self):
