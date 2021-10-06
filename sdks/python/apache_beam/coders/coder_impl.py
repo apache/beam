@@ -1195,7 +1195,7 @@ class TupleSequenceCoderImpl(SequenceCoderImpl):
 
 
 class _AbstractIterable(object):
-  """Wraps an iterable hiding methdos that might not always be available."""
+  """Wraps an iterable hiding methods that might not always be available."""
   def __init__(self, contents):
     self._contents = contents
 
