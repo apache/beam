@@ -32,15 +32,20 @@ the coders.*PickleCoder classes should be used instead.
 
 import base64
 import bz2
+import io
 import logging
 import sys
 import threading
 import traceback
 import types
 import zlib
+from absl import flags
 from typing import Any
 from typing import Dict
 from typing import Tuple
+from _thread import RLock as RLockType
+
+from absl import flags
 
 import cloudpickle
 
@@ -55,12 +60,20 @@ def dumps(o, enable_trace=True, use_zlib=False):
 
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
-    try:
-      s = cloudpickle.dumps(o)
-    except Exception:  # pylint: disable=broad-except
-      # TODO: decide what to do on exceptions.
-      print('TODO figure out what to do with cloudpickle exceptions.')
-      raise
+    with io.BytesIO() as file:
+      try:
+          pickler = cloudpickle.CloudPickler(file)
+          pickler.dispatch_table[RLockType] = _pickle_rlock
+          pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
+          pickler.dump(o)
+          s = file.getvalue()
+      except Exception as e:  # pylint: disable=broad-except
+        # TODO: decide what to do on exceptions.
+        if enable_trace:
+          s = b''
+          # return pickler.dump(o)
+        else:
+          raise
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
@@ -91,29 +104,44 @@ def loads(encoded, enable_trace=True, use_zlib=False):
 
   with _pickle_lock:
     try:
-      return cloudpickle.loads(s)
-    except Exception:  # pylint: disable=broad-except
-      print('TODO figure out what to do with cloudpickle exceptions.')
-      raise
+      unpickled = cloudpickle.loads(s)
+      print('Unpickle Successful - ' + str(unpickled))
+      return unpickled
+    except Exception as e:  # pylint: disable=broad-except
+      if enable_trace:
+        print('TODO figure out what to do with cloudpickle exceptions. ' + str(e))
+        return cloudpickle.loads(s)
+      else:
+        raise
+
+
+def _pickle_rlock(obj):
+  return _create_rlock, tuple([])
+
+
+def _create_rlock():
+  return RLockType()
+
+def _pickle_absl_flags(obj):
+    return _create_absl_flags, tuple([])
+
+def _create_absl_flags():
+    return flags.FLAGS
 
 def dump_session(file_path):
-  with _pickle_lock:
-    try:
-      module_dict = _main_module.__dict__.copy()
-      with open(file_path, 'wb') as file:
-        cloudpickle.dump(module_dict, file)
-    except Exception:
-      print('TODO figure out what to do with cloudpickle exceptions.')
-      raise
-
+  try:
+    module_dict = _main_module.__dict__.copy()
+    with open(file_path, 'wb') as file:
+      pickler = cloudpickle.CloudPickler(file)
+      pickler.dispatch_table[RLockType] = _pickle_rlock
+      pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
+      pickler.dump(module_dict)
+  except Exception:
+    print('TODO figure out what to do with cloudpickle exceptions.')
+    raise
 
 
 def load_session(file_path):
-  with _pickle_lock:
-    try:
-      module_dict = _main_module.__dict__.copy()
-      with open(file_path, 'wb') as file:
-        cloudpickle.dump(module_dict, file)
-    except Exception:
-      print('TODO figure out what to do with cloudpickle exceptions.')
-      raise
+  with open(file_path,'rb') as file:
+    module = cloudpickle.load(file)
+    _main_module.__dict__.update(module)
