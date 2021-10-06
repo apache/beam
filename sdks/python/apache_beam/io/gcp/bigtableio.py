@@ -88,18 +88,20 @@ class _BigTableWriteFn(beam.DoFn):
     table_id(str): GCP Table ID
 
   """
-  def __init__(self, project_id, instance_id, table_id):
+  def __init__(self, project_id, instance_id, table_id, app_profile_id):
     """ Constructor of the Write connector of Bigtable
     Args:
       project_id(str): GCP Project of to write the Rows
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
+      app_profile_id(str): GCP App profile id to use when writing
     """
     super().__init__()
     self.beam_options = {
         'project_id': project_id,
         'instance_id': instance_id,
-        'table_id': table_id
+        'table_id': table_id,
+        'app_profile_id': app_profile_id
     }
     self.table = None
     self.batcher = None
@@ -144,7 +146,9 @@ class _BigTableWriteFn(beam.DoFn):
     if self.table is None:
       client = Client(project=self.beam_options['project_id'])
       instance = client.instance(self.beam_options['instance_id'])
-      self.table = instance.table(self.beam_options['table_id'])
+      self.table = instance.table(
+          self.beam_options['table_id'],
+          app_profile_id=self.beam_options['app_profile_id'])
     self.service_call_metric = self.start_service_call_metrics(
         self.beam_options['project_id'],
         self.beam_options['instance_id'],
@@ -175,7 +179,10 @@ class _BigTableWriteFn(beam.DoFn):
         'instanceId': DisplayDataItem(
             self.beam_options['instance_id'], label='Bigtable Instance Id'),
         'tableId': DisplayDataItem(
-            self.beam_options['table_id'], label='Bigtable Table Id')
+            self.beam_options['table_id'], label='Bigtable Table Id'),
+        'appProfileId': DisplayDataItem(
+            'default' if self.beam_options['app_profile_id'] is None else self.beam_options['app_profile_id'],
+            label='Bigtable App Profile Id')
     }
 
 
@@ -185,18 +192,25 @@ class WriteToBigTable(beam.PTransform):
   A PTransform that write a list of `DirectRow` into the Bigtable Table
 
   """
-  def __init__(self, project_id=None, instance_id=None, table_id=None):
+  def __init__(
+      self,
+      project_id=None,
+      instance_id=None,
+      table_id=None,
+      app_profile_id=None):
     """ The PTransform to access the Bigtable Write connector
     Args:
       project_id(str): GCP Project of to write the Rows
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
+      app_profile_id(str): GCP App profile id to use when writing
     """
     super().__init__()
     self.beam_options = {
         'project_id': project_id,
         'instance_id': instance_id,
-        'table_id': table_id
+        'table_id': table_id,
+        'app_profile_id': app_profile_id
     }
 
   def expand(self, pvalue):
@@ -207,4 +221,5 @@ class WriteToBigTable(beam.PTransform):
             _BigTableWriteFn(
                 beam_options['project_id'],
                 beam_options['instance_id'],
-                beam_options['table_id'])))
+                beam_options['table_id'],
+                beam_options['app_profile_id'])))
