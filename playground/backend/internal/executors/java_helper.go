@@ -18,6 +18,8 @@ package executors
 
 import (
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -40,11 +42,13 @@ func NewJavaExecutor(fs *fs_tool.LifeCycle, javaValidators *[]validatorWithArgs)
 		v := make([]validatorWithArgs, 0)
 		javaValidators = &v
 	}
+	path, _ := os.Getwd()
 
 	exec := new(Executor)
 	exec.validators = *javaValidators
-	exec.fileName = fs.GetRelativeExecutableFilePath()
-	exec.dirPath = fs.Folder.BaseFolder
+	exec.relativeFilePath = fs.GetRelativeExecutableFilePath()
+	exec.absoulteFilePath = fs.GetAbsoluteExecutableFilePath()
+	exec.dirPath = filepath.Join(path, fs.Folder.BaseFolder)
 	exec.compileName = javaCompileCmd
 	exec.runName = javaRunCmd
 	exec.compileArgs = compileArgs

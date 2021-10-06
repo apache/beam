@@ -30,22 +30,22 @@ type validatorWithArgs struct {
 
 // Executor interface for all executors (Java/Python/Go/SCIO)
 type Executor struct {
-	fileName      string
-	filePath      string
-	dirPath       string
-	executableDir string
-	validators    []validatorWithArgs
-	compileName   string
-	compileArgs   []string
-	runName       string
-	runArgs       []string
+	relativeFilePath string
+	absoulteFilePath string
+	dirPath          string
+	executableDir    string
+	validators       []validatorWithArgs
+	compileName      string
+	compileArgs      []string
+	runName          string
+	runArgs          []string
 }
 
 // Validate checks that the file exists and that extension of the file matches the SDK.
 // Return result of validation (true/false) and error if it occurs
 func (ex *Executor) Validate() error {
 	for _, validator := range ex.validators {
-		err := validator.validator(ex.fileName, validator.args...)
+		err := validator.validator(ex.absoulteFilePath, validator.args...)
 		if err != nil {
 			return err
 		}
@@ -56,7 +56,7 @@ func (ex *Executor) Validate() error {
 // Compile compiles the code and creates executable file.
 // Return error if it occurs
 func (ex *Executor) Compile() error {
-	args := append(ex.compileArgs, ex.fileName)
+	args := append(ex.compileArgs, ex.relativeFilePath)
 	cmd := exec.Command(ex.compileName, args...)
 	cmd.Dir = ex.dirPath
 	s := cmd.String()
@@ -82,7 +82,7 @@ func (ex *Executor) Run(name string) (string, error) {
 func NewExecutor(apacheBeamSdk pb.Sdk, fs *fs_tool.LifeCycle) (*Executor, error) {
 	switch apacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		return NewJavaExecutor(fs, getJavaValidators()), nil
+		return NewJavaExecutor(fs, GetJavaValidators()), nil
 	default:
 		return nil, fmt.Errorf("%s isn't supported now", apacheBeamSdk)
 	}

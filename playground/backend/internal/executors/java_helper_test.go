@@ -24,7 +24,6 @@ import (
 
 var (
 	javaExecutor *Executor
-	javaFS       *fs_tool.LifeCycle
 	pipelineId   = uuid.New()
 )
 
@@ -33,39 +32,32 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	err := setup()
-	defer teardown()
-	if err != nil {
-		panic("Error in tests setup")
-	}
+	javaFS := setup()
+	defer teardown(javaFS)
 	m.Run()
 }
 
-func setup() error {
+func setup() *fs_tool.LifeCycle {
 	javaFS, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId)
 	_ = javaFS.CreateFolders()
 	_, _ = javaFS.CreateExecutableFile(javaCode)
-	javaExecutor = NewJavaExecutor(javaFS, getJavaValidators())
-	return nil
+	javaExecutor = NewJavaExecutor(javaFS, GetJavaValidators())
+	return javaFS
 }
 
-func teardown() {
+func teardown(javaFS *fs_tool.LifeCycle) {
 	err := javaFS.DeleteFolders()
 	if err != nil {
 		return
 	}
 }
 
-//func TestValidateJavaFile(t *testing.T) {
-//	_, _ = javaFS.CreateExecutableFile(javaCode, pipelineId)
-//	fileName = javaFS.GetExecutableFileName(pipelineId)
-//	expected := true
-//	validated, err := javaExecutor.Validate(fileName)
-//	if expected != validated || err != nil {
-//		t.Fatalf(`TestValidateJavaFile: %q, %v doesn't match for %#q, nil`, strconv.FormatBool(validated), err,
-//			strconv.FormatBool(expected))
-//	}
-//}
+func TestValidateJavaFile(t *testing.T) {
+	err := javaExecutor.Validate()
+	if err != nil {
+		t.Fatalf(`TestValidateJavaFile error: %v `, err)
+	}
+}
 
 func TestCompileJavaFile(t *testing.T) {
 	err := javaExecutor.Compile()
