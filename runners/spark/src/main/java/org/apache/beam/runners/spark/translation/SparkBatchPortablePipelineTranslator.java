@@ -250,6 +250,7 @@ public class SparkBatchPortablePipelineTranslator
           groupByKeyPair(inputDataset, keyCoder, wvCoder);
       SparkExecutableStageFunction<KV, SideInputT> function =
           new SparkExecutableStageFunction<>(
+              context.getSerializableOptions(),
               stagePayload,
               context.jobInfo,
               outputExtractionMap,
@@ -262,6 +263,7 @@ public class SparkBatchPortablePipelineTranslator
       JavaRDD<WindowedValue<InputT>> inputRdd2 = ((BoundedDataset<InputT>) inputDataset).getRDD();
       SparkExecutableStageFunction<InputT, SideInputT> function2 =
           new SparkExecutableStageFunction<>(
+              context.getSerializableOptions(),
               stagePayload,
               context.jobInfo,
               outputExtractionMap,
