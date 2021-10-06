@@ -210,21 +210,6 @@ class OperationCounters(object):
     if self._should_sample():
       self.do_sample(windowed_value)
 
-  def _observable_callback(self, inner_coder_impl, accumulator):
-    def _observable_callback_inner(value, is_encoded=False):
-      # TODO(ccy): If this stream is large, sample it as well.
-      # To do this, we'll need to compute the average size of elements
-      # in this stream to add the *total* size of this stream to accumulator.
-      # We'll also want make sure we sample at least some of this stream
-      # (as self.should_sample() may be sampling very sparsely by now).
-      if is_encoded:
-        size = len(value)
-        accumulator.update(size)
-      else:
-        accumulator.update(inner_coder_impl.estimate_size(value))
-
-    return _observable_callback_inner
-
   def type_check(self, value):
     # type: (Any, bool) -> None
     for transform_label, type_constraint_tuple in (
@@ -253,10 +238,6 @@ class OperationCounters(object):
     else:
       self.active_accumulator = SumAccumulator()
       self.active_accumulator.update(size)
-      for observable, inner_coder_impl in observables:
-        observable.register_observer(
-            self._observable_callback(
-                inner_coder_impl, self.active_accumulator))
 
   def update_collect(self):
     """Collects the accumulated size estimates.
