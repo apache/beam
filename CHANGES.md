@@ -672,3 +672,4 @@ Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://iss
 # [2.19.0] - 2020-01-31
 
 - For versions 2.19.0 and older release notes are available on [Apache Beam Blog](https://beam.apache.org/blog/).
+
