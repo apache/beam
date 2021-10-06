@@ -749,6 +749,7 @@ public final class TransformTranslator {
     EVALUATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, flattenPColl());
     EVALUATORS.put(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN, createPCollView());
     EVALUATORS.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, window());
+    EVALUATORS.put(PTransformTranslation.RESHUFFLE_URN, reshuffle());
     EVALUATORS.put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, reshuffle());
   }
 

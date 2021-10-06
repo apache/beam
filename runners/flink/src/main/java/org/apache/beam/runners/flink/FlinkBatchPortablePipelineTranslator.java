@@ -252,6 +252,8 @@ public class FlinkBatchPortablePipelineTranslator
     @Override
     public boolean test(RunnerApi.PTransform pTransform) {
       return PTransformTranslation.RESHUFFLE_PER_KEY_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(pTransform))
+          || PTransformTranslation.RESHUFFLE_URN.equals(
           PTransformTranslation.urnForTransformOrNull(pTransform));
     }
   }

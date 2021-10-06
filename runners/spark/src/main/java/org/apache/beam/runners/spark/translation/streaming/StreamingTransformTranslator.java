@@ -542,6 +542,7 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(CreateStream.TRANSFORM_URN, createFromQueue());
     EVALUATORS.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, window());
     EVALUATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, flattenPColl());
+    EVALUATORS.put(PTransformTranslation.RESHUFFLE_URN, reshuffle());
     EVALUATORS.put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, reshuffle());
   }
 
