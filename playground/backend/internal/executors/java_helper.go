@@ -17,6 +17,7 @@
 package executors
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"fmt"
 	"os/exec"
@@ -68,5 +69,11 @@ func (javaExec *JavaExecutor) Run(className string) (string, error) {
 
 // NewJavaExecutor creates new instance of java executor
 func NewJavaExecutor(fs *fs_tool.JavaFileSystemService) *JavaExecutor {
+	return &JavaExecutor{*fs}
+}
+
+type JavaHelper struct{}
+
+func NewJavaHelper(executor *Executor, ApacheBeamSdk pb.Sdk) *JavaExecutor {
 	return &JavaExecutor{*fs}
 }

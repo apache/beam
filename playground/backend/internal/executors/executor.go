@@ -16,17 +16,33 @@
 // Package executors
 package executors
 
+type filePath string
+
 // Executor interface for all executors (Java/Python/Go/SCIO)
-type Executor interface {
-	// Validate checks that the file exists and that extension of the file matches the SDK.
-	// Return result of validation (true/false) and error if it occurs
-	Validate(fileName string) (bool, error)
+type Executor struct {
+	fileName    string
+	dirPath     string
+	validators  []func(filePath) error
+	compileName string
+	compileArgs []string
+	runName     string
+	runArgs     []string
+}
 
-	// Compile compiles the code and creates executable file.
-	// Return error if it occurs
-	Compile(fileName string) error
+// Validate checks that the file exists and that extension of the file matches the SDK.
+// Return result of validation (true/false) and error if it occurs
+func (*Executor) Validate(fileName string) error {
+	return nil
+}
 
-	// Run runs the executable file.
-	// Return logs and error if it occurs
-	Run(fileName string) (string, error)
+// Compile compiles the code and creates executable file.
+// Return error if it occurs
+func (*Executor) Compile(fileName string) error {
+	return nil
+}
+
+// Run runs the executable file.
+// Return logs and error if it occurs
+func (*Executor) Run(fileName string) (string, error) {
+	return "", nil
 }
