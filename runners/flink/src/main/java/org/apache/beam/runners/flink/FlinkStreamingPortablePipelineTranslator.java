@@ -691,9 +691,9 @@ public class FlinkStreamingPortablePipelineTranslator
     @Override
     public boolean test(RunnerApi.PTransform pTransform) {
       return STREAMING_IMPULSE_TRANSFORM_URN.equals(
-          PTransformTranslation.urnForTransformOrNull(pTransform))
+              PTransformTranslation.urnForTransformOrNull(pTransform))
           || PTransformTranslation.RESHUFFLE_URN.equals(
-          PTransformTranslation.urnForTransformOrNull(pTransform));
+              PTransformTranslation.urnForTransformOrNull(pTransform));
     }
   }
 
