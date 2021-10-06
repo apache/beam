@@ -31,6 +31,7 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 
 import enum
+import itertools
 import json
 import logging
 import pickle
@@ -1200,6 +1201,12 @@ class _AbstractIterable(object):
 
   def __iter__(self):
     return iter(self._contents)
+
+  def __repr__(self):
+    head = [repr(e) for e in itertools.islice(self, 4)]
+    if len(head) == 4:
+      head[-1] = '...'
+    return '_AbstractIterable([%s])' % ', '.join(head)
 
 
 FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
