@@ -526,7 +526,10 @@ public class HL7v2IO {
       Instant from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter.get());
       // filters are [from, to) to match logic of OffsetRangeTracker but need latest element to be
       // included in results set to add an extra ms to the upper bound.
-      Instant to = this.client.getLatestHL7v2SendTime(hl7v2Store, this.filter.get()).plus(1);
+      Instant to =
+          this.client
+              .getLatestHL7v2SendTime(hl7v2Store, this.filter.get())
+              .plus(Duration.millis(1));
       return new OffsetRange(from.getMillis(), to.getMillis());
     }
 

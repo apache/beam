@@ -1829,7 +1829,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         target =
             millisSinceStart == 0
                 ? fireTimestamp
-                : fireTimestamp.plus(period).minus(millisSinceStart);
+                : fireTimestamp.plus(period).minus(Duration.millis(millisSinceStart));
       }
       target = minTargetAndGcTime(target);
       timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(target));

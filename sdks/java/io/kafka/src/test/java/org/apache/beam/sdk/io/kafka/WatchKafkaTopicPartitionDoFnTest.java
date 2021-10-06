@@ -237,7 +237,7 @@ public class WatchKafkaTopicPartitionDoFnTest {
 
     dofnInstance.onTimer(timer, bagState, outputReceiver);
 
-    verify(timer, times(1)).set(now.plus(600L));
+    verify(timer, times(1)).set(now.plus(Duration.millis(600L)));
     assertTrue(outputReceiver.getOutputs().isEmpty());
     assertTrue(bagState.getCurrentStates().isEmpty());
   }
@@ -270,7 +270,7 @@ public class WatchKafkaTopicPartitionDoFnTest {
 
     dofnInstance.onTimer(timer, bagState, outputReceiver);
 
-    verify(timer, times(1)).set(now.plus(600L));
+    verify(timer, times(1)).set(now.plus(Duration.millis(600L)));
     Set<TopicPartition> expectedOutputTopicPartitions =
         ImmutableSet.of(new TopicPartition("topic2", 0), new TopicPartition("topic2", 1));
     Set<TopicPartition> expectedCurrentTopicPartitions =
@@ -315,7 +315,7 @@ public class WatchKafkaTopicPartitionDoFnTest {
 
     dofnInstance.onTimer(timer, bagState, outputReceiver);
 
-    verify(timer, times(1)).set(now.plus(600L));
+    verify(timer, times(1)).set(now.plus(Duration.millis(600L)));
     Set<TopicPartition> expectedCurrentTopicPartitions =
         ImmutableSet.of(
             new TopicPartition("topic1", 0),
@@ -377,7 +377,7 @@ public class WatchKafkaTopicPartitionDoFnTest {
             new TopicPartition("topic2", 0),
             new TopicPartition("topic2", 1));
 
-    verify(timer, times(1)).set(now.plus(600L));
+    verify(timer, times(1)).set(now.plus(Duration.millis(600L)));
     assertTrue(outputReceiver.getOutputs().isEmpty());
     assertEquals(expectedCurrentTopicPartitions, bagState.getCurrentStates());
   }
