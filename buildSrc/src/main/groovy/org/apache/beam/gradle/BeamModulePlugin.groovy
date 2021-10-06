@@ -903,6 +903,8 @@ class BeamModulePlugin implements Plugin<Project> {
           "-AskipDefs=${skipDefCombinedRegex}",
           "-AskipUses=${skipUsesRegex}",
           "-AsuppressWarnings=annotation.not.completed",
+          // https://github.com/typetools/checker-framework/issues/979
+          "-AconservativeUninferredTypeArguments",
         ]
 
         project.dependencies {
