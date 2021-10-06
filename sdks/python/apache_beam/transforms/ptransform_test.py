@@ -2729,7 +2729,8 @@ class DeadLettersTest(unittest.TestCase):
       _ = (
           p
           | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
-          | beam.Map(self.die_if_negative).with_dead_letters(threshold=0.5))
+          | beam.Map(self.die_if_negative).with_dead_letters(
+              threshold=0.5, use_subprocess=self.use_subprocess))
 
     # The threshold is too low enough.
     with self.assertRaisesRegex(Exception,
@@ -2738,7 +2739,8 @@ class DeadLettersTest(unittest.TestCase):
         _ = (
             p
             | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
-            | beam.Map(self.die_if_negative).with_dead_letters(threshold=0.1))
+            | beam.Map(self.die_if_negative).with_dead_letters(
+                threshold=0.1, use_subprocess=self.use_subprocess))
 
     # The threshold is too low per window.
     with self.assertRaisesRegex(Exception,
@@ -2749,7 +2751,9 @@ class DeadLettersTest(unittest.TestCase):
             | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
             | beam.Map(lambda x: TimestampedValue(x, x))
             | beam.Map(self.die_if_negative).with_dead_letters(
-                threshold=0.5, threshold_windowing=window.FixedWindows(10)))
+                threshold=0.5,
+                threshold_windowing=window.FixedWindows(10),
+                use_subprocess=self.use_subprocess))
 
 
 class TestPTransformFn(TypeHintTestCase):
