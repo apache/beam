@@ -1208,6 +1208,14 @@ class _AbstractIterable(object):
       head[-1] = '...'
     return '_AbstractIterable([%s])' % ', '.join(head)
 
+  # Mostly useful for tests.
+  def __eq__(left, right):
+    end = object()
+    for a, b in itertools.zip_longest(left, right, fillvalue=end):
+      if a != b:
+        return False
+    return True
+
 
 FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
 
