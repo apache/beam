@@ -17,34 +17,43 @@
 package fs_tool
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-// IsExist checks if file exists
-func IsExist(filePath string) (bool, error) {
-	if _, err := os.Stat(filePath); err == nil {
-		return true, nil
-	} else if os.IsNotExist(err) {
-		return false, nil
-	} else {
-		return false, err
-	}
+type WrongExtension struct {
+	error string
 }
 
-// IsCorrectExtension checks if the file has correct extension (.java, .go, .py)
-func IsCorrectExtension(filePath string, correctExtension string) bool {
+func (e *WrongExtension) Error() string {
+	return fmt.Sprintf("File has wrong extension: %v", e.error)
+}
+
+// isNotExist checks if file exists or not and returns error is file doesn't exist
+func isNotExist(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return errors.Is(err, fs.ErrNotExist)
+}
+
+// isCorrectExtension checks if the file has correct extension (.java, .go, .py)
+func isCorrectExtension(filePath string, correctExtension string) bool {
 	fileExtension := filepath.Ext(filePath)
 	return strings.EqualFold(fileExtension, correctExtension)
 }
 
 // CheckPathIsValid checks that the file exists and has a correct extension
-func CheckPathIsValid(filePath string, correctExtension string) (bool, error) {
-	exists, err := IsExist(filePath)
-	if err == nil {
-		return exists && IsCorrectExtension(filePath, correctExtension), nil
-	} else {
-		return false, err
+func CheckPathIsValid(filePath string, args ...interface{}) error {
+	correctExtension := args[0].(string)
+	notExists := isNotExist(filePath)
+	if notExists {
+		return fs.ErrNotExist
 	}
+	if !isCorrectExtension(filePath, correctExtension) {
+		return &WrongExtension{fmt.Sprintf("expected extension %s", correctExtension)}
+	}
+	return nil
 }

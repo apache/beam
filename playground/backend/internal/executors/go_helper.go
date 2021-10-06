@@ -16,17 +16,12 @@
 // Package executors
 package executors
 
-// GoExecutor for Go code
-type GoExecutor struct{}
-
-func (goExec GoExecutor) Validate(fileName string) (bool, error) {
-	return true, nil
-}
-
-func (goExec GoExecutor) Compile(fileName string) error {
+// NewGoExecutor creates an executor with Go specifics
+func NewGoExecutor(fs *fs_tool.LifeCycle, javaValidators *[]validatorWithArgs) *Executor {
 	return nil
 }
 
-func (goExec GoExecutor) Run(runName string) (string, error) {
-	return "", nil
+// GetGoValidators return validators methods that needed for Go file
+func GetGoValidators() *[]validatorWithArgs {
+	return nil
 }

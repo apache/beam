@@ -17,63 +17,49 @@
 package executors
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api"
 	"beam.apache.org/playground/backend/internal/fs_tool"
-	"fmt"
-	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
 const (
-	beamJarPath   = "/opt/apache/beam/jars/beam-sdks-java-harness.jar"
-	runnerJarPath = "/opt/apache/beam/jars/beam-runners-direct.jar"
-	slf4jPath     = "/opt/apache/beam/jars/slf4j-jdk14.jar"
-	javaExtension = ".java"
+	beamJarPath    = "/opt/apache/beam/jars/beam-sdks-java-harness.jar"
+	runnerJarPath  = "/opt/apache/beam/jars/beam-runners-direct.jar"
+	slf4jPath      = "/opt/apache/beam/jars/slf4j-jdk14.jar"
+	javaExtension  = ".java"
+	javaCompileCmd = "javac"
+	javaRunCmd     = "java"
+	binFolder      = "bin"
 )
 
-type CompileError struct {
-	error string
-}
-
-func (e *CompileError) Error() string {
-	return fmt.Sprintf("Compilation error: %v", e.error)
-}
-
-// JavaExecutor for Java code
-type JavaExecutor struct {
-	fs fs_tool.JavaFileSystemService
-}
-
-func (javaExec *JavaExecutor) Validate(fileName string) (bool, error) {
-	filePath := filepath.Join(javaExec.fs.GetSrcPath(), fileName)
-	return fs_tool.CheckPathIsValid(filePath, javaExtension)
-}
-
-func (javaExec *JavaExecutor) Compile(fileName string) error {
-	cmd := exec.Command("javac", "-d", javaExec.fs.GetBinPath(), "-classpath", beamJarPath,
-		filepath.Join(javaExec.fs.GetSrcPath(), fileName))
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return &CompileError{string(out)}
+// NewJavaExecutor creates an executor with Go specifics
+func NewJavaExecutor(fs *fs_tool.LifeCycle, javaValidators *[]validatorWithArgs) *Executor {
+	compileArgs := []string{"-d", binFolder, "-classpath", beamJarPath}
+	fullClassPath := strings.Join([]string{binFolder, beamJarPath, runnerJarPath, slf4jPath}, ":")
+	runArgs := []string{"-cp", fullClassPath}
+	if javaValidators == nil {
+		v := make([]validatorWithArgs, 0)
+		javaValidators = &v
 	}
-	return nil
+
+	exec := new(Executor)
+	exec.validators = *javaValidators
+	exec.fileName = fs.GetRelativeExecutableFilePath()
+	exec.dirPath = fs.Folder.BaseFolder
+	exec.compileName = javaCompileCmd
+	exec.runName = javaRunCmd
+	exec.compileArgs = compileArgs
+	exec.runArgs = runArgs
+	return exec
 }
 
-func (javaExec *JavaExecutor) Run(className string) (string, error) {
-	fullClassPath := strings.Join([]string{javaExec.fs.GetBinPath(), beamJarPath, runnerJarPath, slf4jPath}, ":")
-	cmd := exec.Command("java", "-cp", fullClassPath, className)
-	out, err := cmd.Output()
-	return string(out), err
-}
-
-// NewJavaExecutor creates new instance of java executor
-func NewJavaExecutor(fs *fs_tool.JavaFileSystemService) *JavaExecutor {
-	return &JavaExecutor{*fs}
-}
-
-type JavaHelper struct{}
-
-func NewJavaHelper(executor *Executor, ApacheBeamSdk pb.Sdk) *JavaExecutor {
-	return &JavaExecutor{*fs}
+// GetJavaValidators return validators methods that needed for Java file
+func GetJavaValidators() *[]validatorWithArgs {
+	validatorArgs := make([]interface{}, 1)
+	validatorArgs[0] = javaExtension
+	pathCheckerValidator := validatorWithArgs{
+		validator: fs_tool.CheckPathIsValid,
+		args:      validatorArgs,
+	}
+	validators := []validatorWithArgs{pathCheckerValidator}
+	return &validators
 }

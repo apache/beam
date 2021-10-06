@@ -16,33 +16,82 @@
 // Package executors
 package executors
 
-type filePath string
+import (
+	pb "beam.apache.org/playground/backend/internal/api"
+	"beam.apache.org/playground/backend/internal/fs_tool"
+	"fmt"
+	"os/exec"
+)
+
+type validatorWithArgs struct {
+	validator func(filePath string, args ...interface{}) error
+	args      []interface{}
+}
 
 // Executor interface for all executors (Java/Python/Go/SCIO)
 type Executor struct {
-	fileName    string
-	dirPath     string
-	validators  []func(filePath) error
-	compileName string
-	compileArgs []string
-	runName     string
-	runArgs     []string
+	fileName      string
+	filePath      string
+	dirPath       string
+	executableDir string
+	validators    []validatorWithArgs
+	compileName   string
+	compileArgs   []string
+	runName       string
+	runArgs       []string
 }
 
 // Validate checks that the file exists and that extension of the file matches the SDK.
 // Return result of validation (true/false) and error if it occurs
-func (*Executor) Validate(fileName string) error {
+func (ex *Executor) Validate() error {
+	for _, validator := range ex.validators {
+		err := validator.validator(ex.fileName, validator.args...)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // Compile compiles the code and creates executable file.
 // Return error if it occurs
-func (*Executor) Compile(fileName string) error {
+func (ex *Executor) Compile() error {
+	args := append(ex.compileArgs, ex.fileName)
+	cmd := exec.Command(ex.compileName, args...)
+	cmd.Dir = ex.dirPath
+	s := cmd.String()
+	fmt.Println(s)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return &CompileError{string(out)}
+	}
 	return nil
 }
 
 // Run runs the executable file.
 // Return logs and error if it occurs
-func (*Executor) Run(fileName string) (string, error) {
-	return "", nil
+func (ex *Executor) Run(name string) (string, error) {
+	args := append(ex.runArgs, name)
+	cmd := exec.Command(ex.runName, args...)
+	cmd.Dir = ex.dirPath
+	out, err := cmd.Output()
+	return string(out), err
+}
+
+// NewExecutor executes the compilation, running and validation of code
+func NewExecutor(apacheBeamSdk pb.Sdk, fs *fs_tool.LifeCycle) (*Executor, error) {
+	switch apacheBeamSdk {
+	case pb.Sdk_SDK_JAVA:
+		return NewJavaExecutor(fs, getJavaValidators()), nil
+	default:
+		return nil, fmt.Errorf("%s isn't supported now", apacheBeamSdk)
+	}
+}
+
+type CompileError struct {
+	error string
+}
+
+func (e *CompileError) Error() string {
+	return fmt.Sprintf("Compilation error: %v", e.error)
 }
