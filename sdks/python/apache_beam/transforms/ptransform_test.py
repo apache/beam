@@ -2637,7 +2637,8 @@ class DeadLettersTest(unittest.TestCase):
       results = (
           p
           | beam.Create([1, -1, 2, -2, 3])
-          | beam.Map(die_on_negative_even_odd).with_dead_letters())
+          | beam.Map(die_on_negative_even_odd).with_dead_letters(
+              use_subprocess=self.use_subprocess))
       assert_that(results.even, equal_to([2]), label='CheckEven')
       assert_that(results.odd, equal_to([1, 3]), label='CheckOdd')
 
