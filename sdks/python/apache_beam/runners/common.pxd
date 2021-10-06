@@ -135,7 +135,3 @@ cdef class DoFnContext(object):
   cdef object state
   cdef WindowedValue windowed_value
   cpdef set_element(self, WindowedValue windowed_value)
-
-
-cdef class _ReceiverAdapter(Receiver):
-  cdef object underlying
