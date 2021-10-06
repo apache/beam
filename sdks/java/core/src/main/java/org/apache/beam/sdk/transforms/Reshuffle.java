@@ -59,9 +59,7 @@ public class Reshuffle {
     return new PerKey<>();
   }
 
-  /**
-   * @deprecated use {@link #perRandomKey()}.
-   */
+  /** @deprecated use {@link #perRandomKey()}. */
   @Deprecated
   public static <T> PerRandomKey<T> viaRandomKey() {
     return perRandomKey();
@@ -106,9 +104,10 @@ public class Reshuffle {
    *
    * @param <K> The type of key being reshuffled on.
    * @param <V> The type of value being reshuffled.
-   **/
-  public static class PerKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
-    private PerKey() { }
+   */
+  public static class PerKey<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
+    private PerKey() {}
 
     @Override
     public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
@@ -120,7 +119,8 @@ public class Reshuffle {
       // time.
       // Because this outputs as fast as possible, this should not hold the watermark.
       Window<KV<K, V>> rewindow =
-          Window.<KV<K, V>>into(new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
+          Window.<KV<K, V>>into(
+                  new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
               .triggering(new ReshuffleTrigger<>())
               .discardingFiredPanes()
               .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -149,7 +149,6 @@ public class Reshuffle {
                   }))
           .apply("RestoreOriginalTimestamps", ReifyTimestamps.extractFromValues());
     }
-
   }
 
   public static class AssignShardFn<T> extends DoFn<T, KV<Integer, T>> {

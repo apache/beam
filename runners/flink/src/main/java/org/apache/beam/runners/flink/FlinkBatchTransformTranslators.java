@@ -391,7 +391,8 @@ class FlinkBatchTransformTranslators {
   }
 
   private static class ReshuffleTranslatorBatch<K, InputT>
-      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Reshuffle.PerKey<K, InputT>> {
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
+          Reshuffle.PerKey<K, InputT>> {
 
     @Override
     public void translateNode(

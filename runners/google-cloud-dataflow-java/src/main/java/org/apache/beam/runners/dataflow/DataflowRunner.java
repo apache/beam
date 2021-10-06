@@ -627,7 +627,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     overridesBuilder
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(Reshuffle.class), new ReshuffleOverrideFactory()))
+                PTransformMatchers.classEqualTo(Reshuffle.PerKey.class),
+                new ReshuffleOverrideFactory()))
         // Order is important. Streaming views almost all use Combine internally.
         .add(
             PTransformOverride.of(

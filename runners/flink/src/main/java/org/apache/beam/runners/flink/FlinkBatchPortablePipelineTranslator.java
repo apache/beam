@@ -151,6 +151,9 @@ public class FlinkBatchPortablePipelineTranslator
     translatorMap.put(
         ExecutableStage.URN, FlinkBatchPortablePipelineTranslator::translateExecutableStage);
     translatorMap.put(
+        PTransformTranslation.RESHUFFLE_URN,
+        FlinkBatchPortablePipelineTranslator::translateReshuffle);
+    translatorMap.put(
         PTransformTranslation.RESHUFFLE_PER_KEY_URN,
         FlinkBatchPortablePipelineTranslator::translateReshuffle);
 

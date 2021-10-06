@@ -110,6 +110,9 @@ public class SparkBatchPortablePipelineTranslator
         PTransformTranslation.FLATTEN_TRANSFORM_URN,
         SparkBatchPortablePipelineTranslator::translateFlatten);
     translatorMap.put(
+        PTransformTranslation.RESHUFFLE_URN,
+        SparkBatchPortablePipelineTranslator::translateReshuffle);
+    translatorMap.put(
         PTransformTranslation.RESHUFFLE_PER_KEY_URN,
         SparkBatchPortablePipelineTranslator::translateReshuffle);
     this.urnToTransformTranslator = translatorMap.build();

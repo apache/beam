@@ -43,11 +43,11 @@ import org.joda.time.Duration;
  */
 class ReshuffleOverrideFactory<K, V>
     extends SingleInputOutputOverrideFactory<
-        PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle<K, V>> {
+        PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle.PerKey<K, V>> {
   @Override
   public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, V>>>
       getReplacementTransform(
-          AppliedPTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle<K, V>>
+          AppliedPTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle.PerKey<K, V>>
               transform) {
     return PTransformOverrideFactory.PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform), new ReshuffleWithOnlyTrigger<>());
