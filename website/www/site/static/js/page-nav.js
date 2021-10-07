@@ -19,34 +19,62 @@ $(document).ready(function() {
       DESKTOP_BREAKPOINT: 1024,
       PAGENAV_WIDTH: 248
     };
-    function checkList () {
-          var items = $(".page-nav > #TableOfContents li");
-          if (items && items.length > 0) {
-            for(var i=0; i<items.length; i++){
-              if(items[i].classList.contains('chosen')){
-                items[i].classList.remove('chosen');
-              };
-              if(items[i].classList.contains('active') || items[i].classList[0] == 'active'){
-                if($('> a',items[i]).length>0){
-                  if(!items[i].querySelector('a').getAttribute('aria-expanded') || items[i].querySelector('a').getAttribute('aria-expanded') == 'false'){
-                      items[i].classList.add('chosen');
-                    }
-                  }
-                }
-              }
-              if($('#TableOfContents .active').length === 0 || $('#TableOfContents .chosen').length===0){
-                if($('#TableOfContents li').first().children('a').length === 0){
-                  $('#TableOfContents li').first().children('ul').children('li')[0].classList.add('chosen');
-                  $('#TableOfContents li')[0].classList.add('active');
-                }
-                else
-                  $('#TableOfContents li')[0].classList.add('chosen');
-              }
-            }
+
+    function toggleChosen(sideNavItem){
+      $(sideNavItem).toggleClass("chosen")
     };
+
+    function showCollapse(sideNavItem){
+      $('ul', sideNavItem).first().collapse('show');
+    };
+
+    function toggleRotate(img){
+      $(img).toggleClass('rotate');
+    }
+
+    function removeRotate(img){
+      $(img).removeClass('rotate');
+    }
+
+    function setNavEvents(){
+      var sideNavItems = $(".page-nav > #TableOfContents li");
+      //Collapse all nav items
+      $('ul', sideNavItems).addClass("collapse");
+
+      //Toggles collapsible nav items when clicked and already selected
+      $('a:first', sideNavItems).click(function(){
+        var isChosen = $(this).parent('li.chosen').length;
+
+        if(isChosen){
+          $(this).siblings('ul').collapse('toggle');
+          toggleRotate($('img', this));
+        }
+      });
+
+      //Checks every time a nav item is activated by the scroll-spy
+      //Doesn't trigger if the same element is clicked again
+      $('[data-spy="scroll"]').on('activate.bs.scrollspy', function (e) {
+        var lastActive = $(".page-nav > #TableOfContents li.active").last()
+        var lastChosen = $(".page-nav > #TableOfContents li.chosen")
+        var isChosen = $(e.target).hasClass('chosen').length
+
+        toggleChosen(lastChosen)
+        toggleChosen(lastActive);
+
+        showCollapse(e.target);
+
+        if(!(isChosen)){
+          var img = $('img', e.target).first();
+          removeRotate(img)
+        }
+      });
+
+    }
+
     return {
       "idPageNav": idPageNav,
       "idMainContainer": idMainContainer,
+      "setNavEvents": setNavEvents,
 
       "setPageNav": function() {
         var mainContainerData = {
@@ -63,14 +91,6 @@ $(document).ready(function() {
             left: 0
           });
         }
-        if($('#TableOfContents .active').length === 0){
-          if($('#TableOfContents li').first().children('a').length === 0){
-            $('#TableOfContents li').first().children('ul').children('li')[0].classList.add('chosen');
-            $('#TableOfContents li')[0].classList.add('active');
-          }
-          else
-            $('#TableOfContents li')[0].classList.add('chosen');
-        }
       },
 
       "bindEvents": function() {
@@ -80,44 +100,22 @@ $(document).ready(function() {
           _self.setPageNav();
         });
       },
-      "setActiveItemClassEvent": function () {
-        $("." + idSectionNav + " a").click(function (e) {
-            var currentItem = document.querySelector(classNavActiveItem);
-            if (currentItem)
-                currentItem.classList.remove(CONST.ACTIVE_CLASS);
-            e.target.classList.add(CONST.ACTIVE_CLASS);
-        });
-    },
 
-    "displayActiveItem": function () {
-        document.querySelector(".page-nav > #TableOfContents").addEventListener('click', function(){
-          setTimeout(checkList,50)
-        });
-        document.addEventListener('scroll', checkList);
-        var items = $(".page-nav > #TableOfContents li");
-        var img = document.createElement("img");
-        img.src = "/images/arrow-expandable.svg";
-        img.classList="rotate";
-        for(i=0; i<items.length; i++){
-          if(items[i].querySelector('ul')){
-            if(items[i].querySelector(':first-child').tagName != "UL"){
-              items[i].querySelector('a').dataset.target ="#collapse"+i;
-              items[i].querySelector('a').dataset.toggle ="collapse";
-              items[i].querySelector('ul').classList.add('collapse');
-              items[i].querySelector('ul').id = "collapse"+i;
-              items[i].querySelector('a').insertAdjacentElement('afterbegin',img);
-              items[i].querySelector('a').addEventListener('click', function(e){
-                this.querySelector('img').classList.toggle('rotate');
-                e.preventDefault();
-          })
-          }}
-        }
-    },
+      "prependArrows": function () {
+          var items = $(".page-nav > #TableOfContents li");
+          var itemTags = $('ul', items).siblings('a');
+          var img = document.createElement("img");
+          img.src = "/images/arrow-expandable.svg";
+          img.classList="rotate";
+
+          $(itemTags).prepend(img);
+      },
 
       "init": function() {
         this.bindEvents();
         this.setPageNav();
-        this.displayActiveItem();
+        this.prependArrows();
+        this.setNavEvents();
       }
     }
   }
