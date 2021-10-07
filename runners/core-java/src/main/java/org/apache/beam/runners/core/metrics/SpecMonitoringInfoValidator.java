@@ -31,7 +31,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 
 /** Class implements validation of MonitoringInfos against MonitoringInfoSpecs. */
 public class SpecMonitoringInfoValidator {
-  /** URN -> Type -> MonitoringInfoSpec required labels */
+  // URN -> Type -> MonitoringInfoSpec required labels
   private static final Map<String, Map<String, Set<String>>> REQUIRED_LABELS = new HashMap<>();
 
   static {
