@@ -25,7 +25,7 @@ DebeziumIO is an Apache Beam connector that lets users connect their Events-Driv
 
 ### Getting Started
 
-DebeziumIO uses [Debezium Connectors v1.7](https://debezium.io/documentation/reference/1.7/connectors/) to connect to Apache Beam. All you need to do is choose the Debezium Connector that suits your Debezium setup and pick a [Serializable Function](https://beam.apache.org/releases/javadoc/2.23.0/org/apache/beam/sdk/transforms/SerializableFunction.html), then you will be able to connect to Apache Beam and start building your own Pipelines.
+DebeziumIO uses [Debezium Connectors v1.3](https://debezium.io/documentation/reference/1.3/connectors/) to connect to Apache Beam. All you need to do is choose the Debezium Connector that suits your Debezium setup and pick a [Serializable Function](https://beam.apache.org/releases/javadoc/2.23.0/org/apache/beam/sdk/transforms/SerializableFunction.html), then you will be able to connect to Apache Beam and start building your own Pipelines.
 
 These connectors have been successfully tested and are known to work fine:
 *  MySQL Connector
@@ -65,7 +65,7 @@ You can also add more configuration, such as Connector-specific Properties with 
 |Method|Params|Description|
 |-|-|-|
 |`.withConnectionProperty(propName, propValue)`|_String_, _String_|Adds a custom property to the connector.|
-> **Note:** For more information on custom properties, see your [Debezium Connector](https://debezium.io/documentation/reference/1.7/connectors/) specific documentation.
+> **Note:** For more information on custom properties, see your [Debezium Connector](https://debezium.io/documentation/reference/1.3/connectors/) specific documentation.
 
 Example of a MySQL Debezium Connector setup:
 ```
@@ -165,7 +165,7 @@ By default, DebeziumIO initializes it with the former, though user may choose th
 ### Requirements and Supported versions
 
 -  JDK v8
--  Debezium Connectors v1.7
+-  Debezium Connectors v1.3
 -  Apache Beam 2.25
 
 ## Running Unit Tests
