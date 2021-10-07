@@ -372,7 +372,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.34.0'
+    project.version = '2.33.15'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -999,6 +999,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.withType(Javadoc) {
         options.encoding = 'UTF-8'
         options.addBooleanOption('Xdoclint:-missing', true)
+        enabled = false
       }
       project.check.dependsOn project.javadoc
 

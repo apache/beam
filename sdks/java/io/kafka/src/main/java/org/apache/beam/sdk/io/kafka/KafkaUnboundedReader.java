@@ -515,19 +515,65 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private void consumerPollLoop() {
     // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
 
+    Duration loopTotal = Duration.ZERO;
+    long pollCount = 0;
+    Duration pollUseful = Duration.ZERO;
+    Duration pollWasted = Duration.ZERO;
+    long offerCount = 0;
+    Duration offerUseful = Duration.ZERO;
+    Duration offerWasted = Duration.ZERO;
+    Duration checkpointDuration = Duration.ZERO;
+    Instant lastLog = Instant.ofEpochSecond(0);
+
+    LOG.info("Starting consumerPollLoop()");
+
     try {
       ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
       while (!closed.get()) {
         try {
           if (records.isEmpty()) {
+            Instant pollStart = Instant.now();
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-          } else if (availableRecordsQueue.offer(
-              records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
-            records = ConsumerRecords.empty();
+            Duration d = new Duration(pollStart, Instant.now());
+            pollCount += 1;
+
+            if (!records.isEmpty()) {
+              pollUseful = pollUseful.plus(d);
+            } else {
+              pollWasted = pollWasted.plus(d);
+            }
+            pollCount += 1;
+            loopTotal = loopTotal.plus(d);
+          } else {
+            Instant offerStart = Instant.now();
+            boolean offerOk = availableRecordsQueue.offer(
+              records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS);
+            Duration d = new Duration(offerStart, Instant.now());
+            offerCount += 1;
+
+            if (offerOk) {
+              records = ConsumerRecords.empty();
+              offerUseful = offerUseful.plus(d);
+            } else {
+              offerWasted = offerWasted.plus(d);
+            }
+            loopTotal = loopTotal.plus(d);
           }
+
           KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
           if (checkpointMark != null) {
+            Instant checkpointStart = Instant.now();
             commitCheckpointMark(checkpointMark);
+            Duration d = new Duration(checkpointStart, Instant.now());
+            checkpointDuration = checkpointDuration.plus(d);
+            loopTotal = loopTotal.plus(d);
+          }
+
+          Duration sinceLastLog = new Duration(lastLog, Instant.now());
+          if (sinceLastLog.getStandardSeconds() > 30) {
+            LOG.info("consumerPollLoop stats: poll {}, useful {}, wasted {}; offer {}, useful {}, wasted {}; checkpoint {}, total {}",
+                    pollCount, pollUseful, pollWasted, offerCount, offerUseful, offerWasted, checkpointDuration, loopTotal);
+            lastLog = Instant.now();
           }
         } catch (InterruptedException e) {
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
