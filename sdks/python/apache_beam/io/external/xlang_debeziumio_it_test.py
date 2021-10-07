@@ -68,7 +68,7 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
     expected_response = [{
         "metadata": {
             "connector": "postgresql",
-            "version": "1.3.1.Final",
+            "version": "1.7.0.Final",
             "name": "dbserver1",
             "database": "inventory",
             "schema": "inventory",
