@@ -300,6 +300,13 @@ public class PAssert {
     IterableAssert<T> containsInAnyOrder(T... expectedElements);
 
     /**
+     * Asserts that the iterable in question matches the provided elements.
+     *
+     * @return the same {@link IterableAssert} builder for further assertions
+     */
+    IterableAssert<T> containsInAnyOrder(SerializableMatcher<? super T>... expectedElements);
+
+    /**
      * Asserts that the iterable in question contains the provided elements.
      *
      * @return the same {@link IterableAssert} builder for further assertions
@@ -698,7 +705,8 @@ public class PAssert {
      * <p>Returns this {@code IterableAssert}.
      */
     @SafeVarargs
-    final PCollectionContentsAssert<T> containsInAnyOrder(
+    @Override
+    public final PCollectionContentsAssert<T> containsInAnyOrder(
         SerializableMatcher<? super T>... elementMatchers) {
       return satisfies(SerializableMatchers.containsInAnyOrder(elementMatchers));
     }
@@ -734,21 +742,6 @@ public class PAssert {
           "PAssert$" + (assertCount++),
           new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
-    }
-
-    /** Check that the passed-in matchers match the existing data. */
-    protected static class MatcherCheckerFn<T> implements SerializableFunction<T, Void> {
-      private SerializableMatcher<T> matcher;
-
-      public MatcherCheckerFn(SerializableMatcher<T> matcher) {
-        this.matcher = matcher;
-      }
-
-      @Override
-      public @Nullable Void apply(T actual) {
-        assertThat(actual, matcher);
-        return null;
-      }
     }
 
     /**
@@ -870,6 +863,20 @@ public class PAssert {
     @Override
     public PCollectionSingletonIterableAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
       return satisfies(new AssertContainsInAnyOrderRelation<>(), expectedElements);
+    }
+
+    @SafeVarargs
+    @Override
+    public final PCollectionSingletonIterableAssert<T> containsInAnyOrder(
+        SerializableMatcher<? super T>... elementMatchers) {
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
+      })
+      SerializableFunction<Iterable<T>, Void> checkerFn =
+          (SerializableFunction)
+              new MatcherCheckerFn<>(SerializableMatchers.containsInAnyOrder(elementMatchers));
+      return satisfies(checkerFn);
     }
 
     @Override
@@ -1826,6 +1833,21 @@ public class PAssert {
     int getPAssertCount() {
       checkState(pipelineVisited);
       return assertCount;
+    }
+  }
+
+  /** Check that the passed-in matchers match the existing data. */
+  protected static class MatcherCheckerFn<T> implements SerializableFunction<T, Void> {
+    private SerializableMatcher<T> matcher;
+
+    public MatcherCheckerFn(SerializableMatcher<T> matcher) {
+      this.matcher = matcher;
+    }
+
+    @Override
+    public @Nullable Void apply(T actual) {
+      assertThat(actual, matcher);
+      return null;
     }
   }
 }
