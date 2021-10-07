@@ -11132,18 +11132,18 @@ $ jar -jar /path/to/expansion_service.jar &amp;lt;PORT_NUMBER&amp;gt;&lt;/code>&
 &lt;/div>
 &lt;/div>
 &lt;p>The expansion service is now ready to serve transforms on the specified port.&lt;/p>
-&lt;p>When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the utilities &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py">JavaJarExpansionService and BeamJarExpansionService&lt;/a> utility for starting up a Java expansion service using a JAR file.&lt;/p>
+&lt;p>When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the utilities &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService">&lt;code>JavaJarExpansionService&lt;/code>&lt;/a> and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService">&lt;code>BeamJarExpansionService&lt;/code>&lt;/a> for starting up a Java expansion service using a JAR file.&lt;/p>
 &lt;p>&lt;strong>Including dependencies&lt;/strong>&lt;/p>
 &lt;p>If your transform requires external libraries, you can include them by adding them to the classpath of the expansion service. After they are included in the classpath, they will be staged when your transform is expanded by the expansion service.&lt;/p>
 &lt;p>&lt;strong>Writing SDK-specific wrappers&lt;/strong>&lt;/p>
-&lt;p>Your cross-language Java transform can be called through the lower-level &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py">ExternalTransform&lt;/a> class in a multi-language pipeline (as described in the next section); however, if possible, you should create a SDK-specific wrapper written in the programming language of the pipeline (such as Python) to access the transform instead. This higher-level abstraction will make it easier for pipeline authors to use your transform.&lt;/p>
+&lt;p>Your cross-language Java transform can be called through the lower-level &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform">&lt;code>ExternalTransform&lt;/code>&lt;/a> class in a multi-language pipeline (as described in the next section); however, if possible, you should create a SDK-specific wrapper written in the programming language of the pipeline (such as Python) to access the transform instead. This higher-level abstraction will make it easier for pipeline authors to use your transform.&lt;/p>
 &lt;p>To create an SDK wrapper for use in a Python pipeline, do the following:&lt;/p>
 &lt;ol>
 &lt;li>
 &lt;p>Create a Python module for your cross-language transform(s).&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py">PayloadBuilder&lt;/a> classes.&lt;/p>
+&lt;p>In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder">&lt;code>PayloadBuilder&lt;/code>&lt;/a> classes.&lt;/p>
 &lt;p>The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java &lt;code>ExternalTransformBuilder&lt;/code>. Parameter types are mapped across SDKs using a &lt;a href="https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/schema.proto">Beam schema&lt;/a>. Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).&lt;/p>
 &lt;p>In the following example, &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py">kafka.py&lt;/a> uses &lt;code>NamedTupleBasedPayloadBuilder&lt;/code> to build the payload. The parameters map to the Java &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java">KafkaIO.External.Configuration&lt;/a> config object defined previously in the &lt;strong>Implementing the interfaces&lt;/strong> section.&lt;/p>
 &lt;div class="snippet">
@@ -11161,7 +11161,7 @@ payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
 &lt;/div>
 &lt;/li>
 &lt;li>
-&lt;p>Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities &lt;code>JavaJarExpansionService&lt;/code> and &lt;code>BeamJarExpansionService&lt;/code> for easily starting up an expansion service using a JAR file.. &lt;code>JavaJarExpansionService&lt;/code> can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. &lt;code>BeamJarExpansionService&lt;/code> can be used for easily starting an expansion service based on a JAR released with Beam.&lt;/p>
+&lt;p>Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService">&lt;code>JavaJarExpansionService&lt;/code>&lt;/a> and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService">&lt;code>BeamJarExpansionService&lt;/code>&lt;/a> for easily starting up an expansion service using a JAR file.. &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService">&lt;code>JavaJarExpansionService&lt;/code>&lt;/a> can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService">&lt;code>BeamJarExpansionService&lt;/code>&lt;/a> can be used for easily starting an expansion service based on a JAR released with Beam.&lt;/p>
 &lt;p>For transforms released with Beam do the following:&lt;/p>
 &lt;ol>
 &lt;li>
@@ -11182,7 +11182,7 @@ payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
 &lt;/ol>
 &lt;/li>
 &lt;li>
-&lt;p>Add a Python wrapper transform class that extends &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py">ExternalTransform&lt;/a>. Pass the payload and expansion service defined above as parameters to the constructor of the &lt;code>ExternalTransform&lt;/code> parent class.&lt;/p>
+&lt;p>Add a Python wrapper transform class that extends &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform">&lt;code>ExternalTransform&lt;/code>&lt;/a>. Pass the payload and expansion service defined above as parameters to the constructor of the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform">&lt;code>ExternalTransform&lt;/code>&lt;/a> parent class.&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;h4 id="1312-creating-cross-language-python-transforms">13.1.2. Creating cross-language Python transforms&lt;/h4>
@@ -11322,7 +11322,7 @@ transforms from other languages; see more at &lt;a href="https://issues.apache.o
 &lt;/li>
 &lt;/ol>
 &lt;h4 id="1322-using-cross-language-transforms-in-a-python-pipeline">13.2.2. Using cross-language transforms in a Python pipeline&lt;/h4>
-&lt;p>If a Python-specific wrapper for a cross-language transform is available, use that; otherwise, you have to use the lower-level &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py">ExternalTransform&lt;/a> class to access the transform.&lt;/p>
+&lt;p>If a Python-specific wrapper for a cross-language transform is available, use that; otherwise, you have to use the lower-level &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform">&lt;code>ExternalTransform&lt;/code>&lt;/a> class to access the transform.&lt;/p>
 &lt;p>&lt;strong>Using an SDK wrapper&lt;/strong>&lt;/p>
 &lt;p>To use a cross-language transform through an SDK wrapper, import the module for the SDK wrapper and call it from your pipeline as shown in the example:&lt;/p>
 &lt;div class="snippet">
@@ -11355,7 +11355,7 @@ expansion_service=&amp;lt;Address of expansion service&amp;gt;))
 &lt;p>Make sure the transform you&amp;rsquo;re trying to use is available and can be used by the expansion service. For Java, make sure the builder and registrar for the transform are available in the classpath of the expansion service.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>Include &lt;code>ExternalTransform&lt;/code> when instantiating your pipeline. Reference the URN, Payload, and expansion service. You can use one of the available &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py">PayloadBuilder&lt;/a> classes to build the payload for &lt;code>ExternalTransform&lt;/code>.&lt;/p>
+&lt;p>Include &lt;code>ExternalTransform&lt;/code> when instantiating your pipeline. Reference the URN, Payload, and expansion service. You can use one of the available &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder">&lt;code>PayloadBuilder&lt;/code>&lt;/a> classes to build the payload for &lt;code>ExternalTransform&lt;/code>.&lt;/p>
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
