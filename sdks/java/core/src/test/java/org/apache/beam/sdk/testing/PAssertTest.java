@@ -403,6 +403,19 @@ public class PAssertTest implements Serializable {
     pipeline.run();
   }
 
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testContainsInAnyOrderWithMatchers() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
+    PAssert.that(pcollection)
+        .containsInAnyOrder(
+            SerializableMatchers.equalTo(2),
+            SerializableMatchers.equalTo(1),
+            SerializableMatchers.equalTo(4),
+            SerializableMatchers.equalTo(3));
+    pipeline.run();
+  }
+
   /** Tests that {@code containsInAnyOrder} is actually order-independent. */
   @Test
   @Category(ValidatesRunner.class)
