@@ -111,10 +111,11 @@ func (l *LifeCycle) DeleteCompiledFile() error {
 }
 
 // GetAbsoluteExecutableFilePath returns absolute filepath to executable file (.../internal/executable_files/src/file.java for java SDK).
-func (l *LifeCycle) GetAbsoluteExecutableFilePath() (string, error) {
+func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
 	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
 	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
-	return filepath.Abs(filePath)
+	absoluteFilePath, _ := filepath.Abs(filePath)
+	return absoluteFilePath
 }
 
 // GetRelativeExecutableFilePath returns relative filepath to executable file (src/file.java for java SDK).

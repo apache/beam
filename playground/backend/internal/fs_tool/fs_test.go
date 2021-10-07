@@ -393,8 +393,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 				Extension:  Extension{ExecutableExtension: javaExecutableFileExtension},
 				pipelineId: pipelineId,
 			},
-			want:    absolutePath,
-			wantErr: false,
+			want: absolutePath,
 		},
 	}
 	for _, tt := range tests {
@@ -405,11 +404,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 				Extension:   tt.fields.Extension,
 				pipelineId:  tt.fields.pipelineId,
 			}
-			got, err := l.GetAbsoluteExecutableFilePath()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetAbsoluteExecutableFilePath() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := l.GetAbsoluteExecutableFilePath()
 			if got != tt.want {
 				t.Errorf("GetAbsoluteExecutableFilePath() got = %v, want %v", got, tt.want)
 			}
