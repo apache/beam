@@ -289,6 +289,11 @@ class JavaExternalTransform(ptransform.PTransform):
     self._payload_builder = JavaClassLookupPayloadBuilder(class_name)
     self._expansion_service = expansion_service
 
+    # Beam explicitly looks for following attributes. Hence adding
+    # 'None' values here to prevent '__getattr__' from being called.
+    self.inputs = None
+    self._fn_api_payload = None
+
   def __call__(self, *args, **kwargs):
     self._payload_builder.with_constructor(*args, **kwargs)
     return self
