@@ -101,8 +101,8 @@ import org.joda.time.Duration;
  * PCollection<Integer> sum =
  *     ints
  *     .apply(Combine.globally(new SumInts()));
- * PAssert.that(sum)
- *     .is(42);
+ * PAssert.thatSingleton(sum)
+ *     .isEqualTo(42);
  * ...
  * p.run();
  * }</pre>
