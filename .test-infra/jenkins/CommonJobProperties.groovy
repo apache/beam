@@ -28,6 +28,7 @@ class CommonJobProperties {
   static String checkoutDir = 'src'
   final static String JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
   final static String JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
+  final static String JAVA_17_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(def context,

@@ -40,6 +40,7 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
+evaluationDependsOn(":sdks:java:container:java17")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -254,7 +255,14 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 // task directly ('dependsOn buildAndPushDockerContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 task buildAndPushDockerContainer() {
-  def javaVer = project.hasProperty('compileAndRunTestsWithJava11') ? "java11" : "java8"
+  def javaVer = "java8"
+
+  if(project.hasProperty('compileAndRunTestsWithJava17')) {
+    javaVer = "java17"
+  } else if(project.hasProperty('compileAndRunTestsWithJava11')) {
+    javaVer = "java11"
+  }
+
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
