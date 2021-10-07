@@ -234,6 +234,7 @@ class DoctestTest(unittest.TestCase):
 
   def test_rst_ipython(self):
     try:
+      # pylint: disable=unused-import
       import IPython
     except ImportError:
       raise unittest.SkipTest('IPython not available')

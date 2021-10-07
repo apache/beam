@@ -115,7 +115,7 @@ class FnApiRunner(runner.PipelineRunner):
           waits before requesting progress from the SDK.
       is_drain: identify whether expand the sdf graph in the drain mode.
     """
-    super(FnApiRunner, self).__init__()
+    super().__init__()
     self._default_environment = (
         default_environment or environments.EmbeddedPythonEnvironment.default())
     self._bundle_repeat = bundle_repeat
@@ -1140,7 +1140,7 @@ class ParallelBundleManager(BundleManager):
       cache_token_generator=None,
       **kwargs):
     # type: (...) -> None
-    super(ParallelBundleManager, self).__init__(
+    super().__init__(
         bundle_context_manager,
         progress_frequency,
         cache_token_generator=cache_token_generator)
@@ -1184,7 +1184,7 @@ class ParallelBundleManager(BundleManager):
           dry_run)
 
     with thread_pool_executor.shared_unbounded_instance() as executor:
-      for result, split_result in executor.map(execute, zip(part_inputs,  # pylint: disable=zip-builtin-not-iterating
+      for result, split_result in executor.map(execute, zip(part_inputs,  # pylint: disable=bad-option-value
                                                             timer_inputs)):
         split_result_list += split_result
         if merged_result is None:
@@ -1214,7 +1214,7 @@ class ProgressRequester(threading.Thread):
                callback=None
               ):
     # type: (...) -> None
-    super(ProgressRequester, self).__init__()
+    super().__init__()
     self._worker_handler = worker_handler
     self._instruction_id = instruction_id
     self._frequency = frequency
@@ -1299,7 +1299,7 @@ class FnApiMetrics(metric.MetricResults):
 
 class RunnerResult(runner.PipelineResult):
   def __init__(self, state, monitoring_infos_by_stage):
-    super(RunnerResult, self).__init__(state)
+    super().__init__(state)
     self._monitoring_infos_by_stage = monitoring_infos_by_stage
     self._metrics = None
     self._monitoring_metrics = None

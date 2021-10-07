@@ -269,7 +269,7 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict(), pipeline_options)
+        proto_pipeline, {}, pipeline_options)
 
     from apache_beam.utils import proto_utils
     found_override = False
@@ -300,7 +300,7 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict(), pipeline_options)
+        proto_pipeline, {}, pipeline_options)
 
     self.assertIsNotNone(2, len(proto_pipeline.components.environments))
 
@@ -336,7 +336,7 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict(), pipeline_options)
+        proto_pipeline, {}, pipeline_options)
 
     self.assertIsNotNone(2, len(proto_pipeline.components.environments))
 

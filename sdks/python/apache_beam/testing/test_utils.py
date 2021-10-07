@@ -23,7 +23,7 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 
 import hashlib
-import imp
+import importlib
 import os
 import shutil
 import tempfile
@@ -112,12 +112,12 @@ def patch_retry(testcase, module):
       side_effect=patched_retry_with_exponential_backoff).start()
 
   # Reload module after patching.
-  imp.reload(module)
+  importlib.reload(module)
 
   def remove_patches():
     patch.stopall()
     # Reload module again after removing patch.
-    imp.reload(module)
+    importlib.reload(module)
 
   testcase.addCleanup(remove_patches)
 

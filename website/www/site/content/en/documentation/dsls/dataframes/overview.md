@@ -30,9 +30,18 @@ The Beam DataFrame API is intended to provide access to a familiar programming i
 
 If you’re new to pandas DataFrames, you can get started by reading [10 minutes to pandas](https://pandas.pydata.org/pandas-docs/stable/user_guide/10min.html), which shows you how to import and work with the `pandas` package. pandas is an open-source Python library for data manipulation and analysis. It provides data structures that simplify working with relational or labeled data. One of these data structures is the [DataFrame](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html), which contains two-dimensional tabular data and provides labeled rows and columns for the data.
 
-## Using DataFrames
+## Pre-requisites
 
-To use Beam DataFrames, you need to install Apache Beam version 2.26.0 or higher (for complete setup instructions, see the [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/)) and pandas version 1.0 or higher. You can use DataFrames as shown in the following example, which reads New York City taxi data from a CSV file, performs a grouped aggregation, and writes the output back to CSV:
+To use Beam DataFrames, you need to install Beam python version 2.26.0 or higher (for complete setup instructions, see the [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/)) and a supported `pandas` version. In Beam 2.34.0 and newer the easiest way to do this is with the "dataframe" extra:
+
+```
+pip install apache_beam[dataframe]
+```
+
+Note that the _same_ `pandas` version should be installed on workers when executing DataFrame API pipelines on distributed runners.  Reference [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt) for the Beam release you are using to see what version of `pandas` will be used by default on workers.
+
+## Using DataFrames
+You can use DataFrames as shown in the following example, which reads New York City taxi data from a CSV file, performs a grouped aggregation, and writes the output back to CSV:
 
 {{< highlight py >}}
 from apache_beam.dataframe.io import read_csv

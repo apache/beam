@@ -104,7 +104,7 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
       _ = (
           p
           | 'Impulse' >> beam.Impulse()
-          | 'Generate' >> beam.FlatMap(lambda x: range(NUM_RECORDS))  # pylint: disable=range-builtin-not-iterating
+          | 'Generate' >> beam.FlatMap(lambda x: range(NUM_RECORDS))  # pylint: disable=bad-option-value
           | 'Map to bytes' >>
           beam.Map(lambda x: RECORD + str(x).encode()).with_output_types(bytes)
           | 'WriteToKinesis' >> WriteToKinesis(
