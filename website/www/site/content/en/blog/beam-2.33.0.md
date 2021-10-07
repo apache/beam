@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.33.0"
-date:   2021-09-TODO 00:00:01 -0800
+date:   2021-10-07 00:00:01 -0800
 categories:
   - blog
 authors:
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.33.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2330-2021-09-TODO) for this release.
+See the [download page](/get-started/downloads/#2330-2021-10-07) for this release.
 
 <!--more-->
 
