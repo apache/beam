@@ -88,7 +88,7 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.33.0] - 2021-09-TODO
+# [2.33.0] - 2021-10-07
 
 ## Highlights
 
