@@ -177,7 +177,7 @@ public class FlinkSavepointTest implements Serializable {
     }
     oneShotLatch.await();
     String savepointDir = takeSavepoint(jobID);
-    cancelJob(jobID);
+    flinkCluster.cancelJob(jobID).get();
     ensureNoJobRunning();
 
     oneShotLatch = new CountDownLatch(1);
@@ -266,14 +266,6 @@ public class FlinkSavepointTest implements Serializable {
       }
     }
     throw exception;
-  }
-
-  private Acknowledge cancelJob(JobID jobID) throws Exception {
-    try {
-      return flinkCluster.cancelJob(jobID).get();
-    } catch (Exception e) {
-      throw e;
-    }
   }
 
   private void restoreFromSavepointLegacy(Pipeline pipeline, String savepointDir)
