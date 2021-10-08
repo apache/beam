@@ -155,10 +155,10 @@ func GetStore(ctx context.Context) *Store {
 	return nil
 }
 
-// GetExecutionStore extracts the metrics ExecutionStateTracker for the
+// getExecutionStore extracts the metrics ExecutionTracker for the
 // given context of a bundle.
 // Ensure that the store for the bundle exist before calling this function.
-func GetExecutionStore(ctx context.Context) *ExecutionStateTracker {
+func getExecutionStore(ctx context.Context) *ExecutionTracker {
 	store := GetStore(ctx)
 	return &store.executionStore
 }

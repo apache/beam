@@ -273,54 +273,6 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 	return plan, nil
 }
 
-// Sampler provides methods for implementing state sampling
-// to track execution time metrics.
-type Sampler interface {
-	startSampler()
-	stopSampler()
-	sample()
-}
-
-// StateSampler tracks the state of a bundle.
-type StateSampler struct {
-	done  chan (int) // signal to stop sampling
-	e     *metrics.ExecutionStateTracker
-	store *metrics.Store
-	pid   string // PTransform ID
-}
-
-func newSampler(e *metrics.ExecutionStateTracker, store *metrics.Store, pid string) StateSampler {
-	return StateSampler{done: make(chan int), e: e, store: store, pid: pid}
-}
-
-func (s StateSampler) startSampler() {
-	for {
-		select {
-		case <-s.done:
-			return
-		default:
-			if s.e.NumberOfTransitions != s.e.TransitionsAtLastSample {
-				s.sample()
-			}
-			s.e.MillisSinceLastTransition += 200
-			s.e.State.TotalTimeMillis += 200
-			time.Sleep(200 * time.Millisecond)
-		}
-	}
-}
-
-func (s StateSampler) stopSampler() {
-	s.done <- 1
-}
-
-func (s StateSampler) sample() {
-	s.e.TransitionsAtLastSample = s.e.NumberOfTransitions
-	s.e.MillisSinceLastTransition = 0
-	s.store.AddState(s.e.State, s.pid)
-	s.e.State.State = s.e.CurrentState
-	s.e.State.TotalTimeMillis = 0
-}
-
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
 	instID := instructionID(req.GetInstructionId())
 	ctx = setInstID(ctx, instID)
@@ -365,16 +317,15 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(ctx, instID, "Failed: %v", err)
 		}
 		// Start the sampler goroutine here
-		sampler := newSampler(metrics.GetExecutionStore(ctx), store, string(instID))
-		go sampler.startSampler()
+		sampler := newSampler(ctx, store, string(instID))
+		sampler.start()
 
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
 		err = plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
 
 		// Plan execution complete, stop sampling for metrics for this bundle.
-		sampler.stopSampler()
-		sampler.sample()
+		sampler.stop()
 
 		data.Close()
 		state.Close()

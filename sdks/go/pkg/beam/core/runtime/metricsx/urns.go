@@ -17,8 +17,10 @@ package metricsx
 
 import (
 	"bytes"
+	"fmt"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/metricsx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
@@ -167,4 +169,18 @@ func Int64Distribution(count, sum, min, max int64) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func GetUrn(state interface{}) metricsx.Urn {
+	state := metrics.GetState(state)
+	switch state {
+	case StartBundle:
+		return metricsx.UrnStartBundle
+	case ProcessBundle:
+		return metricsx.UrnProcessBundle
+	case FinishBundle:
+		return metricsx.UrnFinishBundle
+	default:
+		panic(fmt.Errorf("invalid bundle processing state: %v", state))
+	}
 }

@@ -16,7 +16,6 @@
 package harness
 
 import (
-	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -101,19 +100,6 @@ func getShortID(l metrics.Labels, urn metricsx.Urn) string {
 
 func shortIdsToInfos(shortids []string) map[string]*pipepb.MonitoringInfo {
 	return defaultShortIDCache.shortIdsToInfos(shortids)
-}
-
-func getUrn(state metrics.BundleProcState) metricsx.Urn {
-	switch state {
-	case metrics.StartBundle:
-		return metricsx.UrnStartBundle
-	case metrics.ProcessBundle:
-		return metricsx.UrnProcessBundle
-	case metrics.FinishBundle:
-		return metricsx.UrnFinishBundle
-	default:
-		panic(fmt.Errorf("invalid bundle processing state: %v", state))
-	}
 }
 
 func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, map[string][]byte) {

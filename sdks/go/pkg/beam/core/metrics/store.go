@@ -151,24 +151,28 @@ type ptCounterSet struct {
 }
 
 // Bundle processing state (START_BUNDLE, PROCESS_BUNDLE, FINISH_BUNDLE)
-type BundleProcState string
+type bundleProcState int
 
 const (
-	StartBundle   BundleProcState = "START_BUNDLE"
-	ProcessBundle BundleProcState = "PROCESS_BUNDLE"
-	FinishBundle  BundleProcState = "FINISH_BUNDLE"
+	StartBundle   bundleProcState = 0
+	ProcessBundle bundleProcState = 1
+	FinishBundle  bundleProcState = 2
 )
+
+func GetState(state interface{}) {
+	switch state.(bundleProcState)
+}
 
 // ExecutionState stores the information about a bundle in a particular state.
 type ExecutionState struct {
-	State           BundleProcState
+	State           bundleProcState
 	IsProcessing    bool // set to true when sent as a response to ProcessBundleProgress Request
 	TotalTimeMillis int64
 }
 
-// ExecutionStateTracker stores information about a bundle for execution time metrics.
-type ExecutionStateTracker struct {
-	CurrentState              BundleProcState
+// ExecutionTracker stores information about a bundle for execution time metrics.
+type ExecutionTracker struct {
+	CurrentState              bundleProcState
 	State                     ExecutionState
 	NumberOfTransitions       int
 	MillisSinceLastTransition int
@@ -183,7 +187,7 @@ type Store struct {
 
 	store map[Labels]userMetric
 
-	executionStore ExecutionStateTracker
+	executionStore ExecutionTracker
 	stateRegistry  map[Labels][]ExecutionState
 }
 
@@ -202,16 +206,16 @@ func (s *Store) AddState(e ExecutionState, pid string) {
 
 // SetState updates the state of a bundle.
 // For the bundle in start state, update the ExecutionState struct as well.
-func (s *Store) SetState(bs BundleProcState) {
+func (e *ExecutionTracker) SetState(bs bundleProcState) {
 	if bs == StartBundle {
-		s.executionStore.State.State = bs
+		e.State.State = bs
 	}
-	s.executionStore.CurrentState = bs
+	e.CurrentState = bs
 }
 
 // IncTransitions increment the number of transitions by 1.
-func (s *Store) IncTransitions() {
-	s.executionStore.NumberOfTransitions += 1
+func (e *ExecutionTracker) IncTransitions() {
+	e.NumberOfTransitions += 1
 }
 
 // GetRegistry return the state registry.
