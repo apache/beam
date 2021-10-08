@@ -19,25 +19,36 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
 
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /** Class implements validation of MonitoringInfos against MonitoringInfoSpecs. */
 public class SpecMonitoringInfoValidator {
-  protected final MonitoringInfoSpec[] specs;
+  // URN -> Type -> MonitoringInfoSpec required labels
+  private static final Map<String, Map<String, Set<String>>> REQUIRED_LABELS = new HashMap<>();
 
-  public SpecMonitoringInfoValidator() {
-    specs =
-        Arrays.stream(MonitoringInfoSpecs.Enum.values())
-            // Filtering default value for "unknown" Enums. Coming from proto implementation.
-            .filter(x -> !x.name().equals("UNRECOGNIZED"))
-            .map(x -> x.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec))
-            .toArray(size -> new MonitoringInfoSpec[size]);
+  static {
+    for (MonitoringInfoSpecs.Enum enumSpec : MonitoringInfoSpecs.Enum.values()) {
+      // The enum iterator inserts an UNRECOGNIZED = -1 value which isn't explicitly added in
+      // the proto files.
+      if (!enumSpec.name().equals("UNRECOGNIZED")) {
+        MonitoringInfoSpec spec =
+            enumSpec.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec);
+        Map<String, Set<String>> typeToSpec =
+            REQUIRED_LABELS.computeIfAbsent(spec.getUrn(), (String key) -> new HashMap<>());
+        Preconditions.checkState(
+            typeToSpec.put(spec.getType(), new HashSet<>(spec.getRequiredLabelsList())) == null,
+            String.format(
+                "Found duplicate specs for urn %s and type %s.", spec.getUrn(), spec.getType()));
+      }
+    }
   }
 
   /**
@@ -47,7 +58,6 @@ public class SpecMonitoringInfoValidator {
    * @return error string if validation fails.
    */
   public Optional<String> validate(MonitoringInfo monitoringInfo) {
-    MonitoringInfoSpec spec = null;
 
     if (monitoringInfo.getUrn().isEmpty() || monitoringInfo.getType().isEmpty()) {
       return Optional.of(
@@ -56,21 +66,17 @@ public class SpecMonitoringInfoValidator {
               monitoringInfo.getUrn(), monitoringInfo.getType()));
     }
 
-    for (MonitoringInfoSpec specIterator : specs) {
-      if (monitoringInfo.getUrn().equals(specIterator.getUrn())
-          && monitoringInfo.getType().equals(specIterator.getType())) {
-        spec = specIterator;
-        break;
-      }
-    }
-
     // Skip checking unknown MonitoringInfos
-    if (spec == null) {
+    Map<String, Set<String>> typeToRequiredLabels = REQUIRED_LABELS.get(monitoringInfo.getUrn());
+    if (typeToRequiredLabels == null) {
+      return Optional.empty();
+    }
+    Set<String> requiredLabels = typeToRequiredLabels.get(monitoringInfo.getType());
+    if (requiredLabels == null) {
       return Optional.empty();
     }
 
     // TODO(ajamato): Tighten this restriction to use set equality, to catch unused
-    Set<String> requiredLabels = new HashSet<>(spec.getRequiredLabelsList());
     if (!monitoringInfo.getLabelsMap().keySet().containsAll(requiredLabels)) {
       return Optional.of(
           String.format(
