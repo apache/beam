@@ -39,7 +39,7 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
     * This is a breaking change, see Breaking Changes for resolution.
     * Easier path to contribute to the Go SDK, no need to set up a GO\_PATH.
     * Minimum Go version is now Go v1.16
-  * See the announcement blogpost for full information (TODO(lostluck): Add link once published.)
+  * See the announcement blogpost for full information once published.
 
 <!--
 {$TOPICS e.g.:}
