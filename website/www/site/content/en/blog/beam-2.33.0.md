@@ -33,7 +33,7 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 * Go SDK is no longer experimental, and is officially part of the Beam release process.
   * Matching Go SDK containers are published on release.
   * Batch usage is well supported, and tested on Flink, Spark, and the Python Portable Runner.
-    * SDK Tests are also run against Google Cloud Dataflow, but this doesn't indicate reciprical support.
+    * SDK Tests are also run against Google Cloud Dataflow, but this doesn't indicate reciprocal support.
   * The SDK supports Splittable DoFns, Cross Language transforms, and most Beam Model basics.
   * Go Modules are now used for dependency management.
     * This is a breaking change, see Breaking Changes for resolution.
