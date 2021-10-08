@@ -57,6 +57,10 @@ class XlangGenerateSequenceTest(unittest.TestCase):
       else:
         raise e
 
+  @unittest.skipUnless(
+      os.environ.get('EXPANSION_SERVICE_TYPE') != 'Python',
+      'Java Class Lookup based expansion is not supported by the Python '
+      'expansion service')
   def test_generate_sequence_java_class_lookup_payload_builder(self):
     port = os.environ.get('EXPANSION_PORT')
     address = 'localhost:%s' % port
@@ -72,6 +76,10 @@ class XlangGenerateSequenceTest(unittest.TestCase):
           | ExternalTransform(None, payload_builder, expansion_service=address))
       assert_that(res, equal_to([i for i in range(1, 10)]))
 
+  @unittest.skipUnless(
+      os.environ.get('EXPANSION_SERVICE_TYPE') != 'Python',
+      'Java Class Lookup based expansion is not supported by the Python '
+      'expansion service')
   def test_generate_sequence_java_external_transform(self):
     port = os.environ.get('EXPANSION_PORT')
     address = 'localhost:%s' % port
