@@ -128,6 +128,7 @@ class FlinkBatchTransformTranslators {
         new NonMergingGroupByKeyTranslatorBatch<>());
     TRANSLATORS.put(
         PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch<>());
+    TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch<>());
     TRANSLATORS.put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, new ReshuffleTranslatorBatch<>());
     TRANSLATORS.put(
         PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionTranslatorBatch<>());

@@ -366,10 +366,26 @@ message StandardPTransforms {
     // Payload: GroupIntoBatchesPayload
     GROUP_INTO_BATCHES_WITH_SHARDED_KEY = 6 [(beam_urn) = "beam:transform:group_into_batches_with_sharded_key:v1"];
 
-    // Represents the Reshuffle.perKey() operation.
+    // Represents Reshuffle.perKey() operation, a PTransform that returns a PCollection
+    // equivalent to its input and ideally redistributed among the available workers
+    // with all data of a given key going to the same worker.
+    // The output of this operation, including windowing operation should be identical
+    // to its input
+    //
+    // <K> The type of key being reshuffled on.
+    // <V> The type of value being reshuffled.
+    //
+    // Input: KV(K, V)
+    // Output: KV(K, V)
     RESHUFFLE_PER_KEY = 7 [(beam_urn) = "beam:transform:reshuffle_per_key:v1"];
 
-    // Represents the Reshuffle.perRandomKey() operation.
+    // Represents Reshuffle.perRandomKey() operator, a PTransform that returns a PCollection
+    // equivalent to its input and ideally redistributed among the available workers.
+    // The output of this operation, including windowing operation should be identical
+    // to its input
+    //
+    // Input: element
+    // Output: element
     RESHUFFLE_PER_RANDOM_KEY = 8 [(beam_urn) = "beam:transform:reshuffle_per_random_key:v1"];
   }
   // Payload for all of these: CombinePayload
