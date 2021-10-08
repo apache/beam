@@ -25,10 +25,10 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -45,7 +45,7 @@ public class DataChangeRecordAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       DataChangeRecord record,
-      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
+      RestrictionTracker<OffsetRange, Long> tracker,
       OutputReceiver<DataChangeRecord> outputReceiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
@@ -61,14 +61,15 @@ public class DataChangeRecordAction {
       LOG.debug("[" + token + "] Processing data record " + record.getCommitTimestamp());
 
       final Timestamp commitTimestamp = record.getCommitTimestamp();
-      if (!tracker.tryClaim(PartitionPosition.queryChangeStream(commitTimestamp))) {
+      final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());
+      final long commitMicros = TimestampConverter.timestampToMicros(commitTimestamp);
+      if (!tracker.tryClaim(commitMicros)) {
         LOG.debug(
             "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
         return Optional.of(ProcessContinuation.stop());
       }
-      // TODO: Ask about this, do we need to output with timestamp?
       outputReceiver.output(record);
-      watermarkEstimator.setWatermark(new Instant(commitTimestamp.toSqlTimestamp().getTime()));
+      watermarkEstimator.setWatermark(commitInstant);
 
       LOG.debug("[" + token + "] Data record action completed successfully");
       return Optional.empty();

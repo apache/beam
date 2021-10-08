@@ -16,5 +16,8 @@
  * limitations under the License.
  */
 
-/** User model for the Spanner change stream API. */
-package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
+/**
+ * Provides an API for reading change stream data from <a
+ * href="https://developers.google.com/spanner/">Google Cloud Spanner</a>.
+ */
+package org.apache.beam.sdk.io.gcp.spanner.cdc.dofn;

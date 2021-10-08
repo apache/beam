@@ -60,13 +60,13 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamSourceDescriptor;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.PostProcessingMetricsDoFn;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.DaoFactory;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dofn.ChangeStreamSourceDoFn;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dofn.DetectNewPartitionsDoFn;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dofn.PostProcessingMetricsDoFn;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dofn.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.metrics.Counter;
@@ -1494,13 +1494,17 @@ public class SpannerIO {
                 .withCommitDeadline(changeStreamSpannerConfig.getCommitDeadline())
                 .withEmulatorHost(changeStreamSpannerConfig.getEmulatorHost())
                 .withMaxCumulativeBackoff(changeStreamSpannerConfig.getMaxCumulativeBackoff());
+        final String changeStreamName = getChangeStreamName();
+        final Timestamp startTimestamp = getInclusiveStartAt();
+        final Timestamp endTimestamp = getInclusiveEndAt();
         final MapperFactory mapperFactory = new MapperFactory();
         final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
-        final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.LOW);
+        final RpcPriority rpcPriority =
+            MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
         final DaoFactory daoFactory =
             new DaoFactory(
                 changeStreamSpannerConfig,
-                getChangeStreamName(),
+                changeStreamName,
                 partitionMetadataSpannerConfig,
                 partitionMetadataTableName,
                 partitionMetricsTableName,
@@ -1509,6 +1513,8 @@ public class SpannerIO {
                 input.getPipeline().getOptions().getJobName());
         final ActionFactory actionFactory = new ActionFactory();
 
+        final ChangeStreamSourceDoFn changeStreamSourceDoFn =
+            new ChangeStreamSourceDoFn(changeStreamName, startTimestamp, endTimestamp);
         final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
             new DetectNewPartitionsDoFn(daoFactory, mapperFactory, metrics);
         final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
@@ -1520,33 +1526,22 @@ public class SpannerIO {
             daoFactory.getPartitionMetadataAdminDao(),
             daoFactory.getPartitionMetricsAdminDao(),
             daoFactory.getPartitionMetadataDao(),
-            getInclusiveStartAt(),
-            getInclusiveEndAt());
+            startTimestamp,
+            endTimestamp);
 
         LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
         LOG.info("Partition metrics table that will be used is " + partitionMetricsTableName);
-
-        PCollection<byte[]> impulseOut = input.apply(Impulse.create());
-        PCollection<DataChangeRecord> results =
-            impulseOut
-                .apply(
-                    "Generate change stream sources",
-                    MapElements.into(TypeDescriptor.of(ChangeStreamSourceDescriptor.class))
-                        .via(
-                            ignored ->
-                                ChangeStreamSourceDescriptor.of(
-                                    getChangeStreamName(),
-                                    getInclusiveStartAt(),
-                                    getInclusiveEndAt())))
-                .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
-                .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
-                .apply("Post processing metrics", ParDo.of(postProcessingMetricsDoFn));
 
         // TODO: fix the watermark of these functions and enable them
         // impulseOut
         //     .apply(Wait.on(results))
         //     .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
-        return results;
+        return input
+            .apply(Impulse.create())
+            .apply("Generate change stream sources", ParDo.of(changeStreamSourceDoFn))
+            .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
+            .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
+            .apply("Gather metrics", ParDo.of(postProcessingMetricsDoFn));
       }
     }
   }

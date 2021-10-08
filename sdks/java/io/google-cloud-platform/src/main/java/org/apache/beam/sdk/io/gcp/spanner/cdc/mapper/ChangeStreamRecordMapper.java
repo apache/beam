@@ -23,7 +23,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamResultSetMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChangeStreamRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChangeStreamRecordMetadata;
@@ -32,56 +31,42 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord.ChildP
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ColumnType;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ModType;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.TypeCode;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ValueCaptureType;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestrictionMetadata;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 // TODO: Add java docs
 public class ChangeStreamRecordMapper {
 
   public List<ChangeStreamRecord> toChangeStreamRecords(
-      String partitionToken,
-      Struct row,
-      ChangeStreamResultSetMetadata resultSetMetadata,
-      PartitionRestrictionMetadata restrictionMetadata) {
+      PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
     return row.getStructList(0).stream()
-        .flatMap(
-            struct ->
-                toChangeStreamRecord(
-                    partitionToken, struct, resultSetMetadata, restrictionMetadata))
+        .flatMap(struct -> toChangeStreamRecord(partition, struct, resultSetMetadata))
         .collect(Collectors.toList());
   }
 
   // TODO: add validation of the internal structure / values of each record parsed
   private Stream<ChangeStreamRecord> toChangeStreamRecord(
-      String partitionToken,
-      Struct row,
-      ChangeStreamResultSetMetadata resultSetMetadata,
-      PartitionRestrictionMetadata restrictionMetadata) {
+      PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
 
     final Stream<DataChangeRecord> dataChangeRecords =
         row.getStructList("data_change_record").stream()
             .filter(this::isNonNullDataChangeRecord)
-            .map(
-                struct ->
-                    toDataChangeRecord(
-                        partitionToken, struct, resultSetMetadata, restrictionMetadata));
+            .map(struct -> toDataChangeRecord(partition, struct, resultSetMetadata));
 
     final Stream<HeartbeatRecord> heartbeatRecords =
         row.getStructList("heartbeat_record").stream()
             .filter(this::isNonNullHeartbeatRecord)
-            .map(struct -> toHeartbeatRecord(struct, resultSetMetadata, restrictionMetadata));
+            .map(struct -> toHeartbeatRecord(partition, struct, resultSetMetadata));
 
     final Stream<ChildPartitionsRecord> childPartitionsRecords =
         row.getStructList("child_partitions_record").stream()
             .filter(this::isNonNullChildPartitionsRecord)
-            .map(
-                struct ->
-                    toChildPartitionsRecord(
-                        partitionToken, struct, resultSetMetadata, restrictionMetadata));
+            .map(struct -> toChildPartitionsRecord(partition, struct, resultSetMetadata));
 
     return Stream.concat(
         Stream.concat(dataChangeRecords, heartbeatRecords), childPartitionsRecords);
@@ -100,13 +85,10 @@ public class ChangeStreamRecordMapper {
   }
 
   private DataChangeRecord toDataChangeRecord(
-      String partitionToken,
-      Struct row,
-      ChangeStreamResultSetMetadata resultSetMetadata,
-      PartitionRestrictionMetadata restrictionMetadata) {
+      PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
     final Timestamp commitTimestamp = row.getTimestamp("commit_timestamp");
     return DataChangeRecord.newBuilder()
-        .withPartitionToken(partitionToken)
+        .withPartitionToken(partition.getPartitionToken())
         .withCommitTimestamp(commitTimestamp)
         .withServerTransactionId(row.getString("server_transaction_id"))
         .withIsLastRecordInTransactionInPartition(
@@ -123,29 +105,22 @@ public class ChangeStreamRecordMapper {
         .withValueCaptureType(ValueCaptureType.valueOf(row.getString("value_capture_type")))
         .withNumberOfRecordsInTransaction(row.getLong("number_of_records_in_transaction"))
         .withNumberOfPartitionsInTransaction(row.getLong("number_of_partitions_in_transaction"))
-        .withMetadata(
-            changeStreamRecordMetadataFrom(commitTimestamp, restrictionMetadata, resultSetMetadata))
+        .withMetadata(changeStreamRecordMetadataFrom(partition, commitTimestamp, resultSetMetadata))
         .build();
   }
 
   private HeartbeatRecord toHeartbeatRecord(
-      Struct row,
-      ChangeStreamResultSetMetadata resultSetMetadata,
-      PartitionRestrictionMetadata restrictionMetadata) {
+      PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
     final Timestamp timestamp = row.getTimestamp("timestamp");
 
     return HeartbeatRecord.newBuilder()
         .withTimestamp(timestamp)
-        .withMetadata(
-            changeStreamRecordMetadataFrom(timestamp, restrictionMetadata, resultSetMetadata))
+        .withMetadata(changeStreamRecordMetadataFrom(partition, timestamp, resultSetMetadata))
         .build();
   }
 
   private ChildPartitionsRecord toChildPartitionsRecord(
-      String partitionToken,
-      Struct row,
-      ChangeStreamResultSetMetadata resultSetMetadata,
-      PartitionRestrictionMetadata restrictionMetadata) {
+      PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
     final Timestamp startTimestamp = row.getTimestamp("start_timestamp");
 
     return ChildPartitionsRecord.newBuilder()
@@ -153,10 +128,9 @@ public class ChangeStreamRecordMapper {
         .withRecordSequence(row.getString("record_sequence"))
         .withChildPartitions(
             row.getStructList("child_partitions").stream()
-                .map(struct -> childPartitionFrom(partitionToken, struct))
+                .map(struct -> childPartitionFrom(partition.getPartitionToken(), struct))
                 .collect(Collectors.toList()))
-        .withMetadata(
-            changeStreamRecordMetadataFrom(startTimestamp, restrictionMetadata, resultSetMetadata))
+        .withMetadata(changeStreamRecordMetadataFrom(partition, startTimestamp, resultSetMetadata))
         .build();
   }
 
@@ -187,18 +161,17 @@ public class ChangeStreamRecordMapper {
   }
 
   private ChangeStreamRecordMetadata changeStreamRecordMetadataFrom(
+      PartitionMetadata partition,
       Timestamp recordTimestamp,
-      PartitionRestrictionMetadata restrictionMetadata,
       ChangeStreamResultSetMetadata resultSetMetadata) {
     return ChangeStreamRecordMetadata.newBuilder()
         .withRecordTimestamp(recordTimestamp)
-        .withPartitionToken(restrictionMetadata.getPartitionToken())
-        .withPartitionStartTimestamp(restrictionMetadata.getPartitionStartTimestamp())
-        .withPartitionEndTimestamp(restrictionMetadata.getPartitionEndTimestamp())
-        .withRestrictionInitializedAt(restrictionMetadata.getRestrictionInitializedAt())
-        .withPartitionCreatedAt(restrictionMetadata.getPartitionCreatedAt())
-        .withPartitionScheduledAt(restrictionMetadata.getPartitionScheduledAt())
-        .withPartitionRunningAt(restrictionMetadata.getPartitionRunningAt())
+        .withPartitionToken(partition.getPartitionToken())
+        .withPartitionStartTimestamp(partition.getStartTimestamp())
+        .withPartitionEndTimestamp(partition.getEndTimestamp())
+        .withPartitionCreatedAt(partition.getCreatedAt())
+        .withPartitionScheduledAt(partition.getScheduledAt())
+        .withPartitionRunningAt(partition.getRunningAt())
         .withQueryStartedAt(resultSetMetadata.getQueryStartedAt())
         .withRecordStreamStartedAt(resultSetMetadata.getRecordStreamStartedAt())
         .withRecordStreamEndedAt(resultSetMetadata.getRecordStreamEndedAt())

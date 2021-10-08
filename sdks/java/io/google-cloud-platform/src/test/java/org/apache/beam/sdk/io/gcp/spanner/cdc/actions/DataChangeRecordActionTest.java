@@ -28,8 +28,7 @@ import com.google.cloud.Timestamp;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -42,7 +41,7 @@ public class DataChangeRecordActionTest {
 
   private DataChangeRecordAction action;
   private PartitionMetadata partition;
-  private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
+  private RestrictionTracker<OffsetRange, Long> tracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
 
@@ -58,10 +57,10 @@ public class DataChangeRecordActionTest {
   @Test
   public void testRestrictionClaimed() {
     final String partitionToken = "partitionToken";
-    final Timestamp timestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
     final DataChangeRecord record = mock(DataChangeRecord.class);
     when(record.getCommitTimestamp()).thenReturn(timestamp);
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(true);
+    when(tracker.tryClaim(10L)).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
@@ -75,10 +74,10 @@ public class DataChangeRecordActionTest {
   @Test
   public void testRestrictionNotClaimed() {
     final String partitionToken = "partitionToken";
-    final Timestamp timestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
     final DataChangeRecord record = mock(DataChangeRecord.class);
     when(record.getCommitTimestamp()).thenReturn(timestamp);
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(false);
+    when(tracker.tryClaim(10L)).thenReturn(false);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =

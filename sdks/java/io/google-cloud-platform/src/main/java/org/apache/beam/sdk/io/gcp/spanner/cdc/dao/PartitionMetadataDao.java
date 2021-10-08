@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_STATE;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_WATERMARK;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
@@ -34,11 +36,8 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
@@ -64,86 +63,6 @@ public class PartitionMetadataDao {
     this.mapper = mapper;
   }
 
-  public long countChildPartitionsInStates(
-      String partitionToken, List<PartitionMetadata.State> states) {
-    try (Scope scope =
-        TRACER
-            .spanBuilder("countChildPartitionsInStates")
-            .setRecordEvents(true)
-            .startScopedSpan()) {
-      TRACER
-          .getCurrentSpan()
-          .putAttribute(
-              PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-      final Statement statement =
-          Statement.newBuilder(
-                  "SELECT COUNT(*)"
-                      + " FROM "
-                      + metadataTableName
-                      + " WHERE @partition IN UNNEST ("
-                      + PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS
-                      + ")"
-                      + " AND "
-                      + PartitionMetadataAdminDao.COLUMN_STATE
-                      + " IN UNNEST (@states)")
-              .bind("partition")
-              .to(partitionToken)
-              .bind("states")
-              .toStringArray(states.stream().map(State::toString).collect(Collectors.toList()))
-              .build();
-      try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
-        resultSet.next();
-        return resultSet.getLong(0);
-      }
-    }
-  }
-
-  public long countExistingParents(String partitionToken) {
-    try (Scope scope =
-        TRACER.spanBuilder("countExistingParents").setRecordEvents(true).startScopedSpan()) {
-      TRACER
-          .getCurrentSpan()
-          .putAttribute(
-              PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-      final Statement statement =
-          Statement.newBuilder(
-                  "SELECT COUNT(*)"
-                      + " FROM "
-                      + metadataTableName
-                      + " WHERE "
-                      + PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN
-                      + " IN UNNEST (("
-                      + " SELECT "
-                      + PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS
-                      + " FROM "
-                      + metadataTableName
-                      + " WHERE "
-                      + PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN
-                      + " = "
-                      + "@partition"
-                      + "))")
-              .bind("partition")
-              .to(partitionToken)
-              .build();
-      try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
-        resultSet.next();
-        return resultSet.getLong(0);
-      }
-    }
-  }
-
-  public long countPartitions() {
-    try (Scope scope =
-        TRACER.spanBuilder("countPartitions").setRecordEvents(true).startScopedSpan()) {
-      final Statement statement =
-          Statement.newBuilder("SELECT COUNT(*) FROM " + metadataTableName).build();
-      try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
-        resultSet.next();
-        return resultSet.getLong(0);
-      }
-    }
-  }
-
   public ResultSet getPartitionsInState(State state) {
     try (Scope scope =
         TRACER.spanBuilder("getPartitionsInState").setRecordEvents(true).startScopedSpan()) {
@@ -162,21 +81,27 @@ public class PartitionMetadataDao {
     }
   }
 
-  public Timestamp getMinCurrentWatermark() {
+  public Timestamp getUnfinishedMinWatermark() {
     final Statement statement =
-        Statement.of(
-            "SELECT "
-                + PartitionMetadataAdminDao.COLUMN_CURRENT_WATERMARK
-                + " FROM "
-                + metadataTableName
-                + " ORDER BY "
-                + PartitionMetadataAdminDao.COLUMN_CURRENT_WATERMARK
-                + " ASC LIMIT 1");
+        Statement.newBuilder(
+                "SELECT "
+                    + COLUMN_WATERMARK
+                    + " FROM "
+                    + metadataTableName
+                    + " WHERE "
+                    + COLUMN_STATE
+                    + " != @state"
+                    + " ORDER BY "
+                    + COLUMN_WATERMARK
+                    + " ASC LIMIT 1")
+            .bind("state")
+            .to(State.FINISHED.name())
+            .build();
     try (Scope scope =
             TRACER.spanBuilder("getMinCurrentWatermark").setRecordEvents(true).startScopedSpan();
         ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
       if (resultSet.next()) {
-        return resultSet.getTimestamp(PartitionMetadataAdminDao.COLUMN_CURRENT_WATERMARK);
+        return resultSet.getTimestamp(COLUMN_WATERMARK);
       }
       return null;
     }
@@ -200,6 +125,12 @@ public class PartitionMetadataDao {
     return transactionResult.getCommitTimestamp();
   }
 
+  public Timestamp updateToFinished(String partitionToken) {
+    final TransactionResult<Void> transactionResult =
+        runInTransaction(transaction -> transaction.updateToFinished(partitionToken));
+    return transactionResult.getCommitTimestamp();
+  }
+
   public void updateQueryStartedAt(String partitionToken) {
     runInTransaction(
         transaction -> {
@@ -220,16 +151,9 @@ public class PartitionMetadataDao {
         });
   }
 
-  public Timestamp updateCurrentWatermark(String partitionToken, Timestamp watermark) {
+  public Timestamp updateWatermark(String partitionToken, Timestamp watermark) {
     final TransactionResult<Object> transactionResult =
-        runInTransaction(
-            transaction -> transaction.updateCurrentWatermark(partitionToken, watermark));
-    return transactionResult.getCommitTimestamp();
-  }
-
-  public Timestamp delete(String partitionToken) {
-    final TransactionResult<Void> transactionResult =
-        runInTransaction(transaction -> transaction.delete(partitionToken));
+        runInTransaction(transaction -> transaction.updateWatermark(partitionToken, watermark));
     return transactionResult.getCommitTimestamp();
   }
 
@@ -315,6 +239,21 @@ public class PartitionMetadataDao {
       }
     }
 
+    public Void updateToFinished(String partitionToken) {
+      try (Scope scope =
+          TRACER.spanBuilder("updateToRunning").setRecordEvents(true).startScopedSpan()) {
+        TRACER
+            .getCurrentSpan()
+            .putAttribute(
+                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+        transaction.buffer(
+            ImmutableList.of(
+                createUpdateMetadataStateMutationFrom(partitionToken, State.FINISHED),
+                createUpdateMetricStateMutationFrom(partitionToken, State.FINISHED)));
+        return null;
+      }
+    }
+
     public void updateQueryStartedAt(String partitionToken) {
       Mutation mutation =
           Mutation.newUpdateBuilder(metricsTableName)
@@ -343,44 +282,14 @@ public class PartitionMetadataDao {
       transaction.buffer(mutation);
     }
 
-    public Void updateToFinished(String partitionToken) {
-      try (Scope scope =
-          TRACER.spanBuilder("updateToFinished").setRecordEvents(true).startScopedSpan()) {
-        TRACER
-            .getCurrentSpan()
-            .putAttribute(
-                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        transaction.buffer(
-            ImmutableList.of(
-                createUpdateMetadataStateMutationFrom(partitionToken, State.FINISHED),
-                createUpdateMetricStateMutationFrom(partitionToken, State.RUNNING)));
-        return null;
-      }
-    }
-
-    public Void updateCurrentWatermark(String partitionToken, Timestamp watermark) {
+    public Void updateWatermark(String partitionToken, Timestamp watermark) {
       try (Scope scope =
           TRACER.spanBuilder("updateCurrentWatermark").setRecordEvents(true).startScopedSpan()) {
         TRACER
             .getCurrentSpan()
             .putAttribute(
                 PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        transaction.buffer(
-            createUpdateMetadataCurrentWatermarkMutationFrom(partitionToken, watermark));
-        return null;
-      }
-    }
-
-    public Void delete(String partitionToken) {
-      try (Scope scope = TRACER.spanBuilder("delete").setRecordEvents(true).startScopedSpan()) {
-        TRACER
-            .getCurrentSpan()
-            .putAttribute(
-                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        transaction.buffer(
-            ImmutableList.of(
-                createDeleteMetadataMutationFrom(partitionToken),
-                createDeleteMetricMutationFrom(partitionToken)));
+        transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
         return null;
       }
     }
@@ -392,34 +301,6 @@ public class PartitionMetadataDao {
               Key.of(partitionToken),
               ImmutableList.of(PartitionMetricsAdminDao.COLUMN_RECORDS_PROCESSED))
           .getLong(0);
-    }
-
-    public long countPartitionsInStates(
-        Set<String> partitionTokens, List<PartitionMetadata.State> states) {
-      try (Scope scope =
-          TRACER.spanBuilder("countPartitionsInStates").setRecordEvents(true).startScopedSpan()) {
-        try (ResultSet resultSet =
-            transaction.executeQuery(
-                Statement.newBuilder(
-                        "SELECT COUNT(*)"
-                            + " FROM "
-                            + metadataTableName
-                            + " WHERE "
-                            + PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN
-                            + " IN UNNEST (@partitions)"
-                            + " AND "
-                            + PartitionMetadataAdminDao.COLUMN_STATE
-                            + " IN UNNEST (@states)")
-                    .bind("partitions")
-                    .toStringArray(partitionTokens)
-                    .bind("states")
-                    .toStringArray(
-                        states.stream().map(State::toString).collect(Collectors.toList()))
-                    .build())) {
-          resultSet.next();
-          return resultSet.getLong(0);
-        }
-      }
     }
 
     public PartitionMetadata getPartition(String partitionToken) {
@@ -456,17 +337,13 @@ public class PartitionMetadataDao {
           .toStringArray(partitionMetadata.getParentTokens())
           .set(PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP)
           .to(partitionMetadata.getStartTimestamp())
-          .set(PartitionMetadataAdminDao.COLUMN_INCLUSIVE_START)
-          .to(partitionMetadata.isInclusiveStart())
           .set(PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP)
           .to(partitionMetadata.getEndTimestamp())
-          .set(PartitionMetadataAdminDao.COLUMN_INCLUSIVE_END)
-          .to(partitionMetadata.isInclusiveEnd())
           .set(PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS)
           .to(partitionMetadata.getHeartbeatMillis())
-          .set(PartitionMetadataAdminDao.COLUMN_STATE)
+          .set(COLUMN_STATE)
           .to(partitionMetadata.getState().toString())
-          .set(PartitionMetadataAdminDao.COLUMN_CURRENT_WATERMARK)
+          .set(COLUMN_WATERMARK)
           .to(partitionMetadata.getStartTimestamp())
           .set(PartitionMetadataAdminDao.COLUMN_CREATED_AT)
           .to(Value.COMMIT_TIMESTAMP)
@@ -491,7 +368,7 @@ public class PartitionMetadataDao {
       return Mutation.newUpdateBuilder(metadataTableName)
           .set(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN)
           .to(partitionToken)
-          .set(PartitionMetadataAdminDao.COLUMN_STATE)
+          .set(COLUMN_STATE)
           .to(state.toString())
           .set(timestampColumn)
           .to(Value.COMMIT_TIMESTAMP)
@@ -532,26 +409,13 @@ public class PartitionMetadataDao {
       return mutationBuilder.build();
     }
 
-    private Mutation createUpdateMetadataCurrentWatermarkMutationFrom(
+    private Mutation createUpdateMetadataWatermarkMutationFrom(
         String partitionToken, Timestamp watermark) {
       return Mutation.newUpdateBuilder(metadataTableName)
           .set(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN)
           .to(partitionToken)
-          .set(PartitionMetadataAdminDao.COLUMN_CURRENT_WATERMARK)
+          .set(COLUMN_WATERMARK)
           .to(watermark)
-          .build();
-    }
-
-    private Mutation createDeleteMetadataMutationFrom(String partitionToken) {
-      return Mutation.delete(metadataTableName, Key.of(partitionToken));
-    }
-
-    private Mutation createDeleteMetricMutationFrom(String partitionToken) {
-      return Mutation.newUpdateBuilder(metricsTableName)
-          .set(PartitionMetricsAdminDao.COLUMN_PARTITION_TOKEN)
-          .to(partitionToken)
-          .set(PartitionMetricsAdminDao.COLUMN_DELETED_AT)
-          .to(Value.COMMIT_TIMESTAMP)
           .build();
     }
   }

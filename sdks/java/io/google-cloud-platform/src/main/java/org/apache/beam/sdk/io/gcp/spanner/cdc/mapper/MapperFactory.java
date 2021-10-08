@@ -26,9 +26,7 @@ public class MapperFactory implements Serializable {
 
   private static ChangeStreamRecordMapper changeStreamRecordMapperInstance;
   private static PartitionMetadataMapper partitionMetadataMapperInstance;
-  private static PartitionMetricsMapper partitionMetricsMapperInstance;
 
-  // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized ChangeStreamRecordMapper changeStreamRecordMapper() {
     if (changeStreamRecordMapperInstance == null) {
       changeStreamRecordMapperInstance = new ChangeStreamRecordMapper();
@@ -41,12 +39,5 @@ public class MapperFactory implements Serializable {
       partitionMetadataMapperInstance = new PartitionMetadataMapper();
     }
     return partitionMetadataMapperInstance;
-  }
-
-  public synchronized PartitionMetricsMapper partitionMetricsMapper() {
-    if (partitionMetricsMapperInstance == null) {
-      partitionMetricsMapperInstance = new PartitionMetricsMapper();
-    }
-    return partitionMetricsMapperInstance;
   }
 }

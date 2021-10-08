@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc;
+package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.Timestamp;
@@ -29,14 +29,15 @@ import javax.annotation.Nullable;
 })
 public abstract class ChangeStreamSourceDescriptor implements Serializable {
 
-  abstract String getChangeStreamName();
+  public abstract String getChangeStreamName();
 
-  abstract @Nullable Timestamp getStartAt();
+  public abstract @Nullable Timestamp getStartTimestamp();
 
-  abstract @Nullable Timestamp getEndAt();
+  public abstract @Nullable Timestamp getEndTimestamp();
 
   public static ChangeStreamSourceDescriptor of(
-      String changeStreamName, Timestamp startAt, Timestamp endAt) {
-    return new AutoValue_ChangeStreamSourceDescriptor(changeStreamName, startAt, endAt);
+      String changeStreamName, Timestamp startTimestamp, Timestamp endTimestamp) {
+    return new org.apache.beam.sdk.io.gcp.spanner.cdc.model.AutoValue_ChangeStreamSourceDescriptor(
+        changeStreamName, startTimestamp, endTimestamp);
   }
 }

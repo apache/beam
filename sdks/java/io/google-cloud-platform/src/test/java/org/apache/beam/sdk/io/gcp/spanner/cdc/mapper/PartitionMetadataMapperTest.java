@@ -21,8 +21,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminD
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_INCLUSIVE_END;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_INCLUSIVE_START;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_RUNNING_AT;
@@ -60,11 +58,9 @@ public class PartitionMetadataMapperTest {
         .thenReturn(Collections.singletonList("parentToken"));
     when(resultSet.getTimestamp(COLUMN_START_TIMESTAMP))
         .thenReturn(Timestamp.ofTimeMicroseconds(10));
-    when(resultSet.getBoolean(COLUMN_INCLUSIVE_START)).thenReturn(true);
     when(resultSet.getTimestamp(COLUMN_END_TIMESTAMP)).thenReturn(Timestamp.ofTimeMicroseconds(20));
-    when(resultSet.getBoolean(COLUMN_INCLUSIVE_END)).thenReturn(true);
     when(resultSet.getLong(COLUMN_HEARTBEAT_MILLIS)).thenReturn(5_000L);
-    when(resultSet.getString(COLUMN_STATE)).thenReturn("FINISHED");
+    when(resultSet.getString(COLUMN_STATE)).thenReturn("RUNNING");
     when(resultSet.getTimestamp(COLUMN_CREATED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(30));
     when(resultSet.getTimestamp(COLUMN_SCHEDULED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(40));
     when(resultSet.getTimestamp(COLUMN_RUNNING_AT)).thenReturn(Timestamp.ofTimeMicroseconds(50));
@@ -77,11 +73,9 @@ public class PartitionMetadataMapperTest {
             "token",
             Sets.newHashSet("parentToken"),
             Timestamp.ofTimeMicroseconds(10L),
-            true,
             Timestamp.ofTimeMicroseconds(20L),
-            true,
             5_000L,
-            State.FINISHED,
+            State.RUNNING,
             Timestamp.ofTimeMicroseconds(30),
             Timestamp.ofTimeMicroseconds(40),
             Timestamp.ofTimeMicroseconds(50),
@@ -96,7 +90,6 @@ public class PartitionMetadataMapperTest {
         .thenReturn(Collections.singletonList("parentToken"));
     when(resultSet.getTimestamp(COLUMN_START_TIMESTAMP))
         .thenReturn(Timestamp.ofTimeMicroseconds(10));
-    when(resultSet.getBoolean(COLUMN_INCLUSIVE_START)).thenReturn(true);
     when(resultSet.getLong(COLUMN_HEARTBEAT_MILLIS)).thenReturn(5_000L);
     when(resultSet.getString(COLUMN_STATE)).thenReturn("CREATED");
     when(resultSet.getTimestamp(COLUMN_CREATED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(30));
@@ -108,9 +101,7 @@ public class PartitionMetadataMapperTest {
             "token",
             Sets.newHashSet("parentToken"),
             Timestamp.ofTimeMicroseconds(10L),
-            true,
             null,
-            false,
             5_000L,
             State.CREATED,
             Timestamp.ofTimeMicroseconds(30),

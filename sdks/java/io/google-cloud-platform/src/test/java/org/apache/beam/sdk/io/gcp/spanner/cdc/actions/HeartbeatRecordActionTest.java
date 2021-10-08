@@ -29,8 +29,7 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -42,7 +41,7 @@ public class HeartbeatRecordActionTest {
 
   private HeartbeatRecordAction action;
   private PartitionMetadata partition;
-  private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
+  private RestrictionTracker<OffsetRange, Long> tracker;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
 
   @Before
@@ -57,9 +56,9 @@ public class HeartbeatRecordActionTest {
   @Test
   public void testRestrictionClaimed() {
     final String partitionToken = "partitionToken";
-    final Timestamp timestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
 
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(true);
+    when(tracker.tryClaim(10L)).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
@@ -76,9 +75,9 @@ public class HeartbeatRecordActionTest {
   @Test
   public void testRestrictionNotClaimed() {
     final String partitionToken = "partitionToken";
-    final Timestamp timestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
 
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(false);
+    when(tracker.tryClaim(10L)).thenReturn(false);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =

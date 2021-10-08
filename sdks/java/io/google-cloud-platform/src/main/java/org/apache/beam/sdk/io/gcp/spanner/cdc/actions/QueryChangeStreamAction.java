@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import io.opencensus.common.Scope;
@@ -37,8 +38,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -55,7 +55,8 @@ public class QueryChangeStreamAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryChangeStreamAction.class);
   private static final Tracer TRACER = Tracing.getTracer();
-  public static final Duration BUNDLE_FINALIZER_TIMEOUT = Duration.standardSeconds(5);
+  private static final Duration BUNDLE_FINALIZER_TIMEOUT = Duration.standardMinutes(5);
+  private static final String OUT_OF_RANGE_ERROR_MESSAGE = "Specified start_timestamp is invalid";
 
   private final ChangeStreamDao changeStreamDao;
   private final PartitionMetadataDao partitionMetadataDao;
@@ -79,12 +80,17 @@ public class QueryChangeStreamAction {
     this.childPartitionsRecordAction = childPartitionsRecordAction;
   }
 
-  public Optional<ProcessContinuation> run(
+  public ProcessContinuation run(
       PartitionMetadata partition,
-      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
+      RestrictionTracker<OffsetRange, Long> tracker,
       OutputReceiver<DataChangeRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
+    final String token = partition.getPartitionToken();
+    final Timestamp startTimestamp =
+        Timestamp.ofTimeMicroseconds(tracker.currentRestriction().getFrom());
+    final Timestamp endTimestamp = partition.getEndTimestamp();
+
     try (Scope scope =
         TRACER.spanBuilder("QueryChangeStreamAction").setRecordEvents(true).startScopedSpan()) {
       TRACER
@@ -95,25 +101,16 @@ public class QueryChangeStreamAction {
 
       partitionMetadataDao.updateQueryStartedAt(partition.getPartitionToken());
 
-      final String token = partition.getPartitionToken();
       try (ChangeStreamResultSet resultSet =
           changeStreamDao.changeStreamQuery(
-              token,
-              tracker.currentRestriction().getStartTimestamp(),
-              partition.isInclusiveStart(),
-              partition.getEndTimestamp(),
-              partition.isInclusiveEnd(),
-              partition.getHeartbeatMillis())) {
+              token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
 
         long recordsProcessed = 0;
         while (resultSet.next()) {
           // TODO: Check what should we do if there is an error here
           final List<ChangeStreamRecord> records =
               changeStreamRecordMapper.toChangeStreamRecords(
-                  partition.getPartitionToken(),
-                  resultSet.getCurrentRowAsStruct(),
-                  resultSet.getMetadata(),
-                  tracker.currentRestriction().getMetadata());
+                  partition, resultSet.getCurrentRowAsStruct(), resultSet.getMetadata());
 
           Optional<ProcessContinuation> maybeContinuation;
           for (final ChangeStreamRecord record : records) {
@@ -142,19 +139,40 @@ public class QueryChangeStreamAction {
               bundleFinalizer.afterBundleCommit(
                   Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
                   updateWatermarkCallback(partition.getPartitionToken(), watermarkEstimator));
-              return maybeContinuation;
+              return maybeContinuation.get();
             }
           }
         }
-        partitionMetadataDao.updateRecordsProcessed(
-            partition.getPartitionToken(), recordsProcessed);
-        LOG.debug("[" + token + "] Query change stream action completed successfully");
+
+        partitionMetadataDao.updateRecordsProcessed(token, recordsProcessed);
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-            updateWatermarkCallback(partition.getPartitionToken(), watermarkEstimator));
-        return Optional.empty();
+            updateWatermarkCallback(token, watermarkEstimator));
+
+      } catch (SpannerException e) {
+        if (isTimestampOutOfRange(e)) {
+          LOG.debug(
+              "["
+                  + token
+                  + "] query change stream is out of range for "
+                  + startTimestamp
+                  + " to "
+                  + endTimestamp
+                  + ", finishing stream");
+        } else {
+          throw e;
+        }
       }
     }
+
+    final long endMicros = TimestampConverter.timestampToMicros(endTimestamp);
+    LOG.debug("[" + token + "] change stream completed successfully");
+    if (tracker.tryClaim(endMicros)) {
+      LOG.debug("[" + token + "] Finishing partition");
+      partitionMetadataDao.updateToFinished(token);
+      LOG.info("[" + token + "] Partition finished");
+    }
+    return ProcessContinuation.stop();
   }
 
   private BundleFinalizer.Callback updateWatermarkCallback(
@@ -163,7 +181,7 @@ public class QueryChangeStreamAction {
       final Instant watermark = watermarkEstimator.currentWatermark();
       LOG.debug("[" + token + "] Updating current watermark to " + watermark);
       try {
-        partitionMetadataDao.updateCurrentWatermark(
+        partitionMetadataDao.updateWatermark(
             token, TimestampConverter.timestampFromMillis(watermark.getMillis()));
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
@@ -173,5 +191,11 @@ public class QueryChangeStreamAction {
         }
       }
     };
+  }
+
+  private boolean isTimestampOutOfRange(SpannerException e) {
+    return (e.getErrorCode() == ErrorCode.INVALID_ARGUMENT
+            || e.getErrorCode() == ErrorCode.OUT_OF_RANGE)
+        && e.getMessage().contains(OUT_OF_RANGE_ERROR_MESSAGE);
   }
 }

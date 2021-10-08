@@ -19,43 +19,22 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
 import com.google.cloud.Timestamp;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 // TODO: javadocs
 // TODO: This class probably does not belong in the cdc change
 public class TimestampConverter {
 
-  private static final BigDecimal TEN_TO_THE_THIRD = BigDecimal.ONE.scaleByPowerOfTen(3);
-  private static final BigDecimal TEN_TO_THE_SIXTH = BigDecimal.ONE.scaleByPowerOfTen(6);
-  private static final BigDecimal TEN_TO_THE_NINTH = BigDecimal.ONE.scaleByPowerOfTen(9);
+  public static final long MAX_MICROS = timestampToMicros(Timestamp.MAX_VALUE);
 
-  public static BigDecimal timestampToNanos(Timestamp timestamp) {
+  public static long timestampToMicros(Timestamp timestamp) {
     final BigDecimal seconds = BigDecimal.valueOf(timestamp.getSeconds());
     final BigDecimal nanos = BigDecimal.valueOf(timestamp.getNanos());
+    final BigDecimal micros = nanos.scaleByPowerOfTen(-3);
 
-    return seconds.multiply(TEN_TO_THE_NINTH).add(nanos);
-  }
-
-  public static Timestamp timestampFromNanos(BigDecimal timestampAsNanos) {
-    final long seconds = timestampAsNanos.divide(TEN_TO_THE_NINTH, RoundingMode.FLOOR).longValue();
-    final int nanos = timestampAsNanos.remainder(TEN_TO_THE_NINTH).intValue();
-
-    return Timestamp.ofTimeSecondsAndNanos(seconds, nanos);
-  }
-
-  public static BigDecimal timestampToMicros(Timestamp timestamp) {
-    final BigDecimal seconds = BigDecimal.valueOf(timestamp.getSeconds());
-    final BigDecimal nanos = BigDecimal.valueOf(timestamp.getNanos());
-    final BigDecimal micros = nanos.divide(TEN_TO_THE_THIRD, RoundingMode.FLOOR);
-
-    return seconds.multiply(TEN_TO_THE_SIXTH).add(micros);
-  }
-
-  public static Timestamp timestampFromMicros(BigDecimal timestampAsMicros) {
-    return Timestamp.ofTimeMicroseconds(timestampAsMicros.longValue());
+    return seconds.scaleByPowerOfTen(6).add(micros).longValue();
   }
 
   public static Timestamp timestampFromMillis(long millis) {
-    return Timestamp.ofTimeMicroseconds(millis * TEN_TO_THE_THIRD.longValue());
+    return Timestamp.ofTimeMicroseconds(millis * 1_000L);
   }
 }

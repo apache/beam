@@ -39,25 +39,23 @@ public class ChangeStreamRecordMetadataTest {
             Timestamp.ofTimeMicroseconds(9L),
             Timestamp.ofTimeMicroseconds(10L),
             Timestamp.ofTimeMicroseconds(11L),
-            Timestamp.ofTimeMicroseconds(12L),
-            13L,
-            14L);
+            12L,
+            13L);
     final ChangeStreamRecordMetadata actual =
         ChangeStreamRecordMetadata.newBuilder()
             .withPartitionToken("1")
             .withRecordTimestamp(Timestamp.ofTimeMicroseconds(2L))
             .withPartitionStartTimestamp(Timestamp.ofTimeMicroseconds(3L))
             .withPartitionEndTimestamp(Timestamp.ofTimeMicroseconds(4L))
-            .withRestrictionInitializedAt(Timestamp.ofTimeMicroseconds(5L))
-            .withPartitionCreatedAt(Timestamp.ofTimeMicroseconds(6L))
-            .withPartitionScheduledAt(Timestamp.ofTimeMicroseconds(7L))
-            .withPartitionRunningAt(Timestamp.ofTimeMicroseconds(8L))
-            .withQueryStartedAt(Timestamp.ofTimeMicroseconds(9L))
-            .withRecordStreamStartedAt(Timestamp.ofTimeMicroseconds(10L))
-            .withRecordStreamEndedAt(Timestamp.ofTimeMicroseconds(11L))
-            .withRecordReadAt(Timestamp.ofTimeMicroseconds(12L))
-            .withTotalStreamTimeMillis(13L)
-            .withNumberOfRecordsRead(14L)
+            .withPartitionCreatedAt(Timestamp.ofTimeMicroseconds(5L))
+            .withPartitionScheduledAt(Timestamp.ofTimeMicroseconds(6L))
+            .withPartitionRunningAt(Timestamp.ofTimeMicroseconds(7L))
+            .withQueryStartedAt(Timestamp.ofTimeMicroseconds(8L))
+            .withRecordStreamStartedAt(Timestamp.ofTimeMicroseconds(9L))
+            .withRecordStreamEndedAt(Timestamp.ofTimeMicroseconds(10L))
+            .withRecordReadAt(Timestamp.ofTimeMicroseconds(11L))
+            .withTotalStreamTimeMillis(12L)
+            .withNumberOfRecordsRead(13L)
             .build();
 
     assertEquals(expected, actual);

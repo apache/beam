@@ -23,7 +23,7 @@ import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.InitialPartition;
 
 // TODO: Add java docs
 public class ChangeStreamDao {
@@ -49,18 +49,12 @@ public class ChangeStreamDao {
   public ChangeStreamResultSet changeStreamQuery(
       String partitionToken,
       Timestamp startTimestamp,
-      boolean isInclusiveStart,
       Timestamp endTimestamp,
-      boolean isInclusiveEnd,
       long heartbeatMillis) {
     // For the initial partition we query with a null partition token
     final String partitionTokenOrNull =
         InitialPartition.isInitialPartition(partitionToken) ? null : partitionToken;
-    final String startTimeOptions =
-        isInclusiveStart ? "'INCLUDE_START_TIME'" : "'EXCLUDE_START_TIME'";
-    final String endTimeOptions = isInclusiveEnd ? "'INCLUDE_END_TIME'" : "'EXCLUDE_END_TIME'";
 
-    // FIXME: Add the options when possible
     final String query =
         "SELECT * FROM READ_"
             + changeStreamName
@@ -71,11 +65,6 @@ public class ChangeStreamDao {
             + "   read_options => null,"
             + "   heartbeat_milliseconds => @heartbeatMillis"
             + ")";
-    // Change stream query does not support nano secs. If the end timestamp
-    // is unspecified, set it to a null value.
-    if (endTimestamp.equals(Timestamp.MAX_VALUE)) {
-      endTimestamp = null;
-    }
     final ResultSet resultSet =
         databaseClient
             .singleUse()

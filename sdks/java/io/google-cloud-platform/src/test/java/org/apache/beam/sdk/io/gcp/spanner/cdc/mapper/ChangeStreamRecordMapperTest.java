@@ -24,18 +24,19 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import java.util.Arrays;
 import java.util.Collections;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamResultSetMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ColumnType;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ModType;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.TypeCode;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ValueCaptureType;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestrictionMetadata;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.junit.Before;
@@ -44,12 +45,24 @@ import org.junit.Test;
 public class ChangeStreamRecordMapperTest {
 
   private ChangeStreamRecordMapper mapper;
+  private PartitionMetadata partition;
   private ChangeStreamResultSetMetadata resultSetMetadata;
-  private PartitionRestrictionMetadata restrictionMetadata;
 
   @Before
   public void setUp() {
     this.mapper = new ChangeStreamRecordMapper();
+    this.partition =
+        PartitionMetadata.newBuilder()
+            .setPartitionToken("partitionToken")
+            .setParentTokens(Sets.newHashSet("parentToken"))
+            .setHeartbeatMillis(30_000L)
+            .setState(State.RUNNING)
+            .setStartTimestamp(Timestamp.ofTimeMicroseconds(10L))
+            .setEndTimestamp(Timestamp.ofTimeMicroseconds(11L))
+            .setCreatedAt(Timestamp.ofTimeMicroseconds(12L))
+            .setScheduledAt(Timestamp.ofTimeMicroseconds(13L))
+            .setRunningAt(Timestamp.ofTimeMicroseconds(14L))
+            .build();
     this.resultSetMetadata =
         new ChangeStreamResultSetMetadata(
             Timestamp.ofTimeMicroseconds(1L),
@@ -58,15 +71,6 @@ public class ChangeStreamRecordMapperTest {
             Timestamp.ofTimeMicroseconds(4L),
             Duration.millis(100),
             10_000L);
-    this.restrictionMetadata =
-        new PartitionRestrictionMetadata(
-            "partitionToken",
-            Timestamp.ofTimeMicroseconds(10L),
-            Timestamp.ofTimeMicroseconds(11L),
-            Timestamp.ofTimeMicroseconds(12L),
-            Timestamp.ofTimeMicroseconds(13L),
-            Timestamp.ofTimeMicroseconds(14L),
-            Timestamp.ofTimeMicroseconds(15L));
   }
 
   @Test
@@ -98,8 +102,7 @@ public class ChangeStreamRecordMapperTest {
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(
-            "partitionToken", struct, resultSetMetadata, restrictionMetadata));
+        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
   }
 
   @Test
@@ -128,8 +131,7 @@ public class ChangeStreamRecordMapperTest {
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(
-            "partitionToken", struct, resultSetMetadata, restrictionMetadata));
+        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
   }
 
   @Test
@@ -158,8 +160,7 @@ public class ChangeStreamRecordMapperTest {
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(
-            "partitionToken", struct, resultSetMetadata, restrictionMetadata));
+        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
   }
 
   @Test
@@ -172,8 +173,7 @@ public class ChangeStreamRecordMapperTest {
 
     assertEquals(
         Collections.singletonList(heartbeatRecord),
-        mapper.toChangeStreamRecords(
-            "partitionToken", struct, resultSetMetadata, restrictionMetadata));
+        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
   }
 
   @Test
@@ -193,8 +193,7 @@ public class ChangeStreamRecordMapperTest {
 
     assertEquals(
         Collections.singletonList(childPartitionsRecord),
-        mapper.toChangeStreamRecords(
-            "partitionToken", struct, resultSetMetadata, restrictionMetadata));
+        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
   }
 
   /** Adds the default parent partition token as a parent of each child partition. */
@@ -222,10 +221,12 @@ public class ChangeStreamRecordMapperTest {
                         "childToken2", Sets.newHashSet(InitialPartition.PARTITION_TOKEN))))
             .build();
 
+    final PartitionMetadata initialPartition =
+        partition.toBuilder().setPartitionToken(InitialPartition.PARTITION_TOKEN).build();
+
     assertEquals(
         Collections.singletonList(expected),
-        mapper.toChangeStreamRecords(
-            InitialPartition.PARTITION_TOKEN, struct, resultSetMetadata, restrictionMetadata));
+        mapper.toChangeStreamRecords(initialPartition, struct, resultSetMetadata));
   }
 
   // TODO: Add test case for unknown record type

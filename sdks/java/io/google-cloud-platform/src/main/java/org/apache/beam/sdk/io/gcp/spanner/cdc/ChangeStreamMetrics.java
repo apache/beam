@@ -95,7 +95,7 @@ public class ChangeStreamMetrics implements Serializable {
 
   public static final Distribution DAO_COUNT_PARTITIONS_MS =
       Metrics.distribution(ReadChangeStream.class, "dao_count_partitions_ms");
-  public static final Distribution DAO_GET_MIN_CURRENT_WATERMARK_MS =
+  public static final Distribution DAO_GET_MIN_WATERMARK_MS =
       Metrics.distribution(ReadChangeStream.class, "dao_get_min_current_watermark_ms");
 
   private final Set<MetricName> enabledMetrics;
@@ -104,11 +104,6 @@ public class ChangeStreamMetrics implements Serializable {
     enabledMetrics = new HashSet<>();
     enabledMetrics.add(PARTITION_RECORD_COUNT.getName());
     enabledMetrics.add(DATA_RECORD_COUNT.getName());
-    enabledMetrics.add(DATA_RECORD_COMMITTED_TO_EMITTED_MS.getName());
-    enabledMetrics.add(DATA_RECORD_COMMITTED_TO_EMITTED_0MS_TO_500MS_COUNT.getName());
-    enabledMetrics.add(DATA_RECORD_COMMITTED_TO_EMITTED_500MS_TO_1000MS_COUNT.getName());
-    enabledMetrics.add(DATA_RECORD_COMMITTED_TO_EMITTED_1000MS_TO_3000MS_COUNT.getName());
-    enabledMetrics.add(DATA_RECORD_COMMITTED_TO_EMITTED_3000MS_TO_INF_COUNT.getName());
   }
 
   public ChangeStreamMetrics(Set<MetricName> enabledMetrics) {
@@ -181,8 +176,8 @@ public class ChangeStreamMetrics implements Serializable {
     update(DAO_COUNT_PARTITIONS_MS, duration.getMillis());
   }
 
-  public void updateDaoGetMinCurrentWatermark(Duration duration) {
-    update(DAO_GET_MIN_CURRENT_WATERMARK_MS, duration.getMillis());
+  public void updateDaoGetMinWatermark(Duration duration) {
+    update(DAO_GET_MIN_WATERMARK_MS, duration.getMillis());
   }
 
   private void inc(Counter counter) {

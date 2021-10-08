@@ -43,9 +43,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
   private Timestamp partitionEndTimestamp;
 
   @AvroEncode(using = TimestampEncoding.class)
-  private Timestamp restrictionInitializedAt;
-
-  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp partitionCreatedAt;
 
   @AvroEncode(using = TimestampEncoding.class)
@@ -78,7 +75,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
       Timestamp recordTimestamp,
       Timestamp partitionStartTimestamp,
       Timestamp partitionEndTimestamp,
-      Timestamp restrictionInitializedAt,
       Timestamp partitionCreatedAt,
       Timestamp partitionScheduledAt,
       Timestamp partitionRunningAt,
@@ -93,7 +89,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
 
     this.partitionStartTimestamp = partitionStartTimestamp;
     this.partitionEndTimestamp = partitionEndTimestamp;
-    this.restrictionInitializedAt = restrictionInitializedAt;
     this.partitionCreatedAt = partitionCreatedAt;
     this.partitionScheduledAt = partitionScheduledAt;
     this.partitionRunningAt = partitionRunningAt;
@@ -120,10 +115,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
 
   public Timestamp getPartitionEndTimestamp() {
     return partitionEndTimestamp;
-  }
-
-  public Timestamp getRestrictionInitializedAt() {
-    return restrictionInitializedAt;
   }
 
   public Timestamp getPartitionCreatedAt() {
@@ -177,7 +168,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
         && Objects.equals(recordTimestamp, metadata.recordTimestamp)
         && Objects.equals(partitionStartTimestamp, metadata.partitionStartTimestamp)
         && Objects.equals(partitionEndTimestamp, metadata.partitionEndTimestamp)
-        && Objects.equals(restrictionInitializedAt, metadata.restrictionInitializedAt)
         && Objects.equals(partitionCreatedAt, metadata.partitionCreatedAt)
         && Objects.equals(partitionScheduledAt, metadata.partitionScheduledAt)
         && Objects.equals(partitionRunningAt, metadata.partitionRunningAt)
@@ -194,7 +184,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
         recordTimestamp,
         partitionStartTimestamp,
         partitionEndTimestamp,
-        restrictionInitializedAt,
         partitionCreatedAt,
         partitionScheduledAt,
         partitionRunningAt,
@@ -218,8 +207,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
         + partitionStartTimestamp
         + ", partitionEndTimestamp="
         + partitionEndTimestamp
-        + ", restrictionInitializedAt="
-        + restrictionInitializedAt
         + ", partitionCreatedAt="
         + partitionCreatedAt
         + ", partitionScheduledAt="
@@ -250,7 +237,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
     private Timestamp recordTimestamp;
     private Timestamp partitionStartTimestamp;
     private Timestamp partitionEndTimestamp;
-    private Timestamp restrictionInitializedAt;
     private Timestamp partitionCreatedAt;
     private Timestamp partitionScheduledAt;
     private Timestamp partitionRunningAt;
@@ -278,11 +264,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
 
     public Builder withPartitionEndTimestamp(Timestamp partitionEndTimestamp) {
       this.partitionEndTimestamp = partitionEndTimestamp;
-      return this;
-    }
-
-    public Builder withRestrictionInitializedAt(Timestamp restrictionInitializedAt) {
-      this.restrictionInitializedAt = restrictionInitializedAt;
       return this;
     }
 
@@ -337,7 +318,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
           recordTimestamp,
           partitionStartTimestamp,
           partitionEndTimestamp,
-          restrictionInitializedAt,
           partitionCreatedAt,
           partitionScheduledAt,
           partitionRunningAt,

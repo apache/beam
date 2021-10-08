@@ -36,14 +36,13 @@ public class PartitionMetricsAdminDao {
   public static final String COLUMN_SCHEDULED_AT = "ScheduledAt";
   public static final String COLUMN_RUNNING_AT = "RunningAt";
   public static final String COLUMN_FINISHED_AT = "FinishedAt";
-  public static final String COLUMN_DELETED_AT = "DeletedAt";
   public static final String COLUMN_QUERY_STARTED_AT = "QueryStartedAt";
   public static final String COLUMN_RECORDS_PROCESSED = "RecordsProcessed";
   public static final String COLUMN_LAST_PROCESSED_AT = "LastProcessedAt";
   public static final String COLUMN_LAST_UPDATED_AT = "LastUpdatedAt";
 
   private static final int TIMEOUT_MINUTES = 10;
-  private static final int TTL_AFTER_PARTITION_DELETED_DAYS = 1;
+  private static final int TTL_AFTER_PARTITION_FINISHED_DAYS = 1;
 
   private final DatabaseAdminClient databaseAdminClient;
   private final String instanceId;
@@ -76,8 +75,6 @@ public class PartitionMetricsAdminDao {
             + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
             + COLUMN_FINISHED_AT
             + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
-            + COLUMN_DELETED_AT
-            + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
             + COLUMN_QUERY_STARTED_AT
             + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
             + COLUMN_RECORDS_PROCESSED
@@ -88,9 +85,9 @@ public class PartitionMetricsAdminDao {
             + " TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),"
             + ") PRIMARY KEY (PartitionToken)"
             + ", ROW DELETION POLICY (OLDER_THAN("
-            + COLUMN_DELETED_AT
+            + COLUMN_FINISHED_AT
             + ", INTERVAL "
-            + TTL_AFTER_PARTITION_DELETED_DAYS
+            + TTL_AFTER_PARTITION_FINISHED_DAYS
             + " DAY))";
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(

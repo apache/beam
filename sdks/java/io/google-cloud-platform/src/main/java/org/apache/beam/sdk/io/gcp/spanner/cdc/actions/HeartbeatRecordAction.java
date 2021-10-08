@@ -26,10 +26,10 @@ import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -50,7 +50,7 @@ public class HeartbeatRecordAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       HeartbeatRecord record,
-      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
+      RestrictionTracker<OffsetRange, Long> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     try (Scope scope =
@@ -65,12 +65,14 @@ public class HeartbeatRecordAction {
       LOG.debug("[" + token + "] Processing heartbeat record " + record);
 
       final Timestamp timestamp = record.getTimestamp();
-      if (!tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))) {
+      final Instant timestampInstant = new Instant(timestamp.toSqlTimestamp().getTime());
+      final long timestampMicros = TimestampConverter.timestampToMicros(timestamp);
+      if (!tracker.tryClaim(timestampMicros)) {
         LOG.debug("[" + token + "] Could not claim queryChangeStream(" + timestamp + "), stopping");
         return Optional.of(ProcessContinuation.stop());
       }
       metrics.incHearbeatRecordCount();
-      watermarkEstimator.setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
+      watermarkEstimator.setWatermark(timestampInstant);
 
       LOG.debug("[" + token + "] Heartbeat record action completed successfully");
       return Optional.empty();

@@ -22,7 +22,6 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.ChangeStreamRecordMapper;
-import org.joda.time.Duration;
 
 // TODO: Add java docs
 public class ActionFactory implements Serializable {
@@ -31,14 +30,8 @@ public class ActionFactory implements Serializable {
   private static DataChangeRecordAction dataChangeRecordActionInstance;
   private static HeartbeatRecordAction heartbeatRecordActionInstance;
   private static ChildPartitionsRecordAction childPartitionsRecordActionInstance;
-  private static FinishPartitionAction finishPartitionActionInstance;
   private static QueryChangeStreamAction queryChangeStreamActionInstance;
-  private static WaitForChildPartitionsAction waitForChildPartitionsActionInstance;
-  private static WaitForParentPartitionsAction waitForParentPartitionsActionInstance;
-  private static DeletePartitionAction deletePartitionActionInstance;
-  private static DonePartitionAction donePartitionActionInstance;
 
-  // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized DataChangeRecordAction dataChangeRecordAction() {
     if (dataChangeRecordActionInstance == null) {
       dataChangeRecordActionInstance = new DataChangeRecordAction();
@@ -46,7 +39,6 @@ public class ActionFactory implements Serializable {
     return dataChangeRecordActionInstance;
   }
 
-  // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized HeartbeatRecordAction heartbeatRecordAction(ChangeStreamMetrics metrics) {
     if (heartbeatRecordActionInstance == null) {
       heartbeatRecordActionInstance = new HeartbeatRecordAction(metrics);
@@ -54,7 +46,6 @@ public class ActionFactory implements Serializable {
     return heartbeatRecordActionInstance;
   }
 
-  // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized ChildPartitionsRecordAction childPartitionsRecordAction(
       PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
     if (childPartitionsRecordActionInstance == null) {
@@ -64,26 +55,6 @@ public class ActionFactory implements Serializable {
     return childPartitionsRecordActionInstance;
   }
 
-  // TODO: See if synchronized is a bottleneck and refactor if so
-  public synchronized FinishPartitionAction finishPartitionAction(
-      PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
-    if (finishPartitionActionInstance == null) {
-      finishPartitionActionInstance = new FinishPartitionAction(partitionMetadataDao, metrics);
-    }
-    return finishPartitionActionInstance;
-  }
-
-  // TODO: See if synchronized is a bottleneck and refactor if so
-  public synchronized WaitForChildPartitionsAction waitForChildPartitionsAction(
-      PartitionMetadataDao partitionMetadataDao, Duration resumeDuration) {
-    if (waitForChildPartitionsActionInstance == null) {
-      waitForChildPartitionsActionInstance =
-          new WaitForChildPartitionsAction(partitionMetadataDao, resumeDuration);
-    }
-    return waitForChildPartitionsActionInstance;
-  }
-
-  // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized QueryChangeStreamAction queryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
       PartitionMetadataDao partitionMetadataDao,
@@ -102,32 +73,5 @@ public class ActionFactory implements Serializable {
               childPartitionsRecordAction);
     }
     return queryChangeStreamActionInstance;
-  }
-
-  // TODO: See if synchronized is a bottleneck and refactor if so
-  public synchronized WaitForParentPartitionsAction waitForParentPartitionsAction(
-      PartitionMetadataDao partitionMetadataDao, Duration resumeDuration) {
-    if (waitForParentPartitionsActionInstance == null) {
-      waitForParentPartitionsActionInstance =
-          new WaitForParentPartitionsAction(partitionMetadataDao, resumeDuration);
-    }
-    return waitForParentPartitionsActionInstance;
-  }
-
-  // TODO: See if synchronized is a bottleneck and refactor if so
-  public synchronized DeletePartitionAction deletePartitionAction(
-      PartitionMetadataDao partitionMetadataDao) {
-    if (deletePartitionActionInstance == null) {
-      deletePartitionActionInstance = new DeletePartitionAction(partitionMetadataDao);
-    }
-    return deletePartitionActionInstance;
-  }
-
-  // TODO: See if synchronized is a bottleneck and refactor if so
-  public synchronized DonePartitionAction donePartitionAction() {
-    if (donePartitionActionInstance == null) {
-      donePartitionActionInstance = new DonePartitionAction();
-    }
-    return donePartitionActionInstance;
   }
 }

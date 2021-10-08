@@ -42,7 +42,7 @@ public class PartitionMetadata implements Serializable {
     SCHEDULED,
     // The partition has started being processed
     RUNNING,
-    // The partition has ended
+    // The partition has finished processing
     FINISHED
   }
 
@@ -53,16 +53,12 @@ public class PartitionMetadata implements Serializable {
   // This needs to be an implementation (HashSet), instead of the Set interface, otherwise
   // we can not encode / decode this with Avro.
   private HashSet<String> parentTokens;
-  // Start timestamp, used to query the partition.
+  // Inclusive start timestamp, used to query the partition.
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp startTimestamp;
-  // Whether the start timestamp is inclusive or exclusive.
-  private boolean inclusiveStart;
-  // The end timestamp, used to query the partition
+  // Inclusive end timestamp, used to query the partition
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp endTimestamp;
-  // Whether the end timestamp is inclusive or exclusive.
-  private boolean inclusiveEnd;
   // The interval for a heartbeat record to be returned for a partition when there are no changes
   // within the partition.
   private long heartbeatMillis;
@@ -77,7 +73,7 @@ public class PartitionMetadata implements Serializable {
   // When the partition started running
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp runningAt;
-  // When the partition finished
+  // When the partition finished running
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp finishedAt;
 
@@ -88,9 +84,7 @@ public class PartitionMetadata implements Serializable {
       String partitionToken,
       HashSet<String> parentTokens,
       Timestamp startTimestamp,
-      boolean inclusiveStart,
       Timestamp endTimestamp,
-      boolean inclusiveEnd,
       long heartbeatMillis,
       State state,
       Timestamp createdAt,
@@ -100,9 +94,7 @@ public class PartitionMetadata implements Serializable {
     this.partitionToken = partitionToken;
     this.parentTokens = parentTokens;
     this.startTimestamp = startTimestamp;
-    this.inclusiveStart = inclusiveStart;
     this.endTimestamp = endTimestamp;
-    this.inclusiveEnd = inclusiveEnd;
     this.heartbeatMillis = heartbeatMillis;
     this.state = state;
     this.createdAt = createdAt;
@@ -123,16 +115,8 @@ public class PartitionMetadata implements Serializable {
     return startTimestamp;
   }
 
-  public boolean isInclusiveStart() {
-    return inclusiveStart;
-  }
-
   public Timestamp getEndTimestamp() {
     return endTimestamp;
-  }
-
-  public boolean isInclusiveEnd() {
-    return inclusiveEnd;
   }
 
   public long getHeartbeatMillis() {
@@ -172,9 +156,7 @@ public class PartitionMetadata implements Serializable {
       return false;
     }
     PartitionMetadata that = (PartitionMetadata) o;
-    return inclusiveStart == that.inclusiveStart
-        && inclusiveEnd == that.inclusiveEnd
-        && heartbeatMillis == that.heartbeatMillis
+    return heartbeatMillis == that.heartbeatMillis
         && Objects.equals(partitionToken, that.partitionToken)
         && Objects.equals(parentTokens, that.parentTokens)
         && Objects.equals(startTimestamp, that.startTimestamp)
@@ -192,9 +174,7 @@ public class PartitionMetadata implements Serializable {
         partitionToken,
         parentTokens,
         startTimestamp,
-        inclusiveStart,
         endTimestamp,
-        inclusiveEnd,
         heartbeatMillis,
         state,
         createdAt,
@@ -213,12 +193,8 @@ public class PartitionMetadata implements Serializable {
         + parentTokens
         + ", startTimestamp="
         + startTimestamp
-        + ", inclusiveStart="
-        + inclusiveStart
         + ", endTimestamp="
         + endTimestamp
-        + ", inclusiveEnd="
-        + inclusiveEnd
         + ", heartbeatMillis="
         + heartbeatMillis
         + ", state="
@@ -243,9 +219,7 @@ public class PartitionMetadata implements Serializable {
     private String partitionToken;
     private HashSet<String> parentTokens;
     private Timestamp startTimestamp;
-    private Boolean inclusiveStart;
     private Timestamp endTimestamp;
-    private Boolean inclusiveEnd;
     private Long heartbeatMillis;
     private State state;
     private Timestamp createdAt;
@@ -259,9 +233,7 @@ public class PartitionMetadata implements Serializable {
       this.partitionToken = partition.partitionToken;
       this.parentTokens = partition.parentTokens;
       this.startTimestamp = partition.startTimestamp;
-      this.inclusiveStart = partition.inclusiveStart;
       this.endTimestamp = partition.endTimestamp;
-      this.inclusiveEnd = partition.inclusiveEnd;
       this.heartbeatMillis = partition.heartbeatMillis;
       this.state = partition.state;
       this.createdAt = partition.createdAt;
@@ -285,18 +257,8 @@ public class PartitionMetadata implements Serializable {
       return this;
     }
 
-    public Builder setInclusiveStart(boolean inclusiveStart) {
-      this.inclusiveStart = inclusiveStart;
-      return this;
-    }
-
     public Builder setEndTimestamp(Timestamp endTimestamp) {
       this.endTimestamp = endTimestamp;
-      return this;
-    }
-
-    public Builder setInclusiveEnd(Boolean inclusiveEnd) {
-      this.inclusiveEnd = inclusiveEnd;
       return this;
     }
 
@@ -336,14 +298,6 @@ public class PartitionMetadata implements Serializable {
       Preconditions.checkState(startTimestamp != null, "startTimestamp");
       Preconditions.checkState(heartbeatMillis != null, "heartbeatMillis");
       Preconditions.checkState(state != null, "state");
-      // TODO: Add test for default inclusive start
-      if (inclusiveStart == null) {
-        inclusiveStart = true;
-      }
-      // TODO: Add test for default inclusive end
-      if (inclusiveEnd == null) {
-        inclusiveEnd = false;
-      }
       // TODO: Add test for default created at
       if (createdAt == null) {
         createdAt = Value.COMMIT_TIMESTAMP;
@@ -352,9 +306,7 @@ public class PartitionMetadata implements Serializable {
           partitionToken,
           parentTokens,
           startTimestamp,
-          inclusiveStart,
           endTimestamp,
-          inclusiveEnd,
           heartbeatMillis,
           state,
           createdAt,

@@ -34,18 +34,17 @@ public class PartitionMetadataAdminDao {
   public static final String COLUMN_PARTITION_TOKEN = "PartitionToken";
   public static final String COLUMN_PARENT_TOKENS = "ParentTokens";
   public static final String COLUMN_START_TIMESTAMP = "StartTimestamp";
-  public static final String COLUMN_INCLUSIVE_START = "InclusiveStart";
   public static final String COLUMN_END_TIMESTAMP = "EndTimestamp";
-  public static final String COLUMN_INCLUSIVE_END = "InclusiveEnd";
   public static final String COLUMN_HEARTBEAT_MILLIS = "HeartbeatMillis";
   public static final String COLUMN_STATE = "State";
-  public static final String COLUMN_CURRENT_WATERMARK = "CurrentWatermark";
+  public static final String COLUMN_WATERMARK = "Watermark";
   public static final String COLUMN_CREATED_AT = "CreatedAt";
   public static final String COLUMN_SCHEDULED_AT = "ScheduledAt";
   public static final String COLUMN_RUNNING_AT = "RunningAt";
   public static final String COLUMN_FINISHED_AT = "FinishedAt";
 
   private static final int TIMEOUT_MINUTES = 10;
+  private static final int TTL_AFTER_PARTITION_FINISHED_DAYS = 1;
 
   private final DatabaseAdminClient databaseAdminClient;
   private final String instanceId;
@@ -74,17 +73,13 @@ public class PartitionMetadataAdminDao {
             + " ARRAY<STRING(MAX)> NOT NULL,"
             + COLUMN_START_TIMESTAMP
             + " TIMESTAMP NOT NULL,"
-            + COLUMN_INCLUSIVE_START
-            + " BOOL NOT NULL, "
             + COLUMN_END_TIMESTAMP
             + " TIMESTAMP,"
-            + COLUMN_INCLUSIVE_END
-            + " BOOL,"
             + COLUMN_HEARTBEAT_MILLIS
             + " INT64 NOT NULL,"
             + COLUMN_STATE
             + " STRING(MAX) NOT NULL,"
-            + COLUMN_CURRENT_WATERMARK
+            + COLUMN_WATERMARK
             + " TIMESTAMP NOT NULL,"
             + COLUMN_CREATED_AT
             + " TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),"
@@ -94,7 +89,12 @@ public class PartitionMetadataAdminDao {
             + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
             + COLUMN_FINISHED_AT
             + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
-            + ") PRIMARY KEY (PartitionToken)";
+            + ") PRIMARY KEY (PartitionToken),"
+            + " ROW DELETION POLICY (OLDER_THAN("
+            + COLUMN_FINISHED_AT
+            + ", INTERVAL "
+            + TTL_AFTER_PARTITION_FINISHED_DAYS
+            + " DAY))";
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(
             instanceId, databaseId, Collections.singletonList(metadataCreateStmt), null);

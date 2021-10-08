@@ -106,7 +106,6 @@ public class ModelEncodingTest {
                     .withPartitionToken("1")
                     .withPartitionStartTimestamp(Timestamp.ofTimeMicroseconds(1L))
                     .withPartitionEndTimestamp(Timestamp.ofTimeMicroseconds(10_000L))
-                    .withRestrictionInitializedAt(Timestamp.ofTimeMicroseconds(10L))
                     .withPartitionCreatedAt(Timestamp.ofTimeMicroseconds(100L))
                     .withPartitionScheduledAt(Timestamp.ofTimeMicroseconds(101L))
                     .withPartitionRunningAt(Timestamp.ofTimeMicroseconds(102L))
@@ -156,11 +155,9 @@ public class ModelEncodingTest {
             "partitionToken",
             Sets.newHashSet("parentToken"),
             Timestamp.now(),
-            true,
             Timestamp.now(),
-            false,
             10,
-            State.FINISHED,
+            State.RUNNING,
             Timestamp.now(),
             Timestamp.now(),
             Timestamp.now(),

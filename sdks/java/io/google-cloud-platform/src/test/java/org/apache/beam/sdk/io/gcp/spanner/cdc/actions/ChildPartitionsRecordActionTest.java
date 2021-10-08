@@ -18,18 +18,14 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.FINISHED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
-import com.google.cloud.spanner.ErrorCode;
-import com.google.cloud.spanner.SpannerException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -40,9 +36,8 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.InTransac
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.util.TestTransactionAnswer;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -57,7 +52,7 @@ public class ChildPartitionsRecordActionTest {
   private InTransactionContext transaction;
   private ChangeStreamMetrics metrics;
   private ChildPartitionsRecordAction action;
-  private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
+  private RestrictionTracker<OffsetRange, Long> tracker;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
 
   @Before
@@ -76,8 +71,8 @@ public class ChildPartitionsRecordActionTest {
   public void testRestrictionClaimedAndIsSplitCase() {
     final String partitionToken = "partitionToken";
     final long heartbeat = 30L;
-    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
-    final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
+    final Timestamp startTimestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(20L);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final ChildPartitionsRecord record =
         ChildPartitionsRecord.newBuilder()
@@ -91,92 +86,9 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
-
-    final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, record, tracker, watermarkEstimator);
-
-    assertEquals(Optional.empty(), maybeContinuation);
-    verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
-    verify(dao)
-        .insert(
-            PartitionMetadata.newBuilder()
-                .setPartitionToken("childPartition1")
-                .setParentTokens(Sets.newHashSet(partitionToken))
-                .setStartTimestamp(startTimestamp)
-                .setInclusiveStart(true)
-                .setEndTimestamp(endTimestamp)
-                .setInclusiveEnd(false)
-                .setHeartbeatMillis(heartbeat)
-                .setState(CREATED)
-                .build());
-    verify(dao)
-        .insert(
-            PartitionMetadata.newBuilder()
-                .setPartitionToken("childPartition2")
-                .setParentTokens(Sets.newHashSet(partitionToken))
-                .setStartTimestamp(startTimestamp)
-                .setInclusiveStart(true)
-                .setEndTimestamp(endTimestamp)
-                .setInclusiveEnd(false)
-                .setHeartbeatMillis(heartbeat)
-                .setState(CREATED)
-                .build());
-  }
-
-  @Test
-  public void testRestrictionClaimedAnsIsSplitCaseAndChildExists() {
-    final String partitionToken = "partitionToken";
-    final long heartbeat = 30L;
-    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
-    final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
-    final PartitionMetadata partition = mock(PartitionMetadata.class);
-    final ChildPartitionsRecord record =
-        ChildPartitionsRecord.newBuilder()
-            .withStartTimestamp(startTimestamp)
-            .withRecordSequence("recordSequence")
-            .withChildPartitions(
-                Arrays.asList(
-                    new ChildPartition("childPartition1", partitionToken),
-                    new ChildPartition("childPartition2", partitionToken)))
-            .build();
-    final SpannerException spannerException = mock(SpannerException.class);
-    when(partition.getEndTimestamp()).thenReturn(endTimestamp);
-    when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
-    when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
-    when(spannerException.getErrorCode()).thenReturn(ErrorCode.ALREADY_EXISTS);
-    doThrow(spannerException).when(dao).insert(any());
-
-    final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, record, tracker, watermarkEstimator);
-
-    assertEquals(Optional.empty(), maybeContinuation);
-    verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
-  }
-
-  @Test
-  public void testRestrictionClaimedAndIsMergeCaseAndAllParentsFinishedAndChildNotExists() {
-    final String partitionToken = "partitionToken";
-    final String anotherPartitionToken = "anotherPartitionToken";
-    final HashSet<String> parentTokens = Sets.newHashSet(partitionToken, anotherPartitionToken);
-    final long heartbeat = 30L;
-    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
-    final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
-    final PartitionMetadata partition = mock(PartitionMetadata.class);
-    final ChildPartitionsRecord record =
-        ChildPartitionsRecord.newBuilder()
-            .withStartTimestamp(startTimestamp)
-            .withRecordSequence("recordSequence")
-            .withChildPartitions(
-                Collections.singletonList(new ChildPartition("childPartition1", parentTokens)))
-            .build();
-    when(partition.getEndTimestamp()).thenReturn(endTimestamp);
-    when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
-    when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
-    when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED)))
-        .thenReturn(1L);
+    when(tracker.tryClaim(10L)).thenReturn(true);
+    when(transaction.getPartition("childPartition1")).thenReturn(null);
+    when(transaction.getPartition("childPartition2")).thenReturn(null);
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(partition, record, tracker, watermarkEstimator);
@@ -187,41 +99,46 @@ public class ChildPartitionsRecordActionTest {
         .insert(
             PartitionMetadata.newBuilder()
                 .setPartitionToken("childPartition1")
-                .setParentTokens(parentTokens)
+                .setParentTokens(Sets.newHashSet(partitionToken))
                 .setStartTimestamp(startTimestamp)
-                .setInclusiveStart(true)
                 .setEndTimestamp(endTimestamp)
-                .setInclusiveEnd(false)
+                .setHeartbeatMillis(heartbeat)
+                .setState(CREATED)
+                .build());
+    verify(transaction)
+        .insert(
+            PartitionMetadata.newBuilder()
+                .setPartitionToken("childPartition2")
+                .setParentTokens(Sets.newHashSet(partitionToken))
+                .setStartTimestamp(startTimestamp)
+                .setEndTimestamp(endTimestamp)
                 .setHeartbeatMillis(heartbeat)
                 .setState(CREATED)
                 .build());
   }
 
   @Test
-  public void testRestrictionClaimedAndIsMergeCaseAndAllParentsFinishedAndChildExists() {
+  public void testRestrictionClaimedAnsIsSplitCaseAndChildExists() {
     final String partitionToken = "partitionToken";
-    final String anotherPartitionToken = "anotherPartitionToken";
-    final HashSet<String> parentTokens = Sets.newHashSet(partitionToken, anotherPartitionToken);
     final long heartbeat = 30L;
-    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
-    final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
+    final Timestamp startTimestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(20L);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final ChildPartitionsRecord record =
         ChildPartitionsRecord.newBuilder()
             .withStartTimestamp(startTimestamp)
             .withRecordSequence("recordSequence")
             .withChildPartitions(
-                Collections.singletonList(new ChildPartition("childPartition1", parentTokens)))
+                Arrays.asList(
+                    new ChildPartition("childPartition1", partitionToken),
+                    new ChildPartition("childPartition2", partitionToken)))
             .build();
-    final SpannerException spannerException = mock(SpannerException.class);
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
-    when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED)))
-        .thenReturn(1L);
-    when(spannerException.getErrorCode()).thenReturn(ErrorCode.ALREADY_EXISTS);
-    doThrow(spannerException).when(transaction).insert(any());
+    when(tracker.tryClaim(10L)).thenReturn(true);
+    when(transaction.getPartition("childPartition1")).thenReturn(mock(PartitionMetadata.class));
+    when(transaction.getPartition("childPartition2")).thenReturn(mock(PartitionMetadata.class));
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(partition, record, tracker, watermarkEstimator);
@@ -231,27 +148,67 @@ public class ChildPartitionsRecordActionTest {
   }
 
   @Test
-  public void testRestrictionClaimedAndIsMergeCaseAndAtLeastOneParentIsNotFinished() {
+  public void testRestrictionClaimedAndIsMergeCaseAndChildNotExists() {
     final String partitionToken = "partitionToken";
     final String anotherPartitionToken = "anotherPartitionToken";
+    final String childPartitionToken = "childPartition1";
     final HashSet<String> parentTokens = Sets.newHashSet(partitionToken, anotherPartitionToken);
     final long heartbeat = 30L;
-    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
-    final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
+    final Timestamp startTimestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(20L);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final ChildPartitionsRecord record =
         ChildPartitionsRecord.newBuilder()
             .withStartTimestamp(startTimestamp)
             .withRecordSequence("recordSequence")
             .withChildPartitions(
-                Collections.singletonList(new ChildPartition("childPartition1", parentTokens)))
+                Collections.singletonList(new ChildPartition(childPartitionToken, parentTokens)))
             .build();
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
-    when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED)))
-        .thenReturn(0L);
+    when(tracker.tryClaim(10L)).thenReturn(true);
+    when(transaction.getPartition(childPartitionToken)).thenReturn(null);
+
+    final Optional<ProcessContinuation> maybeContinuation =
+        action.run(partition, record, tracker, watermarkEstimator);
+
+    assertEquals(Optional.empty(), maybeContinuation);
+    verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
+    verify(transaction)
+        .insert(
+            PartitionMetadata.newBuilder()
+                .setPartitionToken(childPartitionToken)
+                .setParentTokens(parentTokens)
+                .setStartTimestamp(startTimestamp)
+                .setEndTimestamp(endTimestamp)
+                .setHeartbeatMillis(heartbeat)
+                .setState(CREATED)
+                .build());
+  }
+
+  @Test
+  public void testRestrictionClaimedAndIsMergeCaseAndChildExists() {
+    final String partitionToken = "partitionToken";
+    final String anotherPartitionToken = "anotherPartitionToken";
+    final String childPartitionToken = "childPartition1";
+    final HashSet<String> parentTokens = Sets.newHashSet(partitionToken, anotherPartitionToken);
+    final long heartbeat = 30L;
+    final Timestamp startTimestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(20L);
+    final PartitionMetadata partition = mock(PartitionMetadata.class);
+    final ChildPartitionsRecord record =
+        ChildPartitionsRecord.newBuilder()
+            .withStartTimestamp(startTimestamp)
+            .withRecordSequence("recordSequence")
+            .withChildPartitions(
+                Collections.singletonList(new ChildPartition(childPartitionToken, parentTokens)))
+            .build();
+    when(partition.getEndTimestamp()).thenReturn(endTimestamp);
+    when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+    when(tracker.tryClaim(10L)).thenReturn(true);
+    when(transaction.getPartition(childPartitionToken)).thenReturn(mock(PartitionMetadata.class));
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(partition, record, tracker, watermarkEstimator);
@@ -264,7 +221,7 @@ public class ChildPartitionsRecordActionTest {
   @Test
   public void testRestrictionNotClaimed() {
     final String partitionToken = "partitionToken";
-    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
+    final Timestamp startTimestamp = Timestamp.ofTimeMicroseconds(10L);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final ChildPartitionsRecord record =
         ChildPartitionsRecord.newBuilder()
@@ -276,7 +233,7 @@ public class ChildPartitionsRecordActionTest {
                     new ChildPartition("childPartition2", partitionToken)))
             .build();
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(false);
+    when(tracker.tryClaim(10L)).thenReturn(false);
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(partition, record, tracker, watermarkEstimator);

@@ -21,8 +21,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminD
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_INCLUSIVE_END;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_INCLUSIVE_START;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao.COLUMN_RUNNING_AT;
@@ -42,12 +40,10 @@ public class PartitionMetadataMapper {
         .setPartitionToken(resultSet.getString(COLUMN_PARTITION_TOKEN))
         .setParentTokens(Sets.newHashSet(resultSet.getStringList(COLUMN_PARENT_TOKENS)))
         .setStartTimestamp(resultSet.getTimestamp(COLUMN_START_TIMESTAMP))
-        .setInclusiveStart(resultSet.getBoolean(COLUMN_INCLUSIVE_START))
         .setEndTimestamp(
             !resultSet.isNull(COLUMN_END_TIMESTAMP)
                 ? resultSet.getTimestamp(COLUMN_END_TIMESTAMP)
                 : null)
-        .setInclusiveEnd(resultSet.getBoolean(COLUMN_INCLUSIVE_END))
         .setHeartbeatMillis(resultSet.getLong(COLUMN_HEARTBEAT_MILLIS))
         .setState(State.valueOf(resultSet.getString(COLUMN_STATE)))
         .setCreatedAt(resultSet.getTimestamp(COLUMN_CREATED_AT))

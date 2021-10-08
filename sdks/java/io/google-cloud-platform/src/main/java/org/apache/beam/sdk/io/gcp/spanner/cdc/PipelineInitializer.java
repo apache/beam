@@ -22,6 +22,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetricsAdminDao;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
 
@@ -49,9 +50,7 @@ public class PipelineInitializer {
             .setPartitionToken(InitialPartition.PARTITION_TOKEN)
             .setParentTokens(InitialPartition.PARENT_TOKENS)
             .setStartTimestamp(inclusiveStartAt)
-            .setInclusiveStart(true)
             .setEndTimestamp(inclusiveEndAt)
-            .setInclusiveEnd(true)
             .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
             .setState(State.CREATED)
             .build();

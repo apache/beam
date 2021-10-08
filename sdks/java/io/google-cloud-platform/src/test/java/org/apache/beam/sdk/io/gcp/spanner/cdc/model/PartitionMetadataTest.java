@@ -37,7 +37,7 @@ public class PartitionMetadataTest {
   private static final Timestamp CREATED_AT = Timestamp.ofTimeSecondsAndNanos(3, 3);
   private static final Timestamp SCHEDULED_AT = Timestamp.ofTimeSecondsAndNanos(4, 4);
   private static final Timestamp RUNNING_AT = Timestamp.ofTimeSecondsAndNanos(5, 5);
-  private static final Timestamp FINISHED_AT = Timestamp.ofTimeSecondsAndNanos(6, 6);
+  private static final Timestamp FINISHED_AT = Timestamp.ofTimeSecondsAndNanos(6, 7);
 
   @Test
   public void testBuilderDefaultsToInclusiveStartAndExclusiveEnd() {
@@ -46,11 +46,9 @@ public class PartitionMetadataTest {
             PARTITION_TOKEN,
             Sets.newHashSet(PARENT_TOKEN),
             START_TIMESTAMP,
-            true,
             END_TIMESTAMP,
-            false,
             10,
-            State.FINISHED,
+            State.RUNNING,
             CREATED_AT,
             SCHEDULED_AT,
             RUNNING_AT,
@@ -62,7 +60,7 @@ public class PartitionMetadataTest {
             .setStartTimestamp(START_TIMESTAMP)
             .setEndTimestamp(END_TIMESTAMP)
             .setHeartbeatMillis(10)
-            .setState(State.FINISHED)
+            .setState(State.RUNNING)
             .setCreatedAt(CREATED_AT)
             .setScheduledAt(SCHEDULED_AT)
             .setRunningAt(RUNNING_AT)
