@@ -541,14 +541,21 @@ class FnApiRunner(runner.PipelineRunner):
       timer_coder_impl = bundle_context_manager.get_timer_coder_impl(
           transform_id, timer_family_id)
       if not written_timers.cleared:
-        timers_by_key_and_window = {}
+        timers_by_key_tag_and_window = {}
         for elements_timers in written_timers:
           for decoded_timer in timer_coder_impl.decode_all(elements_timers):
-            timers_by_key_and_window[decoded_timer.user_key,
-                                     decoded_timer.windows[0]] = decoded_timer
-        timer_cleared = False
+            key_tag_win = (
+                decoded_timer.user_key,
+                decoded_timer.dynamic_timer_tag,
+                decoded_timer.windows[0])
+            if not decoded_timer.clear_bit:
+              timers_by_key_tag_and_window[key_tag_win] = decoded_timer
+            elif (decoded_timer.clear_bit and
+                  key_tag_win in timers_by_key_tag_and_window):
+              del timers_by_key_tag_and_window[key_tag_win]
+
         out = create_OutputStream()
-        for decoded_timer in timers_by_key_and_window.values():
+        for decoded_timer in timers_by_key_tag_and_window.values():
           # Only add not cleared timer to fired timers.
           if not decoded_timer.clear_bit:
             timer_coder_impl.encode_to_stream(decoded_timer, out, True)
@@ -558,12 +565,7 @@ class FnApiRunner(runner.PipelineRunner):
             timer_watermark_data[(transform_id, timer_family_id)] = min(
                 timer_watermark_data[(transform_id, timer_family_id)],
                 decoded_timer.hold_timestamp)
-          else:
-            # Timer was cleared, so we must skip setting it below.
-            timer_cleared = True
-            continue
-        if timer_cleared or (transform_id,
-                             timer_family_id) not in timer_watermark_data:
+        if (transform_id, timer_family_id) not in timer_watermark_data:
           continue
         newly_set_timers[(transform_id, timer_family_id)] = (
             ListBuffer(coder_impl=timer_coder_impl),
