@@ -175,6 +175,7 @@ public class GrowableOffsetRangeTrackerTest {
     assertEquals(0, currentProcess.getWorkRemaining(), 0.001);
   }
 
+  @SuppressWarnings("FloatingPointAssertionWithinEpsilon")
   @Test
   public void testProgressAfterFinished() throws Exception {
     SimpleEstimator simpleEstimator = new SimpleEstimator();
