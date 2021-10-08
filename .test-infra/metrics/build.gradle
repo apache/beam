@@ -99,7 +99,7 @@ task deploy {
 
       exec {
         executable 'sh'
-        args '-c', 'kubectl apply --dry-run=true -f kubernetes/beamgrafana-deploy.yaml'
+        args '-c', 'kubectl apply -f kubernetes/beamgrafana-deploy.yaml'
       }
 
       exec {
