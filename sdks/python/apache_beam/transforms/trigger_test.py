@@ -571,6 +571,35 @@ class TriggerPipelineTest(unittest.TestCase):
                   'B-3': {10, 15, 16},
               }.items())))
 
+  def test_after_count_streaming(self):
+    test_options = PipelineOptions(
+        flags=['--allow_unsafe_triggers', '--streaming'])
+    with TestPipeline(options=test_options) as p:
+      # yapf: disable
+      test_stream = (
+          TestStream()
+          .advance_watermark_to(0)
+          .add_elements([('A', 1), ('A', 2), ('A', 3)])
+          .add_elements([('A', 4), ('A', 5), ('A', 6)])
+          .add_elements([('B', 1), ('B', 2), ('B', 3)])
+          .advance_watermark_to_infinity())
+      # yapf: enable
+
+      results = (
+          p
+          | test_stream
+          | beam.WindowInto(
+              FixedWindows(10),
+              trigger=AfterCount(3),
+              accumulation_mode=AccumulationMode.ACCUMULATING)
+          | beam.GroupByKey())
+
+      assert_that(
+          results,
+          equal_to(list({
+            'A': [1, 2, 3], # 4 - 6 discarded because trigger finished
+            'B': [1, 2, 3]}.items())))
+
   def test_always(self):
     with TestPipeline() as p:
 
