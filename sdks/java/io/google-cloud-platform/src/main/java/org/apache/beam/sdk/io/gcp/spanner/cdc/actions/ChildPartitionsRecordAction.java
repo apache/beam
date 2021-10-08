@@ -156,11 +156,15 @@ public class ChildPartitionsRecordAction {
       Timestamp endTimestamp,
       long heartbeatMillis,
       ChildPartition childPartition) {
+    // FIXME: The backend only supports microsecond granularity. Remove when fixed.
+    final Timestamp truncatedStartTimestamp = TimestampConverter.truncateNanos(startTimestamp);
+    final Timestamp truncatedEndTimestamp =
+        Optional.ofNullable(endTimestamp).map(TimestampConverter::truncateNanos).orElse(null);
     return PartitionMetadata.newBuilder()
         .setPartitionToken(childPartition.getToken())
         .setParentTokens(childPartition.getParentTokens())
-        .setStartTimestamp(startTimestamp)
-        .setEndTimestamp(endTimestamp)
+        .setStartTimestamp(truncatedStartTimestamp)
+        .setEndTimestamp(truncatedEndTimestamp)
         .setHeartbeatMillis(heartbeatMillis)
         .setState(CREATED)
         .build();

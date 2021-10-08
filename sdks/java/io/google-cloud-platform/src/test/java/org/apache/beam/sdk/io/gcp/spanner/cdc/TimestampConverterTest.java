@@ -58,4 +58,12 @@ public class TimestampConverterTest {
 
     assertEquals(timestamp, TimestampConverter.timestampFromMillis(1234L));
   }
+
+  @Test
+  public void testTruncateNanos() {
+    final Timestamp timestamp = Timestamp.ofTimeSecondsAndNanos(10L, 123456789);
+    final Timestamp expectedTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 123456000);
+
+    assertEquals(expectedTimestamp, TimestampConverter.truncateNanos(timestamp));
+  }
 }

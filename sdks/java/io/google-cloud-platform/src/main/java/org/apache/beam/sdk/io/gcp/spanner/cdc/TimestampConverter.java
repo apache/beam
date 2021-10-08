@@ -37,4 +37,8 @@ public class TimestampConverter {
   public static Timestamp timestampFromMillis(long millis) {
     return Timestamp.ofTimeMicroseconds(millis * 1_000L);
   }
+
+  public static Timestamp truncateNanos(Timestamp timestamp) {
+    return Timestamp.ofTimeMicroseconds(timestampToMicros(timestamp));
+  }
 }
