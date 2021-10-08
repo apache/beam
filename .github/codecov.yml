@@ -53,3 +53,19 @@ ignore:
   - "**/*_test.py"
   - "**/*_test_py3*.py"
   - "**/*_microbenchmark.py"
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+      - name: Run coverage
+        run: go test -coverprofile=coverage.out -covermode=atomic ./sdks/go/pkg/beam/..
+      - name: Upload coverage to Codecov
+        run: bash <(curl -s https://codecov.io/bash)
