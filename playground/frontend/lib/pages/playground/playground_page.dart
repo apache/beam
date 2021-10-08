@@ -18,10 +18,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/components/toggle_theme_button/toggle_theme_button.dart';
+import 'package:playground/constants/sizes.dart';
+import 'package:playground/pages/playground/components/playground_page_providers.dart';
 import 'package:provider/provider.dart';
+import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
 import 'package:playground/modules/output/components/output_area.dart';
-import 'package:playground/pages/playground/playground_state.dart';
-import 'package:playground/modules/editor/components/editor_textarea.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:playground/modules/sdk/components/sdk_selector.dart';
 import 'package:playground/components/logo/logo_component.dart';
 
@@ -30,13 +32,12 @@ class PlaygroundPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<PlaygroundState>(
-      create: (context) => PlaygroundState(),
+    return PlaygroundPageProviders(
       child: Scaffold(
         appBar: AppBar(
           title: Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16.0,
+            spacing: kLgSpacing,
             children: [
               const Logo(),
               Consumer<PlaygroundState>(
@@ -53,8 +54,9 @@ class PlaygroundPage extends StatelessWidget {
         ),
         body: Column(
           children: [
-            const Expanded(child: EditorTextArea()),
-            Container(height: 16.0, color: Theme.of(context).backgroundColor),
+            const Expanded(child: CodeTextAreaWrapper()),
+            Container(
+                height: kLgSpacing, color: Theme.of(context).backgroundColor),
             const Expanded(child: OutputArea()),
           ],
         ),

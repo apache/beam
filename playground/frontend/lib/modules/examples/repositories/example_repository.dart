@@ -16,17 +16,38 @@
  * limitations under the License.
  */
 
-// paddings
-const double kZeroSpacing = 0.0;
-const double kSmSpacing = 4.0;
-const double kMdSpacing = 8.0;
-const double kLgSpacing = 16.0;
+import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-// border radius
-const double kBorderRadius = 8.0;
+const javaHelloWorld = '''class HelloWorld {
+  public static void main(String[] args) {
+    System.out.println("Hello World!");
+  }
+}''';
 
-// elevation
-const int kElevation = 1;
+const pythonHelloWorld = "print(‘Hello World’)";
 
-// icon sizes
-const double kIconSizeMd = 24.0;
+const goHelloWorld = '''package main
+
+import "fmt"
+
+// this is a comment
+
+func main() {
+  fmt.Println("Hello World")
+}''';
+
+class ExampleRepository {
+  Future<List<ExampleModel>> getExamples() {
+    return Future.value([
+      const ExampleModel(
+        {
+          SDK.java: javaHelloWorld,
+          SDK.go: goHelloWorld,
+          SDK.python: pythonHelloWorld,
+        },
+        "Initial Example",
+      )
+    ]);
+  }
+}

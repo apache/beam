@@ -16,17 +16,11 @@
  * limitations under the License.
  */
 
-// paddings
-const double kZeroSpacing = 0.0;
-const double kSmSpacing = 4.0;
-const double kMdSpacing = 8.0;
-const double kLgSpacing = 16.0;
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-// border radius
-const double kBorderRadius = 8.0;
+class ExampleModel {
+  final Map<SDK, String> sources;
+  final String name;
 
-// elevation
-const int kElevation = 1;
-
-// icon sizes
-const double kIconSizeMd = 24.0;
+  const ExampleModel(this.sources, this.name);
+}
