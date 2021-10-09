@@ -1122,7 +1122,6 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:JavaTimeDefaultTimeZone:OFF")
         options.errorprone.errorproneArgs.add("-Xep:JodaPlusMinusLong:OFF")
         options.errorprone.errorproneArgs.add("-Xep:JodaToSelf:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:LockNotBeforeTry:OFF")
         options.errorprone.errorproneArgs.add("-Xep:MathAbsoluteRandom:OFF")
         options.errorprone.errorproneArgs.add("-Xep:MixedMutabilityReturnType:OFF")
         options.errorprone.errorproneArgs.add("-Xep:PreferJavaTimeOverload:OFF")

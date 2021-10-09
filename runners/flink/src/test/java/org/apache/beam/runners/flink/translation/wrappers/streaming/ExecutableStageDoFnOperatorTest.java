@@ -637,6 +637,7 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(statefulDoFnRunner, instanceOf(StatefulDoFnRunner.class));
   }
 
+  @SuppressWarnings("LockNotBeforeTry")
   @Test
   public void testEnsureStateCleanupWithKeyedInputCleanupTimer() {
     InMemoryTimerInternals inMemoryTimerInternals = new InMemoryTimerInternals();
