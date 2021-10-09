@@ -63,6 +63,7 @@ import pkg_resources
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
@@ -466,7 +467,9 @@ class Stager(object):
         raise
     else:
       try:
-        read_handle = FileSystems.open(from_url)
+        read_handle = FileSystems.open(
+            from_url,
+            compression_type=CompressionTypes.UNCOMPRESSED)
         with read_handle as fin:
           with open(to_path, 'wb') as f:
             while True:
