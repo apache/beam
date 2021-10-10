@@ -80,7 +80,9 @@ bad-names=
 [MESSAGES CONTROL]
 disable =
   abstract-method,
+  abstract-class-instantiated,
   arguments-differ,
+  arguments-renamed,
   attribute-defined-outside-init,
   bad-builtin,
   bad-super-call,
@@ -88,8 +90,10 @@ disable =
   broad-except,
   comparison-with-callable,
   consider-using-enumerate,
+  consider-using-f-string,
   consider-using-in,
   consider-using-sys-exit,
+  consider-using-with,
   cyclic-import,
   design,
   fixme,
@@ -122,6 +126,7 @@ disable =
   not-callable,
   pointless-statement,
   protected-access,
+  raise-missing-from, #TODO(BEAM-12991) Enable and fix warnings
   raising-format-tuple,
   raising-non-exception,
   redefined-builtin,
@@ -143,6 +148,7 @@ disable =
   unnecessary-pass,
   unneeded-not,
   unsubscriptable-object,
+  unspecified-encoding, #TODO(BEAM-12992) Enable explicit encoding
   unused-argument,
   unused-wildcard-import,
   useless-object-inheritance,

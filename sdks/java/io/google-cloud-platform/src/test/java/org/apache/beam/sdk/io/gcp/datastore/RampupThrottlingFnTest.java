@@ -22,12 +22,18 @@ import static org.mockito.Mockito.verify;
 
 import java.util.Map;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -50,13 +56,24 @@ public class RampupThrottlingFnTest {
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.openMocks(this);
-
     DateTimeUtils.setCurrentMillisFixed(0);
-    RampupThrottlingFn<Void> rampupThrottlingFn = new RampupThrottlingFn<>(1);
+
+    TestPipeline pipeline = TestPipeline.create();
+    PCollectionView<Instant> startTimeView =
+        pipeline.apply(Create.of(Instant.now())).apply(View.asSingleton());
+    RampupThrottlingFn<Void> rampupThrottlingFn =
+        new RampupThrottlingFn<Void>(1, startTimeView) {
+          @Override
+          @Setup
+          public void setup() {
+            super.setup();
+            this.sleeper = mockSleeper;
+          }
+        };
     rampupThrottlingFnTester = DoFnTester.of(rampupThrottlingFn);
+    rampupThrottlingFnTester.setSideInput(startTimeView, GlobalWindow.INSTANCE, Instant.now());
     rampupThrottlingFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     rampupThrottlingFnTester.startBundle();
-    rampupThrottlingFn.sleeper = mockSleeper;
     rampupThrottlingFn.throttlingMsecs = mockCounter;
   }
 

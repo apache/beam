@@ -109,7 +109,7 @@ class DataframeTransform(transforms.PTransform):
     input_dict = _flatten(input_pcolls)  # type: Dict[Any, PCollection]
     proxies = _flatten(self._proxy) if self._proxy is not None else {
         tag: None
-        for tag in input_dict.keys()
+        for tag in input_dict
     }
     input_frames = {
         k: convert.to_dataframe(pc, proxies[k])

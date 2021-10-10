@@ -332,6 +332,12 @@ class BeamModulePlugin implements Plugin<Project> {
       "--environment_cache_millis=10000",
       "--experiments=beam_fn_api",
     ]
+    // Go script options to use.
+    List<String> goScriptOptions = [
+      "--runner portable",
+      "--endpoint localhost:8099",
+      "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\""
+    ]
     // Additional pytest options
     List<String> pytestOptions = []
     // Job server startup task.
@@ -372,7 +378,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.34.0'
+    project.version = '2.35.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -446,7 +452,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def errorprone_version = "2.3.4"
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.2"
-    def google_cloud_pubsublite_version = "1.0.4"
+    def google_cloud_pubsublite_version = "1.2.0"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -469,7 +475,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.17.3"
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
-    def spark_version = "2.4.8"
+    def spark2_version = "2.4.8"
+    def spark3_version = "3.1.2"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
     def arrow_version = "5.0.0"
@@ -510,6 +517,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_sdk_core                      : "software.amazon.awssdk:sdk-core:$aws_java_sdk2_version",
         aws_java_sdk2_sns                           : "software.amazon.awssdk:sns:$aws_java_sdk2_version",
         aws_java_sdk2_sqs                           : "software.amazon.awssdk:sqs:$aws_java_sdk2_version",
+        aws_java_sdk2_sts                           : "software.amazon.awssdk:sts:$aws_java_sdk2_version",
         aws_java_sdk2_s3                            : "software.amazon.awssdk:s3:$aws_java_sdk2_version",
         aws_java_sdk2_http_client_spi               : "software.amazon.awssdk:http-client-spi:$aws_java_sdk2_version",
         aws_java_sdk2_regions                       : "software.amazon.awssdk:regions:$aws_java_sdk2_version",
@@ -518,6 +526,7 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
+        checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.15",
         commons_compress                            : "org.apache.commons:commons-compress:1.21",
@@ -648,10 +657,14 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.8.4",
-        spark_core                                  : "org.apache.spark:spark-core_2.11:$spark_version",
-        spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
-        spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
-        spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
+        spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
+        spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark2_version",
+        spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark2_version",
+        spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
+        spark3_core                                  : "org.apache.spark:spark-core_2.12:$spark3_version",
+        spark3_network_common                        : "org.apache.spark:spark-network-common_2.12:$spark3_version",
+        spark3_sql                                   : "org.apache.spark:spark-sql_2.12:$spark3_version",
+        spark3_streaming                             : "org.apache.spark:spark-streaming_2.12:$spark3_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
@@ -2092,6 +2105,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(":sdks:python")
       project.evaluationDependsOn(":sdks:java:testing:expansion-service")
       project.evaluationDependsOn(":runners:core-construction-java")
+      project.evaluationDependsOn(":sdks:go:test")
 
       // Task for launching expansion services
       def envDir = project.project(":sdks:python").envdir
@@ -2216,7 +2230,7 @@ class BeamModulePlugin implements Plugin<Project> {
       cleanupTask.mustRunAfter javaUsingPythonOnlyTask
       config.cleanupJobServer.mustRunAfter javaUsingPythonOnlyTask
 
-      // Task for running testcases in Python SDK
+      // Task for running SQL testcases in Python SDK
       def beamPythonTestPipelineOptions = [
         "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
         "test_opts":  config.pytestOptions,
@@ -2236,6 +2250,19 @@ class BeamModulePlugin implements Plugin<Project> {
       mainTask.dependsOn pythonSqlTask
       cleanupTask.mustRunAfter pythonSqlTask
       config.cleanupJobServer.mustRunAfter pythonSqlTask
+
+      // Task for running Java testcases in Go SDK.
+      def scriptOptions = [
+        "--test_expansion_addr localhost:${javaPort}",
+      ]
+      scriptOptions.addAll(config.goScriptOptions)
+      def goTask = project.project(":sdks:go:test:").goIoValidatesRunnerTask(project, config.name+"GoUsingJava", scriptOptions)
+      goTask.description = "Validates runner for cross-language capability of using Java transforms from Go SDK"
+      goTask.dependsOn setupTask
+      goTask.dependsOn config.startJobServer
+      mainTask.dependsOn goTask
+      cleanupTask.mustRunAfter goTask
+      config.cleanupJobServer.mustRunAfter goTask
     }
 
     /** ***********************************************************************************************/
@@ -2316,7 +2343,7 @@ class BeamModulePlugin implements Plugin<Project> {
           def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 ${distTarBall}[gcp,test,aws,azure]"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 ${distTarBall}[gcp,test,aws,azure,dataframe]"
           }
         }
       }

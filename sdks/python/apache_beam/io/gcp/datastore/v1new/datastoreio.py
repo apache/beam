@@ -114,7 +114,7 @@ class ReadFromDatastore(PTransform):
         used to fetch entities.
       num_splits: (:class:`int`) (optional) Number of splits for the query.
     """
-    super(ReadFromDatastore, self).__init__()
+    super().__init__()
 
     if not query.project:
       raise ValueError("query.project cannot be empty")
@@ -168,7 +168,7 @@ class ReadFromDatastore(PTransform):
   class _SplitQueryFn(DoFn):
     """A `DoFn` that splits a given query into multiple sub-queries."""
     def __init__(self, num_splits):
-      super(ReadFromDatastore._SplitQueryFn, self).__init__()
+      super().__init__()
       self._num_splits = num_splits
 
     def process(self, query, *args, **kwargs):
@@ -529,8 +529,7 @@ class WriteToDatastore(_Mutate):
                         estimate appropriate limits during ramp-up throttling.
     """
     mutate_fn = WriteToDatastore._DatastoreWriteFn(project)
-    super(WriteToDatastore,
-          self).__init__(mutate_fn, throttle_rampup, hint_num_workers)
+    super().__init__(mutate_fn, throttle_rampup, hint_num_workers)
 
   class _DatastoreWriteFn(_Mutate.DatastoreMutateFn):
     def element_to_client_batch_item(self, element):
@@ -583,8 +582,7 @@ class DeleteFromDatastore(_Mutate):
                         estimate appropriate limits during ramp-up throttling.
     """
     mutate_fn = DeleteFromDatastore._DatastoreDeleteFn(project)
-    super(DeleteFromDatastore,
-          self).__init__(mutate_fn, throttle_rampup, hint_num_workers)
+    super().__init__(mutate_fn, throttle_rampup, hint_num_workers)
 
   class _DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
     def element_to_client_batch_item(self, element):

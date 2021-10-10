@@ -434,19 +434,21 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
               + "native Read transform, your Pipeline will fail during Pipeline submission.");
     }
 
-    ClassLoader classLoader = Environments.class.getClassLoader();
-    if (classLoader == null) {
-      throw new RuntimeException(
-          "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
-    }
+    List<String> filesToStage = pipelineOptions.as(PortablePipelineOptions.class).getFilesToStage();
+    if (filesToStage == null || filesToStage.isEmpty()) {
+      ClassLoader classLoader = Environments.class.getClassLoader();
+      if (classLoader == null) {
+        throw new RuntimeException(
+            "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
+      }
 
-    List<String> classpathResources =
-        detectClassPathResourcesToStage(classLoader, pipeline.getOptions());
-    if (classpathResources.isEmpty()) {
-      throw new IllegalArgumentException("No classpath elements found.");
+      filesToStage = detectClassPathResourcesToStage(classLoader, pipeline.getOptions());
+      if (filesToStage.isEmpty()) {
+        throw new IllegalArgumentException("No classpath elements found.");
+      }
+      LOG.debug("Staging to files from the classpath: {}", filesToStage.size());
     }
-    LOG.debug("Staging to files from the classpath: {}", classpathResources.size());
-    pipeline.getOptions().as(PortablePipelineOptions.class).setFilesToStage(classpathResources);
+    pipeline.getOptions().as(PortablePipelineOptions.class).setFilesToStage(filesToStage);
 
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(request.getComponents()).withPipeline(pipeline);
@@ -576,6 +578,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public static void main(String[] args) throws Exception {
     int port = Integer.parseInt(args[0]);
     System.out.println("Starting expansion service at localhost:" + port);
+
+    // Register the options class used by the expansion service.
+    PipelineOptionsFactory.register(ExpansionServiceOptions.class);
+
     @SuppressWarnings("nullness")
     ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
     for (Map.Entry<String, TransformProvider> entry :

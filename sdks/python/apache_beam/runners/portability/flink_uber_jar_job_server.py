@@ -43,7 +43,7 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   the pipeline artifacts.
   """
   def __init__(self, master_url, options):
-    super(FlinkUberJarJobServer, self).__init__()
+    super().__init__()
     self._master_url = master_url
     self._executable_jar = (
         options.view_as(
@@ -116,7 +116,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
       pipeline,
       options,
       artifact_port=0):
-    super(FlinkBeamJob, self).__init__(
+    super().__init__(
         executable_jar,
         job_id,
         job_name,
@@ -208,7 +208,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
     state, timestamp = self._get_state()
     if timestamp is None:
       # state has not changed since it was last checked: use previous timestamp
-      return super(FlinkBeamJob, self).get_state()
+      return super().get_state()
     else:
       return state, timestamp
 

@@ -74,16 +74,19 @@ def read_csv(path, *args, splittable=False, **kwargs):
       splitter=_CsvSplitter(args, kwargs) if splittable else None)
 
 
-def _as_pc(df):
+def _as_pc(df, label=None):
   from apache_beam.dataframe import convert  # avoid circular import
   # TODO(roberwb): Amortize the computation for multiple writes?
-  return convert.to_pcollection(df, yield_elements='pandas')
+  return convert.to_pcollection(df, yield_elements='pandas', label=label)
 
 
 @frame_base.with_docs_from(pd.DataFrame)
-def to_csv(df, path, *args, **kwargs):
-
-  return _as_pc(df) | _WriteToPandas(
+def to_csv(df, path, transform_label=None, *args, **kwargs):
+  label_pc = f"{transform_label} - ToPCollection" if transform_label \
+    else f"ToPCollection(df) - {path}"
+  label_pd = f"{transform_label} - ToPandasDataFrame" if transform_label \
+    else f"WriteToPandas(df) - {path}"
+  return _as_pc(df, label_pc) | label_pd >> _WriteToPandas(
       'to_csv', path, args, kwargs, incremental=True, binary=False)
 
 
@@ -350,7 +353,7 @@ class _CsvSplitter(_DelimSplitter):
           'for splittable csv reads.')
     if kwargs.get('skipfooter', 0):
       raise ValueError('Splittablility incompatible with skipping footers.')
-    super(_CsvSplitter, self).__init__(
+    super().__init__(
         _maybe_encode(kwargs.get('lineterminator', b'\n')),
         _DEFAULT_BYTES_CHUNKSIZE)
     self._kwargs = kwargs

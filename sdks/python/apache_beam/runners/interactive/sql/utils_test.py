@@ -23,11 +23,16 @@ import unittest
 from typing import NamedTuple
 from unittest.mock import patch
 
+import pytest
+
 import apache_beam as beam
-from apache_beam.runners.interactive import interactive_beam as ib
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.sql.utils import DataflowOptionsForm
 from apache_beam.runners.interactive.sql.utils import find_pcolls
-from apache_beam.runners.interactive.sql.utils import is_namedtuple
-from apache_beam.runners.interactive.sql.utils import pcolls_by_name
+from apache_beam.runners.interactive.sql.utils import pformat_dict
+from apache_beam.runners.interactive.sql.utils import pformat_namedtuple
 from apache_beam.runners.interactive.sql.utils import register_coder_for_schema
 from apache_beam.runners.interactive.sql.utils import replace_single_pcoll_token
 
@@ -38,33 +43,12 @@ class ANamedTuple(NamedTuple):
 
 
 class UtilsTest(unittest.TestCase):
-  def test_is_namedtuple(self):
-    class AType:
-      pass
-
-    a_type = AType
-    a_tuple = type((1, 2, 3))
-
-    a_namedtuple = ANamedTuple
-
-    self.assertTrue(is_namedtuple(a_namedtuple))
-    self.assertFalse(is_namedtuple(a_type))
-    self.assertFalse(is_namedtuple(a_tuple))
-
   def test_register_coder_for_schema(self):
     self.assertNotIsInstance(
         beam.coders.registry.get_coder(ANamedTuple), beam.coders.RowCoder)
     register_coder_for_schema(ANamedTuple)
     self.assertIsInstance(
         beam.coders.registry.get_coder(ANamedTuple), beam.coders.RowCoder)
-
-  def test_pcolls_by_name(self):
-    p = beam.Pipeline()
-    pcoll = p | beam.Create([1])
-    ib.watch({'p': p, 'pcoll': pcoll})
-
-    name_to_pcoll = pcolls_by_name()
-    self.assertIn('pcoll', name_to_pcoll)
 
   def test_find_pcolls(self):
     with patch('apache_beam.runners.interactive.interactive_beam.collect',
@@ -84,6 +68,39 @@ class UtilsTest(unittest.TestCase):
     replaced_sql = replace_single_pcoll_token(sql, 'abc')
     self.assertEqual(
         replaced_sql, 'SELECT * FROM PCOLLECTION WHERE a=1 AND b=2')
+
+  def test_pformat_namedtuple(self):
+    self.assertEqual(
+        'ANamedTuple(a: int, b: str)', pformat_namedtuple(ANamedTuple))
+
+  def test_pformat_dict(self):
+    self.assertEqual('{\na: 1,\nb: 2\n}', pformat_dict({'a': 1, 'b': '2'}))
+
+
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@pytest.mark.skipif(
+    not ie.current_env().is_interactive_ready,
+    reason='[interactive] dependency is not installed.')
+class OptionsFormTest(unittest.TestCase):
+  def test_dataflow_options_form(self):
+    p = beam.Pipeline()
+    pcoll = p | beam.Create([1, 2, 3])
+    with patch('google.auth') as ga:
+      ga.default = lambda: ['', 'default_project_id']
+      df_form = DataflowOptionsForm('pcoll', pcoll)
+      df_form.display_for_input()
+      df_form.entries[2].input.value = 'gs://test-bucket'
+      df_form.entries[3].input.value = 'a-pkg'
+      options = df_form.to_options()
+      cloud_options = options.view_as(GoogleCloudOptions)
+      self.assertEqual(cloud_options.project, 'default_project_id')
+      self.assertEqual(cloud_options.region, 'us-central1')
+      self.assertEqual(
+          cloud_options.staging_location, 'gs://test-bucket/staging')
+      self.assertEqual(cloud_options.temp_location, 'gs://test-bucket/temp')
+      self.assertIsNotNone(options.view_as(SetupOptions).requirements_file)
 
 
 if __name__ == '__main__':
