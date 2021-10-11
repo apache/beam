@@ -66,6 +66,6 @@ jobs:
         with:
           go-version: '1.16'
       - name: Run coverage
-        run: go test -coverprofile=coverage.out -covermode=atomic ./sdks/go/pkg/beam/..
+        run: go test -coverprofile=coverage.out -covermode=atomic ./sdks/go/pkg/beam/...
       - name: Upload coverage to Codecov
         run: bash <(curl -s https://codecov.io/bash)
