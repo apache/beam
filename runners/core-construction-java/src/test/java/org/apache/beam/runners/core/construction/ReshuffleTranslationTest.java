@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_PER_KEY_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_PER_RANDOM_KEY_URN;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -30,6 +31,16 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ReshuffleTranslation}. */
 @RunWith(JUnit4.class)
 public class ReshuffleTranslationTest {
+
+  /**
+   * Tests that the translator is registered so the URN can be retrieved (the only thing you can
+   * meaningfully do with a {@link Reshuffle#of()}).
+   */
+  @Test
+  public void testUrnRetrievable() {
+    assertThat(
+        PTransformTranslation.urnForTransform(Reshuffle.of()), equalTo(RESHUFFLE_URN));
+  }
 
   /**
    * Tests that the translator is registered so the URN can be retrieved (the only thing you can
