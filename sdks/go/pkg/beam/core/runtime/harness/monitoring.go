@@ -16,6 +16,7 @@
 package harness
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -102,6 +103,19 @@ func shortIdsToInfos(shortids []string) map[string]*pipepb.MonitoringInfo {
 	return defaultShortIDCache.shortIdsToInfos(shortids)
 }
 
+func getUrn(i int) metricsx.Urn {
+	switch i {
+	case 0:
+		return metricsx.UrnStartBundle
+	case 1:
+		return metricsx.UrnProcessBundle
+	case 2:
+		return metricsx.UrnFinishBundle
+	default:
+		panic(fmt.Errorf("invalid bundle processing state: %d", i))
+	}
+}
+
 func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, map[string][]byte) {
 	if store == nil {
 		return nil, nil
@@ -160,17 +174,17 @@ func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, m
 
 		},
 		MsecsInt64: func(l metrics.Labels, stateRegistry []metrics.ExecutionState) {
-			for _, state := range stateRegistry {
+			for i, state := range stateRegistry {
 				payload, err := metricsx.Int64Counter(state.TotalTimeMillis)
 				if err != nil {
 					panic(err)
 				}
-				payloads[getShortID(l, getUrn(state.State))] = payload
+				payloads[getShortID(l, getUrn(i))] = payload
 
 				monitoringInfo = append(monitoringInfo,
 					&pipepb.MonitoringInfo{
-						Urn:     metricsx.UrnToString(getUrn(state.State)),
-						Type:    metricsx.UrnToType(getUrn(state.State)),
+						Urn:     metricsx.UrnToString(getUrn(i)),
+						Type:    metricsx.UrnToType(getUrn(i)),
 						Labels:  l.Map(),
 						Payload: payload,
 					})

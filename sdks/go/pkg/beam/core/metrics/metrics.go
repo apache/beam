@@ -69,6 +69,7 @@ type ctxKey string
 const (
 	counterSetKey ctxKey = "beam:counterset"
 	storeKey      ctxKey = "beam:bundlestore"
+	exStoreKey    ctxKey = "beam:exstore"
 )
 
 // beamCtx is a caching context for IDs necessary to place metric updates.
@@ -79,6 +80,7 @@ type beamCtx struct {
 	bundleID, ptransformID string
 	store                  *Store
 	cs                     *ptCounterSet
+	exStore                atomic.Value
 }
 
 // Value implements the Context interface Value method for beamCtx.
@@ -112,6 +114,8 @@ func (ctx *beamCtx) Value(key interface{}) interface{} {
 			}
 		}
 		return ctx.store
+	case exStoreKey:
+		return ctx.exStore
 	}
 	return ctx.Context.Value(key)
 }
@@ -140,6 +144,37 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 	}
 	// Avoid breaking if the bundle is unset in testing.
 	return &beamCtx{Context: ctx, bundleID: bundleIDUnset, store: newStore(), ptransformID: id}
+}
+
+func SetExecutionStore(ctx context.Context) {
+	if bctx, ok := ctx.(*beamCtx); ok {
+		bctx.exStore.Store(bctx.store.executionStore)
+	}
+	panic("can't set execution store, metrics.Store not set yet.")
+}
+
+func SetState(ctx context.Context, state bundleProcState) {
+	if bctx, ok := ctx.(*beamCtx); ok {
+		if v := bctx.exStore.Load(); v != nil {
+			exStore := v.(ExecutionTracker)
+			exStore.SetState(state)
+			bctx.exStore.Store(exStore)
+		} else {
+			exStore := ExecutionTracker{}
+			exStore.SetState(state)
+			bctx.exStore.Store(exStore)
+		}
+	}
+}
+
+func IncTransition(ctx context.Context) {
+	if bctx, ok := ctx.(*beamCtx); ok {
+		if v := bctx.exStore.Load(); v != nil {
+			exStore := v.(ExecutionTracker)
+			atomic.AddInt64(&exStore.NumberOfTransitions, 1)
+			bctx.exStore.Store(exStore)
+		}
+	}
 }
 
 // GetStore extracts the metrics Store for the given context for a bundle.

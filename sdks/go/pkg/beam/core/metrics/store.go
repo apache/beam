@@ -157,11 +157,8 @@ const (
 	StartBundle   bundleProcState = 0
 	ProcessBundle bundleProcState = 1
 	FinishBundle  bundleProcState = 2
+	TotalBundle   bundleProcState = 3
 )
-
-func GetState(state interface{}) {
-	switch state.(bundleProcState)
-}
 
 // ExecutionState stores the information about a bundle in a particular state.
 type ExecutionState struct {
@@ -174,10 +171,10 @@ type ExecutionState struct {
 type ExecutionTracker struct {
 	CurrentState              bundleProcState
 	State                     ExecutionState
-	NumberOfTransitions       int
-	MillisSinceLastTransition int
-	TransitionsAtLastSample   int
-	LastSampleTimeMillis      int
+	NumberOfTransitions       int64
+	MillisSinceLastTransition int64
+	TransitionsAtLastSample   int64
+	LastSampleTimeMillis      int64
 }
 
 // Store retains per transform countersets, intended for per bundle use.
@@ -198,6 +195,8 @@ func newStore() *Store {
 // AddState adds an ExecutionState of a PTransform to the stateRegistry.
 func (s *Store) AddState(e ExecutionState, pid string) {
 	label := PTransformLabels(pid)
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.stateRegistry == nil {
 		s.stateRegistry = make(map[Labels][]ExecutionState)
 	}

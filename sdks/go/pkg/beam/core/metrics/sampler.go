@@ -17,6 +17,7 @@ package metrics
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 )
 
@@ -30,7 +31,7 @@ type StateSampler struct {
 
 // NewSampler creates a new state sampler.
 func NewSampler(ctx context.Context, store *Store, pid string) StateSampler {
-	return StateSampler{done: make(chan int), e: GetExecutionStore(ctx), store: store, pid: pid}
+	return StateSampler{done: make(chan int), e: getExecutionStore(ctx), store: store, pid: pid}
 }
 
 func (s *StateSampler) Start() {
@@ -43,13 +44,13 @@ func (s *StateSampler) startSampler() {
 		case <-s.done:
 			return
 		default:
-			if s.e.NumberOfTransitions != s.e.TransitionsAtLastSample {
+			if atomic.LoadInt64(&s.e.NumberOfTransitions) != atomic.LoadInt64(&s.e.TransitionsAtLastSample) {
 				s.sample()
 			}
 
 			// TODO: constant for sampling period
-			s.e.MillisSinceLastTransition += 200
-			s.e.State.TotalTimeMillis += 200
+			atomic.AddInt64(&s.e.MillisSinceLastTransition, 200)
+			atomic.AddInt64(&s.e.State.TotalTimeMillis, 200)
 			time.Sleep(200 * time.Millisecond)
 		}
 	}
@@ -66,6 +67,8 @@ func (s *StateSampler) stopSampler() {
 }
 
 func (s *StateSampler) sample() {
+	s.store.mu.Lock()
+	defer s.store.mu.Unlock()
 	s.e.TransitionsAtLastSample = s.e.NumberOfTransitions
 	s.e.MillisSinceLastTransition = 0
 	s.store.AddState(s.e.State, s.pid)

@@ -79,6 +79,10 @@ func (n *ParDo) Up(ctx context.Context) error {
 	// Subsequent bundles might run this same node, and the context here would be
 	// incorrectly refering to the older bundleId.
 	setupCtx := metrics.SetPTransformID(ctx, n.PID)
+
+	// cache the execution store for the current DoFn
+	metrics.SetExecutionStore(setupCtx)
+
 	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
 	}
@@ -104,7 +108,8 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	n.ctx = metrics.SetPTransformID(ctx, n.PID)
 
 	// set current state for execution time metrics
-	metrics.GetStore(n.ctx).SetState(metrics.StartBundle)
+	// metrics.GetStore(n.ctx).SetState(metrics.StartBundle)
+	metrics.SetState(ctx, metrics.StartBundle)
 
 	if err := MultiStartBundle(n.ctx, id, data, n.Out...); err != nil {
 		return n.fail(err)
@@ -125,8 +130,10 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 	}
 
 	// set current state for execution time metrics
-	metrics.GetExecutionStore(n.ctx).SetState(metrics.ProcessBundle)
-	metrics.GetExecutionStore(n.ctx).IncTransitions()
+	// metrics.GetExecutionStore(n.ctx).SetState(metrics.ProcessBundle)
+	// metrics.GetExecutionStore(n.ctx).IncTransitions()
+	metrics.SetState(n.ctx, metrics.ProcessBundle)
+	metrics.IncTransition(n.ctx)
 
 	return n.processMainInput(&MainInput{Key: *elm, Values: values})
 }
@@ -206,8 +213,10 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	n.inv.Reset()
 
 	// set current state for execution time metrics
-	metrics.GetExecutionStore(n.ctx).SetState(metrics.FinishBundle)
-	metrics.GetExecutionStore(n.ctx).IncTransitions()
+	// metrics.GetExecutionStore(n.ctx).SetState(metrics.FinishBundle)
+	// metrics.GetExecutionStore(n.ctx).IncTransitions()
+	metrics.SetState(n.ctx, metrics.FinishBundle)
+	metrics.IncTransition(n.ctx)
 
 	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)
