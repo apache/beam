@@ -895,7 +895,6 @@ public class JdbcIOTest implements Serializable {
 
     ArrayList<Row> data = new ArrayList<>();
     for (int i = 0; i < rowsToAdd; i++) {
-      List<Object> fields = new ArrayList<>();
 
       Row row =
           schema.getFields().stream()

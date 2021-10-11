@@ -3286,7 +3286,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
           new PTransformFunctionRegistry(
               mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
       List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
-      List<ProgressRequestCallback> progressRequestCallbacks = new ArrayList<>();
       BundleSplitListener.InMemory splitListener = BundleSplitListener.InMemory.create();
 
       new FnApiDoFnRunner.Factory<>()

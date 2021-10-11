@@ -243,7 +243,9 @@ public class QueueingBeamFnDataClientTest {
     CountDownLatch waitForClientToConnect = new CountDownLatch(1);
     CountDownLatch allowValueProcessing = new CountDownLatch(1);
     final int numValues = 100;
+    @SuppressWarnings("ModifiedButNotUsed")
     CountDownLatch receiveAllValues = new CountDownLatch(numValues);
+    @SuppressWarnings("ModifiedButNotUsed")
     Collection<WindowedValue<String>> inboundValues = new ConcurrentLinkedQueue<>();
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.Elements>> outboundServerObserver =
@@ -354,6 +356,7 @@ public class QueueingBeamFnDataClientTest {
   public void testBundleProcessorThrowsExecutionExceptionWhenUserCodeThrows() throws Exception {
     CountDownLatch waitForClientToConnect = new CountDownLatch(1);
     // Collection<WindowedValue<String>> inboundValuesA = new ConcurrentLinkedQueue<>();
+    @SuppressWarnings("ModifiedButNotUsed")
     Collection<WindowedValue<String>> inboundValuesB = new ConcurrentLinkedQueue<>();
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.Elements>> outboundServerObserver =

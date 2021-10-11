@@ -257,6 +257,7 @@ public class StateFetchingIteratorsTest {
       assertEquals(1, callCount.get());
 
       // Prefetch every second element in the iterator capturing the results
+      @SuppressWarnings("ModifiedButNotUsed")
       List<T> results = new ArrayList<>();
       for (int i = 0; i < expected.length; ++i) {
         if (i % 2 == 1) {
