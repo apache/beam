@@ -124,6 +124,8 @@ tasks.rat {
     "playground/frontend/.metadata",
     "playground/frontend/pubspec.lock",
     "playground/frontend/assets/**/*.svg",
+    "playground/frontend/assets/**/*.png",
+    "playground/frontend/assets/**/*.jpg",
 
     // Ignore .gitkeep file
     "**/.gitkeep"
