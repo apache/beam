@@ -1630,7 +1630,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           with expressions.allow_non_parallel_operations(True):
             return frame_base.DeferredFrame.wrap(
                 expressions.ComputedExpression(
-                    'wrap_aggregate',
+                    f'wrap_aggregate_{base_func}',
                     lambda x: pd.Series(x, index=[base_func]), [result._expr],
                     requires_partition_by=partitionings.Singleton(),
                     preserves_partition_by=partitionings.Singleton()))
@@ -1641,7 +1641,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       if ((_is_associative(base_func) or _is_liftable_with_sum(base_func)) and
           singleton_reason is None):
         intermediate = expressions.ComputedExpression(
-            'pre_aggregate',
+            f'pre_aggregate_{base_func}',
             # Coerce to a Series, if the result is scalar we still want a Series
             # so we can combine and do the final aggregation next.
             lambda s: pd.Series(s.agg(func, *args, **kwargs)),
@@ -1664,7 +1664,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       with expressions.allow_non_parallel_operations(allow_nonparallel_final):
         return frame_base.DeferredFrame.wrap(
             expressions.ComputedExpression(
-                'aggregate',
+                f'post_aggregate_{base_func}',
                 lambda s: s.agg(agg_func, *args, **agg_kwargs), [intermediate],
                 preserves_partition_by=partitionings.Singleton(),
                 requires_partition_by=partitionings.Singleton(
