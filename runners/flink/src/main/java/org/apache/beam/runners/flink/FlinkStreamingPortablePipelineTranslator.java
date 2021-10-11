@@ -694,6 +694,8 @@ public class FlinkStreamingPortablePipelineTranslator
       return STREAMING_IMPULSE_TRANSFORM_URN.equals(
               PTransformTranslation.urnForTransformOrNull(pTransform))
           || PTransformTranslation.RESHUFFLE_URN.equals(
+              PTransformTranslation.urnForTransformOrNull(pTransform))
+          || PTransformTranslation.RESHUFFLE_PER_KEY_URN.equals(
               PTransformTranslation.urnForTransformOrNull(pTransform));
     }
   }

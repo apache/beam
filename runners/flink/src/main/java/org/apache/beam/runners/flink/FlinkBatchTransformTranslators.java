@@ -129,7 +129,8 @@ class FlinkBatchTransformTranslators {
     TRANSLATORS.put(
         PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch<>());
     TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch<>());
-    TRANSLATORS.put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, new ReshuffleTranslatorBatch<>());
+    TRANSLATORS.put(
+        PTransformTranslation.RESHUFFLE_PER_KEY_URN, new ReshufflePerKeyTranslatorBatch<>());
     TRANSLATORS.put(
         PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionTranslatorBatch<>());
     TRANSLATORS.put(
@@ -392,6 +393,38 @@ class FlinkBatchTransformTranslators {
   }
 
   private static class ReshuffleTranslatorBatch<K, InputT>
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Reshuffle<K, InputT>> {
+
+    @Override
+    public void translateNode(
+        Reshuffle<K, InputT> transform, FlinkBatchTranslationContext context) {
+      final DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
+          context.getInputDataSet(context.getInput(transform));
+      // Construct an instance of CoderTypeInformation which contains the pipeline options.
+      // This will be used to initialized FileSystems.
+      final CoderTypeInformation<WindowedValue<KV<K, InputT>>> outputType =
+          ((CoderTypeInformation<WindowedValue<KV<K, InputT>>>) inputDataSet.getType())
+              .withPipelineOptions(context.getPipelineOptions());
+      // We insert a NOOP here to initialize the FileSystems via the above CoderTypeInformation.
+      // The output type coder may be relying on file system access. The shuffled data may have to
+      // be deserialized on a different machine using this coder where FileSystems has not been
+      // initialized.
+      final DataSet<WindowedValue<KV<K, InputT>>> retypedDataSet =
+          new MapOperator<>(
+              inputDataSet,
+              outputType,
+              FlinkIdentityFunction.of(),
+              getCurrentTransformName(context));
+      final Configuration partitionOptions = new Configuration();
+      partitionOptions.setString(
+          Optimizer.HINT_SHIP_STRATEGY, Optimizer.HINT_SHIP_STRATEGY_REPARTITION);
+      context.setOutputDataSet(
+          context.getOutput(transform),
+          retypedDataSet.map(FlinkIdentityFunction.of()).withParameters(partitionOptions));
+    }
+  }
+
+  private static class ReshufflePerKeyTranslatorBatch<K, InputT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
           Reshuffle.PerKey<K, InputT>> {
 

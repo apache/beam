@@ -498,7 +498,39 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle.PerKey<K, V>> reshuffle() {
+  private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle<K, V>> reshuffle() {
+    return new TransformEvaluator<Reshuffle<K, V>>() {
+      @Override
+      public void evaluate(Reshuffle<K, V> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        UnboundedDataset<KV<K, V>> inputDataset =
+            (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
+        List<Integer> streamSources = inputDataset.getStreamSources();
+        JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
+        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
+        @SuppressWarnings("unchecked")
+        final WindowingStrategy<?, W> windowingStrategy =
+            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+        @SuppressWarnings("unchecked")
+        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
+
+        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+
+        JavaDStream<WindowedValue<KV<K, V>>> reshuffledStream =
+            dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, wvCoder));
+
+        context.putDataset(transform, new UnboundedDataset<>(reshuffledStream, streamSources));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "repartition(...)";
+      }
+    };
+  }
+
+  private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle.PerKey<K, V>> reshufflePerKey() {
     return new TransformEvaluator<Reshuffle.PerKey<K, V>>() {
       @Override
       public void evaluate(Reshuffle.PerKey<K, V> transform, EvaluationContext context) {
@@ -543,7 +575,7 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, window());
     EVALUATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, flattenPColl());
     EVALUATORS.put(PTransformTranslation.RESHUFFLE_URN, reshuffle());
-    EVALUATORS.put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, reshuffle());
+    EVALUATORS.put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, reshufflePerKey());
   }
 
   private static @Nullable TransformEvaluator<?> getTranslator(PTransform<?, ?> transform) {
