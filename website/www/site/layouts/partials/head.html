@@ -35,14 +35,14 @@
   .body__contained img { max-width: 100% }
 </style>
 
-{{ $bootstrap := resources.Get "js/bootstrap.min.js" | minify | fingerprint }}
+{{ $bootstrap := resources.Get "js/bootstrap.min.js" | fingerprint }}
 <script type="text/javascript" src="{{ $bootstrap.RelPermalink }}" defer></script>
 
 <!-- TODO [BEAM-12644]: Create an asset pipeline so we don't have to version .js files. -->
 {{ $switchV2 := resources.Get "js/language-switch-v2.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $switchV2.RelPermalink }}" defer></script>
 
-{{ $fixMenu := resources.Get "/js/fix-menu.js" | minify | fingerprint }}
+{{ $fixMenu := resources.Get "js/fix-menu.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $fixMenu.RelPermalink }}" defer></script>
 
 {{ $sectionNav := resources.Get "js/section-nav.js" | minify | fingerprint }}
