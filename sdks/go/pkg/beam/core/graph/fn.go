@@ -388,7 +388,7 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 		if fn.Recv != nil {
 			v := reflect.ValueOf(fn.Recv)
 			if v.Kind() != reflect.Ptr {
-				err = errors.Wrap(err, "structural DoFn passed by value, ensure that ProcessElement method is value receiving or have DoFn passed by pointer")
+				err = errors.Wrap(err, "structural DoFn passed by value, ensure that the ProcessElement method has a value receiver or pass the DoFn by pointer")
 			}
 		}
 		return nil, addContext(err, fn)
