@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_PER_KEY_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_PER_RANDOM_KEY_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_URN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -38,8 +38,7 @@ public class ReshuffleTranslationTest {
    */
   @Test
   public void testUrnRetrievable() {
-    assertThat(
-        PTransformTranslation.urnForTransform(Reshuffle.of()), equalTo(RESHUFFLE_URN));
+    assertThat(PTransformTranslation.urnForTransform(Reshuffle.of()), equalTo(RESHUFFLE_URN));
   }
 
   /**
