@@ -56,6 +56,13 @@ ignore:
   - "**/*_microbenchmark.py"
 
 on: [push, pull_request]
+push:
+  branches: ['master', 'release-*']
+  tags: 'v*'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+    paths: ['sdks/go/**', 'release/**', 'buildSrc/**']
 
 jobs:
   build:
