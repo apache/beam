@@ -554,6 +554,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
   }
 
+  @SuppressWarnings("unused")
   private class FlinkKeyedCombiningState<K2, InputT, AccumT, OutputT>
       extends AbstractBroadcastState<AccumT> implements CombiningState<InputT, AccumT, OutputT> {
 

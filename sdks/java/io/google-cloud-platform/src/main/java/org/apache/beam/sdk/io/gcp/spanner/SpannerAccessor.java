@@ -207,6 +207,7 @@ public class SpannerAccessor implements AutoCloseable {
     }
   }
 
+  @SuppressWarnings("unused")
   private static class CommitDeadlineSettingInterceptor implements ClientInterceptor {
     private final long commitDeadlineMilliseconds;
 

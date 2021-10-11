@@ -1727,6 +1727,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * A PTranform override factory which maps Create.Values PTransforms for streaming pipelines into
    * a Dataflow specific variant.
    */
+  @SuppressWarnings("unused")
   private static class StreamingFnApiCreateOverrideFactory<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
 

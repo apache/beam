@@ -598,6 +598,7 @@ public class PTransformMatchersTest implements Serializable {
         p);
   }
 
+  @SuppressWarnings("unused")
   private static class FakeFilenamePolicy extends FilenamePolicy {
     @Override
     public ResourceId windowedFilename(

@@ -192,6 +192,7 @@ public class CloningBundleFactoryTest {
     }
   }
 
+  @SuppressWarnings("unused")
   private static class RecordStructuralValueCoder extends AtomicCoder<Record> {
     @Override
     public void encode(Record value, OutputStream outStream) throws CoderException, IOException {}
@@ -217,6 +218,7 @@ public class CloningBundleFactoryTest {
     }
   }
 
+  @SuppressWarnings("unused")
   private static class RecordNotConsistentWithEqualsStructuralValueCoder
       extends AtomicCoder<Record> {
     @Override
@@ -243,6 +245,7 @@ public class CloningBundleFactoryTest {
     }
   }
 
+  @SuppressWarnings("unused")
   private static class IdentityDoFn extends DoFn<Record, Record> {
     @ProcessElement
     public void proc(ProcessContext ctxt) {
@@ -250,6 +253,7 @@ public class CloningBundleFactoryTest {
     }
   }
 
+  @SuppressWarnings("unused")
   private static class SimpleIdentity extends SimpleFunction<Record, Record> {
     @Override
     public Record apply(Record input) {

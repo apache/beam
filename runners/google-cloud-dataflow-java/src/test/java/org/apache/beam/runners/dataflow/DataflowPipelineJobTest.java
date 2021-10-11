@@ -547,6 +547,7 @@ public class DataflowPipelineJobTest {
     return message;
   }
 
+  @SuppressWarnings("unused")
   private class FakeMonitor extends MonitoringUtil {
     // Messages in timestamp order
     private final NavigableMap<Long, JobMessage> timestampedMessages;

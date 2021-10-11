@@ -144,6 +144,7 @@ class TransformEvaluatorRegistry {
    * A translator just to vend the URN. This will need to be moved to runners-core-construction-java
    * once SDF is reorganized appropriately.
    */
+  @SuppressWarnings("unused")
   private static class SplittableParDoProcessElementsTranslator
       extends TransformPayloadTranslator.NotSerializable<ProcessElements<?, ?, ?, ?, ?>> {
 

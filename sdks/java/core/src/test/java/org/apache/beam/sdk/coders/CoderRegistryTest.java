@@ -62,10 +62,6 @@ public class CoderRegistryTest {
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(CoderRegistry.class);
 
-  private static class SerializableClass implements Serializable {}
-
-  private static class NotSerializableClass {}
-
   @Test
   public void testRegisterInstantiatedCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();

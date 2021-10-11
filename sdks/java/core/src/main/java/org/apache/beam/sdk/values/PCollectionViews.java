@@ -681,6 +681,7 @@ public class PCollectionViews {
         return super.listIterator();
       }
 
+      @SuppressWarnings("unused")
       /** A {@link ListIterator} over {@link MultimapView} adapter. */
       private class ListIteratorOverMultimapView implements ListIterator<T> {
         private int position;
