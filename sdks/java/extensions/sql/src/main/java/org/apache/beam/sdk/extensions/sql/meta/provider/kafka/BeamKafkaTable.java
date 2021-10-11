@@ -222,6 +222,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
       throw new NoEstimationException("There is no partition with messages in it.");
     }
 
+    @SuppressWarnings("PreferJavaTimeOverload")
     ConsumerRecords<T, T> records = consumer.poll(1000);
 
     // Kafka guarantees the delivery of messages in order they arrive to each partition.

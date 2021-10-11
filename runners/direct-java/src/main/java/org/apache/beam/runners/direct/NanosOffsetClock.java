@@ -34,6 +34,7 @@ class NanosOffsetClock implements Clock {
     nanosAtBaseMillis = System.nanoTime();
   }
 
+  @SuppressWarnings("PreferJavaTimeOverload")
   @Override
   public Instant now() {
     return new Instant(

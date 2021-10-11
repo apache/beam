@@ -18,8 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
@@ -49,7 +49,7 @@ public class CachingShuffleBatchReader implements ShuffleBatchReader {
     this.cache =
         CacheBuilder.newBuilder()
             .maximumSize(maximumBatches)
-            .expireAfterAccess(expireAfterAccessMillis, TimeUnit.MILLISECONDS)
+            .expireAfterAccess(Duration.ofMillis(expireAfterAccessMillis))
             .<BatchRange, Batch>build(
                 new CacheLoader<BatchRange, Batch>() {
                   @Override

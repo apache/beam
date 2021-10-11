@@ -20,12 +20,12 @@ package org.apache.beam.runners.spark.util;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -137,7 +137,7 @@ public class GlobalWatermarkHolder {
       createWatermarkCache(final Long batchDuration) {
     return CacheBuilder.newBuilder()
         // expire watermarks every half batch duration to ensure they update in every batch.
-        .expireAfterWrite(batchDuration / 2, TimeUnit.MILLISECONDS)
+        .expireAfterWrite(Duration.ofMillis(batchDuration / 2))
         .build(new WatermarksLoader());
   }
 

@@ -512,6 +512,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     backlogElementsOfSplit = SourceMetrics.backlogElementsOfSplit(splitId);
   }
 
+  @SuppressWarnings("PreferJavaTimeOverload")
   private void consumerPollLoop() {
     // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
 

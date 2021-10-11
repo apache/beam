@@ -290,6 +290,7 @@ class ReadFromKafkaDoFn<K, V>
     return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetPoller);
   }
 
+  @SuppressWarnings("PreferJavaTimeOverload")
   @ProcessElement
   public ProcessContinuation processElement(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor,

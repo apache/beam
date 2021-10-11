@@ -20,11 +20,11 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Closeable;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
@@ -71,7 +71,7 @@ class StateFetcher {
         server,
         CacheBuilder.newBuilder()
             .maximumWeight(100000000 /* 100 MB */)
-            .expireAfterWrite(1, TimeUnit.MINUTES)
+            .expireAfterWrite(Duration.ofMinutes(1))
             .weigher((Weigher<SideInputId, SideInputCacheEntry>) (id, entry) -> entry.size())
             .build());
   }

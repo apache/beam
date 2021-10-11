@@ -311,6 +311,7 @@ public class DataflowElementExecutionTracker extends ElementExecutionTracker {
             executionCount.getKey(),
             (unused, total) -> {
               int numExecutions = executionCount.getValue();
+              @SuppressWarnings("PreferJavaTimeOverload")
               Duration attributedSampleTime =
                   duration.dividedBy(totalExecutionsFinal).multipliedBy(numExecutions);
               return total == null ? attributedSampleTime : total.plus(attributedSampleTime);

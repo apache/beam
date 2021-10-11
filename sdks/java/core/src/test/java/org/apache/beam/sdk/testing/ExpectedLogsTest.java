@@ -139,6 +139,7 @@ public class ExpectedLogsTest {
     expectedLogs.verifyTrace(expected);
   }
 
+  @SuppressWarnings("PreferJavaTimeOverload")
   @Test
   public void testThreadSafetyOfLogSaver() throws Throwable {
     CompletionService<Void> completionService =
