@@ -36,6 +36,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 })
 public class ReshuffleTranslation {
 
+  static class ReshuffleTranslator implements TransformPayloadTranslator<Reshuffle<?, ?>> {
+    @Override
+    public String getUrn(Reshuffle<?, ?> transform) {
+      return PTransformTranslation.RESHUFFLE_URN;
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, Reshuffle<?, ?>> transform, SdkComponents components) {
+      return FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
+    }
+  }
+
   static class ReshufflePerKeyTranslator
       implements TransformPayloadTranslator<Reshuffle.PerKey<?, ?>> {
     @Override
@@ -71,6 +84,7 @@ public class ReshuffleTranslation {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return ImmutableMap.of(
+          Reshuffle.class, new ReshuffleTranslator(),
           Reshuffle.PerKey.class, new ReshufflePerKeyTranslator(),
           Reshuffle.PerRandomKey.class, new ReshufflePerRandomKeyTranslator());
     }

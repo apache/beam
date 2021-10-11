@@ -46,14 +46,14 @@ import org.joda.time.Duration;
  * specify allowed lateness and accumulation mode before a user-inserted GroupByKey.
  */
 @Internal
-public class Reshuffle {
+public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
   private Reshuffle() {}
 
   /** @deprecated use {@link #perKey()}. */
   @Deprecated
-  public static <K, V> PerKey<K, V> of() {
-    return new PerKey<>();
+  public static <K, V> Reshuffle<K, V> of() {
+    return new Reshuffle<>();
   }
 
   public static <K, V> PerKey<K, V> perKey() {
@@ -73,6 +73,11 @@ public class Reshuffle {
   @Experimental
   public static <T> PerRandomKey<T> perRandomKey() {
     return new PerRandomKey<>();
+  }
+
+  @Override
+  public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
+    return input.apply(new PerKey<>());
   }
 
   /** Implementation of {@link #viaRandomKey()}. */
