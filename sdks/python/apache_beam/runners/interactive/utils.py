@@ -20,9 +20,12 @@
 
 import functools
 import hashlib
+import importlib
 import json
 import logging
+from typing import Any
 from typing import Dict
+from typing import Tuple
 
 import pandas as pd
 
@@ -405,3 +408,22 @@ def unbounded_sources(pipeline):
   v = CheckUnboundednessVisitor()
   pipeline.visit(v)
   return v.unbounded_sources
+
+
+def create_var_in_main(name: str,
+                       value: Any,
+                       watch: bool = True) -> Tuple[str, Any]:
+  """Declares a variable in the main module.
+
+  Args:
+    name: the variable name in the main module.
+    value: the value of the variable.
+    watch: whether to watch it in the interactive environment.
+  Returns:
+    A 2-entry tuple of the variable name and value.
+  """
+  setattr(importlib.import_module('__main__'), name, value)
+  if watch:
+    from apache_beam.runners.interactive import interactive_environment as ie
+    ie.current_env().watch({name: value})
+  return name, value

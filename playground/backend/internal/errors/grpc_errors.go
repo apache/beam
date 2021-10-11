@@ -13,19 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package core contains constants and other static data related to the SDK,
-// such as the SDK Name and version.
-//
-// As a rule, this package should not have dependencies, and should not depend
-// on any package within the Apache Beam Go SDK.
-//
-// Files in this package may be generated or updated by release scripts, allowing
-// for accurate version information to be included.
-package core
+package errors
 
-const (
-	// SdkName is the human readable name of the SDK for UserAgents.
-	SdkName = "Apache Beam SDK for Go"
-	// SdkVersion is the current version of the SDK.
-	SdkVersion = "2.35.0.dev"
+import (
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// InvalidArgumentError Returns error with InvalidArgument code error and message like "title: message"
+func InvalidArgumentError(title string, message string) error {
+	return status.Errorf(codes.InvalidArgument, "%s: %s", title, message)
+}
+
+// NotFoundError Returns error with NotFound code error and message like "title: message"
+func NotFoundError(title string, message string) error {
+	return status.Errorf(codes.NotFound, "%s: %s", title, message)
+}
+
+// InternalError Returns error with Internal code error and message like "title: message"
+func InternalError(title string, message string) error {
+	return status.Errorf(codes.Internal, "%s: %s", title, message)
+}
