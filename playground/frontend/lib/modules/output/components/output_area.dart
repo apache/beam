@@ -23,8 +23,15 @@ class OutputArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Output'),
+    return Container(
+      color: Theme.of(context).backgroundColor,
+      child: const TabBarView(
+        children: <Widget>[
+          Center(child: Text("Output")),
+          Center(child: Text("Log")),
+          Center(child: Text("Graph")),
+        ],
+      ),
     );
   }
 }

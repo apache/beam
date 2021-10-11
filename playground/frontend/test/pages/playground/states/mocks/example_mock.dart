@@ -16,24 +16,22 @@
  * limitations under the License.
  */
 
-// spacings
-const double kZeroSpacing = 0.0;
-const double kSmSpacing = 4.0;
-const double kMdSpacing = 8.0;
-const double kLgSpacing = 16.0;
+import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-// sizes
-const kHeaderButtonHeight = 46.0;
-const kRunButtonWidth = 150.0;
-const kRunButtonHeight = 40.0;
-const kIconButtonSplashRadius = 24.0;
-const kFooterHeight = 32.0;
+const javaExample = "java example";
 
-// border radius
-const double kBorderRadius = 8.0;
+const pythonExample = "python example";
 
-// elevation
-const int kElevation = 1;
+const goExample = "go example";
 
-// icon sizes
-const double kIconSizeMd = 24.0;
+const sdkMap = {
+  SDK.java: javaExample,
+  SDK.go: goExample,
+  SDK.python: pythonExample,
+};
+
+const ExampleModel exampleMock = ExampleModel(
+  sdkMap,
+  "Example",
+);
