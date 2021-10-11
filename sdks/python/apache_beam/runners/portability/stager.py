@@ -468,8 +468,7 @@ class Stager(object):
     else:
       try:
         read_handle = FileSystems.open(
-            from_url,
-            compression_type=CompressionTypes.UNCOMPRESSED)
+            from_url, compression_type=CompressionTypes.UNCOMPRESSED)
         with read_handle as fin:
           with open(to_path, 'wb') as f:
             while True:
