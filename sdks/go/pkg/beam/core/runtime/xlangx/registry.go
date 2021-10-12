@@ -26,7 +26,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
@@ -80,110 +79,72 @@ func (p *HandlerParams) CoderMarshaller() *graphx.CoderMarshaller {
 	return cm
 }
 
-// OutputPCollections returns the local identifiers for expected outputs
-// for this expansion service request.
-//
-// If no collections are returned, none are currently expected.
-func (p *HandlerParams) OutputPCollections() []string {
-	var out []string
-	for local := range p.ext.OutputsMap {
-		out = append(out, local)
-	}
-	return out
+// PCol represents input or output pcollections to the cross language transform being expanded.
+type PCol struct {
+	Index   int          // Positional index of this input or output
+	Local   string       // Local name of the PCollection (may be used in the cross language PTransform)
+	Coder   *coder.Coder // Contains the full type and other coder information.
+	Bounded pipepb.IsBounded_Enum
+
+	namespace string
+	node      *graph.Node
 }
 
-// InputPCollections returns the local identifiers for expected outputs
-// for this expansion service request.
-//
-// If no collections are returned, none are currently expected.
-func (p *HandlerParams) InputPCollections() []string {
-	var out []string
-	for local := range p.ext.InputsMap {
-		out = append(out, local)
-	}
-	return out
-}
-
-func (p *HandlerParams) panicIfMissing(m map[string]int, local string) int {
-	i, ok := m[local]
-	if !ok {
-		panic(fmt.Errorf("unknown local output identifier provided: %v", local))
-	}
-	return i
-}
-
-// OutputCoder returns the coder for the associated output PCollection.
-// Panics if local is not returned by OutputPCollections.
-func (p *HandlerParams) OutputCoder(local string) *coder.Coder {
-	i := p.panicIfMissing(p.ext.OutputsMap, local)
-	return p.edge.Output[i].To.Coder
-}
-
-// OutputType returns the full type for the associated output PCollection.
-// Panics if local is not returned by OutputPCollections.
-func (p *HandlerParams) OutputType(local string) typex.FullType {
-	i := p.panicIfMissing(p.ext.OutputsMap, local)
-	return p.edge.Output[i].Type
-}
-
-// OutputBounded returns whether the associated output PCollection is bounded.
-// Panics if local is not returned by OutputPCollections.
-func (p *HandlerParams) OutputBounded(local string) pipepb.IsBounded_Enum {
-	i := p.panicIfMissing(p.ext.OutputsMap, local)
-	return pipelinex.BoolToBounded(p.edge.Output[i].To.Bounded())
-}
-
-// OutputWindowingStrategy returns the windowing strategy for the associated output PCollection.
-// Panics if local is not returned by OutputPCollections.
-func (p *HandlerParams) OutputWindowingStrategy(local string, cm *graphx.CoderMarshaller) *pipepb.WindowingStrategy {
-	i := p.panicIfMissing(p.ext.OutputsMap, local)
-	wspb, err := graphx.MarshalWindowingStrategy(cm, p.edge.Output[i].To.WindowingStrategy())
-	if err != nil {
-		panic(fmt.Errorf("unable to marshal windowing strategy for output %v: %w", local, err))
-	}
-	return wspb
-}
-
-// OutputCoder returns the coder for the associated output PCollection.
-// Panics if local is not returned by InputPCollections.
-func (p *HandlerParams) InputCoder(local string) *coder.Coder {
-	i := p.panicIfMissing(p.ext.InputsMap, local)
-	return p.edge.Input[i].From.Coder
-}
-
-// InputType returns the full type for the associated output PCollection.
-// Panics if local is not returned by InputPCollections.
-func (p *HandlerParams) InputType(local string) typex.FullType {
-	i := p.panicIfMissing(p.ext.OutputsMap, local)
-	return p.edge.Output[i].Type
-}
-
-// InputBounded returns whether the associated output PCollection is bounded.
-// Panics if local is not returned by InputPCollections.
-func (p *HandlerParams) InputBounded(local string) pipepb.IsBounded_Enum {
-	i := p.panicIfMissing(p.ext.InputsMap, local)
-	return pipelinex.BoolToBounded(p.edge.Input[i].From.Bounded())
-}
-
-// OutputWindowingStrategy returns the windowing strategy for the associated output PCollection.
-// Panics if given a string not returned by OutputPCollections.
-func (p *HandlerParams) InputWindowingStrategy(local string, cm *graphx.CoderMarshaller) *pipepb.WindowingStrategy {
-	i := p.panicIfMissing(p.ext.InputsMap, local)
-	wspb, err := graphx.MarshalWindowingStrategy(cm, p.edge.Input[i].From.WindowingStrategy())
-	if err != nil {
-		panic(fmt.Errorf("unable to marshal windowing strategy for output %v: %w", local, err))
-	}
-	return wspb
-}
-
-// PColID produces a standard format globally namespaced id for a PCollection from the local identifier.
-func (p *HandlerParams) PColID(local string) string {
-	return fmt.Sprintf("n%v@%v", local, p.Req.Namespace)
+// ID produces a standard format globally namespaced id for a PCollection from the local identifier.
+func (p *PCol) ID() string {
+	return fmt.Sprintf("n%v@%v", p.Local, p.namespace)
 }
 
 // WSID produces a standard format globally namespaced id for a WindowingStrategy from the local identifier.
-func (p *HandlerParams) WSID(local string) string {
-	return fmt.Sprintf("ws%v@%v", local, p.Req.Namespace)
+func (p *PCol) WSID() string {
+	return fmt.Sprintf("ws%v@%v", p.Local, p.namespace)
+}
+
+// Return this the id to this PCollection's windowing strategy, and the associated proto.
+//
+// TODO: intern windowing strategies.
+func (p *PCol) WindowingStrategy(cm *graphx.CoderMarshaller) (string, *pipepb.WindowingStrategy) {
+	wspb, err := graphx.MarshalWindowingStrategy(cm, p.node.WindowingStrategy())
+	if err != nil {
+		panic(fmt.Errorf("unable to marshal windowing strategy for PCol %v: %w", p.Local, err))
+	}
+	return p.WSID(), wspb
+}
+
+func makePCol(node *graph.Node, index int, local, namespace string) PCol {
+	return PCol{
+		Index:   index,
+		Local:   local,
+		Coder:   node.Coder,
+		Type:    node.Type(),
+		Bounded: pipelinex.BoolToBounded(node.Bounded()),
+
+		namespace: namespace,
+		node:      node,
+	}
+}
+
+// Outputs returns the provided output PCollections, if any, for expected outputs
+// for this expansion service request.
+//
+// If no collections are returned, none are currently expected, but may be provided
+// by the expansion.
+func (p *HandlerParams) Outputs() []PCol {
+	out := make([]PCol, 0, len(p.ext.OutputsMap))
+	for local, i := range p.ext.OutputsMap {
+		out = append(out, makePCol(p.edge.Output[i].To, i, local, p.Req.Namespace))
+	}
+	return out
+}
+
+// Inputs returns the provided input PCollections, if any, for the PTransform to expand
+// in this expansion service request.
+func (p *HandlerParams) Inputs() []PCol {
+	out := make([]PCol, 0, len(p.ext.InputsMap))
+	for local, i := range p.ext.InputsMap {
+		out = append(out, makePCol(p.edge.Input[i].From, i, local, p.Req.Namespace))
+	}
+	return out
 }
 
 // HandlerFunc abstracts making an ExpansionService request.
