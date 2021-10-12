@@ -50,7 +50,7 @@ class WatermarkManager(object):
 
     def upstream_watermark(self):
       if self.producers:
-        return min(p.input_watermark() for p in self.producers)
+        return min(p.output_watermark() for p in self.producers)
       else:
         return timestamp.MAX_TIMESTAMP
 
@@ -71,13 +71,16 @@ class WatermarkManager(object):
 
     def __str__(self):
       return 'StageNode<inputs=%s,side_inputs=%s' % (
-          [i.name for i in self.inputs], [i.name for i in self.side_inputs])
+          [
+              '%s(%s, upstream:%s)' %
+              (i.name, i.watermark(), i.upstream_watermark())
+              for i in self.inputs
+          ], ['%s(%s)' % (i.name, i.watermark()) for i in self.side_inputs])
 
     def output_watermark(self):
-      if not self.outputs:
-        return self.input_watermark()
-      else:
-        return min(o.watermark() for o in self.outputs)
+      if not self.inputs:
+        return timestamp.MAX_TIMESTAMP
+      return min(i.watermark() for i in self.inputs)
 
     def input_watermark(self):
       if not self.inputs:
