@@ -294,6 +294,11 @@ class FnApiRunnerTest(unittest.TestCase):
           pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(pcoll)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
 
+  def test_pardo_unfusable_side_inputs_with_separation(self):
+    def cross_product(elem, sides):
+      for side in sides:
+        yield elem, side
+
     with self.create_pipeline() as p:
       pcoll = p | beam.Create(['a', 'b'])
       derived = ((pcoll, ) | beam.Flatten()
