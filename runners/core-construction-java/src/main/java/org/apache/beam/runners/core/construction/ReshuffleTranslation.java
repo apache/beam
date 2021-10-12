@@ -77,7 +77,10 @@ public class ReshuffleTranslation {
     }
   }
 
-  /** Registers {@link ReshufflePerKeyTranslator} and {@link ReshufflePerRandomKeyTranslator}. */
+  /**
+   * Registers {@link ReshuffleTranslator}, {@link ReshufflePerKeyTranslator} and {@link
+   * ReshufflePerRandomKeyTranslator}.
+   */
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override

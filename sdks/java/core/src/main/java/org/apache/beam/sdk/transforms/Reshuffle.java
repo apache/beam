@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IdentityWindowFn;
-import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -154,11 +153,6 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
                     }
                   }))
           .apply("RestoreOriginalTimestamps", ReifyTimestamps.extractFromValues());
-    }
-
-    @Override
-    public String getKindString() {
-      return NameUtils.approximatePTransformName(Reshuffle.class);
     }
   }
 
