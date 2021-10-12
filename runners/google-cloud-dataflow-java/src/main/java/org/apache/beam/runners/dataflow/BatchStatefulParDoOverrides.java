@@ -218,7 +218,7 @@ public class BatchStatefulParDoOverrides {
       // ParDo does this in ParDo.MultiOutput.expand. However since we're replacing
       // ParDo.SingleOutput, the results
       // of the initial expansion of ParDo.MultiOutput are thrown away, so we need to add the key
-      // back Parin.
+      // back in.
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       @Nullable FieldAccessDescriptor keyFieldAccess = originalParDo.getKeyFieldsDescriptor();
       if (keyFieldAccess != null) {
@@ -268,7 +268,7 @@ public class BatchStatefulParDoOverrides {
       // is not registered by default, so we explicitly set the relevant coders.
       checkState(
           input.getCoder() instanceof KvCoder,
-          "Input to a %s using state requires a %s, but the coder was %s. PColleciton %s",
+          "Input to a %s using state requires a %s, but the coder was %s. PCollection %s",
           ParDo.class.getSimpleName(),
           KvCoder.class.getSimpleName(),
           input.getCoder(),

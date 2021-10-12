@@ -329,7 +329,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
     WindowedValue<InputT> elem = (WindowedValue<InputT>) untypedElem;
 
-    // We use the state-cleanup timer to implementt onWindowExpiration, so make sure to set it if
+    // We use the state-cleanup timer to implement onWindowExpiration, so make sure to set it if
     // that callback has
     // been requested.
     if (fnSignature != null

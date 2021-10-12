@@ -707,7 +707,7 @@ public class ParDoSchemaTest implements Serializable {
                         Row.withSchema(type).addValues("c", "hello").build(),
                         Row.withSchema(type).addValues("d", "hello").build())
                     .withRowSchema(type))
-            .apply("run statetful fn", ParDo.of(fn).withOutputTags(mainTag, TupleTagList.empty()))
+            .apply("Run statetful fn", ParDo.of(fn).withOutputTags(mainTag, TupleTagList.empty()))
             .get(mainTag)
             .setRowSchema(outputType);
     PAssert.that(output)

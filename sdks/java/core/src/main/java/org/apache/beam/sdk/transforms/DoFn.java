@@ -371,7 +371,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *
    *  {@literal @ProcessElement}
    *   public void processElement(
-   *       {@literal @Element InputT element},
+   *       {@literal @Element KV<Key, Foo> element},
    *      {@literal @StateId("my-state-id") ValueState<MyState> myState}) {
    *     myState.read();
    *     myState.write(...);
@@ -396,6 +396,33 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     String value();
   }
 
+  /**
+   * Annotation for declaring schema fields to be used as the grouping key for state.
+   *
+   * <p>State cells and timers are always segregated per key. If the input PCollection has a schema
+   * known to Beam, then this annotation can be used to specify how to select the key from the input
+   * record. An ordered list of fields is specified, which will be used as the key. See the
+   * following code for and example:
+   *
+   * <pre><code>{@literal new DoFn<InputT, Baz>()} {
+   *
+   *  {@literal @StateId("my-state-id")}
+   *  {@literal private final StateSpec<ValueState<MyState>>} myStateSpec =
+   *       StateSpecs.value(new MyStateCoder());
+   *
+   *  {@literal private final StateKeySpec} keySpec = StateKeySpec.fields("userId", "location.country");
+   *
+   *  {@literal @ProcessElement}
+   *   public void processElement(
+   *       {@literal @Element InputT element},
+   *       {@literal @Key Row key},
+   *      {@literal @StateId("my-state-id") ValueState<MyState> myState}) {
+   *     myState.read();
+   *     myState.write(...);
+   *   }
+   * }
+   * </code></pre>
+   */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
@@ -494,8 +521,11 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   }
 
   /**
-   * Parameter annotation for dereferencing input element key in {@link
-   * org.apache.beam.sdk.values.KV} pair.
+   * Parameter annotation for dereferencing input element key. If the input has a schema ana a
+   * {@link StateKeyFields} parameter is specified, this parameter is extracted from the input row
+   * and the type can be any Java type that has the same schema as the extracted key. Otherwise it
+   * is assumed that the input is of type {@link org.apache.beam.sdk.values.KV}, and the key field
+   * is extracted.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)

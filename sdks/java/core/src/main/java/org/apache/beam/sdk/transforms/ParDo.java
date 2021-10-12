@@ -442,7 +442,8 @@ public class ParDo {
     if (fieldAccessDescriptor == null) {
       checkArgument(
           inputCoder instanceof KvCoder,
-          "%s requires its input to either use %s or have a schema input in order to use state and timers.",
+          "%s requires its input to either use %s or have a schema input in order to use state and timers. "
+              + "If the input has a schema, then the key fields must also be specified.",
           ParDo.class.getSimpleName(),
           KvCoder.class.getSimpleName());
 
@@ -947,7 +948,7 @@ public class ParDo {
           fn, sideInputs, fnDisplayData, doFnSchemaInformation, fieldAccessDescriptor);
     }
 
-    public SingleOutput<InputT, OutputT> withKeyFields(String keyFields) {
+    public SingleOutput<InputT, OutputT> withKeyFields(String... keyFields) {
       return new SingleOutput<>(
           fn,
           sideInputs,
@@ -1163,7 +1164,7 @@ public class ParDo {
           fieldAccessDescriptor);
     }
 
-    public MultiOutput<InputT, OutputT> withKeyFields(String keyFields) {
+    public MultiOutput<InputT, OutputT> withKeyFields(String... keyFields) {
       return new MultiOutput<>(
           fn,
           sideInputs,
@@ -1187,9 +1188,6 @@ public class ParDo {
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
       validateSideInputTypes(sideInputs, fn);
-
-      // VALIDATE NO SCHEMA ELEMENT IF NO SCHEMA
-      // VALIDAE SCHEMA KEYS
 
       if (getKeyFieldsDescriptor() != null) {
         if (!input.hasSchema()) {

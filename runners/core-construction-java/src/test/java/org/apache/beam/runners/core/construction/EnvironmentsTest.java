@@ -206,7 +206,6 @@ public class EnvironmentsTest implements Serializable {
 
   @Test
   public void getEnvironmentPTransform() throws IOException {
-    /*
     Pipeline p = Pipeline.create();
     SdkComponents components = SdkComponents.create();
     Environment env = Environments.createDockerEnvironment("java");
@@ -238,7 +237,7 @@ public class EnvironmentsTest implements Serializable {
     Environment env1 = Environments.getEnvironment(ptransform, rehydratedComponents).get();
     assertThat(
         env1,
-        equalTo(components.toComponents().getEnvironmentsOrThrow(ptransform.getEnvironmentId())));*/
+        equalTo(components.toComponents().getEnvironmentsOrThrow(ptransform.getEnvironmentId())));
   }
 
   @Test
