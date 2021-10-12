@@ -52,8 +52,7 @@ if GceAssertionCredentials is not None:
     @retry.with_exponential_backoff(
         retry_filter=retry.retry_on_server_errors_and_timeout_filter)
     def _do_refresh_request(self, http_request):
-      return super(_GceAssertionCredentials,
-                   self)._do_refresh_request(http_request)
+      return super()._do_refresh_request(http_request)
 
 
 def set_running_in_gce(worker_executing_project):

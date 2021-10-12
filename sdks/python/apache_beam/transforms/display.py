@@ -149,13 +149,28 @@ class DisplayData(object):
       value = display_data_dict['value']
       if isinstance(value, str):
         return beam_runner_api_pb2.LabelledPayload(
-            label=label, string_value=value)
+            label=label,
+            string_value=value,
+            key=display_data_dict['key'],
+            namespace=display_data_dict.get('namespace', ''))
       elif isinstance(value, bool):
         return beam_runner_api_pb2.LabelledPayload(
-            label=label, bool_value=value)
-      elif isinstance(value, (int, float, complex)):
+            label=label,
+            bool_value=value,
+            key=display_data_dict['key'],
+            namespace=display_data_dict.get('namespace', ''))
+      elif isinstance(value, int):
         return beam_runner_api_pb2.LabelledPayload(
-            label=label, double_value=value)
+            label=label,
+            int_value=value,
+            key=display_data_dict['key'],
+            namespace=display_data_dict.get('namespace', ''))
+      elif isinstance(value, (float, complex)):
+        return beam_runner_api_pb2.LabelledPayload(
+            label=label,
+            double_value=value,
+            key=display_data_dict['key'],
+            namespace=display_data_dict.get('namespace', ''))
       else:
         raise ValueError(
             'Unsupported type %s for value of display data %s' %

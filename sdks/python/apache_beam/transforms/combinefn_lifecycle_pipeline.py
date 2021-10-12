@@ -38,7 +38,7 @@ class CallSequenceEnforcingCombineFn(beam.CombineFn):
   instances = set()  # type: Set[CallSequenceEnforcingCombineFn]
 
   def __init__(self):
-    super(CallSequenceEnforcingCombineFn, self).__init__()
+    super().__init__()
     self._setup_called = False
     self._teardown_called = False
 

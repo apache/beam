@@ -111,7 +111,7 @@ class PubsubIOPerfTest(LoadTest):
 
 class PubsubWritePerfTest(PubsubIOPerfTest):
   def __init__(self):
-    super(PubsubWritePerfTest, self).__init__(WRITE_METRICS_NAMESPACE)
+    super().__init__(WRITE_METRICS_NAMESPACE)
     self._setup_env()
     self._setup_pubsub()
     self._setup_pipeline()
@@ -144,7 +144,7 @@ class PubsubWritePerfTest(PubsubIOPerfTest):
     self.pipeline = TestPipeline(options=options)
 
   def _setup_pubsub(self):
-    super(PubsubWritePerfTest, self)._setup_pubsub()
+    super()._setup_pubsub()
     _ = self.pub_client.create_topic(self.topic_name)
 
     _ = self.sub_client.create_subscription(
@@ -155,7 +155,7 @@ class PubsubWritePerfTest(PubsubIOPerfTest):
 
 class PubsubReadPerfTest(PubsubIOPerfTest):
   def __init__(self):
-    super(PubsubReadPerfTest, self).__init__(READ_METRICS_NAMESPACE)
+    super().__init__(READ_METRICS_NAMESPACE)
     self._setup_env()
     self._setup_pubsub()
     self._setup_pipeline()
@@ -183,7 +183,7 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
         | 'Write to Pubsub' >> beam.io.WriteToPubSub(self.matcher_topic_name))
 
   def _setup_pubsub(self):
-    super(PubsubReadPerfTest, self)._setup_pubsub()
+    super()._setup_pubsub()
     _ = self.pub_client.create_topic(self.matcher_topic_name)
 
     _ = self.sub_client.create_subscription(

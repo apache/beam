@@ -48,7 +48,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
   OFFSET_INFINITY = float('inf')
 
   def __init__(self, start, end):
-    super(OffsetRangeTracker, self).__init__()
+    super().__init__()
 
     if start is None:
       raise ValueError('Start offset must not be \'None\'')

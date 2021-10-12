@@ -190,10 +190,15 @@ public class ConfigBuilder {
             || BeamJobCoordinatorRunner.class.getName().equals(appRunner)
             || RemoteApplicationRunner.class.getName().equals(appRunner)
             || BeamContainerRunner.class.getName().equals(appRunner),
-        "Config %s must be set to %s for %s Deployment",
+        "Config %s must be set to %s for %s Deployment, but found %s",
         APP_RUNNER_CLASS,
-        RemoteApplicationRunner.class.getName(),
-        SamzaExecutionEnvironment.YARN);
+        String.format(
+            "[%s, %s or %s]",
+            BeamJobCoordinatorRunner.class.getName(),
+            RemoteApplicationRunner.class.getName(),
+            BeamContainerRunner.class.getName()),
+        SamzaExecutionEnvironment.YARN,
+        appRunner);
     checkArgument(
         config.containsKey(JOB_FACTORY_CLASS),
         "Config %s not found for %s Deployment",

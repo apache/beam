@@ -18,7 +18,6 @@
 package org.apache.beam.runners.samza;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
@@ -41,16 +40,16 @@ public class SamzaPipelineRunner implements PortablePipelineRunner {
   private final SamzaPipelineOptions options;
 
   @Override
-  public PortablePipelineResult run(final Pipeline pipeline, JobInfo jobInfo) {
+  public PortablePipelineResult run(final RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
     // Expand any splittable DoFns within the graph to enable sizing and splitting of bundles.
-    Pipeline pipelineWithSdfExpanded =
+    RunnerApi.Pipeline pipelineWithSdfExpanded =
         ProtoOverrides.updateTransform(
             PTransformTranslation.PAR_DO_TRANSFORM_URN,
             pipeline,
             SplittableParDoExpander.createSizedReplacement());
 
     // Don't let the fuser fuse any subcomponents of native transforms.
-    Pipeline trimmedPipeline =
+    RunnerApi.Pipeline trimmedPipeline =
         TrivialNativeTransformExpander.forKnownUrns(
             pipelineWithSdfExpanded, SamzaPortablePipelineTranslator.knownUrns());
 

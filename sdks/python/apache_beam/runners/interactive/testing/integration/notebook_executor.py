@@ -151,7 +151,7 @@ class IFrameParser(HTMLParser):
   """A parser to extract iframe content from given HTML."""
   def __init__(self):
     self._srcdocs = []
-    super(IFrameParser, self).__init__()
+    super().__init__()
 
   def handle_starttag(self, tag, attrs):
     if tag == 'iframe':

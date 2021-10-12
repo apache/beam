@@ -48,7 +48,6 @@ import org.apache.beam.fn.harness.data.BeamFnTimerGrpcClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
-import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.state.CachingBeamFnStateClient;
@@ -335,7 +334,6 @@ public class ProcessBundleHandler {
               }
             });
     try {
-      BeamFnLoggingMDC.setInstructionId(request.getInstructionId());
       PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
       PTransformFunctionRegistry finishFunctionRegistry =
           bundleProcessor.getFinishFunctionRegistry();
@@ -390,8 +388,6 @@ public class ProcessBundleHandler {
       // Make sure we clean-up from the active set of bundle processors.
       bundleProcessorCache.discard(bundleProcessor);
       throw e;
-    } finally {
-      BeamFnLoggingMDC.setInstructionId(null);
     }
   }
 

@@ -493,7 +493,7 @@ class PipelineResult(runner.PipelineResult):
       message_stream,
       state_stream,
       cleanup_callbacks=()):
-    super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
+    super().__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
     self._job_service = job_service
     self._job_id = job_id
     self._messages = []
