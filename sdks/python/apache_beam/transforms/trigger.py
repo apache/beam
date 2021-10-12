@@ -793,6 +793,13 @@ class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
         finished.append(trigger.on_fire(watermark, window, nested_context))
     return self.combine_op(finished)
 
+  def may_lose_data(self, windowing):
+    may_finish = self.combine_op(
+        _IncludesMayFinish(t.may_lose_data(windowing)) for t in self.triggers)
+    return (
+        DataLossReason.MAY_FINISH
+        if may_finish else DataLossReason.NO_POTENTIAL_LOSS)
+
   def reset(self, window, context):
     for ix, trigger in enumerate(self.triggers):
       trigger.reset(window, self._sub_context(context, ix))
@@ -838,14 +845,6 @@ class AfterAny(_ParallelTriggerFn):
   """
   combine_op = any
 
-  def may_lose_data(self, windowing):
-    """If any sub-trigger may finish, this one may finish."""
-    may_finish = any(
-        _IncludesMayFinish(t.may_lose_data(windowing)) for t in self.triggers)
-    return (
-        DataLossReason.MAY_FINISH
-        if may_finish else DataLossReason.NO_POTENTIAL_LOSS)
-
 
 class AfterAll(_ParallelTriggerFn):
   """Fires when all subtriggers have fired.
@@ -853,14 +852,6 @@ class AfterAll(_ParallelTriggerFn):
   Also finishes when all subtriggers have finished.
   """
   combine_op = all
-
-  def may_lose_data(self, windowing):
-    """If all sub-triggers may finish, then this may finish."""
-    may_finish = all(
-        _IncludesMayFinish(t.may_lose_data(windowing)) for t in self.triggers)
-    return (
-        DataLossReason.MAY_FINISH
-        if may_finish else DataLossReason.NO_POTENTIAL_LOSS)
 
 
 class AfterEach(TriggerFn):
