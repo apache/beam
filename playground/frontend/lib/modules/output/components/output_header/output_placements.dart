@@ -18,32 +18,36 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/output/models/output_placement.dart';
+import 'package:playground/modules/output/models/output_placement_state.dart';
 import 'package:provider/provider.dart';
 
-const kLightMode = "Light Mode";
-const kDartMode = "Dark Mode";
-
-class ToggleThemeButton extends StatelessWidget {
-  const ToggleThemeButton({Key? key}) : super(key: key);
+class OutputPlacements extends StatelessWidget {
+  const OutputPlacements({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(builder: (context, theme, child) {
-      final text = theme.isDarkMode ? kLightMode : kDartMode;
-      return Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: kSmSpacing,
-          horizontal: kMdSpacing,
-        ),
-        child: TextButton.icon(
-          icon: SvgPicture.asset(kThemeIconAsset),
-          label: Text(text),
-          onPressed: theme.toggleTheme,
-        ),
-      );
-    });
+    return Consumer<OutputPlacementState>(
+      builder: (context, state, child) {
+        return Wrap(
+          spacing: kMdSpacing,
+          children: OutputPlacement.values
+              .map(
+                (placement) => IconButton(
+                  splashRadius: kIconButtonSplashRadius,
+                  icon: SvgPicture.asset(
+                    placement.icon,
+                    color: state.placement == placement
+                        ? Theme.of(context).primaryColor
+                        : null,
+                  ),
+                  onPressed: () => state.setPlacement(placement),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
   }
 }

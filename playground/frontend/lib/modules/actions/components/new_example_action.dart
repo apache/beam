@@ -16,24 +16,25 @@
  * limitations under the License.
  */
 
-// spacings
-const double kZeroSpacing = 0.0;
-const double kSmSpacing = 4.0;
-const double kMdSpacing = 8.0;
-const double kLgSpacing = 16.0;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/material.dart';
+import 'package:playground/config/theme.dart';
+import 'package:playground/modules/actions/components/header_icon_button.dart';
 
-// sizes
-const kHeaderButtonHeight = 46.0;
-const kRunButtonWidth = 150.0;
-const kRunButtonHeight = 40.0;
-const kIconButtonSplashRadius = 24.0;
-const kFooterHeight = 32.0;
+const kNewExampleButtonText = "New Example";
 
-// border radius
-const double kBorderRadius = 8.0;
+class NewExampleAction extends StatelessWidget {
+  const NewExampleAction({Key? key}) : super(key: key);
 
-// elevation
-const int kElevation = 1;
-
-// icon sizes
-const double kIconSizeMd = 24.0;
+  @override
+  Widget build(BuildContext context) {
+    return HeaderIconButton(
+      icon: Icon(
+        Icons.add_circle_outline,
+        color: ThemeColors.of(context).grey1Color,
+      ),
+      label: kNewExampleButtonText,
+      onPressed: () => launch("/"),
+    );
+  }
+}
