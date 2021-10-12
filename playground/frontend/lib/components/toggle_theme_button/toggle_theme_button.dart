@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/config/theme.dart';
+import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:provider/provider.dart';
 
@@ -38,7 +39,7 @@ class ToggleThemeButton extends StatelessWidget {
           horizontal: kMdSpacing,
         ),
         child: TextButton.icon(
-          icon: SvgPicture.asset("theme.svg"),
+          icon: SvgPicture.asset(kThemeIconAsset),
           label: Text(text),
           onPressed: theme.toggleTheme,
         ),

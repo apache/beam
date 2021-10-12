@@ -16,15 +16,11 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/playground_app.dart';
-
-void main() {
-  testWidgets('Home Page', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const PlaygroundApp());
-
-    // Verify that Playground text is displayed
-    expect(find.text('Playground'), findsOneWidget);
-  });
-}
+const kThemeIconAsset = "theme.svg";
+const kResetIconAsset = "reset.svg";
+const kOutputBottomIconAsset = "output_bottom.svg";
+const kOutputRightIconAsset = "output_right.svg";
+const kOutputLeftIconAsset = "output_left.svg";
+const kShortcutsIconAsset = "shortcuts.svg";
+const kGithubIconAsset = "github.svg";
+const kBeamIconAsset = "beam.png";

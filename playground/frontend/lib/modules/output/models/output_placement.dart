@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'package:playground/constants/assets.dart';
+
 enum OutputPlacement {
   bottom,
   left,
@@ -26,11 +28,11 @@ extension OutputPlacementToIcon on OutputPlacement {
   String get icon {
     switch (this) {
       case OutputPlacement.bottom:
-        return "output_bottom.svg";
+        return kOutputBottomIconAsset;
       case OutputPlacement.right:
-        return "output_right.svg";
+        return kOutputRightIconAsset;
       case OutputPlacement.left:
-        return "output_left.svg";
+        return kOutputLeftIconAsset;
     }
   }
 }

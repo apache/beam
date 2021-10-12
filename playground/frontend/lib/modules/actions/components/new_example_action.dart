@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import 'dart:html' as html;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/modules/actions/components/header_icon_button.dart';
@@ -34,7 +34,7 @@ class NewExampleAction extends StatelessWidget {
         color: ThemeColors.of(context).grey1Color,
       ),
       label: kNewExampleButtonText,
-      onPressed: () => html.window.open("/", '_blank'),
+      onPressed: () => launch("/"),
     );
   }
 }

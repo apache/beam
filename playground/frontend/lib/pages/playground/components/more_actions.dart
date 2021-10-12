@@ -18,9 +18,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'dart:html' as html;
 
 import 'package:playground/config/theme.dart';
+import 'package:playground/constants/assets.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 enum HeaderAction {
   shortcuts,
@@ -66,7 +67,7 @@ class MoreActions extends StatelessWidget {
             padding: EdgeInsets.zero,
             value: HeaderAction.shortcuts,
             child: ListTile(
-              leading: SvgPicture.asset("shortcuts.svg"),
+              leading: SvgPicture.asset(kShortcutsIconAsset),
               title: const Text(kShortcutsText),
             ),
           ),
@@ -74,36 +75,27 @@ class MoreActions extends StatelessWidget {
             padding: EdgeInsets.zero,
             value: HeaderAction.beamPlaygroundGithub,
             child: ListTile(
-              leading: SvgPicture.asset("github.svg"),
+              leading: SvgPicture.asset(kGithubIconAsset),
               title: const Text(kBeamPlaygroundGithubText),
-              onTap: () => html.window.open(
-                kBeamPlaygroundGithubLink,
-                '_blank',
-              ),
+              onTap: () => launch(kBeamPlaygroundGithubLink),
             ),
           ),
           PopupMenuItem<HeaderAction>(
             padding: EdgeInsets.zero,
             value: HeaderAction.apacheBeamGithub,
             child: ListTile(
-              leading: SvgPicture.asset("github.svg"),
+              leading: SvgPicture.asset(kGithubIconAsset),
               title: const Text(kApacheBeamGithubText),
-              onTap: () => html.window.open(
-                kApacheBeamGithubLink,
-                '_blank',
-              ),
+              onTap: () => launch(kApacheBeamGithubLink),
             ),
           ),
           PopupMenuItem<HeaderAction>(
             padding: EdgeInsets.zero,
             value: HeaderAction.scioGithub,
             child: ListTile(
-              leading: SvgPicture.asset("github.svg"),
+              leading: SvgPicture.asset(kGithubIconAsset),
               title: const Text(kScioGithubText),
-              onTap: () => html.window.open(
-                kScioGithubLink,
-                '_blank',
-              ),
+              onTap: () => launch(kScioGithubLink),
             ),
           ),
           const PopupMenuDivider(height: 16.0),
@@ -113,10 +105,7 @@ class MoreActions extends StatelessWidget {
             child: ListTile(
               leading: const Image(image: AssetImage('beam.png')),
               title: const Text(kBeamWebsiteText),
-              onTap: () => html.window.open(
-                kBeamWebsiteLink,
-                '_blank',
-              ),
+              onTap: () => launch(kBeamWebsiteLink),
             ),
           ),
           const PopupMenuItem<HeaderAction>(
