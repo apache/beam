@@ -139,7 +139,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
           // The pushdown must return a PTransform that can be applied to a PBegin, or this cast
           // will fail.
           ProjectionProducer<PTransform<PBegin, PCollection<Row>>> projectionProducer =
-              readerTransform;
+              (ProjectionProducer<PTransform<PBegin, PCollection<Row>>>) readerTransform;
           FieldAccessDescriptor fieldAccessDescriptor =
               FieldAccessDescriptor.withFieldNames(fieldNames);
           readerTransform = projectionProducer.actuateProjectionPushdown(fieldAccessDescriptor);
