@@ -48,6 +48,12 @@ class PlaygroundState with ChangeNotifier {
     _source = source;
   }
 
+  reset() {
+    _sdk = SDK.java;
+    _source = _selectedExample?.sources[_sdk] ?? "";
+    notifyListeners();
+  }
+
   @override
   String toString() {
     return 'PlaygroundState{_sdk: $_sdk, _selectedExample: $_selectedExample}';

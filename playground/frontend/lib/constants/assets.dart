@@ -16,24 +16,11 @@
  * limitations under the License.
  */
 
-// spacings
-const double kZeroSpacing = 0.0;
-const double kSmSpacing = 4.0;
-const double kMdSpacing = 8.0;
-const double kLgSpacing = 16.0;
-
-// sizes
-const kHeaderButtonHeight = 46.0;
-const kRunButtonWidth = 150.0;
-const kRunButtonHeight = 40.0;
-const kIconButtonSplashRadius = 24.0;
-const kFooterHeight = 32.0;
-
-// border radius
-const double kBorderRadius = 8.0;
-
-// elevation
-const int kElevation = 1;
-
-// icon sizes
-const double kIconSizeMd = 24.0;
+const kThemeIconAsset = "theme.svg";
+const kResetIconAsset = "reset.svg";
+const kOutputBottomIconAsset = "output_bottom.svg";
+const kOutputRightIconAsset = "output_right.svg";
+const kOutputLeftIconAsset = "output_left.svg";
+const kShortcutsIconAsset = "shortcuts.svg";
+const kGithubIconAsset = "github.svg";
+const kBeamIconAsset = "beam.png";

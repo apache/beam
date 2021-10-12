@@ -17,11 +17,14 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
+
+const kRunText = "Run";
 
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
@@ -29,11 +32,28 @@ class CodeTextAreaWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<PlaygroundState>(builder: (context, state, child) {
-      return EditorTextArea(
-        key: ValueKey(EditorKeyObject(state.sdk, state.selectedExample)),
-        example: state.selectedExample,
-        sdk: state.sdk,
-        onSourceChange: state.setSource,
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: EditorTextArea(
+              key: ValueKey(EditorKeyObject(state.sdk, state.selectedExample)),
+              example: state.selectedExample,
+              sdk: state.sdk,
+              onSourceChange: state.setSource,
+            ),
+          ),
+          Positioned(
+            right: kLgSpacing,
+            top: kLgSpacing,
+            width: kRunButtonWidth,
+            height: kRunButtonHeight,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.play_arrow),
+              label: const Text(kRunText),
+              onPressed: () {},
+            ),
+          ),
+        ],
       );
     });
   }

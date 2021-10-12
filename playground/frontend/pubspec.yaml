@@ -48,6 +48,8 @@ dependencies:
     sdk: flutter
   provider: ^6.0.0
   code_text_field: ^1.0.0
+  flutter_svg: ^0.22.0
+  url_launcher: ^6.0.12
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +67,8 @@ dev_dependencies:
 
 # The following section is specific to Flutter.
 flutter:
+  assets:
+    - assets/
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

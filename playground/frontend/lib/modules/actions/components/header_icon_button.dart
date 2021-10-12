@@ -16,21 +16,30 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:flutter/material.dart';
+import 'package:playground/constants/sizes.dart';
 
-void main() {
-  test('Playground State initial value should be java', () {
-    final state = PlaygroundState();
-    expect(state.sdk, equals(SDK.java));
-  });
+class HeaderIconButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final String label;
+  final Widget icon;
 
-  test('Playground state should notify all listeners about sdk change', () {
-    final state = PlaygroundState();
-    state.addListener(() {
-      expect(state.sdk, SDK.go);
-    });
-    state.setSdk(SDK.go);
-  });
+  const HeaderIconButton({
+    Key? key,
+    required this.onPressed,
+    required this.label,
+    required this.icon,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: kHeaderButtonHeight,
+      child: TextButton.icon(
+        icon: icon,
+        label: Text(label),
+        onPressed: onPressed,
+      ),
+    );
+  }
 }

@@ -18,13 +18,24 @@
 
 import 'package:flutter/material.dart';
 
+const kOutputText = "Output";
+const kLogText = "Log";
+const kGraphText = "Graph";
+
 class OutputArea extends StatelessWidget {
   const OutputArea({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Output'),
+    return Container(
+      color: Theme.of(context).backgroundColor,
+      child: const TabBarView(
+        children: <Widget>[
+          Center(child: Text(kOutputText)),
+          Center(child: Text(kLogText)),
+          Center(child: Text(kGraphText)),
+        ],
+      ),
     );
   }
 }
