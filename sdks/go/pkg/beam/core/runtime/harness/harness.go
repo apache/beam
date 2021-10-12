@@ -47,7 +47,7 @@ const cacheSize = 20
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	hooks.DeserializeHooksFromOptions(ctx)
 
-	// Pass in the logging hook for use w/the remote logging init hook.
+	// Pass in the logging endpoint for use w/the default remote logging hook.
 	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
 	hooks.RunInitHooks(ctx)
 
