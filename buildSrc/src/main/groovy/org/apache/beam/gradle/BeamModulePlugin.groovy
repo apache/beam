@@ -1286,6 +1286,18 @@ class BeamModulePlugin implements Plugin<Project> {
           jmhCompile "org.openjdk.jmh:jmh-core:$jmh_version"
         }
 
+        project.compileJmhJava {
+          // Always exclude checkerframework on JMH generated code. It's slow,
+          // and it often raises erroneous error because we don't have checker
+          // annotations for generated code and test libraries.
+          //
+          // Consider re-enabling if we can get annotations for the generated
+          // code and test libraries we use.
+          checkerFramework {
+            skipCheckerFramework = true
+          }
+        }
+
         project.task("jmh", type: JavaExec, dependsOn: project.jmhClasses, {
           main = "org.openjdk.jmh.Main"
           classpath = project.sourceSets.jmh.compileClasspath + project.sourceSets.jmh.runtimeClasspath
