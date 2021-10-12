@@ -21,8 +21,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.ProjectionProducer;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.io.PushdownProjector;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.schemas.transforms.Select;
@@ -50,7 +50,7 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
     rows.addAll(Arrays.asList(newRows));
   }
 
-  private class TestSchemaIOProvider implements SchemaIOProvider {
+  private static class TestSchemaIOProvider implements SchemaIOProvider {
     @Override
     public String identifier() {
       return "TestSchemaIOProvider";
@@ -77,7 +77,7 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
     }
   }
 
-  private class TestSchemaIO implements SchemaIO {
+  private static class TestSchemaIO implements SchemaIO {
     private final Schema schema;
 
     TestSchemaIO(Schema schema) {
@@ -92,7 +92,7 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
     @Override
     public PTransform<PBegin, PCollection<Row>> buildReader() {
       // Read all fields by default.
-      return new TestPushdownProjector(schema, FieldAccessDescriptor.withAllFields());
+      return new TestProjectionProducer(schema, FieldAccessDescriptor.withAllFields());
     }
 
     @Override
@@ -105,27 +105,27 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
    * {@link PTransform} that reads in-memory data for testing. Simulates projection pushdown using
    * {@link Select}.
    */
-  private class TestPushdownProjector extends PTransform<PBegin, PCollection<Row>>
-      implements PushdownProjector<PBegin> {
+  private static class TestProjectionProducer extends PTransform<PBegin, PCollection<Row>>
+      implements ProjectionProducer<PTransform<PBegin, PCollection<Row>>> {
     /** The schema of the input data. */
     private final Schema schema;
     /** The fields to be projected. */
     private final FieldAccessDescriptor fieldAccessDescriptor;
 
-    TestPushdownProjector(Schema schema, FieldAccessDescriptor fieldAccessDescriptor) {
+    TestProjectionProducer(Schema schema, FieldAccessDescriptor fieldAccessDescriptor) {
       this.schema = schema;
       this.fieldAccessDescriptor = fieldAccessDescriptor;
     }
 
     @Override
-    public PTransform<PBegin, PCollection<Row>> withProjectionPushdown(
+    public PTransform<PBegin, PCollection<Row>> actuateProjectionPushdown(
         FieldAccessDescriptor fieldAccessDescriptor) {
-      return new TestPushdownProjector(schema, fieldAccessDescriptor);
+      return new TestProjectionProducer(schema, fieldAccessDescriptor);
     }
 
     @Override
-    public boolean supportsFieldReordering() {
-      return true;
+    public ProjectSupport supportsProjectionPushdown() {
+      return ProjectSupport.WITH_FIELD_REORDERING;
     }
 
     @Override
