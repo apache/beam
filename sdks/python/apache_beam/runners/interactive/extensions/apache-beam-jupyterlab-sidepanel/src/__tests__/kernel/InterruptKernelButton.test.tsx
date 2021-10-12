@@ -20,7 +20,7 @@ import { InterruptKernelButton } from '../../kernel/InterruptKernelButton';
 
 const fakeKernelModel = {
   isDone: true,
-  interruptKernel: function(): void {
+  interruptKernel: function (): void {
     // do nothing.
   }
 };
