@@ -1,4 +1,145 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.32.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.33.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.33.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2330-2021-10-07">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.33.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12350404">detailed release
+notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Go SDK is no longer experimental, and is officially part of the Beam release process.
+&lt;ul>
+&lt;li>Matching Go SDK containers are published on release.&lt;/li>
+&lt;li>Batch usage is well supported, and tested on Flink, Spark, and the Python Portable Runner.
+&lt;ul>
+&lt;li>SDK Tests are also run against Google Cloud Dataflow, but this doesn&amp;rsquo;t indicate reciprocal support.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>The SDK supports Splittable DoFns, Cross Language transforms, and most Beam Model basics.&lt;/li>
+&lt;li>Go Modules are now used for dependency management.
+&lt;ul>
+&lt;li>This is a breaking change, see Breaking Changes for resolution.&lt;/li>
+&lt;li>Easier path to contribute to the Go SDK, no need to set up a GO_PATH.&lt;/li>
+&lt;li>Minimum Go version is now Go v1.16&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>See the announcement blogpost for full information once published.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;!--
+{$TOPICS e.g.:}
+### I/Os
+* Support for X source added (Java) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+{$TOPICS}
+-->
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Projection pushdown in SchemaIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12609">BEAM-12609&lt;/a>).&lt;/li>
+&lt;li>Upgrade Flink runner to Flink versions 1.13.2, 1.12.5 and 1.11.4 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10955">BEAM-10955&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>Since release 2.30.0, &amp;ldquo;The AvroCoder changes for BEAM-2303 [changed] the reader/writer from the Avro ReflectDatum* classes to the SpecificDatum* classes&amp;rdquo; (Java). This default behavior change has been reverted in this release. Use the &lt;code>useReflectApi&lt;/code> setting to control it (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12628">BEAM-12628&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="deprecations">Deprecations&lt;/h3>
+&lt;ul>
+&lt;li>Python GBK will stop supporting unbounded PCollections that have global windowing and a default trigger in Beam 2.34. This can be overriden with &lt;code>--allow_unsafe_triggers&lt;/code>. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
+&lt;li>Python GBK will start requiring safe triggers or the &lt;code>--allow_unsafe_triggers&lt;/code> flag starting with Beam 2.34. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>UnsupportedOperationException when reading from BigQuery tables and converting
+TableRows to Beam Rows (Java)
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12479">BEAM-12479&lt;/a>).&lt;/li>
+&lt;li>SDFBoundedSourceReader behaves much slower compared with the original behavior
+of BoundedSource (Python)
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12781">BEAM-12781&lt;/a>).&lt;/li>
+&lt;li>ORDER BY column not in SELECT crashes (ZetaSQL)
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12759">BEAM-12759&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>Spark 2.x users will need to update Spark&amp;rsquo;s Jackson runtime dependencies (&lt;code>spark.jackson.version&lt;/code>) to at least version 2.9.2, due to Beam updating its dependencies.&lt;/li>
+&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.33.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
+&lt;li>Go SDK jobs may produce &amp;ldquo;Failed to deduce Step from MonitoringInfo&amp;rdquo; messages following successful job execution. The messages are benign and don&amp;rsquo;t indicate job failure. These are due to not yet handling PCollection metrics.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.33.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay,
+Alex Amato,
+Alexey Romanenko,
+Andreas Bergmeier,
+Andres Rodriguez,
+Andrew Pilloud,
+Andy Xu,
+Ankur Goenka,
+anthonyqzhu,
+Benjamin Gonzalez,
+Bhupinder Sindhwani,
+Chamikara Jayalath,
+Claire McGinty,
+Daniel Mateus Pires,
+Daniel Oliveira,
+David Huntsperger,
+Dylan Hercher,
+emily,
+Emily Ye,
+Etienne Chauchot,
+Eugene Nikolaiev,
+Heejong Lee,
+iindyk,
+Iñigo San Jose Visiers,
+Ismaël Mejía,
+Jack McCluskey,
+Jan Lukavský,
+Jeff Ruane,
+Jeremy Lewi,
+KevinGG,
+Ke Wu,
+Kyle Weaver,
+lostluck,
+Luke Cwik,
+Marwan Tammam,
+masahitojp,
+Mehdi Drissi,
+Minbo Bae,
+Ning Kang,
+Pablo Estrada,
+Pascal Gillet,
+Pawas Chhokra,
+Reuven Lax,
+Ritesh Ghorse,
+Robert Bradshaw,
+Robert Burke,
+Rodrigo Benenson,
+Ryan Thompson,
+Saksham Gupta,
+Sam Rohde,
+Sam Whittle,
+Sayat,
+Sayat Satybaldiyev,
+Siyuan Chen,
+Slava Chernyak,
+Steve Niemitz,
+Steven Niemitz,
+tvalentyn,
+Tyson Hamilton,
+Udi Meiri,
+vachan-shetty,
+Venkatramani Rajgopal,
+Yichi Zhang,
+zhoufek&lt;/p></description><link>/blog/beam-2.33.0/</link><pubDate>Thu, 07 Oct 2021 00:00:01 -0800</pubDate><guid>/blog/beam-2.33.0/</guid><category>blog</category></item><item><title>Apache Beam 2.32.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -683,86 +824,4 @@ and our &lt;a href="https://2020.beamsummit.org/sessions/simpler-python-pipeline
 presentation&lt;/a>.
 From there the best way to help is to knock out some of those not implemented
 operations. We&amp;rsquo;re coordinating that work in
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-9547">BEAM-9547&lt;/a>.&lt;/p></description><link>/blog/dataframe-api-preview-available/</link><pubDate>Wed, 16 Dec 2020 09:09:41 -0800</pubDate><guid>/blog/dataframe-api-preview-available/</guid><category>blog</category></item><item><title>Splittable DoFn in Apache Beam is Ready to Use</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are pleased to announce that Splittable DoFn (SDF) is ready for use in the Beam Python, Java,
-and Go SDKs for versions 2.25.0 and later.&lt;/p>
-&lt;p>In 2017, &lt;a href="https://beam.apache.org/blog/splittable-do-fn/">Splittable DoFn Blog Post&lt;/a> proposed
-to build &lt;a href="https://s.apache.org/splittable-do-fn">Splittable DoFn&lt;/a> APIs as the new recommended way of
-building I/O connectors. Splittable DoFn is a generalization of &lt;code>DoFn&lt;/code> that gives it the core
-capabilities of &lt;code>Source&lt;/code> while retaining &lt;code>DoFn&lt;/code>'s syntax, flexibility, modularity, and ease of
-coding. Thus, it becomes much easier to develop complex I/O connectors with simpler and reusable
-code.&lt;/p>
-&lt;p>SDF has three advantages over the existing &lt;code>UnboundedSource&lt;/code> and &lt;code>BoundedSource&lt;/code>:&lt;/p>
-&lt;ul>
-&lt;li>SDF provides a unified set of APIs to handle both unbounded and bounded cases.&lt;/li>
-&lt;li>SDF enables reading from source descriptors dynamically.
-&lt;ul>
-&lt;li>Taking KafkaIO as an example, within &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> API, you must specify
-the topic and partition you want to read from during pipeline construction time. There is no way
-for &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> to accept topics and partitions as inputs during execution
-time. But it&amp;rsquo;s built-in to SDF.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>SDF fits in as any node on a pipeline freely with the ability of splitting.
-&lt;ul>
-&lt;li>&lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> has to be the root node of the pipeline to gain performance
-benefits from splitting strategies, which limits many real-world usages. This is no longer a limit
-for an SDF.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;p>As SDF is now ready to use with all the mentioned improvements, it is the recommended
-way to build the new I/O connectors. Try out building your own Splittable DoFn by following the
-&lt;a href="https://beam.apache.org/documentation/programming-guide/#splittable-dofns">programming guide&lt;/a>. We
-have provided tonnes of common utility classes such as common types of &lt;code>RestrictionTracker&lt;/code> and
-&lt;code>WatermarkEstimator&lt;/code> in Beam SDK, which will help you onboard easily. As for the existing I/O
-connectors, we have wrapped &lt;code>UnboundedSource&lt;/code> and &lt;code>BoundedSource&lt;/code> implementations into Splittable
-DoFns, yet we still encourage developers to convert &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> into actual
-Splittable DoFn implementation to gain more performance benefits.&lt;/p>
-&lt;p>Many thanks to every contributor who brought this highly anticipated design into the data processing
-world. We are really excited to see that users benefit from SDF.&lt;/p>
-&lt;p>Below are some real-world SDF examples for you to explore.&lt;/p>
-&lt;h2 id="real-world-splittable-dofn-examples">Real world Splittable DoFn examples&lt;/h2>
-&lt;p>&lt;strong>Java Examples&lt;/strong>&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/ReadFromKafkaDoFn.java#L118">Kafka&lt;/a>:
-An I/O connector for &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a>
-(an open-source distributed event streaming platform).&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/Watch.java#L787">Watch&lt;/a>:
-Uses a polling function producing a growing set of outputs for each input until a per-input
-termination condition is met.&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java#L365">Parquet&lt;/a>:
-An I/O connector for &lt;a href="https://parquet.apache.org/">Apache Parquet&lt;/a>
-(an open-source columnar storage format).&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/6fdde4f4eab72b49b10a8bb1cb3be263c5c416b5/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.java#L493">HL7v2&lt;/a>:
-An I/O connector for HL7v2 messages (a clinical messaging format that provides data about events
-that occur inside an organization) part of
-&lt;a href="https://cloud.google.com/healthcare">Google’s Cloud Healthcare API&lt;/a>.&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/io/Read.java#L248">BoundedSource wrapper&lt;/a>:
-A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/BoundedSource.html">BoundedSource&lt;/a>
-implementation to a splittable DoFn.&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/io/Read.java#L432">UnboundedSource wrapper&lt;/a>:
-A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/UnboundedSource.html">UnboundedSource&lt;/a>
-implementation to a splittable DoFn.&lt;/li>
-&lt;/ul>
-&lt;p>&lt;strong>Python Examples&lt;/strong>&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/python/apache_beam/io/iobase.py#L1375">BoundedSourceWrapper&lt;/a>:
-A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource">BoundedSource&lt;/a>
-implementation to a splittable DoFn.&lt;/li>
-&lt;/ul>
-&lt;p>&lt;strong>Go Examples&lt;/strong>&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/ce190e11332469ea59b6c9acf16ee7c673ccefdd/sdks/go/pkg/beam/io/textio/sdf.go#L40">textio.ReadSdf&lt;/a> implements reading from text files using a splittable DoFn.&lt;/li>
-&lt;/ul></description><link>/blog/splittable-do-fn-is-available/</link><pubDate>Mon, 14 Dec 2020 00:00:01 -0800</pubDate><guid>/blog/splittable-do-fn-is-available/</guid><category>blog</category></item></channel></rss>
+&lt;a href="https://issues.apache.org/jira/browse/BEAM-9547">BEAM-9547&lt;/a>.&lt;/p></description><link>/blog/dataframe-api-preview-available/</link><pubDate>Wed, 16 Dec 2020 09:09:41 -0800</pubDate><guid>/blog/dataframe-api-preview-available/</guid><category>blog</category></item></channel></rss>

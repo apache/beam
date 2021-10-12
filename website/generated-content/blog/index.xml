@@ -1,4 +1,145 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 25 Aug 2021 00:00:01 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.32.0</title><link>/blog/beam-2.32.0/</link><pubDate>Wed, 25 Aug 2021 00:00:01 -0800</pubDate><guid>/blog/beam-2.32.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Thu, 07 Oct 2021 00:00:01 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.33.0</title><link>/blog/beam-2.33.0/</link><pubDate>Thu, 07 Oct 2021 00:00:01 -0800</pubDate><guid>/blog/beam-2.33.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.33.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2330-2021-10-07">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.33.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12350404">detailed release
+notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Go SDK is no longer experimental, and is officially part of the Beam release process.
+&lt;ul>
+&lt;li>Matching Go SDK containers are published on release.&lt;/li>
+&lt;li>Batch usage is well supported, and tested on Flink, Spark, and the Python Portable Runner.
+&lt;ul>
+&lt;li>SDK Tests are also run against Google Cloud Dataflow, but this doesn&amp;rsquo;t indicate reciprocal support.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>The SDK supports Splittable DoFns, Cross Language transforms, and most Beam Model basics.&lt;/li>
+&lt;li>Go Modules are now used for dependency management.
+&lt;ul>
+&lt;li>This is a breaking change, see Breaking Changes for resolution.&lt;/li>
+&lt;li>Easier path to contribute to the Go SDK, no need to set up a GO_PATH.&lt;/li>
+&lt;li>Minimum Go version is now Go v1.16&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>See the announcement blogpost for full information once published.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;!--
+{$TOPICS e.g.:}
+### I/Os
+* Support for X source added (Java) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+{$TOPICS}
+-->
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Projection pushdown in SchemaIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12609">BEAM-12609&lt;/a>).&lt;/li>
+&lt;li>Upgrade Flink runner to Flink versions 1.13.2, 1.12.5 and 1.11.4 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10955">BEAM-10955&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>Since release 2.30.0, &amp;ldquo;The AvroCoder changes for BEAM-2303 [changed] the reader/writer from the Avro ReflectDatum* classes to the SpecificDatum* classes&amp;rdquo; (Java). This default behavior change has been reverted in this release. Use the &lt;code>useReflectApi&lt;/code> setting to control it (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12628">BEAM-12628&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="deprecations">Deprecations&lt;/h3>
+&lt;ul>
+&lt;li>Python GBK will stop supporting unbounded PCollections that have global windowing and a default trigger in Beam 2.34. This can be overriden with &lt;code>--allow_unsafe_triggers&lt;/code>. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
+&lt;li>Python GBK will start requiring safe triggers or the &lt;code>--allow_unsafe_triggers&lt;/code> flag starting with Beam 2.34. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>UnsupportedOperationException when reading from BigQuery tables and converting
+TableRows to Beam Rows (Java)
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12479">BEAM-12479&lt;/a>).&lt;/li>
+&lt;li>SDFBoundedSourceReader behaves much slower compared with the original behavior
+of BoundedSource (Python)
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12781">BEAM-12781&lt;/a>).&lt;/li>
+&lt;li>ORDER BY column not in SELECT crashes (ZetaSQL)
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12759">BEAM-12759&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>Spark 2.x users will need to update Spark&amp;rsquo;s Jackson runtime dependencies (&lt;code>spark.jackson.version&lt;/code>) to at least version 2.9.2, due to Beam updating its dependencies.&lt;/li>
+&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.33.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
+&lt;li>Go SDK jobs may produce &amp;ldquo;Failed to deduce Step from MonitoringInfo&amp;rdquo; messages following successful job execution. The messages are benign and don&amp;rsquo;t indicate job failure. These are due to not yet handling PCollection metrics.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.33.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay,
+Alex Amato,
+Alexey Romanenko,
+Andreas Bergmeier,
+Andres Rodriguez,
+Andrew Pilloud,
+Andy Xu,
+Ankur Goenka,
+anthonyqzhu,
+Benjamin Gonzalez,
+Bhupinder Sindhwani,
+Chamikara Jayalath,
+Claire McGinty,
+Daniel Mateus Pires,
+Daniel Oliveira,
+David Huntsperger,
+Dylan Hercher,
+emily,
+Emily Ye,
+Etienne Chauchot,
+Eugene Nikolaiev,
+Heejong Lee,
+iindyk,
+Iñigo San Jose Visiers,
+Ismaël Mejía,
+Jack McCluskey,
+Jan Lukavský,
+Jeff Ruane,
+Jeremy Lewi,
+KevinGG,
+Ke Wu,
+Kyle Weaver,
+lostluck,
+Luke Cwik,
+Marwan Tammam,
+masahitojp,
+Mehdi Drissi,
+Minbo Bae,
+Ning Kang,
+Pablo Estrada,
+Pascal Gillet,
+Pawas Chhokra,
+Reuven Lax,
+Ritesh Ghorse,
+Robert Bradshaw,
+Robert Burke,
+Rodrigo Benenson,
+Ryan Thompson,
+Saksham Gupta,
+Sam Rohde,
+Sam Whittle,
+Sayat,
+Sayat Satybaldiyev,
+Siyuan Chen,
+Slava Chernyak,
+Steve Niemitz,
+Steven Niemitz,
+tvalentyn,
+Tyson Hamilton,
+Udi Meiri,
+vachan-shetty,
+Venkatramani Rajgopal,
+Yichi Zhang,
+zhoufek&lt;/p></description></item><item><title>Blog: Apache Beam 2.32.0</title><link>/blog/beam-2.32.0/</link><pubDate>Wed, 25 Aug 2021 00:00:01 -0800</pubDate><guid>/blog/beam-2.32.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -3702,7 +3843,7 @@ limitations under the License.
 &lt;/td>
 &lt;td>Local&lt;br>(Using the &lt;code>file://&lt;/code> URI)
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.32.0/org/apache/beam/sdk/io/TextIO.html">TextIO&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.33.0/org/apache/beam/sdk/io/TextIO.html">TextIO&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-">textFileStream&lt;/a>&lt;br>(Spark treats most Unix systems as HDFS-compatible, but the location should be accessible from all nodes)
 &lt;/td>
@@ -3710,7 +3851,7 @@ limitations under the License.
 &lt;tr>
 &lt;td>HDFS&lt;br>(Using the &lt;code>hdfs://&lt;/code> URI)
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.32.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.32.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html">HadoopFileSystemOptions&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.33.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.33.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html">HadoopFileSystemOptions&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/util/HdfsUtils.html">HdfsUtils&lt;/a>
 &lt;/td>
@@ -3720,7 +3861,7 @@ limitations under the License.
 &lt;/td>
 &lt;td>Cloud Storage&lt;br>(Using the &lt;code>gs://&lt;/code> URI)
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.32.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.32.0/org/apache/beam/sdk/extensions/gcp/options/GcsOptions.html">GcsOptions&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.33.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.33.0/org/apache/beam/sdk/extensions/gcp/options/GcsOptions.html">GcsOptions&lt;/a>
 &lt;/td>
 &lt;td rowspan="2" >&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--">hadoopConfiguration&lt;/a>
 and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-">textFileStream&lt;/a>
@@ -3729,7 +3870,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;tr>
 &lt;td>S3&lt;br>(Using the &lt;code>s3://&lt;/code> URI)
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.32.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.32.0/org/apache/beam/sdk/io/aws/options/S3Options.html">S3Options&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.33.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.33.0/org/apache/beam/sdk/io/aws/options/S3Options.html">S3Options&lt;/a>
 &lt;/td>
 &lt;/tr>
 &lt;tr>
@@ -3737,7 +3878,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;/td>
 &lt;td>Kafka
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.32.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.33.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/streaming-kafka-0-10-integration.html">spark-streaming-kafka&lt;/a>
 &lt;/td>
@@ -3745,7 +3886,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;tr>
 &lt;td>Kinesis
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.32.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html">KinesisIO&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.33.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html">KinesisIO&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/streaming-kinesis-integration.html">spark-streaming-kinesis&lt;/a>
 &lt;/td>
@@ -3753,7 +3894,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;tr>
 &lt;td>Cloud Pub/Sub
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.32.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html">PubsubIO&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.33.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html">PubsubIO&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://github.com/apache/bahir/tree/master/streaming-pubsub">spark-streaming-pubsub&lt;/a> from &lt;a href="https://bahir.apache.org">Apache Bahir&lt;/a>
 &lt;/td>
@@ -3789,7 +3930,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;/td>
 &lt;td>Local
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.32.0/apache_beam.io.textio.html">io.textio&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.33.0/apache_beam.io.textio.html">io.textio&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream&lt;/a>
 &lt;/td>
@@ -3797,7 +3938,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;tr>
 &lt;td>HDFS
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.32.0/apache_beam.io.hadoopfilesystem.html">io.hadoopfilesystem&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.33.0/apache_beam.io.hadoopfilesystem.html">io.hadoopfilesystem&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--">hadoopConfiguration&lt;/a> (Access through &lt;code>sc._jsc&lt;/code> with Py4J)
 and &lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream&lt;/a>
@@ -3808,7 +3949,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streamin
 &lt;/td>
 &lt;td>Google Cloud Storage
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.32.0/apache_beam.io.gcp.gcsio.html">io.gcp.gcsio&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.33.0/apache_beam.io.gcp.gcsio.html">io.gcp.gcsio&lt;/a>
 &lt;/td>
 &lt;td rowspan="2" >&lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream&lt;/a>
 &lt;/td>
@@ -3840,7 +3981,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streamin
 &lt;tr>
 &lt;td>Cloud Pub/Sub
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.32.0/apache_beam.io.gcp.pubsub.html">io.gcp.pubsub&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.33.0/apache_beam.io.gcp.pubsub.html">io.gcp.pubsub&lt;/a>
 &lt;/td>
 &lt;td>N/A
 &lt;/td>
@@ -4019,77 +4160,4 @@ please check the detailed release notes.&lt;/p>
 &lt;/ul>
 &lt;h1 id="list-of-contributors">List of Contributors&lt;/h1>
 &lt;p>According to git shortlog, the following 84 people contributed to the 2.5.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alex Van Boxel, Alexander Dejanovski, Alexey Romanenko, Aljoscha Krettek, ananvay, Andreas Ehrencrona, Andrew Pilloud, Ankur Goenka, Anton Kedin, arkash, Austin Bennett, Axel Magnuson, Ben Chambers, Ben Sidhom, Bill Neubauer, Boyuan Zhang, Braden Bassingthwaite, Cade Markegard, cclauss, Chamikara Jayalath, Charles Chen, Chuan Yu Foo, Cody Schroeder, Colm O hEigeartaigh, Daniel Oliveira, Dariusz Aniszewski, David Cavazos, Dawid Wysakowicz, Eric Roshan-Eisner, Etienne Chauchot, Eugene Kirpichov, Flavio Fiszman, Geet Kumar, GlennAmmons, Grzegorz Kołakowski, Henning Rohde, Innocent Djiofack, Ismaël Mejía, Jack Hsueh, Jason Kuster, Javier Antonio Gonzalez Trejo, Jean-Baptiste Onofré, Kai Jiang, Kamil Szewczyk, Katarzyna Kucharczyk, Kenneth Jung, Kenneth Knowles, Kevin Peterson, Lukasz Cwik, Łukasz Gajowy, Mairbek Khadikov, Manu Zhang, Maria Garcia Herrero, Marian Dvorsky, Mark Liu, Matthias Feys, Matthias Wessendorf, mingmxu, Nathan Howell, Pablo Estrada, Paul Gerver, Raghu Angadi, rarokni, Reuven Lax, Rezan Achmad, Robbe Sneyders, Robert Bradshaw, Robert Burke, Romain Manni-Bucau, Sam Waggoner, Sam Whittle, Scott Wegner, Stephan Hoyer, Thomas Groh, Thomas Weise, Tim Robertson, Udi Meiri, Valentyn Tymofieiev, XuMingmin, Yifan Zou, Yunqing Zhou&lt;/p></description></item><item><title>Blog: Apache Beam 2.3.0</title><link>/blog/beam-2.3.0/</link><pubDate>Mon, 19 Feb 2018 00:00:01 -0800</pubDate><guid>/blog/beam-2.3.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are glad to present the new 2.3.0 release of Beam. This release includes
-multiple fixes and new functionalities.&lt;/p>
-&lt;p>For more information
-please check the detailed release notes.&lt;/p>
-&lt;h1 id="new-features--improvements">New Features / Improvements&lt;/h1>
-&lt;h2 id="beam-moves-to-java-8">Beam moves to Java 8&lt;/h2>
-&lt;p>The supported version of Java for Beam is now Java 8. The code and examples have
-been refactored to use multiple of the advantages of the language, e.g. lambdas,
-streams, improved type inference, etc.&lt;/p>
-&lt;h2 id="spark-runner-is-now-based-on-spark-2x">Spark runner is now based on Spark 2.x&lt;/h2>
-&lt;p>Spark runner moves forward into the Spark 2.x development line, this would allow
-to benefit of improved performance, as well as open the runner for future
-compatibility with the Structured Streaming APIs. Notice that support for Spark
-1.x is finished with this release.&lt;/p>
-&lt;h2 id="amazon-web-services-s3-filesystem-support">Amazon Web Services S3 Filesystem support&lt;/h2>
-&lt;p>Beam already supported AWS S3 via HadoopFileSystem, but this version brings a
-native implementation with the corresponding performance advantages of the S3
-filesystem.&lt;/p>
-&lt;h2 id="general-purpose-writing-to-files">General-purpose writing to files&lt;/h2>
-&lt;p>This release contains a new transform, FileIO.write() / writeDynamic() that
-implements a general-purpose fluent and Java8-friendly API for writing to files
-using a FileIO.Sink. This API has similar capabilities to DynamicDestinations
-APIs from Beam 2.2 but is much easier to use and extend. The DynamicDestinations
-APIs for writing to files are deprecated by it, as is FileBasedSink.&lt;/p>
-&lt;h2 id="splittable-dofn-support-on-the-python-sdk">Splittable DoFn support on the Python SDK&lt;/h2>
-&lt;p>This release adds the Splittable DoFn API for Python SDK and adds Splittable
-DoFn support for Python streaming DirectRunner.&lt;/p>
-&lt;h2 id="portability">Portability&lt;/h2>
-&lt;p>Progress continues to being able to execute Python on runners other then Google
-Cloud Dataflow and the Go SDK on any runner.&lt;/p>
-&lt;h1 id="miscellaneous-fixes">Miscellaneous Fixes&lt;/h1>
-&lt;h2 id="sdks">SDKs&lt;/h2>
-&lt;ul>
-&lt;li>MapElements and FlatMapElements support using side inputs using the new
-interface Contextful.Fn. For library authors, this interface is the
-recommended choice for user-code callbacks that may use side inputs.&lt;/li>
-&lt;li>Introduces the family of Reify transforms for converting between explicit and
-implicit representations of various Beam entities.&lt;/li>
-&lt;li>Introduces two transforms for approximate sketching of data: Count-Min Sketch
-(approximate element frequency estimation) and HyperLogLog (approximate
-cardinality estimation).&lt;/li>
-&lt;/ul>
-&lt;h2 id="runners">Runners&lt;/h2>
-&lt;ul>
-&lt;li>Staging files on Dataflow shows progress&lt;/li>
-&lt;li>Flink runner is based now on Flink version 1.4.0&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">IOs&lt;/h2>
-&lt;ul>
-&lt;li>BigtableIO now supports ValueProvider configuration&lt;/li>
-&lt;li>BigQueryIO supports writing bounded collections to tables with partition
-decorators&lt;/li>
-&lt;li>KafkaIO moves to version 1.0 (it is still backwards compatible with versions &amp;gt;= 0.9.x.x)&lt;/li>
-&lt;li>Added IO source for VCF files (Python)&lt;/li>
-&lt;li>Added support for backoff on deadlocks in JdbcIO.write() and connection
-improvement&lt;/li>
-&lt;li>Improved performance of KinesisIO.read()&lt;/li>
-&lt;li>Many improvements to TikaIO&lt;/li>
-&lt;/ul>
-&lt;h1 id="list-of-contributors">List of Contributors&lt;/h1>
-&lt;p>According to git shortlog, the following 78 people contributed to the 2.3.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Ankur Goenka, Anton Kedin, Arnaud Fournier, Asha Rostamianfar, Ben Chambers, Ben Sidhom, Bill Neubauer, Brian Foo, cclauss, Chamikara Jayalath, Charles Chen, Colm O hEigeartaigh, Daniel Oliveira, Dariusz Aniszewski, David Cavazos, David Sabater, David Sabater Dinter, Dawid Wysakowicz, Dmytro Ivanov, Etienne Chauchot, Eugene Kirpichov, Exprosed, Grzegorz Kołakowski, Henning Rohde, Holden Karau, Huygaa Batsaikhan, Ilya Figotin, Innocent Djiofack, Ismaël Mejía, Itamar Ostricher, Jacky, Jacob Marble, James Xu, Jean-Baptiste Onofré, Jeremie Lenfant-Engelmann, Kamil Szewczyk, Kenneth Knowles, Lukasz Cwik, Łukasz Gajowy, Luke Zhu, Mairbek Khadikov, María García Herrero, Marian Dvorsky, Mark Liu, melissa, Miles Saul, mingmxu, Motty Gruda, nerdynick, Neville Li, Nigel Kilmer, Pablo, Pawel Kaczmarczyk, Petr Shevtsov, Rafal Wojdyla, Raghu Angadi, Robert Bradshaw, Robert Burke, Romain Manni-Bucau, Ryan Niemocienski, Ryan Skraba, Sam Whittle, Scott Wegner, Shashank Prabhakara, Solomon Duskis, Thomas Groh, Thomas Weise, Udi Meiri, Valentyn Tymofieiev, wtanaka.com, XuMingmin, zhouhai02, Zohar Yahav, 琨瑜.&lt;/p></description></item></channel></rss>
+&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alex Van Boxel, Alexander Dejanovski, Alexey Romanenko, Aljoscha Krettek, ananvay, Andreas Ehrencrona, Andrew Pilloud, Ankur Goenka, Anton Kedin, arkash, Austin Bennett, Axel Magnuson, Ben Chambers, Ben Sidhom, Bill Neubauer, Boyuan Zhang, Braden Bassingthwaite, Cade Markegard, cclauss, Chamikara Jayalath, Charles Chen, Chuan Yu Foo, Cody Schroeder, Colm O hEigeartaigh, Daniel Oliveira, Dariusz Aniszewski, David Cavazos, Dawid Wysakowicz, Eric Roshan-Eisner, Etienne Chauchot, Eugene Kirpichov, Flavio Fiszman, Geet Kumar, GlennAmmons, Grzegorz Kołakowski, Henning Rohde, Innocent Djiofack, Ismaël Mejía, Jack Hsueh, Jason Kuster, Javier Antonio Gonzalez Trejo, Jean-Baptiste Onofré, Kai Jiang, Kamil Szewczyk, Katarzyna Kucharczyk, Kenneth Jung, Kenneth Knowles, Kevin Peterson, Lukasz Cwik, Łukasz Gajowy, Mairbek Khadikov, Manu Zhang, Maria Garcia Herrero, Marian Dvorsky, Mark Liu, Matthias Feys, Matthias Wessendorf, mingmxu, Nathan Howell, Pablo Estrada, Paul Gerver, Raghu Angadi, rarokni, Reuven Lax, Rezan Achmad, Robbe Sneyders, Robert Bradshaw, Robert Burke, Romain Manni-Bucau, Sam Waggoner, Sam Whittle, Scott Wegner, Stephan Hoyer, Thomas Groh, Thomas Weise, Tim Robertson, Udi Meiri, Valentyn Tymofieiev, XuMingmin, Yifan Zou, Yunqing Zhou&lt;/p></description></item></channel></rss>
