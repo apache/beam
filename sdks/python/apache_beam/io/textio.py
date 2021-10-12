@@ -99,7 +99,8 @@ class _TextSource(filebasedsource.FileBasedSource):
                buffer_size=DEFAULT_READ_BUFFER_SIZE,
                validate=True,
                skip_header_lines=0,
-               header_processor_fns=(None, None)):
+               header_processor_fns=(None, None),
+               delimiter=None):
     """Initialize a _TextSource
 
     Args:
@@ -112,6 +113,9 @@ class _TextSource(filebasedsource.FileBasedSource):
         `header_matcher` are both provided, the value of `skip_header_lines`
         lines will be skipped and the header will be processed from
         there.
+      delimiter (bytes) Optional: delimiter to split records.
+        Must not self-overlap, because self-overlapping delimiters cause
+        ambiguous parsing.
     Raises:
       ValueError: if skip_lines is negative.
 
@@ -137,6 +141,12 @@ class _TextSource(filebasedsource.FileBasedSource):
           'lines might significantly slow down processing.')
     self._skip_header_lines = skip_header_lines
     self._header_matcher, self._header_processor = header_processor_fns
+    if delimiter is not None:
+      if not isinstance(delimiter, bytes) or len(delimiter) == 0:
+        raise ValueError('Delimiter must be a non-empty bytes sequence.')
+      if self._is_self_overlapping(delimiter):
+        raise ValueError('Delimiter must not self-overlap.')
+    self._delimiter = delimiter
 
   def display_data(self):
     parent_dd = super().display_data()
@@ -165,22 +175,27 @@ class _TextSource(filebasedsource.FileBasedSource):
           self._process_header(file_to_read, read_buffer))
       start_offset = max(start_offset, position_after_processing_header_lines)
       if start_offset > position_after_processing_header_lines:
-        # Seeking to one position before the start index and ignoring the
-        # current line. If start_position is at beginning if the line, that line
-        # belongs to the current bundle, hence ignoring that is incorrect.
-        # Seeking to one byte before prevents that.
+        # Seeking to one delimiter length before the start index and ignoring
+        # the current line. If start_position is at beginning if the line, that
+        # line belongs to the current bundle, hence ignoring that is incorrect.
+        # Seeking to one delimiter before prevents that.
 
-        file_to_read.seek(start_offset - 1)
+        if self._delimiter is not None and start_offset >= len(self._delimiter):
+          required_position = start_offset - len(self._delimiter)
+        else:
+          required_position = start_offset - 1
+
+        file_to_read.seek(required_position)
         read_buffer.reset()
         sep_bounds = self._find_separator_bounds(file_to_read, read_buffer)
         if not sep_bounds:
-          # Could not find a separator after (start_offset - 1). This means that
+          # Could not find a delimiter after required_position. This means that
           # none of the records within the file belongs to the current source.
           return
 
         _, sep_end = sep_bounds
         read_buffer.data = read_buffer.data[sep_end:]
-        next_record_start_position = start_offset - 1 + sep_end
+        next_record_start_position = required_position + sep_end
       else:
         next_record_start_position = position_after_processing_header_lines
 
@@ -196,7 +211,7 @@ class _TextSource(filebasedsource.FileBasedSource):
         if len(record) == 0 and num_bytes_to_next_record < 0:  # pylint: disable=len-as-condition
           break
 
-        # Record separator must be larger than zero bytes.
+        # Record delimiter must be larger than zero bytes.
         assert num_bytes_to_next_record != 0
         if num_bytes_to_next_record > 0:
           next_record_start_position += num_bytes_to_next_record
@@ -235,33 +250,48 @@ class _TextSource(filebasedsource.FileBasedSource):
 
   def _find_separator_bounds(self, file_to_read, read_buffer):
     # Determines the start and end positions within 'read_buffer.data' of the
-    # next separator starting from position 'read_buffer.position'.
-    # Currently supports following separators.
-    # * '\n'
-    # * '\r\n'
+    # next delimiter starting from position 'read_buffer.position'.
+    # Use the custom delimiter to be used in place of
+    # the default ones ('\n' or '\r\n')'
     # This method may increase the size of buffer but it will not decrease the
     # size of it.
 
     current_pos = read_buffer.position
 
+    # b'\n' use as default
+    delimiter = self._delimiter or b'\n'
+    delimiter_len = len(delimiter)
+
     while True:
-      if current_pos >= len(read_buffer.data):
-        # Ensuring that there are enough bytes to determine if there is a '\n'
+      if current_pos >= len(read_buffer.data) - delimiter_len + 1:
+        # Ensuring that there are enough bytes to determine
         # at current_pos.
         if not self._try_to_ensure_num_bytes_in_buffer(
-            file_to_read, read_buffer, current_pos + 1):
+            file_to_read, read_buffer, current_pos + delimiter_len):
           return
 
-      # Using find() here is more efficient than a linear scan of the byte
-      # array.
-      next_lf = read_buffer.data.find(b'\n', current_pos)
-      if next_lf >= 0:
-        if next_lf > 0 and read_buffer.data[next_lf - 1:next_lf] == b'\r':
-          # Found a '\r\n'. Accepting that as the next separator.
-          return (next_lf - 1, next_lf + 1)
+      # Using find() here is more efficient than a linear scan
+      # of the byte array.
+      next_delim = read_buffer.data.find(delimiter, current_pos)
+
+      if next_delim >= 0:
+        if (self._delimiter is None and
+            read_buffer.data[next_delim - 1:next_delim] == b'\r'):
+          # Accept both '\r\n' and '\n' as a default delimiter.
+          return (next_delim - 1, next_delim + 1)
         else:
-          # Found a '\n'. Accepting that as the next separator.
-          return (next_lf, next_lf + 1)
+          # Found a delimiter. Accepting that as the next delimiter.
+          return (next_delim, next_delim + delimiter_len)
+
+      elif self._delimiter is not None:
+        # Corner case: custom delimiter is truncated at the end of the buffer.
+        next_delim = read_buffer.data.find(
+            delimiter[0], len(read_buffer.data) - delimiter_len + 1)
+        if next_delim >= 0:
+          # Delimiters longer than 1 byte may cross the buffer boundary.
+          # Defer full matching till the next iteration.
+          current_pos = next_delim
+          continue
 
       current_pos = len(read_buffer.data)
 
@@ -314,15 +344,23 @@ class _TextSource(filebasedsource.FileBasedSource):
       return (read_buffer.data[record_start_position_in_buffer:], -1)
 
     if self._strip_trailing_newlines:
-      # Current record should not contain the separator.
+      # Current record should not contain the delimiter.
       return (
           read_buffer.data[record_start_position_in_buffer:sep_bounds[0]],
           sep_bounds[1] - record_start_position_in_buffer)
     else:
-      # Current record should contain the separator.
+      # Current record should contain the delimiter.
       return (
           read_buffer.data[record_start_position_in_buffer:sep_bounds[1]],
           sep_bounds[1] - record_start_position_in_buffer)
+
+  @staticmethod
+  def _is_self_overlapping(delimiter):
+    # A delimiter self-overlaps if it has a prefix that is also its suffix.
+    for i in range(1, len(delimiter)):
+      if delimiter[0:i] == delimiter[len(delimiter) - i:]:
+        return True
+    return False
 
 
 class _TextSourceWithFilename(_TextSource):
@@ -428,7 +466,8 @@ def _create_text_source(
     compression_type=None,
     strip_trailing_newlines=None,
     coder=None,
-    skip_header_lines=None):
+    skip_header_lines=None,
+    delimiter=None):
   return _TextSource(
       file_pattern=file_pattern,
       min_bundle_size=min_bundle_size,
@@ -436,7 +475,8 @@ def _create_text_source(
       strip_trailing_newlines=strip_trailing_newlines,
       coder=coder,
       validate=False,
-      skip_header_lines=skip_header_lines)
+      skip_header_lines=skip_header_lines,
+      delimiter=delimiter)
 
 
 class ReadAllFromText(PTransform):
@@ -467,6 +507,7 @@ class ReadAllFromText(PTransform):
       coder=coders.StrUtf8Coder(),  # type: coders.Coder
       skip_header_lines=0,
       with_filename=False,
+      delimiter=None,
       **kwargs):
     """Initialize the ``ReadAllFromText`` transform.
 
@@ -491,6 +532,9 @@ class ReadAllFromText(PTransform):
       with_filename: If True, returns a Key Value with the key being the file
         name and the value being the actual data. If False, it only returns
         the data.
+      delimiter (bytes) Optional: delimiter to split records.
+        Must not self-overlap, because self-overlapping delimiters cause
+        ambiguous parsing.
     """
     super().__init__(**kwargs)
     source_from_file = partial(
@@ -499,7 +543,8 @@ class ReadAllFromText(PTransform):
         compression_type=compression_type,
         strip_trailing_newlines=strip_trailing_newlines,
         coder=coder,
-        skip_header_lines=skip_header_lines)
+        skip_header_lines=skip_header_lines,
+        delimiter=delimiter)
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._compression_type = compression_type
@@ -520,7 +565,8 @@ class ReadFromText(PTransform):
   files.
 
   Parses a text file as newline-delimited elements, by default assuming
-  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``.
+  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``
+  or specified delimiter .
 
   This implementation only supports reading text encoded using ``UTF-8`` or
   ``ASCII``.
@@ -538,6 +584,7 @@ class ReadFromText(PTransform):
       coder=coders.StrUtf8Coder(),  # type: coders.Coder
       validate=True,
       skip_header_lines=0,
+      delimiter=None,
       **kwargs):
     """Initialize the :class:`ReadFromText` transform.
 
@@ -561,6 +608,9 @@ class ReadFromText(PTransform):
         skipped from each source file. Must be 0 or higher. Large number of
         skipped lines might impact performance.
       coder (~apache_beam.coders.coders.Coder): Coder used to decode each line.
+      delimiter (bytes) Optional: delimiter to split records.
+        Must not self-overlap, because self-overlapping delimiters cause
+        ambiguous parsing.
     """
 
     super().__init__(**kwargs)
@@ -571,7 +621,8 @@ class ReadFromText(PTransform):
         strip_trailing_newlines,
         coder,
         validate=validate,
-        skip_header_lines=skip_header_lines)
+        skip_header_lines=skip_header_lines,
+        delimiter=delimiter)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
