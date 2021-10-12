@@ -5139,6 +5139,12 @@ after jobs have completed.
 There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and
 `Gauge`.
 
+{{< paragraph class="language-go" >}}
+In the Beam SDK for Go, a `context.Context` provided by the framework must be passed to the metric
+or the metric value will not be recorded. The framework will automatically provide a valid
+`context.Context` to `ProcessElement` and similar methods when it's the first parameter.
+{{< /paragraph >}}
+
 **Counter**: A metric that reports a single long value and can be incremented or decremented.
 
 {{< highlight java >}}
@@ -5149,6 +5155,16 @@ public void processElement(ProcessContext context) {
   // count the elements
   counter.inc();
   ...
+}
+{{< /highlight >}}
+
+{{< highlight go >}}
+var counter = beam.NewCounter("namespace", "counter1")
+
+func (fn *MyDoFn) ProcessElement(ctx context.Context, ...) {
+	// count the elements
+	counter.Inc(ctx, 1)
+	...
 }
 {{< /highlight >}}
 
@@ -5163,6 +5179,16 @@ public void processElement(ProcessContext context) {
     // create a distribution (histogram) of the values
     distribution.update(element);
     ...
+}
+{{< /highlight >}}
+
+{{< highlight go >}}
+var distribution = beam.NewDistribution("namespace", "distribution1")
+
+func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
+    // create a distribution (histogram) of the values
+	distribution.Inc(ctx, v)
+	...
 }
 {{< /highlight >}}
 
@@ -5181,10 +5207,29 @@ public void processElement(ProcessContext context) {
 }
 {{< /highlight >}}
 
+{{< highlight go >}}
+var gauge = beam.NewGauge("namespace", "gauge1")
+
+func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
+  // create a gauge (latest value received) of the values
+	gauge.Set(ctx, v)
+	...
+}
+{{< /highlight >}}
+
 ### 10.3. Querying metrics {#querying-metrics}
+{{< paragraph class="language-java language-python">}}
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
 accessing metrics. The main method available in `MetricResults` allows querying for all metrics
 matching a given filter.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go">}}
+`beam.PipelineResult` has a method `Metrics()` which returns a `metrics.Results` object that allows
+accessing metrics. The main method available in `metrics.Results` allows querying for all metrics
+matching a given filter.  It takes in a predicate with a `SingleResult` parameter type, which can
+be used for custom filters.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 public interface PipelineResult {
@@ -5207,6 +5252,10 @@ public interface MetricResult<T> {
   T getCommitted();
   T getAttempted();
 }
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_query >}}
 {{< /highlight >}}
 
 ### 10.4. Using metrics in pipeline {#using-metrics}
@@ -5245,6 +5294,10 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
     context.output(context.element());
   }
 }
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_pipeline >}}
 {{< /highlight >}}
 
 ### 10.5. Export metrics {#export-metrics}
@@ -6511,7 +6564,7 @@ $ jar -jar /path/to/expansion_service.jar <PORT_NUMBER>
 
 The expansion service is now ready to serve transforms on the specified port.
 
-When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the utilities [JavaJarExpansionService and BeamJarExpansionService](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) utility for starting up a Java expansion service using a JAR file.
+When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the utilities [`JavaJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService) and [`BeamJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService) for starting up a Java expansion service using a JAR file.
 
 **Including dependencies**
 
@@ -6519,12 +6572,12 @@ If your transform requires external libraries, you can include them by adding th
 
 **Writing SDK-specific wrappers**
 
-Your cross-language Java transform can be called through the lower-level [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) class in a multi-language pipeline (as described in the next section); however, if possible, you should create a SDK-specific wrapper written in the programming language of the pipeline (such as Python) to access the transform instead. This higher-level abstraction will make it easier for pipeline authors to use your transform.
+Your cross-language Java transform can be called through the lower-level [`ExternalTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform) class in a multi-language pipeline (as described in the next section); however, if possible, you should create a SDK-specific wrapper written in the programming language of the pipeline (such as Python) to access the transform instead. This higher-level abstraction will make it easier for pipeline authors to use your transform.
 
 To create an SDK wrapper for use in a Python pipeline, do the following:
 
 1. Create a Python module for your cross-language transform(s).
-2. In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes.
+2. In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available [`PayloadBuilder`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder) classes.
 
     The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java `ExternalTransformBuilder`. Parameter types are mapped across SDKs using a [Beam schema](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/schema.proto). Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).
 
@@ -6539,7 +6592,7 @@ class ReadFromKafkaSchema(typing.NamedTuple):
 payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
     {{< /highlight >}}
 
-3. Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities `JavaJarExpansionService` and `BeamJarExpansionService` for easily starting up an expansion service using a JAR file.. `JavaJarExpansionService` can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. `BeamJarExpansionService` can be used for easily starting an expansion service based on a JAR released with Beam.
+3. Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities [`JavaJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService) and [`BeamJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService) for easily starting up an expansion service using a JAR file.. [`JavaJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService) can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. [`BeamJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService) can be used for easily starting an expansion service based on a JAR released with Beam.
 
     For transforms released with Beam do the following:
 
@@ -6549,7 +6602,7 @@ payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
         {{< highlight >}}
     expansion_service = BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
         {{< /highlight >}}
-4. Add a Python wrapper transform class that extends [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py). Pass the payload and expansion service defined above as parameters to the constructor of the `ExternalTransform` parent class.
+4. Add a Python wrapper transform class that extends [`ExternalTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform). Pass the payload and expansion service defined above as parameters to the constructor of the [`ExternalTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform) parent class.
 
 #### 13.1.2. Creating cross-language Python transforms
 
@@ -6642,7 +6695,7 @@ Currently, to access cross-language transforms from the Java SDK, you have to us
 
 #### 13.2.2. Using cross-language transforms in a Python pipeline
 
-If a Python-specific wrapper for a cross-language transform is available, use that; otherwise, you have to use the lower-level [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) class to access the transform.
+If a Python-specific wrapper for a cross-language transform is available, use that; otherwise, you have to use the lower-level [`ExternalTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform) class to access the transform.
 
 **Using an SDK wrapper**
 
@@ -6671,7 +6724,7 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
 2. Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
 
     Make sure the transform you're trying to use is available and can be used by the expansion service. For Java, make sure the builder and registrar for the transform are available in the classpath of the expansion service.
-3. Include `ExternalTransform` when instantiating your pipeline. Reference the URN, Payload, and expansion service. You can use one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes to build the payload for `ExternalTransform`.
+3. Include `ExternalTransform` when instantiating your pipeline. Reference the URN, Payload, and expansion service. You can use one of the available [`PayloadBuilder`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder) classes to build the payload for `ExternalTransform`.
 
     {{< highlight >}}
 with pipeline as p:

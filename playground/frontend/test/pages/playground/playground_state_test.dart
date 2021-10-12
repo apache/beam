@@ -18,7 +18,7 @@
 
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/pages/playground/playground_state.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 
 void main() {
   test('Playground State initial value should be java', () {

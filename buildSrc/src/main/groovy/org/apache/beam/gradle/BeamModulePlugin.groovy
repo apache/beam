@@ -378,7 +378,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.34.0'
+    project.version = '2.35.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -452,7 +452,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def errorprone_version = "2.3.4"
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.2"
-    def google_cloud_pubsublite_version = "1.0.4"
+    def google_cloud_pubsublite_version = "1.2.0"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -475,7 +475,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.17.3"
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
-    def spark_version = "2.4.8"
+    def spark2_version = "2.4.8"
+    def spark3_version = "3.1.2"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
     def arrow_version = "5.0.0"
@@ -525,6 +526,7 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
+        checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.15",
         commons_compress                            : "org.apache.commons:commons-compress:1.21",
@@ -655,10 +657,14 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.8.4",
-        spark_core                                  : "org.apache.spark:spark-core_2.11:$spark_version",
-        spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
-        spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
-        spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
+        spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
+        spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark2_version",
+        spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark2_version",
+        spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
+        spark3_core                                  : "org.apache.spark:spark-core_2.12:$spark3_version",
+        spark3_network_common                        : "org.apache.spark:spark-network-common_2.12:$spark3_version",
+        spark3_sql                                   : "org.apache.spark:spark-sql_2.12:$spark3_version",
+        spark3_streaming                             : "org.apache.spark:spark-streaming_2.12:$spark3_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
