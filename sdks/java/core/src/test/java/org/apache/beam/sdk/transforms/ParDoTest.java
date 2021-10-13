@@ -2445,7 +2445,7 @@ public class ParDoTest implements Serializable {
       UsesMapState.class,
       UsesTestStream.class
     })
-    public void testMapStateNoReadOnReadableState() {
+    public void testMapStateNoReadOnComputeIfAbsentAndPutIfAbsentInsertsElement() {
       final String stateId = "foo";
       final String countStateId = "count";
 
@@ -2458,7 +2458,7 @@ public class ParDoTest implements Serializable {
 
             @StateId(countStateId)
             private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
-                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+                StateSpecs.combining(Sum.ofIntegers());
 
             @ProcessElement
             public void processElement(
@@ -2468,11 +2468,14 @@ public class ParDoTest implements Serializable {
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, Integer>> r) {
               KV<String, Integer> value = element.getValue();
-              state.putIfAbsent(value.getKey(), value.getValue());
+              if ("a".equals(value.getKey())) {
+                state.putIfAbsent(value.getKey(), value.getValue());
+              } else {
+                state.computeIfAbsent(value.getKey(), x -> value.getValue());
+              }
               count.add(1);
               if (count.read() >= 4) {
                 Iterable<Map.Entry<String, Integer>> iterate = state.entries().read();
-                assertEquals(2, Iterables.size(iterate));
 
                 for (Map.Entry<String, Integer> entry : iterate) {
                   r.output(KV.of(entry.getKey(), entry.getValue()));
