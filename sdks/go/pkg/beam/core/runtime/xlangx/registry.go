@@ -116,7 +116,6 @@ func makePCol(node *graph.Node, index int, local, namespace string) PCol {
 		Index:   index,
 		Local:   local,
 		Coder:   node.Coder,
-		Type:    node.Type(),
 		Bounded: pipelinex.BoolToBounded(node.Bounded()),
 
 		namespace: namespace,
