@@ -2233,6 +2233,21 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           requires_partition_by=partitionings.Arbitrary(),
           preserves_partition_by=partitionings.Singleton()))
 
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def set_axis(self, labels, **kwargs):
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+              expressions.ComputedExpression(
+                  'set_axis',
+                  lambda df: df.set_axis(labels, **kwargs),
+                  [self._expr],
+                  requires_partition_by=partitionings.Index(),
+                  preserves_partition_by=partitionings.Singleton()))
+
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
   def axes(self):

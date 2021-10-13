@@ -312,7 +312,6 @@ class DoctestTest(unittest.TestCase):
                 # a DeferredIndex, and we should fail it as order-sensitive.
                 "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
-            'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
 
@@ -510,7 +509,6 @@ class DoctestTest(unittest.TestCase):
                 # This doctest seems to be incorrectly parsed.
                 "x = pd.Categorical(['apple', 'bread', 'bread',"
             ],
-            'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.to_csv': ['*'],
             'pandas.core.series.Series.to_markdown': ['*'],
             'pandas.core.series.Series.update': ['*'],
