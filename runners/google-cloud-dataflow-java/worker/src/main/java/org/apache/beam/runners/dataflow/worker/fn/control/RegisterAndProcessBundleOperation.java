@@ -403,12 +403,15 @@ public class RegisterAndProcessBundleOperation extends Operation {
   }
 
   public boolean hasFailed() throws ExecutionException, InterruptedException {
-    if (processBundleResponse != null && processBundleResponse.toCompletableFuture().isDone()) {
-      return !processBundleResponse.toCompletableFuture().get().getError().isEmpty();
-    } else {
-      // At the very least, we don't know that this has failed yet.
-      return false;
+    if (processBundleResponse != null) {
+      @Nullable
+      InstructionResponse response = processBundleResponse.toCompletableFuture().getNow(null);
+      if (response != null) {
+        return !response.getError().isEmpty();
+      }
     }
+    // Either this has not failed yet, or has completed successfully.
+    return false;
   }
 
   /*
