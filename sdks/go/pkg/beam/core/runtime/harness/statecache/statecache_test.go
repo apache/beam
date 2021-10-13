@@ -254,6 +254,9 @@ func TestSetCache_Eviction(t *testing.T) {
 	if len(s.cache) != 1 {
 		t.Errorf("cache size incorrect, expected 1, got %v", len(s.cache))
 	}
+	if s.metrics.Evictions != 1 {
+		t.Errorf("number evictions incorrect, expected 1, got %v", s.metrics.Evictions)
+	}
 }
 
 func TestSetCache_EvictionFailure(t *testing.T) {
@@ -279,5 +282,8 @@ func TestSetCache_EvictionFailure(t *testing.T) {
 	// Cache should not exceed size 1
 	if len(s.cache) != 1 {
 		t.Errorf("cache size incorrect, expected 1, got %v", len(s.cache))
+	}
+	if s.metrics.InUseEvictions != 1 {
+		t.Errorf("number of failed evicition calls incorrect, expected 1, got %v", s.metrics.InUseEvictions)
 	}
 }

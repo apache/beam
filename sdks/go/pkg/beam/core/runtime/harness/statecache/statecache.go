@@ -24,7 +24,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -60,11 +59,7 @@ type SideInputCache struct {
 
 // CacheMetrics stores metrics for the cache across a pipeline run.
 type CacheMetrics struct {
-	Hits           *metrics.Counter
-	Misses         *metrics.Counter
-	Evictions      *metrics.Counter
-	InUseEvictions *metrics.Counter
-	ReStreamErrors *metrics.Counter
+	Hits, Misses, Evictions, InUseEvictions, ReStreamErrors int64
 }
 
 // Init makes the cache map and the map of IDs to cache tokens for the
@@ -80,13 +75,7 @@ func (c *SideInputCache) Init(cap int) error {
 	c.idsToTokens = make(map[string]token)
 	c.validTokens = make(map[token]int8)
 	c.capacity = cap
-	c.metrics = CacheMetrics{
-		Hits:           metrics.NewCounter("sdkcache-go", "SideInputCache-Hits"),
-		Misses:         metrics.NewCounter("sdkcache-go", "SideInputCache-Misses"),
-		Evictions:      metrics.NewCounter("sdkcache-go", "SideInputCache-Evictions"),
-		InUseEvictions: metrics.NewCounter("sdkcache-go", "SideInputCache-InUseEvictions"),
-		ReStreamErrors: metrics.NewCounter("sdkcache-go", "SideInputCache-ReStreamErrors"),
-	}
+	c.metrics = CacheMetrics{}
 	return nil
 }
 
@@ -180,11 +169,11 @@ func (c *SideInputCache) QueryCache(ctx context.Context, transformID, sideInputI
 	// Check to see if cached
 	input, ok := c.cache[keyString]
 	if !ok {
-		c.metrics.Misses.Inc(ctx, 1)
+		c.metrics.Misses++
 		return nil
 	}
 
-	c.metrics.Hits.Inc(ctx, 1)
+	c.metrics.Hits++
 	return input
 }
 
@@ -214,7 +203,7 @@ func (c *SideInputCache) SetCache(ctx context.Context, transformID, sideInputID 
 	}
 	mat, err := materializeReStream(input)
 	if err != nil {
-		c.metrics.ReStreamErrors.Inc(ctx, 1)
+		c.metrics.ReStreamErrors++
 		return input
 	}
 	keyString := c.makeCacheKey(tok, win, key)
@@ -237,7 +226,7 @@ func (c *SideInputCache) evictElement(ctx context.Context) {
 		// Do not evict an element if it's currently valid
 		if !c.isValid(k.tok) {
 			delete(c.cache, k)
-			c.metrics.Evictions.Inc(ctx, 1)
+			c.metrics.Evictions++
 			deleted = true
 			break
 		}
@@ -247,7 +236,7 @@ func (c *SideInputCache) evictElement(ctx context.Context) {
 	if !deleted {
 		for k := range c.cache {
 			delete(c.cache, k)
-			c.metrics.InUseEvictions.Inc(ctx, 1)
+			c.metrics.InUseEvictions++
 			break
 		}
 	}
