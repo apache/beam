@@ -26,52 +26,49 @@ type StateSampler struct {
 	done  chan (int) // signal to stop sampling
 	e     *ExecutionTracker
 	store *Store
-	pid   string // PTransform ID
+	total int64
 }
 
 // NewSampler creates a new state sampler.
-func NewSampler(ctx context.Context, store *Store, pid string) StateSampler {
-	return StateSampler{done: make(chan int), e: getExecutionStore(ctx), store: store, pid: pid}
+func NewSampler(ctx context.Context, store *Store) StateSampler {
+	return StateSampler{done: make(chan int), e: getExecutionStore(ctx), store: store}
 }
 
-func (s *StateSampler) Start() {
-	s.startSampler()
+// Start is called from the harness package repeatedly whenever required
+func (s *StateSampler) Start(ctx context.Context, t time.Duration) {
+	s.startSampler(ctx, t)
 }
 
-func (s *StateSampler) startSampler() {
-	for {
-		select {
-		case <-s.done:
-			return
-		default:
-			if atomic.LoadInt64(&s.e.NumberOfTransitions) != atomic.LoadInt64(&s.e.TransitionsAtLastSample) {
-				s.sample()
-			}
-
-			// TODO: constant for sampling period
-			atomic.AddInt64(&s.e.MillisSinceLastTransition, 200)
-			atomic.AddInt64(&s.e.State.TotalTimeMillis, 200)
-			time.Sleep(200 * time.Millisecond)
-		}
+func (s *StateSampler) startSampler(ctx context.Context, t time.Duration) {
+	if loadTransitions(ctx) != atomic.LoadInt64(&(s.e.TransitionsAtLastSample)) {
+		s.sample(ctx)
 	}
+
+	atomic.AddInt64(&s.e.MillisSinceLastTransition, int64(t))
+	atomic.AddInt64(&s.e.State.TotalTimeMillis, int64(t))
 }
 
-func (s *StateSampler) Stop() {
-	s.stopSampler()
+func (s *StateSampler) Stop(ctx context.Context, t time.Duration) {
+	s.stopSampler(ctx, t)
 }
 
-func (s *StateSampler) stopSampler() {
-	s.done <- 1
+func (s *StateSampler) stopSampler(ctx context.Context, t time.Duration) {
 	// collect the remaining metrics (finish bundle metrics)
-	s.sample()
+	s.sample(ctx)
+	// add final state
+
+	ex := ExecutionState{State: TotalBundle, TotalTimeMillis: s.total}
+	s.store.AddState(ex, loadPTransformState(ctx).pid)
 }
 
-func (s *StateSampler) sample() {
+func (s *StateSampler) sample(ctx context.Context) {
+	ps := loadPTransformState(ctx)
+	t := loadTransitions(ctx)
+	s.store.AddState(s.e.State, ps.pid)
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
-	s.e.TransitionsAtLastSample = s.e.NumberOfTransitions
-	s.e.MillisSinceLastTransition = 0
-	s.store.AddState(s.e.State, s.pid)
-	s.e.State.State = s.e.CurrentState
-	s.e.State.TotalTimeMillis = 0
+	s.total += s.e.State.TotalTimeMillis
+	s.e.TransitionsAtLastSample = t
+	s.e.State.TotalTimeMillis = s.e.MillisSinceLastTransition - s.e.State.TotalTimeMillis
+	s.e.State.State = ps.state
 }

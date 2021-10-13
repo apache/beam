@@ -16,8 +16,10 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -169,12 +171,43 @@ type ExecutionState struct {
 
 // ExecutionTracker stores information about a bundle for execution time metrics.
 type ExecutionTracker struct {
-	CurrentState              bundleProcState
 	State                     ExecutionState
 	NumberOfTransitions       int64
 	MillisSinceLastTransition int64
 	TransitionsAtLastSample   int64
 	LastSampleTimeMillis      int64
+	TotalTimeMillis           int64
+}
+
+// executionState is used to store as atomic.Value in Store.
+type pTransformState struct {
+	pid   string
+	state bundleProcState
+}
+
+func newPTransformState(pid string, state bundleProcState) *pTransformState {
+	return &pTransformState{pid: pid, state: state}
+}
+
+func SetPTransformState(ctx context.Context, pid string, state bundleProcState) {
+	ps := newPTransformState(pid, state)
+
+	if bctx, ok := ctx.(*beamCtx); ok {
+		bctx.exStore.Store(ps)
+	}
+}
+
+type PTransformStateVal struct {
+	pid   string
+	state bundleProcState
+}
+
+func loadPTransformState(ctx context.Context) PTransformStateVal {
+	if bctx, ok := ctx.(*beamCtx); ok {
+		ps := bctx.exStore.Load().(*pTransformState)
+		return PTransformStateVal{pid: ps.pid, state: ps.state}
+	}
+	panic("execution store not yet set.")
 }
 
 // Store retains per transform countersets, intended for per bundle use.
@@ -182,14 +215,13 @@ type Store struct {
 	mu  sync.RWMutex
 	css []*ptCounterSet
 
-	store map[Labels]userMetric
-
+	store          map[Labels]userMetric
 	executionStore ExecutionTracker
 	stateRegistry  map[Labels][]ExecutionState
 }
 
 func newStore() *Store {
-	return &Store{store: make(map[Labels]userMetric), stateRegistry: make(map[Labels][]ExecutionState)}
+	return &Store{store: make(map[Labels]userMetric), executionStore: ExecutionTracker{}, stateRegistry: make(map[Labels][]ExecutionState)}
 }
 
 // AddState adds an ExecutionState of a PTransform to the stateRegistry.
@@ -203,18 +235,9 @@ func (s *Store) AddState(e ExecutionState, pid string) {
 	s.stateRegistry[label] = append(s.stateRegistry[label], e)
 }
 
-// SetState updates the state of a bundle.
-// For the bundle in start state, update the ExecutionState struct as well.
-func (e *ExecutionTracker) SetState(bs bundleProcState) {
-	if bs == StartBundle {
-		e.State.State = bs
-	}
-	e.CurrentState = bs
-}
-
 // IncTransitions increment the number of transitions by 1.
 func (e *ExecutionTracker) IncTransitions() {
-	e.NumberOfTransitions += 1
+	atomic.AddInt64(&e.NumberOfTransitions, 1)
 }
 
 // GetRegistry return the state registry.

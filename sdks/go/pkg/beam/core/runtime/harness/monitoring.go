@@ -16,7 +16,6 @@
 package harness
 
 import (
-	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -103,19 +102,6 @@ func shortIdsToInfos(shortids []string) map[string]*pipepb.MonitoringInfo {
 	return defaultShortIDCache.shortIdsToInfos(shortids)
 }
 
-func getUrn(i int) metricsx.Urn {
-	switch i {
-	case 0:
-		return metricsx.UrnStartBundle
-	case 1:
-		return metricsx.UrnProcessBundle
-	case 2:
-		return metricsx.UrnFinishBundle
-	default:
-		panic(fmt.Errorf("invalid bundle processing state: %d", i))
-	}
-}
-
 func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, map[string][]byte) {
 	if store == nil {
 		return nil, nil
@@ -179,12 +165,12 @@ func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, m
 				if err != nil {
 					panic(err)
 				}
-				payloads[getShortID(l, getUrn(i))] = payload
+				payloads[getShortID(l, metricsx.ExecutionMsecUrn(i))] = payload
 
 				monitoringInfo = append(monitoringInfo,
 					&pipepb.MonitoringInfo{
-						Urn:     metricsx.UrnToString(getUrn(i)),
-						Type:    metricsx.UrnToType(getUrn(i)),
+						Urn:     metricsx.UrnToString(metricsx.ExecutionMsecUrn(i)),
+						Type:    metricsx.UrnToType(metricsx.ExecutionMsecUrn(i)),
 						Labels:  l.Map(),
 						Payload: payload,
 					})

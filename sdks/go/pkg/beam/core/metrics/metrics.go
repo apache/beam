@@ -80,7 +80,8 @@ type beamCtx struct {
 	bundleID, ptransformID string
 	store                  *Store
 	cs                     *ptCounterSet
-	exStore                atomic.Value
+	exStore                atomic.Value // stores ptransform data
+	transitions            int64        // stores number of ptransform state changes
 }
 
 // Value implements the Context interface Value method for beamCtx.
@@ -115,7 +116,7 @@ func (ctx *beamCtx) Value(key interface{}) interface{} {
 		}
 		return ctx.store
 	case exStoreKey:
-		return ctx.exStore
+		return &ctx.exStore
 	}
 	return ctx.Context.Value(key)
 }
@@ -153,28 +154,17 @@ func SetExecutionStore(ctx context.Context) {
 	panic("can't set execution store, metrics.Store not set yet.")
 }
 
-func SetState(ctx context.Context, state bundleProcState) {
+func IncTransition(ctx context.Context) {
 	if bctx, ok := ctx.(*beamCtx); ok {
-		if v := bctx.exStore.Load(); v != nil {
-			exStore := v.(ExecutionTracker)
-			exStore.SetState(state)
-			bctx.exStore.Store(exStore)
-		} else {
-			exStore := ExecutionTracker{}
-			exStore.SetState(state)
-			bctx.exStore.Store(exStore)
-		}
+		atomic.AddInt64(&bctx.transitions, 1)
 	}
 }
 
-func IncTransition(ctx context.Context) {
+func loadTransitions(ctx context.Context) int64 {
 	if bctx, ok := ctx.(*beamCtx); ok {
-		if v := bctx.exStore.Load(); v != nil {
-			exStore := v.(ExecutionTracker)
-			atomic.AddInt64(&exStore.NumberOfTransitions, 1)
-			bctx.exStore.Store(exStore)
-		}
+		return atomic.LoadInt64(&bctx.transitions)
 	}
+	return 0
 }
 
 // GetStore extracts the metrics Store for the given context for a bundle.

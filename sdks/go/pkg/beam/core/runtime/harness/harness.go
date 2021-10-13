@@ -317,18 +317,18 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(ctx, instID, "Failed: %v", err)
 		}
 		// Start the sampler goroutine here
-		sampler := newSampler(ctx, store, string(instID))
-		sampler.start()
+		sampler := newSampler(ctx, store)
+		sampler.start(ctx, time.Millisecond*200)
 
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
 		err = plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
 
-		// Plan execution complete, stop sampling for metrics for this bundle.
-		sampler.stop()
-
 		data.Close()
 		state.Close()
+
+		// Plan execution complete, stop sampling for metrics for this bundle.
+		sampler.stop(ctx, time.Millisecond)
 
 		mons, pylds := monitoring(plan, store)
 		// Move the plan back to the candidate state
