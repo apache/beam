@@ -447,10 +447,10 @@ class DoFnInvoker(object):
     """
     side_inputs = side_inputs or []
     default_arg_values = signature.process_method.defaults
-    use_simple_invoker = not process_invocation or (
-        not side_inputs and not input_args and not input_kwargs and
-        not default_arg_values and not signature.is_stateful_dofn())
-    if use_simple_invoker:
+    use_per_window_invoker = process_invocation and (
+        side_inputs or input_args or input_kwargs or default_arg_values or
+        signature.is_stateful_dofn())
+    if not use_per_window_invoker:
       return SimpleInvoker(output_processor, signature)
     else:
       if context is None:
