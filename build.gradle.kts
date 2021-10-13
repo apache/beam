@@ -78,6 +78,7 @@ tasks.rat {
     "**/.htaccess",
     "website/www/site/assets/scss/_bootstrap.scss",
     "website/www/site/assets/scss/bootstrap/**/*",
+    "website/www/site/assets/js/**/*",
     "website/www/site/static/images/mascot/*.ai",
     "website/www/site/static/js/bootstrap*.js",
     "website/www/site/static/js/bootstrap/**/*",
