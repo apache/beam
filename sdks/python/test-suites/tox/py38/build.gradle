@@ -41,12 +41,12 @@ testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
   preCommitPy38.dependsOn "testPy38pyarrow-$version"
 }
 
-toxTask "testPy38pandas-11", "py38-pandas-11"
-toxTask "testPy38pandas-12", "py38-pandas-12"
-toxTask "testPy38pandas-13", "py38-pandas-13"
-test.dependsOn "testPy38pandas-11"
-test.dependsOn "testPy38pandas-12"
-test.dependsOn "testPy38pandas-13"
+(1..3).each {minor_version ->
+  // Create a test task for each minor version of pandas
+  toxTask "testPy38pandas-1$minor_version", "py38-pandas-1$minor_version"
+  test.dependsOn "testPy38pandas-1$minor_version"
+  preCommitPy38.dependsOn "testPy38pandas-1$minor_version"
+}
 
 toxTask "whitespacelint", "whitespacelint"
 
