@@ -259,12 +259,9 @@ public class GroupNonMergingWindowsFunctions {
   }
 
   /**
-   * Creates composite key of K and W and group all values for that composite key with Spark's
-   * repartitionAndSortWithinPartitions. Stream of sorted by composite key's is transformed to key
-   * with iterator of all values for that key (via {@link GroupByKeyIterator}).
-   *
-   * <p>repartitionAndSortWithinPartitions is used because all values are not collected into memory
-   * at once, but streamed with iterator unlike GroupByKey (it minimizes memory pressure).
+   * Group all values with a given key for that composite key with Spark's groupByKey,
+   * dropping the Window (which must be GlobalWindow) and returning the grouped
+   * result in the appropriate global window.
    */
   static <K, V, W extends BoundedWindow>
   JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyInGlobalWindow(
