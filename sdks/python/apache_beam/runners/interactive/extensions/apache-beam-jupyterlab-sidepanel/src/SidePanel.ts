@@ -88,7 +88,9 @@ export class SidePanel extends BoxPanel {
         this._sessionContext.sessionManager.connectTo({
           model: firstModel,
           kernelConnectionOptions: {
-            handleComms: true
+            // Only one connection can handleComms. Leave it to the connection
+            // established by the opened notebook.
+            handleComms: false
           }
         });
         // Connect to the unique kernel.

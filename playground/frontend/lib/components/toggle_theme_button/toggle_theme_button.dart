@@ -17,7 +17,9 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/config/theme.dart';
+import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:provider/provider.dart';
 
@@ -31,16 +33,13 @@ class ToggleThemeButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(builder: (context, theme, child) {
       final text = theme.isDarkMode ? kLightMode : kDartMode;
-      final icon = theme.isDarkMode
-          ? Icons.light_mode_outlined
-          : Icons.mode_night_outlined;
       return Padding(
         padding: const EdgeInsets.symmetric(
-          vertical: kSmPadding,
-          horizontal: kMdPadding,
+          vertical: kSmSpacing,
+          horizontal: kMdSpacing,
         ),
         child: TextButton.icon(
-          icon: Icon(icon),
+          icon: SvgPicture.asset(kThemeIconAsset),
           label: Text(text),
           onPressed: theme.toggleTheme,
         ),

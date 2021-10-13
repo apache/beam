@@ -16,15 +16,20 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/playground_app.dart';
+import 'package:flutter/material.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/repositories/example_repository.dart';
 
-void main() {
-  testWidgets('Home Page', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const PlaygroundApp());
+class ExampleState with ChangeNotifier {
+  final ExampleRepository _exampleRepository;
+  List<ExampleModel>? examples;
 
-    // Verify that Playground text is displayed
-    expect(find.text('Playground'), findsOneWidget);
-  });
+  ExampleState(this._exampleRepository) {
+    _loadExamples();
+  }
+
+  _loadExamples() async {
+    examples = await _exampleRepository.getExamples();
+    notifyListeners();
+  }
 }

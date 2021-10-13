@@ -17,13 +17,13 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground/modules/output/models/output_placement.dart';
 
-class PlaygroundState with ChangeNotifier {
-  SDK sdk = SDK.java;
+class OutputPlacementState extends ChangeNotifier {
+  OutputPlacement placement = OutputPlacement.bottom;
 
-  setSdk(SDK sdk) {
-    this.sdk = sdk;
+  void setPlacement(OutputPlacement placement) {
+    this.placement = placement;
     notifyListeners();
   }
 }

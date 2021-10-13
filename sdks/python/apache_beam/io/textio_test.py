@@ -60,6 +60,7 @@ class EOL(object):
   CRLF = 2
   MIXED = 3
   LF_WITH_NOTHING_AT_LAST_LINE = 4
+  CUSTOM_DELIMITER = 5
 
 
 def write_data(
@@ -67,7 +68,8 @@ def write_data(
     no_data=False,
     directory=None,
     prefix=tempfile.template,
-    eol=EOL.LF):
+    eol=EOL.LF,
+    custom_delimiter=None):
   """Writes test data to a temporary file.
 
   Args:
@@ -79,6 +81,7 @@ def write_data(
     eol (int): The line ending to use when writing.
       :class:`~apache_beam.io.textio_test.EOL` exposes attributes that can be
       used here to define the eol.
+    custom_delimiter (str or bytes): The custom delimiter.
 
   Returns:
     Tuple[str, List[str]]: A tuple of the filename and a list of the
@@ -100,6 +103,11 @@ def write_data(
         sep = sep_values[i % len(sep_values)]
       elif eol == EOL.LF_WITH_NOTHING_AT_LAST_LINE:
         sep = b'' if i == (num_lines - 1) else sep_values[0]
+      elif eol == EOL.CUSTOM_DELIMITER:
+        if custom_delimiter is None or len(custom_delimiter) == 0:
+          raise ValueError('delimiter can not be null or empty')
+        else:
+          sep = custom_delimiter
       else:
         raise ValueError('Received unknown value %s for eol.' % eol)
 
@@ -1014,6 +1022,34 @@ class TextSourceTest(unittest.TestCase):
 
     self.assertEqual(expected_data[2:], reference_lines)
     self.assertEqual(reference_lines, split_lines)
+
+  def test_read_with_customer_delimiter(self):
+    delimiters = [
+        b'\n',
+        b'\r\n',
+        b'*|',
+        b'*',
+        b'***',
+    ]
+
+    for delimiter in delimiters:
+      file_name, expected_data = write_data(
+        10,
+        eol=EOL.CUSTOM_DELIMITER,
+        custom_delimiter=delimiter)
+
+      assert len(expected_data) == 10
+      source = TextSource(
+          file_pattern=file_name,
+          min_bundle_size=0,
+          compression_type=CompressionTypes.UNCOMPRESSED,
+          strip_trailing_newlines=True,
+          coder=coders.StrUtf8Coder(),
+          delimiter=delimiter)
+      range_tracker = source.get_range_tracker(None, None)
+      read_data = list(source.read(range_tracker))
+
+      self.assertEqual(read_data, expected_data)
 
 
 class TextSinkTest(unittest.TestCase):
