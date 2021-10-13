@@ -135,6 +135,20 @@ func CrossLanguagePayload(pl interface{}) []byte {
 //    input := beam.UnnamedInput(inputPcol)
 //    outs := beam.CrossLanguage(s, urn, encodedPl, expansionAddr, input, outputType)
 //    outPcol := outputs[beam.UnnamedOutputTag()]
+//
+// Alternative Expansion Handlers
+//
+// The xlangx.RegisterHandler function can be used to register alternative expansion
+// handlers to a namespace, for use with this function. This allows for custom handling
+// of expansion addresses or starting up expansion services automatically beneath the
+// CrossLanguage call.
+//
+// In addition, urns can be bound to specific expansion addresses, using
+// xlangx.RegisterOverrideForUrn. This allows for testing specific overrides, or other
+// custom implementations to be used instead.
+//
+// To ignore overrides regardless of URN, wrapping the expansion address in
+// a call to xlangx.Require, will force expansion using the given address.
 func CrossLanguage(
 	s Scope,
 	urn string,

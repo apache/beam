@@ -796,7 +796,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 				// ...and since every pane should have 1 element,
 				// try to preserve the timestamp.
 				OutputTime: pipepb.OutputTime_EARLIEST_IN_PANE,
-				// Defaults copied from marshalWindowingStrategy.
+				// Defaults copied from MarshalWindowingStrategy.
 				// TODO(BEAM-3304): migrate to user side operations once trigger support is in.
 				EnvironmentId:   m.addDefaultEnv(),
 				MergeStatus:     pipepb.MergeStatus_NON_MERGING,
@@ -940,7 +940,7 @@ func (m *marshaller) addDefaultEnv() string {
 }
 
 func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) (string, error) {
-	ws, err := marshalWindowingStrategy(m.coders, w)
+	ws, err := MarshalWindowingStrategy(m.coders, w)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to add window strategy %v", w)
 	}
@@ -960,9 +960,9 @@ func (m *marshaller) internWindowingStrategy(w *pipepb.WindowingStrategy) string
 	return id
 }
 
-// marshalWindowingStrategy marshals the given windowing strategy in
+// MarshalWindowingStrategy marshals the given windowing strategy in
 // the given coder context.
-func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (*pipepb.WindowingStrategy, error) {
+func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (*pipepb.WindowingStrategy, error) {
 	windowFn, err := makeWindowFn(w.Fn)
 	if err != nil {
 		return nil, err
