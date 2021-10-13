@@ -229,3 +229,12 @@ func validateSortForTest(t *testing.T, xforms map[string]*pipepb.PTransform, sor
 		t.Log(sorted)
 	}
 }
+
+func TestBoolToBounded(t *testing.T) {
+	if got, want := BoolToBounded(false), pipepb.IsBounded_UNBOUNDED; got != want {
+		t.Errorf("BoolToBounded(false) = %v, want %v", got, want)
+	}
+	if got, want := BoolToBounded(true), pipepb.IsBounded_BOUNDED; got != want {
+		t.Errorf("BoolToBounded(true) = %v, want %v", got, want)
+	}
+}
