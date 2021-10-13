@@ -16,26 +16,11 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/modules/examples/models/category_model.dart';
-import 'package:playground/modules/examples/repositories/example_repository.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 
-class ExampleState with ChangeNotifier {
-  final ExampleRepository _exampleRepository;
-  List<CategoryModel>? categories;
-  bool isSelectorOpened = false;
+class CategoryModel {
+  final String name;
+  final List<ExampleModel> examples;
 
-  ExampleState(this._exampleRepository) {
-    _loadCategories();
-  }
-
-  _loadCategories() {
-    categories = _exampleRepository.getCategories();
-    notifyListeners();
-  }
-
-  changeSelectorVisibility() {
-    isSelectorOpened = !isSelectorOpened;
-    notifyListeners();
-  }
+  CategoryModel(this.name, this.examples);
 }

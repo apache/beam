@@ -17,25 +17,27 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/examples/models/category_model.dart';
-import 'package:playground/modules/examples/repositories/example_repository.dart';
+import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/examples/components/examples_components.dart';
 
-class ExampleState with ChangeNotifier {
-  final ExampleRepository _exampleRepository;
-  List<CategoryModel>? categories;
-  bool isSelectorOpened = false;
+class TypeFilter extends StatelessWidget {
+  const TypeFilter({Key? key}) : super(key: key);
 
-  ExampleState(this._exampleRepository) {
-    _loadCategories();
-  }
-
-  _loadCategories() {
-    categories = _exampleRepository.getCategories();
-    notifyListeners();
-  }
-
-  changeSelectorVisibility() {
-    isSelectorOpened = !isSelectorOpened;
-    notifyListeners();
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: kLgSpacing,
+        vertical: kMdSpacing,
+      ),
+      child: Row(
+        children: const <CategoryBubble>[
+          CategoryBubble(name: 'All'),
+          CategoryBubble(name: 'Examples'),
+          CategoryBubble(name: 'Katas'),
+          CategoryBubble(name: 'Unit tests'),
+        ],
+      ),
+    );
   }
 }

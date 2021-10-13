@@ -23,8 +23,8 @@ import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:provider/provider.dart';
 
-const kLightMode = "Light Mode";
-const kDartMode = "Dark Mode";
+const kLightMode = 'Light Mode';
+const kDartMode = 'Dark Mode';
 
 class ToggleThemeButton extends StatelessWidget {
   const ToggleThemeButton({Key? key}) : super(key: key);

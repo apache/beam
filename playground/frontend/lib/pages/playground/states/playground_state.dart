@@ -16,14 +16,24 @@
  * limitations under the License.
  */
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
+const kTitleLength = 15;
+const kTitle = 'Catalog';
+
 class PlaygroundState with ChangeNotifier {
   SDK _sdk;
   ExampleModel? _selectedExample;
-  String _source = "";
+  String _source = '';
+
+  String get examplesTitle {
+    final name = _selectedExample?.name ?? '';
+    return name.substring(0, min(kTitleLength, name.length));
+  }
 
   PlaygroundState([this._sdk = SDK.java, this._selectedExample]);
 
@@ -35,7 +45,7 @@ class PlaygroundState with ChangeNotifier {
 
   setExample(ExampleModel example) {
     _selectedExample = example;
-    _source = example.sources[_sdk] ?? "";
+    _source = example.sources[_sdk] ?? '';
     notifyListeners();
   }
 

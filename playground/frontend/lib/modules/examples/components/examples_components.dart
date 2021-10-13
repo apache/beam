@@ -16,26 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/modules/examples/models/category_model.dart';
-import 'package:playground/modules/examples/repositories/example_repository.dart';
-
-class ExampleState with ChangeNotifier {
-  final ExampleRepository _exampleRepository;
-  List<CategoryModel>? categories;
-  bool isSelectorOpened = false;
-
-  ExampleState(this._exampleRepository) {
-    _loadCategories();
-  }
-
-  _loadCategories() {
-    categories = _exampleRepository.getCategories();
-    notifyListeners();
-  }
-
-  changeSelectorVisibility() {
-    isSelectorOpened = !isSelectorOpened;
-    notifyListeners();
-  }
-}
+export 'package:playground/modules/examples/components/example_list/category_expansion_panel.dart';
+export 'package:playground/modules/examples/components/example_list/example_list.dart';
+export 'package:playground/modules/examples/components/filter/category_bubble.dart';
+export 'package:playground/modules/examples/components/filter/type_filter.dart';
+export 'package:playground/modules/examples/components/search_field/search_field.dart';

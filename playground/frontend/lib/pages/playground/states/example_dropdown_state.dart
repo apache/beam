@@ -17,25 +17,16 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/examples/models/category_model.dart';
-import 'package:playground/modules/examples/repositories/example_repository.dart';
 
-class ExampleState with ChangeNotifier {
-  final ExampleRepository _exampleRepository;
-  List<CategoryModel>? categories;
-  bool isSelectorOpened = false;
+class ExampleDropdownState with ChangeNotifier {
+  String _selectedCategory;
 
-  ExampleState(this._exampleRepository) {
-    _loadCategories();
-  }
+  ExampleDropdownState([this._selectedCategory = 'All']);
 
-  _loadCategories() {
-    categories = _exampleRepository.getCategories();
-    notifyListeners();
-  }
+  String get selectedCategory => _selectedCategory;
 
-  changeSelectorVisibility() {
-    isSelectorOpened = !isSelectorOpened;
+  setSelectedCategory(String name) async {
+    _selectedCategory = name;
     notifyListeners();
   }
 }

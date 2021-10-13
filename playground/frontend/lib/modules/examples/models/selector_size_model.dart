@@ -16,26 +16,12 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/modules/examples/models/category_model.dart';
-import 'package:playground/modules/examples/repositories/example_repository.dart';
+class SelectorPositionModel {
+  final double xAlignment;
+  final double yAlignment;
 
-class ExampleState with ChangeNotifier {
-  final ExampleRepository _exampleRepository;
-  List<CategoryModel>? categories;
-  bool isSelectorOpened = false;
-
-  ExampleState(this._exampleRepository) {
-    _loadCategories();
-  }
-
-  _loadCategories() {
-    categories = _exampleRepository.getCategories();
-    notifyListeners();
-  }
-
-  changeSelectorVisibility() {
-    isSelectorOpened = !isSelectorOpened;
-    notifyListeners();
-  }
+  const SelectorPositionModel({
+    required this.xAlignment,
+    required this.yAlignment,
+  });
 }

@@ -17,31 +17,38 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/pages/playground/components/playground_page_providers.dart';
-import 'package:playground/pages/playground/playground_page.dart';
-import 'package:provider/provider.dart';
+import 'package:playground/modules/examples/components/examples_components.dart';
 
-class PlaygroundApp extends StatelessWidget {
-  const PlaygroundApp({Key? key}) : super(key: key);
+class ExampleList extends StatelessWidget {
+  final List items;
+  final ScrollController controller;
+
+  const ExampleList({
+    Key? key,
+    required this.items,
+    required this.controller,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
-      builder: (context, _) {
-        final themeProvider = Provider.of<ThemeProvider>(context);
-        return PlaygroundPageProviders(
-          child: MaterialApp(
-            title: 'Apache Beam Playground',
-            themeMode: themeProvider.themeMode,
-            theme: kLightTheme,
-            darkTheme: kDarkTheme,
-            home: const PlaygroundPage(),
-            debugShowCheckedModeBanner: false,
+    return Expanded(
+      child: Container(
+        color: Theme.of(context).backgroundColor,
+        child: Scrollbar(
+          isAlwaysShown: true,
+          showTrackOnHover: true,
+          controller: controller,
+          child: ListView.builder(
+            itemCount: items.length,
+            itemBuilder: (context, index) => CategoryExpansionPanel(
+              categoryName: items[index].name,
+              examples: items[index].examples,
+            ),
+            controller: controller,
+            shrinkWrap: true,
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

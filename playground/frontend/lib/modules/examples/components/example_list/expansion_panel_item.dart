@@ -17,31 +17,37 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/pages/playground/components/playground_page_providers.dart';
-import 'package:playground/pages/playground/playground_page.dart';
+import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
-class PlaygroundApp extends StatelessWidget {
-  const PlaygroundApp({Key? key}) : super(key: key);
+class ExpansionPanelItem extends StatelessWidget {
+  final ExampleModel example;
+
+  const ExpansionPanelItem({Key? key, required this.example}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
-      builder: (context, _) {
-        final themeProvider = Provider.of<ThemeProvider>(context);
-        return PlaygroundPageProviders(
-          child: MaterialApp(
-            title: 'Apache Beam Playground',
-            themeMode: themeProvider.themeMode,
-            theme: kLightTheme,
-            darkTheme: kDarkTheme,
-            home: const PlaygroundPage(),
-            debugShowCheckedModeBanner: false,
+    return Consumer<PlaygroundState>(
+      builder: (context, state, child) => GestureDetector(
+        onTap: () {
+          if (state.selectedExample != example) {
+            state.setExample(example);
+          }
+        },
+        child: Container(
+          color: Colors.transparent,
+          margin: const EdgeInsets.only(left: kXxlSpacing),
+          height: kContainerHeight,
+          child: Row(
+            children: [
+              // Wrapped with Row for better user interaction and positioning
+              Text(example.name),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
