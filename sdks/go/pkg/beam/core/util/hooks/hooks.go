@@ -40,20 +40,24 @@ import (
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
-var defaultRegistry = newRegistry()
+var defaultRegistry = newRegistry(runtime.GlobalOptions)
 
 type registry struct {
-	mu           sync.Mutex
-	hookRegistry map[string]HookFactory
-	enabledHooks map[string][]string
-	activeHooks  map[string]Hook
+	mu               sync.Mutex
+	hookRegistry     map[string]HookFactory
+	enabledHooks     map[string][]string
+	enabledHookOrder []string
+	activeHooks      map[string]Hook
+
+	options *runtime.Options
 }
 
-func newRegistry() *registry {
+func newRegistry(options *runtime.Options) *registry {
 	return &registry{
 		hookRegistry: make(map[string]HookFactory),
 		enabledHooks: make(map[string][]string),
 		activeHooks:  make(map[string]Hook),
+		options:      options,
 	}
 }
 
@@ -95,7 +99,8 @@ func (r *registry) RunInitHooks(ctx context.Context) (context.Context, error) {
 	// interdependent or interfere with each other.
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, h := range r.activeHooks {
+	for _, n := range r.enabledHookOrder {
+		h := r.activeHooks[n]
 		if h.Init != nil {
 			var err error
 			if ctx, err = h.Init(ctx); err != nil {
@@ -120,7 +125,8 @@ func (r *registry) RunRequestHooks(ctx context.Context, req *fnpb.InstructionReq
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	// The request hooks should not modify the request.
-	for n, h := range r.activeHooks {
+	for _, n := range r.enabledHookOrder {
+		h := r.activeHooks[n]
 		if h.Req != nil {
 			var err error
 			if ctx, err = h.Req(ctx, req); err != nil {
@@ -142,7 +148,8 @@ type ResponseHook func(context.Context, *fnpb.InstructionRequest, *fnpb.Instruct
 func (r *registry) RunResponseHooks(ctx context.Context, req *fnpb.InstructionRequest, resp *fnpb.InstructionResponse) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for n, h := range r.activeHooks {
+	for _, n := range r.enabledHookOrder {
+		h := r.activeHooks[n]
 		if h.Resp != nil {
 			if err := h.Resp(ctx, req, resp); err != nil {
 				log.Infof(ctx, "response hook %s failed: %v", n, err)
@@ -156,6 +163,11 @@ func RunResponseHooks(ctx context.Context, req *fnpb.InstructionRequest, resp *f
 	defaultRegistry.RunResponseHooks(ctx, req, resp)
 }
 
+const (
+	orderKey = "hookOrder"
+	hookKey  = "hooks"
+)
+
 func (r *registry) SerializeHooksToOptions() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -164,7 +176,14 @@ func (r *registry) SerializeHooksToOptions() {
 		// Shouldn't happen, since all the data is strings.
 		panic(errors.Wrap(err, "Couldn't serialize hooks"))
 	}
-	runtime.GlobalOptions.Set("hooks", string(data))
+	r.options.Set(hookKey, string(data))
+
+	orderData, err := json.Marshal(r.enabledHookOrder)
+	if err != nil {
+		// Shouldn't happen, since all the data is strings.
+		panic(errors.Wrap(err, "Couldn't serialize hooks"))
+	}
+	r.options.Set(orderKey, string(orderData))
 }
 
 // SerializeHooksToOptions serializes the activated hooks and their configuration into a JSON string
@@ -174,19 +193,25 @@ func SerializeHooksToOptions() {
 }
 
 func (r *registry) DeserializeHooksFromOptions(ctx context.Context) {
-	cfg := runtime.GlobalOptions.Get("hooks")
-	if cfg == "" {
+	hookOrder := r.options.Get(orderKey)
+	if hookOrder == "" {
 		log.Warn(ctx, "SerializeHooksToOptions was never called. No hooks enabled")
 		return
 	}
+	cfg := r.options.Get(hookKey)
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if err := json.Unmarshal([]byte(hookOrder), &r.enabledHookOrder); err != nil {
+		// Shouldn't happen, since all the data is strings.
+		panic(errors.Wrapf(err, "DeserializeHooks failed on input %q", hookOrder))
+	}
 	if err := json.Unmarshal([]byte(cfg), &r.enabledHooks); err != nil {
 		// Shouldn't happen, since all the data is strings.
 		panic(errors.Wrapf(err, "DeserializeHooks failed on input %q", cfg))
 	}
 
-	for h, opts := range r.enabledHooks {
+	for _, h := range r.enabledHookOrder {
+		opts := r.enabledHooks[h]
 		r.activeHooks[h] = r.hookRegistry[h](opts)
 	}
 }
@@ -203,14 +228,18 @@ func (r *registry) EnableHook(name string, args ...string) error {
 	if _, ok := r.hookRegistry[name]; !ok {
 		return errors.Errorf("EnableHook: hook %s not found", name)
 	}
+	r.disableHook(name)
+	r.enabledHookOrder = append(r.enabledHookOrder, name)
 	r.enabledHooks[name] = args
 	return nil
 }
 
 // EnableHook enables the hook to be run for the pipline. It will be
-// receive the supplied args when the pipeline executes. It is safe
-// to enable the same hook with different options, as this is necessary
-// if a hook wants to compose behavior.
+// receive the supplied args when the pipeline executes.
+// Repeat calls for the same hook will overwrite previous args,
+// and move the hook to the end of the ordering.
+// Multiple options can be provided,
+// as this is necessary if a hook wants to compose behavior.
 func EnableHook(name string, args ...string) error {
 	return defaultRegistry.EnableHook(name, args...)
 }
@@ -226,6 +255,27 @@ func (r *registry) IsEnabled(name string) (bool, []string) {
 // already enabled.
 func IsEnabled(name string) (bool, []string) {
 	return defaultRegistry.IsEnabled(name)
+}
+
+// disableHook must be called in while holding mu.
+func (r *registry) disableHook(name string) {
+	for i, h := range r.enabledHookOrder {
+		if h == name {
+			r.enabledHookOrder = append(r.enabledHookOrder[:i], r.enabledHookOrder[i+1:]...)
+		}
+	}
+	delete(r.enabledHooks, name)
+}
+
+func (r *registry) DisableHook(name string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.disableHook(name)
+}
+
+// DisableHook disables the hook to be run for the pipline, deleting previous options.
+func DisableHook(name string) {
+	defaultRegistry.DisableHook(name)
 }
 
 // Encode encodes a hook name and its arguments into a single string.
