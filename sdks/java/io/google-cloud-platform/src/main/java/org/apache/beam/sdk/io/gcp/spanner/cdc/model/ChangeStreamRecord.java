@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
+import com.google.cloud.Timestamp;
 import java.io.Serializable;
 
-public interface ChangeStreamRecord extends Serializable {}
+public interface ChangeStreamRecord extends Serializable {
+  Timestamp getRecordTimestamp();
+}

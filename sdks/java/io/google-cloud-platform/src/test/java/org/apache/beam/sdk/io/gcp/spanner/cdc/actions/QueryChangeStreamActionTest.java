@@ -113,13 +113,15 @@ public class QueryChangeStreamActionTest {
   }
 
   @Test
-  public void testQueryChangeStreamModeWithDataChangeRecord() {
+  public void testQueryChangeStreamWithDataChangeRecord() {
     final Struct rowAsStruct = mock(Struct.class);
     final ChangeStreamResultSetMetadata resultSetMetadata =
         mock(ChangeStreamResultSetMetadata.class);
     final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     final DataChangeRecord record1 = mock(DataChangeRecord.class);
     final DataChangeRecord record2 = mock(DataChangeRecord.class);
+    when(record1.getRecordTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
+    when(record2.getRecordTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
             PARTITION_START_TIMESTAMP,
@@ -156,13 +158,15 @@ public class QueryChangeStreamActionTest {
   }
 
   @Test
-  public void testQueryChangeStreamModeWithHeartbeatRecord() {
+  public void testQueryChangeStreamWithHeartbeatRecord() {
     final Struct rowAsStruct = mock(Struct.class);
     final ChangeStreamResultSetMetadata resultSetMetadata =
         mock(ChangeStreamResultSetMetadata.class);
     final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     final HeartbeatRecord record1 = mock(HeartbeatRecord.class);
     final HeartbeatRecord record2 = mock(HeartbeatRecord.class);
+    when(record1.getRecordTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
+    when(record2.getRecordTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
             PARTITION_START_TIMESTAMP,
@@ -195,13 +199,15 @@ public class QueryChangeStreamActionTest {
   }
 
   @Test
-  public void testQueryChangeStreamModeWithChildPartitionsRecord() {
+  public void testQueryChangeStreamWithChildPartitionsRecord() {
     final Struct rowAsStruct = mock(Struct.class);
     final ChangeStreamResultSetMetadata resultSetMetadata =
         mock(ChangeStreamResultSetMetadata.class);
     final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     final ChildPartitionsRecord record1 = mock(ChildPartitionsRecord.class);
     final ChildPartitionsRecord record2 = mock(ChildPartitionsRecord.class);
+    when(record1.getRecordTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
+    when(record2.getRecordTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
             PARTITION_START_TIMESTAMP,
@@ -238,7 +244,55 @@ public class QueryChangeStreamActionTest {
   }
 
   @Test
-  public void testQueryChangeStreamModeWithStreamFinished() {
+  public void testQueryChangeStreamWithRestrictionStartAfterPartitionStart() {
+    final Struct rowAsStruct = mock(Struct.class);
+    final ChangeStreamResultSetMetadata resultSetMetadata =
+        mock(ChangeStreamResultSetMetadata.class);
+    final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    final ChildPartitionsRecord record1 = mock(ChildPartitionsRecord.class);
+    final ChildPartitionsRecord record2 = mock(ChildPartitionsRecord.class);
+
+    // One microsecond after partition start timestamp
+    when(restriction.getFrom()).thenReturn(11L);
+    // This record should be ignored because it is before restriction.getFrom
+    when(record1.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(10L));
+    // This record should be included because it is at the restriction.getFrom
+    when(record2.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(11L));
+    // We should start the query 1 microsecond before the restriction.getFrom
+    when(changeStreamDao.changeStreamQuery(
+            PARTITION_TOKEN,
+            Timestamp.ofTimeMicroseconds(10L),
+            PARTITION_END_TIMESTAMP,
+            PARTITION_HEARTBEAT_MILLIS))
+        .thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(rowAsStruct);
+    when(resultSet.getMetadata()).thenReturn(resultSetMetadata);
+    when(changeStreamRecordMapper.toChangeStreamRecords(partition, rowAsStruct, resultSetMetadata))
+        .thenReturn(Arrays.asList(record1, record2));
+    when(childPartitionsRecordAction.run(
+            partition, record2, restrictionTracker, watermarkEstimator))
+        .thenReturn(Optional.of(ProcessContinuation.stop()));
+    when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
+
+    final ProcessContinuation result =
+        action.run(
+            partition, restrictionTracker, outputReceiver, watermarkEstimator, bundleFinalizer);
+
+    assertEquals(ProcessContinuation.stop(), result);
+    verify(childPartitionsRecordAction)
+        .run(partition, record2, restrictionTracker, watermarkEstimator);
+    verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
+
+    verify(childPartitionsRecordAction, never())
+        .run(partition, record1, restrictionTracker, watermarkEstimator);
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
+    verify(restrictionTracker, never()).tryClaim(any());
+  }
+
+  @Test
+  public void testQueryChangeStreamWithStreamFinished() {
     final ChangeStreamResultSet changeStreamResultSet = mock(ChangeStreamResultSet.class);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,

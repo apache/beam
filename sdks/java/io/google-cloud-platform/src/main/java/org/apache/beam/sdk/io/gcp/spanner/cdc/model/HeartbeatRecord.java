@@ -45,6 +45,11 @@ public class HeartbeatRecord implements ChangeStreamRecord {
     this.metadata = metadata;
   }
 
+  @Override
+  public Timestamp getRecordTimestamp() {
+    return timestamp;
+  }
+
   public Timestamp getTimestamp() {
     return timestamp;
   }

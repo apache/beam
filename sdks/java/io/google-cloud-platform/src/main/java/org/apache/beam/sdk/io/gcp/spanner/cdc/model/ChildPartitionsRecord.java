@@ -57,6 +57,11 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
     this.metadata = metadata;
   }
 
+  @Override
+  public Timestamp getRecordTimestamp() {
+    return startTimestamp;
+  }
+
   public Timestamp getStartTimestamp() {
     return startTimestamp;
   }

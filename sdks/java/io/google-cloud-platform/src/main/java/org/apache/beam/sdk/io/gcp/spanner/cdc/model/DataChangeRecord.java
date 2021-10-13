@@ -82,6 +82,11 @@ public class DataChangeRecord implements ChangeStreamRecord {
     this.metadata = metadata;
   }
 
+  @Override
+  public Timestamp getRecordTimestamp() {
+    return commitTimestamp;
+  }
+
   public String getPartitionToken() {
     return partitionToken;
   }

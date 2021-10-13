@@ -87,9 +87,27 @@ public class QueryChangeStreamAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
-    final Timestamp startTimestamp =
-        Timestamp.ofTimeMicroseconds(tracker.currentRestriction().getFrom());
     final Timestamp endTimestamp = partition.getEndTimestamp();
+
+    /*
+     * FIXME(b/202802422): Workaround until the backend is fixed.
+     * The change stream API returns invalid argument if we try to use a child partition start
+     * timestamp for a previously returned query. If we split at that exact time, we won't be able
+     * to obtain the child partition on the residual restriction, since it will start at the child
+     * partition start time.
+     * To circumvent this, we always start querying one microsecond before the restriction start
+     * time, and ignore any records that are before the restriction start time. This way the child
+     * partition should be returned within the query.
+     */
+    final Timestamp restrictionStartTimestamp =
+        Timestamp.ofTimeMicroseconds(tracker.currentRestriction().getFrom());
+    final Timestamp previousStartTimestamp =
+        Timestamp.ofTimeMicroseconds(
+            TimestampConverter.timestampToMicros(restrictionStartTimestamp) - 1);
+    final boolean isFirstRun =
+        restrictionStartTimestamp.compareTo(partition.getStartTimestamp()) == 0;
+    final Timestamp startTimestamp =
+        isFirstRun ? restrictionStartTimestamp : previousStartTimestamp;
 
     try (Scope scope =
         TRACER.spanBuilder("QueryChangeStreamAction").setRecordEvents(true).startScopedSpan()) {
@@ -114,6 +132,10 @@ public class QueryChangeStreamAction {
 
           Optional<ProcessContinuation> maybeContinuation;
           for (final ChangeStreamRecord record : records) {
+            if (record.getRecordTimestamp().compareTo(restrictionStartTimestamp) < 0) {
+              continue;
+            }
+
             recordsProcessed++;
             if (record instanceof DataChangeRecord) {
               maybeContinuation =
