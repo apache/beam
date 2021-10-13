@@ -165,9 +165,9 @@ func (c *SideInputCache) QueryCache(ctx context.Context, transformID, sideInputI
 	if !ok {
 		return nil
 	}
-	keyString := c.makeCacheKey(tok, win, key)
+	ck := c.makeCacheKey(tok, win, key)
 	// Check to see if cached
-	input, ok := c.cache[keyString]
+	input, ok := c.cache[ck]
 	if !ok {
 		c.metrics.Misses++
 		return nil
@@ -206,8 +206,8 @@ func (c *SideInputCache) SetCache(ctx context.Context, transformID, sideInputID 
 		c.metrics.ReStreamErrors++
 		return input
 	}
-	keyString := c.makeCacheKey(tok, win, key)
-	c.cache[keyString] = mat
+	ck := c.makeCacheKey(tok, win, key)
+	c.cache[ck] = mat
 	return mat
 }
 
