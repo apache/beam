@@ -5333,16 +5333,22 @@ program logic is resilient to this. Unit tests written using the DirectRunner wi
 processing, and are recommended to test for correctness.
 
 {{< paragraph class="language-java" >}}
-In Java DoFn declares states to be accessed by creating final `StateSpec` member variables representing each state. Each
+In Java, DoFn declares states to be accessed by creating final `StateSpec` member variables representing each state. Each
 state must be named using the `StateId` annotation; this name is unique to a ParDo in the graph and has no relation
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-In Python DoFn declares states to be accessed by creating `StateSpec` class member variables representing each state. Each
+In Python, DoFn declares states to be accessed by creating `StateSpec` class member variables representing each state. Each
 `StateSpec` is initialized with a name, this name is unique to a ParDo in the graph and has no relation
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
 {{< /paragraph >}}
+
+<span class="language-go">
+
+> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [BEAM-10660](https://issues.apache.org/jira/browse/BEAM-10660) to contribute.
+
+</span>
 
 ### 11.1. Types of state {#types-of-state}
 
@@ -5397,6 +5403,10 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'state pardo' >> beam.ParDo(ReadModifyWriteStateDoFn()))
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
+{{< /highlight >}}
+
 #### CombiningState
 
 `CombiningState` allows you to create a state object that is updated using a Beam combiner. For example, the previous
@@ -5423,6 +5433,10 @@ class CombiningStateDoFn(DoFn):
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'Combine state pardo' >> beam.ParDo(CombiningStateDofn()))
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 #### BagState
@@ -5467,6 +5481,10 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'Bag state pardo' >> beam.ParDo(BagStateDoFn()))
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
+{{< /highlight >}}
+
 ### 11.2. Deferred state reads {#deferred-state-reads}
 
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
@@ -5492,9 +5510,12 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-
 {{< highlight py >}}
 This is not supported yet, see BEAM-11506.
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
@@ -5583,6 +5604,10 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'EventTime timer pardo' >> beam.ParDo(EventTimerDoFn()))
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
+{{< /highlight >}}
+
 #### 11.3.2. Processing-time timers {#processing-time-timers}
 
 Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
@@ -5629,6 +5654,10 @@ class ProcessingTimerDoFn(DoFn):
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'ProcessingTime timer pardo' >> beam.ParDo(ProcessingTimerDoFn()))
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
@@ -5686,6 +5715,10 @@ class TimerDoFn(DoFn):
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'ProcessingTime timer pardo' >> beam.ParDo(TimerDoFn()))
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
@@ -5795,6 +5828,10 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 Timer output timestamps is not yet supported in Python SDK. See BEAM-11507.
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
+{{< /highlight >}}
+
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.
@@ -5835,6 +5872,10 @@ class StateDoFn(DoFn):
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'Windowing' >> beam.WindowInto(FixedWindows(60 * 60 * 24))
        | 'DoFn' >> beam.ParDo(StateDoFn()))
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -5915,6 +5956,10 @@ class UserDoFn(DoFn):
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'User DoFn' >> beam.ParDo(UserDoFn()))
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 ### 11.5. State and timers examples {#state-timers-examples}
@@ -6338,6 +6383,10 @@ resource utilization.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_UserInitiatedCheckpoint >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-11104.
+{{< /highlight >}}
+
 ### 12.4. Runner-initiated split {#runner-initiated-split}
 
 A runner at any time may attempt to split a restriction while it is being processed. This allows the
@@ -6425,6 +6474,10 @@ watermark estimator implementation. You can also provide your own watermark esti
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_CustomWatermarkEstimator >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-11105.
+{{< /highlight >}}
+
 ### 12.6. Truncating during drain {#truncating-during-drain}
 
 Runners which support draining pipelines need the ability to drain SDFs; otherwise, the
@@ -6441,6 +6494,10 @@ provider.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_Truncate >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-11106.
+{{< /highlight >}}
+
 ### 12.7. Bundle finalization {#bundle-finalization}
 
 Bundle finalization enables a `DoFn` to perform side effects by registering a callback.
@@ -6455,6 +6512,10 @@ use case.
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" BundleFinalize >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10976.
 {{< /highlight >}}
 
 ## 13. Multi-language pipelines {#multi-language-pipelines}
