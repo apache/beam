@@ -1085,6 +1085,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def name(self):
     return self._expr.proxy().name
 
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
+  def hasnans(self):
+    return self._expr.proxy().hasnans
+
   @name.setter
   def name(self, value):
     def fn(s):
