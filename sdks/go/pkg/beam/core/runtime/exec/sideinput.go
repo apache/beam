@@ -65,7 +65,14 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 	if err != nil {
 		return nil, err
 	}
-	return &proxyReStream{
+	cache := reader.GetSideInputCache()
+	// Cache hit
+	if r := cache.QueryCache(ctx, s.sid.PtransformID, s.sideInputID, win, key); r != nil {
+		return r, nil
+	}
+
+	// Cache miss, build new ReStream
+	r := &proxyReStream{
 		open: func() (Stream, error) {
 			r, err := reader.OpenSideInput(ctx, s.sid, s.sideInputID, key, win)
 			if err != nil {
@@ -73,7 +80,8 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 			}
 			return &elementStream{r: r, ec: s.ec}, nil
 		},
-	}, nil
+	}
+	return cache.SetCache(ctx, s.sid.PtransformID, s.sideInputID, win, key, r), nil
 }
 
 func (s *sideInputAdapter) String() string {
