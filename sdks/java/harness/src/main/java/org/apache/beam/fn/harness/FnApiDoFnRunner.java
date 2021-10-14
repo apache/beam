@@ -279,7 +279,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private WatermarkEstimatorStateT currentWatermarkEstimatorState;
 
   /**
-   * Only valud during {@link #processElementForWindowObservingSizedElementAndRestriction} and
+   * Only valid during {@link #processElementForWindowObservingSizedElementAndRestriction} and
    * {@link #processElementForWindowObservingTruncateRestriction}.
    */
   private Instant initialWatermark;
