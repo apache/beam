@@ -2096,7 +2096,6 @@ class CustomMergingWindowFn(window.WindowFn):
 
 
 class ExpectingSideInputsFn(beam.DoFn):
-
   def __init__(self, name):
     self._name = name
 
@@ -2104,7 +2103,7 @@ class ExpectingSideInputsFn(beam.DoFn):
     return self._name
 
   def process(self, element, *side_inputs):
-    logging.info(f'Running {self._name} (side inputs: {side_inputs})')
+    logging.info('Running %s (side inputs: %s)', self._name, side_inputs)
     if not all(list(s) for s in side_inputs):
       raise ValueError(f'Missing data in side input {side_inputs}')
     yield self._name
