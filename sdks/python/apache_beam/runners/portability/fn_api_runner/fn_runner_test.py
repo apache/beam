@@ -171,6 +171,38 @@ class FnApiRunnerTest(unittest.TestCase):
                     ('c', 'y')]))
 
   @retry(stop=stop_after_attempt(3))
+  def test_pardo_side_input_dependencies(self):
+    with self.create_pipeline() as p:
+      inputs = [p | beam.Create([None])]
+      for k in range(1, 10):
+        inputs.append(
+            inputs[0] | beam.ParDo(
+                ExpectingSideInputsFn(f'Do{k}'),
+                *[beam.pvalue.AsList(inputs[s]) for s in range(1, k)]))
+
+  @unittest.skip('BEAM-13040')
+  @retry(stop=stop_after_attempt(3))
+  def test_pardo_side_input_sparse_dependencies(self):
+    with self.create_pipeline() as p:
+      inputs = []
+
+      def choose_input(s):
+        return inputs[(389 + s * 5077) % len(inputs)]
+
+      for k in range(30):
+        num_inputs = int((k * k % 16)**0.5)
+        if num_inputs == 0:
+          inputs.append(p | f'Create{k}' >> beam.Create([f'Create{k}']))
+        else:
+          inputs.append(
+              choose_input(0) | beam.ParDo(
+                  ExpectingSideInputsFn(f'Do{k}'),
+                  *[
+                      beam.pvalue.AsList(choose_input(s))
+                      for s in range(1, num_inputs)
+                  ]))
+
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_windowed_side_inputs(self):
     with self.create_pipeline() as p:
       # Now with some windowing.
@@ -2061,6 +2093,21 @@ class CustomMergingWindowFn(window.WindowFn):
 
   def get_window_coder(self):
     return coders.IntervalWindowCoder()
+
+
+class ExpectingSideInputsFn(beam.DoFn):
+
+  def __init__(self, name):
+    self._name = name
+
+  def default_label(self):
+    return self._name
+
+  def process(self, element, *side_inputs):
+    logging.info(f'Running {self._name} (side inputs: {side_inputs})')
+    if not all(list(s) for s in side_inputs):
+      raise ValueError(f'Missing data in side input {side_inputs}')
+    yield self._name
 
 
 if __name__ == '__main__':
