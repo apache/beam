@@ -13,19 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Executor for Go
+// Package executors
 package executors
 
-type GoExecutor struct{}
-
-func (goExec GoExecutor) Validate(filePath string) (bool, error) {
-	return true, nil
-}
-
-func (goExec GoExecutor) Compile(filePath string) error {
+// NewGoExecutor creates an executor with Go specifics
+func NewGoExecutor(fs *fs_tool.LifeCycle, javaValidators *[]validatorWithArgs) *Executor {
 	return nil
 }
 
-func (goExec GoExecutor) Run(filePath string) (string, error) {
-	return "", nil
+// GetGoValidators return validators methods that needed for Go file
+func GetGoValidators() *[]validatorWithArgs {
+	return nil
 }
