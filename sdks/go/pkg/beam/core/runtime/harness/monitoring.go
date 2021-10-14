@@ -159,9 +159,9 @@ func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, m
 				})
 
 		},
-		MsecsInt64: func(l metrics.Labels, stateRegistry []metrics.ExecutionState) {
+		MsecsInt64: func(l metrics.Labels, stateRegistry [4]*metrics.ExecutionState) {
 			for i, state := range stateRegistry {
-				payload, err := metricsx.Int64Counter(state.TotalTimeMillis)
+				payload, err := metricsx.Int64Counter(int64(state.TotalTime) / int64(time.Millisecond))
 				if err != nil {
 					panic(err)
 				}

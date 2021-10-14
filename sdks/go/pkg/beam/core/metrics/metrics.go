@@ -69,7 +69,7 @@ type ctxKey string
 const (
 	counterSetKey ctxKey = "beam:counterset"
 	storeKey      ctxKey = "beam:bundlestore"
-	exStoreKey    ctxKey = "beam:exstore"
+	pStoreKey     ctxKey = "beam:pstore" // state of ptransform
 )
 
 // beamCtx is a caching context for IDs necessary to place metric updates.
@@ -80,7 +80,7 @@ type beamCtx struct {
 	bundleID, ptransformID string
 	store                  *Store
 	cs                     *ptCounterSet
-	exStore                atomic.Value // stores ptransform data
+	pStore                 atomic.Value // stores ptransform data (PTransformState)
 	transitions            int64        // stores number of ptransform state changes
 }
 
@@ -115,8 +115,8 @@ func (ctx *beamCtx) Value(key interface{}) interface{} {
 			}
 		}
 		return ctx.store
-	case exStoreKey:
-		return &ctx.exStore
+	case pStoreKey:
+		return &ctx.pStore
 	}
 	return ctx.Context.Value(key)
 }
@@ -147,26 +147,6 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 	return &beamCtx{Context: ctx, bundleID: bundleIDUnset, store: newStore(), ptransformID: id}
 }
 
-func SetExecutionStore(ctx context.Context) {
-	if bctx, ok := ctx.(*beamCtx); ok {
-		bctx.exStore.Store(bctx.store.executionStore)
-	}
-	panic("can't set execution store, metrics.Store not set yet.")
-}
-
-func IncTransition(ctx context.Context) {
-	if bctx, ok := ctx.(*beamCtx); ok {
-		atomic.AddInt64(&bctx.transitions, 1)
-	}
-}
-
-func loadTransitions(ctx context.Context) int64 {
-	if bctx, ok := ctx.(*beamCtx); ok {
-		return atomic.LoadInt64(&bctx.transitions)
-	}
-	return 0
-}
-
 // GetStore extracts the metrics Store for the given context for a bundle.
 //
 // Returns nil if the context doesn't contain a metric Store.
@@ -178,14 +158,6 @@ func GetStore(ctx context.Context) *Store {
 		return v.(*Store)
 	}
 	return nil
-}
-
-// getExecutionStore extracts the metrics ExecutionTracker for the
-// given context of a bundle.
-// Ensure that the store for the bundle exist before calling this function.
-func getExecutionStore(ctx context.Context) *ExecutionTracker {
-	store := GetStore(ctx)
-	return &store.executionStore
 }
 
 const (

@@ -23,17 +23,26 @@ import (
 )
 
 type stateSampler struct {
+	done    chan (int)
 	sampler metrics.StateSampler
 }
 
 func newSampler(ctx context.Context, store *metrics.Store) stateSampler {
-	return stateSampler{sampler: metrics.NewSampler(ctx, store)}
+	return stateSampler{sampler: metrics.NewSampler(ctx, store), done: make(chan int)}
 }
 
 func (s *stateSampler) start(ctx context.Context, t time.Duration) {
-	go s.sampler.Start(ctx, t)
+	for {
+		select {
+		case <-s.done:
+			return
+		default:
+			go s.sampler.Start(ctx, t)
+		}
+	}
 }
 
-func (s *stateSampler) stop(ctx context.Context, t time.Duration) {
-	s.sampler.Stop(ctx, t)
+func (s *stateSampler) stop(ctx context.Context) {
+	s.sampler.Stop(ctx)
+	s.done <- 1
 }

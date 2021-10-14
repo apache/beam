@@ -17,58 +17,73 @@ package metrics
 
 import (
 	"context"
-	"sync/atomic"
 	"time"
 )
 
 // StateSampler tracks the state of a bundle.
 type StateSampler struct {
-	done  chan (int) // signal to stop sampling
-	e     *ExecutionTracker
-	store *Store
-	total int64
+	store *Store // used to store states into state registry
 }
 
 // NewSampler creates a new state sampler.
 func NewSampler(ctx context.Context, store *Store) StateSampler {
-	return StateSampler{done: make(chan int), e: getExecutionStore(ctx), store: store}
+	return StateSampler{store: store}
+}
+
+func initialize() [4]*ExecutionState {
+	var v [4]*ExecutionState
+	for i := 0; i < 4; i++ {
+		v[i] = &ExecutionState{}
+	}
+	return v
+}
+
+func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
+	ps := loadPTransformState(ctx)
+	pid := PTransformLabels(ps.pid)
+
+	s.store.mu.Lock()
+	defer s.store.mu.Unlock()
+
+	if _, ok := s.store.stateRegistry[pid]; !ok {
+		s.store.stateRegistry[pid] = initialize()
+	}
+	if v, ok := s.store.stateRegistry[pid]; ok {
+		v[ps.state].TotalTime += t
+		v[TotalBundle].TotalTime += t
+	}
+
+	if _, ok := s.store.executionStore[pid]; !ok {
+		s.store.executionStore[pid] = &executionTracker{}
+	}
+	if v, ok := s.store.executionStore[pid]; ok {
+
+		if v.transitionsAtLastSample != ps.transitions {
+			// state change
+			v.millisSinceLastTransition = 0
+			v.numberOfTransitions = ps.transitions
+			v.transitionsAtLastSample = ps.transitions
+		} else {
+			v.millisSinceLastTransition += t
+		}
+	}
 }
 
 // Start is called from the harness package repeatedly whenever required
 func (s *StateSampler) Start(ctx context.Context, t time.Duration) {
-	s.startSampler(ctx, t)
+	s.Sample(ctx, t)
 }
 
-func (s *StateSampler) startSampler(ctx context.Context, t time.Duration) {
-	if loadTransitions(ctx) != atomic.LoadInt64(&(s.e.TransitionsAtLastSample)) {
-		s.sample(ctx)
-	}
-
-	atomic.AddInt64(&s.e.MillisSinceLastTransition, int64(t))
-	atomic.AddInt64(&s.e.State.TotalTimeMillis, int64(t))
-}
-
-func (s *StateSampler) Stop(ctx context.Context, t time.Duration) {
-	s.stopSampler(ctx, t)
-}
-
-func (s *StateSampler) stopSampler(ctx context.Context, t time.Duration) {
-	// collect the remaining metrics (finish bundle metrics)
-	s.sample(ctx)
-	// add final state
-
-	ex := ExecutionState{State: TotalBundle, TotalTimeMillis: s.total}
-	s.store.AddState(ex, loadPTransformState(ctx).pid)
-}
-
-func (s *StateSampler) sample(ctx context.Context) {
+func (s *StateSampler) Stop(ctx context.Context) {
 	ps := loadPTransformState(ctx)
-	t := loadTransitions(ctx)
-	s.store.AddState(s.e.State, ps.pid)
+	pid := PTransformLabels(ps.pid)
+
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
-	s.total += s.e.State.TotalTimeMillis
-	s.e.TransitionsAtLastSample = t
-	s.e.State.TotalTimeMillis = s.e.MillisSinceLastTransition - s.e.State.TotalTimeMillis
-	s.e.State.State = ps.state
+	if t := s.store.executionStore[pid].millisSinceLastTransition; t != 0 {
+		if v, ok := s.store.stateRegistry[pid]; ok {
+			v[ps.state].TotalTime += t
+			v[TotalBundle].TotalTime += t
+		}
+	}
 }

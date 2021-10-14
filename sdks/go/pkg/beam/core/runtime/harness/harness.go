@@ -328,7 +328,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		state.Close()
 
 		// Plan execution complete, stop sampling for metrics for this bundle.
-		sampler.stop(ctx, time.Millisecond)
+		sampler.stop(ctx)
 
 		mons, pylds := monitoring(plan, store)
 		// Move the plan back to the candidate state

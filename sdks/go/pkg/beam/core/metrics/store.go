@@ -94,7 +94,7 @@ type Extractor struct {
 	// GaugeInt64 extracts data from Gauge Int64 counters.
 	GaugeInt64 func(labels Labels, v int64, t time.Time)
 	// MsecsInt64 extracts data from StateRegistry of ExecutionState
-	MsecsInt64 func(labels Labels, stateRegistry []ExecutionState)
+	MsecsInt64 func(labels Labels, stateRegistry [4]*ExecutionState)
 }
 
 // ExtractFrom the given metrics Store all the metrics for
@@ -164,19 +164,16 @@ const (
 
 // ExecutionState stores the information about a bundle in a particular state.
 type ExecutionState struct {
-	State           bundleProcState
-	IsProcessing    bool // set to true when sent as a response to ProcessBundleProgress Request
-	TotalTimeMillis int64
+	State        bundleProcState
+	IsProcessing bool // set to true when sent as a response to ProcessBundleProgress Request
+	TotalTime    time.Duration
 }
 
-// ExecutionTracker stores information about a bundle for execution time metrics.
-type ExecutionTracker struct {
-	State                     ExecutionState
-	NumberOfTransitions       int64
-	MillisSinceLastTransition int64
-	TransitionsAtLastSample   int64
-	LastSampleTimeMillis      int64
-	TotalTimeMillis           int64
+// executionTracker stores information about a PTransform for execution time metrics.
+type executionTracker struct {
+	numberOfTransitions       int64
+	millisSinceLastTransition time.Duration
+	transitionsAtLastSample   int64
 }
 
 // executionState is used to store as atomic.Value in Store.
@@ -189,23 +186,24 @@ func newPTransformState(pid string, state bundleProcState) *pTransformState {
 	return &pTransformState{pid: pid, state: state}
 }
 
-func SetPTransformState(ctx context.Context, pid string, state bundleProcState) {
-	ps := newPTransformState(pid, state)
-
+func SetPTransformState(ctx context.Context, state bundleProcState) {
 	if bctx, ok := ctx.(*beamCtx); ok {
-		bctx.exStore.Store(ps)
+		ps := newPTransformState(bctx.ptransformID, state)
+		bctx.pStore.Store(ps)
+		atomic.AddInt64(&bctx.transitions, 1)
 	}
 }
 
 type PTransformStateVal struct {
-	pid   string
-	state bundleProcState
+	pid         string
+	state       bundleProcState
+	transitions int64
 }
 
 func loadPTransformState(ctx context.Context) PTransformStateVal {
 	if bctx, ok := ctx.(*beamCtx); ok {
-		ps := bctx.exStore.Load().(*pTransformState)
-		return PTransformStateVal{pid: ps.pid, state: ps.state}
+		ps := bctx.pStore.Load().(*pTransformState)
+		return PTransformStateVal{pid: ps.pid, state: ps.state, transitions: atomic.LoadInt64(&bctx.transitions)}
 	}
 	panic("execution store not yet set.")
 }
@@ -216,33 +214,21 @@ type Store struct {
 	css []*ptCounterSet
 
 	store          map[Labels]userMetric
-	executionStore ExecutionTracker
-	stateRegistry  map[Labels][]ExecutionState
+	executionStore map[Labels]*executionTracker
+	stateRegistry  map[Labels][4]*ExecutionState
 }
 
 func newStore() *Store {
-	return &Store{store: make(map[Labels]userMetric), executionStore: ExecutionTracker{}, stateRegistry: make(map[Labels][]ExecutionState)}
-}
-
-// AddState adds an ExecutionState of a PTransform to the stateRegistry.
-func (s *Store) AddState(e ExecutionState, pid string) {
-	label := PTransformLabels(pid)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.stateRegistry == nil {
-		s.stateRegistry = make(map[Labels][]ExecutionState)
-	}
-	s.stateRegistry[label] = append(s.stateRegistry[label], e)
-}
-
-// IncTransitions increment the number of transitions by 1.
-func (e *ExecutionTracker) IncTransitions() {
-	atomic.AddInt64(&e.NumberOfTransitions, 1)
+	return &Store{store: make(map[Labels]userMetric), executionStore: make(map[Labels]*executionTracker), stateRegistry: make(map[Labels][4]*ExecutionState)}
 }
 
 // GetRegistry return the state registry.
-func (s *Store) GetRegistry() map[Labels][]ExecutionState {
+func (s *Store) GetRegistry() map[Labels][4]*ExecutionState {
 	return s.stateRegistry
+}
+
+func (s *Store) GetExecutionStore() map[Labels]*executionTracker {
+	return s.executionStore
 }
 
 // storeMetric stores a metric away on its first use so it may be retrieved later on.
@@ -259,4 +245,20 @@ func (b *Store) storeMetric(pid string, n name, m userMetric) {
 		return
 	}
 	b.store[l] = m
+}
+
+type ExecutionStoreData struct {
+	NumberOfTransitions       int64
+	MillisSinceLastTransition time.Duration
+	TransitionsAtLastSample   int64
+}
+
+func getExecStoreData(ctx context.Context, l Labels) ExecutionStoreData {
+	if bctx, ok := ctx.(*beamCtx); ok {
+		es := bctx.store.executionStore[l]
+		return ExecutionStoreData{NumberOfTransitions: es.numberOfTransitions, MillisSinceLastTransition: es.millisSinceLastTransition, TransitionsAtLastSample: es.transitionsAtLastSample}
+	} else {
+		es := GetStore(ctx).executionStore[l]
+		return ExecutionStoreData{NumberOfTransitions: es.numberOfTransitions, MillisSinceLastTransition: es.millisSinceLastTransition, TransitionsAtLastSample: es.transitionsAtLastSample}
+	}
 }

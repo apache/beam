@@ -21,43 +21,67 @@ import (
 	"time"
 )
 
+func checkStateTime(t *testing.T, r map[Labels][4]*ExecutionState, label Labels, sb, pb, fb, tb time.Duration) {
+	v := r[label]
+	if v[StartBundle].TotalTime != sb || v[ProcessBundle].TotalTime != pb || v[FinishBundle].TotalTime != fb || v[TotalBundle].TotalTime != tb {
+		t.Errorf("want start: %v, process:%v, finish:%v, total:%v; got: start: %v, process:%v, finish:%v, total:%v",
+			sb, pb, fb, tb, v[StartBundle].TotalTime, v[ProcessBundle].TotalTime, v[FinishBundle].TotalTime, v[TotalBundle].TotalTime)
+	}
+}
 func TestSampler(t *testing.T) {
 	ctx := context.Background()
-	pctx := SetPTransformID(ctx, "transform")
-	st := GetStore(pctx)
+	bctx := SetBundleID(ctx, "test")
 
-	s := NewSampler(pctx, st)
+	st := GetStore(bctx)
+	s := NewSampler(bctx, st)
 
-	SetPTransformState(pctx, "transform", StartBundle)
-	time.Sleep(200 * time.Millisecond)
-	go s.Start(pctx, 200*time.Millisecond)
+	pctx := SetPTransformID(bctx, "transform")
+	label := PTransformLabels("transform")
 
-	time.Sleep(200 * time.Millisecond)
-	go s.Start(pctx, 200*time.Millisecond)
+	SetPTransformState(pctx, StartBundle)
+	s.Sample(pctx, 200*time.Millisecond)
 
-	SetPTransformState(pctx, "transform", ProcessBundle)
-	IncTransition(pctx)
+	// validate states and their time till now
+	r := s.store.GetRegistry()
+	checkStateTime(t, r, label, 200*time.Millisecond, 0, 0, 200*time.Millisecond)
+	g := s.store.GetExecutionStore()[label]
+	if g.numberOfTransitions != 1 {
+		t.Errorf("number of transitions: %v, want 1", g.numberOfTransitions)
+	}
 
-	time.Sleep(200 * time.Millisecond)
-	go s.Start(pctx, 200*time.Millisecond)
+	SetPTransformState(pctx, ProcessBundle)
+	s.Sample(pctx, 200*time.Millisecond)
+	SetPTransformState(pctx, ProcessBundle)
+	SetPTransformState(pctx, ProcessBundle)
+	s.Sample(pctx, 200*time.Millisecond)
 
-	SetPTransformState(pctx, "transform", FinishBundle)
-	IncTransition(pctx)
+	// validate states and their time till now
+	r = s.store.GetRegistry()
+	checkStateTime(t, r, label, 200*time.Millisecond, 400*time.Millisecond, 0, 600*time.Millisecond)
+	e := getExecStoreData(pctx, label)
+	if e.NumberOfTransitions != 4 || e.MillisSinceLastTransition != 0 {
+		t.Errorf("number of transitions: %v, want 4 \nmillis since last transition: %v, want 0ms", e.NumberOfTransitions, e.MillisSinceLastTransition)
+	}
 
-	time.Sleep(200 * time.Millisecond)
-	go s.Start(pctx, 200*time.Millisecond)
+	s.Sample(pctx, 200*time.Millisecond)
+	s.Sample(pctx, 200*time.Millisecond)
+	s.Sample(pctx, 200*time.Millisecond)
 
-	time.Sleep(200 * time.Millisecond)
-	go s.Start(pctx, 200*time.Millisecond)
+	// validate states and their time till now
+	r = s.store.GetRegistry()
+	checkStateTime(t, r, label, 200*time.Millisecond, 1000*time.Millisecond, 0, 1200*time.Millisecond)
+	e = getExecStoreData(pctx, label)
+	if e.NumberOfTransitions != 4 || e.MillisSinceLastTransition != 600*time.Millisecond {
+		t.Errorf("number of transitions: %v, want 4 \nmillis since last transition: %v, want 600ms", e.NumberOfTransitions, e.MillisSinceLastTransition)
+	}
 
-	time.Sleep(200 * time.Millisecond)
-	go s.Start(pctx, 200*time.Millisecond)
-
-	time.Sleep(200 * time.Millisecond)
-	go s.Stop(pctx, 200*time.Millisecond)
-	time.Sleep(200 * time.Millisecond)
-	res := s.store.GetRegistry()
-	if len(res[PTransformLabels("transform")]) != 4 {
-		t.Errorf("incorrect number of states: %v, want: 4", len(res[PTransformLabels("transform")]))
+	SetPTransformState(pctx, FinishBundle)
+	s.Sample(pctx, 200*time.Millisecond)
+	// validate states and their time till now
+	r = s.store.GetRegistry()
+	checkStateTime(t, r, label, 200*time.Millisecond, 1000*time.Millisecond, 200*time.Millisecond, 1400*time.Millisecond)
+	e = getExecStoreData(pctx, label)
+	if e.NumberOfTransitions != 5 || e.MillisSinceLastTransition != 0 {
+		t.Errorf("number of transitions: %v, want 5 \nmillis since last transition: %v, want 0ms", e.NumberOfTransitions, e.MillisSinceLastTransition)
 	}
 }
