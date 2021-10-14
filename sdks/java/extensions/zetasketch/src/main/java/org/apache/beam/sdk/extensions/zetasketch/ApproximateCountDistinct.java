@@ -99,6 +99,10 @@ public class ApproximateCountDistinct {
         .build();
   }
 
+  public static <T> HllCountInitFn<T, ?> getUdaf(TypeDescriptor<T> input) {
+    return ApproximateCountDistinct.<T>builderForType(input).asUdaf();
+  }
+
   /////////////////////////////////////////////////////////////////////////////
 
   /**
