@@ -1,0 +1,2 @@
+$(document).ready(function(){function setSize(){var height=$('.calendar-card-big-right').height();var width=$('.calendar-card-big-right').width();$('#calendar').height=height-100;$('#calendar').width=width-100;}
+setSize();});
