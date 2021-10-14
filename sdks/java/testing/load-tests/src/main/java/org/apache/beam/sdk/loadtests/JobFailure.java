@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.loadtests;
 
-import static java.lang.String.format;
-import static java.util.Optional.empty;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -77,7 +74,7 @@ class JobFailure {
     if (isTestResultInvalid) {
       return Optional.of(new JobFailure("Invalid test results", false));
     } else {
-      return empty();
+      return Optional.empty();
     }
   }
 
@@ -92,10 +89,10 @@ class JobFailure {
       case STOPPED:
       case UPDATED:
         return Optional.of(
-            new JobFailure(format("Invalid job state: %s.", state.toString()), false));
+            new JobFailure(String.format("Invalid job state: %s.", state.toString()), false));
 
       default:
-        return empty();
+        return Optional.empty();
     }
   }
 }
