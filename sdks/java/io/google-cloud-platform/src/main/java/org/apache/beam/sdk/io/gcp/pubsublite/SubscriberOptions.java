@@ -15,20 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsublite.internal;
+package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
-import com.google.cloud.pubsublite.internal.wire.PubsubContext.Framework;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.Serializable;
 import org.joda.time.Duration;
 
 @AutoValue
 public abstract class SubscriberOptions implements Serializable {
   private static final long serialVersionUID = 269598118L;
-
-  private static final Framework FRAMEWORK = Framework.of("BEAM");
 
   private static final long MEBIBYTE = 1L << 20;
 
@@ -64,6 +62,7 @@ public abstract class SubscriberOptions implements Serializable {
 
   public abstract Builder toBuilder();
 
+  @CanIgnoreReturnValue
   @AutoValue.Builder
   public abstract static class Builder {
     // Required parameters.

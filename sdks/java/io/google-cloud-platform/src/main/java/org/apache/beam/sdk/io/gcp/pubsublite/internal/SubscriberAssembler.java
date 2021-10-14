@@ -39,6 +39,7 @@ import com.google.cloud.pubsublite.v1.CursorServiceClient;
 import com.google.cloud.pubsublite.v1.CursorServiceSettings;
 import com.google.cloud.pubsublite.v1.SubscriberServiceClient;
 import com.google.cloud.pubsublite.v1.SubscriberServiceSettings;
+import org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions;
 
 class SubscriberAssembler {
   private static final Framework FRAMEWORK = Framework.of("BEAM");

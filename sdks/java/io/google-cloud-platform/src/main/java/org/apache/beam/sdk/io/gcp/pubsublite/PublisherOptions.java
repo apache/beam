@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.TopicPath;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.Serializable;
 
 /** Options needed for a Pub/Sub Lite Publisher. */
@@ -33,6 +34,7 @@ public abstract class PublisherOptions implements Serializable {
     return new AutoValue_PublisherOptions.Builder();
   }
 
+  @CanIgnoreReturnValue
   @AutoValue.Builder
   public abstract static class Builder {
     // Required parameters.

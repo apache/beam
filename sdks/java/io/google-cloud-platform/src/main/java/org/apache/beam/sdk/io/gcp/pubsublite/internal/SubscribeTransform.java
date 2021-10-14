@@ -32,6 +32,7 @@ import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;

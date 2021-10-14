@@ -23,7 +23,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.AddUuidsTransform;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.PubsubLiteSink;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
-import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscriberOptions;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.UuidDeduplicationTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;

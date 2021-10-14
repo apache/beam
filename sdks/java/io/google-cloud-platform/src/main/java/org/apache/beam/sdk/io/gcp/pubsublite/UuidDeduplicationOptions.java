@@ -21,6 +21,7 @@ import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.che
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.util.List;
@@ -68,6 +69,7 @@ public abstract class UuidDeduplicationOptions implements Serializable {
     return builder;
   }
 
+  @CanIgnoreReturnValue
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setUuidExtractor(
