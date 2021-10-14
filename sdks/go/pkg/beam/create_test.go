@@ -85,7 +85,9 @@ func TestCreateList(t *testing.T) {
 			t.Errorf("beam.CreateList(%v) failed: %v", test.values, err)
 		}
 	}
-	fmt.Println("")
+}
+
+func TestNothing(t *testing.T) {
 }
 
 func TestCreateEmptyList(t *testing.T) {
