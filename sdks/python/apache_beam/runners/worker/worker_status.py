@@ -17,9 +17,11 @@
 
 """Worker status api handler for reporting SDK harness debug info."""
 
+import logging
 import queue
 import sys
 import threading
+import time
 import traceback
 from collections import defaultdict
 
@@ -35,6 +37,19 @@ try:
   from guppy import hpy
 except ImportError:
   hpy = None
+
+_LOGGER = logging.getLogger(__name__)
+
+# This SDK harness will (by default), log a "lull" in processing if it sees no
+# transitions in over 5 minutes.
+# 5 minutes * 60 seconds * 1000 millis * 1000 micros * 1000 nanoseconds
+DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
+
+# Full thread dump is performed at most every 20 minutes.
+LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S = 20 * 60
+
+# Full thread dump is performed if the lull is more than 20 minutes.
+LOG_LULL_FULL_THREAD_DUMP_LULL_S = 20 * 60
 
 
 def thread_dump():
@@ -120,7 +135,11 @@ DONE = Sentinel.sentinel
 class FnApiWorkerStatusHandler(object):
   """FnApiWorkerStatusHandler handles worker status request from Runner. """
   def __init__(
-      self, status_address, bundle_process_cache=None, enable_heap_dump=False):
+      self,
+      status_address,
+      bundle_process_cache=None,
+      enable_heap_dump=False,
+      log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS):
     """Initialize FnApiWorkerStatusHandler.
 
     Args:
@@ -135,11 +154,20 @@ class FnApiWorkerStatusHandler(object):
     self._status_stub = beam_fn_api_pb2_grpc.BeamFnWorkerStatusStub(
         self._status_channel)
     self._responses = queue.Queue()
+    self.log_lull_timeout_ns = log_lull_timeout_ns
+    self._last_full_thread_dump_secs = 0.0
+    self._last_lull_logged_secs = 0.0
     self._server = threading.Thread(
         target=lambda: self._serve(), name='fn_api_status_handler')
     self._server.daemon = True
     self._enable_heap_dump = enable_heap_dump
     self._server.start()
+    self._lull_logger = threading.Thread(
+        target=lambda: self._log_lull_in_bundle_processor(
+            self._bundle_process_cache),
+        name='lull_operation_logger')
+    self._lull_logger.daemon = True
+    self._lull_logger.start()
 
   def _get_responses(self):
     while True:
@@ -177,3 +205,49 @@ class FnApiWorkerStatusHandler(object):
 
   def close(self):
     self._responses.put(DONE, timeout=5)
+
+  def _log_lull_in_bundle_processor(self, bundle_process_cache):
+    while True:
+      time.sleep(2 * 60)
+      if bundle_process_cache.active_bundle_processors:
+        for instruction in list(
+            bundle_process_cache.active_bundle_processors.keys()):
+          processor = bundle_process_cache.lookup(instruction)
+          if processor:
+            info = processor.state_sampler.get_info()
+            self._log_lull_sampler_info(info)
+
+  def _log_lull_sampler_info(self, sampler_info):
+    if not self._passed_lull_timeout_since_last_log():
+      return
+    if (sampler_info and sampler_info.time_since_transition and
+        sampler_info.time_since_transition > self.log_lull_timeout_ns):
+      step_name = sampler_info.state_name.step_name
+      state_name = sampler_info.state_name.name
+      lull_seconds = sampler_info.time_since_transition / 1e9
+      state_lull_log = (
+          'Operation ongoing for over %.2f seconds in state %s' %
+          (lull_seconds, state_name))
+      step_name_log = (' in step %s ' % step_name) if step_name else ''
+
+      exec_thread = getattr(sampler_info, 'tracked_thread', None)
+      if exec_thread is not None:
+        thread_frame = sys._current_frames().get(exec_thread.ident)  # pylint: disable=protected-access
+        stack_trace = '\n'.join(
+            traceback.format_stack(thread_frame)) if thread_frame else ''
+      else:
+        stack_trace = '-NOT AVAILABLE-'
+
+      _LOGGER.warning(
+          '%s%s without returning. Current Traceback:\n%s',
+          state_lull_log,
+          step_name_log,
+          stack_trace)
+
+  def _passed_lull_timeout_since_last_log(self) -> bool:
+    if (time.time() - self._last_lull_logged_secs >
+        self.log_lull_timeout_ns / 1e9):
+      self._last_lull_logged_secs = time.time()
+      return True
+    else:
+      return False
