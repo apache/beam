@@ -22,6 +22,7 @@ import 'package:flutter_highlight/themes/vs.dart';
 import 'package:flutter_highlight/themes/darcula.dart';
 import 'package:highlight/languages/java.dart';
 import 'package:highlight/languages/python.dart';
+import 'package:highlight/languages/scala.dart';
 import 'package:highlight/languages/go.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
@@ -60,6 +61,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       language: _getLanguageFromSdk(),
       theme: themeProvider.isDarkMode ? darculaTheme : vsTheme,
       onChange: (newSource) => widget.onSourceChange(newSource),
+      webSpaceFix: false,
     );
     super.didChangeDependencies();
   }
@@ -88,7 +90,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       case SDK.python:
         return python;
       case SDK.scio:
-        return java;
+        return scala;
     }
   }
 }

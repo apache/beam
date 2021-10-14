@@ -18,13 +18,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
-
-const kRunText = "Run";
 
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
@@ -32,6 +31,11 @@ class CodeTextAreaWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<PlaygroundState>(builder: (context, state, child) {
+      if (state.result?.errorMessage?.isNotEmpty ?? false) {
+        WidgetsBinding.instance?.addPostFrameCallback((_) {
+          _handleError(context, state);
+        });
+      }
       return Stack(
         children: [
           Positioned.fill(
@@ -47,15 +51,21 @@ class CodeTextAreaWrapper extends StatelessWidget {
             top: kLgSpacing,
             width: kRunButtonWidth,
             height: kRunButtonHeight,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.play_arrow),
-              label: const Text(kRunText),
-              onPressed: () {},
+            child: RunButton(
+              isRunning: state.isCodeRunning,
+              runCode: state.runCode,
             ),
           ),
         ],
       );
     });
+  }
+
+  _handleError(BuildContext context, PlaygroundState state) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(state.result?.errorMessage ?? "")),
+    );
+    state.resetError();
   }
 }
 
