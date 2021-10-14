@@ -18,33 +18,30 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
-import 'package:provider/provider.dart';
 
-const kLogText = "Log";
-const kGraphText = "Graph";
+const kRunText = "Run";
 
-class OutputArea extends StatelessWidget {
-  const OutputArea({Key? key}) : super(key: key);
+class RunButton extends StatelessWidget {
+  final bool isRunning;
+  final VoidCallback runCode;
+
+  const RunButton({Key? key, required this.isRunning, required this.runCode})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).backgroundColor,
-      child: Consumer<PlaygroundState>(
-        builder: (context, state, child) {
-          return TabBarView(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(kLgSpacing),
-                child: Text(state.result?.output ?? ""),
+    return ElevatedButton.icon(
+      icon: isRunning
+          ? SizedBox(
+              width: kIconSizeSm,
+              height: kIconSizeSm,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
               ),
-              const Center(child: Text(kLogText)),
-              const Center(child: Text(kGraphText)),
-            ],
-          );
-        },
-      ),
+            )
+          : const Icon(Icons.play_arrow),
+      label: const Text(kRunText),
+      onPressed: !isRunning ? runCode : null,
     );
   }
 }

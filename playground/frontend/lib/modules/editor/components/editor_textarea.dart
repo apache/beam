@@ -60,6 +60,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       language: _getLanguageFromSdk(),
       theme: themeProvider.isDarkMode ? darculaTheme : vsTheme,
       onChange: (newSource) => widget.onSourceChange(newSource),
+      webSpaceFix: false,
     );
     super.didChangeDependencies();
   }

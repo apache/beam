@@ -17,11 +17,15 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/modules/editor/repository/code_repository/code_client/grpc_code_client.dart';
+import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
 import 'package:provider/provider.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
+
+final CodeRepository kCodeRepository = CodeRepository(GrpcCodeClient());
 
 class PlaygroundPageProviders extends StatelessWidget {
   final Widget child;
@@ -39,14 +43,17 @@ class PlaygroundPageProviders extends StatelessWidget {
           create: (context) => ExampleState(ExampleRepository()),
         ),
         ChangeNotifierProxyProvider<ExampleState, PlaygroundState>(
-          create: (context) => PlaygroundState(),
+          create: (context) => PlaygroundState(codeRepository: kCodeRepository),
           update: (context, exampleState, playground) {
             if (playground == null) {
-              return PlaygroundState();
+              return PlaygroundState(codeRepository: kCodeRepository);
             }
             if (exampleState.examples?.isNotEmpty ?? false) {
               return PlaygroundState(
-                  playground.sdk, exampleState.examples!.first);
+                codeRepository: kCodeRepository,
+                sdk: playground.sdk,
+                selectedExample: exampleState.examples!.first,
+              );
             }
             return playground;
           },
