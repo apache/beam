@@ -50,13 +50,15 @@ class XlangGenerateSequenceTest(unittest.TestCase):
             p
             | GenerateSequence(start=1, stop=10, expansion_service=address))
 
-        assert_that(res, equal_to([i for i in range(1, 10)]))
+        assert_that(res, equal_to(list(range(1, 10))))
     except RuntimeError as e:
       if re.search(GenerateSequence.URN, str(e)):
         print("looks like URN not implemented in expansion service, skipping.")
       else:
         raise e
 
+  # Using "!= 'Python'" instead of "== 'Java'" below to make sure that the test
+  # is not silently ignored if configs change the EXPANSION_SERVICE_TYPE "Java".
   @unittest.skipUnless(
       os.environ.get('EXPANSION_SERVICE_TYPE') != 'Python',
       'Java Class Lookup based expansion is not supported by the Python '
@@ -74,8 +76,10 @@ class XlangGenerateSequenceTest(unittest.TestCase):
       res = (
           p
           | ExternalTransform(None, payload_builder, expansion_service=address))
-      assert_that(res, equal_to([i for i in range(1, 10)]))
+      assert_that(res, equal_to(list(range(1, 10))))
 
+  # Using "!= 'Python'" instead of "== 'Java'" below to make sure that the test
+  # is not silently ignored if configs change the EXPANSION_SERVICE_TYPE "Java".
   @unittest.skipUnless(
       os.environ.get('EXPANSION_SERVICE_TYPE') != 'Python',
       'Java Class Lookup based expansion is not supported by the Python '
@@ -87,13 +91,12 @@ class XlangGenerateSequenceTest(unittest.TestCase):
     with TestPipeline() as p:
       java_transform = JavaExternalTransform(
           'org.apache.beam.sdk.io.GenerateSequence', expansion_service=address)
-      # We have to use 'getattr' below since 'from' is a reserved keyword for
-      # Python.
-      getattr(java_transform, 'from')(1)
-      java_transform.to(10)
+      # We have to use 'getattr' below for builder method 'from' of Java
+      # 'GenerateSequence' class since 'from' is a reserved keyword for Python.
+      java_transform = getattr(java_transform, 'from')(1).to(10)
       res = (p | java_transform)
 
-      assert_that(res, equal_to([i for i in range(1, 10)]))
+      assert_that(res, equal_to(list(range(1, 10))))
 
 
 if __name__ == '__main__':
