@@ -46,7 +46,7 @@ func RegisterHandler(namespace string, handler HandlerFunc) {
 	}
 }
 
-// RegisterExpansionForUrn overrides which expansion address is used to
+// RegisterOverrideForUrn overrides which expansion address is used to
 // expand a specific transform URN. The expansion address must be a URL
 // or be a namespaced handler registered with RegisterHandler.
 //
@@ -100,7 +100,7 @@ func (p *PCol) WSID() string {
 	return fmt.Sprintf("ws%v@%v", p.Local, p.namespace)
 }
 
-// Return this the id to this PCollection's windowing strategy, and the associated proto.
+// WindowingStrategy returns the id to this PCollection's windowing strategy, and the associated proto.
 //
 // TODO: intern windowing strategies.
 func (p *PCol) WindowingStrategy(cm *graphx.CoderMarshaller) (string, *pipepb.WindowingStrategy) {
@@ -241,6 +241,7 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 }
 
 const (
+	// Separator is the canonical separator between a namespace and optional configuration.
 	Separator             = ":"
 	hardOverrideNamespace = "hardoverride"
 )
