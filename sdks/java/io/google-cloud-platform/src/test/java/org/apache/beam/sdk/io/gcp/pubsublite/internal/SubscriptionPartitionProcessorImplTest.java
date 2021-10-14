@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import static com.google.cloud.pubsublite.internal.testing.UnitTestExamples.example;
-import static org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscriberOptions.DEFAULT_FLOW_CONTROL;
+import static org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions.DEFAULT_FLOW_CONTROL;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
