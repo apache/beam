@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
+import org.apache.beam.sdk.fn.channel.AddHarnessIdInterceptor;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.server.InProcessServerFactory;
@@ -50,7 +51,7 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link FnApiControlClientPoolService}. */
 @RunWith(JUnit4.class)
 public class FnApiControlClientPoolServiceTest {
-
+  private static final String WORKER_ID = "test_worker_id";
   private final ControlClientPool pool = MapControlClientPool.create();
   private final FnApiControlClientPoolService controlService =
       FnApiControlClientPoolService.offeringClientsToPool(
@@ -63,7 +64,9 @@ public class FnApiControlClientPoolServiceTest {
     server = GrpcFnServer.allocatePortAndCreateFor(controlService, InProcessServerFactory.create());
     stub =
         BeamFnControlGrpc.newStub(
-            InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl()).build());
+            InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
+                .intercept(AddHarnessIdInterceptor.create(WORKER_ID))
+                .build());
   }
 
   @After
@@ -77,8 +80,7 @@ public class FnApiControlClientPoolServiceTest {
     StreamObserver<BeamFnApi.InstructionResponse> responseObserver =
         controlService.control(requestObserver);
 
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
-    InstructionRequestHandler client = pool.getSource().take("", Duration.ofSeconds(2));
+    InstructionRequestHandler client = pool.getSource().take(WORKER_ID, Duration.ofSeconds(2));
 
     // Check that the client is wired up to the request channel
     String id = "fakeInstruction";
@@ -116,8 +118,7 @@ public class FnApiControlClientPoolServiceTest {
           }
         });
 
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
-    pool.getSource().take("", Duration.ofSeconds(2));
+    pool.getSource().take(WORKER_ID, Duration.ofSeconds(2));
     server.close();
 
     latch.await();
