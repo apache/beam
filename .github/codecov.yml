@@ -55,6 +55,8 @@ ignore:
   - "**/*_test_py3*.py"
   - "**/*_microbenchmark.py"
 
+name: Go Coverage
+
 on:
   push:
     branches: ['master', 'release-*']
@@ -74,6 +76,6 @@ jobs:
         with:
           go-version: '1.16'
       - name: Run coverage
-        run: go test -coverprofile=coverage.out -covermode=atomic ./sdks/go/pkg/beam/...
+        run: go test -coverprofile=coverage.out -covermode=atomic ./...
       - name: Upload coverage to Codecov
         run: bash <(curl -s https://codecov.io/bash)
