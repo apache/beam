@@ -16,25 +16,17 @@
  * limitations under the License.
  */
 
-// spacings
-const double kZeroSpacing = 0.0;
-const double kSmSpacing = 4.0;
-const double kMdSpacing = 8.0;
-const double kLgSpacing = 16.0;
+import 'package:playground/modules/editor/repository/code_repository/code_client/check_status_response.dart';
+import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
+import 'package:playground/modules/editor/repository/code_repository/code_client/run_code_response.dart';
+import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 
-// sizes
-const kHeaderButtonHeight = 46.0;
-const kRunButtonWidth = 150.0;
-const kRunButtonHeight = 40.0;
-const kIconButtonSplashRadius = 24.0;
-const kFooterHeight = 32.0;
+abstract class CodeClient {
+  Future<RunCodeResponse> runCode(RunCodeRequestWrapper request);
 
-// border radius
-const double kBorderRadius = 8.0;
+  Future<CheckStatusResponse> checkStatus(String pipelineUuid);
 
-// elevation
-const int kElevation = 1;
+  Future<OutputResponse> getCompileOutput(String pipelineUuid);
 
-// icon sizes
-const double kIconSizeSm = 16.0;
-const double kIconSizeMd = 24.0;
+  Future<OutputResponse> getRunOutput(String pipelineUuid);
+}

@@ -16,25 +16,29 @@
  * limitations under the License.
  */
 
-// spacings
-const double kZeroSpacing = 0.0;
-const double kSmSpacing = 4.0;
-const double kMdSpacing = 8.0;
-const double kLgSpacing = 16.0;
+enum RunCodeStatus { unspecified, executing, error, finished }
 
-// sizes
-const kHeaderButtonHeight = 46.0;
-const kRunButtonWidth = 150.0;
-const kRunButtonHeight = 40.0;
-const kIconButtonSplashRadius = 24.0;
-const kFooterHeight = 32.0;
+class RunCodeResult {
+  final RunCodeStatus status;
+  final String? output;
+  final String? errorMessage;
 
-// border radius
-const double kBorderRadius = 8.0;
+  RunCodeResult({required this.status, this.output, this.errorMessage});
 
-// elevation
-const int kElevation = 1;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RunCodeResult &&
+          runtimeType == other.runtimeType &&
+          status == other.status &&
+          output == other.output &&
+          errorMessage == other.errorMessage;
 
-// icon sizes
-const double kIconSizeSm = 16.0;
-const double kIconSizeMd = 24.0;
+  @override
+  int get hashCode => status.hashCode ^ output.hashCode ^ errorMessage.hashCode;
+
+  @override
+  String toString() {
+    return 'RunCodeResult{status: $status, output: $output, errorMessage: $errorMessage}';
+  }
+}
