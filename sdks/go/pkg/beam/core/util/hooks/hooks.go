@@ -234,7 +234,7 @@ func (r *registry) EnableHook(name string, args ...string) error {
 	return nil
 }
 
-// EnableHook enables the hook to be run for the pipline. It will be
+// EnableHook enables the hook to be run for the pipeline. It will be
 // receive the supplied args when the pipeline executes.
 // Repeat calls for the same hook will overwrite previous args,
 // and move the hook to the end of the ordering.
@@ -273,7 +273,7 @@ func (r *registry) DisableHook(name string) {
 	r.disableHook(name)
 }
 
-// DisableHook disables the hook to be run for the pipline, deleting previous options.
+// DisableHook disables the hook to be run for the pipeline, deleting previous options.
 func DisableHook(name string) {
 	defaultRegistry.DisableHook(name)
 }
