@@ -61,7 +61,7 @@ func TestRegistry(t *testing.T) {
 	if err := reg.RegisterOverrideForUrn(urn, overrideAddr); err != nil {
 		t.Errorf("RegisterOverrideForUrn(%v, %v) error:  %v", urn, overrideAddr, err)
 	}
-	// Checks that even with a registered handler, we get the query service intead.
+	// Checks that even with a registered handler, we get the query service instead.
 	checkLookup(t, urn, "handler:wow", overrideAddr, QueryExpansionService, "QueryExpansionService")
 
 	overrideAddr = "handler:wow"
