@@ -16,6 +16,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"github.com/google/uuid"
 	"sync"
@@ -31,7 +32,7 @@ type LocalCache struct {
 	pipelinesExpiration map[uuid.UUID]time.Time
 }
 
-func newLocalCache() *LocalCache {
+func newLocalCache(ctx context.Context) *LocalCache {
 	items := make(map[uuid.UUID]map[SubKey]interface{})
 	pipelinesExpiration := make(map[uuid.UUID]time.Time)
 	ls := &LocalCache{
@@ -45,7 +46,7 @@ func newLocalCache() *LocalCache {
 
 }
 
-func (lc *LocalCache) GetValue(pipelineId uuid.UUID, subKey SubKey) (interface{}, error) {
+func (lc *LocalCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey) (interface{}, error) {
 	lc.RLock()
 	value, found := lc.items[pipelineId][subKey]
 	if !found {
@@ -65,7 +66,7 @@ func (lc *LocalCache) GetValue(pipelineId uuid.UUID, subKey SubKey) (interface{}
 	return value, nil
 }
 
-func (lc *LocalCache) SetValue(pipelineId uuid.UUID, subKey SubKey, value interface{}) error {
+func (lc *LocalCache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey, value interface{}) error {
 	lc.Lock()
 	defer lc.Unlock()
 
@@ -78,7 +79,7 @@ func (lc *LocalCache) SetValue(pipelineId uuid.UUID, subKey SubKey, value interf
 	return nil
 }
 
-func (lc *LocalCache) SetExpTime(pipelineId uuid.UUID, expTime time.Duration) error {
+func (lc *LocalCache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error {
 	lc.Lock()
 	defer lc.Unlock()
 	lc.pipelinesExpiration[pipelineId] = time.Now().Add(expTime)

@@ -16,7 +16,9 @@
 package cache
 
 import (
+	"context"
 	"github.com/google/uuid"
+	"os"
 	"time"
 )
 
@@ -24,25 +26,27 @@ type SubKey string
 
 const (
 	SubKey_Status        SubKey = "STATUS"
-	Subkey_RunOutput     SubKey = "RUN_OUTPUT"
+	SubKey_RunOutput     SubKey = "RUN_OUTPUT"
 	SubKey_CompileOutput SubKey = "COMPILE_OUTPUT"
 )
 
 type Cache interface {
 	// GetValue returns value from cache by pipelineId and subKey.
-	GetValue(pipelineId uuid.UUID, subKey SubKey) (interface{}, error)
+	GetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey) (interface{}, error)
 
 	// SetValue adds value to cache by pipelineId and subKey.
-	SetValue(pipelineId uuid.UUID, subKey SubKey, value interface{}) error
+	SetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey, value interface{}) error
 
 	// SetExpTime adds expiration time of the pipeline to cache by pipelineId.
-	SetExpTime(pipelineId uuid.UUID, expTime time.Duration) error
+	SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error
 }
 
 // NewCache returns new cache to save and read value
-func NewCache(cacheType string) Cache {
+func NewCache(ctx context.Context, cacheType string) (Cache, error) {
 	switch cacheType {
+	case "remote":
+		return newRedisCache(ctx, os.Getenv("remote_cache_address"))
 	default:
-		return newLocalCache()
+		return newLocalCache(ctx), nil
 	}
 }

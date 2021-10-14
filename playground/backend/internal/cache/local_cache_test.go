@@ -1,21 +1,22 @@
-////Licensed to the Apache Software Foundation (ASF) under one or more
-//// contributor license agreements.  See the NOTICE file distributed with
-//// this work for additional information regarding copyright ownership.
-//// The ASF licenses this file to You under the Apache License, Version 2.0
-//// (the "License"); you may not use this file except in compliance with
-//// the License.  You may obtain a copy of the License at
-////
-////    http://www.apache.org/licenses/LICENSE-2.0
-////
-//// Unless required by applicable law or agreed to in writing, software
-//// distributed under the License is distributed on an "AS IS" BASIS,
-//// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//// See the License for the specific language governing permissions and
-//// limitations under the License.
+//Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package cache
 
 import (
+	"context"
 	"github.com/google/uuid"
 	"reflect"
 	"sync"
@@ -39,6 +40,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 		pipelinesExpiration map[uuid.UUID]time.Time
 	}
 	type args struct {
+		ctx        context.Context
 		pipelineId uuid.UUID
 		subKey     SubKey
 	}
@@ -57,6 +59,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 				pipelinesExpiration: preparedExpMap,
 			},
 			args: args{
+				ctx:        context.Background(),
 				pipelineId: preparedId,
 				subKey:     preparedSubKey,
 			},
@@ -84,7 +87,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 				items:               tt.fields.items,
 				pipelinesExpiration: tt.fields.pipelinesExpiration,
 			}
-			got, err := ls.GetValue(tt.args.pipelineId, tt.args.subKey)
+			got, err := ls.GetValue(tt.args.ctx, tt.args.pipelineId, tt.args.subKey)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -106,6 +109,7 @@ func TestLocalCache_SetValue(t *testing.T) {
 		pipelinesExpiration map[uuid.UUID]time.Time
 	}
 	type args struct {
+		ctx        context.Context
 		pipelineId uuid.UUID
 		subKey     SubKey
 		value      interface{}
@@ -124,8 +128,9 @@ func TestLocalCache_SetValue(t *testing.T) {
 				pipelinesExpiration: preparedExpMap,
 			},
 			args: args{
+				ctx:        context.Background(),
 				pipelineId: preparedId,
-				subKey:     Subkey_RunOutput,
+				subKey:     SubKey_RunOutput,
 				value:      "TEST_VALUE",
 			},
 			wantErr: false,
@@ -138,10 +143,10 @@ func TestLocalCache_SetValue(t *testing.T) {
 				items:               tt.fields.items,
 				pipelinesExpiration: tt.fields.pipelinesExpiration,
 			}
-			if err := lc.SetValue(tt.args.pipelineId, tt.args.subKey, tt.args.value); (err != nil) != tt.wantErr {
+			if err := lc.SetValue(tt.args.ctx, tt.args.pipelineId, tt.args.subKey, tt.args.value); (err != nil) != tt.wantErr {
 				t.Errorf("SetValue() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			_, err := lc.GetValue(tt.args.pipelineId, tt.args.subKey)
+			_, err := lc.GetValue(tt.args.ctx, tt.args.pipelineId, tt.args.subKey)
 			if err != nil {
 				t.Errorf("Value with pipelineId: %s and subKey: %v not set in cache.", tt.args.pipelineId, tt.args.subKey)
 			}
@@ -157,6 +162,7 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 		pipelinesExpiration map[uuid.UUID]time.Time
 	}
 	type args struct {
+		ctx        context.Context
 		pipelineId uuid.UUID
 		expTime    time.Duration
 	}
@@ -173,6 +179,7 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 				pipelinesExpiration: make(map[uuid.UUID]time.Time),
 			},
 			args: args{
+				ctx:        context.Background(),
 				pipelineId: preparedId,
 				expTime:    time.Minute,
 			},
@@ -185,7 +192,7 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 				items:               tt.fields.items,
 				pipelinesExpiration: tt.fields.pipelinesExpiration,
 			}
-			err := lc.SetExpTime(tt.args.pipelineId, tt.args.expTime)
+			err := lc.SetExpTime(tt.args.ctx, tt.args.pipelineId, tt.args.expTime)
 			if err != nil {
 				t.Error(err)
 			}
@@ -202,7 +209,7 @@ func TestLocalCache_startGC(t *testing.T) {
 	preparedItemsMap := make(map[uuid.UUID]map[SubKey]interface{})
 	preparedItemsMap[preparedId] = make(map[SubKey]interface{})
 	preparedItemsMap[preparedId][SubKey_CompileOutput] = "TEST_VALUE1"
-	preparedItemsMap[preparedId][Subkey_RunOutput] = "TEST_VALUE2"
+	preparedItemsMap[preparedId][SubKey_RunOutput] = "TEST_VALUE2"
 	preparedExpMap := make(map[uuid.UUID]time.Time)
 	preparedExpMap[preparedId] = time.Now().Add(time.Microsecond)
 	type fields struct {
@@ -290,6 +297,7 @@ func TestLocalCache_clearItems(t *testing.T) {
 		pipelinesExpiration map[uuid.UUID]time.Time
 	}
 	type args struct {
+		ctx       context.Context
 		pipelines []uuid.UUID
 	}
 	tests := []struct {
@@ -304,7 +312,10 @@ func TestLocalCache_clearItems(t *testing.T) {
 				items:               make(map[uuid.UUID]map[SubKey]interface{}),
 				pipelinesExpiration: make(map[uuid.UUID]time.Time),
 			},
-			args: args{pipelines: []uuid.UUID{preparedId1}},
+			args: args{
+				ctx:       context.Background(),
+				pipelines: []uuid.UUID{preparedId1},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -314,11 +325,11 @@ func TestLocalCache_clearItems(t *testing.T) {
 				items:               tt.fields.items,
 				pipelinesExpiration: tt.fields.pipelinesExpiration,
 			}
-			err := lc.SetValue(preparedId1, Subkey_RunOutput, "TEST_VALUE")
+			err := lc.SetValue(tt.args.ctx, preparedId1, SubKey_RunOutput, "TEST_VALUE")
 			if err != nil {
 				t.Error(err)
 			}
-			err = lc.SetExpTime(preparedId1, time.Microsecond)
+			err = lc.SetExpTime(tt.args.ctx, preparedId1, time.Microsecond)
 			if err != nil {
 				t.Error(err)
 			}

@@ -16,34 +16,56 @@
 package cache
 
 import (
+	"context"
 	"github.com/google/uuid"
+	"os"
 	"reflect"
 	"testing"
 	"time"
 )
 
 func TestNewCache(t *testing.T) {
+	addr := "host:0001"
+	os.Setenv("remote_cache_address", addr)
 	type args struct {
+		ctx       context.Context
 		cacheType string
 	}
 	tests := []struct {
-		name string
-		args args
-		want Cache
+		name    string
+		args    args
+		want    Cache
+		wantErr bool
 	}{
 		{
-			name: "New Cache",
-			args: args{cacheType: "TEST_VALUE"},
+			name: "local cache",
+			args: args{
+				ctx:       context.Background(),
+				cacheType: "TEST_VALUE",
+			},
 			want: &LocalCache{
 				cleanupInterval:     cleanupInterval,
 				items:               make(map[uuid.UUID]map[SubKey]interface{}),
 				pipelinesExpiration: make(map[uuid.UUID]time.Time),
 			},
+			wantErr: false,
+		},
+		{
+			name: "Redis cache",
+			args: args{
+				ctx:       context.Background(),
+				cacheType: "remote",
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewCache(tt.args.cacheType); !reflect.DeepEqual(got, tt.want) {
+			got, err := NewCache(tt.args.ctx, tt.args.cacheType)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewCache() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewCache() = %v, want %v", got, tt.want)
 			}
 		})
