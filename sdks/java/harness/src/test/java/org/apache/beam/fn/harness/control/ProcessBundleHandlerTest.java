@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
@@ -82,7 +81,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.function.ThrowingRunnable;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -355,33 +353,17 @@ public class ProcessBundleHandlerTest {
     List<String> orderOfOperations = new ArrayList<>();
 
     PTransformRunnerFactory<Object> startFinishRecorder =
-        (pipelineOptions,
-            beamFnDataClient,
-            beamFnStateClient,
-            beamFnTimerClient,
-            pTransformId,
-            pTransform,
-            processBundleInstructionId,
-            pCollections,
-            coders,
-            windowingStrategies,
-            pCollectionConsumerRegistry,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            addResetFunction,
-            addTearDownFunction,
-            addProgressRequestCallback,
-            splitListener,
-            bundleFinalizer) -> {
-          transformsProcessed.add(pTransform);
-          startFunctionRegistry.register(
-              pTransformId,
+        (context) -> {
+          String pTransformId = context.getPTransformId();
+          transformsProcessed.add(context.getPTransform());
+          Supplier<String> processBundleInstructionId =
+              context.getProcessBundleInstructionIdSupplier();
+          context.addStartBundleFunction(
               () -> {
                 assertThat(processBundleInstructionId.get(), equalTo("999L"));
                 orderOfOperations.add("Start" + pTransformId);
               });
-          finishFunctionRegistry.register(
-              pTransformId,
+          context.addFinishBundleFunction(
               () -> {
                 assertThat(processBundleInstructionId.get(), equalTo("999L"));
                 orderOfOperations.add("Finish" + pTransformId);
@@ -489,26 +471,7 @@ public class ProcessBundleHandlerTest {
 
     Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap =
         Maps.newHashMap(REGISTERED_RUNNER_FACTORIES);
-    urnToPTransformRunnerFactoryMap.put(
-        DATA_INPUT_URN,
-        (pipelineOptions,
-            beamFnDataClient,
-            beamFnStateClient,
-            beamFnTimerClient,
-            pTransformId,
-            pTransform,
-            processBundleInstructionId,
-            pCollections,
-            coders,
-            windowingStrategies,
-            pCollectionConsumerRegistry,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            addResetFunction,
-            addTearDownFunction,
-            addProgressRequestCallback,
-            splitListener,
-            bundleFinalizer) -> null);
+    urnToPTransformRunnerFactoryMap.put(DATA_INPUT_URN, (context) -> null);
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -567,26 +530,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
-            ImmutableMap.of(
-                DATA_INPUT_URN,
-                (pipelineOptions,
-                    beamFnDataClient,
-                    beamFnStateClient,
-                    beamFnTimerClient,
-                    pTransformId,
-                    pTransform,
-                    processBundleInstructionId,
-                    pCollections,
-                    coders,
-                    windowingStrategies,
-                    pCollectionConsumerRegistry,
-                    startFunctionRegistry,
-                    finishFunctionRegistry,
-                    addResetFunction,
-                    addTearDownFunction,
-                    addProgressRequestCallback,
-                    splitListener,
-                    bundleFinalizer) -> null),
+            ImmutableMap.of(DATA_INPUT_URN, (context) -> null),
             new TestBundleProcessorCache());
 
     assertThat(TestBundleProcessor.resetCnt, equalTo(0));
@@ -716,24 +660,7 @@ public class ProcessBundleHandlerTest {
             new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
-                (pipelineOptions,
-                    beamFnDataClient,
-                    beamFnStateClient,
-                    beamFnTimerClient,
-                    pTransformId,
-                    pTransform,
-                    processBundleInstructionId,
-                    pCollections,
-                    coders,
-                    windowingStrategies,
-                    pCollectionConsumerRegistry,
-                    startFunctionRegistry,
-                    finishFunctionRegistry,
-                    addResetFunction,
-                    addTearDownFunction,
-                    addProgressRequestCallback,
-                    splitListener,
-                    bundleFinalizer) -> {
+                (context) -> {
                   throw new IllegalStateException("TestException");
                 }),
             new BundleProcessorCache());
@@ -775,26 +702,9 @@ public class ProcessBundleHandlerTest {
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
-                    (pipelineOptions,
-                        beamFnDataClient,
-                        beamFnStateClient,
-                        beamFnTimerClient,
-                        pTransformId,
-                        pTransform,
-                        processBundleInstructionId,
-                        pCollections,
-                        coders,
-                        windowingStrategies,
-                        pCollectionConsumerRegistry,
-                        startFunctionRegistry,
-                        finishFunctionRegistry,
-                        addResetFunction,
-                        addTearDownFunction,
-                        addProgressRequestCallback,
-                        splitListener,
-                        bundleFinalizer) -> {
-                      startFunctionRegistry.register(
-                          pTransformId,
+                    (context) -> {
+                      BundleFinalizer bundleFinalizer = context.getBundleFinalizer();
+                      context.addStartBundleFunction(
                           () ->
                               bundleFinalizer.afterBundleCommit(
                                   Instant.ofEpochMilli(42L), mockCallback));
@@ -846,26 +756,8 @@ public class ProcessBundleHandlerTest {
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
-                    (pipelineOptions,
-                        beamFnDataClient,
-                        beamFnStateClient,
-                        beamFnTimerClient,
-                        pTransformId,
-                        pTransform,
-                        processBundleInstructionId,
-                        pCollections,
-                        coders,
-                        windowingStrategies,
-                        pCollectionConsumerRegistry,
-                        startFunctionRegistry,
-                        finishFunctionRegistry,
-                        addResetFunction,
-                        addTearDownFunction,
-                        addProgressRequestCallback,
-                        splitListener,
-                        bundleFinalizer) -> {
-                      startFunctionRegistry.register(
-                          pTransformId, ProcessBundleHandlerTest::throwException);
+                    (context) -> {
+                      context.addStartBundleFunction(ProcessBundleHandlerTest::throwException);
                       return null;
                     }),
             new BundleProcessorCache());
@@ -908,26 +800,8 @@ public class ProcessBundleHandlerTest {
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
-                    (pipelineOptions,
-                        beamFnDataClient,
-                        beamFnStateClient,
-                        beamFnTimerClient,
-                        pTransformId,
-                        pTransform,
-                        processBundleInstructionId,
-                        pCollections,
-                        coders,
-                        windowingStrategies,
-                        pCollectionConsumerRegistry,
-                        startFunctionRegistry,
-                        finishFunctionRegistry,
-                        addResetFunction,
-                        addTearDownFunction,
-                        addProgressRequestCallback,
-                        splitListener,
-                        bundleFinalizer) -> {
-                      finishFunctionRegistry.register(
-                          pTransformId, ProcessBundleHandlerTest::throwException);
+                    (context) -> {
+                      context.addFinishBundleFunction(ProcessBundleHandlerTest::throwException);
                       return null;
                     }),
             new BundleProcessorCache());
@@ -1007,28 +881,9 @@ public class ProcessBundleHandlerTest {
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
                   @Override
-                  public Object createRunnerForPTransform(
-                      PipelineOptions pipelineOptions,
-                      BeamFnDataClient beamFnDataClient,
-                      BeamFnStateClient beamFnStateClient,
-                      BeamFnTimerClient beamFnTimerClient,
-                      String pTransformId,
-                      PTransform pTransform,
-                      Supplier<String> processBundleInstructionId,
-                      Map<String, PCollection> pCollections,
-                      Map<String, Coder> coders,
-                      Map<String, WindowingStrategy> windowingStrategies,
-                      PCollectionConsumerRegistry pCollectionConsumerRegistry,
-                      PTransformFunctionRegistry startFunctionRegistry,
-                      PTransformFunctionRegistry finishFunctionRegistry,
-                      Consumer<ThrowingRunnable> addResetFunction,
-                      Consumer<ThrowingRunnable> addTearDownFunction,
-                      Consumer<ProgressRequestCallback> addProgressRequestCallback,
-                      BundleSplitListener splitListener,
-                      BundleFinalizer bundleFinalizer)
-                      throws IOException {
-                    startFunctionRegistry.register(
-                        pTransformId, () -> doStateCalls(beamFnStateClient));
+                  public Object createRunnerForPTransform(Context context) throws IOException {
+                    BeamFnStateClient beamFnStateClient = context.getBeamFnStateClient();
+                    context.addStartBundleFunction(() -> doStateCalls(beamFnStateClient));
                     return null;
                   }
 
@@ -1077,28 +932,9 @@ public class ProcessBundleHandlerTest {
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
                   @Override
-                  public Object createRunnerForPTransform(
-                      PipelineOptions pipelineOptions,
-                      BeamFnDataClient beamFnDataClient,
-                      BeamFnStateClient beamFnStateClient,
-                      BeamFnTimerClient beamFnTimerClient,
-                      String pTransformId,
-                      PTransform pTransform,
-                      Supplier<String> processBundleInstructionId,
-                      Map<String, PCollection> pCollections,
-                      Map<String, Coder> coders,
-                      Map<String, WindowingStrategy> windowingStrategies,
-                      PCollectionConsumerRegistry pCollectionConsumerRegistry,
-                      PTransformFunctionRegistry startFunctionRegistry,
-                      PTransformFunctionRegistry finishFunctionRegistry,
-                      Consumer<ThrowingRunnable> addResetFunction,
-                      Consumer<ThrowingRunnable> addTearDownFunction,
-                      Consumer<ProgressRequestCallback> addProgressRequestCallback,
-                      BundleSplitListener splitListener,
-                      BundleFinalizer bundleFinalizer)
-                      throws IOException {
-                    startFunctionRegistry.register(
-                        pTransformId, () -> doStateCalls(beamFnStateClient));
+                  public Object createRunnerForPTransform(Context context) throws IOException {
+                    BeamFnStateClient beamFnStateClient = context.getBeamFnStateClient();
+                    context.addStartBundleFunction(() -> doStateCalls(beamFnStateClient));
                     return null;
                   }
 
@@ -1145,28 +981,9 @@ public class ProcessBundleHandlerTest {
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
                   @Override
-                  public Object createRunnerForPTransform(
-                      PipelineOptions pipelineOptions,
-                      BeamFnDataClient beamFnDataClient,
-                      BeamFnStateClient beamFnStateClient,
-                      BeamFnTimerClient beamFnTimerClient,
-                      String pTransformId,
-                      PTransform pTransform,
-                      Supplier<String> processBundleInstructionId,
-                      Map<String, PCollection> pCollections,
-                      Map<String, Coder> coders,
-                      Map<String, WindowingStrategy> windowingStrategies,
-                      PCollectionConsumerRegistry pCollectionConsumerRegistry,
-                      PTransformFunctionRegistry startFunctionRegistry,
-                      PTransformFunctionRegistry finishFunctionRegistry,
-                      Consumer<ThrowingRunnable> addResetFunction,
-                      Consumer<ThrowingRunnable> addTearDownFunction,
-                      Consumer<ProgressRequestCallback> addProgressRequestCallback,
-                      BundleSplitListener splitListener,
-                      BundleFinalizer bundleFinalizer)
-                      throws IOException {
-                    startFunctionRegistry.register(
-                        pTransformId, () -> doTimerRegistrations(beamFnTimerClient));
+                  public Object createRunnerForPTransform(Context context) throws IOException {
+                    BeamFnTimerClient beamFnTimerClient = context.getBeamFnTimerClient();
+                    context.addStartBundleFunction(() -> doTimerRegistrations(beamFnTimerClient));
                     return null;
                   }
 
