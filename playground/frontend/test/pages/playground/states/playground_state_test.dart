@@ -50,7 +50,7 @@ void main() {
   test(
       'Playground state setExample should update source and example and notify all listeners',
       () {
-        final state = PlaygroundState(sdk: SDK.go);
+    final state = PlaygroundState(sdk: SDK.go);
     state.addListener(() {
       expect(state.sdk, SDK.go);
       expect(state.source, exampleMock.sources[SDK.go]);
