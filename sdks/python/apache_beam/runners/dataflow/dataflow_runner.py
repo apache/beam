@@ -597,6 +597,7 @@ class DataflowRunner(PipelineRunner):
     debug_options = options.view_as(DebugOptions)
     # Streaming is always portable, default to runner v2.
     if (options.view_as(StandardOptions).streaming and
+        not debug_options.lookup_experiment('disable_streaming_engine') and
         not options.view_as(GoogleCloudOptions).dataflow_kms_key):
       if not debug_options.lookup_experiment('disable_runner_v2'):
         debug_options.add_experiment('beam_fn_api')
