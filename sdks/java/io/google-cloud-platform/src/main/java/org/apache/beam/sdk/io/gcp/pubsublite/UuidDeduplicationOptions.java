@@ -24,6 +24,7 @@ import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.io.gcp.pubsublite.internal.Uuid;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -47,8 +48,6 @@ public abstract class UuidDeduplicationOptions implements Serializable {
         checkArgument(attributes.size() == 1, "Duplicate Uuid attribute values exist.");
         return Uuid.of(attributes.get(0));
       };
-
-  public static final int DEFAULT_HASH_PARTITIONS = 10000;
 
   public static final TimeDomain DEFAULT_TIME_DOMAIN = TimeDomain.EVENT_TIME;
   public static final Duration DEFAULT_DEDUPLICATE_DURATION = Duration.standardDays(1);
