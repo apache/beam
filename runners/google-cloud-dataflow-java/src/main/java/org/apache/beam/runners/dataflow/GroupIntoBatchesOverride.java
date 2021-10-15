@@ -163,6 +163,68 @@ public class GroupIntoBatchesOverride {
     }
   }
 
+  static class StreamingGroupIntoBatchesOverrideFactory<K, V>
+      implements PTransformOverrideFactory<
+          PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupIntoBatches<K, V>> {
+
+    private final DataflowRunner runner;
+
+    StreamingGroupIntoBatchesOverrideFactory(DataflowRunner runner) {
+      this.runner = runner;
+    }
+
+    @Override
+    public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupIntoBatches<K, V>>
+                transform) {
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          new StreamingGroupIntoBatches<>(
+              runner,
+              transform.getTransform(),
+              PTransformReplacements.getSingletonMainOutput(transform)));
+    }
+
+    @Override
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<KV<K, Iterable<V>>> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
+  /**
+   * Specialized implementation of {@link GroupIntoBatches} for unbounded Dataflow pipelines. The
+   * override does the same thing as the original transform but additionally records the output in
+   * order to append required step properties during the graph translation.
+   */
+  static class StreamingGroupIntoBatches<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
+
+    private final transient DataflowRunner runner;
+    private final GroupIntoBatches<K, V> originalTransform;
+    private final transient PCollection<KV<K, Iterable<V>>> originalOutput;
+
+    public StreamingGroupIntoBatches(
+        DataflowRunner runner,
+        GroupIntoBatches<K, V> original,
+        PCollection<KV<K, Iterable<V>>> output) {
+      this.runner = runner;
+      this.originalTransform = original;
+      this.originalOutput = output;
+    }
+
+    @Override
+    public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+      // Record the output PCollection of the original transform since the new output will be
+      // replaced by the original one when the replacement transform is wired to other nodes in the
+      // graph, although the old and the new outputs are effectively the same.
+      runner.maybeRecordPCollectionPreservedKeys(originalOutput);
+      return input.apply(originalTransform);
+    }
+  }
+
   static class StreamingGroupIntoBatchesWithShardedKeyOverrideFactory<K, V>
       implements PTransformOverrideFactory<
           PCollection<KV<K, V>>,
