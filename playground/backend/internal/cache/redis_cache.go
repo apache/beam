@@ -22,48 +22,23 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
-	"google.golang.org/grpc/grpclog"
+	"log"
 	"time"
 )
 
 const defaultExpirationTime = time.Minute * 15
 
 type RedisCache struct {
-	redisClient *redis.Client
-}
-
-// check connection to Redis
-var ping = func(redisClient *redis.Client, ctx context.Context) (string, error) {
-	return redisClient.Ping(ctx).Result()
-}
-
-// check if pipelineId exists as Redis key
-var exists = func(redisClient *redis.Client, ctx context.Context, pipelineId uuid.UUID) (int64, error) {
-	return redisClient.Exists(ctx, pipelineId.String()).Result()
-}
-
-// set expiration time for key
-var expire = func(redisClient *redis.Client, ctx context.Context, key string, expTime time.Duration) (bool, error) {
-	return redisClient.Expire(ctx, key, expTime).Result()
-}
-
-// put encoded value to {key}:{encoded subKey} structure
-var hSet = func(redisClient *redis.Client, ctx context.Context, key string, subKeyMarsh, valueMarsh []byte) (int64, error) {
-	return redisClient.HSet(ctx, key, subKeyMarsh, valueMarsh).Result()
-}
-
-// receive value from {key}:{subKey} structure
-var hGet = func(redisClient *redis.Client, ctx context.Context, key, subKey string) (string, error) {
-	return redisClient.HGet(ctx, key, subKey).Result()
+	*redis.Client
 }
 
 // newRedisCache returns Redis implementation of Cache interface.
 // In case of problem with connection to Redis returns error.
 func newRedisCache(ctx context.Context, addr string) (*RedisCache, error) {
-	rc := RedisCache{redisClient: redis.NewClient(&redis.Options{Addr: addr})}
-	_, err := ping(rc.redisClient, ctx)
+	rc := RedisCache{redis.NewClient(&redis.Options{Addr: addr})}
+	_, err := rc.Ping(ctx).Result()
 	if err != nil {
-		grpclog.Errorf("Redis Cache: connect to Redis: error during Ping operation, err: %s", err.Error())
+		log.Printf("Redis Cache: connect to Redis: error during Ping operation, err: %s\n", err.Error())
 		return nil, err
 	}
 	return &rc, nil
@@ -72,12 +47,12 @@ func newRedisCache(ctx context.Context, addr string) (*RedisCache, error) {
 func (rc *RedisCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey) (interface{}, error) {
 	marshSubKey, err := json.Marshal(subKey)
 	if err != nil {
-		grpclog.Errorf("Redis Cache: get value: error during marshal subKey: %s, err: %s", subKey, err.Error())
+		log.Printf("Redis Cache: get value: error during marshal subKey: %s, err: %s\n", subKey, err.Error())
 		return nil, err
 	}
-	value, err := hGet(rc.redisClient, ctx, pipelineId.String(), string(marshSubKey))
+	value, err := rc.HGet(ctx, pipelineId.String(), string(marshSubKey)).Result()
 	if err != nil {
-		grpclog.Errorf("Redis Cache: get value: error during HGet operation for key: %s, subKey: %s, err: %s", pipelineId.String(), subKey, err.Error())
+		log.Printf("Redis Cache: get value: error during HGet operation for key: %s, subKey: %s, err: %s\n", pipelineId.String(), subKey, err.Error())
 		return nil, err
 	}
 
@@ -87,42 +62,42 @@ func (rc *RedisCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey
 func (rc *RedisCache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey, value interface{}) error {
 	subKeyMarsh, err := json.Marshal(subKey)
 	if err != nil {
-		grpclog.Errorf("Redis Cache: set value: error during marshal subKey: %s, err: %s", subKey, err.Error())
+		log.Printf("Redis Cache: set value: error during marshal subKey: %s, err: %s\n", subKey, err.Error())
 		return err
 	}
 	valueMarsh, err := json.Marshal(value)
 	if err != nil {
-		grpclog.Errorf("Redis Cache: set value: error during marshal value: %s, err: %s", value, err.Error())
+		log.Printf("Redis Cache: set value: error during marshal value: %s, err: %s\n", value, err.Error())
 		return err
 	}
-	_, err = hSet(rc.redisClient, ctx, pipelineId.String(), subKeyMarsh, valueMarsh)
+	_, err = rc.HSet(ctx, pipelineId.String(), subKeyMarsh, valueMarsh).Result()
 	if err != nil {
-		grpclog.Errorf("Redis Cache: set value: error during HSet operation, err: %s", err.Error())
+		log.Printf("Redis Cache: set value: error during HSet operation, err: %s\n", err.Error())
 		return err
 	}
 
-	_, err = expire(rc.redisClient, ctx, pipelineId.String(), defaultExpirationTime)
+	_, err = rc.Expire(ctx, pipelineId.String(), defaultExpirationTime).Result()
 	if err != nil {
-		grpclog.Errorf("Redis Cache: set value: error during Expire operation, err: %s", err.Error())
+		log.Printf("Redis Cache: set value: error during Expire operation, err: %s\n", err.Error())
 		return err
 	}
 	return nil
 }
 
 func (rc *RedisCache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error {
-	exists, err := exists(rc.redisClient, ctx, pipelineId)
+	exists, err := rc.Exists(ctx, pipelineId.String()).Result()
 	if err != nil {
-		grpclog.Errorf("Redis Cache: set expiration time value: error during Exists operation for key: %s, err: %s", pipelineId, err.Error())
+		log.Printf("Redis Cache: set expiration time value: error during Exists operation for key: %s, err: %s\n", pipelineId, err.Error())
 		return err
 	}
 	if exists == 0 {
-		grpclog.Errorf("Redis Cache: set expiration time value: key doesn't exist, key: %s", pipelineId)
+		log.Printf("Redis Cache: set expiration time value: key doesn't exist, key: %s\n", pipelineId)
 		return fmt.Errorf("key: %s doesn't exist", pipelineId)
 	}
 
-	_, err = expire(rc.redisClient, ctx, pipelineId.String(), expTime)
+	_, err = rc.Expire(ctx, pipelineId.String(), expTime).Result()
 	if err != nil {
-		grpclog.Errorf("Redis Cache: set expiration time value: error during Expire operation for key: %s, err: %s", pipelineId, err.Error())
+		log.Printf("Redis Cache: set expiration time value: error during Expire operation for key: %s, err: %s\n", pipelineId, err.Error())
 		return err
 	}
 	return nil
@@ -139,7 +114,7 @@ func unmarshalBySubKey(subKey SubKey, value string) (result interface{}, err err
 		err = json.Unmarshal([]byte(value), &result)
 	}
 	if err != nil {
-		grpclog.Errorf("Redis Cache: get value: error during unmarshal value, err: %s", err.Error())
+		log.Printf("Redis Cache: get value: error during unmarshal value, err: %s\n", err.Error())
 	}
 	return
 }
