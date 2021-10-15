@@ -36,7 +36,6 @@ To use Beam DataFrames, you need to install Apache Beam version 2.26.0 or higher
 
 {{< highlight py >}}
 from apache_beam.dataframe.io import read_csv
-
 {{< code_sample "sdks/python/apache_beam/examples/dataframe/taxiride.py" DataFrame_taxiride_aggregation >}}
 {{< /highlight >}}
 
