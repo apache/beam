@@ -52,6 +52,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -182,7 +184,13 @@ public class SparkBatchPortablePipelineTranslator
 
     JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKeyAndWindow;
     Partitioner partitioner = getPartitioner(context);
-    if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
+    // As this is batch, we can ignore triggering and allowed lateness parameters.
+    if (windowingStrategy.getWindowFn().equals(new GlobalWindows())
+            && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
+      // we can drop the windows and recover them later
+      groupedByKeyAndWindow = GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
+              inputRdd, inputKeyCoder, inputValueCoder, partitioner);
+    } else if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
       // we can have a memory sensitive translation for non-merging windows
       groupedByKeyAndWindow =
           GroupNonMergingWindowsFunctions.groupByKeyAndWindow(

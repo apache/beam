@@ -41,6 +41,7 @@ const double kXlBorderRadius = 28.0;
 const int kElevation = 1;
 
 // icon sizes
+const double kIconSizeSm = 16.0;
 const double kIconSizeMd = 24.0;
 
 // cursor size
