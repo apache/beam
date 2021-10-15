@@ -37,8 +37,8 @@ class CategoryBubble extends StatelessWidget {
         child: Consumer<ExampleDropdownState>(
           builder: (context, dropdownState, child) => GestureDetector(
             onTap: () {
-              if (type != dropdownState.selectedCategory) {
-                dropdownState.setSelectedCategory(type);
+              if (type != dropdownState.selectedFilterType) {
+                dropdownState.setSelectedFilterType(type);
                 dropdownState.sortExamplesByType(type);
               }
             },
@@ -46,7 +46,7 @@ class CategoryBubble extends StatelessWidget {
               height: kContainerHeight,
               padding: const EdgeInsets.symmetric(horizontal: kXlSpacing),
               decoration: BoxDecoration(
-                color: type == dropdownState.selectedCategory
+                color: type == dropdownState.selectedFilterType
                     ? ThemeColors.of(context).primary
                     : ThemeColors.of(context).lightGreyColor,
                 borderRadius: BorderRadius.circular(kXlBorderRadius),
@@ -55,7 +55,7 @@ class CategoryBubble extends StatelessWidget {
                 child: Text(
                   type.name,
                   style: TextStyle(
-                    color: type == dropdownState.selectedCategory
+                    color: type == dropdownState.selectedFilterType
                         ? ThemeColors.of(context).primaryBackgroundTextColor
                         : ThemeColors.of(context).lightGreyBackgroundTextColor,
                   ),

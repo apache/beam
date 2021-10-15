@@ -24,19 +24,19 @@ import 'examples_state.dart';
 
 class ExampleDropdownState with ChangeNotifier {
   final ExampleState _exampleState;
-  ExampleType _selectedCategory;
+  ExampleType _selectedFilterType;
   List<CategoryModel> categories;
 
   ExampleDropdownState(
     this._exampleState,
     this.categories, [
-    this._selectedCategory = ExampleType.all,
+    this._selectedFilterType = ExampleType.all,
   ]);
 
-  ExampleType get selectedCategory => _selectedCategory;
+  ExampleType get selectedFilterType => _selectedFilterType;
 
-  setSelectedCategory(ExampleType type) async {
-    _selectedCategory = type;
+  setSelectedFilterType(ExampleType type) async {
+    _selectedFilterType = type;
     notifyListeners();
   }
 

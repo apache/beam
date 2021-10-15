@@ -47,8 +47,8 @@ object Hello {
 
 class ExampleRepository {
   List<CategoryModel> getCategories() {
-    return [
-      CategoryModel('Side Inputs', const [
+    return const [
+      CategoryModel('Side Inputs', [
         ExampleModel(
           {
             SDK.java: javaHelloWorld,
@@ -70,7 +70,7 @@ class ExampleRepository {
           ExampleType.kata,
         ),
       ]),
-      CategoryModel('Side Outputs', const [
+      CategoryModel('Side Outputs', [
         ExampleModel(
           {
             SDK.java: 'JAVA Source code 2',
@@ -92,7 +92,7 @@ class ExampleRepository {
           ExampleType.example,
         ),
       ]),
-      CategoryModel('I/O', const [
+      CategoryModel('I/O', [
         ExampleModel(
           {
             SDK.java: 'JAVA Source code 4',
