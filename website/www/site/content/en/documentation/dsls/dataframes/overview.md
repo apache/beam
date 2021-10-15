@@ -54,15 +54,15 @@ with beam.Pipeline() as p:
 
 pandas is able to infer column names from the first row of the CSV data, which is where `passenger_count` and `DOLocationID` come from.
 
-In this example, the only traditional Beam type is the `Pipeline` instance. Otherwise the example is written completely with the DataFrame API. This is possible because the Beam DataFrame API includes its own IO operations (for example, `read_csv` and `to_csv`) based on the pandas native implementations. `read_*` and `to_*` operations support file patterns and any Beam-compatible file system. The grouping is accomplished with a group-by-key, and arbitrary pandas operations (in this case, `sum`) can be applied before the final write that occurs with `to_csv`.
+In this example, the only traditional Beam type is the `Pipeline` instance. Otherwise the example is written completely with the DataFrame API. This is possible because the Beam DataFrame API includes its own IO operations (for example, [`read_csv`][pydoc_read_csv] and [`to_csv`][pydoc_to_csv]) based on the pandas native implementations. `read_*` and `to_*` operations support file patterns and any Beam-compatible file system. The grouping is accomplished with a group-by-key, and arbitrary pandas operations (in this case, [`sum`][pydoc_sum]) can be applied before the final write that occurs with [`to_csv`][pydoc_to_csv].
 
-The Beam DataFrame API aims to be compatible with the native pandas implementation, with a few caveats detailed below in [Differences from standard pandas](/documentation/dsls/dataframes/differences-from-pandas/).
+The Beam DataFrame API aims to be compatible with the native pandas implementation, with a few caveats detailed below in [Differences from pandas](/documentation/dsls/dataframes/differences-from-pandas/).
 
 ## Embedding DataFrames in a pipeline
 
 To use the DataFrames API in a larger pipeline, you can convert a PCollection to a DataFrame, process the DataFrame, and then convert the DataFrame back to a PCollection. In order to convert a PCollection to a DataFrame and back, you have to use PCollections that have [schemas](https://beam.apache.org/documentation/programming-guide/#what-is-a-schema) attached. A PCollection with a schema attached is also referred to as a *schema-aware PCollection*. To learn more about attaching a schema to a PCollection, see [Creating schemas](https://beam.apache.org/documentation/programming-guide/#creating-schemas).
 
-Here’s an example that creates a schema-aware PCollection, converts it to a DataFrame using `to_dataframe`, processes the DataFrame, and then converts the DataFrame back to a PCollection using `to_pcollection`:
+Here’s an example that creates a schema-aware PCollection, converts it to a DataFrame using [`to_dataframe`][pydoc_to_dataframe], processes the DataFrame, and then converts the DataFrame back to a PCollection using [`to_pcollection`][pydoc_to_pcollection]:
 
 <!-- TODO(BEAM-11480): Convert these examples to snippets -->
 {{< highlight py >}}
@@ -96,7 +96,7 @@ You can find the full wordcount example on
 [GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/dataframe/wordcount.py),
 along with other [example DataFrame pipelines](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/dataframe/).
 
-It’s also possible to use the DataFrame API by passing a function to [`DataframeTransform`][pydoc_dataframe_transform]:
+It’s also possible to use the DataFrame API by passing a function to [`DataframeTransform`][pydoc_DataframeTransform]:
 
 {{< highlight py >}}
 from apache_beam.dataframe.transforms import DataframeTransform
@@ -110,9 +110,9 @@ with beam.Pipeline() as p:
   ...
 {{< /highlight >}}
 
-[`DataframeTransform`][pydoc_dataframe_transform] is similar to [`SqlTransform`][pydoc_sql_transform] from the [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) DSL. Where `SqlTransform` translates a SQL query to a PTransform, `DataframeTransform` is a PTransform that applies a function that takes and returns DataFrames. A `DataframeTransform` can be particularly useful if you have a stand-alone function that can be called both on Beam and on ordinary pandas DataFrames.
+[`DataframeTransform`][pydoc_DataframeTransform] is similar to [`SqlTransform`][pydoc_SqlTransform] from the [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) DSL. Where [`SqlTransform`][pydoc_SqlTransform] translates a SQL query to a PTransform, [`DataframeTransform`][pydoc_DataframeTransform] is a PTransform that applies a function that takes and returns DataFrames. A [`DataframeTransform`][pydoc_DataframeTransform] can be particularly useful if you have a stand-alone function that can be called both on Beam and on ordinary pandas DataFrames.
 
-`DataframeTransform` can accept and return multiple PCollections by name and by keyword, as shown in the following examples:
+[`DataframeTransform`][pydoc_DataframeTransform] can accept and return multiple PCollections by name and by keyword, as shown in the following examples:
 
 {{< highlight py >}}
 output = (pc1, pc2) | DataframeTransform(lambda df1, df2: ...)
@@ -124,7 +124,12 @@ pc1, pc2 = {'a': pc} | DataframeTransform(lambda a: expr1, expr2)
 {...} = {a: pc} | DataframeTransform(lambda a: {...})
 {{< /highlight >}}
 
-[pydoc_dataframe_transform]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform
-[pydoc_sql_transform]: https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform
+[pydoc_read_csv]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.io.html#apache_beam.dataframe.io.read_csv
+[pydoc_to_csv]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredDataFrame.to_csv
+[pydoc_sum]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredDataFrame.sum
+[pydoc_DataframeTransform]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform
+[pydoc_SqlTransform]: https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform
+[pydoc_to_dataframe]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.convert.html#apache_beam.dataframe.convert.to_dataframe
+[pydoc_to_pcollection]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.convert.html#apache_beam.dataframe.convert.to_pcollection
 
 {{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/dataframes.ipynb" >}}
