@@ -661,6 +661,15 @@ class DeferredFrameTest(_AbstractFrameTest):
   def test_series_is_unique(self, series):
     self._run_test(lambda s: s.is_unique, series)
 
+  @parameterized.expand([
+      (pd.Series(range(10)), ),  # False
+      (pd.Series([1, 2, np.nan, 3, np.nan]), ),  # True
+      (pd.Series(['a', 'b', 'c', 'd', 'e']), ),  # False
+      (pd.Series(['a', 'b', None, 'c', None]), ),  # True
+  ])
+  def test_series_hasnans(self, series):
+    self._run_test(lambda s: s.hasnans, series)
+
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
     self._run_test(lambda df: df['A'], df)
