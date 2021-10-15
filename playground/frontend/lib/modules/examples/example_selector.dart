@@ -23,6 +23,7 @@ import 'package:playground/modules/examples/components/examples_components.dart'
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/selector_size_model.dart';
 import 'package:playground/pages/playground/states/example_dropdown_state.dart';
+import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
@@ -122,52 +123,54 @@ class _ExampleSelectorState extends State<ExampleSelector>
 
     return OverlayEntry(
       builder: (context) {
-        return Stack(
-          children: [
-            GestureDetector(
-              onTap: () {
-                animationController.reverse();
-                examplesDropdown?.remove();
-                widget.changeSelectorVisibility();
-              },
-              child: Container(
-                color: Colors.transparent,
-                height: double.infinity,
-                width: double.infinity,
+        return Consumer<ExampleState>(
+          builder: (context, state, child) => Stack(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  animationController.reverse();
+                  examplesDropdown?.remove();
+                  state.changeSelectorVisibility();
+                },
+                child: Container(
+                  color: Colors.transparent,
+                  height: double.infinity,
+                  width: double.infinity,
+                ),
               ),
-            ),
-            ChangeNotifierProvider(
-              create: (context) => ExampleDropdownState(),
-              builder: (context, _) => Positioned(
-                left: posModel.xAlignment,
-                top: posModel.yAlignment + kAdditionalDyAlignment,
-                child: SlideTransition(
-                  position: offsetAnimation,
-                  child: Material(
-                    elevation: kElevation.toDouble(),
-                    child: Container(
-                      height: kLgContainerHeight,
-                      width: kLgContainerWidth,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).backgroundColor,
-                        borderRadius: BorderRadius.circular(kMdBorderRadius),
-                      ),
-                      child: Column(
-                        children: [
-                          SearchField(controller: textController),
-                          const TypeFilter(),
-                          ExampleList(
-                            controller: scrollController,
-                            items: widget.categories,
-                          ),
-                        ],
+              ChangeNotifierProvider(
+                create: (context) => ExampleDropdownState(
+                  state,
+                  state.categories!,
+                ),
+                builder: (context, _) => Positioned(
+                  left: posModel.xAlignment,
+                  top: posModel.yAlignment + kAdditionalDyAlignment,
+                  child: SlideTransition(
+                    position: offsetAnimation,
+                    child: Material(
+                      elevation: kElevation.toDouble(),
+                      child: Container(
+                        height: kLgContainerHeight,
+                        width: kLgContainerWidth,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).backgroundColor,
+                          borderRadius: BorderRadius.circular(kMdBorderRadius),
+                        ),
+                        child: Column(
+                          children: [
+                            SearchField(controller: textController),
+                            const TypeFilter(),
+                            ExampleList(controller: scrollController),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );

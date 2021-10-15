@@ -17,16 +17,74 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
+
+import 'examples_state.dart';
 
 class ExampleDropdownState with ChangeNotifier {
-  String _selectedCategory;
+  final ExampleState _exampleState;
+  ExampleType _selectedCategory;
+  List<CategoryModel> categories;
 
-  ExampleDropdownState([this._selectedCategory = 'All']);
+  ExampleDropdownState(
+    this._exampleState,
+    this.categories, [
+    this._selectedCategory = ExampleType.all,
+  ]);
 
-  String get selectedCategory => _selectedCategory;
+  ExampleType get selectedCategory => _selectedCategory;
 
-  setSelectedCategory(String name) async {
-    _selectedCategory = name;
+  setSelectedCategory(ExampleType type) async {
+    _selectedCategory = type;
     notifyListeners();
+  }
+
+  setCategories(List<CategoryModel>? categories) {
+    this.categories = categories ?? [];
+    notifyListeners();
+  }
+
+  sortExamplesByType(ExampleType type) {
+    if (type == ExampleType.all) {
+      setCategories(_exampleState.categories!);
+    } else {
+      List<CategoryModel> unsorted = [..._exampleState.categories!];
+      List<CategoryModel> sorted = [];
+      for (CategoryModel category in unsorted) {
+        if (category.examples.any((element) => element.type == type)) {
+          CategoryModel sortedCategory = CategoryModel(
+            category.name,
+            category.examples.where((element) => element.type == type).toList(),
+          );
+          sorted.add(sortedCategory);
+        }
+      }
+      setCategories(sorted);
+    }
+  }
+
+  sortExamplesByName(String name) {
+    if (name.isEmpty) {
+      setCategories(_exampleState.categories!);
+    } else {
+      List<CategoryModel> unsorted = [..._exampleState.categories!];
+      List<CategoryModel> sorted = [];
+      for (CategoryModel category in unsorted) {
+        if (category.examples.any(
+          (element) => element.name.toLowerCase().contains(name.toLowerCase()),
+        )) {
+          CategoryModel sortedCategory = CategoryModel(
+            category.name,
+            category.examples
+                .where((element) =>
+                    element.name.toLowerCase().contains(name.toLowerCase()))
+                .toList(),
+          );
+          sorted.add(sortedCategory);
+        }
+      }
+      setCategories(sorted);
+    }
   }
 }
