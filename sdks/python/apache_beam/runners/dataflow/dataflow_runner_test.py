@@ -220,7 +220,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='LEGACY').SerializeToString(),
-                capabilities=environments.python_sdk_capabilities())
+                capabilities=environments.python_sdk_docker_capabilities())
         ])
 
   def test_environment_override_translation_sdk_container_image(self):
@@ -240,7 +240,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='FOO').SerializeToString(),
-                capabilities=environments.python_sdk_capabilities())
+                capabilities=environments.python_sdk_docker_capabilities())
         ])
 
   def test_remote_runner_translation(self):
