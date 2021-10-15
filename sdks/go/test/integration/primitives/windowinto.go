@@ -29,6 +29,7 @@ import (
 
 func init() {
 	beam.RegisterFunction(sumPerKey)
+	beam.RegisterFunction(sumSideInputs)
 	beam.RegisterType(reflect.TypeOf((*createTimestampedData)(nil)).Elem())
 }
 
@@ -91,6 +92,47 @@ func WindowSums_GBK(s beam.Scope) {
 
 func WindowSums_Lifted(s beam.Scope) {
 	WindowSums(s.Scope("Lifted"), stats.SumPerKey)
+}
+
+// ValidateWindowedSideInputs checks that side inputs have accurate windowing information when used.
+func ValidateWindowedSideInputs(s beam.Scope) {
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 3}}, beam.Impulse(s))
+	timestampedSide := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 3}}, beam.Impulse(s))
+
+	timestampedData = beam.DropKey(s, timestampedData)
+	timestampedSide = beam.DropKey(s, timestampedSide)
+
+	_ = timestampedSide
+
+	windowSize := 1 * time.Second
+
+	validateSums := func(s beam.Scope, wfn, sideFn *window.Fn, in, side beam.PCollection, expected ...interface{}) {
+		wData := beam.WindowInto(s, wfn, in)
+		wSide := beam.WindowInto(s, sideFn, side)
+
+		sums := beam.ParDo(s, sumSideInputs, wData, beam.SideInput{Input: wSide})
+
+		sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
+
+		passert.Equals(s, sums, expected...)
+	}
+
+	// This works.
+	validateSums(s.Scope("Fixed-Global"), window.NewFixedWindows(windowSize), window.NewGlobalWindows(), timestampedData, timestampedData, 7, 8, 9)
+	// So does this.
+	validateSums(s.Scope("Fixed-Same"), window.NewFixedWindows(windowSize), window.NewFixedWindows(windowSize), timestampedData, timestampedData, 2, 4, 6)
+
+	// Thise doesn't
+	validateSums(s.Scope("Fixed-Big"), window.NewFixedWindows(windowSize), window.NewFixedWindows(10*time.Second), timestampedData, timestampedSide, 7, 8, 9)
+}
+
+func sumSideInputs(input int, iter func(*int) bool, emit func(int)) {
+	var v, sum int
+	sum += input
+	for iter(&v) {
+		sum += v
+	}
+	emit(sum)
 }
 
 func validateEquals(s beam.Scope, wfn *window.Fn, in beam.PCollection, opts []beam.WindowIntoOption, expected ...interface{}) {
