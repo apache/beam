@@ -16,11 +16,18 @@
  * limitations under the License.
  */
 
-// paddings
+// spacings
 const double kZeroSpacing = 0.0;
 const double kSmSpacing = 4.0;
 const double kMdSpacing = 8.0;
 const double kLgSpacing = 16.0;
+
+// sizes
+const kHeaderButtonHeight = 46.0;
+const kRunButtonWidth = 150.0;
+const kRunButtonHeight = 40.0;
+const kIconButtonSplashRadius = 24.0;
+const kFooterHeight = 32.0;
 
 // border radius
 const double kBorderRadius = 8.0;
@@ -29,4 +36,5 @@ const double kBorderRadius = 8.0;
 const int kElevation = 1;
 
 // icon sizes
+const double kIconSizeSm = 16.0;
 const double kIconSizeMd = 24.0;

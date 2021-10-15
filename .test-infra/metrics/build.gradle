@@ -99,11 +99,6 @@ task deploy {
 
       exec {
         executable 'sh'
-        args '-c', 'kubectl apply -f kubernetes/beamgrafana-deploy.yaml'
-      }
-
-      exec {
-        executable 'sh'
         args '-c', "kubectl set image deployment/beamgrafana \
           beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
           beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \

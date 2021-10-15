@@ -34,14 +34,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
-import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient.TimerHandler;
-import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
-import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
@@ -165,44 +163,29 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public final FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
-        createRunnerForPTransform(
-            PipelineOptions pipelineOptions,
-            BeamFnDataClient beamFnDataClient,
-            BeamFnStateClient beamFnStateClient,
-            BeamFnTimerClient beamFnTimerClient,
-            String pTransformId,
-            PTransform pTransform,
-            Supplier<String> processBundleInstructionId,
-            Map<String, PCollection> pCollections,
-            Map<String, RunnerApi.Coder> coders,
-            Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-            PCollectionConsumerRegistry pCollectionConsumerRegistry,
-            PTransformFunctionRegistry startFunctionRegistry,
-            PTransformFunctionRegistry finishFunctionRegistry,
-            Consumer<ThrowingRunnable> addResetFunction,
-            Consumer<ThrowingRunnable> tearDownFunctions,
-            Consumer<ProgressRequestCallback> addProgressRequestCallback,
-            BundleSplitListener splitListener,
-            BundleFinalizer bundleFinalizer) {
+        createRunnerForPTransform(Context context) {
 
       FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> runner =
           new FnApiDoFnRunner<>(
-              pipelineOptions,
-              beamFnStateClient,
-              beamFnTimerClient,
-              pTransformId,
-              pTransform,
-              processBundleInstructionId,
-              pCollections,
-              coders,
-              windowingStrategies,
-              pCollectionConsumerRegistry,
-              startFunctionRegistry,
-              finishFunctionRegistry,
-              tearDownFunctions,
-              addProgressRequestCallback,
-              splitListener,
-              bundleFinalizer);
+              context.getPipelineOptions(),
+              context.getBeamFnStateClient(),
+              context.getBeamFnTimerClient(),
+              context.getPTransformId(),
+              context.getPTransform(),
+              context.getProcessBundleInstructionIdSupplier(),
+              context.getPCollections(),
+              context.getCoders(),
+              context.getWindowingStrategies(),
+              context::addStartBundleFunction,
+              context::addFinishBundleFunction,
+              context::addTearDownFunction,
+              pCollectionId -> context.getPCollectionConsumer(pCollectionId),
+              (pCollectionId, consumer, valueCoder) ->
+                  context.addPCollectionConsumer(
+                      pCollectionId, (FnDataReceiver) consumer, (Coder) valueCoder),
+              context::addProgressRequestCallback,
+              context.getSplitListener(),
+              context.getBundleFinalizer());
 
       return runner;
     }
@@ -296,9 +279,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private WatermarkEstimatorStateT currentWatermarkEstimatorState;
 
   /**
-   * Only valud during {@link
-   * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
-   * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
+   * Only valid during {@link #processElementForWindowObservingSizedElementAndRestriction} and
+   * {@link #processElementForWindowObservingTruncateRestriction}.
    */
   private Instant initialWatermark;
 
@@ -321,6 +303,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Only valid during {@link #processTimer}, null otherwise. */
   private TimeDomain currentTimeDomain;
 
+  private interface TriFunction<FirstT, SecondT, ThirdT> {
+    void accept(FirstT x, SecondT y, ThirdT z);
+  }
+
   FnApiDoFnRunner(
       PipelineOptions pipelineOptions,
       BeamFnStateClient beamFnStateClient,
@@ -331,10 +317,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Map<String, PCollection> pCollections,
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-      PCollectionConsumerRegistry pCollectionConsumerRegistry,
-      PTransformFunctionRegistry startFunctionRegistry,
-      PTransformFunctionRegistry finishFunctionRegistry,
-      Consumer<ThrowingRunnable> tearDownFunctions,
+      Consumer<ThrowingRunnable> addStartFunction,
+      Consumer<ThrowingRunnable> addFinishFunction,
+      Consumer<ThrowingRunnable> addTearDownFunction,
+      Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
+      TriFunction<String, FnDataReceiver<WindowedValue<?>>, Coder<?>> addPCollectionConsumer,
       Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer) {
@@ -459,7 +446,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         localNameToConsumerBuilder = ImmutableListMultimap.builder();
     for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
       localNameToConsumerBuilder.putAll(
-          entry.getKey(), pCollectionConsumerRegistry.getMultiplexingConsumer(entry.getValue()));
+          entry.getKey(), getPCollectionConsumer.apply(entry.getValue()));
     }
     localNameToConsumer = localNameToConsumerBuilder.build();
     tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
@@ -484,7 +471,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.PAR_DO_TRANSFORM_URN:
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        startFunctionRegistry.register(pTransformId, this::startBundle);
+        addStartFunction.accept(this::startBundle);
         break;
       case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
         // startBundle should not be invoked
@@ -651,17 +638,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       default:
         throw new IllegalStateException("Unknown urn: " + pTransform.getSpec().getUrn());
     }
-    pCollectionConsumerRegistry.register(
-        pTransform.getInputsOrThrow(mainInput),
-        pTransformId,
-        (FnDataReceiver) mainInputConsumer,
-        inputCoder);
+    addPCollectionConsumer.accept(
+        pTransform.getInputsOrThrow(mainInput), (FnDataReceiver) mainInputConsumer, inputCoder);
 
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.PAR_DO_TRANSFORM_URN:
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        finishFunctionRegistry.register(pTransformId, this::finishBundle);
+        addFinishFunction.accept(this::finishBundle);
         break;
       case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
         // finishBundle should not be invoked
@@ -672,7 +656,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       default:
         // no-op
     }
-    tearDownFunctions.accept(this::tearDown);
+    addTearDownFunction.accept(this::tearDown);
 
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
