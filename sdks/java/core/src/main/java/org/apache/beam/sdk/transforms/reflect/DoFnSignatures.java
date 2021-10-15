@@ -20,6 +20,8 @@ package org.apache.beam.sdk.transforms.reflect;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -898,10 +900,10 @@ public class DoFnSignatures {
     } else {
       errors.checkArgument(
           isBounded == null,
-          "Non-splittable, but annotated as @"
-              + ((isBounded == PCollection.IsBounded.BOUNDED)
-                  ? format(DoFn.BoundedPerElement.class)
-                  : format(DoFn.UnboundedPerElement.class)));
+          "Non-splittable, but annotated as @%s",
+          ((isBounded == PCollection.IsBounded.BOUNDED)
+              ? format(DoFn.BoundedPerElement.class)
+              : format(DoFn.UnboundedPerElement.class)));
       checkState(!processElement.hasReturnValue(), "Should have been inferred splittable");
       isBounded = PCollection.IsBounded.BOUNDED;
     }
@@ -1347,7 +1349,7 @@ public class DoFnSignatures {
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
       String sideInputId = getSideInputId(param.getAnnotations());
       paramErrors.checkArgument(
-          sideInputId != null, "%s missing %s annotation", format(SideInput.class));
+          sideInputId != null, "%s missing %s annotation", sideInputId, format(SideInput.class));
       return Parameter.sideInputParameter(paramT, sideInputId);
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
@@ -2396,18 +2398,20 @@ public class DoFnSignatures {
               "parameter of type %s at index %s", format(param.getType()), param.getIndex()));
     }
 
-    @SuppressWarnings("AnnotateFormatMethod")
-    void throwIllegalArgument(String message, Object... args) {
+    @FormatMethod
+    void throwIllegalArgument(@FormatString String message, Object... args) {
       throw new IllegalArgumentException(label + ": " + String.format(message, args));
     }
 
-    public void checkArgument(boolean condition, String message, Object... args) {
+    @FormatMethod
+    public void checkArgument(boolean condition, @FormatString String message, Object... args) {
       if (!condition) {
         throwIllegalArgument(message, args);
       }
     }
 
-    public void checkNotNull(Object value, String message, Object... args) {
+    @FormatMethod
+    public void checkNotNull(Object value, @FormatString String message, Object... args) {
       if (value == null) {
         throwIllegalArgument(message, args);
       }
