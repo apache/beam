@@ -1102,16 +1102,16 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   def hasnans(self):
     has_nans = expressions.ComputedExpression(
-        'has_nans',
+        'hasnans',
         lambda s: pd.Series(s.hasnans), [self._expr],
-        requires_partition_by=partitionings.Index(),
+        requires_partition_by=partitionings.Arbitrary(),
         preserves_partition_by=partitionings.Singleton())
 
     with expressions.allow_non_parallel_operations():
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
-              'combine',
-              lambda s: s.all(), [has_nans],
+              'combine_hasnans',
+              lambda s: s.any(), [has_nans],
               requires_partition_by=partitionings.Singleton(),
               preserves_partition_by=partitionings.Singleton()))
 
