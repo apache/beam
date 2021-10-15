@@ -530,6 +530,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       overridesBuilder.add(
           PTransformOverride.of(
+              PTransformMatchers.groupIntoBatches(),
+              new GroupIntoBatchesOverride.StreamingGroupIntoBatchesOverrideFactory(this)));
+
+      overridesBuilder.add(
+          PTransformOverride.of(
               PTransformMatchers.groupWithShardableStates(),
               new GroupIntoBatchesOverride.StreamingGroupIntoBatchesWithShardedKeyOverrideFactory(
                   this)));
