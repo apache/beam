@@ -98,7 +98,7 @@ class InteractiveBeamTest(unittest.TestCase):
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_show_always_watch_given_pcolls(self):
     p = beam.Pipeline(ir.InteractiveRunner())
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     pcoll = p | 'Create' >> beam.Create(range(10))
     # The pcoll is not watched since watch(locals()) is not explicitly called.
     self.assertFalse(pcoll in _get_watched_pcollections_with_variable_names())
@@ -111,7 +111,7 @@ class InteractiveBeamTest(unittest.TestCase):
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_show_mark_pcolls_computed_when_done(self):
     p = beam.Pipeline(ir.InteractiveRunner())
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     pcoll = p | 'Create' >> beam.Create(range(10))
     self.assertFalse(pcoll in ie.current_env().computed_pcollections)
     # The call of show marks pcoll computed.
@@ -120,10 +120,12 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show(pcoll)
     self.assertTrue(pcoll in ie.current_env().computed_pcollections)
 
-  @patch('apache_beam.runners.interactive.interactive_beam.visualize')
+  @patch((
+      'apache_beam.runners.interactive.interactive_beam.'
+      'visualize_computed_pcoll'))
   def test_show_handles_dict_of_pcolls(self, mocked_visualize):
     p = beam.Pipeline(ir.InteractiveRunner())
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     pcoll = p | 'Create' >> beam.Create(range(10))
     ib.watch(locals())
     ie.current_env().track_user_pipelines()
@@ -133,10 +135,12 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show({'pcoll': pcoll})
     mocked_visualize.assert_called_once()
 
-  @patch('apache_beam.runners.interactive.interactive_beam.visualize')
+  @patch((
+      'apache_beam.runners.interactive.interactive_beam.'
+      'visualize_computed_pcoll'))
   def test_show_handles_iterable_of_pcolls(self, mocked_visualize):
     p = beam.Pipeline(ir.InteractiveRunner())
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     pcoll = p | 'Create' >> beam.Create(range(10))
     ib.watch(locals())
     ie.current_env().track_user_pipelines()
@@ -159,14 +163,16 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show(deferred)
     mocked_visualize.assert_called_once()
 
-  @patch('apache_beam.runners.interactive.interactive_beam.visualize')
+  @patch((
+      'apache_beam.runners.interactive.interactive_beam.'
+      'visualize_computed_pcoll'))
   def test_show_noop_when_pcoll_container_is_invalid(self, mocked_visualize):
     class SomeRandomClass:
       def __init__(self, pcoll):
         self._pcoll = pcoll
 
     p = beam.Pipeline(ir.InteractiveRunner())
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     pcoll = p | 'Create' >> beam.Create(range(10))
     ie.current_env().mark_pcollection_computed([pcoll])
     ie.current_env()._is_in_ipython = True
@@ -182,7 +188,6 @@ class InteractiveBeamTest(unittest.TestCase):
     p2 = beam.Pipeline(ir.InteractiveRunner())
 
     ib.watch(locals())
-    ie.current_env().track_user_pipelines()
 
     # Get the descriptions. This test is simple as there isn't much logic in the
     # method.

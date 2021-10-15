@@ -464,6 +464,7 @@ class TestReadFromBigQuery(unittest.TestCase):
     c = beam.io.gcp.bigquery._CustomBigQuerySource(
         query='select * from test_table',
         gcs_location=gcs_location,
+        method=beam.io.ReadFromBigQuery.Method.EXPORT,
         validate=True,
         pipeline_options=beam.options.pipeline_options.PipelineOptions(),
         job_name='job_name',

@@ -175,7 +175,8 @@ public class FlinkSavepointTest implements Serializable {
       jobID = executeLegacy(pipeline);
     }
     oneShotLatch.await();
-    String savepointDir = takeSavepointAndCancelJob(jobID);
+    String savepointDir = takeSavepoint(jobID);
+    flinkCluster.cancelJob(jobID).get();
     ensureNoJobRunning();
 
     oneShotLatch = new CountDownLatch(1);
@@ -251,14 +252,15 @@ public class FlinkSavepointTest implements Serializable {
     }
   }
 
-  private String takeSavepointAndCancelJob(JobID jobID) throws Exception {
+  private String takeSavepoint(JobID jobID) throws Exception {
     Exception exception = null;
     // try multiple times because the job might not be ready yet
     for (int i = 0; i < 10; i++) {
       try {
-        return flinkCluster.triggerSavepoint(jobID, null, true).get();
+        return flinkCluster.triggerSavepoint(jobID, null, false).get();
       } catch (Exception e) {
         exception = e;
+        LOG.debug("Exception while triggerSavepoint, trying again", e);
         Thread.sleep(100);
       }
     }

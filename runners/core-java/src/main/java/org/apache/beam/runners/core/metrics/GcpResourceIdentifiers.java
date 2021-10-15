@@ -43,8 +43,21 @@ public class GcpResourceIdentifiers {
         projectId, instanceId, tableId);
   }
 
+  public static String cloudStorageBucket(String bucketId) {
+    return String.format("//storage.googleapis.com/buckets/%s", bucketId);
+  }
+
   public static String datastoreResource(String projectId, String namespace) {
     return String.format(
         "//bigtable.googleapis.com/projects/%s/namespaces/%s", projectId, namespace);
+  }
+
+  public static String spannerTable(String projectId, String databaseId, String tableId) {
+    return String.format(
+        "//spanner.googleapis.com/projects/%s/topics/%s/tables/%s", projectId, databaseId, tableId);
+  }
+
+  public static String spannerQuery(String projectId, String queryName) {
+    return String.format("//spanner.googleapis.com/projects/%s/queries/%s", projectId, queryName);
   }
 }

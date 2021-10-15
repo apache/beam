@@ -41,7 +41,9 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.ContainerCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
@@ -64,6 +66,7 @@ import software.amazon.awssdk.utils.AttributeMap;
 public class AwsModule extends SimpleModule {
   private static final String ACCESS_KEY_ID = "accessKeyId";
   private static final String SECRET_ACCESS_KEY = "secretAccessKey";
+  private static final String SESSION_TOKEN = "sessionToken";
   public static final String CONNECTION_ACQUIRE_TIMEOUT = "connectionAcquisitionTimeout";
   public static final String CONNECTION_MAX_IDLE_TIMEOUT = "connectionMaxIdleTime";
   public static final String CONNECTION_TIMEOUT = "connectionTimeout";
@@ -107,10 +110,18 @@ public class AwsModule extends SimpleModule {
         throw new IOException(
             String.format("AWS credentials provider type name key '%s' not found", typeNameKey));
       }
-
       if (typeName.equals(StaticCredentialsProvider.class.getSimpleName())) {
-        return StaticCredentialsProvider.create(
-            AwsBasicCredentials.create(asMap.get(ACCESS_KEY_ID), asMap.get(SECRET_ACCESS_KEY)));
+        boolean isSession = asMap.containsKey(SESSION_TOKEN);
+        if (isSession) {
+          return StaticCredentialsProvider.create(
+              AwsSessionCredentials.create(
+                  asMap.get(ACCESS_KEY_ID),
+                  asMap.get(SECRET_ACCESS_KEY),
+                  asMap.get(SESSION_TOKEN)));
+        } else {
+          return StaticCredentialsProvider.create(
+              AwsBasicCredentials.create(asMap.get(ACCESS_KEY_ID), asMap.get(SECRET_ACCESS_KEY)));
+        }
       } else if (typeName.equals(DefaultCredentialsProvider.class.getSimpleName())) {
         return DefaultCredentialsProvider.create();
       } else if (typeName.equals(EnvironmentVariableCredentialsProvider.class.getSimpleName())) {
@@ -158,10 +169,16 @@ public class AwsModule extends SimpleModule {
       // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
       typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
       if (credentialsProvider.getClass().equals(StaticCredentialsProvider.class)) {
-        jsonGenerator.writeStringField(
-            ACCESS_KEY_ID, credentialsProvider.resolveCredentials().accessKeyId());
-        jsonGenerator.writeStringField(
-            SECRET_ACCESS_KEY, credentialsProvider.resolveCredentials().secretAccessKey());
+        AwsCredentials credentials = credentialsProvider.resolveCredentials();
+        if (credentials.getClass().equals(AwsSessionCredentials.class)) {
+          AwsSessionCredentials sessionCredentials = (AwsSessionCredentials) credentials;
+          jsonGenerator.writeStringField(ACCESS_KEY_ID, sessionCredentials.accessKeyId());
+          jsonGenerator.writeStringField(SECRET_ACCESS_KEY, sessionCredentials.secretAccessKey());
+          jsonGenerator.writeStringField(SESSION_TOKEN, sessionCredentials.sessionToken());
+        } else {
+          jsonGenerator.writeStringField(ACCESS_KEY_ID, credentials.accessKeyId());
+          jsonGenerator.writeStringField(SECRET_ACCESS_KEY, credentials.secretAccessKey());
+        }
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(credentialsProvider.getClass())) {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());

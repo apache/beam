@@ -21,11 +21,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
@@ -49,7 +50,7 @@ public class BagUserState<T> {
   private final BeamFnStateClient beamFnStateClient;
   private final StateRequest request;
   private final Coder<T> valueCoder;
-  private Iterable<T> oldValues;
+  private PrefetchableIterable<T> oldValues;
   private ArrayList<T> newValues;
   private boolean isClosed;
 
@@ -80,19 +81,19 @@ public class BagUserState<T> {
     this.newValues = new ArrayList<>();
   }
 
-  public Iterable<T> get() {
+  public PrefetchableIterable<T> get() {
     checkState(
         !isClosed,
         "Bag user state is no longer usable because it is closed for %s",
         request.getStateKey());
     if (oldValues == null) {
       // If we were cleared we should disregard old values.
-      return Iterables.limit(Collections.unmodifiableList(newValues), newValues.size());
+      return PrefetchableIterables.limit(Collections.unmodifiableList(newValues), newValues.size());
     } else if (newValues.isEmpty()) {
       // If we have no new values then just return the old values.
       return oldValues;
     }
-    return Iterables.concat(
+    return PrefetchableIterables.concat(
         oldValues, Iterables.limit(Collections.unmodifiableList(newValues), newValues.size()));
   }
 
@@ -113,6 +114,7 @@ public class BagUserState<T> {
     newValues = new ArrayList<>();
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void asyncClose() throws Exception {
     checkState(
         !isClosed,
@@ -120,8 +122,7 @@ public class BagUserState<T> {
         request.getStateKey());
     if (oldValues == null) {
       beamFnStateClient.handle(
-          request.toBuilder().setClear(StateClearRequest.getDefaultInstance()),
-          new CompletableFuture<>());
+          request.toBuilder().setClear(StateClearRequest.getDefaultInstance()));
     }
     if (!newValues.isEmpty()) {
       ByteString.Output out = ByteString.newOutput();
@@ -132,8 +133,7 @@ public class BagUserState<T> {
       beamFnStateClient.handle(
           request
               .toBuilder()
-              .setAppend(StateAppendRequest.newBuilder().setData(out.toByteString())),
-          new CompletableFuture<>());
+              .setAppend(StateAppendRequest.newBuilder().setData(out.toByteString())));
     }
     isClosed = true;
   }

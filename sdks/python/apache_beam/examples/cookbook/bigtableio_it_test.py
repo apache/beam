@@ -68,7 +68,7 @@ class GenerateTestRows(beam.PTransform):
   """
   def __init__(self, number, project_id=None, instance_id=None, table_id=None):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(WriteToBigTable, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self.number = number
     self.rand = random.choice(string.ascii_letters + string.digits)
@@ -179,8 +179,8 @@ class BigtableIOWriteTest(unittest.TestCase):
     with beam.Pipeline(options=pipeline_options) as pipeline:
       config_data = {
           'project_id': self.project,
-          'instance_id': self.instance,
-          'table_id': self.table
+          'instance_id': self.instance_id,
+          'table_id': self.table_id
       }
       _ = (
           pipeline

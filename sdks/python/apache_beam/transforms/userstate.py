@@ -134,7 +134,7 @@ class CombiningValueStateSpec(StateSpec):
     if coder is None:
       coder = self.combine_fn.get_accumulator_coder()
 
-    super(CombiningValueStateSpec, self).__init__(name, coder)
+    super().__init__(name, coder)
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
