@@ -663,7 +663,7 @@ class DeferredFrameTest(_AbstractFrameTest):
 
   @parameterized.expand([
       (pd.Series(range(10)), ),  # False
-      (pd.Series(list(range(100)) + [np.nan]), ),  # True
+      (pd.Series([1, 2, np.nan, 3, np.nan]), ),  # True
       (pd.Series(['a', 'b', 'c', 'd', 'e']), ),  # False
       (pd.Series(['a', 'b', None, 'c', None]), ),  # True
   ])

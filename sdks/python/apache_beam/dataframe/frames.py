@@ -1085,6 +1085,19 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def name(self):
     return self._expr.proxy().name
 
+  @name.setter
+  def name(self, value):
+    def fn(s):
+      s = s.copy()
+      s.name = value
+      return s
+
+    self._expr = expressions.ComputedExpression(
+        'series_set_name',
+        fn, [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Arbitrary())
+
   @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
   def hasnans(self):
@@ -1101,19 +1114,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               lambda s: s.all(), [has_nans],
               requires_partition_by=partitionings.Singleton(),
               preserves_partition_by=partitionings.Singleton()))
-
-  @name.setter
-  def name(self, value):
-    def fn(s):
-      s = s.copy()
-      s.name = value
-      return s
-
-    self._expr = expressions.ComputedExpression(
-        'series_set_name',
-        fn, [self._expr],
-        requires_partition_by=partitionings.Arbitrary(),
-        preserves_partition_by=partitionings.Arbitrary())
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
