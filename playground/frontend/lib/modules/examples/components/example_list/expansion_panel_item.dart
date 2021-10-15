@@ -30,21 +30,24 @@ class ExpansionPanelItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<PlaygroundState>(
-      builder: (context, state, child) => GestureDetector(
-        onTap: () {
-          if (state.selectedExample != example) {
-            state.setExample(example);
-          }
-        },
-        child: Container(
-          color: Colors.transparent,
-          margin: const EdgeInsets.only(left: kXxlSpacing),
-          height: kContainerHeight,
-          child: Row(
-            children: [
-              // Wrapped with Row for better user interaction and positioning
-              Text(example.name),
-            ],
+      builder: (context, state, child) => MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () {
+            if (state.selectedExample != example) {
+              state.setExample(example);
+            }
+          },
+          child: Container(
+            color: Colors.transparent,
+            margin: const EdgeInsets.only(left: kXxlSpacing),
+            height: kContainerHeight,
+            child: Row(
+              children: [
+                // Wrapped with Row for better user interaction and positioning
+                Text(example.name),
+              ],
+            ),
           ),
         ),
       ),

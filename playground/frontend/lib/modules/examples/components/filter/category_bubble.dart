@@ -32,28 +32,31 @@ class CategoryBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: kMdSpacing),
       child: Consumer<ExampleDropdownState>(
-        builder: (context, state, child) => GestureDetector(
-          onTap: () {
-            if (name != state.selectedCategory) {
-              state.setSelectedCategory(name);
-            }
-          },
-          child: Container(
-            height: kContainerHeight,
-            padding: const EdgeInsets.symmetric(horizontal: kXlSpacing),
-            decoration: BoxDecoration(
-              color: name == state.selectedCategory
-                  ? ThemeColors.of(context).primary
-                  : ThemeColors.of(context).lightGreyColor,
-              borderRadius: BorderRadius.circular(kXlBorderRadius),
-            ),
-            child: Center(
-              child: Text(
-                name,
-                style: TextStyle(
-                  color: name == state.selectedCategory
-                      ? ThemeColors.of(context).primaryBackgroundTextColor
-                      : ThemeColors.of(context).lightGreyBackgroundTextColor,
+        builder: (context, state, child) => MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () {
+              if (name != state.selectedCategory) {
+                state.setSelectedCategory(name);
+              }
+            },
+            child: Container(
+              height: kContainerHeight,
+              padding: const EdgeInsets.symmetric(horizontal: kXlSpacing),
+              decoration: BoxDecoration(
+                color: name == state.selectedCategory
+                    ? ThemeColors.of(context).primary
+                    : ThemeColors.of(context).lightGreyColor,
+                borderRadius: BorderRadius.circular(kXlBorderRadius),
+              ),
+              child: Center(
+                child: Text(
+                  name,
+                  style: TextStyle(
+                    color: name == state.selectedCategory
+                        ? ThemeColors.of(context).primaryBackgroundTextColor
+                        : ThemeColors.of(context).lightGreyBackgroundTextColor,
+                  ),
                 ),
               ),
             ),
