@@ -27,8 +27,8 @@ func Execute(prog string, args ...string) error {
 	return ExecuteEnv(nil, prog, args...)
 }
 
-// Execute runs the program with the given arguments. It attaches stdio to the
-// child process.
+// Execute runs the program with the given arguments with additional environment
+// variables. It attaches stdio to the child process.
 func ExecuteEnv(env map[string]string, prog string, args ...string) error {
 	cmd := exec.Command(prog, args...)
 	cmd.Stdin = os.Stdin
