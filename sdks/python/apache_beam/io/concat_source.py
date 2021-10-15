@@ -91,7 +91,7 @@ class ConcatSource(iobase.BoundedSource):
       # to produce the same coder.
       return self._source_bundles[0].source.default_output_coder()
     else:
-      return super(ConcatSource, self).default_output_coder()
+      return super().default_output_coder()
 
 
 class ConcatRangeTracker(iobase.RangeTracker):
@@ -106,7 +106,7 @@ class ConcatRangeTracker(iobase.RangeTracker):
       end: end position, a tuple of (source_index, source_position)
       source_bundles: the list of source bundles in the ConcatSource
     """
-    super(ConcatRangeTracker, self).__init__()
+    super().__init__()
     self._start = start
     self._end = end
     self._source_bundles = source_bundles

@@ -1735,7 +1735,7 @@ public class BigQueryIOWriteTest implements Serializable {
     boolean isSingleton = numTables == 1 && numFilesPerTable == 0;
     DynamicDestinations<String, TableDestination> dynamicDestinations =
         new DynamicDestinationsHelpers.ConstantTableDestinations<>(
-            ValueProvider.StaticValueProvider.of("SINGLETON"), "");
+            ValueProvider.StaticValueProvider.of("SINGLETON"), "", false);
     List<ShardedKey<TableDestination>> expectedPartitions = Lists.newArrayList();
     if (isSingleton) {
       expectedPartitions.add(ShardedKey.of(new TableDestination("SINGLETON", ""), 1));

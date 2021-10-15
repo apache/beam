@@ -112,7 +112,7 @@ class DataflowNameContext(NameContext):
       user_name: The full user-given name of the step (e.g. Foo/Bar/ParDo(Far)).
       system_name: The step name in the optimized graph (e.g. s2-1).
     """
-    super(DataflowNameContext, self).__init__(step_name)
+    super().__init__(step_name)
     self.user_name = user_name
     self.system_name = system_name
 
@@ -447,10 +447,10 @@ class DoFnInvoker(object):
     """
     side_inputs = side_inputs or []
     default_arg_values = signature.process_method.defaults
-    use_simple_invoker = not process_invocation or (
-        not side_inputs and not input_args and not input_kwargs and
-        not default_arg_values and not signature.is_stateful_dofn())
-    if use_simple_invoker:
+    use_per_window_invoker = process_invocation and (
+        side_inputs or input_args or input_kwargs or default_arg_values or
+        signature.is_stateful_dofn())
+    if not use_per_window_invoker:
       return SimpleInvoker(output_processor, signature)
     else:
       if context is None:
@@ -557,7 +557,7 @@ class SimpleInvoker(DoFnInvoker):
                signature  # type: DoFnSignature
               ):
     # type: (...) -> None
-    super(SimpleInvoker, self).__init__(output_processor, signature)
+    super().__init__(output_processor, signature)
     self.process_method = signature.process_method.method_value
 
   def invoke_process(self,
@@ -567,9 +567,10 @@ class SimpleInvoker(DoFnInvoker):
                      additional_args=None,
                      additional_kwargs=None
                     ):
-    # type: (...) -> None
+    # type: (...) -> Iterable[SplitResultResidual]
     self.output_processor.process_outputs(
         windowed_value, self.process_method(windowed_value.value))
+    return []
 
 
 class PerWindowInvoker(DoFnInvoker):
@@ -585,7 +586,7 @@ class PerWindowInvoker(DoFnInvoker):
                user_state_context,  # type: Optional[userstate.UserStateContext]
                bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
               ):
-    super(PerWindowInvoker, self).__init__(output_processor, signature)
+    super().__init__(output_processor, signature)
     self.side_inputs = side_inputs
     self.context = context
     self.process_method = signature.process_method.method_value

@@ -48,7 +48,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import Timestamp
 
 try:
-  from google.cloud import bigquery  # type: ignore
+  from google.cloud import bigquery  # type: ignore[attr-defined]
   from google.cloud.bigquery.schema import SchemaField
   from google.cloud.exceptions import NotFound
 except ImportError:
@@ -319,8 +319,7 @@ class CounterMetric(Metric):
   """
   def __init__(self, counter_metric, submit_timestamp, metric_id):
     value = counter_metric.result
-    super(CounterMetric,
-          self).__init__(submit_timestamp, metric_id, value, counter_metric)
+    super().__init__(submit_timestamp, metric_id, value, counter_metric)
 
 
 class DistributionMetric(Metric):
@@ -342,7 +341,7 @@ class DistributionMetric(Metric):
             'not None.' % custom_label
       _LOGGER.debug(msg)
       raise ValueError(msg)
-    super(DistributionMetric, self) \
+    super() \
       .__init__(submit_timestamp, metric_id, value, dist_metric, custom_label)
 
 
@@ -361,8 +360,7 @@ class RuntimeMetric(Metric):
     # out of many steps
     label = runtime_list[0].key.metric.namespace + \
             '_' + RUNTIME_METRIC
-    super(RuntimeMetric,
-          self).__init__(submit_timestamp, metric_id, value, None, label)
+    super().__init__(submit_timestamp, metric_id, value, None, label)
 
   def _prepare_runtime_metrics(self, distributions):
     min_values = []

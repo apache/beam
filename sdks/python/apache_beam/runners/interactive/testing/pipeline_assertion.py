@@ -88,10 +88,9 @@ def _assert_pipeline_proto_contains_top_level_transform(
       pipeline_proto.root_transform_ids[0]].subtransforms
   test_case.assertEqual(
       contain,
-      any([
+      any(
           transform_label in top_level_transform_label
-          for top_level_transform_label in top_level_transform_labels
-      ]))
+          for top_level_transform_label in top_level_transform_labels))
 
 
 def _assert_transform_equal(

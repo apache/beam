@@ -85,6 +85,10 @@ public final class MonitoringInfoConstants {
     public static final String TABLE_ID = "TABLE_ID";
     public static final String GCS_BUCKET = "GCS_BUCKET";
     public static final String GCS_PROJECT_ID = "GCS_PROJECT_ID";
+    public static final String SPANNER_PROJECT_ID = "SPANNER_PROJECT_ID";
+    public static final String SPANNER_DATABASE_ID = "SPANNER_DATABASE_ID";
+    public static final String SPANNER_INSTANCE_ID = "SPANNER_INSTANCE_ID";
+    public static final String SPANNER_QUERY_NAME = "SPANNER_QUERY_NAME";
 
     static {
       // Note: One benefit of defining these strings above, instead of pulling them in from
@@ -120,6 +124,14 @@ public final class MonitoringInfoConstants {
       checkArgument(TABLE_ID.equals(extractLabel(MonitoringInfoLabels.TABLE_ID)));
       checkArgument(GCS_BUCKET.equals(extractLabel(MonitoringInfoLabels.GCS_BUCKET)));
       checkArgument(GCS_PROJECT_ID.equals(extractLabel(MonitoringInfoLabels.GCS_PROJECT_ID)));
+      checkArgument(
+          SPANNER_PROJECT_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_PROJECT_ID)));
+      checkArgument(
+          SPANNER_DATABASE_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_DATABASE_ID)));
+      checkArgument(
+          SPANNER_INSTANCE_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_INSTANCE_ID)));
+      checkArgument(
+          SPANNER_QUERY_NAME.equals(extractLabel(MonitoringInfoLabels.SPANNER_QUERY_NAME)));
     }
   }
 

@@ -95,6 +95,8 @@ var samzaFilters = []string{
 	"TestTestStream.*",
 	// The trigger tests uses TestStream
 	"TestTrigger.*",
+	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
+	"TestWordCount.*",
 }
 
 var sparkFilters = []string{
