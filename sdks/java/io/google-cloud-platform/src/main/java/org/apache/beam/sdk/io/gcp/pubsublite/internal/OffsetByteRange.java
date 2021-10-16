@@ -15,31 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsublite;
+package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.pubsublite.TopicPath;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.io.Serializable;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.io.range.OffsetRange;
 
-/** Options needed for a Pub/Sub Lite Publisher. */
 @AutoValue
-public abstract class PublisherOptions implements Serializable {
-  private static final long serialVersionUID = 275311613L;
+@DefaultCoder(OffsetByteRangeCoder.class)
+abstract class OffsetByteRange {
+  abstract OffsetRange getRange();
 
-  // Required parameters.
-  public abstract TopicPath topicPath();
+  abstract long getByteCount();
 
-  public static Builder newBuilder() {
-    return new AutoValue_PublisherOptions.Builder();
+  static OffsetByteRange of(OffsetRange range, long byteCount) {
+    return new AutoValue_OffsetByteRange(range, byteCount);
   }
 
-  @CanIgnoreReturnValue
-  @AutoValue.Builder
-  public abstract static class Builder {
-    // Required parameters.
-    public abstract Builder setTopicPath(TopicPath path);
-
-    public abstract PublisherOptions build();
+  static OffsetByteRange of(OffsetRange range) {
+    return of(range, 0);
   }
 }
