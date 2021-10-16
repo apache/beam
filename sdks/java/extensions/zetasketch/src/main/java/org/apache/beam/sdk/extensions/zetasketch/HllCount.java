@@ -280,7 +280,7 @@ public final class HllCount {
         return Combine.perKey(initFn);
       }
 
-      public HllCountInitFn<InputT, ?> asUdaf() {
+      HllCountInitFn<InputT, ?> asUdaf() {
         return initFn;
       }
     }
