@@ -15,31 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsublite;
+package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import com.google.auto.value.AutoValue;
-import com.google.cloud.pubsublite.TopicPath;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.Serializable;
 
-/** Options needed for a Pub/Sub Lite Publisher. */
-@AutoValue
-public abstract class PublisherOptions implements Serializable {
-  private static final long serialVersionUID = 275311613L;
+/**
+ * A ManagedBacklogReaderFactory produces TopicBacklogReaders and tears down any produced readers
+ * when it is itself closed.
+ *
+ * <p>close() should never be called on produced readers.
+ */
+public interface ManagedBacklogReaderFactory extends AutoCloseable, Serializable {
+  TopicBacklogReader newReader(SubscriptionPartition subscriptionPartition);
 
-  // Required parameters.
-  public abstract TopicPath topicPath();
-
-  public static Builder newBuilder() {
-    return new AutoValue_PublisherOptions.Builder();
-  }
-
-  @CanIgnoreReturnValue
-  @AutoValue.Builder
-  public abstract static class Builder {
-    // Required parameters.
-    public abstract Builder setTopicPath(TopicPath path);
-
-    public abstract PublisherOptions build();
-  }
+  @Override
+  void close();
 }
