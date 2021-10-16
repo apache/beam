@@ -15,31 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsublite;
+package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.pubsublite.TopicPath;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.io.Serializable;
+import com.google.cloud.pubsublite.Partition;
+import com.google.cloud.pubsublite.SubscriptionPath;
+import org.apache.beam.sdk.coders.DefaultCoder;
 
-/** Options needed for a Pub/Sub Lite Publisher. */
 @AutoValue
-public abstract class PublisherOptions implements Serializable {
-  private static final long serialVersionUID = 275311613L;
-
-  // Required parameters.
-  public abstract TopicPath topicPath();
-
-  public static Builder newBuilder() {
-    return new AutoValue_PublisherOptions.Builder();
+@DefaultCoder(SubscriptionPartitionCoder.class)
+public abstract class SubscriptionPartition {
+  static SubscriptionPartition of(SubscriptionPath subscription, Partition partition) {
+    return new AutoValue_SubscriptionPartition(subscription, partition);
   }
 
-  @CanIgnoreReturnValue
-  @AutoValue.Builder
-  public abstract static class Builder {
-    // Required parameters.
-    public abstract Builder setTopicPath(TopicPath path);
+  abstract SubscriptionPath subscription();
 
-    public abstract PublisherOptions build();
-  }
+  abstract Partition partition();
 }

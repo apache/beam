@@ -15,31 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsublite;
+package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import com.google.auto.value.AutoValue;
-import com.google.cloud.pubsublite.TopicPath;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.io.Serializable;
+/**
+ * A shared cache per-worker instance of Pub/Sub Lite publishers.
+ *
+ * <p>Pub/Sub Lite publishers connect to all available partitions: it would be a pessimization for
+ * all instances of the PubsubLiteSink to do this.
+ */
+final class PerServerPublisherCache {
+  private PerServerPublisherCache() {}
 
-/** Options needed for a Pub/Sub Lite Publisher. */
-@AutoValue
-public abstract class PublisherOptions implements Serializable {
-  private static final long serialVersionUID = 275311613L;
+  static final PublisherCache PUBLISHER_CACHE = new PublisherCache();
 
-  // Required parameters.
-  public abstract TopicPath topicPath();
-
-  public static Builder newBuilder() {
-    return new AutoValue_PublisherOptions.Builder();
-  }
-
-  @CanIgnoreReturnValue
-  @AutoValue.Builder
-  public abstract static class Builder {
-    // Required parameters.
-    public abstract Builder setTopicPath(TopicPath path);
-
-    public abstract PublisherOptions build();
+  static {
+    Runtime.getRuntime().addShutdownHook(new Thread(PUBLISHER_CACHE::close));
   }
 }
