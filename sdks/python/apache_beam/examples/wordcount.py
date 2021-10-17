@@ -52,7 +52,7 @@ def run(argv=None, save_main_session=True):
   parser.add_argument(
       '--input',
       dest='input',
-      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      default='gs://dataflow-samples/shakespeare/kinghenryviii.txt',
       help='Input file to process.')
   parser.add_argument(
       '--output',
@@ -72,11 +72,12 @@ def run(argv=None, save_main_session=True):
     # Read the text file[pattern] into a PCollection.
     lines = p | 'Read' >> ReadFromText(known_args.input)
 
-    counts = (
+   counts = (
         lines
         | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
+        | 'lowercase' >> beam.Map(str.lower)
         | 'PairWIthOne' >> beam.Map(lambda x: (x, 1))
-        | 'GroupAndSum' >> beam.CombinePerKey(sum))
+        | 'GroupAndSum' >> beam.CombinePerKey(sum)) 
 
     # Format the counts into a PCollection of strings.
     def format_result(word, count):
