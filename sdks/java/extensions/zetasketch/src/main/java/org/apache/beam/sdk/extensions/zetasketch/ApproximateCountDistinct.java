@@ -257,7 +257,7 @@ public class ApproximateCountDistinct {
 
   // HLLCount supports, Long, Integers, String and Byte primitives.
   // We will return an appropriate builder
-  protected static <T> Builder<T> builderForType(TypeDescriptor<T> input) {
+  protected static <T> HllCount.Init.Builder<T> builderForType(TypeDescriptor<T> input) {
 
     @SuppressWarnings("rawtypes")
     HllCount.Init.Builder builder = null;
@@ -281,7 +281,7 @@ public class ApproximateCountDistinct {
 
     // Safe to ignore warning, as we know the type based on the check we do above.
     @SuppressWarnings("unchecked")
-    Builder<T> output = (Builder<T>) builder;
+    HllCount.Init.Builder<T> output = (HllCount.Init.Builder<T>) builder;
 
     return output;
   }

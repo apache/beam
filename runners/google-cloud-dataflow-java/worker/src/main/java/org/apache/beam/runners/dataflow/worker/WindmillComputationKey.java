@@ -36,7 +36,7 @@ public abstract class WindmillComputationKey {
   public abstract long shardingKey();
 
   @Override
-  public String toString() {
+  public final String toString() {
     return String.format(
         "%s: %s-%d", computationId(), TextFormat.escapeBytes(key()), shardingKey());
   }

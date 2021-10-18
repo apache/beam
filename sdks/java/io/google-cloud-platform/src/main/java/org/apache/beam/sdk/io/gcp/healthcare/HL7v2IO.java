@@ -163,11 +163,6 @@ public class HL7v2IO {
     return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(StaticValueProvider.of(hl7v2Store));
   }
 
-  /** Write HL7v2 Messages to a store. */
-  private static Write.Builder write(ValueProvider<String> hl7v2Store) {
-    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store);
-  }
-
   /**
    * Retrieve all HL7v2 Messages from a PCollection of message IDs (such as from PubSub notification
    * subscription).
