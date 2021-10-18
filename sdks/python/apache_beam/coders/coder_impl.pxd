@@ -154,7 +154,15 @@ cdef class TupleSequenceCoderImpl(SequenceCoderImpl):
   pass
 
 
+cdef class _AbstractIterable:
+  cdef object _contents
+
+
 cdef class IterableCoderImpl(SequenceCoderImpl):
+  pass
+
+
+cdef class ListCoderImpl(SequenceCoderImpl):
   pass
 
 
