@@ -65,7 +65,7 @@ var directFilters = []string{
 	"TestTrigger.*",
 	// The direct runner does not support the TestStream primitive
 	"TestTestStream.*",
-	// The direct runner does not support windowed side inputs
+	// (BEAM-13075): The direct runner does not support windowed side inputs
 	"TestValidateWindowedSideInputs",
 }
 

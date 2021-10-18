@@ -468,8 +468,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					input := unmarshalKeyedValues(transform.GetInputs())
 					for i := 1; i < len(input); i++ {
-						// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
-						// For now, assume we don't need any information in the pardo payload.
+						// TODO(BEAM-3305) Handle ViewFns for side inputs
 
 						ec, wc, err := b.makeCoderForPCollection(input[i])
 						if err != nil {
