@@ -24,11 +24,11 @@ import argparse
 import logging
 
 import apache_beam as beam
-import apache_beam.transforms.window as window
 from apache_beam.examples.wordcount_with_metrics import WordExtractingDoFn
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.transforms import window
 
 
 def run(argv=None, save_main_session=True):

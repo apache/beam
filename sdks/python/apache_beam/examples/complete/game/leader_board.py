@@ -115,7 +115,7 @@ class ParseGameEventFn(beam.DoFn):
   """
   def __init__(self):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(ParseGameEventFn, self).__init__()
+    # super().__init__()
     beam.DoFn.__init__(self)
     self.num_parse_errors = Metrics.counter(self.__class__, 'num_parse_errors')
 
@@ -141,7 +141,7 @@ class ExtractAndSumScore(beam.PTransform):
   """
   def __init__(self, field):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(ExtractAndSumScore, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self.field = field
 
@@ -181,7 +181,7 @@ class WriteToBigQuery(beam.PTransform):
       project: Name of the Cloud project containing BigQuery table.
     """
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(WriteToBigQuery, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self.table_name = table_name
     self.dataset = dataset
@@ -211,7 +211,7 @@ class CalculateTeamScores(beam.PTransform):
   """
   def __init__(self, team_window_duration, allowed_lateness):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(CalculateTeamScores, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self.team_window_duration = team_window_duration * 60
     self.allowed_lateness_seconds = allowed_lateness * 60
@@ -243,7 +243,7 @@ class CalculateUserScores(beam.PTransform):
   """
   def __init__(self, allowed_lateness):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(CalculateUserScores, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self.allowed_lateness_seconds = allowed_lateness * 60
 

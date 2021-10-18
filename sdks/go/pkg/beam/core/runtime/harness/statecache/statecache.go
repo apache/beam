@@ -21,25 +21,20 @@
 package statecache
 
 import (
+	"context"
 	"sync"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
 type token string
 
-// ReusableInput is a resettable value, notably used to unwind iterators cheaply
-// and cache materialized side input across invocations.
-//
-// Redefined from exec's input.go to avoid a cyclical dependency.
-type ReusableInput interface {
-	// Init initializes the value before use.
-	Init() error
-	// Value returns the side input value.
-	Value() interface{}
-	// Reset resets the value after use.
-	Reset() error
+type cacheKey struct {
+	tok token
+	win string
+	key string
 }
 
 // SideInputCache stores a cache of reusable inputs for the purposes of
@@ -56,17 +51,15 @@ type ReusableInput interface {
 type SideInputCache struct {
 	capacity    int
 	mu          sync.Mutex
-	cache       map[token]ReusableInput
+	cache       map[cacheKey]exec.ReStream
 	idsToTokens map[string]token
 	validTokens map[token]int8 // Maps tokens to active bundle counts
 	metrics     CacheMetrics
 }
 
+// CacheMetrics stores metrics for the cache across a pipeline run.
 type CacheMetrics struct {
-	Hits           int64
-	Misses         int64
-	Evictions      int64
-	InUseEvictions int64
+	Hits, Misses, Evictions, InUseEvictions, ReStreamErrors int64
 }
 
 // Init makes the cache map and the map of IDs to cache tokens for the
@@ -78,10 +71,11 @@ func (c *SideInputCache) Init(cap int) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache = make(map[token]ReusableInput, cap)
+	c.cache = make(map[cacheKey]exec.ReStream, cap)
 	c.idsToTokens = make(map[string]token)
 	c.validTokens = make(map[token]int8)
 	c.capacity = cap
+	c.metrics = CacheMetrics{}
 	return nil
 }
 
@@ -89,7 +83,7 @@ func (c *SideInputCache) Init(cap int) error {
 // transform and side input IDs to cache tokens in the process. Should be called at the start of every
 // new ProcessBundleRequest. If the runner does not support caching, the passed cache token values
 // should be empty and all get/set requests will silently be no-ops.
-func (c *SideInputCache) SetValidTokens(cacheTokens ...fnpb.ProcessBundleRequest_CacheToken) {
+func (c *SideInputCache) SetValidTokens(cacheTokens ...*fnpb.ProcessBundleRequest_CacheToken) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, tok := range cacheTokens {
@@ -121,7 +115,7 @@ func (c *SideInputCache) setValidToken(transformID, sideInputID string, tok toke
 // CompleteBundle takes the cache tokens passed to set the valid tokens and decrements their
 // usage count for the purposes of maintaining a valid count of whether or not a value is
 // still in use. Should be called once ProcessBundle has completed.
-func (c *SideInputCache) CompleteBundle(cacheTokens ...fnpb.ProcessBundleRequest_CacheToken) {
+func (c *SideInputCache) CompleteBundle(cacheTokens ...*fnpb.ProcessBundleRequest_CacheToken) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, tok := range cacheTokens {
@@ -156,19 +150,24 @@ func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (
 	return tok, c.isValid(tok)
 }
 
+func (c *SideInputCache) makeCacheKey(tok token, w, key []byte) cacheKey {
+	return cacheKey{tok: tok, win: string(w), key: string(key)}
+}
+
 // QueryCache takes a transform ID and side input ID and checking if a corresponding side
 // input has been cached. A query having a bad token (e.g. one that doesn't make a known
 // token or one that makes a known but currently invalid token) is treated the same as a
 // cache miss.
-func (c *SideInputCache) QueryCache(transformID, sideInputID string) ReusableInput {
+func (c *SideInputCache) QueryCache(ctx context.Context, transformID, sideInputID string, win, key []byte) exec.ReStream {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
 	if !ok {
 		return nil
 	}
+	ck := c.makeCacheKey(tok, win, key)
 	// Check to see if cached
-	input, ok := c.cache[tok]
+	input, ok := c.cache[ck]
 	if !ok {
 		c.metrics.Misses++
 		return nil
@@ -178,21 +177,38 @@ func (c *SideInputCache) QueryCache(transformID, sideInputID string) ReusableInp
 	return input
 }
 
+// materializeReStream reads all of the values from the input ReStream and places its
+// values in memory.
+func materializeReStream(input exec.ReStream) (exec.ReStream, error) {
+	values, err := exec.ReadAll(input)
+	if err != nil {
+		return nil, err
+	}
+	return &exec.FixedReStream{Buf: values}, nil
+}
+
 // SetCache allows a user to place a ReusableInput materialized from the reader into the SideInputCache
 // with its corresponding transform ID and side input ID. If the IDs do not pair with a known, valid token
 // then we silently do not cache the input, as this is an indication that the runner is treating that input
 // as uncacheable.
-func (c *SideInputCache) SetCache(transformID, sideInputID string, input ReusableInput) {
+func (c *SideInputCache) SetCache(ctx context.Context, transformID, sideInputID string, win, key []byte, input exec.ReStream) exec.ReStream {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
 	if !ok {
-		return
+		return input
 	}
 	if len(c.cache) >= c.capacity {
-		c.evictElement()
+		c.evictElement(ctx)
 	}
-	c.cache[tok] = input
+	mat, err := materializeReStream(input)
+	if err != nil {
+		c.metrics.ReStreamErrors++
+		return input
+	}
+	ck := c.makeCacheKey(tok, win, key)
+	c.cache[ck] = mat
+	return mat
 }
 
 func (c *SideInputCache) isValid(tok token) bool {
@@ -203,12 +219,12 @@ func (c *SideInputCache) isValid(tok token) bool {
 
 // evictElement randomly evicts a ReusableInput that is not currently valid from the cache.
 // It should only be called by a goroutine that obtained the lock in SetCache.
-func (c *SideInputCache) evictElement() {
+func (c *SideInputCache) evictElement(ctx context.Context) {
 	deleted := false
 	// Select a key from the cache at random
 	for k := range c.cache {
 		// Do not evict an element if it's currently valid
-		if !c.isValid(k) {
+		if !c.isValid(k.tok) {
 			delete(c.cache, k)
 			c.metrics.Evictions++
 			deleted = true

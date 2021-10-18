@@ -19,8 +19,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 )
 
 // Port represents the connection port of external operations.
@@ -46,6 +44,16 @@ type DataContext struct {
 	State StateReader
 }
 
+// SideCache manages cached ReStream values for side inputs that can be re-used across
+// bundles.
+type SideCache interface {
+	// QueryCache checks the cache for a ReStream corresponding to the transform and
+	// side input being used.
+	QueryCache(ctx context.Context, transformID, sideInputID string, win, key []byte) ReStream
+	// SetCache places a ReStream into the cache for a transform and side input.
+	SetCache(ctx context.Context, transformID, sideInputID string, win, key []byte, input ReStream) ReStream
+}
+
 // DataManager manages external data byte streams. Each data stream can be
 // opened by one consumer only.
 type DataManager interface {
@@ -62,7 +70,7 @@ type StateReader interface {
 	// OpenIterable opens a byte stream for reading unwindowed iterables from the runner.
 	OpenIterable(ctx context.Context, id StreamID, key []byte) (io.ReadCloser, error)
 	// GetSideInputCache returns the SideInputCache being used at the harness level.
-	GetSideInputCache() *statecache.SideInputCache
+	GetSideInputCache() SideCache
 }
 
 // TODO(herohde) 7/20/2018: user state management

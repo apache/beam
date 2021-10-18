@@ -747,7 +747,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_, nested):
     # type: (create_InputStream, bool) -> IntervalWindow
     if not TYPE_CHECKING:
-      global IntervalWindow
+      global IntervalWindow  # pylint: disable=global-variable-not-assigned
       if IntervalWindow is None:
         from apache_beam.transforms.window import IntervalWindow
     # instantiating with None is not part of the public interface
@@ -1390,8 +1390,7 @@ class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
   and pane info values during decoding when reconstructing the windowed
   value."""
   def __init__(self, value_coder, window_coder, payload):
-    super(ParamWindowedValueCoderImpl,
-          self).__init__(value_coder, TimestampCoderImpl(), window_coder)
+    super().__init__(value_coder, TimestampCoderImpl(), window_coder)
     self._timestamp, self._windows, self._pane_info = self._from_proto(
         payload, window_coder)
 

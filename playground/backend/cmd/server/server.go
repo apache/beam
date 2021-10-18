@@ -16,7 +16,7 @@
 package main
 
 import (
-	"beam.apache.org/playground/backend/pkg/executors"
+	"beam.apache.org/playground/backend/internal/executors"
 )
 
 func main() {

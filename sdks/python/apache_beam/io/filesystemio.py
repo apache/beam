@@ -214,7 +214,7 @@ class UploaderStream(io.RawIOBase):
     if not self.closed:
       self._uploader.finish()
 
-    super(UploaderStream, self).close()
+    super().close()
 
   def writable(self):
     return True
