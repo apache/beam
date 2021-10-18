@@ -19,6 +19,7 @@ go 1.16
 
 require (
 	github.com/go-redis/redis/v8 v8.11.4
+	github.com/go-redis/redismock/v8 v8.0.6
 	github.com/google/uuid v1.1.2
 	google.golang.org/grpc v1.41.0
 )

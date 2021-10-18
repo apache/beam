@@ -19,7 +19,9 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redismock/v8"
 	"github.com/google/uuid"
 	"reflect"
 	"testing"
@@ -27,6 +29,13 @@ import (
 )
 
 func TestRedisCache_GetValue(t *testing.T) {
+	pipelineId := uuid.New()
+	subKey := SubKey_RunOutput
+	value := "MOCK_OUTPUT"
+	client, mock := redismock.NewClientMock()
+	marshSubKey, _ := json.Marshal(subKey)
+	marshValue, _ := json.Marshal(value)
+
 	type fields struct {
 		redisClient *redis.Client
 	}
@@ -37,24 +46,44 @@ func TestRedisCache_GetValue(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
+		mocks   func()
 		fields  fields
 		args    args
 		want    interface{}
 		wantErr bool
 	}{
 		{
-			name:   "error during HGet operation",
-			fields: fields{redisClient: redis.NewClient(&redis.Options{})},
+			name: "error during HGet operation",
+			mocks: func() {
+				mock.ExpectHGet(pipelineId.String(), string(marshSubKey)).SetErr(fmt.Errorf("MOCK_ERROR"))
+			},
+			fields: fields{client},
 			args: args{
 				ctx:        context.TODO(),
-				pipelineId: uuid.New(),
-				subKey:     SubKey_RunOutput,
+				pipelineId: pipelineId,
+				subKey:     subKey,
 			},
+			want:    nil,
 			wantErr: true,
+		},
+		{
+			name: "all success",
+			mocks: func() {
+				mock.ExpectHGet(pipelineId.String(), string(marshSubKey)).SetVal(string(marshValue))
+			},
+			fields: fields{client},
+			args: args{
+				ctx:        context.TODO(),
+				pipelineId: pipelineId,
+				subKey:     subKey,
+			},
+			want:    value,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.mocks()
 			rc := &RedisCache{
 				tt.fields.redisClient,
 			}
@@ -66,11 +95,16 @@ func TestRedisCache_GetValue(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetValue() got = %v, want %v", got, tt.want)
 			}
+			mock.ClearExpect()
 		})
 	}
 }
 
 func TestRedisCache_SetExpTime(t *testing.T) {
+	pipelineId := uuid.New()
+	expTime := time.Second
+	client, mock := redismock.NewClientMock()
+
 	type fields struct {
 		redisClient *redis.Client
 	}
@@ -81,34 +115,88 @@ func TestRedisCache_SetExpTime(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
+		mocks   func()
 		fields  fields
 		args    args
 		wantErr bool
 	}{
 		{
-			name:   "error during Exists operation",
-			fields: fields{redisClient: redis.NewClient(&redis.Options{})},
+			name: "error during Exists operation",
+			mocks: func() {
+				mock.ExpectExists(pipelineId.String()).SetErr(fmt.Errorf("MOCK_ERROR"))
+			},
+			fields: fields{client},
 			args: args{
 				ctx:        context.Background(),
-				pipelineId: uuid.New(),
-				expTime:    time.Second,
+				pipelineId: pipelineId,
+				expTime:    expTime,
 			},
 			wantErr: true,
+		},
+		{
+			name: "Exists operation returns 0",
+			mocks: func() {
+				mock.ExpectExists(pipelineId.String()).SetVal(0)
+			},
+			fields: fields{client},
+			args: args{
+				ctx:        context.Background(),
+				pipelineId: pipelineId,
+				expTime:    expTime,
+			},
+			wantErr: true,
+		},
+		{
+			name: "error during Expire operation",
+			mocks: func() {
+				mock.ExpectExists(pipelineId.String()).SetVal(1)
+				mock.ExpectExpire(pipelineId.String(), expTime).SetErr(fmt.Errorf("MOCK_ERROR"))
+			},
+			fields: fields{client},
+			args: args{
+				ctx:        context.Background(),
+				pipelineId: pipelineId,
+				expTime:    expTime,
+			},
+			wantErr: true,
+		},
+		{
+			name: "all success",
+			mocks: func() {
+				mock.ExpectExists(pipelineId.String()).SetVal(1)
+				mock.ExpectExpire(pipelineId.String(), expTime).SetVal(true)
+			},
+			fields: fields{client},
+			args: args{
+				ctx:        context.Background(),
+				pipelineId: pipelineId,
+				expTime:    expTime,
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.mocks()
 			rc := &RedisCache{
 				tt.fields.redisClient,
 			}
 			if err := rc.SetExpTime(tt.args.ctx, tt.args.pipelineId, tt.args.expTime); (err != nil) != tt.wantErr {
 				t.Errorf("SetExpTime() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			mock.ClearExpect()
 		})
 	}
 }
 
 func TestRedisCache_SetValue(t *testing.T) {
+	pipelineId := uuid.New()
+	subKey := SubKey_Status
+	value := pb.Status_STATUS_FINISHED
+	client, mock := redismock.NewClientMock()
+	marshSubKey, _ := json.Marshal(subKey)
+	marshValue, _ := json.Marshal(value)
+
 	type fields struct {
 		redisClient *redis.Client
 	}
@@ -120,41 +208,66 @@ func TestRedisCache_SetValue(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
+		mocks   func()
 		fields  fields
 		args    args
 		wantErr bool
 	}{
 		{
-			name:   "error during HSet operation",
-			fields: fields{redisClient: redis.NewClient(&redis.Options{})},
+			name: "error during HSet operation",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetErr(fmt.Errorf("MOCK_ERROR"))
+			},
+			fields: fields{client},
 			args: args{
 				ctx:        context.Background(),
-				pipelineId: uuid.New(),
-				subKey:     SubKey_Status,
-				value:      pb.Status_STATUS_FINISHED,
+				pipelineId: pipelineId,
+				subKey:     subKey,
+				value:      value,
 			},
 			wantErr: true,
 		},
 		{
-			name:   "error during Expire operation",
-			fields: fields{redisClient: redis.NewClient(&redis.Options{})},
+			name: "error during Expire operation",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetVal(1)
+				mock.ExpectExpire(pipelineId.String(), time.Minute*15).SetErr(fmt.Errorf("MOCK_ERROR"))
+			},
+			fields: fields{client},
 			args: args{
 				ctx:        context.Background(),
-				pipelineId: uuid.New(),
-				subKey:     SubKey_Status,
-				value:      pb.Status_STATUS_FINISHED,
+				pipelineId: pipelineId,
+				subKey:     subKey,
+				value:      value,
 			},
 			wantErr: true,
+		},
+		{
+			name: "all success",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetVal(1)
+				mock.ExpectExpire(pipelineId.String(), time.Minute*15).SetVal(true)
+			},
+			fields: fields{client},
+			args: args{
+				ctx:        context.Background(),
+				pipelineId: pipelineId,
+				subKey:     subKey,
+				value:      value,
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.mocks()
 			rc := &RedisCache{
 				tt.fields.redisClient,
 			}
 			if err := rc.SetValue(tt.args.ctx, tt.args.pipelineId, tt.args.subKey, tt.args.value); (err != nil) != tt.wantErr {
 				t.Errorf("SetValue() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			mock.ClearExpect()
 		})
 	}
 }
