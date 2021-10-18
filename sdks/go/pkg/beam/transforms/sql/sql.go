@@ -26,6 +26,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/sql/sqlx"
 )
@@ -113,7 +114,7 @@ func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 
 	expansionAddr := sqlx.DefaultExpansionAddr
 	if options.expansionAddr != "" {
-		expansionAddr = options.expansionAddr
+		expansionAddr = xlangx.Require(options.expansionAddr)
 	}
 
 	out := beam.CrossLanguage(s, sqlx.Urn, payload, expansionAddr, options.inputs, beam.UnnamedOutput(options.outType))
