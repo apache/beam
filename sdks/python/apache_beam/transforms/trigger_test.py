@@ -579,23 +579,23 @@ class TriggerPipelineTest(unittest.TestCase):
     test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
     with TestPipeline(options=test_options) as p:
 
-      def construct_timestamped(k_t):
-        return TimestampedValue((k_t[0], k_t[1]), k_t[1])
+      def construct_timestamped(k, t):
+        return TimestampedValue((k, t), t)
 
-      def format_result(k_v):
-        return ('%s-%s' % (k_v[0], len(k_v[1])), set(k_v[1]))
+      def format_result(k, vs):
+        return ('%s-%s' % (k, len(list(vs))), set(vs))
 
       result = (
           p
           | beam.Create([1, 2, 3, 4, 5, 10, 11])
           | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
-          | beam.Map(construct_timestamped)
+          | beam.MapTuple(construct_timestamped)
           | beam.WindowInto(
               FixedWindows(10),
               trigger=AfterCount(3),
               accumulation_mode=AccumulationMode.DISCARDING)
           | beam.GroupByKey()
-          | beam.Map(format_result))
+          | beam.MapTuple(format_result))
       assert_that(
           result,
           equal_to(
@@ -609,23 +609,23 @@ class TriggerPipelineTest(unittest.TestCase):
   def test_always(self):
     with TestPipeline() as p:
 
-      def construct_timestamped(k_t):
-        return TimestampedValue((k_t[0], k_t[1]), k_t[1])
+      def construct_timestamped(k, t):
+        return TimestampedValue((k, t), t)
 
-      def format_result(k_v):
-        return ('%s-%s' % (k_v[0], len(k_v[1])), set(k_v[1]))
+      def format_result(k, vs):
+        return ('%s-%s' % (k, len(list(vs))), set(vs))
 
       result = (
           p
           | beam.Create([1, 1, 2, 3, 4, 5, 10, 11])
           | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
-          | beam.Map(construct_timestamped)
+          | beam.MapTuple(construct_timestamped)
           | beam.WindowInto(
               FixedWindows(10),
               trigger=Always(),
               accumulation_mode=AccumulationMode.DISCARDING)
           | beam.GroupByKey()
-          | beam.Map(format_result))
+          | beam.MapTuple(format_result))
       assert_that(
           result,
           equal_to(
@@ -642,23 +642,23 @@ class TriggerPipelineTest(unittest.TestCase):
   def test_never(self):
     with TestPipeline() as p:
 
-      def construct_timestamped(k_t):
-        return TimestampedValue((k_t[0], k_t[1]), k_t[1])
+      def construct_timestamped(k, t):
+        return TimestampedValue((k, t), t)
 
-      def format_result(k_v):
-        return ('%s-%s' % (k_v[0], len(k_v[1])), set(k_v[1]))
+      def format_result(k, vs):
+        return ('%s-%s' % (k, len(list(vs))), set(vs))
 
       result = (
           p
           | beam.Create([1, 1, 2, 3, 4, 5, 10, 11])
           | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
-          | beam.Map(construct_timestamped)
+          | beam.MapTuple(construct_timestamped)
           | beam.WindowInto(
               FixedWindows(10),
               trigger=_Never(),
               accumulation_mode=AccumulationMode.DISCARDING)
           | beam.GroupByKey()
-          | beam.Map(format_result))
+          | beam.MapTuple(format_result))
       assert_that(
           result,
           equal_to(
