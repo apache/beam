@@ -105,7 +105,6 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	n.ctx = metrics.SetPTransformID(ctx, n.PID)
 
 	// set current state for execution time metrics
-	// metrics.GetStore(n.ctx).SetState(metrics.StartBundle)
 	metrics.SetPTransformState(n.ctx, metrics.StartBundle)
 
 	if err := MultiStartBundle(n.ctx, id, data, n.Out...); err != nil {
@@ -127,8 +126,6 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 	}
 
 	// set current state for execution time metrics
-	// metrics.GetExecutionStore(n.ctx).SetState(metrics.ProcessBundle)
-	// metrics.GetExecutionStore(n.ctx).IncTransitions()
 	metrics.SetPTransformState(n.ctx, metrics.ProcessBundle)
 
 	return n.processMainInput(&MainInput{Key: *elm, Values: values})
@@ -209,8 +206,6 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	n.inv.Reset()
 
 	// set current state for execution time metrics
-	// metrics.GetExecutionStore(n.ctx).SetState(metrics.FinishBundle)
-	// metrics.GetExecutionStore(n.ctx).IncTransitions()
 	metrics.SetPTransformState(n.ctx, metrics.FinishBundle)
 
 	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {

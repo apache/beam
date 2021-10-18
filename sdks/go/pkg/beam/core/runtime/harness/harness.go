@@ -318,7 +318,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 		// Start the sampler goroutine here
 		sampler := newSampler(ctx, store)
-		sampler.start(ctx, time.Millisecond*200)
+		go sampler.start(ctx, time.Millisecond*200)
 
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)

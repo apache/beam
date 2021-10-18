@@ -159,19 +159,20 @@ func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, m
 				})
 
 		},
-		MsecsInt64: func(l metrics.Labels, stateRegistry [4]*metrics.ExecutionState) {
+		MsecsInt64: func(l string, stateRegistry [4]*metrics.ExecutionState) {
+			label := map[string]string{"PTRANSFORM": l}
 			for i, state := range stateRegistry {
 				payload, err := metricsx.Int64Counter(int64(state.TotalTime) / int64(time.Millisecond))
 				if err != nil {
 					panic(err)
 				}
-				payloads[getShortID(l, metricsx.ExecutionMsecUrn(i))] = payload
-
+				payloads[l] = payload
+				urn := metricsx.ExecutionMsecUrn(i)
 				monitoringInfo = append(monitoringInfo,
 					&pipepb.MonitoringInfo{
-						Urn:     metricsx.UrnToString(metricsx.ExecutionMsecUrn(i)),
-						Type:    metricsx.UrnToType(metricsx.ExecutionMsecUrn(i)),
-						Labels:  l.Map(),
+						Urn:     metricsx.UrnToString(urn),
+						Type:    metricsx.UrnToType(urn),
+						Labels:  label,
 						Payload: payload,
 					})
 			}

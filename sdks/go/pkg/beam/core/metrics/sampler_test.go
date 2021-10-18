@@ -21,13 +21,24 @@ import (
 	"time"
 )
 
-func checkStateTime(t *testing.T, r map[Labels][4]*ExecutionState, label Labels, sb, pb, fb, tb time.Duration) {
+func checkStateTime(t *testing.T, s StateSampler, label string, sb, pb, fb, tb time.Duration) {
+	t.Helper()
+	r := s.store.GetRegistry()
 	v := r[label]
 	if v[StartBundle].TotalTime != sb || v[ProcessBundle].TotalTime != pb || v[FinishBundle].TotalTime != fb || v[TotalBundle].TotalTime != tb {
-		t.Errorf("want start: %v, process:%v, finish:%v, total:%v; got: start: %v, process:%v, finish:%v, total:%v",
-			sb, pb, fb, tb, v[StartBundle].TotalTime, v[ProcessBundle].TotalTime, v[FinishBundle].TotalTime, v[TotalBundle].TotalTime)
+		t.Errorf("got: start: %v, process:%v, finish:%v, total:%v; want start: %v, process:%v, finish:%v, total:%v",
+			v[StartBundle].TotalTime, v[ProcessBundle].TotalTime, v[FinishBundle].TotalTime, v[TotalBundle].TotalTime, sb, pb, fb, tb)
 	}
 }
+
+func checkBundleState(ctx context.Context, t *testing.T, transitions int64, millisSinceLastTransition time.Duration) {
+	t.Helper()
+	e := getExecStoreData(ctx)
+	if e.NumberOfTransitions != transitions || e.MillisSinceLastTransition != millisSinceLastTransition {
+		t.Errorf("number of transitions: %v, want %v \nmillis since last transition: %vms, want %vms", e.NumberOfTransitions, transitions, e.MillisSinceLastTransition, millisSinceLastTransition)
+	}
+}
+
 func TestSampler(t *testing.T) {
 	ctx := context.Background()
 	bctx := SetBundleID(ctx, "test")
@@ -36,52 +47,87 @@ func TestSampler(t *testing.T) {
 	s := NewSampler(bctx, st)
 
 	pctx := SetPTransformID(bctx, "transform")
-	label := PTransformLabels("transform")
+	label := "transform"
 
 	SetPTransformState(pctx, StartBundle)
-	s.Sample(pctx, 200*time.Millisecond)
+	s.Sample(bctx, 200*time.Millisecond)
 
 	// validate states and their time till now
-	r := s.store.GetRegistry()
-	checkStateTime(t, r, label, 200*time.Millisecond, 0, 0, 200*time.Millisecond)
-	g := s.store.GetExecutionStore()[label]
-	if g.numberOfTransitions != 1 {
-		t.Errorf("number of transitions: %v, want 1", g.numberOfTransitions)
-	}
+	checkStateTime(t, s, label, 200*time.Millisecond, 0, 0, 200*time.Millisecond)
+	checkBundleState(bctx, t, 1, 0)
 
 	SetPTransformState(pctx, ProcessBundle)
-	s.Sample(pctx, 200*time.Millisecond)
+	s.Sample(bctx, 200*time.Millisecond)
 	SetPTransformState(pctx, ProcessBundle)
 	SetPTransformState(pctx, ProcessBundle)
-	s.Sample(pctx, 200*time.Millisecond)
+	s.Sample(bctx, 200*time.Millisecond)
 
 	// validate states and their time till now
-	r = s.store.GetRegistry()
-	checkStateTime(t, r, label, 200*time.Millisecond, 400*time.Millisecond, 0, 600*time.Millisecond)
-	e := getExecStoreData(pctx, label)
-	if e.NumberOfTransitions != 4 || e.MillisSinceLastTransition != 0 {
-		t.Errorf("number of transitions: %v, want 4 \nmillis since last transition: %v, want 0ms", e.NumberOfTransitions, e.MillisSinceLastTransition)
-	}
+	checkStateTime(t, s, label, 200*time.Millisecond, 400*time.Millisecond, 0, 600*time.Millisecond)
+	checkBundleState(bctx, t, 4, 0)
 
-	s.Sample(pctx, 200*time.Millisecond)
-	s.Sample(pctx, 200*time.Millisecond)
-	s.Sample(pctx, 200*time.Millisecond)
+	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(bctx, 200*time.Millisecond)
 
 	// validate states and their time till now
-	r = s.store.GetRegistry()
-	checkStateTime(t, r, label, 200*time.Millisecond, 1000*time.Millisecond, 0, 1200*time.Millisecond)
-	e = getExecStoreData(pctx, label)
-	if e.NumberOfTransitions != 4 || e.MillisSinceLastTransition != 600*time.Millisecond {
-		t.Errorf("number of transitions: %v, want 4 \nmillis since last transition: %v, want 600ms", e.NumberOfTransitions, e.MillisSinceLastTransition)
-	}
+	checkStateTime(t, s, label, 200*time.Millisecond, 1000*time.Millisecond, 0, 1200*time.Millisecond)
+	checkBundleState(bctx, t, 4, 600*time.Millisecond)
 
 	SetPTransformState(pctx, FinishBundle)
-	s.Sample(pctx, 200*time.Millisecond)
+	s.Sample(bctx, 200*time.Millisecond)
 	// validate states and their time till now
-	r = s.store.GetRegistry()
-	checkStateTime(t, r, label, 200*time.Millisecond, 1000*time.Millisecond, 200*time.Millisecond, 1400*time.Millisecond)
-	e = getExecStoreData(pctx, label)
-	if e.NumberOfTransitions != 5 || e.MillisSinceLastTransition != 0 {
-		t.Errorf("number of transitions: %v, want 5 \nmillis since last transition: %v, want 0ms", e.NumberOfTransitions, e.MillisSinceLastTransition)
-	}
+	checkStateTime(t, s, label, 200*time.Millisecond, 1000*time.Millisecond, 200*time.Millisecond, 1400*time.Millisecond)
+	checkBundleState(bctx, t, 5, 0)
+}
+
+func TestSampler_TwoPTransforms(t *testing.T) {
+	ctx := context.Background()
+	bctx := SetBundleID(ctx, "bundle")
+
+	st := GetStore(bctx)
+	s := NewSampler(bctx, st)
+
+	ctxA := SetPTransformID(bctx, "transformA")
+	ctxB := SetPTransformID(bctx, "transformB")
+
+	labelA := "transformA"
+	labelB := "transformB"
+
+	SetPTransformState(ctxA, ProcessBundle)
+	s.Sample(bctx, 200*time.Millisecond)
+
+	// validate states and their time till now
+	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 0, 200*time.Millisecond)
+	checkStateTime(t, s, labelB, 0, 0, 0, 0)
+	checkBundleState(bctx, t, 1, 0)
+
+	SetPTransformState(ctxB, ProcessBundle)
+	s.Sample(bctx, 200*time.Millisecond)
+	SetPTransformState(ctxA, ProcessBundle)
+	SetPTransformState(ctxB, ProcessBundle)
+	s.Sample(bctx, 200*time.Millisecond)
+
+	// validate states and their time till now
+	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 0, 200*time.Millisecond)
+	checkStateTime(t, s, labelB, 0, 400*time.Millisecond, 0, 400*time.Millisecond)
+	checkBundleState(bctx, t, 4, 0)
+
+	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(bctx, 200*time.Millisecond)
+
+	// validate states and their time till now
+	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 0, 200*time.Millisecond)
+	checkStateTime(t, s, labelB, 0, 1000*time.Millisecond, 0, 1000*time.Millisecond)
+	checkBundleState(bctx, t, 4, 600*time.Millisecond)
+
+	SetPTransformState(ctxA, FinishBundle)
+	s.Sample(bctx, 200*time.Millisecond)
+	SetPTransformState(ctxB, FinishBundle)
+
+	// validate states and their time till now
+	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 200*time.Millisecond, 400*time.Millisecond)
+	checkStateTime(t, s, labelB, 0, 1000*time.Millisecond, 0, 1000*time.Millisecond)
+	checkBundleState(bctx, t, 6, 0)
 }

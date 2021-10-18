@@ -37,12 +37,11 @@ func (s *stateSampler) start(ctx context.Context, t time.Duration) {
 		case <-s.done:
 			return
 		default:
-			go s.sampler.Start(ctx, t)
+			s.sampler.Sample(ctx, t)
 		}
 	}
 }
 
 func (s *stateSampler) stop(ctx context.Context) {
-	s.sampler.Stop(ctx)
 	s.done <- 1
 }

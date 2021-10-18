@@ -30,60 +30,23 @@ func NewSampler(ctx context.Context, store *Store) StateSampler {
 	return StateSampler{store: store}
 }
 
-func initialize() [4]*ExecutionState {
-	var v [4]*ExecutionState
-	for i := 0; i < 4; i++ {
-		v[i] = &ExecutionState{}
-	}
-	return v
-}
-
 func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
-	ps := loadPTransformState(ctx)
-	pid := PTransformLabels(ps.pid)
-
+	ps := loadCurrentState(ctx)
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
 
-	if _, ok := s.store.stateRegistry[pid]; !ok {
-		s.store.stateRegistry[pid] = initialize()
-	}
-	if v, ok := s.store.stateRegistry[pid]; ok {
-		v[ps.state].TotalTime += t
-		v[TotalBundle].TotalTime += t
-	}
+	v := s.store.stateRegistry[ps.pid]
+	v[ps.state].TotalTime += t
+	v[TotalBundle].TotalTime += t
 
-	if _, ok := s.store.executionStore[pid]; !ok {
-		s.store.executionStore[pid] = &executionTracker{}
-	}
-	if v, ok := s.store.executionStore[pid]; ok {
+	e := s.store.executionStore
 
-		if v.transitionsAtLastSample != ps.transitions {
-			// state change
-			v.millisSinceLastTransition = 0
-			v.numberOfTransitions = ps.transitions
-			v.transitionsAtLastSample = ps.transitions
-		} else {
-			v.millisSinceLastTransition += t
-		}
-	}
-}
-
-// Start is called from the harness package repeatedly whenever required
-func (s *StateSampler) Start(ctx context.Context, t time.Duration) {
-	s.Sample(ctx, t)
-}
-
-func (s *StateSampler) Stop(ctx context.Context) {
-	ps := loadPTransformState(ctx)
-	pid := PTransformLabels(ps.pid)
-
-	s.store.mu.Lock()
-	defer s.store.mu.Unlock()
-	if t := s.store.executionStore[pid].millisSinceLastTransition; t != 0 {
-		if v, ok := s.store.stateRegistry[pid]; ok {
-			v[ps.state].TotalTime += t
-			v[TotalBundle].TotalTime += t
-		}
+	if e.transitionsAtLastSample != ps.transitions {
+		// state change detected
+		e.millisSinceLastTransition = 0
+		e.numberOfTransitions = ps.transitions
+		e.transitionsAtLastSample = ps.transitions
+	} else {
+		e.millisSinceLastTransition += t
 	}
 }

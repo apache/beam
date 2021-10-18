@@ -81,7 +81,6 @@ type beamCtx struct {
 	store                  *Store
 	cs                     *ptCounterSet
 	pStore                 atomic.Value // stores ptransform data (PTransformState)
-	transitions            int64        // stores number of ptransform state changes
 }
 
 // Value implements the Context interface Value method for beamCtx.
@@ -141,6 +140,9 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 	// Checking for *beamCtx is an optimization, so we don't dig deeply
 	// for ids if not necessary.
 	if bctx, ok := ctx.(*beamCtx); ok {
+		if _, ok := bctx.store.stateRegistry[id]; !ok {
+			bctx.store.stateRegistry[id] = [4]*ExecutionState{&ExecutionState{}, &ExecutionState{}, &ExecutionState{}, &ExecutionState{}}
+		}
 		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, store: bctx.store, ptransformID: id}
 	}
 	// Avoid breaking if the bundle is unset in testing.
@@ -184,6 +186,7 @@ const (
 	kindSumCounter
 	kindDistribution
 	kindGauge
+	kindMsec
 )
 
 func (t kind) String() string {
@@ -194,6 +197,8 @@ func (t kind) String() string {
 		return "Distribution"
 	case kindGauge:
 		return "Gauge"
+	case kindMsec:
+		return "kindMsec"
 	default:
 		panic(fmt.Sprintf("Unknown metric type value: %v", uint8(t)))
 	}
@@ -466,6 +471,18 @@ type GaugeValue struct {
 	Timestamp time.Time
 }
 
+type executionState struct {
+	value [4]*ExecutionState
+}
+
+func (m *executionState) String() string {
+	return fmt.Sprintf("value: %v", m.value)
+}
+
+func (m *executionState) kind() kind {
+	return kindMsec
+}
+
 // Results represents all metrics gathered during the job's execution.
 // It allows for querying metrics using a provided filter.
 type Results struct {
@@ -662,6 +679,9 @@ func ResultsExtractor(ctx context.Context) Results {
 		},
 		GaugeInt64: func(l Labels, v int64, t time.Time) {
 			m[l] = &gauge{v: v, t: t}
+		},
+		MsecsInt64: func(labels string, stateRegistry [4]*ExecutionState) {
+			m[PTransformLabels(labels)] = &executionState{value: stateRegistry}
 		},
 	}
 	e.ExtractFrom(store)
