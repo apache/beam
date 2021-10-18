@@ -29,7 +29,7 @@ python -m apache_beam.examples.bitcoin \
 import argparse
 import logging
 
-from avro.schema import Parse
+from fastavro.schema import parse_schema
 
 import apache_beam as beam
 from apache_beam.io.avroio import ReadFromAvro
@@ -84,8 +84,7 @@ class BitcoinTxnCountDoFn(beam.DoFn):
     }]
 
 
-SCHEMA = Parse(
-    '''
+SCHEMA = parse_schema(
   {
     "namespace": "example.avro",
     "type": "record",
@@ -99,8 +98,7 @@ SCHEMA = Parse(
       {"name": "num_outputs", "type": "int"},
       {"name": "sum_output", "type": "long"}
     ]
-  }
-  ''')
+  })
 
 
 def run(argv=None):
@@ -140,7 +138,7 @@ def run(argv=None):
 
   # Read the avro file[pattern] into a PCollection.
   records = \
-      p | 'read' >> ReadFromAvro(opts.input, use_fastavro=opts.use_fastavro)
+      p | 'read' >> ReadFromAvro(opts.input)
 
   measured = records | 'scan' >> beam.ParDo(BitcoinTxnCountDoFn())
 
@@ -150,7 +148,6 @@ def run(argv=None):
           opts.output,
           schema=SCHEMA,
           codec=('deflate' if opts.compress else 'null'),
-          use_fastavro=opts.use_fastavro
       )
 
   result = p.run()

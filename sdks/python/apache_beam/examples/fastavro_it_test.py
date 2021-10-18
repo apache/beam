@@ -51,7 +51,6 @@ import unittest
 import uuid
 
 import pytest
-from avro.schema import Parse
 from fastavro import parse_schema
 
 from apache_beam.io.avroio import ReadAllFromAvro
@@ -124,23 +123,22 @@ class FastavroIT(unittest.TestCase):
         | 'create-records' >> Map(record)
 
     fastavro_output = '/'.join([self.output, 'fastavro'])
-    avro_output = '/'.join([self.output, 'avro'])
+    # avro_output = '/'.join([self.output, 'avro'])
 
     # pylint: disable=expression-not-assigned
     records_pcoll \
     | 'write_fastavro' >> WriteToAvro(
         fastavro_output,
         parse_schema(json.loads(self.SCHEMA_STRING)),
-        use_fastavro=True
     )
 
-    # pylint: disable=expression-not-assigned
-    records_pcoll \
-    | 'write_avro' >> WriteToAvro(
-        avro_output,
-        Parse(self.SCHEMA_STRING),
-        use_fastavro=False
-    )
+    # # pylint: disable=expression-not-assigned
+    # records_pcoll \
+    # | 'write_avro' >> WriteToAvro(
+    #     avro_output,
+    #     Parse(self.SCHEMA_STRING),
+    #     use_fastavro=False
+    # )
 
     result = self.test_pipeline.run()
     result.wait_until_finish()
@@ -151,14 +149,14 @@ class FastavroIT(unittest.TestCase):
       fastavro_records = \
           fastavro_read_pipeline \
           | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
-          | 'read-fastavro' >> ReadAllFromAvro(use_fastavro=True) \
+          | 'read-fastavro' >> ReadAllFromAvro() \
           | Map(lambda rec: (rec['number'], rec))
 
-      avro_records = \
-          fastavro_read_pipeline \
-          | 'create-avro' >> Create(['%s*' % avro_output]) \
-          | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
-          | Map(lambda rec: (rec['number'], rec))
+      # avro_records = \
+      #     fastavro_read_pipeline \
+      #     | 'create-avro' >> Create(['%s*' % avro_output]) \
+      #     | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
+      #     | Map(lambda rec: (rec['number'], rec))
 
       def check(elem):
         v = elem[1]
@@ -175,7 +173,6 @@ class FastavroIT(unittest.TestCase):
 
       # pylint: disable=expression-not-assigned
       {
-          'avro': avro_records,
           'fastavro': fastavro_records
       } \
       | CoGroupByKey() \
