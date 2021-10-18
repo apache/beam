@@ -181,7 +181,6 @@ type executionTracker struct {
 func SetPTransformState(ctx context.Context, state bundleProcState) {
 	if bctx, ok := ctx.(*beamCtx); ok {
 		pid := bctx.ptransformID
-		fmt.Printf("\n pid: %v", pid)
 		bctx.store.mu.Lock()
 		bctx.store.executionStore.pid = pid
 		bctx.store.executionStore.currentState = state
@@ -198,7 +197,6 @@ type CurrentStateVal struct {
 
 func loadCurrentState(ctx context.Context) CurrentStateVal {
 	if bctx, ok := ctx.(*beamCtx); ok {
-		// ps := bctx.pStore.Load().(*pTransformState)
 		bctx.store.mu.Lock()
 		pid := bctx.store.executionStore.pid
 
