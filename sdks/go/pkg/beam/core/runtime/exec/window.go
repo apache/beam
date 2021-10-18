@@ -112,6 +112,7 @@ func (f *windowMapper) MapWindow(w typex.Window) (typex.Window, error) {
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("failed to map main input window to side input window with WindowFn %v", f.wfn.String())
 	}
-	// Return latest candidate window in terms of event time
-	return candidates[len(candidates)-1], nil
+	// Return latest candidate window in terms of event time (only relevant for sliding windows)
+	// Sliding windows append the latest window first in assignWindows.
+	return candidates[0], nil
 }

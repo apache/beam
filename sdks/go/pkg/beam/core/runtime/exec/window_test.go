@@ -113,3 +113,47 @@ func TestAssignWindow(t *testing.T) {
 		}
 	}
 }
+
+func TestMapWindow(t *testing.T) {
+	tests := []struct {
+		name     string
+		wfn      *window.Fn
+		in       typex.Window
+		expected typex.Window
+	}{
+		{
+			"interval to global",
+			window.NewGlobalWindows(),
+			window.IntervalWindow{Start: 0, End: 1000},
+			window.GlobalWindow{},
+		},
+		{
+			"global to global",
+			window.NewGlobalWindows(),
+			window.GlobalWindow{},
+			window.GlobalWindow{},
+		},
+		{
+			"interval to interval",
+			window.NewFixedWindows(1000 * time.Millisecond),
+			window.IntervalWindow{Start: 0, End: 100},
+			window.IntervalWindow{Start: 0, End: 1000},
+		},
+		{
+			"interval to sliding",
+			window.NewSlidingWindows(500*time.Millisecond, 1000*time.Millisecond),
+			window.IntervalWindow{Start: 0, End: 600},
+			window.IntervalWindow{Start: 500, End: 1500},
+		},
+	}
+	for _, test := range tests {
+		mapper := &windowMapper{wfn: test.wfn}
+		outputWin, err := mapper.MapWindow(test.in)
+		if err != nil {
+			t.Fatalf("MapWindow for test %v failed, got %v", test.name, err)
+		}
+		if !outputWin.Equals(test.expected) {
+			t.Errorf("expected window %v, got %v", test.expected, outputWin)
+		}
+	}
+}
