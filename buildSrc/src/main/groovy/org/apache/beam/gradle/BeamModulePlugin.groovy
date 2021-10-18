@@ -452,7 +452,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def errorprone_version = "2.3.4"
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.2"
-    def google_cloud_pubsublite_version = "1.0.4"
+    def google_cloud_pubsublite_version = "1.2.0"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -526,6 +526,7 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
+        checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.15",
         commons_compress                            : "org.apache.commons:commons-compress:1.21",
@@ -1105,24 +1106,18 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
         options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
         options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:AssignmentToMock:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:AnnotateFormatMethod:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:AutoValueFinalMethods:OFF")
         options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:BadImport:OFF")
         options.errorprone.errorproneArgs.add("-Xep:BadInstanceof:OFF")
         options.errorprone.errorproneArgs.add("-Xep:BigDecimalEquals:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:BigDecimalLiteralDouble:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ComparableType:OFF")
         options.errorprone.errorproneArgs.add("-Xep:CompareToZero:OFF")
         options.errorprone.errorproneArgs.add("-Xep:EqualsGetClass:OFF")
         options.errorprone.errorproneArgs.add("-Xep:EqualsUnsafeCast:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ExtendsAutoValue:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:JodaDurationConstructor:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:FloatingPointAssertionWithinEpsilon:OFF")
         options.errorprone.errorproneArgs.add("-Xep:JavaTimeDefaultTimeZone:OFF")
         options.errorprone.errorproneArgs.add("-Xep:JodaPlusMinusLong:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:JodaToSelf:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:MathAbsoluteRandom:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:LockNotBeforeTry:OFF")
         options.errorprone.errorproneArgs.add("-Xep:MixedMutabilityReturnType:OFF")
         options.errorprone.errorproneArgs.add("-Xep:SameNameButDifferent:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ThreadPriorityCheck:OFF")
@@ -1130,9 +1125,8 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnnecessaryAnonymousClass:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UnusedMethod:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnusedVariable:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UnnecessaryParentheses:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UnusedNestedClass:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
       }
 
@@ -1278,6 +1272,18 @@ class BeamModulePlugin implements Plugin<Project> {
         project.dependencies {
           jmhAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:$jmh_version"
           jmhCompile "org.openjdk.jmh:jmh-core:$jmh_version"
+        }
+
+        project.compileJmhJava {
+          // Always exclude checkerframework on JMH generated code. It's slow,
+          // and it often raises erroneous error because we don't have checker
+          // annotations for generated code and test libraries.
+          //
+          // Consider re-enabling if we can get annotations for the generated
+          // code and test libraries we use.
+          checkerFramework {
+            skipCheckerFramework = true
+          }
         }
 
         project.task("jmh", type: JavaExec, dependsOn: project.jmhClasses, {
@@ -2107,10 +2113,12 @@ class BeamModulePlugin implements Plugin<Project> {
       def javaPort = getRandomPort()
       def pythonPort = getRandomPort()
       def expansionJar = project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
+      def javaClassLookupAllowlistFile = project.project(":sdks:java:testing:expansion-service").projectDir.getPath() + "/src/test/resources/test_expansion_service_allowlist.yaml"
       def expansionServiceOpts = [
         "group_id": project.name,
         "java_expansion_service_jar": expansionJar,
         "java_port": javaPort,
+        "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
         "python_virtualenv_dir": envDir,
         "python_expansion_service_module": "apache_beam.runners.portability.expansion_service_test",
         "python_port": pythonPort
@@ -2191,6 +2199,7 @@ class BeamModulePlugin implements Plugin<Project> {
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Python SDK"
           environment "EXPANSION_JAR", expansionJar
           environment "EXPANSION_PORT", port
+          environment "EXPANSION_SERVICE_TYPE", sdk
           executable 'sh'
           args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           dependsOn setupTask

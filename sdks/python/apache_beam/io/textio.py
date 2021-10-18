@@ -99,7 +99,8 @@ class _TextSource(filebasedsource.FileBasedSource):
                buffer_size=DEFAULT_READ_BUFFER_SIZE,
                validate=True,
                skip_header_lines=0,
-               header_processor_fns=(None, None)):
+               header_processor_fns=(None, None),
+               delimiter=b'\n'):
     """Initialize a _TextSource
 
     Args:
@@ -137,6 +138,7 @@ class _TextSource(filebasedsource.FileBasedSource):
           'lines might significantly slow down processing.')
     self._skip_header_lines = skip_header_lines
     self._header_matcher, self._header_processor = header_processor_fns
+    self._delimiter = delimiter
 
   def display_data(self):
     parent_dd = super().display_data()
@@ -236,32 +238,35 @@ class _TextSource(filebasedsource.FileBasedSource):
   def _find_separator_bounds(self, file_to_read, read_buffer):
     # Determines the start and end positions within 'read_buffer.data' of the
     # next separator starting from position 'read_buffer.position'.
-    # Currently supports following separators.
-    # * '\n'
-    # * '\r\n'
+    # Use the custom delimiter to be used in place of
+    # the default ones ('\r', '\n' or '\r\n')'
     # This method may increase the size of buffer but it will not decrease the
     # size of it.
 
     current_pos = read_buffer.position
 
+    delimiter_len = len(self._delimiter)
+
     while True:
       if current_pos >= len(read_buffer.data):
-        # Ensuring that there are enough bytes to determine if there is a '\n'
+        # Ensuring that there are enough bytes to determine
         # at current_pos.
         if not self._try_to_ensure_num_bytes_in_buffer(
-            file_to_read, read_buffer, current_pos + 1):
+            file_to_read, read_buffer, current_pos + delimiter_len):
           return
 
-      # Using find() here is more efficient than a linear scan of the byte
-      # array.
-      next_lf = read_buffer.data.find(b'\n', current_pos)
+      # Using find() here is more efficient than a linear scan
+      # of the byte array.
+      next_lf = read_buffer.data.find(self._delimiter, current_pos)
+
       if next_lf >= 0:
-        if next_lf > 0 and read_buffer.data[next_lf - 1:next_lf] == b'\r':
+        if self._delimiter == b'\n' and read_buffer.data[next_lf -
+                                                         1:next_lf] == b'\r':
           # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
         else:
-          # Found a '\n'. Accepting that as the next separator.
-          return (next_lf, next_lf + 1)
+          # Found a delimiter. Accepting that as the next separator.
+          return (next_lf, next_lf + delimiter_len)
 
       current_pos = len(read_buffer.data)
 
@@ -520,7 +525,8 @@ class ReadFromText(PTransform):
   files.
 
   Parses a text file as newline-delimited elements, by default assuming
-  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``.
+  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``
+  or specified delimiter .
 
   This implementation only supports reading text encoded using ``UTF-8`` or
   ``ASCII``.
@@ -538,6 +544,7 @@ class ReadFromText(PTransform):
       coder=coders.StrUtf8Coder(),  # type: coders.Coder
       validate=True,
       skip_header_lines=0,
+      delimiter=b'\n',
       **kwargs):
     """Initialize the :class:`ReadFromText` transform.
 
@@ -561,6 +568,7 @@ class ReadFromText(PTransform):
         skipped from each source file. Must be 0 or higher. Large number of
         skipped lines might impact performance.
       coder (~apache_beam.coders.coders.Coder): Coder used to decode each line.
+      delimiter (bytes): delimiter to split records
     """
 
     super().__init__(**kwargs)
@@ -571,7 +579,8 @@ class ReadFromText(PTransform):
         strip_trailing_newlines,
         coder,
         validate=validate,
-        skip_header_lines=skip_header_lines)
+        skip_header_lines=skip_header_lines,
+        delimiter=delimiter)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
