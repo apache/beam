@@ -35,18 +35,19 @@ func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
 
-	v := s.store.stateRegistry[ps.pid]
-	v[ps.state].TotalTime += t
-	v[TotalBundle].TotalTime += t
+	if v, ok := s.store.stateRegistry[ps.pid]; ok {
+		v[ps.state].TotalTime += t
+		v[TotalBundle].TotalTime += t
 
-	e := s.store.executionStore
+		e := s.store.executionStore
 
-	if e.transitionsAtLastSample != ps.transitions {
-		// state change detected
-		e.millisSinceLastTransition = 0
-		e.numberOfTransitions = ps.transitions
-		e.transitionsAtLastSample = ps.transitions
-	} else {
-		e.millisSinceLastTransition += t
+		if e.transitionsAtLastSample != ps.transitions {
+			// state change detected
+			e.millisSinceLastTransition = 0
+			e.numberOfTransitions = ps.transitions
+			e.transitionsAtLastSample = ps.transitions
+		} else {
+			e.millisSinceLastTransition += t
+		}
 	}
 }
