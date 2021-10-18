@@ -24,6 +24,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.zetasketch.HllCount.Init.Builder;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -97,6 +98,10 @@ public class ApproximateCountDistinct {
     return new AutoValue_ApproximateCountDistinct_PerKey.Builder<K, V>()
         .setPrecision(HllCount.DEFAULT_PRECISION)
         .build();
+  }
+
+  public static <T> Combine.CombineFn<T, ?, byte[]> getUdaf(TypeDescriptor<T> input) {
+    return ApproximateCountDistinct.<T>builderForType(input).asUdaf();
   }
 
   /////////////////////////////////////////////////////////////////////////////
