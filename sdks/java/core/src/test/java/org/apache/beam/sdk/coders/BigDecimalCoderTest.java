@@ -47,7 +47,7 @@ public class BigDecimalCoderTest {
           new BigDecimal(-1),
           BigDecimal.ZERO,
           BigDecimal.ONE,
-          new BigDecimal(13.258),
+          BigDecimal.valueOf(13.258),
           new BigDecimal(Double.MAX_VALUE),
           new BigDecimal(Double.MAX_VALUE).multiply(BigDecimal.TEN));
 
@@ -80,7 +80,7 @@ public class BigDecimalCoderTest {
           "AP8",
           "AAA",
           "AAE",
-          "MAkSTUgCATUf0ayu7f08NmBSpPU2dQ",
+          "AzPK",
           "AAD________4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
               + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
               + "AAAAAA",

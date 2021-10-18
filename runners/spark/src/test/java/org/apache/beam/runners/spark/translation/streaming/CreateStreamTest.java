@@ -500,7 +500,7 @@ public class CreateStreamTest implements Serializable {
 
   private Duration batchDuration() {
     return Duration.millis(
-        (p.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis());
+        p.getOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis());
   }
 
   private static class LifecycleDoFn extends DoFn<Integer, Integer> {
