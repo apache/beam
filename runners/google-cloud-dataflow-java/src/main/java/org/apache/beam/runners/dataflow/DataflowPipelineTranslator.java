@@ -749,8 +749,8 @@ public class DataflowPipelineTranslator {
       if ((value instanceof PCollection
               && translator.runner.doesPCollectionRequireIndexedFormat((PCollection<?>) value))
           || ((value instanceof PCollectionView)
-              && (Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
-                  ((PCollectionView) value).getViewFn().getMaterialization().getUrn())))) {
+              && Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+                  ((PCollectionView) value).getViewFn().getMaterialization().getUrn()))) {
         addBoolean(outputInfo, PropertyNames.USE_INDEXED_FORMAT, true);
       }
       if (valueCoder != null) {

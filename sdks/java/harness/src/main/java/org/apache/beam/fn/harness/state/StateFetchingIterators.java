@@ -135,7 +135,7 @@ public class StateFetchingIterators {
                           PrefetchableIterators.fromArray(stateResponse.getGet().getData())));
             }
 
-            if (ByteString.EMPTY.equals((continuationToken))) {
+            if (ByteString.EMPTY.equals(continuationToken)) {
               delegate = firstPage.iterator();
             } else {
               delegate =

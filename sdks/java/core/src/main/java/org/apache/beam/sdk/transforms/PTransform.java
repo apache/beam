@@ -27,7 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.NameUtils;
@@ -320,7 +320,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * provide their own display data.
    */
   @Override
-  public void populateDisplayData(Builder builder) {}
+  public void populateDisplayData(DisplayData.Builder builder) {}
 
   /**
    * For a {@code SerializableFunction<InputT, OutputT>} {@code fn}, returns a {@code PTransform}
