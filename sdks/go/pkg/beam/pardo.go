@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -49,7 +50,16 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	}
 
 	in := []*graph.Node{col.n}
+	inWfn := col.n.WindowingStrategy().Fn
 	for _, s := range side {
+		sideNode := s.Input.n
+		sideWfn := sideNode.WindowingStrategy().Fn
+		if sideWfn.Kind == window.Sessions {
+			return nil, fmt.Errorf("side input %v is session-windowed, which is not supported", sideNode.String())
+		}
+		if (inWfn.Kind == window.GlobalWindows) && (sideWfn.Kind != window.GlobalWindows) {
+			return nil, fmt.Errorf("main input %v is global windowed but side input %v is not, cannot map windows correctly", col.n.String(), sideNode.String())
+		}
 		in = append(in, s.Input.n)
 	}
 

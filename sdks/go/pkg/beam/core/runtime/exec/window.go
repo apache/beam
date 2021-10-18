@@ -96,3 +96,22 @@ func (w *WindowInto) Down(ctx context.Context) error {
 func (w *WindowInto) String() string {
 	return fmt.Sprintf("WindowInto[%v]. Out:%v", w.Fn, w.Out.ID())
 }
+
+// WindowMapper defines an interface maps windows from a main input window space
+// to windows from a side input window space. Used during side input materialization.
+type WindowMapper interface {
+	MapWindow(w typex.Window) (typex.Window, error)
+}
+
+type windowMapper struct {
+	wfn *window.Fn
+}
+
+func (f *windowMapper) MapWindow(w typex.Window) (typex.Window, error) {
+	candidates := assignWindows(f.wfn, w.MaxTimestamp())
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("failed to map main input window to side input window with WindowFn %v", f.wfn.String())
+	}
+	// Return latest candidate window in terms of event time
+	return candidates[len(candidates)-1], nil
+}
