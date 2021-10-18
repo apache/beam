@@ -17,6 +17,8 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
@@ -29,13 +31,41 @@ class CodeTextAreaWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<PlaygroundState>(builder: (context, state, child) {
-      return EditorTextArea(
-        key: ValueKey(EditorKeyObject(state.sdk, state.selectedExample)),
-        example: state.selectedExample,
-        sdk: state.sdk,
-        onSourceChange: state.setSource,
+      if (state.result?.errorMessage?.isNotEmpty ?? false) {
+        WidgetsBinding.instance?.addPostFrameCallback((_) {
+          _handleError(context, state);
+        });
+      }
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: EditorTextArea(
+              key: ValueKey(EditorKeyObject(state.sdk, state.selectedExample)),
+              example: state.selectedExample,
+              sdk: state.sdk,
+              onSourceChange: state.setSource,
+            ),
+          ),
+          Positioned(
+            right: kLgSpacing,
+            top: kLgSpacing,
+            width: kRunButtonWidth,
+            height: kRunButtonHeight,
+            child: RunButton(
+              isRunning: state.isCodeRunning,
+              runCode: state.runCode,
+            ),
+          ),
+        ],
       );
     });
+  }
+
+  _handleError(BuildContext context, PlaygroundState state) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(state.result?.errorMessage ?? "")),
+    );
+    state.resetError();
   }
 }
 

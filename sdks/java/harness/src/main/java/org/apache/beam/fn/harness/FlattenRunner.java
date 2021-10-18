@@ -22,24 +22,11 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.I
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import org.apache.beam.fn.harness.control.BundleSplitListener;
-import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
-import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
-import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
-import org.apache.beam.fn.harness.state.BeamFnStateClient;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.function.ThrowingRunnable;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -62,42 +49,22 @@ public class FlattenRunner<InputT> {
   /** A factory for {@link FlattenRunner}. */
   static class Factory<InputT> implements PTransformRunnerFactory<FlattenRunner<InputT>> {
     @Override
-    public FlattenRunner<InputT> createRunnerForPTransform(
-        PipelineOptions pipelineOptions,
-        BeamFnDataClient beamFnDataClient,
-        BeamFnStateClient beamFnStateClient,
-        BeamFnTimerClient beamFnTimerClient,
-        String pTransformId,
-        RunnerApi.PTransform pTransform,
-        Supplier<String> processBundleInstructionId,
-        Map<String, PCollection> pCollections,
-        Map<String, Coder> coders,
-        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        PCollectionConsumerRegistry pCollectionConsumerRegistry,
-        PTransformFunctionRegistry startFunctionRegistry,
-        PTransformFunctionRegistry finishFunctionRegistry,
-        Consumer<ThrowingRunnable> addResetFunction,
-        Consumer<ThrowingRunnable> tearDownFunctions,
-        Consumer<ProgressRequestCallback> addProgressRequestCallback,
-        BundleSplitListener splitListener,
-        BundleFinalizer bundleFinalizer)
-        throws IOException {
+    public FlattenRunner<InputT> createRunnerForPTransform(Context context) throws IOException {
 
       // Give each input a MultiplexingFnDataReceiver to all outputs of the flatten.
-      String output = getOnlyElement(pTransform.getOutputsMap().values());
-      FnDataReceiver<WindowedValue<?>> receiver =
-          pCollectionConsumerRegistry.getMultiplexingConsumer(output);
+      String output = getOnlyElement(context.getPTransform().getOutputsMap().values());
+      FnDataReceiver<WindowedValue<?>> receiver = context.getPCollectionConsumer(output);
 
       RehydratedComponents components =
-          RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
+          RehydratedComponents.forComponents(
+              Components.newBuilder().putAllCoders(context.getCoders()).build());
 
       FlattenRunner<InputT> runner = new FlattenRunner<>();
-      for (String pCollectionId : pTransform.getInputsMap().values()) {
-        pCollectionConsumerRegistry.register(
+      for (String pCollectionId : context.getPTransform().getInputsMap().values()) {
+        context.addPCollectionConsumer(
             pCollectionId,
-            pTransformId,
             (FnDataReceiver) receiver,
-            getValueCoder(components, pCollections, pCollectionId));
+            getValueCoder(components, context.getPCollections(), pCollectionId));
       }
 
       return runner;

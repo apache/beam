@@ -1286,6 +1286,18 @@ class BeamModulePlugin implements Plugin<Project> {
           jmhCompile "org.openjdk.jmh:jmh-core:$jmh_version"
         }
 
+        project.compileJmhJava {
+          // Always exclude checkerframework on JMH generated code. It's slow,
+          // and it often raises erroneous error because we don't have checker
+          // annotations for generated code and test libraries.
+          //
+          // Consider re-enabling if we can get annotations for the generated
+          // code and test libraries we use.
+          checkerFramework {
+            skipCheckerFramework = true
+          }
+        }
+
         project.task("jmh", type: JavaExec, dependsOn: project.jmhClasses, {
           main = "org.openjdk.jmh.Main"
           classpath = project.sourceSets.jmh.compileClasspath + project.sourceSets.jmh.runtimeClasspath
@@ -2113,10 +2125,12 @@ class BeamModulePlugin implements Plugin<Project> {
       def javaPort = getRandomPort()
       def pythonPort = getRandomPort()
       def expansionJar = project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
+      def javaClassLookupAllowlistFile = project.project(":sdks:java:testing:expansion-service").projectDir.getPath() + "/src/test/resources/test_expansion_service_allowlist.yaml"
       def expansionServiceOpts = [
         "group_id": project.name,
         "java_expansion_service_jar": expansionJar,
         "java_port": javaPort,
+        "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
         "python_virtualenv_dir": envDir,
         "python_expansion_service_module": "apache_beam.runners.portability.expansion_service_test",
         "python_port": pythonPort
@@ -2197,6 +2211,7 @@ class BeamModulePlugin implements Plugin<Project> {
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Python SDK"
           environment "EXPANSION_JAR", expansionJar
           environment "EXPANSION_PORT", port
+          environment "EXPANSION_SERVICE_TYPE", sdk
           executable 'sh'
           args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           dependsOn setupTask

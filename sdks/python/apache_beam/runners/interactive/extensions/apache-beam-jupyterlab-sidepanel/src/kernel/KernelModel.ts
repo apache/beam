@@ -65,7 +65,7 @@ export class KernelModel {
     value.onIOPub = this._onIOPub.bind(this);
   }
 
-  get executeResult(): object {
+  get executeResult(): Record<string, unknown> {
     if (this._executeResult) {
       const dataInPlainText = this._executeResult.data['text/plain'] as string;
       if (dataInPlainText) {
@@ -119,7 +119,7 @@ export class KernelModel {
     this.future = this._sessionContext.session?.kernel?.requestExecute({
       code: KernelCode.COMMON_KERNEL_IMPORTS + code,
       silent: !expectReply,
-      store_history: false // eslint-disable-line @typescript-eslint/camelcase
+      store_history: false
     });
   }
 
