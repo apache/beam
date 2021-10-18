@@ -1346,7 +1346,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         long position = tracker.currentRestriction().getFrom();
         boolean claimStatus;
         while (true) {
-          claimStatus = (tracker.tryClaim(position));
+          claimStatus = tracker.tryClaim(position);
           if (!claimStatus) {
             break;
           } else if (position == SPLIT_ELEMENT) {
@@ -1436,7 +1436,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         long position = tracker.currentRestriction().getFrom();
         boolean claimStatus;
         while (true) {
-          claimStatus = (tracker.tryClaim(position));
+          claimStatus = tracker.tryClaim(position);
           if (!claimStatus) {
             break;
           } else if (position == NonWindowObservingTestSplittableDoFn.SPLIT_ELEMENT) {

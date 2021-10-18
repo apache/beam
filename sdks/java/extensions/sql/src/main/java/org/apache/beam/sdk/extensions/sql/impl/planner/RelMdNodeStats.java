@@ -78,7 +78,7 @@ public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
             .filter(entry -> entry != null)
             .filter(entry -> entry.getValue() != null)
             .filter(entry -> entry.getValue() instanceof NodeStats)
-            .filter(entry -> (checkArgumentNotNull((NodeStats) entry.getValue()).isUnknown()))
+            .filter(entry -> checkArgumentNotNull((NodeStats) entry.getValue()).isUnknown())
             .collect(Collectors.toList());
 
     keys.forEach(cell -> mq.map.remove(cell.getRowKey(), cell.getColumnKey()));

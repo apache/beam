@@ -1594,7 +1594,7 @@ public class BigQueryServicesImplTest {
               @Override
               public RetryInfo parseBytes(byte[] serialized) {
                 try {
-                  Parser<RetryInfo> parser = (RetryInfo.newBuilder().build()).getParserForType();
+                  Parser<RetryInfo> parser = RetryInfo.newBuilder().build().getParserForType();
                   return parser.parseFrom(serialized);
                 } catch (Exception e) {
                   return null;

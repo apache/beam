@@ -123,7 +123,7 @@ public class PAssert {
   private static int assertCount = 0;
 
   private static String nextAssertionName() {
-    return "PAssert$" + (assertCount++);
+    return "PAssert$" + assertCount++;
   }
 
   // Do not instantiate.
@@ -731,7 +731,7 @@ public class PAssert {
       SerializableFunction<Iterable<T>, Void> checkerFn =
           (SerializableFunction) new MatcherCheckerFn<>(matcher);
       actual.apply(
-          "PAssert$" + (assertCount++),
+          "PAssert$" + assertCount++,
           new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
@@ -876,7 +876,7 @@ public class PAssert {
     public PCollectionSingletonIterableAssert<T> satisfies(
         SerializableFunction<Iterable<T>, Void> checkerFn) {
       actual.apply(
-          "PAssert$" + (assertCount++),
+          "PAssert$" + assertCount++,
           new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
@@ -965,7 +965,7 @@ public class PAssert {
     @Override
     public PCollectionSingletonAssert<T> satisfies(SerializableFunction<T, Void> checkerFn) {
       actual.apply(
-          "PAssert$" + (assertCount++),
+          "PAssert$" + assertCount++,
           new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
@@ -1099,7 +1099,7 @@ public class PAssert {
       actual
           .getPipeline()
           .apply(
-              "PAssert$" + (assertCount++),
+              "PAssert$" + assertCount++,
               new OneSideInputAssert<>(
                   CreateActual.from(actual, rewindowActuals, paneExtractor, view),
                   rewindowActuals.windowDummy(),

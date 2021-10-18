@@ -56,7 +56,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
@@ -960,7 +959,7 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    public CompletableFuture<StateResponse> handle(Builder requestBuilder) {
+    public CompletableFuture<StateResponse> handle(BeamFnApi.StateRequest.Builder requestBuilder) {
       throw new IllegalStateException(
           String.format(
               "State API calls are unsupported because the "

@@ -117,7 +117,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
         // Invalidate last page of cached values (entry with a blank continuation token response)
         Map<StateCacheKey, StateGetResponse> map = stateCache.getUnchecked(stateKey);
         map.entrySet()
-            .removeIf(entry -> (entry.getValue().getContinuationToken().equals(ByteString.EMPTY)));
+            .removeIf(entry -> entry.getValue().getContinuationToken().equals(ByteString.EMPTY));
         return response;
 
       case CLEAR:

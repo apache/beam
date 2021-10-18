@@ -84,6 +84,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   private abstract static class SomeRestrictionCoder extends StructuredCoder<SomeRestriction> {}
 
   @Test
+  @SuppressWarnings("unused")
   public void testReturnsProcessContinuation() throws Exception {
     DoFnSignature.ProcessElementMethod signature =
         analyzeProcessElementMethod(
@@ -98,6 +99,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
+  @SuppressWarnings("unused")
   public void testHasRestrictionTracker() throws Exception {
     DoFnSignature.ProcessElementMethod signature =
         analyzeProcessElementMethod(
@@ -116,6 +118,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
+  @SuppressWarnings("unused")
   public void testSplittableProcessElementMustNotHaveUnsupportedParams() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Illegal parameter");
@@ -939,6 +942,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
+  @SuppressWarnings("unused")
   public void testSplitRestrictionWrongArgumentType() throws Exception {
     thrown.expectMessage("Object is not a valid context parameter.");
     DoFnSignatures.analyzeSplitRestrictionMethod(
@@ -1041,6 +1045,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
+  @SuppressWarnings("unused")
   public void testTruncateRestrictionWrongArgumentType() throws Exception {
     thrown.expectMessage("Object is not a valid context parameter.");
     DoFnSignatures.analyzeTruncateRestrictionMethod(
@@ -1160,6 +1165,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
+  @SuppressWarnings("unused")
   public void testNewTrackerWrongArgumentType() throws Exception {
     thrown.expectMessage("Object is not a valid context parameter.");
     DoFnSignatures.analyzeNewTrackerMethod(
@@ -1178,6 +1184,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
+  @SuppressWarnings("unused")
   public void testNewTrackerInconsistent() throws Exception {
     thrown.expectMessage(
         "Returns SomeRestrictionTracker, "
