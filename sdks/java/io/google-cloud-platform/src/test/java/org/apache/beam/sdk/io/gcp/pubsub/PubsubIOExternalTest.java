@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
@@ -27,8 +26,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.BooleanCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -43,7 +40,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.hamcrest.text.MatchesPattern;
 import org.junit.Test;
@@ -188,25 +184,6 @@ public class PubsubIOExternalTest {
 
     assertThat(topicActual == null ? null : String.valueOf(topicActual), Matchers.is(topic));
     assertThat(idAttributeActual, Matchers.is(idAttribute));
-  }
-
-  private static byte[] encodeString(String str) throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    StringUtf8Coder.of().encode(str, baos);
-    return baos.toByteArray();
-  }
-
-  private static byte[] encodeBoolean(Boolean value) throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    BooleanCoder.of().encode(value, baos);
-    return baos.toByteArray();
-  }
-
-  private static @Nullable String getTopic(@Nullable ValueProvider<PubsubIO.PubsubTopic> value) {
-    if (value == null) {
-      return null;
-    }
-    return String.valueOf(value);
   }
 
   private static class TestStreamObserver<T> implements StreamObserver<T> {

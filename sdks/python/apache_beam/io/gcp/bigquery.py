@@ -340,7 +340,10 @@ _LOGGER = logging.getLogger(__name__)
 try:
   import google.cloud.bigquery_storage_v1 as bq_storage
 except ImportError:
-  _LOGGER.warning('ERROR: ', exc_info=True)
+  _LOGGER.info(
+      'No module named google.cloud.bigquery_storage_v1. '
+      'As a result, the ReadFromBigQuery transform *CANNOT* be '
+      'used with `method=DIRECT_READ`.')
 
 __all__ = [
     'TableRowJsonCoder',

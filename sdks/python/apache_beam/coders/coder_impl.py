@@ -31,6 +31,7 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 
 import enum
+import itertools
 import json
 import logging
 import pickle
@@ -1193,12 +1194,46 @@ class TupleSequenceCoderImpl(SequenceCoderImpl):
     return tuple(components)
 
 
+class _AbstractIterable(object):
+  """Wraps an iterable hiding methods that might not always be available."""
+  def __init__(self, contents):
+    self._contents = contents
+
+  def __iter__(self):
+    return iter(self._contents)
+
+  def __repr__(self):
+    head = [repr(e) for e in itertools.islice(self, 4)]
+    if len(head) == 4:
+      head[-1] = '...'
+    return '_AbstractIterable([%s])' % ', '.join(head)
+
+  # Mostly useful for tests.
+  def __eq__(left, right):
+    end = object()
+    for a, b in itertools.zip_longest(left, right, fillvalue=end):
+      if a != b:
+        return False
+    return True
+
+
+FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
+
+
 class IterableCoderImpl(SequenceCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for homogeneous iterable objects."""
   def _construct_from_sequence(self, components):
-    return components
+    return _AbstractIterable(components)
+
+
+class ListCoderImpl(SequenceCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for homogeneous list objects."""
+  def _construct_from_sequence(self, components):
+    return components if isinstance(components, list) else list(components)
 
 
 class PaneInfoEncoding(object):

@@ -1465,10 +1465,6 @@ class WatermarkManager<ExecutableT, CollectionT> {
       return latestSynchronizedOutputWm;
     }
 
-    private ReadWriteLock getWatermarkLock() {
-      return transformWatermarkLock;
-    }
-
     private WatermarkUpdate refresh() {
       inputWatermark.refresh();
       synchronizedProcessingInputWatermark.refresh();
