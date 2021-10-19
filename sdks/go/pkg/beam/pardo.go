@@ -55,10 +55,10 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 		sideNode := s.Input.n
 		sideWfn := sideNode.WindowingStrategy().Fn
 		if sideWfn.Kind == window.Sessions {
-			return nil, fmt.Errorf("side input %v is session-windowed, which is not supported", sideNode.String())
+			return nil, fmt.Errorf("side input %v is session-windowed, which is not supported", sideNode)
 		}
 		if (inWfn.Kind == window.GlobalWindows) && (sideWfn.Kind != window.GlobalWindows) {
-			return nil, fmt.Errorf("main input %v is global windowed but side input %v is not, cannot map windows correctly", col.n.String(), sideNode.String())
+			return nil, fmt.Errorf("main input %v is global windowed but side input %v is not, cannot map windows correctly", col.n, sideNode)
 		}
 		in = append(in, s.Input.n)
 	}
