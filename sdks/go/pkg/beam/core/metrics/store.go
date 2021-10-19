@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -169,26 +168,27 @@ type ExecutionState struct {
 	TotalTime    time.Duration
 }
 
-// executionTracker stores information about a PTransform for execution time metrics.
-type executionTracker struct {
-	numberOfTransitions       int64
-	millisSinceLastTransition time.Duration
-	transitionsAtLastSample   int64
-	currentState              bundleProcState
-	pid                       string
+// BundleState stores information about a PTransform for execution time metrics.
+type BundleState struct {
+	pid          string
+	currentState bundleProcState
+	transitions  int64
 }
 
+// SetPTransformState stores the state of PTransform in its bundle.
 func SetPTransformState(ctx context.Context, state bundleProcState) {
 	if bctx, ok := ctx.(*beamCtx); ok {
+		bctx.store.bu.Lock()
+		defer bctx.store.bu.Unlock()
+
 		pid := bctx.ptransformID
-		bctx.store.mu.Lock()
-		bctx.store.executionStore.pid = pid
-		bctx.store.executionStore.currentState = state
-		bctx.store.mu.Unlock()
-		atomic.AddInt64(&bctx.store.executionStore.numberOfTransitions, 1)
+		bctx.store.bundleState.pid = pid
+		bctx.store.bundleState.currentState = state
+		bctx.store.bundleState.transitions += 1
 	}
 }
 
+// CurrentStateVal exports the current state of a bundle wrt PTransform.
 type CurrentStateVal struct {
 	pid         string
 	state       bundleProcState
@@ -197,12 +197,11 @@ type CurrentStateVal struct {
 
 func loadCurrentState(ctx context.Context) CurrentStateVal {
 	if bctx, ok := ctx.(*beamCtx); ok {
-		bctx.store.mu.Lock()
-		pid := bctx.store.executionStore.pid
+		bctx.store.bu.Lock()
+		defer bctx.store.bu.Unlock()
 
-		state := bctx.store.executionStore.currentState
-		bctx.store.mu.Unlock()
-		return CurrentStateVal{pid: pid, state: state, transitions: atomic.LoadInt64(&bctx.store.executionStore.numberOfTransitions)}
+		bs := bctx.store.bundleState
+		return CurrentStateVal{pid: bs.pid, state: bs.currentState, transitions: bs.transitions}
 	}
 	panic("execution store not yet set.")
 }
@@ -212,23 +211,16 @@ type Store struct {
 	mu  sync.RWMutex
 	css []*ptCounterSet
 
-	store          map[Labels]userMetric
-	executionStore *executionTracker
+	store map[Labels]userMetric
+
+	bu          sync.RWMutex
+	bundleState BundleState
 
 	stateRegistry map[string][4]*ExecutionState
 }
 
 func newStore() *Store {
-	return &Store{store: make(map[Labels]userMetric), executionStore: &executionTracker{}, stateRegistry: make(map[string][4]*ExecutionState)}
-}
-
-// GetRegistry return the state registry.
-func (s *Store) GetRegistry() map[string][4]*ExecutionState {
-	return s.stateRegistry
-}
-
-func (s *Store) GetExecutionStore() *executionTracker {
-	return s.executionStore
+	return &Store{store: make(map[Labels]userMetric), stateRegistry: make(map[string][4]*ExecutionState)}
 }
 
 // storeMetric stores a metric away on its first use so it may be retrieved later on.
@@ -245,20 +237,4 @@ func (b *Store) storeMetric(pid string, n name, m userMetric) {
 		return
 	}
 	b.store[l] = m
-}
-
-type ExecutionStoreData struct {
-	NumberOfTransitions       int64
-	MillisSinceLastTransition time.Duration
-	TransitionsAtLastSample   int64
-}
-
-func getExecStoreData(ctx context.Context) ExecutionStoreData {
-	if bctx, ok := ctx.(*beamCtx); ok {
-		es := bctx.store.executionStore
-		return ExecutionStoreData{NumberOfTransitions: es.numberOfTransitions, MillisSinceLastTransition: es.millisSinceLastTransition, TransitionsAtLastSample: es.transitionsAtLastSample}
-	} else {
-		es := GetStore(ctx).executionStore
-		return ExecutionStoreData{NumberOfTransitions: es.numberOfTransitions, MillisSinceLastTransition: es.millisSinceLastTransition, TransitionsAtLastSample: es.transitionsAtLastSample}
-	}
 }

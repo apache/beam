@@ -69,7 +69,6 @@ type ctxKey string
 const (
 	counterSetKey ctxKey = "beam:counterset"
 	storeKey      ctxKey = "beam:bundlestore"
-	pStoreKey     ctxKey = "beam:pstore" // state of ptransform
 )
 
 // beamCtx is a caching context for IDs necessary to place metric updates.
@@ -80,7 +79,6 @@ type beamCtx struct {
 	bundleID, ptransformID string
 	store                  *Store
 	cs                     *ptCounterSet
-	pStore                 atomic.Value // stores ptransform data (PTransformState)
 }
 
 // Value implements the Context interface Value method for beamCtx.
@@ -114,8 +112,6 @@ func (ctx *beamCtx) Value(key interface{}) interface{} {
 			}
 		}
 		return ctx.store
-	case pStoreKey:
-		return &ctx.pStore
 	}
 	return ctx.Context.Value(key)
 }
@@ -186,7 +182,7 @@ const (
 	kindSumCounter
 	kindDistribution
 	kindGauge
-	kindMsec
+	DoFnMsec
 )
 
 func (t kind) String() string {
@@ -197,8 +193,8 @@ func (t kind) String() string {
 		return "Distribution"
 	case kindGauge:
 		return "Gauge"
-	case kindMsec:
-		return "kindMsec"
+	case DoFnMsec:
+		return "DoFnMsec"
 	default:
 		panic(fmt.Sprintf("Unknown metric type value: %v", uint8(t)))
 	}
@@ -480,7 +476,7 @@ func (m *executionState) String() string {
 }
 
 func (m *executionState) kind() kind {
-	return kindMsec
+	return DoFnMsec
 }
 
 // Results represents all metrics gathered during the job's execution.

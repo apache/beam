@@ -23,7 +23,7 @@ import (
 
 func checkStateTime(t *testing.T, s StateSampler, label string, sb, pb, fb, tb time.Duration) {
 	t.Helper()
-	r := s.store.GetRegistry()
+	r := s.store.stateRegistry
 	v := r[label]
 	if v[StartBundle].TotalTime != sb || v[ProcessBundle].TotalTime != pb || v[FinishBundle].TotalTime != fb || v[TotalBundle].TotalTime != tb {
 		t.Errorf("got: start: %v, process:%v, finish:%v, total:%v; want start: %v, process:%v, finish:%v, total:%v",
@@ -31,11 +31,11 @@ func checkStateTime(t *testing.T, s StateSampler, label string, sb, pb, fb, tb t
 	}
 }
 
-func checkBundleState(ctx context.Context, t *testing.T, transitions int64, millisSinceLastTransition time.Duration) {
+func checkBundleState(ctx context.Context, t *testing.T, s StateSampler, transitions int64, millisSinceLastTransition time.Duration) {
 	t.Helper()
-	e := getExecStoreData(ctx)
-	if e.NumberOfTransitions != transitions || e.MillisSinceLastTransition != millisSinceLastTransition {
-		t.Errorf("number of transitions: %v, want %v \nmillis since last transition: %vms, want %vms", e.NumberOfTransitions, transitions, e.MillisSinceLastTransition, millisSinceLastTransition)
+	e := s.store.bundleState.transitions
+	if e != transitions || s.millisSinceLastTransition != millisSinceLastTransition {
+		t.Errorf("number of transitions: %v, want %v \nmillis since last transition: %vms, want %vms", e, transitions, s.millisSinceLastTransition, millisSinceLastTransition)
 	}
 }
 
@@ -54,7 +54,7 @@ func TestSampler(t *testing.T) {
 
 	// validate states and their time till now
 	checkStateTime(t, s, label, 200*time.Millisecond, 0, 0, 200*time.Millisecond)
-	checkBundleState(bctx, t, 1, 0)
+	checkBundleState(bctx, t, s, 1, 0)
 
 	SetPTransformState(pctx, ProcessBundle)
 	s.Sample(bctx, 200*time.Millisecond)
@@ -64,7 +64,7 @@ func TestSampler(t *testing.T) {
 
 	// validate states and their time till now
 	checkStateTime(t, s, label, 200*time.Millisecond, 400*time.Millisecond, 0, 600*time.Millisecond)
-	checkBundleState(bctx, t, 4, 0)
+	checkBundleState(bctx, t, s, 4, 0)
 
 	s.Sample(bctx, 200*time.Millisecond)
 	s.Sample(bctx, 200*time.Millisecond)
@@ -72,13 +72,13 @@ func TestSampler(t *testing.T) {
 
 	// validate states and their time till now
 	checkStateTime(t, s, label, 200*time.Millisecond, 1000*time.Millisecond, 0, 1200*time.Millisecond)
-	checkBundleState(bctx, t, 4, 600*time.Millisecond)
+	checkBundleState(bctx, t, s, 4, 600*time.Millisecond)
 
 	SetPTransformState(pctx, FinishBundle)
 	s.Sample(bctx, 200*time.Millisecond)
 	// validate states and their time till now
 	checkStateTime(t, s, label, 200*time.Millisecond, 1000*time.Millisecond, 200*time.Millisecond, 1400*time.Millisecond)
-	checkBundleState(bctx, t, 5, 0)
+	checkBundleState(bctx, t, s, 5, 0)
 }
 
 func TestSampler_TwoPTransforms(t *testing.T) {
@@ -100,7 +100,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	// validate states and their time till now
 	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 0, 200*time.Millisecond)
 	checkStateTime(t, s, labelB, 0, 0, 0, 0)
-	checkBundleState(bctx, t, 1, 0)
+	checkBundleState(bctx, t, s, 1, 0)
 
 	SetPTransformState(ctxB, ProcessBundle)
 	s.Sample(bctx, 200*time.Millisecond)
@@ -111,7 +111,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	// validate states and their time till now
 	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 0, 200*time.Millisecond)
 	checkStateTime(t, s, labelB, 0, 400*time.Millisecond, 0, 400*time.Millisecond)
-	checkBundleState(bctx, t, 4, 0)
+	checkBundleState(bctx, t, s, 4, 0)
 
 	s.Sample(bctx, 200*time.Millisecond)
 	s.Sample(bctx, 200*time.Millisecond)
@@ -120,7 +120,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	// validate states and their time till now
 	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 0, 200*time.Millisecond)
 	checkStateTime(t, s, labelB, 0, 1000*time.Millisecond, 0, 1000*time.Millisecond)
-	checkBundleState(bctx, t, 4, 600*time.Millisecond)
+	checkBundleState(bctx, t, s, 4, 600*time.Millisecond)
 
 	SetPTransformState(ctxA, FinishBundle)
 	s.Sample(bctx, 200*time.Millisecond)
@@ -129,5 +129,55 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	// validate states and their time till now
 	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 200*time.Millisecond, 400*time.Millisecond)
 	checkStateTime(t, s, labelB, 0, 1000*time.Millisecond, 0, 1000*time.Millisecond)
-	checkBundleState(bctx, t, 6, 0)
+	checkBundleState(bctx, t, s, 6, 0)
+}
+
+// goos: darwin
+// goarch: amd64
+// pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
+// cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+// BenchmarkSampler/SetPTransformState-12         	45385438	        25.55 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkSampler/Sampler-12                    	20327262	        58.66 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkSampler/Combined-12                   	  664899	      2183 ns/op	     573 B/op	       2 allocs/op
+func BenchmarkSampler(b *testing.B) {
+	ctx := context.Background()
+	bctx := SetBundleID(ctx, "benchmark")
+
+	st := GetStore(bctx)
+	s := NewSampler(bctx, st)
+
+	ctxA := SetPTransformID(bctx, "transformA")
+	ctxB := SetPTransformID(bctx, "transformB")
+	done := make(chan int)
+	tests := []struct {
+		name string
+		call func()
+	}{
+		{"SetPTransformState", func() { SetPTransformState(ctxA, StartBundle) }},
+		{"Sampler", func() { s.Sample(bctx, 200*time.Millisecond) }},
+		{"Combined", func() {
+			go func(done chan int, s StateSampler) {
+				for {
+					select {
+					case <-done:
+						return
+					default:
+						SetPTransformState(ctxA, ProcessBundle)
+						SetPTransformState(ctxB, ProcessBundle)
+						s.Sample(bctx, 5*time.Millisecond)
+						time.Sleep(5 * time.Millisecond)
+					}
+				}
+			}(done, s)
+
+		}},
+	}
+	for _, test := range tests {
+		b.Run(test.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				test.call()
+			}
+		})
+	}
+	done <- 1
 }

@@ -22,7 +22,9 @@ import (
 
 // StateSampler tracks the state of a bundle.
 type StateSampler struct {
-	store *Store // used to store states into state registry
+	store                     *Store // used to store states into state registry
+	millisSinceLastTransition time.Duration
+	transitionsAtLastSample   int64
 }
 
 // NewSampler creates a new state sampler.
@@ -39,15 +41,15 @@ func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
 		v[ps.state].TotalTime += t
 		v[TotalBundle].TotalTime += t
 
-		e := s.store.executionStore
+		e := s.store.bundleState
 
-		if e.transitionsAtLastSample != ps.transitions {
+		if s.transitionsAtLastSample != ps.transitions {
 			// state change detected
-			e.millisSinceLastTransition = 0
-			e.numberOfTransitions = ps.transitions
-			e.transitionsAtLastSample = ps.transitions
+			s.millisSinceLastTransition = 0
+			e.transitions = ps.transitions
+			s.transitionsAtLastSample = ps.transitions
 		} else {
-			e.millisSinceLastTransition += t
+			s.millisSinceLastTransition += t
 		}
 	}
 }
