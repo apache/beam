@@ -12,15 +12,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+package main
 
-module beam.apache.org/playground/backend
-
-go 1.16
-
-require (
-	github.com/google/uuid v1.3.0
-	github.com/improbable-eng/grpc-web v0.14.1
-	github.com/rs/cors v1.8.0
-	google.golang.org/grpc v1.41.0
-	google.golang.org/protobuf v1.27.1
+import (
+	"beam.apache.org/playground/backend/internal/environment"
+	"context"
+	"google.golang.org/grpc/grpclog"
+	"net/http"
 )
+
+// listenHttp binds the http.Handler on the TCP network address
+func listenHttp(ctx context.Context, errChan chan error, envs environment.ServerEnvs, handler http.Handler) {
+	grpclog.Infof("listening HTTP at %s\n", envs.Address())
+	if err := http.ListenAndServe(envs.Address(), handler); err != nil {
+		errChan <- err
+		return
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		}
+	}
+}
