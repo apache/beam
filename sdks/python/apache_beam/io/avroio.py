@@ -46,7 +46,6 @@ Avro file.
 import os
 from functools import partial
 
-
 from fastavro.read import block_reader
 from fastavro.write import Writer
 
@@ -64,11 +63,7 @@ __all__ = ['ReadFromAvro', 'ReadAllFromAvro', 'WriteToAvro']
 class ReadFromAvro(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading avro
   files."""
-  def __init__(
-      self,
-      file_pattern=None,
-      min_bundle_size=0,
-      validate=True):
+  def __init__(self, file_pattern=None, min_bundle_size=0, validate=True):
     """Initializes :class:`ReadFromAvro`.
 
     Uses source :class:`~apache_beam.io._AvroSource` to read a set of Avro
@@ -136,9 +131,7 @@ class ReadFromAvro(PTransform):
     """
     super().__init__()
     self._source = _create_avro_source(
-        file_pattern,
-        min_bundle_size,
-        validate=validate)
+        file_pattern, min_bundle_size, validate=validate)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
@@ -174,8 +167,7 @@ class ReadAllFromAvro(PTransform):
         the data.
     """
     source_from_file = partial(
-        _create_avro_source,
-        min_bundle_size=min_bundle_size)
+        _create_avro_source, min_bundle_size=min_bundle_size)
     self._read_all_files = filebasedsource.ReadAllFiles(
         True,
         CompressionTypes.AUTO,
@@ -214,14 +206,14 @@ class _AvroUtils(object):
         data = f.read(buf_size)
 
 
-def _create_avro_source(
-    file_pattern=None, min_bundle_size=0, validate=False):
+def _create_avro_source(file_pattern=None, min_bundle_size=0, validate=False):
   return \
       _FastAvroSource(
           file_pattern=file_pattern,
           min_bundle_size=min_bundle_size,
           validate=validate
       )
+
 
 class _FastAvroSource(filebasedsource.FileBasedSource):
   """A source for reading Avro files using the `fastavro` library.
@@ -352,7 +344,6 @@ def _create_avro_sink(
       mime_type)
 
 
-
 class _BaseAvroSink(filebasedsink.FileBasedSink):
   """A base for a sink for avro files. """
   def __init__(
@@ -382,6 +373,7 @@ class _BaseAvroSink(filebasedsink.FileBasedSink):
     res['codec'] = str(self._codec)
     res['schema'] = str(self._schema)
     return res
+
 
 class _FastAvroSink(_BaseAvroSink):
   """A sink for avro files using FastAvro. """

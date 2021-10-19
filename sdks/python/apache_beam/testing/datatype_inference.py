@@ -20,8 +20,8 @@ import array
 from collections import OrderedDict
 
 import numpy as np
-
 from fastavro import parse_schema
+
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
 
@@ -110,7 +110,6 @@ def infer_avro_schema(data):
       "fields": avro_fields
   }
   return parse_schema(schema_dict)
-
 
 
 def infer_pyarrow_schema(data):

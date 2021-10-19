@@ -84,21 +84,26 @@ class BitcoinTxnCountDoFn(beam.DoFn):
     }]
 
 
-SCHEMA = parse_schema(
-  {
+SCHEMA = parse_schema({
     "namespace": "example.avro",
     "type": "record",
     "name": "Transaction",
-    "fields": [
-      {"name": "transaction_id", "type": "string"},
-      {"name": "timestamp", "type": "long"},
-      {"name": "block_id", "type": "string"},
-      {"name": "previous_block", "type": "string"},
-      {"name": "num_inputs", "type": "int"},
-      {"name": "num_outputs", "type": "int"},
-      {"name": "sum_output", "type": "long"}
-    ]
-  })
+    "fields": [{
+        "name": "transaction_id", "type": "string"
+    }, {
+        "name": "timestamp", "type": "long"
+    }, {
+        "name": "block_id", "type": "string"
+    }, {
+        "name": "previous_block", "type": "string"
+    }, {
+        "name": "num_inputs", "type": "int"
+    }, {
+        "name": "num_outputs", "type": "int"
+    }, {
+        "name": "sum_output", "type": "long"
+    }]
+})
 
 
 def run(argv=None):

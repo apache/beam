@@ -181,13 +181,7 @@ class AvroBase(object):
   def test_sink_display_data(self):
     file_name = 'some_avro_sink'
     sink = _create_avro_sink(
-        file_name,
-        self.SCHEMA,
-        'null',
-        '.end',
-        0,
-        None,
-        'application/x-avro')
+        file_name, self.SCHEMA, 'null', '.end', 0, None, 'application/x-avro')
     dd = DisplayData.create_from(sink)
 
     expected_items = [
@@ -203,8 +197,7 @@ class AvroBase(object):
 
   def test_write_display_data(self):
     file_name = 'some_avro_sink'
-    write = avroio.WriteToAvro(
-        file_name, self.SCHEMA)
+    write = avroio.WriteToAvro(file_name, self.SCHEMA)
     dd = DisplayData.create_from(write)
     expected_items = [
         DisplayDataItemMatcher('schema', str(self.SCHEMA)),
@@ -332,17 +325,14 @@ class AvroBase(object):
       f.write(corrupted_data)
       corrupted_file_name = f.name
 
-    source = _create_avro_source(
-        corrupted_file_name)
+    source = _create_avro_source(corrupted_file_name)
     with self.assertRaisesRegex(ValueError, r'expected sync marker'):
       source_test_utils.read_from_source(source, None, None)
 
   def test_read_from_avro(self):
     path = self._write_data()
     with TestPipeline() as p:
-      assert_that(
-          p | avroio.ReadFromAvro(path),
-          equal_to(self.RECORDS))
+      assert_that(p | avroio.ReadFromAvro(path), equal_to(self.RECORDS))
 
   def test_read_all_from_avro_single_file(self):
     path = self._write_data()
@@ -429,6 +419,7 @@ class AvroBase(object):
             | avroio.ReadFromAvro(path + '*') \
             | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
 
 class TestFastAvro(AvroBase, unittest.TestCase):
   def __init__(self, methodName='runTest'):

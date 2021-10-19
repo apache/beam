@@ -13,12 +13,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-import json
+
 import logging
 import unittest
 
-import fastavro
 from fastavro.schema import parse_schema
 
 from apache_beam.io.gcp import bigquery_avro_tools
@@ -36,151 +34,50 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
     ]
 
     fields = [
-      bigquery.TableFieldSchema(
-        name="number", type="INTEGER", mode="REQUIRED"),
-      bigquery.TableFieldSchema(
-        name="species", type="STRING", mode="NULLABLE"),
-      bigquery.TableFieldSchema(
-        name="quality", type="FLOAT"),  # default to NULLABLE
-      bigquery.TableFieldSchema(
-        name="grade", type="FLOAT64"),  # default to NULLABLE
-      bigquery.TableFieldSchema(
-        name="quantity", type="INTEGER"),  # default to NULLABLE
-      bigquery.TableFieldSchema(
-        name="dependents", type="INT64"),  # default to NULLABLE
-      bigquery.TableFieldSchema(
-        name="birthday", type="TIMESTAMP", mode="NULLABLE"),
-      bigquery.TableFieldSchema(
-        name="birthdayMoney", type="NUMERIC", mode="NULLABLE"),
-      bigquery.TableFieldSchema(
-        name="flighted", type="BOOL", mode="NULLABLE"),
-      bigquery.TableFieldSchema(
-        name="flighted2", type="BOOLEAN", mode="NULLABLE"),
-      bigquery.TableFieldSchema(
-        name="sound", type="BYTES", mode="NULLABLE"),
-      bigquery.TableFieldSchema(
-        name="anniversaryDate", type="DATE", mode="NULLABLE"),
-      bigquery.TableFieldSchema(
-        name="anniversaryDatetime", type="DATETIME", mode="NULLABLE"),
-      bigquery.TableFieldSchema(
-        name="anniversaryTime", type="TIME", mode="NULLABLE"),
-      bigquery.TableFieldSchema(
-        name="scion", type="RECORD", mode="NULLABLE", fields=subfields),
-      bigquery.TableFieldSchema(
-        name="family", type="STRUCT", mode="NULLABLE", fields=subfields),
-      bigquery.TableFieldSchema(
-        name="associates", type="RECORD", mode="REPEATED", fields=subfields),
-      bigquery.TableFieldSchema(
-        name="geoPositions", type="GEOGRAPHY", mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name="number", type="INTEGER", mode="REQUIRED"),
+        bigquery.TableFieldSchema(
+            name="species", type="STRING", mode="NULLABLE"),
+        bigquery.TableFieldSchema(name="quality",
+                                  type="FLOAT"),  # default to NULLABLE
+        bigquery.TableFieldSchema(name="grade",
+                                  type="FLOAT64"),  # default to NULLABLE
+        bigquery.TableFieldSchema(name="quantity",
+                                  type="INTEGER"),  # default to NULLABLE
+        bigquery.TableFieldSchema(name="dependents",
+                                  type="INT64"),  # default to NULLABLE
+        bigquery.TableFieldSchema(
+            name="birthday", type="TIMESTAMP", mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name="birthdayMoney", type="NUMERIC", mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name="flighted", type="BOOL", mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name="flighted2", type="BOOLEAN", mode="NULLABLE"),
+        bigquery.TableFieldSchema(name="sound", type="BYTES", mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name="anniversaryDate", type="DATE", mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name="anniversaryDatetime", type="DATETIME", mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name="anniversaryTime", type="TIME", mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name="scion", type="RECORD", mode="NULLABLE", fields=subfields),
+        bigquery.TableFieldSchema(
+            name="family", type="STRUCT", mode="NULLABLE", fields=subfields),
+        bigquery.TableFieldSchema(
+            name="associates", type="RECORD", mode="REPEATED",
+            fields=subfields),
+        bigquery.TableFieldSchema(
+            name="geoPositions", type="GEOGRAPHY", mode="NULLABLE"),
     ]
 
     table_schema = bigquery.TableSchema(fields=fields)
     avro_schema = bigquery_avro_tools.get_record_schema_from_dict_table_schema(
         "root", bigquery_tools.get_dict_table_schema(table_schema))
 
-    # Test that schema can be parsed correctly by fastavro
     parsed_schema = parse_schema(avro_schema)
-
-
-    # these test cases are for the avro. Need to write test case for fastavro
-    # TODO Right test cases for parsed_schema : fasravro
-    # self.assertEqual(
-    #     parsed_schema.field_map["number"].type, parse_schema("long"))
-    # self.assertEqual(
-    #     parsed_schema.field_map["species"].type,
-    #     parse_schema(["null", "string"]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["quality"].type,
-    #     parse_schema(["null", "double"]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["grade"].type,
-    #     parse_schema(["null", "double"]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["quantity"].type,
-    #     parse_schema(["null", "long"]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["dependents"].type,
-    #     parse_schema(["null", "long"]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["birthday"].type,
-    #     parse_schema(
-    #             ["null", {
-    #                 "type": "long", "logicalType": "timestamp-micros"
-    #             }]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["birthdayMoney"].type,
-    #     parse_schema([
-    #             "null",
-    #             {
-    #                 "type": "bytes",
-    #                 "logicalType": "decimal",
-    #                 "precision": 38,
-    #                 "scale": 9
-    #             }
-    #         ]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["flighted"].type,
-    #     parse_schema(["null", "boolean"]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["flighted2"].type,
-    #     parse_schema(["null", "boolean"]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["sound"].type,
-    #     parse_schema(["null", "bytes"]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["anniversaryDate"].type,
-    #     parse_schema(["null", {
-    #         "type": "int", "logicalType": "date"
-    #     }]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["anniversaryDatetime"].type,
-    #     parse_schema(["null", "string"]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["anniversaryTime"].type,
-    #     parse_schema(["null", {
-    #             "type": "long", "logicalType": "time-micros"
-    #         }]))
-    # self.assertEqual(
-    #     parsed_schema.field_map["geoPositions"].type,
-    #     parse_schema(["null", "string"]))
-    #
-    # for field in ("scion", "family"):
-    #   self.assertEqual(
-    #       parsed_schema.field_map[field].type,
-    #       parse_schema([
-    #               "null",
-    #               {
-    #                   "type": "record",
-    #                   "name": field,
-    #                   "fields": [
-    #                       {
-    #                           "type": ["null", "string"],
-    #                           "name": "species",
-    #                       },
-    #                   ],
-    #                   "doc": "Translated Avro Schema for {}".format(field),
-    #                   "namespace": "apache_beam.io.gcp.bigquery.root.{}".format(
-    #                       field),
-    #               }
-    #           ]))
-    #
-    # self.assertEqual(
-    #     parsed_schema.field_map["associates"].type,
-    #     parse_schema({
-    #             "type": "array",
-    #             "items": {
-    #                 "type": "record",
-    #                 "name": "associates",
-    #                 "fields": [
-    #                     {
-    #                         "type": ["null", "string"],
-    #                         "name": "species",
-    #                     },
-    #                 ],
-    #                 "doc": "Translated Avro Schema for associates",
-    #                 "namespace": "apache_beam.io.gcp.bigquery.root.associates",
-    #             }
-    #         }))
+    self.assertEqual(type(parsed_schema), dict)
 
 
 if __name__ == '__main__':
