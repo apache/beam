@@ -50,6 +50,7 @@ func (lc *LocalCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey
 	lc.RLock()
 	value, found := lc.items[pipelineId][subKey]
 	if !found {
+		lc.RUnlock()
 		return nil, fmt.Errorf("value with pipelineId: %s and subKey: %s not found", pipelineId, subKey)
 	}
 	expTime := lc.pipelinesExpiration[pipelineId]
