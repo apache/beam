@@ -426,7 +426,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
         String pcollection =
             mi.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
         if ((pcollection != null)
-            && (grpcReadTransformReadWritePCollectionNames.contains(pcollection))) {
+            && grpcReadTransformReadWritePCollectionNames.contains(pcollection)) {
           result.add(mi);
         }
       }

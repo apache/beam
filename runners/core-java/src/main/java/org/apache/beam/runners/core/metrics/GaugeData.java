@@ -63,7 +63,7 @@ public abstract class GaugeData implements Serializable {
   public static class EmptyGaugeData extends GaugeData {
 
     private static final EmptyGaugeData INSTANCE = new EmptyGaugeData();
-    private static final Instant EPOCH = new Instant(GlobalWindow.TIMESTAMP_MIN_VALUE);
+    private static final Instant EPOCH = GlobalWindow.TIMESTAMP_MIN_VALUE;
 
     private EmptyGaugeData() {}
 
