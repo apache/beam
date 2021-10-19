@@ -50,7 +50,7 @@ parsers:
       macro: no
 
 fixes:
-  - "apache_beam/::sdks/python/apache_beam/"
+  - "apache_beam/::sdks/go/pkg/"
   
 github_checks:
   annotations: false
