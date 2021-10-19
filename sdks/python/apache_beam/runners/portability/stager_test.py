@@ -26,7 +26,6 @@ import shutil
 import sys
 import tempfile
 import unittest
-from urllib.parse import quote
 from typing import List
 
 import mock
