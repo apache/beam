@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
+import com.google.cloud.spanner.Options;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
@@ -121,7 +123,7 @@ abstract class BatchSpannerRead
     private List<Partition> execute(ReadOperation op, BatchReadOnlyTransaction tx) {
       // Query was selected.
       if (op.getQuery() != null) {
-        return tx.partitionQuery(op.getPartitionOptions(), op.getQuery());
+        return tx.partitionQuery(op.getPartitionOptions(), op.getQuery(), Options.priority(RpcPriority.HIGH));
       }
       // Read with index was selected.
       if (op.getIndex() != null) {
@@ -130,11 +132,12 @@ abstract class BatchSpannerRead
             op.getTable(),
             op.getIndex(),
             op.getKeySet(),
-            op.getColumns());
+            op.getColumns(),
+            Options.priority(RpcPriority.HIGH));
       }
       // Read from table was selected.
       return tx.partitionRead(
-          op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns());
+          op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns(), Options.priority(RpcPriority.HIGH));
     }
   }
 
