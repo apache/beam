@@ -97,12 +97,8 @@ func WindowSums_Lifted(s beam.Scope) {
 // ValidateWindowedSideInputs checks that side inputs have accurate windowing information when used.
 func ValidateWindowedSideInputs(s beam.Scope) {
 	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 3}}, beam.Impulse(s))
-	timestampedSide := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 3}}, beam.Impulse(s))
 
 	timestampedData = beam.DropKey(s, timestampedData)
-	timestampedSide = beam.DropKey(s, timestampedSide)
-
-	_ = timestampedSide
 
 	windowSize := 1 * time.Second
 
@@ -117,13 +113,9 @@ func ValidateWindowedSideInputs(s beam.Scope) {
 		passert.Equals(s, sums, expected...)
 	}
 
-	// This works.
 	validateSums(s.Scope("Fixed-Global"), window.NewFixedWindows(windowSize), window.NewGlobalWindows(), timestampedData, timestampedData, 7, 8, 9)
-	// So does this.
 	validateSums(s.Scope("Fixed-Same"), window.NewFixedWindows(windowSize), window.NewFixedWindows(windowSize), timestampedData, timestampedData, 2, 4, 6)
-
-	// Thise doesn't
-	validateSums(s.Scope("Fixed-Big"), window.NewFixedWindows(windowSize), window.NewFixedWindows(10*time.Second), timestampedData, timestampedSide, 7, 8, 9)
+	validateSums(s.Scope("Fixed-Big"), window.NewFixedWindows(windowSize), window.NewFixedWindows(10*time.Second), timestampedData, timestampedData, 7, 8, 9)
 }
 
 func sumSideInputs(input int, iter func(*int) bool, emit func(int)) {
