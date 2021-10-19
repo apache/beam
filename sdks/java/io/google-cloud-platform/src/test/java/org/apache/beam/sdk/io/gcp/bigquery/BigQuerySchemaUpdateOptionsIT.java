@@ -61,7 +61,7 @@ public class BigQuerySchemaUpdateOptionsIT {
       "bq_query_schema_update_options_"
           + System.currentTimeMillis()
           + "_"
-          + (new SecureRandom().nextInt(32));
+          + new SecureRandom().nextInt(32);
 
   private static final String TEST_TABLE_NAME_BASE = "test_table_";
 
@@ -97,7 +97,7 @@ public class BigQuerySchemaUpdateOptionsIT {
    */
   public String makeTestTable() throws Exception {
     String tableName =
-        TEST_TABLE_NAME_BASE + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
+        TEST_TABLE_NAME_BASE + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
 
     BQ_CLIENT.createNewTable(
         project,

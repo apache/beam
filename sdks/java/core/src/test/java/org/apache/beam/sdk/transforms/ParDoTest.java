@@ -119,7 +119,6 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.Mean.CountSum;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -470,7 +469,7 @@ public class ParDoTest implements Serializable {
             public void processElement(ProcessContext c) {}
 
             @Override
-            public void populateDisplayData(Builder builder) {
+            public void populateDisplayData(DisplayData.Builder builder) {
               builder.add(DisplayData.item("doFnMetadata", "bar"));
             }
           };
@@ -497,7 +496,7 @@ public class ParDoTest implements Serializable {
             public void proccessElement(ProcessContext c) {}
 
             @Override
-            public void populateDisplayData(Builder builder) {
+            public void populateDisplayData(DisplayData.Builder builder) {
               builder.add(DisplayData.item("fnMetadata", "foobar"));
             }
           };
@@ -1557,7 +1556,7 @@ public class ParDoTest implements Serializable {
             public void proccessElement(ProcessContext c) {}
 
             @Override
-            public void populateDisplayData(Builder builder) {
+            public void populateDisplayData(DisplayData.Builder builder) {
               builder.add(DisplayData.item("fnMetadata", "foobar"));
             }
           };
@@ -4744,10 +4743,6 @@ public class ParDoTest implements Serializable {
 
             @StateId("minStamp")
             private final StateSpec<ValueState<Instant>> minStamp = StateSpecs.value();
-
-            private Instant minInstant(Instant a, Instant b) {
-              return a.isBefore(b) ? a : b;
-            }
 
             @ProcessElement
             public void processElement(

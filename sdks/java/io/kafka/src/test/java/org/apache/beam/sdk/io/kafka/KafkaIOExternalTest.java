@@ -21,12 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfigurationPayload;
@@ -34,9 +31,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ByteArrayKafkaRecord;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read.External;
@@ -49,7 +43,6 @@ import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
@@ -353,31 +346,6 @@ public class KafkaIOExternalTest {
     assertThat(spec.getTopic(), Matchers.is(topic));
     assertThat(spec.getKeySerializer().getName(), Matchers.is(keySerializer));
     assertThat(spec.getValueSerializer().getName(), Matchers.is(valueSerializer));
-  }
-
-  private static byte[] listAsBytes(List<String> stringList) throws IOException {
-    IterableCoder<String> coder = IterableCoder.of(StringUtf8Coder.of());
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    coder.encode(stringList, baos);
-    return baos.toByteArray();
-  }
-
-  private static byte[] mapAsBytes(Map<String, String> stringMap) throws IOException {
-    IterableCoder<KV<String, String>> coder =
-        IterableCoder.of(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
-    List<KV<String, String>> stringList =
-        stringMap.entrySet().stream()
-            .map(kv -> KV.of(kv.getKey(), kv.getValue()))
-            .collect(Collectors.toList());
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    coder.encode(stringList, baos);
-    return baos.toByteArray();
-  }
-
-  private static byte[] encodeString(String str) throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    StringUtf8Coder.of().encode(str, baos);
-    return baos.toByteArray();
   }
 
   private static ExternalConfigurationPayload encodeRow(Row row) {

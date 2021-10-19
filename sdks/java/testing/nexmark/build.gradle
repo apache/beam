@@ -85,6 +85,7 @@ dependencies {
   compile library.java.joda_time
   compile library.java.slf4j_api
   compile library.java.kafka_clients
+  compileOnly library.java.error_prone_annotations
   testRuntimeClasspath library.java.slf4j_jdk14
   testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
