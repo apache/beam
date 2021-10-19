@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	projectRoot          = "backend"
 	parentBaseFileFolder = "internal"
 	fileMode             = 0600
 )
@@ -63,12 +64,12 @@ func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID) (*LifeCycle, error) {
 
 // CreateFolders creates all folders which will be used for code execution.
 func (l *LifeCycle) CreateFolders() error {
-	err := os.Chdir("../..")
+	err := setUpWorkingDir()
 	if err != nil {
 		return err
 	}
 	for _, folder := range l.folderGlobs {
-		err := os.MkdirAll(folder, fs.ModePerm)
+		err = os.MkdirAll(folder, fs.ModePerm)
 		if err != nil {
 			return err
 		}
@@ -78,8 +79,12 @@ func (l *LifeCycle) CreateFolders() error {
 
 // DeleteFolders deletes all previously provisioned folders.
 func (l *LifeCycle) DeleteFolders() error {
+	err := setUpWorkingDir()
+	if err != nil {
+		return err
+	}
 	for _, folder := range l.folderGlobs {
-		err := os.RemoveAll(folder)
+		err = os.RemoveAll(folder)
 		if err != nil {
 			return err
 		}
@@ -89,13 +94,17 @@ func (l *LifeCycle) DeleteFolders() error {
 
 // CreateExecutableFile creates an executable file (i.e. file.java for the Java SDK).
 func (l *LifeCycle) CreateExecutableFile(code string) (string, error) {
-	if _, err := os.Stat(l.Folder.ExecutableFolder); os.IsNotExist(err) {
+	err := setUpWorkingDir()
+	if err != nil {
+		return "", err
+	}
+	if _, err = os.Stat(l.Folder.ExecutableFolder); os.IsNotExist(err) {
 		return "", err
 	}
 
 	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
 	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
-	err := os.WriteFile(filePath, []byte(code), fileMode)
+	err = os.WriteFile(filePath, []byte(code), fileMode)
 	if err != nil {
 		return "", err
 	}
@@ -132,4 +141,39 @@ func (l *LifeCycle) GetExecutableName() (string, error) {
 // getFileName returns fileName by pipelineId and fileType (pipelineId.java for java SDK).
 func getFileName(pipelineId uuid.UUID, fileType string) string {
 	return fmt.Sprintf("%s.%s", pipelineId, fileType)
+}
+
+// setUpWorkingDir sets projectRoot as a working directory.
+func setUpWorkingDir() error {
+	folder, err := getWorkingDirName()
+	if err != nil {
+		return err
+	}
+
+	// go up to parent directory until working dir isn't projectRoot dir
+	for !strings.EqualFold(folder, projectRoot) {
+		err = os.Chdir("..")
+		if err != nil {
+			return err
+		}
+
+		folder, err = getWorkingDirName()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// getWorkingDirName returns the working directory's name.
+func getWorkingDirName() (string, error) {
+	path, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	folders := strings.Split(path, "/")
+	folder := folders[len(folders)-1]
+	return folder, nil
 }

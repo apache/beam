@@ -95,7 +95,7 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 				t.Errorf("CreateExecutableFile() got = %v, want %v", got, tt.want)
 			}
 		})
-		os.RemoveAll(parentBaseFileFolder)
+		os.RemoveAll(baseFileFolder)
 	}
 }
 
@@ -410,6 +410,7 @@ func TestLifeCycle_GetExecutableName(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("GetExecutableName() got = %v, want %v", got, tt.want)
 			}
+			os.RemoveAll(baseFileFolder)
 		})
 	}
 }
