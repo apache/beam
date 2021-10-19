@@ -30,7 +30,7 @@ class ExampleState with ChangeNotifier {
   }
 
   _loadCategories() {
-    categories = _exampleRepository.getCategories();
+    categories = _exampleRepository.getCategories() ?? [];
     notifyListeners();
   }
 

@@ -39,7 +39,7 @@ class CategoryBubble extends StatelessWidget {
             onTap: () {
               if (type != dropdownState.selectedFilterType) {
                 dropdownState.setSelectedFilterType(type);
-                dropdownState.sortExamplesByType(type);
+                dropdownState.sortCategories();
               }
             },
             child: Container(

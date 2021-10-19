@@ -25,18 +25,27 @@ import 'examples_state.dart';
 class ExampleDropdownState with ChangeNotifier {
   final ExampleState _exampleState;
   ExampleType _selectedFilterType;
+  String _filterText;
   List<CategoryModel> categories;
 
   ExampleDropdownState(
     this._exampleState,
     this.categories, [
     this._selectedFilterType = ExampleType.all,
+    this._filterText = '',
   ]);
 
   ExampleType get selectedFilterType => _selectedFilterType;
 
-  setSelectedFilterType(ExampleType type) async {
+  String get filterText => _filterText;
+
+  setSelectedFilterType(ExampleType type) {
     _selectedFilterType = type;
+    notifyListeners();
+  }
+
+  setFilterText(String text) {
+    _filterText = text;
     notifyListeners();
   }
 
@@ -45,46 +54,59 @@ class ExampleDropdownState with ChangeNotifier {
     notifyListeners();
   }
 
-  sortExamplesByType(ExampleType type) {
-    if (type == ExampleType.all) {
-      setCategories(_exampleState.categories!);
+  sortCategories() {
+    List<CategoryModel>? sorted;
+    if (selectedFilterType == ExampleType.all && filterText == '') {
+      sorted = _exampleState.categories!;
+    } else if (selectedFilterType != ExampleType.all && filterText == '') {
+      sorted = sortExamplesByType(
+        _exampleState.categories!,
+        selectedFilterType,
+      );
+    } else if (selectedFilterType == ExampleType.all && filterText != '') {
+      sorted = sortExamplesByName(_exampleState.categories!, filterText);
     } else {
-      List<CategoryModel> unsorted = [..._exampleState.categories!];
-      List<CategoryModel> sorted = [];
-      for (CategoryModel category in unsorted) {
-        if (category.examples.any((element) => element.type == type)) {
-          CategoryModel sortedCategory = CategoryModel(
-            category.name,
-            category.examples.where((element) => element.type == type).toList(),
-          );
-          sorted.add(sortedCategory);
-        }
-      }
-      setCategories(sorted);
+      sorted = sortExamplesByType(
+        _exampleState.categories!,
+        selectedFilterType,
+      );
+      sorted = sortExamplesByName(sorted, filterText);
     }
+    setCategories(sorted);
   }
 
-  sortExamplesByName(String name) {
-    if (name.isEmpty) {
-      setCategories(_exampleState.categories!);
-    } else {
-      List<CategoryModel> unsorted = [..._exampleState.categories!];
-      List<CategoryModel> sorted = [];
-      for (CategoryModel category in unsorted) {
-        if (category.examples.any(
-          (element) => element.name.toLowerCase().contains(name.toLowerCase()),
-        )) {
-          CategoryModel sortedCategory = CategoryModel(
-            category.name,
-            category.examples
-                .where((element) =>
-                    element.name.toLowerCase().contains(name.toLowerCase()))
-                .toList(),
-          );
-          sorted.add(sortedCategory);
-        }
+  List<CategoryModel> sortExamplesByType(
+      List<CategoryModel> unsorted, ExampleType type) {
+    List<CategoryModel> sorted = [];
+    for (CategoryModel category in unsorted) {
+      if (category.examples.any((element) => element.type == type)) {
+        CategoryModel sortedCategory = CategoryModel(
+          category.name,
+          category.examples.where((element) => element.type == type).toList(),
+        );
+        sorted.add(sortedCategory);
       }
-      setCategories(sorted);
     }
+    return sorted;
+  }
+
+  List<CategoryModel> sortExamplesByName(
+      List<CategoryModel> unsorted, String name) {
+    List<CategoryModel> sorted = [];
+    for (CategoryModel category in unsorted) {
+      if (category.examples.any(
+        (element) => element.name.toLowerCase().contains(name.toLowerCase()),
+      )) {
+        CategoryModel sortedCategory = CategoryModel(
+          category.name,
+          category.examples
+              .where((element) =>
+                  element.name.toLowerCase().contains(name.toLowerCase()))
+              .toList(),
+        );
+        sorted.add(sortedCategory);
+      }
+    }
+    return sorted;
   }
 }

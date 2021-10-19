@@ -76,10 +76,12 @@ class SearchField extends StatelessWidget {
             cursorWidth: kCursorSize,
             textAlignVertical: TextAlignVertical.center,
             onFieldSubmitted: (String txt) {
-              state.sortExamplesByName(txt);
+              state.setFilterText(txt);
+              state.sortCategories();
             },
             onChanged: (String txt) {
-              state.sortExamplesByName(txt);
+              state.setFilterText(txt);
+              state.sortCategories();
             },
             maxLines: kMinLines,
             minLines: kMaxLines,

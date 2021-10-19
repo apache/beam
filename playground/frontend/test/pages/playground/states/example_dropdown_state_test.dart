@@ -48,6 +48,27 @@ void main() {
   });
 
   test(
+      'ExampleDropdown state sortCategories should:'
+      '- update categories and notify all listeners,'
+      'but should NOT:'
+      '- wait for full name of example,'
+      '- be sensitive for register,'
+      '- affect Example state categories', () {
+    final exampleState = ExampleState(ExampleRepository());
+    final state = ExampleDropdownState(
+      exampleState,
+      exampleState.categories!,
+      ExampleType.example,
+      'hEl',
+    );
+    state.addListener(() {
+      expect(state.categories, sortedCategories);
+      expect(exampleState.categories, exampleState.categories);
+    });
+    state.sortCategories();
+  });
+
+  test(
       'ExampleDropdown state sortExamplesByType should:'
       '- update categories,'
       '- notify all listeners,'
@@ -59,12 +80,13 @@ void main() {
       expect(state.categories, categoriesSortedByTypeMock);
       expect(exampleState.categories, exampleState.categories);
     });
-    state.sortExamplesByType(ExampleType.kata);
+    state.sortExamplesByType(exampleState.categories!, ExampleType.kata);
   });
 
   test(
       'ExampleDropdown state sortExamplesByName should:'
-      '- update categories and notify all listeners,'
+      '- update categories'
+      '- notify all listeners,'
       'but should NOT:'
       '- wait for full name of example,'
       '- be sensitive for register,'
@@ -75,6 +97,6 @@ void main() {
       expect(state.categories, categoriesSortedByNameMock);
       expect(exampleState.categories, exampleState.categories);
     });
-    state.sortExamplesByName('eLLoWoRl');
+    state.sortExamplesByName(exampleState.categories!, 'eLLoWoRl');
   });
 }

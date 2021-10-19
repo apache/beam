@@ -45,6 +45,21 @@ object Hello {
     }
 }''';
 
+const List<CategoryModel> sortedCategories = [
+  CategoryModel('Side Inputs', [
+    ExampleModel(
+      {
+        SDK.java: javaHelloWorld,
+        SDK.go: goHelloWorld,
+        SDK.python: pythonHelloWorld,
+        SDK.scio: scioHelloWorld,
+      },
+      'HelloWorld',
+      ExampleType.example,
+    ),
+  ])
+];
+
 const List<CategoryModel> categoriesSortedByTypeMock = [
   CategoryModel('Side Inputs', [
     ExampleModel(

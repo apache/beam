@@ -46,7 +46,7 @@ object Hello {
 }''';
 
 class ExampleRepository {
-  List<CategoryModel> getCategories() {
+  List<CategoryModel>? getCategories() {
     return const [
       CategoryModel('Side Inputs', [
         ExampleModel(
