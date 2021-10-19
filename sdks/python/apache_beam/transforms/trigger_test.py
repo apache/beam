@@ -449,8 +449,8 @@ class MayLoseDataTest(unittest.TestCase):
   def test_default_trigger(self):
     self._test(DefaultTrigger(), 0, DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_after_processing_time(self):
-    self._test(AfterProcessingTime(), 0, DataLossReason.MAY_FINISH)
+  def test_after_processing(self):
+    self._test(AfterProcessingTime(42), 0, DataLossReason.MAY_FINISH)
 
   def test_always(self):
     self._test(Always(), 0, DataLossReason.NO_POTENTIAL_LOSS)
@@ -461,7 +461,7 @@ class MayLoseDataTest(unittest.TestCase):
   def test_after_watermark_no_allowed_lateness(self):
     self._test(AfterWatermark(), 0, DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_after_watermark_late_none(self):
+  def test_after_watermark_no_late_trigger(self):
     self._test(AfterWatermark(), 60, DataLossReason.MAY_FINISH)
 
   def test_after_watermark_no_allowed_lateness_safe_late(self):
@@ -470,92 +470,57 @@ class MayLoseDataTest(unittest.TestCase):
         0,
         DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_after_watermark_safe_late(self):
+  def test_after_watermark_allowed_lateness_safe_late(self):
     self._test(
         AfterWatermark(late=DefaultTrigger()),
         60,
         DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_after_watermark_no_allowed_lateness_may_finish_late(self):
-    self._test(
-        AfterWatermark(late=AfterProcessingTime()),
-        0,
-        DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_after_watermark_may_finish_late(self):
-    self._test(
-        AfterWatermark(late=AfterProcessingTime()),
-        60,
-        DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_after_watermark_no_allowed_lateness_condition_late(self):
-    self._test(
-        AfterWatermark(late=AfterCount(5)), 0, DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_after_watermark_condition_late(self):
-    self._test(
-        AfterWatermark(late=AfterCount(5)),
-        60,
-        DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_after_count_one(self):
-    self._test(AfterCount(1), 0, DataLossReason.MAY_FINISH)
-
-  def test_after_count_gt_one(self):
-    self._test(
-        AfterCount(2),
-        0,
-        DataLossReason.MAY_FINISH | DataLossReason.CONDITION_NOT_GUARANTEED)
+  def test_after_count(self):
+    self._test(AfterCount(42), 0, DataLossReason.MAY_FINISH)
 
   def test_repeatedly_safe_underlying(self):
     self._test(
         Repeatedly(DefaultTrigger()), 0, DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_repeatedly_may_finish_underlying(self):
-    self._test(Repeatedly(AfterCount(1)), 0, DataLossReason.NO_POTENTIAL_LOSS)
+  def test_repeatedly_unsafe_underlying(self):
+    self._test(Repeatedly(AfterCount(42)), 0, DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_repeatedly_condition_underlying(self):
-    self._test(Repeatedly(AfterCount(2)), 0, DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_after_any_some_unsafe(self):
+  def test_after_any_one_may_finish(self):
     self._test(
-        AfterAny(AfterCount(1), DefaultTrigger()),
-        0,
-        DataLossReason.NO_POTENTIAL_LOSS)
-
-  def test_after_any_same_reason(self):
-    self._test(
-        AfterAny(AfterCount(1), AfterProcessingTime()),
+        AfterAny(AfterCount(42), DefaultTrigger()),
         0,
         DataLossReason.MAY_FINISH)
 
-  def test_after_any_different_reasons(self):
+  def test_after_any_all_safe(self):
     self._test(
-        AfterAny(AfterCount(2), AfterProcessingTime()),
-        0,
-        DataLossReason.MAY_FINISH | DataLossReason.CONDITION_NOT_GUARANTEED)
-
-  def test_after_all_some_unsafe(self):
-    self._test(
-        AfterAll(AfterCount(1), DefaultTrigger()), 0, DataLossReason.MAY_FINISH)
-
-  def test_after_all_safe(self):
-    self._test(
-        AfterAll(Repeatedly(AfterCount(1)), DefaultTrigger()),
+        AfterAny(Repeatedly(AfterCount(42)), DefaultTrigger()),
         0,
         DataLossReason.NO_POTENTIAL_LOSS)
 
-  def test_after_each_some_unsafe(self):
+  def test_after_all_some_may_finish(self):
     self._test(
-        AfterEach(AfterCount(1), DefaultTrigger()),
+        AfterAll(AfterCount(1), DefaultTrigger()),
+        0,
+        DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_afer_all_all_may_finish(self):
+    self._test(
+        AfterAll(AfterCount(42), AfterProcessingTime(42)),
         0,
         DataLossReason.MAY_FINISH)
 
-  def test_after_each_all_safe(self):
+  def test_after_each_at_least_one_safe(self):
     self._test(
-        AfterEach(Repeatedly(AfterCount(1)), DefaultTrigger()),
+        AfterEach(AfterCount(1), DefaultTrigger(), AfterCount(2)),
         0,
         DataLossReason.NO_POTENTIAL_LOSS)
+
+  def test_after_each_all_may_finish(self):
+    self._test(
+        AfterEach(AfterCount(1), AfterCount(2), AfterCount(3)),
+        0,
+        DataLossReason.MAY_FINISH)
 
 
 class RunnerApiTest(unittest.TestCase):
@@ -605,6 +570,35 @@ class TriggerPipelineTest(unittest.TestCase):
                   'B-4': {6, 7, 8, 9},
                   'B-3': {10, 15, 16},
               }.items())))
+
+  def test_after_count_streaming(self):
+    test_options = PipelineOptions(
+        flags=['--allow_unsafe_triggers', '--streaming'])
+    with TestPipeline(options=test_options) as p:
+      # yapf: disable
+      test_stream = (
+          TestStream()
+          .advance_watermark_to(0)
+          .add_elements([('A', 1), ('A', 2), ('A', 3)])
+          .add_elements([('A', 4), ('A', 5), ('A', 6)])
+          .add_elements([('B', 1), ('B', 2), ('B', 3)])
+          .advance_watermark_to_infinity())
+      # yapf: enable
+
+      results = (
+          p
+          | test_stream
+          | beam.WindowInto(
+              FixedWindows(10),
+              trigger=AfterCount(3),
+              accumulation_mode=AccumulationMode.ACCUMULATING)
+          | beam.GroupByKey())
+
+      assert_that(
+          results,
+          equal_to(list({
+            'A': [1, 2, 3], # 4 - 6 discarded because trigger finished
+            'B': [1, 2, 3]}.items())))
 
   def test_always(self):
     with TestPipeline() as p:
@@ -714,7 +708,8 @@ class TriggerPipelineTest(unittest.TestCase):
     test_stream.advance_processing_time(START_TIMESTAMP + 2)
     test_stream.advance_watermark_to(START_TIMESTAMP + 2)
 
-    with TestPipeline(options=PipelineOptions(['--streaming'])) as p:
+    with TestPipeline(options=PipelineOptions(
+        ['--streaming', '--allow_unsafe_triggers'])) as p:
       # pylint: disable=expression-not-assigned
       (
           p
