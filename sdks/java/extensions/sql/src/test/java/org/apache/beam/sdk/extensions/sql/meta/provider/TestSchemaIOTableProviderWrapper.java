@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.ProjectionProducer;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -119,13 +121,16 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
 
     @Override
     public PTransform<PBegin, PCollection<Row>> actuateProjectionPushdown(
-        FieldAccessDescriptor fieldAccessDescriptor) {
+        String outputId, FieldAccessDescriptor fieldAccessDescriptor) {
+      if (!outputId.equals(SingleOutput.MAIN_OUTPUT_TAG)) {
+        throw new UnsupportedOperationException("Can only do pushdown on the main output.");
+      }
       return new TestProjectionProducer(schema, fieldAccessDescriptor);
     }
 
     @Override
-    public ProjectSupport supportsProjectionPushdown() {
-      return ProjectSupport.WITH_FIELD_REORDERING;
+    public EnumSet<ProjectSupport> supportsProjectionPushdown() {
+      return EnumSet.of(ProjectSupport.WITH_FIELD_REORDERING);
     }
 
     @Override

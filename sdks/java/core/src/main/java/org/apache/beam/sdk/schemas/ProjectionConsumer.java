@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /**
@@ -28,12 +29,13 @@ import org.apache.beam.sdk.annotations.Experimental;
 @Experimental
 public interface ProjectionConsumer {
   /**
-   * Returns a {@link org.apache.beam.sdk.schemas.FieldAccessDescriptor} describing which Schema
-   * fields this operation must access to complete successfully. Fields not listed in the {@link
+   * Returns a map from input {@link org.apache.beam.sdk.values.TupleTag} id to a {@link
+   * org.apache.beam.sdk.schemas.FieldAccessDescriptor} describing which Schema fields {@code this}
+   * must access from the corresponding input {@link org.apache.beam.sdk.values.PCollection} to
+   * complete successfully. Fields not listed in the {@link
    * org.apache.beam.sdk.schemas.FieldAccessDescriptor} are assumed to be safe to drop from the
-   * input. By default, the operation is assumed to access all fields.
+   * input. Input {@link org.apache.beam.sdk.values.PCollection}s not found in the keyset are
+   * implied to have value {@link FieldAccessDescriptor#withAllFields()}.
    */
-  default FieldAccessDescriptor consumesProjection() {
-    return FieldAccessDescriptor.withAllFields();
-  }
+  Map<String, FieldAccessDescriptor> consumesProjection();
 }
