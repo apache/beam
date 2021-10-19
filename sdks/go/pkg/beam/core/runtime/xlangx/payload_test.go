@@ -13,16 +13,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module beam.apache.org/playground/backend
+package xlangx
 
-go 1.16
-
-require (
-	github.com/go-redis/redis/v8 v8.11.4
-	github.com/go-redis/redismock/v8 v8.0.6
-	github.com/google/uuid v1.3.0
-	github.com/improbable-eng/grpc-web v0.14.1
-	github.com/rs/cors v1.8.0
-	google.golang.org/grpc v1.41.0
-	google.golang.org/protobuf v1.27.1
+import (
+	"reflect"
+	"testing"
 )
+
+type testPayload struct {
+	Foo string
+	Bar int
+}
+
+func TestDecodeStructPayload(t *testing.T) {
+	payload := testPayload{"foo", 100}
+
+	bytes, err := EncodeStructPayload(testPayload{"foo", 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	decoded, err := DecodeStructPayload(bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok := decoded.(testPayload)
+	if !ok {
+		t.Fatalf("decoded type = %T, want testPayload", decoded)
+	}
+	if !reflect.DeepEqual(got, payload) {
+		t.Errorf("decoded payload = %v, want %v", got, payload)
+	}
+}

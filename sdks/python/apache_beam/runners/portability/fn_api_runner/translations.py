@@ -25,9 +25,6 @@ import functools
 import itertools
 import logging
 import operator
-from builtins import object
-from typing import TYPE_CHECKING
-from typing import Any
 from typing import Callable
 from typing import Collection
 from typing import Container
@@ -37,8 +34,6 @@ from typing import FrozenSet
 from typing import Iterable
 from typing import Iterator
 from typing import List
-from typing import MutableMapping
-from typing import NamedTuple
 from typing import Optional
 from typing import Set
 from typing import Tuple
@@ -49,17 +44,11 @@ from apache_beam import coders
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
-from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
 from apache_beam.utils import proto_utils
-from apache_beam.utils import timestamp
-
-if TYPE_CHECKING:
-  from apache_beam.runners.portability.fn_api_runner.execution import ListBuffer
-  from apache_beam.runners.portability.fn_api_runner.execution import PartitionableBuffer
 
 T = TypeVar('T')
 
@@ -88,14 +77,13 @@ PAR_DO_URNS = frozenset([
 IMPULSE_BUFFER = b'impulse'
 
 # TimerFamilyId is identified by transform name + timer family
-# TODO(pabloem): Rename this type to express this name is unique per pipeline.
 TimerFamilyId = Tuple[str, str]
-
-BufferId = bytes
 
 # SideInputId is identified by a consumer ParDo + tag.
 SideInputId = Tuple[str, str]
 SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
+
+DataOutput = Dict[str, bytes]
 
 # A map from a PCollection coder ID to a Safe Coder ID
 # A safe coder is a coder that can be used on the runner-side of the FnApi.
@@ -107,27 +95,6 @@ SafeCoderMapping = Dict[str, str]
 # input content, and a payload specification regarding the type of side input
 # (MultiMap / Iterable).
 DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
-
-DataOutput = Dict[str, BufferId]
-
-# A map of [Transform ID, Timer Family ID] to [Buffer ID, Time Domain for timer]
-# The time domain comes from beam_runner_api_pb2.TimeDomain. It may be
-# EVENT_TIME or PROCESSING_TIME.
-OutputTimers = MutableMapping[TimerFamilyId, Tuple[BufferId, Any]]
-
-# A map of [Transform ID, Timer Family ID] to [Buffer CONTENTS, Timestamp]
-OutputTimerData = MutableMapping[TimerFamilyId,
-                                 Tuple['PartitionableBuffer',
-                                       timestamp.Timestamp]]
-
-BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
-                            List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
-
-
-# TODO(pabloem): Change tha name to a more representative one
-class DataInput(NamedTuple):
-  data: MutableMapping[str, 'PartitionableBuffer']
-  timers: MutableMapping[TimerFamilyId, 'PartitionableBuffer']
 
 
 class Stage(object):
