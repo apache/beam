@@ -53,6 +53,8 @@ import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.state.CachingBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
@@ -223,6 +225,8 @@ public class ProcessBundleHandler {
   }
 
   private void createRunnerAndConsumersForPTransformRecursively(
+      List<Data> inlinedInput,
+      List<Data> inlinedOutput,
       BeamFnStateClient beamFnStateClient,
       BeamFnTimerClient beamFnTimerClient,
       BeamFnDataClient queueingClient,
@@ -250,6 +254,8 @@ public class ProcessBundleHandler {
 
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
         createRunnerAndConsumersForPTransformRecursively(
+            inlinedInput,
+            inlinedOutput,
             beamFnStateClient,
             beamFnTimerClient,
             queueingClient,
@@ -389,7 +395,9 @@ public class ProcessBundleHandler {
                     public BundleFinalizer getBundleFinalizer() {
                       return bundleFinalizer;
                     }
-                  });
+                  },
+                  inlinedInput,
+                  inlinedOutput);
       if (runner instanceof BeamFnDataReadRunner) {
         channelRoots.add((BeamFnDataReadRunner) runner);
       }
@@ -428,12 +436,19 @@ public class ProcessBundleHandler {
       try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
         try (Closeable closeTracker = stateTracker.activate()) {
           // Already in reverse topological order so we don't need to do anything.
+          bundleProcessor
+              .getInlinedInput()
+              .addAll(request.getProcessBundle().getElements().getDataList());
           for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
             LOG.debug("Starting function {}", startFunction);
             startFunction.run();
           }
 
-          queueingClient.drainAndBlock();
+          // If data is not inlined in process bundle request, then we need to wait for data stream
+          // from data plane.
+          if (bundleProcessor.getInlinedInput().isEmpty()) {
+            queueingClient.drainAndBlock();
+          }
 
           // Need to reverse this since we want to call finish in topological order.
           for (ThrowingRunnable finishFunction :
@@ -442,6 +457,10 @@ public class ProcessBundleHandler {
             finishFunction.run();
           }
         }
+
+        Elements.Builder builder = Elements.newBuilder();
+        builder.addAllData(bundleProcessor.getInlinedOutput());
+        response.setElements(builder.build());
 
         // Add all checkpointed residuals to the response.
         response.addAllResidualRoots(bundleProcessor.getSplitListener().getResidualRoots());
@@ -643,6 +662,8 @@ public class ProcessBundleHandler {
 
     BundleProcessor bundleProcessor =
         BundleProcessor.create(
+            new ArrayList<>(),
+            new ArrayList<>(),
             startFunctionRegistry,
             finishFunctionRegistry,
             resetFunctions,
@@ -672,6 +693,8 @@ public class ProcessBundleHandler {
       }
 
       createRunnerAndConsumersForPTransformRecursively(
+          bundleProcessor.getInlinedInput(),
+          bundleProcessor.getInlinedOutput(),
           beamFnStateClient,
           beamFnTimerClient,
           queueingClient,
@@ -809,6 +832,8 @@ public class ProcessBundleHandler {
   @SuppressWarnings({"rawtypes"})
   public abstract static class BundleProcessor {
     public static BundleProcessor create(
+        List<Data> inlinedInput,
+        List<Data> inlinedOutput,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         List<ThrowingRunnable> resetFunctions,
@@ -822,6 +847,8 @@ public class ProcessBundleHandler {
         QueueingBeamFnDataClient queueingClient,
         Collection<CallbackRegistration> bundleFinalizationCallbackRegistrations) {
       return new AutoValue_ProcessBundleHandler_BundleProcessor(
+          inlinedInput,
+          inlinedOutput,
           startFunctionRegistry,
           finishFunctionRegistry,
           resetFunctions,
@@ -838,6 +865,10 @@ public class ProcessBundleHandler {
     }
 
     private String instructionId;
+
+    abstract List<Data> getInlinedInput();
+
+    abstract List<Data> getInlinedOutput();
 
     abstract PTransformFunctionRegistry getStartFunctionRegistry();
 
@@ -873,7 +904,13 @@ public class ProcessBundleHandler {
       this.instructionId = instructionId;
     }
 
+    synchronized void storeInlinedOutput(Data data) {
+      this.getInlinedOutput().add(data);
+    }
+
     void reset() throws Exception {
+      getInlinedInput().clear();
+      getInlinedOutput().clear();
       setInstructionId(null);
       getStartFunctionRegistry().reset();
       getFinishFunctionRegistry().reset();

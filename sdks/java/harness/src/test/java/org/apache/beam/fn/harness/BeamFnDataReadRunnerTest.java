@@ -211,7 +211,8 @@ public class BeamFnDataReadRunnerTest {
               (PTransformRunnerFactory.ProgressRequestCallback callback) -> {
                 progressCallbacks.add(callback);
               },
-              consumers);
+              consumers,
+              null);
 
       // Process for bundle id 0
       readRunner.registerInputLocation();

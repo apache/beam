@@ -29,10 +29,13 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.FnDataMultiplexer;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.DesiredSplit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse;
@@ -40,11 +43,13 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
@@ -102,9 +107,43 @@ public class BeamFnDataReadRunner<OutputT> {
               context.getBeamFnDataClient(),
               context.getBeamFnStateClient(),
               context::addProgressRequestCallback,
-              consumer);
+              consumer,
+              null);
       context.addStartBundleFunction(runner::registerInputLocation);
       context.addFinishBundleFunction(runner::blockTillReadFinishes);
+      context.addResetFunction(runner::reset);
+      return runner;
+    }
+
+    @Override
+    public BeamFnDataReadRunner<OutputT> createRunnerForPTransform(
+        Context context, List<Data> inlinedInput, List<Data> inlinedOutput) throws IOException {
+      if (inlinedInput.isEmpty()) {
+        return createRunnerForPTransform(context);
+      }
+
+      FnDataReceiver<WindowedValue<OutputT>> consumer =
+          (FnDataReceiver<WindowedValue<OutputT>>)
+              (FnDataReceiver)
+                  context.getPCollectionConsumer(
+                      getOnlyElement(context.getPTransform().getOutputsMap().values()));
+      FnDataMultiplexer multiplexer =
+          new FnDataMultiplexer(
+              inlinedInput, inlinedOutput::add, (CloseableFnDataReceiver<?>) consumer);
+      BeamFnDataReadRunner<OutputT> runner =
+          new BeamFnDataReadRunner<>(
+              context.getPTransformId(),
+              context.getPTransform(),
+              context.getProcessBundleInstructionIdSupplier(),
+              context.getCoders(),
+              context.getBeamFnDataClient(),
+              context.getBeamFnStateClient(),
+              context::addProgressRequestCallback,
+              consumer,
+              multiplexer);
+      context.addStartBundleFunction(runner::registerInputLocation);
+      context.addFinishBundleFunction(runner::blockTillReadFinishes);
+      context.addStartBundleFunction(multiplexer::dispatchData);
       context.addResetFunction(runner::reset);
       return runner;
     }
@@ -115,6 +154,7 @@ public class BeamFnDataReadRunner<OutputT> {
   private final FnDataReceiver<WindowedValue<OutputT>> consumer;
   private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClient;
+  private final FnDataMultiplexer fnDataMultiplexer;
   private final Coder<WindowedValue<OutputT>> coder;
 
   private final Object splittingLock = new Object();
@@ -127,15 +167,17 @@ public class BeamFnDataReadRunner<OutputT> {
 
   BeamFnDataReadRunner(
       String pTransformId,
-      RunnerApi.PTransform grpcReadNode,
+      PTransform grpcReadNode,
       Supplier<String> processBundleInstructionIdSupplier,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateClient beamFnStateClient,
-      Consumer<PTransformRunnerFactory.ProgressRequestCallback> addProgressRequestCallback,
-      FnDataReceiver<WindowedValue<OutputT>> consumer)
+      Consumer<ProgressRequestCallback> addProgressRequestCallback,
+      FnDataReceiver<WindowedValue<OutputT>> consumer,
+      FnDataMultiplexer fnDataMultiplexer)
       throws IOException {
     this.pTransformId = pTransformId;
+    this.fnDataMultiplexer = fnDataMultiplexer;
     RemoteGrpcPort port = RemoteGrpcPortRead.fromPTransform(grpcReadNode).getPort();
     this.apiServiceDescriptor = port.getApiServiceDescriptor();
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
@@ -176,6 +218,14 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   public void registerInputLocation() {
+    if (fnDataMultiplexer != null) {
+      fnDataMultiplexer.receive(
+          apiServiceDescriptor,
+          LogicalEndpoint.data(processBundleInstructionIdSupplier.get(), pTransformId),
+          coder,
+          this::forwardElementToConsumer);
+      return;
+    }
     this.readFuture =
         beamFnDataClient.receive(
             apiServiceDescriptor,
@@ -322,7 +372,9 @@ public class BeamFnDataReadRunner<OutputT> {
         "Waiting for process bundle instruction {} and transform {} to close.",
         processBundleInstructionIdSupplier.get(),
         pTransformId);
-    readFuture.awaitCompletion();
+    if (readFuture != null) {
+      readFuture.awaitCompletion();
+    }
     synchronized (splittingLock) {
       index += 1;
       stopIndex = index;

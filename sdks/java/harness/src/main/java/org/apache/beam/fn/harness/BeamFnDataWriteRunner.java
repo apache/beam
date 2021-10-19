@@ -21,12 +21,16 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.I
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.FnDataMultiplexer;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -49,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * transmission.
  *
  * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s. For each request, call
- * {@link #registerForOutput()} to start and call {@link #close()} to finish.
+ * {@link #registerForOutput(Consumer)} to start and call {@link #close()} to finish.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
@@ -84,7 +88,28 @@ public class BeamFnDataWriteRunner<InputT> {
               context.getCoders(),
               context.getBeamFnDataClient(),
               context.getBeamFnStateClient());
-      context.addStartBundleFunction(runner::registerForOutput);
+      context.addStartBundleFunction(() -> runner.registerForOutput(null));
+      context.addPCollectionConsumer(
+          getOnlyElement(context.getPTransform().getInputsMap().values()),
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume,
+          ((WindowedValueCoder<InputT>) runner.coder).getValueCoder());
+
+      context.addFinishBundleFunction(runner::close);
+      return runner;
+    }
+
+    @Override
+    public BeamFnDataWriteRunner<InputT> createRunnerForPTransform(
+        Context context, List<Data> inlinedInput, List<Data> inlinedOutput) throws IOException {
+      BeamFnDataWriteRunner<InputT> runner =
+          new BeamFnDataWriteRunner<>(
+              context.getPTransformId(),
+              context.getPTransform(),
+              context.getProcessBundleInstructionIdSupplier(),
+              context.getCoders(),
+              context.getBeamFnDataClient(),
+              context.getBeamFnStateClient());
+      context.addStartBundleFunction(() -> runner.registerForOutput(inlinedOutput::add));
       context.addPCollectionConsumer(
           getOnlyElement(context.getPTransform().getInputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume,
@@ -137,12 +162,22 @@ public class BeamFnDataWriteRunner<InputT> {
                 });
   }
 
-  public void registerForOutput() {
-    consumer =
+  public void registerForOutput(Consumer<Data> inlineOutputConsumer) {
+    CloseableFnDataReceiver<WindowedValue<InputT>> streamConsumer =
         beamFnDataClientFactory.send(
             apiServiceDescriptor,
             LogicalEndpoint.data(processBundleInstructionIdSupplier.get(), pTransformId),
             coder);
+    if (inlineOutputConsumer == null) {
+      consumer = streamConsumer;
+    } else {
+      consumer =
+          new FnDataMultiplexer(new ArrayList<>(), inlineOutputConsumer, streamConsumer)
+              .send(
+                  apiServiceDescriptor,
+                  LogicalEndpoint.data(processBundleInstructionIdSupplier.get(), pTransformId),
+                  coder);
+    }
   }
 
   public void close() throws Exception {

@@ -25,6 +25,7 @@ import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.Coder;
@@ -128,6 +129,11 @@ public interface PTransformRunnerFactory<T> {
    * due to memory pressure.
    */
   T createRunnerForPTransform(Context context) throws IOException;
+
+  default T createRunnerForPTransform(
+      Context context, List<Data> inlinedInput, List<Data> inlinedOutput) throws IOException {
+    return createRunnerForPTransform(context);
+  };
 
   /**
    * A registrar which can return a mapping from {@link RunnerApi.FunctionSpec#getUrn()} to a

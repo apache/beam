@@ -296,6 +296,8 @@ message ProcessBundleRequest {
   // (Optional) A list of cache tokens that can be used by an SDK to reuse
   // cached data returned by the State API across multiple bundles.
   repeated CacheToken cache_tokens = 2;
+
+  Elements elements = 3;
 }
 
 message ProcessBundleResponse {
@@ -328,6 +330,8 @@ message ProcessBundleResponse {
   map<string, bytes> monitoring_data = 5;
 
   reserved 1;
+
+  Elements elements = 6;
 }
 
 // A request to report progress information for a given bundle.

@@ -191,7 +191,7 @@ public class BeamFnDataWriteRunnerTest {
             null /* beamFnStateClient */);
 
     // Process for bundle id 0
-    writeRunner.registerForOutput();
+    writeRunner.registerForOutput(null);
 
     verify(mockBeamFnDataClient)
         .send(
@@ -210,7 +210,7 @@ public class BeamFnDataWriteRunnerTest {
     bundleId.set("1");
     valuesA.clear();
     valuesB.clear();
-    writeRunner.registerForOutput();
+    writeRunner.registerForOutput(null);
 
     verify(mockBeamFnDataClient)
         .send(

@@ -61,6 +61,7 @@ import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -181,6 +182,16 @@ public class ProcessBundleHandlerTest {
 
     TestBundleProcessor(BundleProcessor wrappedBundleProcessor) {
       this.wrappedBundleProcessor = wrappedBundleProcessor;
+    }
+
+    @Override
+    List<Data> getInlinedInput() {
+      return wrappedBundleProcessor.getInlinedInput();
+    }
+
+    @Override
+    List<Data> getInlinedOutput() {
+      return wrappedBundleProcessor.getInlinedOutput();
     }
 
     @Override
@@ -612,6 +623,8 @@ public class ProcessBundleHandlerTest {
     ThrowingRunnable resetFunction = mock(ThrowingRunnable.class);
     BundleProcessor bundleProcessor =
         BundleProcessor.create(
+            new ArrayList<>(),
+            new ArrayList<>(),
             startFunctionRegistry,
             finishFunctionRegistry,
             Collections.singletonList(resetFunction),
