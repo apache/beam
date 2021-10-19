@@ -16,4 +16,36 @@
 # limitations under the License.
 ###############################################################################
 
-#Dokerfile to set up the Beam Java SDK
+FROM golang:1.17-buster AS build
+
+# Setup Go Environment
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:$PATH
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 &&\
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
+
+# Prepare Application
+COPY src /go/src/playground/backend
+COPY playground /go/src/playground/playground
+WORKDIR /go/src/playground/backend
+
+# Build Application
+RUN go mod download &&\
+    go mod tidy &&\ 
+    cd cmd/server &&\
+    go build -o /go/bin/server_java_backend 
+
+FROM apache/beam_java8_sdk:2.33.0
+ENV BEAM_VERSION=2.33.0
+ENV SERVER_IP=0.0.0.0
+ENV SERVER_PORT=8080
+
+# Copy build result
+COPY --from=build /go/bin/server_java_backend /opt
+
+# Install Beam DirectRunner
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java/$BEAM_VERSION/beam-runners-direct-java-$BEAM_VERSION.jar &&\
+    mv beam-runners-direct-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-direct.jar
+
+ENTRYPOINT ["/opt/server_java_backend"]
