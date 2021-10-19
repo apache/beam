@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -172,19 +173,14 @@ type ExecutionState struct {
 type BundleState struct {
 	pid          string
 	currentState bundleProcState
-	transitions  int64
 }
 
 // SetPTransformState stores the state of PTransform in its bundle.
 func SetPTransformState(ctx context.Context, state bundleProcState) {
 	if bctx, ok := ctx.(*beamCtx); ok {
-		bctx.store.bu.Lock()
-		defer bctx.store.bu.Unlock()
-
 		pid := bctx.ptransformID
-		bctx.store.bundleState.pid = pid
-		bctx.store.bundleState.currentState = state
-		bctx.store.bundleState.transitions += 1
+		bctx.store.bundleState.Store(BundleState{pid: pid, currentState: state})
+		atomic.AddInt64(&bctx.store.transitions, 1)
 	}
 }
 
@@ -197,11 +193,8 @@ type CurrentStateVal struct {
 
 func loadCurrentState(ctx context.Context) CurrentStateVal {
 	if bctx, ok := ctx.(*beamCtx); ok {
-		bctx.store.bu.Lock()
-		defer bctx.store.bu.Unlock()
-
-		bs := bctx.store.bundleState
-		return CurrentStateVal{pid: bs.pid, state: bs.currentState, transitions: bs.transitions}
+		bs := bctx.store.bundleState.Load().(BundleState)
+		return CurrentStateVal{pid: bs.pid, state: bs.currentState, transitions: atomic.LoadInt64(&bctx.store.transitions)}
 	}
 	panic("execution store not yet set.")
 }
@@ -213,8 +206,8 @@ type Store struct {
 
 	store map[Labels]userMetric
 
-	bu          sync.RWMutex
-	bundleState BundleState
+	transitions int64
+	bundleState atomic.Value
 
 	stateRegistry map[string][4]*ExecutionState
 }

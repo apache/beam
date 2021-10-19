@@ -41,7 +41,7 @@ func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
 		v[ps.state].TotalTime += t
 		v[TotalBundle].TotalTime += t
 
-		e := s.store.bundleState
+		e := s.store
 
 		if s.transitionsAtLastSample != ps.transitions {
 			// state change detected

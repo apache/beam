@@ -17,6 +17,7 @@ package metrics
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -33,7 +34,7 @@ func checkStateTime(t *testing.T, s StateSampler, label string, sb, pb, fb, tb t
 
 func checkBundleState(ctx context.Context, t *testing.T, s StateSampler, transitions int64, millisSinceLastTransition time.Duration) {
 	t.Helper()
-	e := s.store.bundleState.transitions
+	e := atomic.LoadInt64(&s.store.transitions)
 	if e != transitions || s.millisSinceLastTransition != millisSinceLastTransition {
 		t.Errorf("number of transitions: %v, want %v \nmillis since last transition: %vms, want %vms", e, transitions, s.millisSinceLastTransition, millisSinceLastTransition)
 	}
@@ -136,10 +137,41 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 // goarch: amd64
 // pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
 // cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-// BenchmarkSampler/SetPTransformState-12         	45385438	        25.55 ns/op	       0 B/op	       0 allocs/op
-// BenchmarkSampler/Sampler-12                    	20327262	        58.66 ns/op	       0 B/op	       0 allocs/op
-// BenchmarkSampler/Combined-12                   	  664899	      2183 ns/op	     573 B/op	       2 allocs/op
-func BenchmarkSampler(b *testing.B) {
+// BenchmarkMsec_SetPTransformState-12    	27562231	        43.36 ns/op	      24 B/op	       1 allocs/op
+func BenchmarkMsec_SetPTransformState(b *testing.B) {
+	ctx := context.Background()
+	bctx := SetBundleID(ctx, "benchmark")
+	pctx := SetPTransformID(bctx, "transform")
+
+	for i := 0; i < b.N; i++ {
+		SetPTransformState(pctx, StartBundle)
+	}
+}
+
+// goos: darwin
+// goarch: amd64
+// pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
+// cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+// BenchmarkMsec_Sample-12    	35614332	        33.98 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkMsec_Sample(b *testing.B) {
+	ctx := context.Background()
+	bctx := SetBundleID(ctx, "benchmark")
+	pctx := SetPTransformID(bctx, "transform")
+	SetPTransformState(pctx, StartBundle)
+	st := GetStore(bctx)
+	s := NewSampler(bctx, st)
+
+	for i := 0; i < b.N; i++ {
+		s.Sample(bctx, 200*time.Millisecond)
+	}
+}
+
+// goos: darwin
+// goarch: amd64
+// pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
+// cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+// BenchmarkMsec_Combined-12    	12847486	        85.57 ns/op	      48 B/op	       2 allocs/op
+func BenchmarkMsec_Combined(b *testing.B) {
 	ctx := context.Background()
 	bctx := SetBundleID(ctx, "benchmark")
 
@@ -149,35 +181,22 @@ func BenchmarkSampler(b *testing.B) {
 	ctxA := SetPTransformID(bctx, "transformA")
 	ctxB := SetPTransformID(bctx, "transformB")
 	done := make(chan int)
-	tests := []struct {
-		name string
-		call func()
-	}{
-		{"SetPTransformState", func() { SetPTransformState(ctxA, StartBundle) }},
-		{"Sampler", func() { s.Sample(bctx, 200*time.Millisecond) }},
-		{"Combined", func() {
-			go func(done chan int, s StateSampler) {
-				for {
-					select {
-					case <-done:
-						return
-					default:
-						SetPTransformState(ctxA, ProcessBundle)
-						SetPTransformState(ctxB, ProcessBundle)
-						s.Sample(bctx, 5*time.Millisecond)
-						time.Sleep(5 * time.Millisecond)
-					}
-				}
-			}(done, s)
 
-		}},
-	}
-	for _, test := range tests {
-		b.Run(test.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				test.call()
+	go func(done chan int, s StateSampler) {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				s.Sample(bctx, 5*time.Millisecond)
+				time.Sleep(5 * time.Millisecond)
 			}
-		})
+		}
+	}(done, s)
+
+	for i := 0; i < b.N; i++ {
+		SetPTransformState(ctxA, ProcessBundle)
+		SetPTransformState(ctxB, ProcessBundle)
 	}
-	done <- 1
+	close(done)
 }
