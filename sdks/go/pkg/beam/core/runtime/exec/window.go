@@ -69,7 +69,7 @@ func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
 		var ret []typex.Window
 
 		period := mtime.FromDuration(wfn.Period)
-		lastStart := ts - (ts.Add(wfn.Size) % period)
+		lastStart := ts - (ts % period)
 		for start := lastStart; start > ts.Subtract(wfn.Size); start -= period {
 			ret = append(ret, window.IntervalWindow{Start: start, End: start.Add(wfn.Size)})
 		}
@@ -112,7 +112,7 @@ func (f *windowMapper) MapWindow(w typex.Window) (typex.Window, error) {
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("failed to map main input window to side input window with WindowFn %v", f.wfn.String())
 	}
-	// Return latest candidate window in terms of event time (only relevant for sliding windows)
+	// Return earliest candidate window in terms of event time (only relevant for sliding windows)
 	// Sliding windows append the latest window first in assignWindows.
-	return candidates[0], nil
+	return candidates[len(candidates)-1], nil
 }

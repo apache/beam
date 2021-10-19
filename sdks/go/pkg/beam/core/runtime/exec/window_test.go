@@ -140,10 +140,16 @@ func TestMapWindow(t *testing.T) {
 			window.IntervalWindow{Start: 0, End: 1000},
 		},
 		{
-			"interval to sliding",
-			window.NewSlidingWindows(500*time.Millisecond, 1000*time.Millisecond),
-			window.IntervalWindow{Start: 0, End: 600},
-			window.IntervalWindow{Start: 500, End: 1500},
+			"interval to sliding within first",
+			window.NewSlidingWindows(300*time.Millisecond, 1000*time.Millisecond),
+			window.IntervalWindow{Start: 0, End: 999},
+			window.IntervalWindow{Start: 0, End: 1000},
+		},
+		{
+			"interval to sliding beyond first",
+			window.NewSlidingWindows(300*time.Millisecond, 1000*time.Millisecond),
+			window.IntervalWindow{Start: 0, End: 1001},
+			window.IntervalWindow{Start: 300, End: 1300},
 		},
 	}
 	for _, test := range tests {
@@ -153,7 +159,7 @@ func TestMapWindow(t *testing.T) {
 			t.Fatalf("MapWindow for test %v failed, got %v", test.name, err)
 		}
 		if !outputWin.Equals(test.expected) {
-			t.Errorf("expected window %v, got %v", test.expected, outputWin)
+			t.Errorf("test %v failed: expected window %v, got %v", test.name, test.expected, outputWin)
 		}
 	}
 }
