@@ -116,14 +116,22 @@ func ValidateWindowedSideInputs(s beam.Scope) {
 	validateSums(s.Scope("Fixed-Global"), window.NewFixedWindows(windowSize), window.NewGlobalWindows(), timestampedData, timestampedData, 7, 8, 9)
 	validateSums(s.Scope("Fixed-Same"), window.NewFixedWindows(windowSize), window.NewFixedWindows(windowSize), timestampedData, timestampedData, 2, 4, 6)
 	validateSums(s.Scope("Fixed-Big"), window.NewFixedWindows(windowSize), window.NewFixedWindows(10*time.Second), timestampedData, timestampedData, 7, 8, 9)
-	//(1, [1]) = 2
-	//(2, [1, 2]) = 5
-	//(3, [2, 3]) = 8
+	// Main: With window size 1, each window contains 1 element (1, 2, 3)
+	// Side: Window size 2 with period 1, so each window covers 2 seconds of time
+	//	 Have [1], [1,2], [2,3], [3]
+	// Each main input should map to the earliest occuring sliding window it maps to:
+	// (1, [1]) = 2
+	// (2, [1, 2]) = 5
+	// (3, [2, 3]) = 8
 	validateSums(s.Scope("Fixed-Sliding"), window.NewFixedWindows(windowSize), window.NewSlidingWindows(windowSize, 2*windowSize), timestampedData, timestampedData, 2, 5, 8)
-	//([1], 1) = 2
-	//([1, 2], 2) = 3, 4
-	//([2, 3], 3) = 5, 6
-	//([3], -) = 3
+	// Main: Window size 2 with period 1, so each window has up to two elements
+	//	 Have [1], [1,2], [2,3], [3]
+	// Side: With window size 1, each window contains 1 element (1, 2, 3)
+	// Each main input will map to the window its latest timestamp corresponds to:
+	// ([1], 1) = 2
+	// ([1, 2], 2) = 3, 4
+	// ([2, 3], 3) = 5, 6
+	// ([3], -) = 3
 	validateSums(s.Scope("Sliding-Fixed"), window.NewSlidingWindows(windowSize, 2*windowSize), window.NewFixedWindows(windowSize), timestampedData, timestampedData, 2, 3, 4, 5, 6, 3)
 }
 
