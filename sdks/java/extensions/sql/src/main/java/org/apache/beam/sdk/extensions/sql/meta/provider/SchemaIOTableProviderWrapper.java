@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.Serializable;
+import java.util.EnumSet;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -142,7 +144,9 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
               (ProjectionProducer<PTransform<PBegin, PCollection<Row>>>) readerTransform;
           FieldAccessDescriptor fieldAccessDescriptor =
               FieldAccessDescriptor.withFieldNames(fieldNames);
-          readerTransform = projectionProducer.actuateProjectionPushdown(fieldAccessDescriptor);
+          readerTransform =
+              projectionProducer.actuateProjectionPushdown(
+                  ParDo.SingleOutput.MAIN_OUTPUT_TAG, fieldAccessDescriptor);
         } else {
           throw new UnsupportedOperationException(
               String.format("%s does not support projection pushdown.", this.getClass()));
@@ -155,14 +159,13 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
     public ProjectSupport supportsProjects() {
       PTransform<PBegin, PCollection<Row>> readerTransform = schemaIO.buildReader();
       if (readerTransform instanceof ProjectionProducer) {
-        switch (((ProjectionProducer<?>) readerTransform).supportsProjectionPushdown()) {
-          case WITH_FIELD_REORDERING:
-            return ProjectSupport.WITH_FIELD_REORDERING;
-          case WITHOUT_FIELD_REORDERING:
-            return ProjectSupport.WITHOUT_FIELD_REORDERING;
-          case NONE:
-          default:
-            return ProjectSupport.NONE;
+        EnumSet<ProjectionProducer.ProjectSupport> projectSupport =
+            ((ProjectionProducer<?>) readerTransform).supportsProjectionPushdown();
+        if (projectSupport.contains(ProjectionProducer.ProjectSupport.WITH_FIELD_REORDERING)) {
+          return ProjectSupport.WITH_FIELD_REORDERING;
+        }
+        if (projectSupport.contains(ProjectionProducer.ProjectSupport.WITHOUT_FIELD_REORDERING)) {
+          return ProjectSupport.WITHOUT_FIELD_REORDERING;
         }
       }
       return ProjectSupport.NONE;
