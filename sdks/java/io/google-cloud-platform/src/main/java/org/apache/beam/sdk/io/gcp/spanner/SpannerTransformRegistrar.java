@@ -51,7 +51,7 @@ import org.joda.time.Duration;
 @Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
-  public static final String INSERT_URN = "beam:transform:org.apache.beam:spanner_read:v1";
+  public static final String INSERT_URN = "beam:transform:org.apache.beam:spanner_insert:v1";
   public static final String UPDATE_URN = "beam:transform:org.apache.beam:spanner_update:v1";
   public static final String REPLACE_URN = "beam:transform:org.apache.beam:spanner_replace:v1";
   public static final String INSERT_OR_UPDATE_URN =
