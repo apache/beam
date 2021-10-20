@@ -365,6 +365,10 @@ class _MergeTopPerBundle(core.DoFn):
               for element in bundle
           ]
           continue
+        # TODO(robertwb): Remove once legacy dataflow correctly handles
+        # coders with combiner packing and/or is deprecated.
+        if not isinstance(bundle, list):
+          bundle = list(bundle)
         for element in reversed(bundle):
           if push(heapc,
                   cy_combiners.ComparableValue(element,
@@ -377,6 +381,9 @@ class _MergeTopPerBundle(core.DoFn):
     else:
       heap = []
       for bundle in bundles:
+        # See above.
+        if not isinstance(bundle, list):
+          bundle = list(bundle)
         if not heap:
           heap = bundle
           continue
