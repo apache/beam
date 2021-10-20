@@ -456,6 +456,11 @@ public class DeltaFileIO
     {
       Snapshot deltaSnapshot;
 
+      if ((matchConfiguration.getVersion() != null)  && (matchConfiguration.getTimestamp() != null)) {
+        throw new IllegalArgumentException("both version=" + matchConfiguration.getVersion() +
+            " and timestamp=" + matchConfiguration.getTimestamp() + " are provided");
+      }
+
       if (matchConfiguration.getVersion() != null) {
         logger.info("DeltaFileIO creating snapshot for version {}", matchConfiguration.getVersion());
         deltaSnapshot = deltaLog.getSnapshotForVersionAsOf(matchConfiguration.getVersion());
