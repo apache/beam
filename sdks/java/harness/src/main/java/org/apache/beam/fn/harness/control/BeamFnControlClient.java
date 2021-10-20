@@ -146,6 +146,12 @@ public class BeamFnControlClient {
   public BeamFnApi.InstructionResponse delegateOnInstructionRequestType(
       BeamFnApi.InstructionRequest value) {
     try {
+      if (value == null) {
+        LOG.error("Null InstructionRequest {}", value);
+      }
+      if (!handlers.containsKey(value.getRequestCase())) {
+        LOG.error("Bad value requestCase {}", value.getRequestCase());
+      }
       return handlers
           .getOrDefault(value.getRequestCase(), this::missingHandler)
           .apply(value)
