@@ -24,11 +24,12 @@ You need to know the core vocabulary:
 
  * [_Pipeline_](#pipeline) - A pipeline is a user-constructed graph of
    transformations that defines the desired data processing operations.
- * [_PCollection_](#pcollections) - A `PCollection` is a data set or data
+ * [_PCollection_](#pcollection) - A `PCollection` is a data set or data
    stream. The data that a pipeline processes is part of a PCollection.
- * [_PTransforms_](#ptransforms) - A `PTransform` (or _transform_) represents a
-   data processing operation, or a step, in your pipeline. A transform can be
-   applied to one or more `PCollection` objects.
+ * [_PTransform_](#ptransform) - A `PTransform` (or _transform_) represents a
+   data processing operation, or a step, in your pipeline. A transform is
+   applied to zero or more `PCollection` objects, and produces zero or more
+   `PCollection` objects.
  * _SDK_ - A language-specific library for pipeline authors (we often call them
    "users" even though we have many kinds of users) to build transforms,
    construct their pipelines and submit them to a runner
@@ -42,21 +43,23 @@ transforms, there are some special features worth highlighting.
 
 ### Pipeline
 
-A Beam pipeline is a directed acyclic graph of all the data and computations in
-your data processing task. This includes reading input data, transforming that
-data, and writing output data. A pipeline is constructed by a user in their SDK
-of choice. Then, the pipeline makes its way to the runner either through the SDK
-directly or through the Runner API's RPC interface. For example, this diagram
-shows a branching pipeline:
+A Beam pipeline is a graph (specifically, a
+[directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph))
+of all the data and computations in your data processing task. This includes
+reading input data, transforming that data, and writing output data. A pipeline
+is constructed by a user in their SDK of choice. Then, the pipeline makes its
+way to the runner either through the SDK directly or through the Runner API's
+RPC interface. For example, this diagram shows a branching pipeline:
 
 ![The pipeline applies two transforms to a single input collection. Each
   transform produces an output collection.](/images/design-your-pipeline-multiple-pcollections.svg)
 
-In the diagram, the boxes are parallel transformations called _PTransforms_ and
-the arrows with the circles represent the data (in the form of _PCollections_)
-that flows between the transforms. The data might be bounded, stored, data sets,
-or the data might also be unbounded streams of data. In Beam, most transforms
-apply equally to bounded and unbounded data.
+In this diagram, the boxes represent the parallel computations called
+[_PTransforms_](#ptransform)  and the arrows with the circles represent the data
+(in the form of [_PCollections_](#pcollection)) that flows between the
+transforms. The data might be bounded, stored, data sets, or the data might also
+be unbounded streams of data. In Beam, most transforms apply equally to bounded
+and unbounded data.
 
 You can express almost any computation that you can think of as a graph as a
 Beam pipeline. A Beam driver program typically starts by creating a `Pipeline`
@@ -70,17 +73,20 @@ For more information about pipelines, see the following pages:
  * [Design your pipeline](/documentation/pipelines/design-your-pipeline)
  * [Create your pipeline](/documentation/pipeline/create-your-pipeline)
 
-### PTransforms
+### PTransform
 
 A `PTransform` (or transform) represents a data processing operation, or a step,
-in your pipeline. A transform can be applied to one or more input `PCollection`
-objects. You provide processing logic in the form of a function object
+in your pipeline. A transform is usually applied to one or more input
+`PCollection` objects. Transforms that read input are an exception; these
+transforms might not have an input `PCollection`.
+
+You provide transform processing logic in the form of a function object
 (colloquially referred to as “user code”), and your user code is applied to each
-element of the input PCollection (or more than one PCollection).  Depending on
+element of the input PCollection (or more than one PCollection). Depending on
 the pipeline runner and backend that you choose, many different workers across a
-cluster might execute instances of your user code in parallel.  The user code
-that runs on each worker generates the output elements that are added to the
-zero or more output `PCollection` objects.
+cluster might execute instances of your user code in parallel. The user code
+that runs on each worker generates the output elements that are added to zero or
+more output `PCollection` objects.
 
 The Beam SDKs contain a number of different transforms that you can apply to
 your pipeline’s PCollections. These include general-purpose core transforms,
@@ -92,11 +98,11 @@ fit your pipeline’s exact use case.
 
 The following list has some common transform types:
 
- * Root transforms such as `TextIO.Read` and `Create`. A root transform
+ * Source transforms such as `TextIO.Read` and `Create`. A source transform
    conceptually has no input.
  * Processing and conversion operations such as `ParDo`, `GroupByKey`,
    `CoGroupByKey`, `Combine`, and `Count`.
- * Outputting transforms like `TextIO.Write`.
+ * Outputting transforms such as `TextIO.Write`.
  * User-defined, application-specific composite transforms.
 
 For more information about transforms, see the following pages:
@@ -106,12 +112,13 @@ For more information about transforms, see the following pages:
  * Beam transform catalog ([Java](/documentation/transforms/java/overview/),
    [Python](/documentation/transforms/python/overview/))
 
-### PCollections
+### PCollection
 
-Beam pipelines process PCollections. A `PCollection` is a potentially
-distributed, homogeneous data set or data stream, and is owned by the specific
-`Pipeline` object for which it is created. Multiple pipelines cannot share a
-`PCollection`. The runner is responsible for storing these elements.
+A `PCollection` is an unordered bag of elements. Each `PCollection` is a
+potentially distributed, homogeneous data set or data stream, and is owned by
+the specific `Pipeline` object for which it is created. Multiple pipelines
+cannot share a `PCollection`. Beam pipelines process PCollections, and the
+runner is responsible for storing these elements.
 
 A PCollection generally contains "big data" (too much data to fit in memory on a
 single machine). Sometimes a small sample of data or an intermediate result
@@ -126,11 +133,11 @@ There are some major aspects of a PCollection to note:
 
 A `PCollection` can be either bounded or unbounded.
 
- - _Bounded_ - A bounded `PCollection` is a dataset of a known, fixed size
-   (alternatively, a dataset that is not growing over time). Bounded data can
-   be processed by batch pipelines.
- - _Unbounded_ - An unbounded PCollection is a dataset that grows over time,
-   with elements processed as they arrive. Unbounded data must be processed by
+ - A _bounded_ `PCollection` is a dataset of a known, fixed size (alternatively,
+   a dataset that is not growing over time). Bounded data can be processed by
+   batch pipelines.
+ - An _unbounded_ `PCollection` is a dataset that grows over time, and the
+   elements are processed as they arrive. Unbounded data must be processed by
    streaming pipelines.
 
 These two categories derive from the intuitions of batch and stream processing,
