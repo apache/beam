@@ -51,14 +51,14 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 
 	in := []*graph.Node{col.n}
 	inWfn := col.n.WindowingStrategy().Fn
-	for _, s := range side {
+	for i, s := range side {
 		sideNode := s.Input.n
 		sideWfn := sideNode.WindowingStrategy().Fn
 		if sideWfn.Kind == window.Sessions {
-			return nil, fmt.Errorf("error with side input %v in DoFn %v: PCollections using merging WindowFns are not supported as side inputs. Consider re-windowing the side input PCollection before use", sideNode, fn)
+			return nil, fmt.Errorf("error with side input %d in DoFn %v: PCollections using merging WindowFns are not supported as side inputs. Consider re-windowing the side input PCollection before use", i, fn)
 		}
 		if (inWfn.Kind == window.GlobalWindows) && (sideWfn.Kind != window.GlobalWindows) {
-			return nil, fmt.Errorf("main input %v is global windowed in DoFn %v but side input %v is not, cannot map windows correctly. Consider re-windowing the side input PCOllection before use", col.n, fn, sideNode)
+			return nil, fmt.Errorf("main input is global windowed in DoFn %v but side input %v is not, cannot map windows correctly. Consider re-windowing the side input PCOllection before use", fn, i)
 		}
 		in = append(in, s.Input.n)
 	}
