@@ -25,24 +25,24 @@
 
 # TODO(AVRO-2429): Upgrade to >= 1.9.0 only after resolved
 avro-python3==1.8.2
-fastavro==1.0.0.post1
+fastavro==1.4.5
 crcmod==1.7
-dill==0.3.1.1
+dill==0.3.4
 future==0.18.2
-grpcio==1.40.0
-hdfs==2.5.8
-httplib2==0.19.1
+grpcio==1.41.0
+hdfs==2.6.0
+httplib2==0.20.1
 oauth2client==4.1.3
-protobuf==3.17.3
+protobuf==3.18.1
 pyarrow==3.0.0
-pydot==1.4.1
-pymongo==3.10.1
-pytz==2020.1
+pydot==1.4.2
+pymongo==3.12.1
+pytz==2021.3
 pyyaml==5.4
-typing-extensions==3.7.4.3
+typing-extensions==3.10.0.2
 
 # GCP extra features
-google-auth==1.31.0
+google-auth==2.3.0
 google-api-core==1.22.2
 google-apitools==0.5.31
 google-cloud-pubsub==1.0.2
@@ -63,26 +63,26 @@ grpcio-gcp==0.2.2
 ## These are additional optional packages likely to be used by customers.
 beautifulsoup4 == 4.9.1
 bs4 == 0.0.1
-cython==0.29.21
-cachetools == 3.1.1
+cython==0.29.24
+cachetools == 4.2.4
 dataclasses == 0.8 ; python_version=="3.6"
-guppy3==3.0.10
-mmh3==2.5.1
-orjson==3.6.1
-python-dateutil == 2.8.1
+guppy3==3.1.2
+mmh3==3.0.0
+orjson==3.6.4
+python-dateutil == 2.8.2
 requests == 2.24.0
-freezegun == 0.3.15
+freezegun == 1.1.0
 pillow == 7.2.0
-python-snappy == 0.5.4
+python-snappy == 0.6.0
 numpy==1.19.5
 scipy==1.4.1
 scikit-learn==0.24.1
 pandas==1.1.5 ; python_version<"3.7"
-pandas==1.3.3 ; python_version>="3.7"
+pandas==1.3.4 ; python_version>="3.7"
 protorpc==0.12.0
 python-gflags==3.1.2
 tensorflow==2.6.0
-nltk==3.5.0
+nltk==3.6.5
 
 # Packages needed for testing.
 tenacity>=5.0.2
