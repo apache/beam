@@ -61,7 +61,7 @@ func TestNewCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewCache(tt.args.ctx, tt.args.cacheType)
+			got, err := New(tt.args.ctx, tt.args.cacheType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewCache() error = %v, wantErr %v", err, tt.wantErr)
 			}
