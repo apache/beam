@@ -57,6 +57,10 @@ const (
 	URNReshuffleInput       = "beam:go:transform:reshuffleinput:v1"
 	URNReshuffleOutput      = "beam:go:transform:reshuffleoutput:v1"
 
+	URNWindowMappingGlobal  = "beam:go:windowmapping:global:v1"
+	URNWindowMappingFixed   = "beam:go:windowmapping:fixed:v1"
+	URNWindowMappingSliding = "beam:go:windowmapping:sliding:v1"
+
 	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
 
@@ -386,6 +390,24 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 				// Fixup input map
 				inputs[fmt.Sprintf("i%v", i)] = out
 
+				siWfn := in.From.WindowingStrategy().Fn
+				var mappingUrn string
+				switch siWfn.Kind {
+				case window.GlobalWindows:
+					mappingUrn = URNWindowMappingGlobal
+				case window.FixedWindows:
+					mappingUrn = URNWindowMappingFixed
+				case window.SlidingWindows:
+					mappingUrn = URNWindowMappingSliding
+				case window.Sessions:
+					panic("session windowing is not supported for side inputs")
+				}
+
+				siWSpec, err := makeWindowFn(siWfn)
+				if err != nil {
+					return nil, err
+				}
+
 				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput{
 					AccessPattern: &pipepb.FunctionSpec{
 						Urn: URNMultimapSideInput,
@@ -394,7 +416,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 						Urn: "foo",
 					},
 					WindowMappingFn: &pipepb.FunctionSpec{
-						Urn: "bar",
+						Urn:     mappingUrn,
+						Payload: siWSpec.Payload,
 					},
 				}
 
