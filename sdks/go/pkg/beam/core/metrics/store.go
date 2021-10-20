@@ -21,6 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 // Implementation note: We avoid depending on the FnAPI protos here
@@ -179,24 +180,17 @@ type BundleState struct {
 func SetPTransformState(ctx context.Context, state bundleProcState) {
 	if bctx, ok := ctx.(*beamCtx); ok {
 		pid := bctx.ptransformID
-		bctx.store.bundleState.Store(BundleState{pid: pid, currentState: state})
+		bctx.store.states[state].pid = pid
+		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&bctx.store.bundleState)), unsafe.Pointer(&bctx.store.states[state]))
 		atomic.AddInt64(&bctx.store.transitions, 1)
 	}
 }
 
-// CurrentStateVal exports the current state of a bundle wrt PTransform.
-type CurrentStateVal struct {
+// currentStateVal exports the current state of a bundle wrt PTransform.
+type currentStateVal struct {
 	pid         string
 	state       bundleProcState
 	transitions int64
-}
-
-func loadCurrentState(ctx context.Context) CurrentStateVal {
-	if bctx, ok := ctx.(*beamCtx); ok {
-		bs := bctx.store.bundleState.Load().(BundleState)
-		return CurrentStateVal{pid: bs.pid, state: bs.currentState, transitions: atomic.LoadInt64(&bctx.store.transitions)}
-	}
-	panic("execution store not yet set.")
 }
 
 // Store retains per transform countersets, intended for per bundle use.
@@ -206,9 +200,9 @@ type Store struct {
 
 	store map[Labels]userMetric
 
-	transitions int64
-	bundleState atomic.Value
-
+	transitions   int64
+	bundleState   BundleState
+	states        [3]BundleState
 	stateRegistry map[string][4]*ExecutionState
 }
 

@@ -45,38 +45,38 @@ func TestSampler(t *testing.T) {
 	bctx := SetBundleID(ctx, "test")
 
 	st := GetStore(bctx)
-	s := NewSampler(bctx, st)
+	s := NewSampler(st)
 
 	pctx := SetPTransformID(bctx, "transform")
 	label := "transform"
 
 	SetPTransformState(pctx, StartBundle)
-	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(200 * time.Millisecond)
 
 	// validate states and their time till now
 	checkStateTime(t, s, label, 200*time.Millisecond, 0, 0, 200*time.Millisecond)
 	checkBundleState(bctx, t, s, 1, 0)
 
 	SetPTransformState(pctx, ProcessBundle)
-	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(200 * time.Millisecond)
 	SetPTransformState(pctx, ProcessBundle)
 	SetPTransformState(pctx, ProcessBundle)
-	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(200 * time.Millisecond)
 
 	// validate states and their time till now
 	checkStateTime(t, s, label, 200*time.Millisecond, 400*time.Millisecond, 0, 600*time.Millisecond)
 	checkBundleState(bctx, t, s, 4, 0)
 
-	s.Sample(bctx, 200*time.Millisecond)
-	s.Sample(bctx, 200*time.Millisecond)
-	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(200 * time.Millisecond)
+	s.Sample(200 * time.Millisecond)
+	s.Sample(200 * time.Millisecond)
 
 	// validate states and their time till now
 	checkStateTime(t, s, label, 200*time.Millisecond, 1000*time.Millisecond, 0, 1200*time.Millisecond)
 	checkBundleState(bctx, t, s, 4, 600*time.Millisecond)
 
 	SetPTransformState(pctx, FinishBundle)
-	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(200 * time.Millisecond)
 	// validate states and their time till now
 	checkStateTime(t, s, label, 200*time.Millisecond, 1000*time.Millisecond, 200*time.Millisecond, 1400*time.Millisecond)
 	checkBundleState(bctx, t, s, 5, 0)
@@ -87,7 +87,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	bctx := SetBundleID(ctx, "bundle")
 
 	st := GetStore(bctx)
-	s := NewSampler(bctx, st)
+	s := NewSampler(st)
 
 	ctxA := SetPTransformID(bctx, "transformA")
 	ctxB := SetPTransformID(bctx, "transformB")
@@ -96,7 +96,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	labelB := "transformB"
 
 	SetPTransformState(ctxA, ProcessBundle)
-	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(200 * time.Millisecond)
 
 	// validate states and their time till now
 	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 0, 200*time.Millisecond)
@@ -104,19 +104,19 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	checkBundleState(bctx, t, s, 1, 0)
 
 	SetPTransformState(ctxB, ProcessBundle)
-	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(200 * time.Millisecond)
 	SetPTransformState(ctxA, ProcessBundle)
 	SetPTransformState(ctxB, ProcessBundle)
-	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(200 * time.Millisecond)
 
 	// validate states and their time till now
 	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 0, 200*time.Millisecond)
 	checkStateTime(t, s, labelB, 0, 400*time.Millisecond, 0, 400*time.Millisecond)
 	checkBundleState(bctx, t, s, 4, 0)
 
-	s.Sample(bctx, 200*time.Millisecond)
-	s.Sample(bctx, 200*time.Millisecond)
-	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(200 * time.Millisecond)
+	s.Sample(200 * time.Millisecond)
+	s.Sample(200 * time.Millisecond)
 
 	// validate states and their time till now
 	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 0, 200*time.Millisecond)
@@ -124,7 +124,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	checkBundleState(bctx, t, s, 4, 600*time.Millisecond)
 
 	SetPTransformState(ctxA, FinishBundle)
-	s.Sample(bctx, 200*time.Millisecond)
+	s.Sample(200 * time.Millisecond)
 	SetPTransformState(ctxB, FinishBundle)
 
 	// validate states and their time till now
@@ -137,7 +137,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 // goarch: amd64
 // pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
 // cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-// BenchmarkMsec_SetPTransformState-12    	27562231	        43.36 ns/op	      24 B/op	       1 allocs/op
+// BenchmarkMsec_SetPTransformState-12    	73107146	        15.86 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkMsec_SetPTransformState(b *testing.B) {
 	ctx := context.Background()
 	bctx := SetBundleID(ctx, "benchmark")
@@ -152,17 +152,17 @@ func BenchmarkMsec_SetPTransformState(b *testing.B) {
 // goarch: amd64
 // pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
 // cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-// BenchmarkMsec_Sample-12    	35614332	        33.98 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkMsec_Sample-12    	38105696	        30.23 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkMsec_Sample(b *testing.B) {
 	ctx := context.Background()
 	bctx := SetBundleID(ctx, "benchmark")
 	pctx := SetPTransformID(bctx, "transform")
 	SetPTransformState(pctx, StartBundle)
 	st := GetStore(bctx)
-	s := NewSampler(bctx, st)
+	s := NewSampler(st)
 
 	for i := 0; i < b.N; i++ {
-		s.Sample(bctx, 200*time.Millisecond)
+		s.Sample(200 * time.Millisecond)
 	}
 }
 
@@ -170,16 +170,13 @@ func BenchmarkMsec_Sample(b *testing.B) {
 // goarch: amd64
 // pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
 // cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-// BenchmarkMsec_Combined-12    	12847486	        85.57 ns/op	      48 B/op	       2 allocs/op
+// BenchmarkMsec_Combined-12    	27564116	        39.14 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkMsec_Combined(b *testing.B) {
 	ctx := context.Background()
 	bctx := SetBundleID(ctx, "benchmark")
 
 	st := GetStore(bctx)
-	s := NewSampler(bctx, st)
-
-	ctxA := SetPTransformID(bctx, "transformA")
-	ctxB := SetPTransformID(bctx, "transformB")
+	s := NewSampler(st)
 	done := make(chan int)
 
 	go func(done chan int, s StateSampler) {
@@ -188,11 +185,15 @@ func BenchmarkMsec_Combined(b *testing.B) {
 			case <-done:
 				return
 			default:
-				s.Sample(bctx, 5*time.Millisecond)
+				s.Sample(5 * time.Millisecond)
 				time.Sleep(5 * time.Millisecond)
 			}
 		}
 	}(done, s)
+
+	time.Sleep(200 * time.Millisecond)
+	ctxA := SetPTransformID(bctx, "transformA")
+	ctxB := SetPTransformID(bctx, "transformB")
 
 	for i := 0; i < b.N; i++ {
 		SetPTransformState(ctxA, ProcessBundle)

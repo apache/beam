@@ -138,6 +138,7 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 	if bctx, ok := ctx.(*beamCtx); ok {
 		if _, ok := bctx.store.stateRegistry[id]; !ok {
 			bctx.store.stateRegistry[id] = [4]*ExecutionState{&ExecutionState{}, &ExecutionState{}, &ExecutionState{}, &ExecutionState{}}
+			bctx.store.states = [3]BundleState{BundleState{currentState: StartBundle}, BundleState{currentState: ProcessBundle}, BundleState{currentState: FinishBundle}}
 		}
 		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, store: bctx.store, ptransformID: id}
 	}
@@ -182,7 +183,7 @@ const (
 	kindSumCounter
 	kindDistribution
 	kindGauge
-	DoFnMsec
+	kindDoFnMsec
 )
 
 func (t kind) String() string {
@@ -193,7 +194,7 @@ func (t kind) String() string {
 		return "Distribution"
 	case kindGauge:
 		return "Gauge"
-	case DoFnMsec:
+	case kindDoFnMsec:
 		return "DoFnMsec"
 	default:
 		panic(fmt.Sprintf("Unknown metric type value: %v", uint8(t)))
@@ -476,7 +477,7 @@ func (m *executionState) String() string {
 }
 
 func (m *executionState) kind() kind {
-	return DoFnMsec
+	return kindDoFnMsec
 }
 
 // Results represents all metrics gathered during the job's execution.

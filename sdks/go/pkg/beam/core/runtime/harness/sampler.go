@@ -28,7 +28,7 @@ type stateSampler struct {
 }
 
 func newSampler(ctx context.Context, store *metrics.Store) stateSampler {
-	return stateSampler{sampler: metrics.NewSampler(ctx, store), done: make(chan int)}
+	return stateSampler{sampler: metrics.NewSampler(store), done: make(chan int)}
 }
 
 func (s *stateSampler) start(ctx context.Context, t time.Duration) {
@@ -37,7 +37,7 @@ func (s *stateSampler) start(ctx context.Context, t time.Duration) {
 		case <-s.done:
 			return
 		default:
-			s.sampler.Sample(ctx, t)
+			s.sampler.Sample(t)
 		}
 	}
 }

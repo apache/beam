@@ -16,8 +16,9 @@
 package metrics
 
 import (
-	"context"
+	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 // StateSampler tracks the state of a bundle.
@@ -28,12 +29,15 @@ type StateSampler struct {
 }
 
 // NewSampler creates a new state sampler.
-func NewSampler(ctx context.Context, store *Store) StateSampler {
+func NewSampler(store *Store) StateSampler {
 	return StateSampler{store: store}
 }
 
-func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
-	ps := loadCurrentState(ctx)
+func (s *StateSampler) Sample(t time.Duration) {
+	ps := loadCurrentState(s)
+	if ps.pid == "" {
+		return
+	}
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
 
@@ -41,15 +45,21 @@ func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
 		v[ps.state].TotalTime += t
 		v[TotalBundle].TotalTime += t
 
-		e := s.store
-
 		if s.transitionsAtLastSample != ps.transitions {
 			// state change detected
 			s.millisSinceLastTransition = 0
-			e.transitions = ps.transitions
 			s.transitionsAtLastSample = ps.transitions
 		} else {
 			s.millisSinceLastTransition += t
 		}
+	}
+}
+
+func loadCurrentState(s *StateSampler) currentStateVal {
+	if ts := (atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&s.store.bundleState)))); ts == nil {
+		return currentStateVal{}
+	} else {
+		bs := *(*BundleState)(ts)
+		return currentStateVal{pid: bs.pid, state: bs.currentState, transitions: atomic.LoadInt64(&s.store.transitions)}
 	}
 }
