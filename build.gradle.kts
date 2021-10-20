@@ -248,12 +248,10 @@ task("goIntegrationTests") {
 }
 
 task("playgroundPreCommit") {
-  dependsOn(":playground:backend:format")
   dependsOn(":playground:backend:tidy")
   dependsOn(":playground:backend:test")
 
   dependsOn(":playground:frontend:pubGet")
-  dependsOn(":playground:frontend:format")
   dependsOn(":playground:frontend:analyze")
   dependsOn(":playground:frontend:test")
 }
