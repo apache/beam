@@ -21,10 +21,12 @@ import 'package:flutter/services.dart';
 import 'package:playground/modules/shortcuts/models/shortcut.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const kRunText = 'Run';
 const kResetText = 'Reset';
-const kClearText = 'Clear';
+const kClearOutputText = 'Clear Output';
+const kNewExampleText = 'New Example';
 
 class ResetIntent extends Intent {
   const ResetIntent();
@@ -34,15 +36,19 @@ class RunIntent extends Intent {
   const RunIntent();
 }
 
-class ClearIntent extends Intent {
-  const ClearIntent();
+class ClearOutputIntent extends Intent {
+  const ClearOutputIntent();
+}
+
+class NewExampleIntent extends Intent {
+  const NewExampleIntent();
 }
 
 final List<Shortcut> globalShortcuts = [
   Shortcut(
     shortcuts: LogicalKeySet(
       LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.digit0,
+      LogicalKeyboardKey.enter,
     ),
     actionIntent: const RunIntent(),
     name: kRunText,
@@ -55,8 +61,9 @@ final List<Shortcut> globalShortcuts = [
   ),
   Shortcut(
     shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.keyV,
-      LogicalKeyboardKey.digit9,
+      LogicalKeyboardKey.meta,
+      LogicalKeyboardKey.shift,
+      LogicalKeyboardKey.keyR,
     ),
     actionIntent: const ResetIntent(),
     name: kResetText,
@@ -65,6 +72,32 @@ final List<Shortcut> globalShortcuts = [
         context,
         listen: false,
       ).reset(),
+    ),
+  ),
+  Shortcut(
+    shortcuts: LogicalKeySet(
+      LogicalKeyboardKey.meta,
+      LogicalKeyboardKey.shift,
+      LogicalKeyboardKey.keyC,
+    ),
+    actionIntent: const ClearOutputIntent(),
+    name: kClearOutputText,
+    createAction: (BuildContext context) => CallbackAction(
+      onInvoke: (_) => Provider.of<PlaygroundState>(
+        context,
+        listen: false,
+      ).clearOutput(),
+    ),
+  ),
+  Shortcut(
+    shortcuts: LogicalKeySet(
+      LogicalKeyboardKey.meta,
+      LogicalKeyboardKey.keyM,
+    ),
+    actionIntent: const NewExampleIntent(),
+    name: kNewExampleText,
+    createAction: (_) => CallbackAction(
+      onInvoke: (_) => launch('/'),
     ),
   ),
 ];
