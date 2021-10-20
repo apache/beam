@@ -153,7 +153,7 @@ class WriteToJdbc(ExternalTransform):
   Experimental; no backwards compatibility guarantees.
   """
 
-  URN = 'beam:external:java:schemaio:jdbc:write:v1'
+  URN = 'beam:transform:org.apache.beam:schemaio_jdbc_write:v1'
 
   def __init__(
       self,
@@ -236,7 +236,7 @@ class ReadFromJdbc(ExternalTransform):
   Experimental; no backwards compatibility guarantees.
   """
 
-  URN = 'beam:external:java:schemaio:jdbc:read:v1'
+  URN = 'beam:transform:org.apache.beam:schemaio_jdbc_read:v1'
 
   def __init__(
       self,
