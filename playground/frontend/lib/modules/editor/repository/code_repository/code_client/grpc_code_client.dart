@@ -71,11 +71,13 @@ class GrpcCodeClient implements CodeClient {
         .then((response) => OutputResponse(response.output)));
   }
 
-  Future<T> _runSafely<T>(Future<T> Function() invoke) {
+  Future<T> _runSafely<T>(Future<T> Function() invoke) async {
     try {
-      return invoke();
+      return await invoke();
     } on GrpcError catch (error) {
       throw RunCodeError(error.message);
+    } on Exception catch (_) {
+      throw RunCodeError("Failed to execute code");
     }
   }
 

@@ -20,10 +20,13 @@ import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/notifications/components/notification.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
+
+const kNotificationTitle = 'Run Code';
 
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
@@ -62,8 +65,10 @@ class CodeTextAreaWrapper extends StatelessWidget {
   }
 
   _handleError(BuildContext context, PlaygroundState state) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(state.result?.errorMessage ?? "")),
+    NotificationManager.showError(
+      context,
+      kNotificationTitle,
+      state.result?.errorMessage ?? "",
     );
     state.resetError();
   }
