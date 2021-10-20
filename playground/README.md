@@ -19,7 +19,7 @@
 
 # Playground
 
-The Beam Playground is a web application to run Beam code snippets in a modern 
+The Beam Playground is a web application to run Beam code snippets in a modern
 browser.  This directory holds code to build, test, and deploy the frontend
 and backend services.
 
@@ -30,7 +30,7 @@ The following requirements are needed for development, testing, and deploying.
 - [go 1.16+](https://golang.org)
 - [flutter](https://flutter.dev/)
 - Go protobuf dependencies (See [Go gRPC Quickstart](https://grpc.io/docs/languages/go/quickstart/))
-- Dart protobuf dependencies (See [Dart gRPC Quickstart](https://grpc.io/docs/languages/dart/))  
+- Dart protobuf dependencies (See [Dart gRPC Quickstart](https://grpc.io/docs/languages/dart/))
 - [buf](https://docs.buf.build/installation)
 
 # Available Gradle Tasks
