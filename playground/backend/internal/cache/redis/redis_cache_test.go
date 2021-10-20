@@ -13,10 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package redis
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api"
+	"beam.apache.org/playground/backend/internal/cache"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -30,7 +31,7 @@ import (
 
 func TestRedisCache_GetValue(t *testing.T) {
 	pipelineId := uuid.New()
-	subKey := SubKey_RunOutput
+	subKey := cache.SubKey_RunOutput
 	value := "MOCK_OUTPUT"
 	client, mock := redismock.NewClientMock()
 	marshSubKey, _ := json.Marshal(subKey)
@@ -42,7 +43,7 @@ func TestRedisCache_GetValue(t *testing.T) {
 	type args struct {
 		ctx        context.Context
 		pipelineId uuid.UUID
-		subKey     SubKey
+		subKey     cache.SubKey
 	}
 	tests := []struct {
 		name    string
@@ -191,7 +192,7 @@ func TestRedisCache_SetExpTime(t *testing.T) {
 
 func TestRedisCache_SetValue(t *testing.T) {
 	pipelineId := uuid.New()
-	subKey := SubKey_Status
+	subKey := cache.SubKey_Status
 	value := pb.Status_STATUS_FINISHED
 	client, mock := redismock.NewClientMock()
 	marshSubKey, _ := json.Marshal(subKey)
@@ -203,7 +204,7 @@ func TestRedisCache_SetValue(t *testing.T) {
 	type args struct {
 		ctx        context.Context
 		pipelineId uuid.UUID
-		subKey     SubKey
+		subKey     cache.SubKey
 		value      interface{}
 	}
 	tests := []struct {
@@ -294,7 +295,7 @@ func Test_newRedisCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := newRedisCache(tt.args.ctx, tt.args.addr); (err != nil) != tt.wantErr {
+			if _, err := New(tt.args.ctx, tt.args.addr); (err != nil) != tt.wantErr {
 				t.Errorf("newRedisCache() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -308,7 +309,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 	outputValue, _ := json.Marshal(output)
 	type args struct {
 		ctx    context.Context
-		subKey SubKey
+		subKey cache.SubKey
 		value  string
 	}
 	tests := []struct {
@@ -321,7 +322,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 			name: "status subKey",
 			args: args{
 				ctx:    context.Background(),
-				subKey: SubKey_Status,
+				subKey: cache.SubKey_Status,
 				value:  string(statusValue),
 			},
 			want:    &status,
@@ -330,7 +331,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 		{
 			name: "runOutput subKey",
 			args: args{
-				subKey: SubKey_RunOutput,
+				subKey: cache.SubKey_RunOutput,
 				value:  string(outputValue),
 			},
 			want:    output,
@@ -339,7 +340,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 		{
 			name: "compileOutput subKey",
 			args: args{
-				subKey: SubKey_CompileOutput,
+				subKey: cache.SubKey_CompileOutput,
 				value:  string(outputValue),
 			},
 			want:    output,

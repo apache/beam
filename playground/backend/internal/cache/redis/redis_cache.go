@@ -13,10 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package redis
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api"
+	"beam.apache.org/playground/backend/internal/cache"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -32,9 +33,9 @@ type RedisCache struct {
 	*redis.Client
 }
 
-// newRedisCache returns Redis implementation of Cache interface.
+// New returns Redis implementation of Cache interface.
 // In case of problem with connection to Redis returns error.
-func newRedisCache(ctx context.Context, addr string) (*RedisCache, error) {
+func New(ctx context.Context, addr string) (*RedisCache, error) {
 	rc := RedisCache{redis.NewClient(&redis.Options{Addr: addr})}
 	_, err := rc.Ping(ctx).Result()
 	if err != nil {
@@ -44,7 +45,7 @@ func newRedisCache(ctx context.Context, addr string) (*RedisCache, error) {
 	return &rc, nil
 }
 
-func (rc *RedisCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey) (interface{}, error) {
+func (rc *RedisCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey) (interface{}, error) {
 	marshSubKey, err := json.Marshal(subKey)
 	if err != nil {
 		log.Printf("Redis Cache: get value: error during marshal subKey: %s, err: %s\n", subKey, err.Error())
@@ -59,7 +60,7 @@ func (rc *RedisCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey
 	return unmarshalBySubKey(subKey, value)
 }
 
-func (rc *RedisCache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey, value interface{}) error {
+func (rc *RedisCache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey, value interface{}) error {
 	subKeyMarsh, err := json.Marshal(subKey)
 	if err != nil {
 		log.Printf("Redis Cache: set value: error during marshal subKey: %s, err: %s\n", subKey, err.Error())
@@ -104,12 +105,12 @@ func (rc *RedisCache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expT
 }
 
 // unmarshalBySubKey unmarshal value by subKey
-func unmarshalBySubKey(subKey SubKey, value string) (result interface{}, err error) {
+func unmarshalBySubKey(subKey cache.SubKey, value string) (result interface{}, err error) {
 	switch subKey {
-	case SubKey_Status:
+	case cache.SubKey_Status:
 		result = new(pb.Status)
 		err = json.Unmarshal([]byte(value), &result)
-	case SubKey_RunOutput, SubKey_CompileOutput:
+	case cache.SubKey_RunOutput, cache.SubKey_CompileOutput:
 		result = ""
 		err = json.Unmarshal([]byte(value), &result)
 	}

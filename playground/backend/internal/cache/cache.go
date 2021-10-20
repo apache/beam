@@ -18,7 +18,6 @@ package cache
 import (
 	"context"
 	"github.com/google/uuid"
-	"os"
 	"time"
 )
 
@@ -53,14 +52,4 @@ type Cache interface {
 
 	// SetExpTime adds expiration time of the pipeline to cache by pipelineId.
 	SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error
-}
-
-// New returns new Cache to save and read value
-func New(ctx context.Context, cacheType string) (Cache, error) {
-	switch cacheType {
-	case "remote":
-		return newRedisCache(ctx, os.Getenv("remote_cache_address"))
-	default:
-		return newLocalCache(ctx), nil
-	}
 }
