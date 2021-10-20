@@ -20,6 +20,7 @@ description = "Apache Beam :: Playground :: Backend"
 
 task("format") {
   group = "build"
+  description = "Format backend go code"
   doLast {
     exec {
       executable("gofmt")
@@ -30,6 +31,7 @@ task("format") {
 
 task("tidy") {
   group = "build"
+  description = "Run go mod tidy"
   doLast {
     exec {
       executable("go")
@@ -40,6 +42,7 @@ task("tidy") {
 
 task("test") {
   group = "verification"
+  description = "Test the backend"
   doLast {
     exec {
       executable("go")
