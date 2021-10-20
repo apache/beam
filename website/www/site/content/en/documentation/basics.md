@@ -120,14 +120,14 @@ the specific `Pipeline` object for which it is created. Multiple pipelines
 cannot share a `PCollection`. Beam pipelines process PCollections, and the
 runner is responsible for storing these elements.
 
-A PCollection generally contains "big data" (too much data to fit in memory on a
-single machine). Sometimes a small sample of data or an intermediate result
+A `PCollection` generally contains "big data" (too much data to fit in memory on
+a single machine). Sometimes a small sample of data or an intermediate result
 might fit into memory on a single machine, but Beam's computational patterns and
 transforms are focused on situations where distributed data-parallel computation
 is required. Therefore, the elements of a `PCollection` cannot be processed
 individually, and are instead processed uniformly in parallel.
 
-There are some major aspects of a PCollection to note:
+The following characteristics of a `PCollection` are important to know.
 
 ####  Bounded vs unbounded
 
