@@ -17,20 +17,31 @@ package environment
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api"
+	"encoding/json"
 	"errors"
-	"google.golang.org/grpc/grpclog"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 const (
-	serverIpKey   = "SERVER_IP"
-	serverPortKey = "SERVER_PORT"
-	beamSdkKey    = "BEAM_SDK"
-	workingDirKey = "APP_WORK_DIR"
-	defaultIp     = "localhost"
-	defaultPort   = 8080
-	defaultSdk    = pb.Sdk_SDK_JAVA
+	serverIpKey        = "SERVER_IP"
+	serverPortKey      = "SERVER_PORT"
+	beamSdkKey         = "BEAM_SDK"
+	workingDirKey      = "APP_WORK_DIR"
+	beamPathKey        = "BEAM_PATH"
+	beamRunnerKey      = "BEAM_RUNNER"
+	SLF4jKey           = "SLF4J"
+	defaultIp          = "localhost"
+	defaultPort        = 8080
+	defaultSdk         = pb.Sdk_SDK_JAVA
+	defaultBeamSdkPath = "/opt/apache/beam/jars/beam-sdks-java-harness.jar"
+	defaultBeamRunner  = "/opt/apache/beam/jars/beam-runners-direct.jar"
+	defaultSLF4j       = "/opt/apache/beam/jars/slf4j-jdk14.jar"
+	jsonExt            = ".json"
+	configFolderName   = "configs"
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -63,27 +74,22 @@ func getApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }
 
-// getServerEnvsFromOsEnvs lookups in os environment variables and takes value for ip and port. If not exists - using default
-func getServerEnvsFromOsEnvs() *NetworkEnvs {
-	ip := defaultIp
+// getNetworkEnvsFromOsEnvs lookups in os environment variables and takes value for ip and port. If not exists - using default
+func getNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
+	ip := getEnv(serverIpKey, defaultIp)
 	port := defaultPort
-	if value, present := os.LookupEnv(serverIpKey); present {
-		ip = value
-	}
-
+	var err error
 	if value, present := os.LookupEnv(serverPortKey); present {
-		if converted, err := strconv.Atoi(value); err == nil {
-			port = converted
-		} else {
-			grpclog.Errorf("couldn't convert provided port. Using default %s\n", defaultPort)
+		port, err = strconv.Atoi(value)
+		if err != nil {
+			return nil, err
 		}
 	}
-
-	return NewNetworkEnvs(ip, port)
+	return NewNetworkEnvs(ip, port), nil
 }
 
-// getServerEnvsFromOsEnvs lookups in os environment variables and takes value for Apache Beam SDK. If not exists - using default
-func getSdkEnvsFromOsEnvs() *BeamEnvs {
+// getSdkEnvsFromOsEnvs lookups in os environment variables and takes value for Apache Beam SDK. If not exists - using default
+func getSdkEnvsFromOsEnvs() (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
 	if value, present := os.LookupEnv(beamSdkKey); present {
 
@@ -99,9 +105,56 @@ func getSdkEnvsFromOsEnvs() *BeamEnvs {
 		}
 	}
 	if sdk == pb.Sdk_SDK_UNSPECIFIED {
-		grpclog.Infof("couldn't get sdk from %s os env, using default: %s", beamSdkKey, defaultSdk)
-		sdk = defaultSdk
+		return nil, errors.New("env BEAM_SDK must be specified in the environment variables")
 	}
+	configPath := filepath.Join(os.Getenv(workingDirKey), configFolderName, sdk.String()+jsonExt)
+	executorConfig, err := createExecutorConfig(sdk, configPath)
+	if err != nil {
+		return nil, err
+	}
+	return NewBeamEnvs(sdk, executorConfig), nil
+}
 
-	return NewBeamEnvs(sdk)
+//createExecutorConfig creates ExecutorConfig object that corresponds to specific apache beam sdk
+func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorConfig, error) {
+	executorConfig, err := getConfigFromJson(configPath)
+	if err != nil {
+		return nil, err
+	}
+	switch apacheBeamSdk {
+	case pb.Sdk_SDK_JAVA:
+		executorConfig.CompileArgs = append(executorConfig.CompileArgs, getEnv(beamPathKey, defaultBeamSdkPath))
+		jars := strings.Join([]string{
+			getEnv(beamPathKey, defaultBeamSdkPath),
+			getEnv(beamRunnerKey, defaultBeamRunner),
+			getEnv(SLF4jKey, defaultSLF4j),
+		}, ":")
+		executorConfig.RunArgs[1] += jars
+	case pb.Sdk_SDK_GO:
+	case pb.Sdk_SDK_PYTHON:
+	case pb.Sdk_SDK_SCIO:
+	}
+	return executorConfig, nil
+}
+
+//getConfigFromJson reads a json file to ExecutorConfig struct
+func getConfigFromJson(configPath string) (*ExecutorConfig, error) {
+	file, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+	executorConfig := ExecutorConfig{}
+	err = json.Unmarshal(file, &executorConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &executorConfig, err
+}
+
+//getEnv returns a environment variable or default value
+func getEnv(key, defaultValue string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return defaultValue
 }

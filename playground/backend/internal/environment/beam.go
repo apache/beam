@@ -15,14 +15,29 @@
 
 package environment
 
-import pb "beam.apache.org/playground/backend/internal/api"
+import (
+	pb "beam.apache.org/playground/backend/internal/api"
+)
+
+// ExecutorConfig contains needed for compiling and execution of the code commands
+type ExecutorConfig struct {
+	CompileCmd  string   `json:"compile_cmd"`
+	RunCmd      string   `json:"run_cmd"`
+	CompileArgs []string `json:"compile_args"`
+	RunArgs     []string `json:"run_args"`
+}
+
+func NewExecutorConfig(compileCmd string, runCmd string, compileArgs []string, runArgs []string) *ExecutorConfig {
+	return &ExecutorConfig{CompileCmd: compileCmd, RunCmd: runCmd, CompileArgs: compileArgs, RunArgs: runArgs}
+}
 
 // BeamEnvs contains all environments related of ApacheBeam. These will use to run pipelines
 type BeamEnvs struct {
-	ApacheBeamSdk pb.Sdk
+	ApacheBeamSdk  pb.Sdk
+	ExecutorConfig *ExecutorConfig
 }
 
 // NewBeamEnvs is a BeamEnvs constructor
-func NewBeamEnvs(apacheBeamSdk pb.Sdk) *BeamEnvs {
-	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk}
+func NewBeamEnvs(apacheBeamSdk pb.Sdk, executorConfig *ExecutorConfig) *BeamEnvs {
+	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, ExecutorConfig: executorConfig}
 }

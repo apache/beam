@@ -17,6 +17,7 @@ package environment
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -44,6 +45,26 @@ func TestServerEnvs_GetAddress(t *testing.T) {
 			}
 			if got := serverEnvs.Address(); got != tt.want {
 				t.Errorf("Address() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewApplicationEnvs(t *testing.T) {
+	type args struct {
+		workingDir string
+	}
+	tests := []struct {
+		name string
+		args args
+		want *ApplicationEnvs
+	}{
+		{name: "constructor for application envs", args: args{workingDir: "/app"}, want: &ApplicationEnvs{workingDir: "/app"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewApplicationEnvs(tt.args.workingDir); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewApplicationEnvs() = %v, want %v", got, tt.want)
 			}
 		})
 	}
