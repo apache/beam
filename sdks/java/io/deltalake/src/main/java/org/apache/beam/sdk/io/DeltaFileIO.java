@@ -206,10 +206,18 @@ public class DeltaFileIO
       return toBuilder().setEmptyMatchTreatment(treatment).build();
     }
 
+    /**
+     * Reading data from Delta Lake Snapshot with the provided {@code version} number.
+     * @param version  the snapshot version to generate
+     */
     public MatchConfiguration withVersion(Long version) {
       return toBuilder().setVersion(version).build();
     }
 
+    /**
+     * Reading data from Delta Lake Snapshot that was generated at or before {@code timestamp}.
+     * @param timestamp  the number of milliseconds since midnight, January 1, 1970 UTC
+     */
     public MatchConfiguration withTimestamp(Long timestamp) {
       return toBuilder().setTimestamp(timestamp).build();
     }
@@ -258,14 +266,11 @@ public class DeltaFileIO
       abstract Match build();
     }
 
-    /** Matches the given filepattern. */
-    public Match filepattern(String filepattern) {
-      return this.filepattern(StaticValueProvider.of(filepattern));
-    }
-
-    /** Like {@link #filepattern(String)} but using a {@link ValueProvider}. */
-    public Match filepattern(ValueProvider<String> filepattern) {
-      return toBuilder().setFilepattern(filepattern).build();
+    /** Reading data from Delta Lake table, located at the provided {@code path}.
+     *  F.e. for reading data from AWS s3 specify "s3://<bucket_name/<prefix>"
+     */
+    public Match filepattern(String path) {
+      return toBuilder().setFilepattern(StaticValueProvider.of(path)).build();
     }
 
     /** Sets the {@link MatchConfiguration}. */
@@ -278,10 +283,18 @@ public class DeltaFileIO
       return withConfiguration(getConfiguration().withEmptyMatchTreatment(treatment));
     }
 
+    /**
+     * Reading data from Delta Lake Snapshot with the provided {@code version} number.
+     * @param version  the snapshot version to generate
+     */
     public Match withVersion(Long version) {
       return withConfiguration(getConfiguration().withVersion(version));
     }
 
+    /**
+     * Reading data from Delta Lake Snapshot that was generated at or before {@code timestamp}.
+     * @param timestamp  the number of milliseconds since midnight, January 1, 1970 UTC
+     */
     public Match withTimestamp(Long timestamp) {
       return withConfiguration(getConfiguration().withTimestamp(timestamp));
     }
@@ -412,7 +425,7 @@ public class DeltaFileIO
 
         List<AddFile> deltaFiles = deltaSnapshot.getAllFiles();
 
-        LOG.info("DeltaFileIO:MatchOnceFn DeltaLog.forTables: version={}, numberOfFiles={}",
+        LOG.debug("DeltaFileIO:MatchOnceFn DeltaLog.forTables: version={}, numberOfFiles={}",
             deltaSnapshot.getVersion(), deltaFiles.size());
 
         String separator = filePattern.endsWith("/") ? "" : "/";
@@ -420,7 +433,7 @@ public class DeltaFileIO
         for (AddFile file : deltaFiles) {
           String fullPath = filePattern + separator + file.getPath();
           MatchResult match = FileSystems.match(fullPath, matchConfiguration.getEmptyMatchTreatment());
-          LOG.info("DeltaFileIO will process {}", match);
+          LOG.debug("DeltaFileIO will process {}", match);
           for (MatchResult.Metadata metadata : match.metadata()) {
             c.output(metadata);
           }
@@ -494,7 +507,7 @@ public class DeltaFileIO
           filesMetadata = Collections.EMPTY_LIST;
         } else {
           List<AddFile> deltaFiles = deltaSnapshot.getAllFiles();
-          LOG.info("DeltaFileIO.MatchPollFn: DeltaLog.updates, version={}, numberOfFiles={}",
+          LOG.debug("DeltaFileIO.MatchPollFn: DeltaLog.updates, version={}, numberOfFiles={}",
               deltaSnapshot.getVersion(), deltaFiles.size());
 
           String separator = filePattern.endsWith("/") ? "" : "/";
@@ -509,7 +522,7 @@ public class DeltaFileIO
           }
 
           deltaSnapshotVersion = deltaSnapshot.getVersion();
-          LOG.info("DeltaFileIO.MatchPollFn: for deltaSnapshotVersion={} updating filesMetadata.size={}",
+          LOG.debug("DeltaFileIO.MatchPollFn: for deltaSnapshotVersion={} updating filesMetadata.size={}",
               deltaSnapshotVersion, filesMetadata.size());
         }
 
