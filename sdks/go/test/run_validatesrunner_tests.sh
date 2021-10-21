@@ -81,7 +81,7 @@ RUNNER=portable
 
 # Default timeout. This timeout is applied per-package, as tests in different
 # packages are executed in parallel.
-TIMEOUT=1h
+TIMEOUT=2h
 
 # Default limit on simultaneous test binaries/packages being executed.
 SIMULTANEOUS=3

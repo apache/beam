@@ -16,14 +16,15 @@
 package main
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api"
-	"beam.apache.org/playground/backend/internal/environment"
 	"context"
+	"log"
+	"os"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/environment"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
-	"log"
-	"os"
 )
 
 // runServer is starting http server wrapped on grpc
@@ -39,7 +40,7 @@ func runServer() error {
 	handler := Wrap(grpcServer, getGrpcWebOptions())
 	errChan := make(chan error)
 
-	go listenHttp(ctx, errChan, envService.ServerEnvs, handler)
+	go listenHttp(ctx, errChan, envService, handler)
 
 	for {
 		select {
