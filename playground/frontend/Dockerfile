@@ -19,7 +19,7 @@
 FROM debian:11 as build
 ENV FLUTTER_VERSION=2.5.2-stable
 
-RUN apt-get update && apt-get install -y wget xz-utils git protobuf-compiler
+RUN apt-get update && apt-get install -y wget xz-utils git
 RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION.tar.xz &&\
     tar -xf flutter_linux_$FLUTTER_VERSION.tar.xz &&\
     mv flutter /opt/ &&\
@@ -31,7 +31,6 @@ RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/li
 
 COPY . /app
 WORKDIR /app
-RUN mkdir lib/generated && protoc playground.proto --dart_out=grpc:lib/generated --proto_path=$(pwd)/playground/v1
 RUN cd /app && flutter build web -v
 FROM nginx:1.21.3
 COPY --from=build /app/nginx_default.conf /etc/nginx/conf.d/default.conf
