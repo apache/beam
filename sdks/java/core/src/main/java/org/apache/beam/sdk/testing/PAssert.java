@@ -307,6 +307,16 @@ public class PAssert {
     IterableAssert<T> containsInAnyOrder(SerializableMatcher<? super T>... expectedElements);
 
     /**
+     * Asserts that the iterable in question is empty.
+     *
+     * @deprecated Prefer {@link #empty()} to this method.
+     *
+     * @return the same {@link IterableAssert} builder for further assertions
+     */
+    @Deprecated
+    IterableAssert<T> containsInAnyOrder();
+
+    /**
      * Asserts that the iterable in question contains the provided elements.
      *
      * @return the same {@link IterableAssert} builder for further assertions
@@ -711,6 +721,10 @@ public class PAssert {
       return satisfies(SerializableMatchers.containsInAnyOrder(elementMatchers));
     }
 
+    @Override public PCollectionContentsAssert<T> containsInAnyOrder() {
+      return empty();
+    }
+
     /**
      * Applies a {@link SerializableFunction} to check the elements of the {@code Iterable}.
      *
@@ -877,6 +891,11 @@ public class PAssert {
           (SerializableFunction)
               new MatcherCheckerFn<>(SerializableMatchers.containsInAnyOrder(elementMatchers));
       return satisfies(checkerFn);
+    }
+
+    @Override
+    public PCollectionSingletonIterableAssert<T> containsInAnyOrder() {
+      return empty();
     }
 
     @Override
