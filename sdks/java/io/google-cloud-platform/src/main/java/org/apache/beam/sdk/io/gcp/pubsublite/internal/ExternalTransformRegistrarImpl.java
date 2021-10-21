@@ -27,8 +27,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 @AutoService(ExternalTransformRegistrar.class)
 public class ExternalTransformRegistrarImpl implements ExternalTransformRegistrar {
-  public static final String WRITE_URN = "beam:external:java:pubsublite:write:v1";
-  public static final String READ_URN = "beam:external:java:pubsublite:read:v1";
+  public static final String WRITE_URN = "beam:transform:org.apache.beam:pubsublite_write:v1";
+  public static final String READ_URN = "beam:transform:org.apache.beam:pubsublite_read:v1";
 
   @Override
   public Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {

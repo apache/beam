@@ -1,5 +1,5 @@
 from apache_beam.transforms import Map, PTransform
-from apache_beam.io.gcp.pubsublite.external import ReadExternal, WriteExternal
+from apache_beam.io.gcp.pubsublite.external import _ReadExternal, _WriteExternal
 
 try:
   from google.cloud import pubsublite
@@ -8,13 +8,20 @@ except ImportError:
 
 
 class ReadFromPubSubLite(PTransform):
-  """A ``PTransform`` for reading from Pub/Sub Lite."""
+  """
+  A ``PTransform`` for reading from Pub/Sub Lite.
+
+  Produces a PCollection of google.cloud.pubsublite.SequencedMessage
+
+  Experimental; no backwards-compatibility guarantees.
+  """
 
   def __init__(
       self,
       subscription_path,
       min_bundle_timeout=None,
-      deduplicate=None
+      deduplicate=None,
+      expansion_service=None,
   ):
     """Initializes ``ReadFromPubSubLite``.
 
@@ -29,10 +36,11 @@ class ReadFromPubSubLite(PTransform):
           the 'x-goog-pubsublite-dataflow-uuid' attribute. Defaults to False.
     """
     super().__init__()
-    self._source = ReadExternal(
+    self._source = _ReadExternal(
       subscription_path=subscription_path,
       min_bundle_timeout=min_bundle_timeout,
-      deduplicate=deduplicate
+      deduplicate=deduplicate,
+      expansion_service=expansion_service,
     )
 
   def expand(self, pvalue):
@@ -44,12 +52,19 @@ class ReadFromPubSubLite(PTransform):
 
 
 class WriteToPubSubLite(PTransform):
-  """A ``PTransform`` for writing to Pub/Sub Lite."""
+  """
+  A ``PTransform`` for writing to Pub/Sub Lite.
+
+  Consumes a PCollection of google.cloud.pubsublite.PubSubMessage
+
+  Experimental; no backwards-compatibility guarantees.
+  """
 
   def __init__(
       self,
       topic_path,
-      add_uuids=None
+      add_uuids=None,
+      expansion_service=None,
   ):
     """Initializes ``WriteToPubSubLite``.
 
@@ -59,9 +74,10 @@ class WriteToPubSubLite(PTransform):
           uuid attribute. Defaults to False.
     """
     super().__init__()
-    self._source = WriteExternal(
+    self._source = _WriteExternal(
       topic_path=topic_path,
-      add_uuids=add_uuids
+      add_uuids=add_uuids,
+      expansion_service=expansion_service,
     )
 
   @staticmethod

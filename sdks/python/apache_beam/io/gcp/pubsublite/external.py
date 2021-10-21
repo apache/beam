@@ -36,25 +36,30 @@ _ReadSchema = typing.NamedTuple(
 
 
 def _default_io_expansion_service():
-  return BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
+  return BeamJarExpansionService(
+    'sdks:java:io:google-cloud-platform:expansion-service')
 
 
-class ReadExternal(ExternalTransform):
+class _ReadExternal(ExternalTransform):
   """
     An external PTransform which reads from Pub/Sub Lite and returns a
     SequencedMessage as serialized bytes.
 
-    Experimental; no backwards compatibility guarantees.
+    This transform is not part of the public API.
+
+    Experimental; no backwards-compatibility guarantees.
   """
 
   def __init__(
       self,
       subscription_path,
       min_bundle_timeout=None,
-      deduplicate=None
+      deduplicate=None,
+      expansion_service=None,
   ):
     """
-    Initializes a read operation from Pub/Sub Lite.
+    Initializes a read operation from Pub/Sub Lite, returning the serialized
+    bytes of SequencedMessage protos.
 
     Args:
       subscription_path: A Pub/Sub Lite Subscription path.
@@ -69,14 +74,16 @@ class ReadExternal(ExternalTransform):
       min_bundle_timeout = 60 * 1000
     if deduplicate is None:
       deduplicate = False
+    if expansion_service is None:
+      expansion_service = _default_io_expansion_service()
     super().__init__(
-      'beam:external:java:pubsublite:read:v1',
+      'beam:transform:org.apache.beam:pubsublite_read:v1',
       NamedTupleBasedPayloadBuilder(
         _ReadSchema(
           subscription_path=subscription_path,
           min_bundle_timeout=min_bundle_timeout,
           deduplicate=deduplicate)),
-      _default_io_expansion_service())
+      expansion_service)
 
 
 _WriteSchema = typing.NamedTuple(
@@ -87,20 +94,24 @@ _WriteSchema = typing.NamedTuple(
     ])
 
 
-class WriteExternal(ExternalTransform):
+class _WriteExternal(ExternalTransform):
   """
     An external PTransform which writes serialized PubSubMessage protos to
     Pub/Sub Lite.
 
-    Experimental; no backwards compatibility guarantees.
+    This transform is not part of the public API.
+
+    Experimental; no backwards-compatibility guarantees.
   """
   def __init__(
       self,
       topic_path,
-      add_uuids=None
+      add_uuids=None,
+      expansion_service=None,
   ):
     """
-    Initializes a write operation to Pub/Sub Lite.
+    Initializes a write operation to Pub/Sub Lite, writing the serialized bytes
+    of PubSubMessage protos.
 
     Args:
       topic_path: A Pub/Sub Lite Topic path.
@@ -109,11 +120,13 @@ class WriteExternal(ExternalTransform):
     """
     if add_uuids is None:
       add_uuids = False
+    if expansion_service is None:
+      expansion_service = _default_io_expansion_service()
     super().__init__(
-        'beam:external:java:pubsublite:write:v1',
+        'beam:transform:org.apache.beam:pubsublite_write:v1',
         NamedTupleBasedPayloadBuilder(
             _WriteSchema(
                 topic_path=topic_path,
                 add_uuids=add_uuids,
             )),
-        _default_io_expansion_service())
+        expansion_service)
