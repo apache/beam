@@ -1146,7 +1146,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
     assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
     assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
   }
 
   @Test

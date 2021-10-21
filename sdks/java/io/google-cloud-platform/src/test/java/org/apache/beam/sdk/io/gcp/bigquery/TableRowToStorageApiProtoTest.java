@@ -41,6 +41,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.List;
+import java.util.ArrayList;
+import com.google.api.client.json.jackson2.JacksonFactory;
+
+
+
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
@@ -308,5 +314,134 @@ public class TableRowToStorageApiProtoTest {
             .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
     assertBaseRecord((DynamicMessage) msg.getField(fieldDescriptors.get("nestedvalue1")));
     assertBaseRecord((DynamicMessage) msg.getField(fieldDescriptors.get("nestedvalue2")));
+  }
+
+  private static String customerJson ="[\n" +
+          "  {\n" +
+          "    \"name\": \"name\",\n" +
+          "    \"type\": \"STRING\",\n" +
+          "    \"mode\": \"NULLABLE\"\n" +
+          "  },\n" +
+          "  {\n" +
+          "    \"name\": \"description\",\n" +
+          "    \"type\": \"STRING\",\n" +
+          "    \"mode\": \"NULLABLE\"\n" +
+          "  },\n" +
+          "  {\n" +
+          "    \"name\": \"item1\",\n" +
+          "    \"type\": \"STRING\",\n" +
+          "    \"mode\": \"NULLABLE\"\n" +
+          "  },\n" +
+          "  {\n" +
+          "    \"name\": \"item2\",\n" +
+          "    \"type\": \"STRING\",\n" +
+          "    \"mode\": \"REPEATED\"\n" +
+          "  },\n" +
+          "  {\n" +
+          "    \"name\": \"item3\",\n" +
+          "    \"type\": \"STRING\",\n" +
+          "    \"mode\": \"REPEATED\"\n" +
+          "  },\n" +
+          "  {\n" +
+          "    \"name\": \"item4\",\n" +
+          "    \"type\": \"RECORD\",\n" +
+          "    \"mode\": \"NULLABLE\",\n" +
+          "    \"fields\": [\n" +
+          "      {\n" +
+          "        \"name\": \"subitem4Name\",\n" +
+          "        \"type\": \"STRING\",\n" +
+          "        \"mode\": \"NULLABLE\"\n" +
+          "      },\n" +
+          "      {\n" +
+          "        \"name\": \"subitem4Description\",\n" +
+          "        \"type\": \"STRING\",\n" +
+          "        \"mode\": \"NULLABLE\"\n" +
+          "      }\n" +
+          "    ]\n" +
+          "  },\n" +
+          "  {\n" +
+          "    \"name\": \"item5\",\n" +
+          "    \"type\": \"RECORD\",\n" +
+          "    \"mode\": \"NULLABLE\",\n" +
+          "    \"fields\": [\n" +
+          "      {\n" +
+          "        \"name\": \"source5\",\n" +
+          "        \"type\": \"RECORD\",\n" +
+          "        \"mode\": \"NULLABLE\",\n" +
+          "        \"fields\": [\n" +
+          "          {\n" +
+          "            \"name\": \"family5\",\n" +
+          "            \"type\": \"STRING\",\n" +
+          "            \"mode\": \"NULLABLE\"\n" +
+          "          }\n" +
+          "        ]\n" +
+          "      },\n" +
+          "      {\n" +
+          "        \"name\": \"type5\",\n" +
+          "        \"type\": \"RECORD\",\n" +
+          "        \"mode\": \"NULLABLE\",\n" +
+          "        \"fields\": [\n" +
+          "          {\n" +
+          "            \"name\": \"version5\",\n" +
+          "            \"type\": \"STRING\",\n" +
+          "            \"mode\": \"NULLABLE\"\n" +
+          "          }\n" +
+          "        ]\n" +
+          "      },\n" +
+          "      {\n" +
+          "        \"name\": \"flags5\",\n" +
+          "        \"type\": \"STRING\",\n" +
+          "        \"mode\": \"REPEATED\"\n" +
+          "      }\n" +
+          "    ]\n" +
+          "  },\n" +
+          "  {\n" +
+          "    \"name\": \"item6\",\n" +
+          "    \"type\": \"RECORD\",\n" +
+          "    \"mode\": \"NULLABLE\",\n" +
+          "    \"fields\": [\n" +
+          "      {\n" +
+          "        \"name\": \"num1\",\n" +
+          "        \"type\": \"INTEGER\",\n" +
+          "        \"mode\": \"NULLABLE\"\n" +
+          "      },\n" +
+          "      {\n" +
+          "        \"name\": \"num2\",\n" +
+          "        \"type\": \"INTEGER\",\n" +
+          "        \"mode\": \"NULLABLE\"\n" +
+          "      },\n" +
+          "      {\n" +
+          "        \"name\": \"num3\",\n" +
+          "        \"type\": \"INTEGER\",\n" +
+          "        \"mode\": \"NULLABLE\"\n" +
+          "      },\n" +
+          "      {\n" +
+          "        \"name\": \"num4\",\n" +
+          "        \"type\": \"INTEGER\",\n" +
+          "        \"mode\": \"NULLABLE\"\n" +
+          "      }\n" +
+          "    ]\n" +
+          "  },\n" +
+          "  {\n" +
+          "    \"name\": \"item7\",\n" +
+          "    \"type\": \"BOOLEAN\",\n" +
+          "    \"mode\": \"NULLABLE\"\n" +
+          "  },\n" +
+          "  {\n" +
+          "    \"name\": \"timestamp\",\n" +
+          "    \"type\": \"TIMESTAMP\",\n" +
+          "    \"mode\": \"REQUIRED\"\n" +
+          "  }\n" +
+          "]";
+
+  @Test
+  public void testCustomer() throws Exception {
+    List<TableFieldSchema> fields = new ArrayList<>();
+    com.google.api.client.json.JsonParser parser = JacksonFactory.getDefaultInstance()
+                .createJsonParser(customerJson);
+    parser.parseArrayAndClose(fields, TableFieldSchema.class);
+    TableSchema tableSchema = new TableSchema().setFields(fields);
+    System.err.println("TABLE SCHEMA " + tableSchema);
+    System.err.println("TABLE DESCRIPTOR " + TableRowToStorageApiProto.descriptorSchemaFromTableSchema(tableSchema));
   }
 }
