@@ -1500,6 +1500,23 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Arbitrary(),
             requires_partition_by=partitionings.Arbitrary()))
 
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def set_axis(self, labels, **kwargs):
+    index = pd.Index([], dtype=np.asarray(labels).dtype)
+    proxy = self._expr.proxy().copy()
+    proxy.index = index
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'set_axis',
+              lambda s: s.set_axis(labels, **kwargs), [self._expr],
+              proxy=proxy,
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
   isnull = isna = frame_base._elementwise_method('isna', base=pd.Series)
   notnull = notna = frame_base._elementwise_method('notna', base=pd.Series)
 
@@ -2238,15 +2255,24 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
-  def set_axis(self, labels, **kwargs):
+  def set_axis(self, labels, axis, **kwargs):
+    if axis in ('columns', 1):
+      requires_partition = partitionings.Arbitrary()
+      proxy = None
+    else: #rows
+      index = pd.Index([], dtype=np.asarray(labels).dtype)
+      proxy = self._expr.proxy().copy()
+      proxy.index = index
+      requires_partition = partitionings.Singleton()
     with expressions.allow_non_parallel_operations(True):
       return frame_base.DeferredFrame.wrap(
               expressions.ComputedExpression(
                   'set_axis',
-                  lambda df: df.set_axis(labels, **kwargs),
+                  lambda df: df.set_axis(labels, axis, **kwargs),
                   [self._expr],
-                  requires_partition_by=partitionings.Index(),
-                  preserves_partition_by=partitionings.Singleton()))
+                  proxy=proxy,
+                  requires_partition_by=requires_partition,
+                  preserves_partition_by=partitionings.Arbitrary()))
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
@@ -3304,6 +3330,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       # bug with shift on empty indexes.
       # Fortunately the proxy should be identical to the input.
       proxy = self._expr.proxy().copy()
+
 
       # index is modified, so no partitioning is preserved.
       preserves = partitionings.Singleton()
