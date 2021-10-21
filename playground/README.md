@@ -35,9 +35,23 @@ The following requirements are needed for development, testing, and deploying.
 
 # Available Gradle Tasks
 
-To see available gradle tasks for playground:
+## Perform overall pre-commit checks
+
+```
+cd beam
+./gradlew playgroundPrecommit
+```
+
+## To see available gradle tasks for playground:
 
 ```
 cd beam
 ./gradlew playground:tasks
+```
+
+## Re-generate protobuf
+
+```
+cd beam
+./gradlew playground:generateProto
 ```

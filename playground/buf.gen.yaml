@@ -28,5 +28,5 @@ plugins:
   - paths=source_relative
   - require_unimplemented_servers=false
 - name: dart
-  out: frontend/lib/api
+  out: frontend/lib
   opt: grpc
