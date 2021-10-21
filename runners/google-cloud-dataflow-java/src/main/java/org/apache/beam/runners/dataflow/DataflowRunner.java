@@ -563,7 +563,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(GroupIntoBatches.WithShardedKey.class),
-                  new GroupIntoBatchesOverride.BatchGroupIntoBatchesWithShardedKeyOverrideFactory<>()));
+                  new GroupIntoBatchesOverride
+                      .BatchGroupIntoBatchesWithShardedKeyOverrideFactory<>()));
 
       overridesBuilder
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
