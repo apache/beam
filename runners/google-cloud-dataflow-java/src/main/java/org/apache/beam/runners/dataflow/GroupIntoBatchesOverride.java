@@ -59,10 +59,7 @@ public class GroupIntoBatchesOverride {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new BatchGroupIntoBatches<>(
-              transform.getTransform().getBatchingParams(),
-              runner,
-              PTransformReplacements.getSingletonMainOutput(transform)));
+          new BatchGroupIntoBatches<>(transform.getTransform().getBatchingParams()));
     }
 
     @Override
@@ -76,25 +73,13 @@ public class GroupIntoBatchesOverride {
   static class BatchGroupIntoBatches<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
     private final BatchingParams<V> batchingParams;
-    private final transient DataflowRunner runner;
-    private final transient PCollection<KV<ShardedKey<K>, Iterable<V>>> originalOutput;
 
-    private BatchGroupIntoBatches(
-        BatchingParams<V> batchingParams,
-        DataflowRunner runner,
-        PCollection<KV<ShardedKey<K>, Iterable<V>>> originalOutput) {
+    private BatchGroupIntoBatches(BatchingParams<V> batchingParams) {
       this.batchingParams = batchingParams;
-      this.runner = runner;
-      this.originalOutput = originalOutput;
     }
 
     @Override
     public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
-      // Record the output PCollection of the original transform since the new output will be
-      // replaced by the original one when the replacement transform is wired to other nodes in the
-      // graph, although the old and the new outputs are effectively the same.
-      runner.maybeRecordPCollectionWithAutoSharding(originalOutput);
-
       KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
       final Coder<V> valueCoder = (Coder<V>) inputCoder.getCoderArguments().get(1);
       final SerializableFunction<V, Long> weigher = batchingParams.getWeigher(valueCoder);
