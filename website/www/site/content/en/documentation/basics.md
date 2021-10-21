@@ -37,9 +37,9 @@ understand an important set of core concepts:
  * [_Schema_](#schema) - A schema is a language-independent type definition for
    a `PCollection`. The schema for a `PCollection` defines elements of that
    `PCollection` as an ordered list of named fields.
- * [_SDK_](/documentation/sdks/java/) - A language-specific library for pipeline
-   authors to build transforms, construct their pipelines, and submit them to a
-   runner.
+ * [_SDK_](/documentation/sdks/java/) - A language-specific library that lets
+   pipeline authors build transforms, construct their pipelines, and submit
+   them to a runner.
  * [_Runner_](#runner) - A runner runs a Beam pipeline using the capabilities of
    your chosen data processing engine.
 
@@ -244,19 +244,6 @@ the output is no smaller than the input. Often, you will apply an operation such
 as summation, called a `CombineFn`, in which the output is significantly smaller
 than the input. In this case the aggregation is called `CombinePerKey`.
 
-The associativity and commutativity of a `CombineFn` allows runners to
-automatically apply some optimizations:
-
- * _Combiner lifting_: This is the most significant optimization. Input elements
-   are combined per key and window before they are shuffled, so the volume of
-   data shuffled might be reduced by many orders of magnitude. Another term for
-   this optimization is "mapper-side combine."
- * _Incremental combining_: When you have a `CombineFn` that reduces the data
-   size by a lot, it is useful to combine elements as they emerge from a
-   streaming shuffle. This spreads out the cost of doing combines over the time
-   that your streaming computation might be idle. Incremental combining also
-   reduces the storage of intermediate accumulators.
-
 In a real application, you might have millions of keys and/or windows; that is
 why this is still an "embarassingly parallel" computational pattern. In those
 cases where you have fewer keys, you can add parallelism by adding a
@@ -292,16 +279,13 @@ should be combined. By using [cross-language transforms](/documentation/patterns
 a Beam pipeline can contain UDFs written in a different language, or even
 multiple languages in the same pipeline.
 
-Beam has seven varieties of UDFs:
+Beam has several varieties of UDFs:
 
  * [_DoFn_](/programming-guide/#pardo) - per-element processing function (used
    in `ParDo`)
  * [_WindowFn_](/programming-guide/#setting-your-pcollections-windowing-function) -
    places elements in windows and merges windows (used in `Window` and
    `GroupByKey`)
- * [_Source_](/documentation/programming-guide/#pipeline-io) - emits data read
-   from external sources, including initial and dynamic splitting for
-   parallelism
  * [_ViewFn_](/documentation/programming-guide/#side-inputs) - adapts a
    materialized `PCollection` to a particular interface (used in side inputs)
  * [_WindowMappingFn_](/documentation/programming-guide/#side-inputs-windowing) -
@@ -331,7 +315,6 @@ For more information about user-defined functions, see the following pages:
  * [Beam Programming Guide: CombineFn](/documentation/programming-guide/#combine)
  * [Beam Programming Guide: Coder](/documentation/programming-guide/#data-encoding-and-type-safety)
  * [Beam Programming Guide: Side inputs](/documentation/programming-guide/#side-inputs)
- * [Beam Programming Guide: Pipeline I/O](/documentation/programming-guide/#pipeline-io)
 
 ### Schema
 
