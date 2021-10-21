@@ -13,17 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package executors
-package executors
+// TODO: remove this code when merging https://github.com/apache/beam/pull/15654
 
-import "beam.apache.org/playground/backend/internal/fs_tool"
+package environment
 
-// NewGoExecutor creates an executor with Go specifics
-func NewGoExecutor(fs *fs_tool.LifeCycle, javaValidators *[]validatorWithArgs) *Executor {
-	return nil
+type ServerEnvs struct {}
+
+func (envs ServerEnvs) Address() string {
+	return ""
 }
 
-// GetGoValidators return validators methods that needed for Go file
-func GetGoValidators() *[]validatorWithArgs {
-	return nil
+func NewEnvironment() ServerEnvs {
+	return ServerEnvs{}
 }
