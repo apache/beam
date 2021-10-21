@@ -721,7 +721,8 @@ public class PAssert {
       return satisfies(SerializableMatchers.containsInAnyOrder(elementMatchers));
     }
 
-    @Override public PCollectionContentsAssert<T> containsInAnyOrder() {
+    @Override
+    public PCollectionContentsAssert<T> containsInAnyOrder() {
       return empty();
     }
 
