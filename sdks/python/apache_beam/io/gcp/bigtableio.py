@@ -181,7 +181,8 @@ class _BigTableWriteFn(beam.DoFn):
         'tableId': DisplayDataItem(
             self.beam_options['table_id'], label='Bigtable Table Id'),
         'appProfileId': DisplayDataItem(
-            'default' if self.beam_options['app_profile_id'] is None else self.beam_options['app_profile_id'],
+            'default' if self.beam_options['app_profile_id'] is None else
+            self.beam_options['app_profile_id'],
             label='Bigtable App Profile Id')
     }
 
