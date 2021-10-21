@@ -392,8 +392,7 @@ public class BigQueryHelpers {
 
   /**
    * Parse a table specification in the form {@code "[project_id]:[dataset_id].[table_id]"} or
-   * {@code "[project_id].[dataset_id].[table_id]"} or
-   * {@code "[dataset_id].[table_id]"}.
+   * {@code "[project_id].[dataset_id].[table_id]"} or {@code "[dataset_id].[table_id]"}.
    *
    * <p>If the project id is omitted, the default project id is used.
    */
@@ -401,9 +400,7 @@ public class BigQueryHelpers {
     Matcher match = BigQueryIO.TABLE_SPEC.matcher(tableSpec);
     if (!match.matches()) {
       throw new IllegalArgumentException(
-          "Table reference is not in the expected "
-              + "format: "
-              + tableSpec);
+          "Table reference is not in the expected " + "format: " + tableSpec);
     }
 
     TableReference ref = new TableReference();
