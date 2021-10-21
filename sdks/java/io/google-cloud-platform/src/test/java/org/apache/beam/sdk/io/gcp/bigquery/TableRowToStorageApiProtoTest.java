@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -31,6 +32,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
@@ -40,12 +42,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.List;
-import java.util.ArrayList;
-import com.google.api.client.json.jackson2.JacksonFactory;
-
-
 
 @RunWith(JUnit4.class)
 @SuppressWarnings({
@@ -195,7 +191,6 @@ public class TableRowToStorageApiProtoTest {
                           .setFields(BASE_TABLE_SCHEMA.getFields()))
                   .build());
 
-  // For now, test that no exceptions are thrown.
   @Test
   public void testDescriptorFromTableSchema() {
     DescriptorProto descriptor =
@@ -249,11 +244,6 @@ public class TableRowToStorageApiProtoTest {
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedBaseTypes, nestedTypes2);
-  }
-
-  @Test
-  public void testRepeatedDescriptorFromTableSchema() {
-    TableRowToStorageApiProto.descriptorSchemaFromTableSchema(BASE_TABLE_SCHEMA);
   }
 
   private static final TableRow BASE_TABLE_ROW =
@@ -316,132 +306,63 @@ public class TableRowToStorageApiProtoTest {
     assertBaseRecord((DynamicMessage) msg.getField(fieldDescriptors.get("nestedvalue2")));
   }
 
-  private static String customerJson ="[\n" +
-          "  {\n" +
-          "    \"name\": \"name\",\n" +
-          "    \"type\": \"STRING\",\n" +
-          "    \"mode\": \"NULLABLE\"\n" +
-          "  },\n" +
-          "  {\n" +
-          "    \"name\": \"description\",\n" +
-          "    \"type\": \"STRING\",\n" +
-          "    \"mode\": \"NULLABLE\"\n" +
-          "  },\n" +
-          "  {\n" +
-          "    \"name\": \"item1\",\n" +
-          "    \"type\": \"STRING\",\n" +
-          "    \"mode\": \"NULLABLE\"\n" +
-          "  },\n" +
-          "  {\n" +
-          "    \"name\": \"item2\",\n" +
-          "    \"type\": \"STRING\",\n" +
-          "    \"mode\": \"REPEATED\"\n" +
-          "  },\n" +
-          "  {\n" +
-          "    \"name\": \"item3\",\n" +
-          "    \"type\": \"STRING\",\n" +
-          "    \"mode\": \"REPEATED\"\n" +
-          "  },\n" +
-          "  {\n" +
-          "    \"name\": \"item4\",\n" +
-          "    \"type\": \"RECORD\",\n" +
-          "    \"mode\": \"NULLABLE\",\n" +
-          "    \"fields\": [\n" +
-          "      {\n" +
-          "        \"name\": \"subitem4Name\",\n" +
-          "        \"type\": \"STRING\",\n" +
-          "        \"mode\": \"NULLABLE\"\n" +
-          "      },\n" +
-          "      {\n" +
-          "        \"name\": \"subitem4Description\",\n" +
-          "        \"type\": \"STRING\",\n" +
-          "        \"mode\": \"NULLABLE\"\n" +
-          "      }\n" +
-          "    ]\n" +
-          "  },\n" +
-          "  {\n" +
-          "    \"name\": \"item5\",\n" +
-          "    \"type\": \"RECORD\",\n" +
-          "    \"mode\": \"NULLABLE\",\n" +
-          "    \"fields\": [\n" +
-          "      {\n" +
-          "        \"name\": \"source5\",\n" +
-          "        \"type\": \"RECORD\",\n" +
-          "        \"mode\": \"NULLABLE\",\n" +
-          "        \"fields\": [\n" +
-          "          {\n" +
-          "            \"name\": \"family5\",\n" +
-          "            \"type\": \"STRING\",\n" +
-          "            \"mode\": \"NULLABLE\"\n" +
-          "          }\n" +
-          "        ]\n" +
-          "      },\n" +
-          "      {\n" +
-          "        \"name\": \"type5\",\n" +
-          "        \"type\": \"RECORD\",\n" +
-          "        \"mode\": \"NULLABLE\",\n" +
-          "        \"fields\": [\n" +
-          "          {\n" +
-          "            \"name\": \"version5\",\n" +
-          "            \"type\": \"STRING\",\n" +
-          "            \"mode\": \"NULLABLE\"\n" +
-          "          }\n" +
-          "        ]\n" +
-          "      },\n" +
-          "      {\n" +
-          "        \"name\": \"flags5\",\n" +
-          "        \"type\": \"STRING\",\n" +
-          "        \"mode\": \"REPEATED\"\n" +
-          "      }\n" +
-          "    ]\n" +
-          "  },\n" +
-          "  {\n" +
-          "    \"name\": \"item6\",\n" +
-          "    \"type\": \"RECORD\",\n" +
-          "    \"mode\": \"NULLABLE\",\n" +
-          "    \"fields\": [\n" +
-          "      {\n" +
-          "        \"name\": \"num1\",\n" +
-          "        \"type\": \"INTEGER\",\n" +
-          "        \"mode\": \"NULLABLE\"\n" +
-          "      },\n" +
-          "      {\n" +
-          "        \"name\": \"num2\",\n" +
-          "        \"type\": \"INTEGER\",\n" +
-          "        \"mode\": \"NULLABLE\"\n" +
-          "      },\n" +
-          "      {\n" +
-          "        \"name\": \"num3\",\n" +
-          "        \"type\": \"INTEGER\",\n" +
-          "        \"mode\": \"NULLABLE\"\n" +
-          "      },\n" +
-          "      {\n" +
-          "        \"name\": \"num4\",\n" +
-          "        \"type\": \"INTEGER\",\n" +
-          "        \"mode\": \"NULLABLE\"\n" +
-          "      }\n" +
-          "    ]\n" +
-          "  },\n" +
-          "  {\n" +
-          "    \"name\": \"item7\",\n" +
-          "    \"type\": \"BOOLEAN\",\n" +
-          "    \"mode\": \"NULLABLE\"\n" +
-          "  },\n" +
-          "  {\n" +
-          "    \"name\": \"timestamp\",\n" +
-          "    \"type\": \"TIMESTAMP\",\n" +
-          "    \"mode\": \"REQUIRED\"\n" +
-          "  }\n" +
-          "]";
+  private static final TableSchema REPEATED_MESSAGE_SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  new TableFieldSchema()
+                      .setType("STRUCT")
+                      .setName("repeated1")
+                      .setFields(BASE_TABLE_SCHEMA.getFields())
+                      .setMode("REPEATED"),
+                  new TableFieldSchema()
+                      .setType("RECORD")
+                      .setName("repeated2")
+                      .setFields(BASE_TABLE_SCHEMA.getFields())
+                      .setMode("REPEATED")));
 
   @Test
-  public void testCustomer() throws Exception {
-    List<TableFieldSchema> fields = new ArrayList<>();
-    com.google.api.client.json.JsonParser parser = JacksonFactory.getDefaultInstance()
-                .createJsonParser(customerJson);
-    parser.parseArrayAndClose(fields, TableFieldSchema.class);
-    TableSchema tableSchema = new TableSchema().setFields(fields);
-    System.err.println("TABLE SCHEMA " + tableSchema);
-    System.err.println("TABLE DESCRIPTOR " + TableRowToStorageApiProto.descriptorSchemaFromTableSchema(tableSchema));
+  public void testRepeatedDescriptorFromTableSchema() throws Exception {
+    TableRow repeatedRow =
+        new TableRow()
+            .set("repeated1", ImmutableList.of(BASE_TABLE_ROW, BASE_TABLE_ROW))
+            .set("repeated2", ImmutableList.of(BASE_TABLE_ROW, BASE_TABLE_ROW));
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
+    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow);
+    assertEquals(2, msg.getAllFields().size());
+
+    Map<String, FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
+    List<DynamicMessage> repeated1 =
+        (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeated1"));
+    assertEquals(2, repeated1.size());
+    assertBaseRecord(repeated1.get(0));
+    assertBaseRecord(repeated1.get(1));
+
+    List<DynamicMessage> repeated2 =
+        (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeated2"));
+    assertEquals(2, repeated2.size());
+    assertBaseRecord(repeated2.get(0));
+    assertBaseRecord(repeated2.get(1));
+  }
+
+  @Test
+  public void testNullRepeatedDescriptorFromTableSchema() throws Exception {
+    TableRow repeatedRow = new TableRow().set("repeated1", null).set("repeated2", null);
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
+    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow);
+
+    Map<String, FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
+    List<DynamicMessage> repeated1 =
+        (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeated1"));
+    assertTrue(repeated1.isEmpty());
+    List<DynamicMessage> repeated2 =
+        (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeated2"));
+    assertTrue(repeated2.isEmpty());
   }
 }

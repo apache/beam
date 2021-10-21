@@ -59,8 +59,10 @@ public class GroupIntoBatchesOverride {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new BatchGroupIntoBatches<>(transform.getTransform().getBatchingParams(),
-                  runner, PTransformReplacements.getSingletonMainOutput(transform)));
+          new BatchGroupIntoBatches<>(
+              transform.getTransform().getBatchingParams(),
+              runner,
+              PTransformReplacements.getSingletonMainOutput(transform)));
     }
 
     @Override
@@ -76,8 +78,11 @@ public class GroupIntoBatchesOverride {
     private final BatchingParams<V> batchingParams;
     private final transient DataflowRunner runner;
     private final transient PCollection<KV<ShardedKey<K>, Iterable<V>>> originalOutput;
-    private BatchGroupIntoBatches(BatchingParams<V> batchingParams,
-                                  DataflowRunner runner, PCollection<KV<ShardedKey<K>, Iterable<V>>> originalOutput) {
+
+    private BatchGroupIntoBatches(
+        BatchingParams<V> batchingParams,
+        DataflowRunner runner,
+        PCollection<KV<ShardedKey<K>, Iterable<V>>> originalOutput) {
       this.batchingParams = batchingParams;
       this.runner = runner;
       this.originalOutput = originalOutput;
