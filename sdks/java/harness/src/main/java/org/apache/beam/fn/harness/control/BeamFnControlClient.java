@@ -146,12 +146,7 @@ public class BeamFnControlClient {
   public BeamFnApi.InstructionResponse delegateOnInstructionRequestType(
       BeamFnApi.InstructionRequest value) {
     try {
-      if (value == null) {
-        LOG.error("Null InstructionRequest {}", value);
-      }
-      if (!handlers.containsKey(value.getRequestCase())) {
-        LOG.error("Bad value requestCase {}", value.getRequestCase());
-      }
+      LOG.error("InstructionRequest value {} requestCase {}", value, value.getRequestCase());
       return handlers
           .getOrDefault(value.getRequestCase(), this::missingHandler)
           .apply(value)
@@ -159,9 +154,10 @@ public class BeamFnControlClient {
           .build();
     } catch (Exception e) {
       LOG.error(
-          "Exception while trying to handle {} {}",
+          "Exception while trying to handle {} {} requestCase {}",
           BeamFnApi.InstructionRequest.class.getSimpleName(),
           value.getInstructionId(),
+          value.getRequestCase(),
           e);
       return BeamFnApi.InstructionResponse.newBuilder()
           .setInstructionId(value.getInstructionId())
