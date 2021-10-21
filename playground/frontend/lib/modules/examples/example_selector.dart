@@ -22,7 +22,7 @@ import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/selector_size_model.dart';
-import 'package:playground/pages/playground/states/example_dropdown_state.dart';
+import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
@@ -139,7 +139,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
                 ),
               ),
               ChangeNotifierProvider(
-                create: (context) => ExampleDropdownState(
+                create: (context) => ExampleSelectorState(
                   state,
                   state.categories!,
                 ),

@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/pages/playground/states/example_dropdown_state.dart';
+import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:provider/provider.dart';
 
 const double kContainerWidth = 376.0;
@@ -39,7 +39,7 @@ class SearchField extends StatelessWidget {
       borderRadius: BorderRadius.circular(kMdBorderRadius),
     );
 
-    return Consumer<ExampleDropdownState>(
+    return Consumer<ExampleSelectorState>(
       builder: (context, state, child) => Container(
         margin: const EdgeInsets.only(
           top: kLgSpacing,
@@ -75,12 +75,12 @@ class SearchField extends StatelessWidget {
             cursorColor: ThemeColors.of(context).lightGreyColor,
             cursorWidth: kCursorSize,
             textAlignVertical: TextAlignVertical.center,
-            onFieldSubmitted: (String txt) {
-              state.setFilterText(txt);
+            onFieldSubmitted: (String filterText) {
+              state.setFilterText(filterText);
               state.sortCategories();
             },
-            onChanged: (String txt) {
-              state.setFilterText(txt);
+            onChanged: (String filterText) {
+              state.setFilterText(filterText);
               state.sortCategories();
             },
             maxLines: kMinLines,

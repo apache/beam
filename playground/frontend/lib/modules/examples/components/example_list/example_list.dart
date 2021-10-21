@@ -18,7 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
-import 'package:playground/pages/playground/states/example_dropdown_state.dart';
+import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:provider/provider.dart';
 
 class ExampleList extends StatelessWidget {
@@ -31,7 +31,7 @@ class ExampleList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ExampleDropdownState>(
+    return Consumer<ExampleSelectorState>(
       builder: (context, state, child) => Expanded(
         child: Container(
           color: Theme.of(context).backgroundColor,

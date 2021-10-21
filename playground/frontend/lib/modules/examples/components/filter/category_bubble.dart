@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/pages/playground/states/example_dropdown_state.dart';
+import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:provider/provider.dart';
 
 class CategoryBubble extends StatelessWidget {
@@ -34,35 +34,40 @@ class CategoryBubble extends StatelessWidget {
       cursor: SystemMouseCursors.click,
       child: Padding(
         padding: const EdgeInsets.only(right: kMdSpacing),
-        child: Consumer<ExampleDropdownState>(
-          builder: (context, dropdownState, child) => GestureDetector(
-            onTap: () {
-              if (type != dropdownState.selectedFilterType) {
-                dropdownState.setSelectedFilterType(type);
-                dropdownState.sortCategories();
-              }
-            },
-            child: Container(
-              height: kContainerHeight,
-              padding: const EdgeInsets.symmetric(horizontal: kXlSpacing),
-              decoration: BoxDecoration(
-                color: type == dropdownState.selectedFilterType
-                    ? ThemeColors.of(context).primary
-                    : ThemeColors.of(context).lightGreyColor,
-                borderRadius: BorderRadius.circular(kXlBorderRadius),
-              ),
-              child: Center(
-                child: Text(
-                  type.name,
-                  style: TextStyle(
-                    color: type == dropdownState.selectedFilterType
-                        ? ThemeColors.of(context).primaryBackgroundTextColor
-                        : ThemeColors.of(context).lightGreyBackgroundTextColor,
+        child: Consumer<ExampleSelectorState>(
+          builder: (context, state, child) {
+            final isSelected = type == state.selectedFilterType;
+
+            return GestureDetector(
+              onTap: () {
+                if (!isSelected) {
+                  state.setSelectedFilterType(type);
+                  state.sortCategories();
+                }
+              },
+              child: Container(
+                height: kContainerHeight,
+                padding: const EdgeInsets.symmetric(horizontal: kXlSpacing),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? ThemeColors.of(context).primary
+                      : ThemeColors.of(context).lightGreyColor,
+                  borderRadius: BorderRadius.circular(kXlBorderRadius),
+                ),
+                child: Center(
+                  child: Text(
+                    type.name,
+                    style: TextStyle(
+                      color: isSelected
+                          ? ThemeColors.of(context).primaryBackgroundTextColor
+                          : ThemeColors.of(context)
+                              .lightGreyBackgroundTextColor,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
