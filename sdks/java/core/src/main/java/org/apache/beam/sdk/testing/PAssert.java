@@ -309,9 +309,8 @@ public class PAssert {
     /**
      * Asserts that the iterable in question is empty.
      *
-     * @deprecated Prefer {@link #empty()} to this method.
-     *
      * @return the same {@link IterableAssert} builder for further assertions
+     * @deprecated Prefer {@link #empty()} to this method.
      */
     @Deprecated
     IterableAssert<T> containsInAnyOrder();
