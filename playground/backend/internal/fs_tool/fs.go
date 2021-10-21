@@ -16,7 +16,7 @@
 package fs_tool
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api"
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"

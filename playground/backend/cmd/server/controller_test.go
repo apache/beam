@@ -15,7 +15,7 @@
 package main
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api"
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"context"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
