@@ -21,14 +21,14 @@ import (
 )
 
 const (
-	javaBaseFileFolder          = parentBaseFileFolder + "/executable_files"
+	javaBaseFileFolder          = "executable_files"
 	javaExecutableFileExtension = "java"
 	javaCompiledFileExtension   = "class"
 )
 
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
-func newJavaLifeCycle(pipelineId uuid.UUID) *LifeCycle {
-	baseFileFolder := fmt.Sprintf("%s_%s", javaBaseFileFolder, pipelineId)
+func newJavaLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
+	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, javaBaseFileFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
