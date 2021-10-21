@@ -35,7 +35,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:sql")
   compile project(":sdks:java:extensions:sql:udf")
-  compile library.java.vendored_calcite_1_26_0
+  compile library.java.vendored_calcite_1_28_0
   compile library.java.guava
   compile library.java.grpc_api
   compile library.java.joda_time
@@ -52,7 +52,7 @@ dependencies {
   compile "com.google.zetasql:zetasql-types:$zetasql_version"
   compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
   permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:$zetasql_version" // BEAM-11761
-  testCompile library.java.vendored_calcite_1_26_0
+  testCompile library.java.vendored_calcite_1_28_0
   testCompile library.java.vendored_guava_26_0_jre
   testCompile library.java.junit
   testCompile library.java.mockito_core

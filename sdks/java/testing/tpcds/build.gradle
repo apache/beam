@@ -56,7 +56,7 @@ configurations {
 dependencies {
     compile library.java.avro
     compile library.java.vendored_guava_26_0_jre
-    compile library.java.vendored_calcite_1_26_0
+    compile library.java.vendored_calcite_1_28_0
     compile library.java.commons_csv
     compile library.java.slf4j_api
     compile "com.googlecode.json-simple:json-simple:1.1.1"
