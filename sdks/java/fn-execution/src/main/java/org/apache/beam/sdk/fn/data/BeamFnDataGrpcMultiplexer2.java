@@ -165,21 +165,23 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
     public void onNext(BeamFnApi.Elements value) {
       // Have a fast path to handle the common case and provide a short circuit to exit if we detect
       // multiple instruction ids.
-      SINGLE:
+      SINGLE_INSTRUCTION_ID:
       {
         String instructionId = null;
         for (BeamFnApi.Elements.Data data : value.getDataList()) {
           if (instructionId == null) {
             instructionId = data.getInstructionId();
           } else if (!instructionId.equals(data.getInstructionId())) {
-            break SINGLE;
+            // Multiple instruction ids detected, break out of this block
+            break SINGLE_INSTRUCTION_ID;
           }
         }
         for (BeamFnApi.Elements.Timers timers : value.getTimersList()) {
           if (instructionId == null) {
             instructionId = timers.getInstructionId();
           } else if (!instructionId.equals(timers.getInstructionId())) {
-            break SINGLE;
+            // Multiple instruction ids detected, break out of this block
+            break SINGLE_INSTRUCTION_ID;
           }
         }
         if (instructionId == null) {
