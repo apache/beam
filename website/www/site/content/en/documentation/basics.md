@@ -38,8 +38,8 @@ understand an important set of core concepts:
    a `PCollection`. The schema for a `PCollection` defines elements of that
    `PCollection` as an ordered list of named fields.
  * [_SDK_](/documentation/sdks/java/) - A language-specific library for pipeline
-   authors.
-   to build transforms, construct their pipelines, and submit them to a runner.
+   authors to build transforms, construct their pipelines, and submit them to a
+   runner.
  * [_Runner_](#runner) - A runner runs a Beam pipeline using the capabilities of
    your chosen data processing engine.
 
