@@ -17,10 +17,9 @@ limitations under the License.
 
 # Basics of the Beam model
 
-Suppose you have a data processing engine that can pretty easily process graphs
-of operations. You want to integrate it with the Beam ecosystem to get access
-to other languages, great event time processing, and a library of connectors.
-You need to know the following core vocabulary:
+Apache Beam is a unified model for defining both batch and streaming
+data-parallel processing pipelines. To get started with Beam, you'll need to
+understand an important set of core concepts:
 
  * [_Pipeline_](#pipeline) - A pipeline is a graph of transformations that a user constructs
    that defines the data processing they want to do.
@@ -30,23 +29,19 @@ You need to know the following core vocabulary:
  * [_Aggregation_](#aggregation) - Aggregation is computing a value from
    multiple (1 or more) input elements.
  * [_User-defined function (UDF)_](#user-defined-function-udf) - Some Beam
-   operations allow you to run user-defined code as a way of configuring the
+   operations allow you to run user-defined code as a way to configure the
    transform.
  * [_Schema_](#schema) - A schema is a language-independent type definition for
    a `PCollection`. The schema for a `PCollection` defines elements of that
    `PCollection` as an ordered list of named fields.
  * [_SDK_](/documentation/sdks/java/) - A language-specific library for pipeline
-   authors (we often call them "users" even though we have many kinds of users)
+   authors.
    to build transforms, construct their pipelines, and submit them to a runner.
  * [_Runner_](#runner) - A runner runs a Beam pipeline using the capabilities of
    your chosen data processing engine.
 
-These concepts might be very similar to your processing engine's concepts. Since
-Beam's design is for cross-language operation and reusable libraries of
-transforms, there are some special features worth highlighting.
-
-The following sections cover these concepts in a bit more detail and provide
-links to more additional resources.
+The following sections cover these concepts in more detail and provide links to
+additional documentation.
 
 ### Pipeline
 
@@ -212,29 +207,32 @@ pages:
 
 ### User-defined function (UDF)
 
-Some Beam operations allow you to run user-defined code as a way of configuring
+Some Beam operations allow you to run user-defined code as a way to configure
 the transform. For example, when using `ParDo`, user-defined code specifies what
 operation to apply to every element. For `Combine`, it specifies how values
-should be combined. A Beam pipeline can contain UDFs written in a language other
-than your runner, or even multiple languages in the same pipeline so the
-definitions are language-independent.
+should be combined. By using [cross-language transforms](/documentation/patterns/cross-language/),
+a Beam pipeline can contain UDFs written in a different language, or even
+multiple languages in the same pipeline.
 
 Beam has seven varieties of UDFs:
 
- * _DoFn_ - per-element processing function (used in `ParDo`)
- * _WindowFn_ - places elements in windows and merges windows (used in `Window`
-   and `GroupByKey`)
- * _Source_ - emits data read from external sources, including initial and
-   dynamic splitting for parallelism (used in `Read`)
- * _ViewFn_ - adapts a materialized `PCollection` to a particular interface
-   (used in side inputs)
- * _WindowMappingFn_ - maps one element's window to another, and specifies
-   bounds on how far in the past the result window will be (used in side
-   inputs)
- * _CombineFn_ - associative and commutative aggregation (used in `Combine` and
-   state)
- * _Coder_ - encodes user data; some coders have standard formats and are not
-   really UDFs
+ * [_DoFn_](/programming-guide/#pardo) - per-element processing function (used
+   in `ParDo`)
+ * [_WindowFn_](/programming-guide/#setting-your-pcollections-windowing-function) -
+   places elements in windows and merges windows (used in `Window` and
+   `GroupByKey`)
+ * [_Source_](/documentation/programming-guide/#pipeline-io) - emits data read
+   from external sources, including initial and dynamic splitting for
+   parallelism
+ * [_ViewFn_](/documentation/programming-guide/#side-inputs) - adapts a
+   materialized `PCollection` to a particular interface (used in side inputs)
+ * [_WindowMappingFn_](/documentation/programming-guide/#side-inputs-windowing) -
+   maps one element's window to another, and specifies bounds on how far in the
+   past the result window will be (used in side inputs)
+ * [_CombineFn_](/documentation/programming-guide/#combine) - associative and
+   commutative aggregation (used in `Combine` and state)
+ * [_Coder_](/documentation/programming-guide/#data-encoding-and-type-safety) -
+   encodes user data; some coders have standard formats and are not really UDFs
 
 Each language SDK has its own idiomatic way of expressing the user-defined
 functions in Beam, but there are common requirements. When you build user code
@@ -244,33 +242,40 @@ lot of different machines in parallel, and those copies function independently,
 without communicating or sharing state with any of the other copies. Each copy
 of your user code function might be retried or run multiple times, depending on
 the pipeline runner and the processing backend that you choose for your
-pipeline.
+pipeline. Beam also supports stateful processing through the
+[stateful processing API](/blog/stateful-processing/).
 
 For more information about user-defined functions, see the following pages:
 
  * [Requirements for writing user code for Beam transforms](/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms)
  * [Beam Programming Guide: ParDo](/documentation/programming-guide/#pardo)
+ * [Beam Programming Guide: WindowFn](/programming-guide/#setting-your-pcollections-windowing-function)
+ * [Beam Programming Guide: CombineFn](/documentation/programming-guide/#combine)
+ * [Beam Programming Guide: Coder](/documentation/programming-guide/#data-encoding-and-type-safety)
+ * [Beam Programming Guide: Side inputs](/documentation/programming-guide/#side-inputs)
+ * [Beam Programming Guide: Pipeline I/O](/documentation/programming-guide/#pipeline-io)
 
 ### Schema
 
 A schema is a language-independent type definition for a `PCollection`. The
 schema for a `PCollection` defines elements of that `PCollection` as an ordered
 list of named fields. Each field has a name, a type, and possibly a set of user
-options.  In many cases, the element type in a `PCollection` has a structure
-that can be introspected. Some examples are JSON, Protocol Buffer, Avro, and
-database row objects.
+options.
 
-Even within a SDK pipeline, Simple Java POJOs (or equivalent structures in other
-languages) are often used as intermediate types, and these also have a clear
-structure that can be inferred by inspecting the class. By understanding the
-structure of a pipeline’s records, we can provide much more concise APIs for
-data processing.
+In many cases, the element type in a `PCollection` has a structure that can be
+introspected. Some examples are JSON, Protocol Buffer, Avro, and database row
+objects. All of these formats can be converted to Beam Schemas. Even within a
+SDK pipeline, Simple Java POJOs (or equivalent structures in other languages)
+are often used as intermediate types, and these also have a clear structure that
+can be inferred by inspecting the class. By understanding the structure of a
+pipeline’s records, we can provide much more concise APIs for data processing.
 
-Beam provides a collection of transforms that operate natively on schemas. These
-transforms allow selections and aggregations in terms of named schema fields.
-Another advantage of schemas is that they allow referencing of element fields by
-name. Beam provides a selection syntax for referencing fields, including nested
-and repeated fields.
+Beam provides a collection of transforms that operate natively on schemas.  For
+example, [Beam SQL](/documentation/dsls/sql/overview/) is a common transform
+that operates on schemas. These transforms allow selections and aggregations in
+terms of named schema fields. Another advantage of schemas is that they allow
+referencing of element fields by name. Beam provides a selection syntax for
+referencing fields, including nested and repeated fields.
 
 For more information about schemas, see the following pages:
 
@@ -281,18 +286,10 @@ For more information about schemas, see the following pages:
 
 A Beam runner runs a Beam pipeline on a specific platform. Most runners are
 translators or adapters to massively parallel big data processing systems, such
-as Apache Flink, Apache Spark, Google Cloud Dataflow, and more. The Direct
-Runner runs pipelines locally so you can test, debug, and validate that your
-pipeline adheres to the Apache Beam model as closely as possible.
-
-If you build a runner, you write translation code and often some customed
-operators for your data processing engine. Sometimes "runner" is used to refer
-to the full stack.
-
-A runner has just a single method: `run`. This method should be asynchronous and
-results in a `PipelineResult`, which generally is a job descriptor for the data
-processing engine. This provides methods for checking the job's status,
-cancelling the job, and waiting for job to terminate.
+as Apache Flink, Apache Spark, Google Cloud Dataflow, and more. For example, the
+Flink runner translates a Beam pipeline into a Flink job. The Direct Runner runs
+pipelines locally so you can test, debug, and validate that your pipeline
+adheres to the Apache Beam model as closely as possible.
 
 For an up-to-date list of Beam runners and which features of the Apache Beam
 model they support, see the runner
