@@ -168,6 +168,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -912,16 +915,26 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Error parsing artifact file payload.", e);
         }
-        if (!BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO)
+        String stagedName;
+        if (BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO)
             .equals(info.getRoleUrn())) {
-          throw new RuntimeException(
-              String.format("unsupported artifact role %s", info.getRoleUrn()));
-        }
-        RunnerApi.ArtifactStagingToRolePayload stagingPayload;
-        try {
-          stagingPayload = RunnerApi.ArtifactStagingToRolePayload.parseFrom(info.getRolePayload());
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException("Error parsing artifact staging_to role payload.", e);
+          try {
+            RunnerApi.ArtifactStagingToRolePayload stagingPayload =
+                RunnerApi.ArtifactStagingToRolePayload.parseFrom(info.getRolePayload());
+            stagedName = stagingPayload.getStagedName();
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException("Error parsing artifact staging_to role payload.", e);
+          }
+        } else {
+          try {
+            File source = new File(filePayload.getPath());
+            HashCode hashCode = Files.asByteSource(source).hash(Hashing.sha256());
+            stagedName = Environments.createStagingFileName(source, hashCode);
+          } catch (IOException e) {
+            throw new RuntimeException(
+                String.format("Error creating staged name for artifact %s", filePayload.getPath()),
+                e);
+          }
         }
         environmentBuilder.addDependencies(
             info.toBuilder()
@@ -931,8 +944,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                         .setUrl(
                             FileSystems.matchNewResource(options.getStagingLocation(), true)
                                 .resolve(
-                                    stagingPayload.getStagedName(),
-                                    ResolveOptions.StandardResolveOptions.RESOLVE_FILE)
+                                    stagedName, ResolveOptions.StandardResolveOptions.RESOLVE_FILE)
                                 .toString())
                         .setSha256(filePayload.getSha256())
                         .build()
@@ -958,20 +970,29 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Error parsing artifact file payload.", e);
         }
-        if (!BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO)
+        String stagedName;
+        if (BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO)
             .equals(info.getRoleUrn())) {
-          throw new RuntimeException(
-              String.format("unsupported artifact role %s", info.getRoleUrn()));
-        }
-        RunnerApi.ArtifactStagingToRolePayload stagingPayload;
-        try {
-          stagingPayload = RunnerApi.ArtifactStagingToRolePayload.parseFrom(info.getRolePayload());
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException("Error parsing artifact staging_to role payload.", e);
+          try {
+            RunnerApi.ArtifactStagingToRolePayload stagingPayload =
+                RunnerApi.ArtifactStagingToRolePayload.parseFrom(info.getRolePayload());
+            stagedName = stagingPayload.getStagedName();
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException("Error parsing artifact staging_to role payload.", e);
+          }
+        } else {
+          try {
+            File source = new File(filePayload.getPath());
+            HashCode hashCode = Files.asByteSource(source).hash(Hashing.sha256());
+            stagedName = Environments.createStagingFileName(source, hashCode);
+          } catch (IOException e) {
+            throw new RuntimeException(
+                String.format("Error creating staged name for artifact %s", filePayload.getPath()),
+                e);
+          }
         }
         filesToStageBuilder.add(
-            StagedFile.of(
-                filePayload.getPath(), filePayload.getSha256(), stagingPayload.getStagedName()));
+            StagedFile.of(filePayload.getPath(), filePayload.getSha256(), stagedName));
       }
     }
     return options.getStager().stageFiles(filesToStageBuilder.build());
