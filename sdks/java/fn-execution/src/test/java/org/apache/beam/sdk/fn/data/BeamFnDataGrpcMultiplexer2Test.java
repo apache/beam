@@ -31,7 +31,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestExecutors;
@@ -108,7 +107,7 @@ public class BeamFnDataGrpcMultiplexer2Test {
             () -> {
               multiplexer.registerConsumer(
                   DATA_INSTRUCTION_ID,
-                  new CloseableFnDataReceiver<Elements>() {
+                  new CloseableFnDataReceiver<BeamFnApi.Elements>() {
                     @Override
                     public void flush() throws Exception {
                       fail("Unexpected call");
@@ -120,13 +119,13 @@ public class BeamFnDataGrpcMultiplexer2Test {
                     }
 
                     @Override
-                    public void accept(Elements input) throws Exception {
+                    public void accept(BeamFnApi.Elements input) throws Exception {
                       dataInboundValues.add(input);
                     }
                   });
               multiplexer.registerConsumer(
                   TIMER_INSTRUCTION_ID,
-                  new CloseableFnDataReceiver<Elements>() {
+                  new CloseableFnDataReceiver<BeamFnApi.Elements>() {
                     @Override
                     public void flush() throws Exception {
                       fail("Unexpected call");
@@ -138,7 +137,7 @@ public class BeamFnDataGrpcMultiplexer2Test {
                     }
 
                     @Override
-                    public void accept(Elements input) throws Exception {
+                    public void accept(BeamFnApi.Elements input) throws Exception {
                       timerInboundValues.add(input);
                     }
                   });
@@ -184,7 +183,7 @@ public class BeamFnDataGrpcMultiplexer2Test {
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
     multiplexer.registerConsumer(
         DATA_INSTRUCTION_ID,
-        new CloseableFnDataReceiver<Elements>() {
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
           @Override
           public void flush() throws Exception {
             fail("Unexpected call");
@@ -196,13 +195,13 @@ public class BeamFnDataGrpcMultiplexer2Test {
           }
 
           @Override
-          public void accept(Elements input) throws Exception {
+          public void accept(BeamFnApi.Elements input) throws Exception {
             dataInboundValues.add(input);
           }
         });
     multiplexer.registerConsumer(
         TIMER_INSTRUCTION_ID,
-        new CloseableFnDataReceiver<Elements>() {
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
           @Override
           public void flush() throws Exception {
             fail("Unexpected call");
@@ -214,7 +213,7 @@ public class BeamFnDataGrpcMultiplexer2Test {
           }
 
           @Override
-          public void accept(Elements input) throws Exception {
+          public void accept(BeamFnApi.Elements input) throws Exception {
             timerInboundValues.add(input);
           }
         });
@@ -246,7 +245,7 @@ public class BeamFnDataGrpcMultiplexer2Test {
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
     multiplexer.registerConsumer(
         DATA_INSTRUCTION_ID,
-        new CloseableFnDataReceiver<Elements>() {
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
           @Override
           public void flush() throws Exception {
             fail("Unexpected call");
@@ -258,7 +257,7 @@ public class BeamFnDataGrpcMultiplexer2Test {
           }
 
           @Override
-          public void accept(Elements input) throws Exception {
+          public void accept(BeamFnApi.Elements input) throws Exception {
             dataInboundValues.add(input);
           }
         });
@@ -282,7 +281,7 @@ public class BeamFnDataGrpcMultiplexer2Test {
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
     multiplexer.registerConsumer(
         DATA_INSTRUCTION_ID,
-        new CloseableFnDataReceiver<Elements>() {
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
           @Override
           public void flush() throws Exception {
             fail("Unexpected call");
@@ -294,7 +293,7 @@ public class BeamFnDataGrpcMultiplexer2Test {
           }
 
           @Override
-          public void accept(Elements input) throws Exception {
+          public void accept(BeamFnApi.Elements input) throws Exception {
             if (dataInboundValues.size() == 1) {
               throw new Exception("processing failed");
             }
@@ -337,7 +336,7 @@ public class BeamFnDataGrpcMultiplexer2Test {
                     .build());
     multiplexer.registerConsumer(
         DATA_INSTRUCTION_ID,
-        new CloseableFnDataReceiver<Elements>() {
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
           @Override
           public void flush() throws Exception {
             fail("Unexpected call");
@@ -349,7 +348,7 @@ public class BeamFnDataGrpcMultiplexer2Test {
           }
 
           @Override
-          public void accept(Elements input) throws Exception {
+          public void accept(BeamFnApi.Elements input) throws Exception {
             fail("Unexpected call");
           }
         });

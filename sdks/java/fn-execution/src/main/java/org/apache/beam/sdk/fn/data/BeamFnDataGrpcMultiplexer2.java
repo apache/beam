@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.CancellableQueue;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
@@ -60,7 +59,7 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
           /*instructionId=*/ String, CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>>>
       receivers;
   private final ConcurrentMap<String, Boolean> erroredInstructionIds;
-  private final List<CancellableQueue<Elements>> unusedQueues;
+  private final List<CancellableQueue<BeamFnApi.Elements>> unusedQueues;
 
   public BeamFnDataGrpcMultiplexer2(
       Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor,
@@ -215,13 +214,13 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
       }
     }
 
-    private void forwardToConsumerForInstructionId(String instructionId, Elements value) {
-      CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> consumerFuture =
-          receiverFuture(instructionId);
+    private void forwardToConsumerForInstructionId(String instructionId, BeamFnApi.Elements value) {
       if (erroredInstructionIds.containsKey(instructionId)) {
         LOG.debug("Ignoring inbound data for failed instruction {}", instructionId);
         return;
       }
+      CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> consumerFuture =
+          receiverFuture(instructionId);
       if (!consumerFuture.isDone()) {
         LOG.debug(
             "Received data for instruction {} without consumer ready. "

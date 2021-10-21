@@ -22,13 +22,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.CancellableQueue;
 
 /**
- * Decodes {@link Elements} partitioning them using the provided {@link DataEndpoint}s and {@link
- * TimerEndpoint}s.
+ * Decodes {@link BeamFnApi.Elements} partitioning them using the provided {@link DataEndpoint}s and
+ * {@link TimerEndpoint}s.
  *
  * <p>Note that this receiver uses a queue to buffer and pass elements from one thread to be
  * processed by the thread which invokes {@link #awaitCompletion}.
@@ -59,7 +58,7 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
   private final Map<String, EndpointStatus<DataEndpoint<?>>> transformIdToDataEndpoint;
   private final Map<String, Map<String, EndpointStatus<TimerEndpoint<?>>>>
       transformIdToTimerFamilyIdToTimerEndpoint;
-  private final CancellableQueue<Elements> queue;
+  private final CancellableQueue<BeamFnApi.Elements> queue;
   private final int totalNumEndpoints;
   private int numEndpointsThatAreIncomplete;
 
