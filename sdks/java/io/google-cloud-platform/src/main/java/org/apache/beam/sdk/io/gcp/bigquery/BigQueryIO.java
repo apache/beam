@@ -499,7 +499,7 @@ public class BigQueryIO {
    */
   private static final String DATASET_TABLE_REGEXP =
       String.format(
-          "((?<PROJECT>%s):)?(?<DATASET>%s)\\.(?<TABLE>%s)",
+          "((?<PROJECT>%s)[:\\.])?(?<DATASET>%s)\\.(?<TABLE>%s)",
           PROJECT_ID_REGEXP, DATASET_REGEXP, TABLE_REGEXP);
 
   static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
