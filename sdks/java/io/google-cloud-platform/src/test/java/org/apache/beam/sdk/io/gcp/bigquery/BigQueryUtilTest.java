@@ -211,16 +211,7 @@ public class BigQueryUtilTest {
 
     long totalBytes =
         datasetService.insertAll(
-            ref,
-            rows,
-            ids,
-            InsertRetryPolicy.alwaysRetry(),
-            null,
-            null,
-            false,
-            false,
-            false,
-            null);
+            ref, rows, ids, InsertRetryPolicy.alwaysRetry(), null, null, false, false, false, null);
     verifyInsertAll(5);
     // Each of the 25 rows has 1 byte for length and 30 bytes: '{"f":[{"v":"foo"},{"v":1234}]}'
     assertEquals("Incorrect byte count", 25L * 31L, totalBytes);
