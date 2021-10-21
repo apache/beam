@@ -1109,6 +1109,30 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }
 
+  private JobSpecification runBatchGroupIntoBatchesAndGetJobSpec(
+      Boolean withShardedKey, List<String> experiments) throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(experiments);
+    options.setStreaming(false);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<KV<Integer, String>> input =
+        pipeline.apply(Create.of(Arrays.asList(KV.of(1, "1"), KV.of(2, "2"), KV.of(3, "3"))));
+    if (withShardedKey) {
+      input.apply(GroupIntoBatches.<Integer, String>ofSize(3).withShardedKey());
+    } else {
+      input.apply(GroupIntoBatches.ofSize(3));
+    }
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceV1Transforms(pipeline);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    return translator.translate(
+        pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList());
+  }
+
   private JobSpecification runStreamingGroupIntoBatchesAndGetJobSpec(
       Boolean withShardedKey, List<String> experiments) throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -1134,6 +1158,55 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
+  public void testBatchGroupIntoBatchesTranslation() throws Exception {
+    JobSpecification jobSpec =
+        runBatchGroupIntoBatchesAndGetJobSpec(false, Collections.emptyList());
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyTranslation() throws Exception {
+    List<String> experiments = Collections.emptyList();
+    JobSpecification jobSpec = runBatchGroupIntoBatchesAndGetJobSpec(true, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesTranslationUnifiedWorker() throws Exception {
+    List<String> experiments = ImmutableList.of("use_runner_v2");
+    JobSpecification jobSpec = runBatchGroupIntoBatchesAndGetJobSpec(false, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+
+    // TODO: should check that the urn is populated, however it is not due to the override in
+    // DataflowRunner.
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker() throws Exception {
+    List<String> experiments = ImmutableList.of("use_runner_v2");
+    JobSpecification jobSpec = runBatchGroupIntoBatchesAndGetJobSpec(true, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+    // TODO: should check that the urn is populated, however it is not due to the override in
+    // DataflowRunner.
+  }
+
+  @Test
   public void testStreamingGroupIntoBatchesTranslation() throws Exception {
     List<String> experiments =
         new ArrayList<>(
@@ -1146,7 +1219,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
     assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
     assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
   }
 
   @Test
@@ -1181,7 +1254,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Map<String, Object> properties = shardedStateStep.getProperties();
     assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
     assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
 
     // Also checks runner proto is correctly populated.
     Map<String, RunnerApi.PTransform> transformMap =
@@ -1197,7 +1270,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  public void testGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker() throws Exception {
+  public void testStreamingGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker()
+      throws Exception {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
