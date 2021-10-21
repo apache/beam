@@ -16,7 +16,7 @@
 package environment
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api"
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"encoding/json"
 	"errors"
 	"io/ioutil"

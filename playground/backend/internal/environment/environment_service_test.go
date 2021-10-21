@@ -16,7 +16,7 @@
 package environment
 
 import (
-	playground "beam.apache.org/playground/backend/internal/api"
+	playground "beam.apache.org/playground/backend/internal/api/v1"
 	"fmt"
 	"io/fs"
 	"os"
