@@ -35,6 +35,7 @@ class SDKSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
+      container: true,
       label: kSdkSelectorLabel,
       child: Container(
         padding: const EdgeInsets.symmetric(

@@ -77,9 +77,14 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   @override
   Widget build(BuildContext context) {
     return Semantics(
+      container: true,
       textField: true,
+      multiline: true,
+      enabled: true,
+      readOnly: false,
       label: kCodeAreaSemantics,
       child: CodeField(
+        enabled: true,
         controller: _codeController!,
         textStyle: const TextStyle(fontFamily: 'SourceCode'),
         expands: true,
