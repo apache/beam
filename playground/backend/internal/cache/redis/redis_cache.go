@@ -27,16 +27,14 @@ import (
 	"time"
 )
 
-const defaultExpirationTime = time.Minute * 15
-
-type RedisCache struct {
+type Cache struct {
 	*redis.Client
 }
 
 // New returns Redis implementation of Cache interface.
 // In case of problem with connection to Redis returns error.
-func New(ctx context.Context, addr string) (*RedisCache, error) {
-	rc := RedisCache{redis.NewClient(&redis.Options{Addr: addr})}
+func New(ctx context.Context, addr string) (*Cache, error) {
+	rc := Cache{redis.NewClient(&redis.Options{Addr: addr})}
 	_, err := rc.Ping(ctx).Result()
 	if err != nil {
 		log.Printf("Redis Cache: connect to Redis: error during Ping operation, err: %s\n", err.Error())
@@ -45,7 +43,7 @@ func New(ctx context.Context, addr string) (*RedisCache, error) {
 	return &rc, nil
 }
 
-func (rc *RedisCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey) (interface{}, error) {
+func (rc *Cache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey) (interface{}, error) {
 	marshSubKey, err := json.Marshal(subKey)
 	if err != nil {
 		log.Printf("Redis Cache: get value: error during marshal subKey: %s, err: %s\n", subKey, err.Error())
@@ -60,7 +58,7 @@ func (rc *RedisCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey
 	return unmarshalBySubKey(subKey, value)
 }
 
-func (rc *RedisCache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey, value interface{}) error {
+func (rc *Cache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey, value interface{}) error {
 	subKeyMarsh, err := json.Marshal(subKey)
 	if err != nil {
 		log.Printf("Redis Cache: set value: error during marshal subKey: %s, err: %s\n", subKey, err.Error())
@@ -76,16 +74,10 @@ func (rc *RedisCache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey
 		log.Printf("Redis Cache: set value: error during HSet operation, err: %s\n", err.Error())
 		return err
 	}
-
-	_, err = rc.Expire(ctx, pipelineId.String(), defaultExpirationTime).Result()
-	if err != nil {
-		log.Printf("Redis Cache: set value: error during Expire operation, err: %s\n", err.Error())
-		return err
-	}
 	return nil
 }
 
-func (rc *RedisCache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error {
+func (rc *Cache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error {
 	exists, err := rc.Exists(ctx, pipelineId.String()).Result()
 	if err != nil {
 		log.Printf("Redis Cache: set expiration time value: error during Exists operation for key: %s, err: %s\n", pipelineId, err.Error())
@@ -107,10 +99,10 @@ func (rc *RedisCache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expT
 // unmarshalBySubKey unmarshal value by subKey
 func unmarshalBySubKey(subKey cache.SubKey, value string) (result interface{}, err error) {
 	switch subKey {
-	case cache.SubKey_Status:
+	case cache.Status:
 		result = new(pb.Status)
 		err = json.Unmarshal([]byte(value), &result)
-	case cache.SubKey_RunOutput, cache.SubKey_CompileOutput:
+	case cache.RunOutput, cache.CompileOutput:
 		result = ""
 		err = json.Unmarshal([]byte(value), &result)
 	}

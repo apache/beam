@@ -31,7 +31,7 @@ import (
 
 func TestRedisCache_GetValue(t *testing.T) {
 	pipelineId := uuid.New()
-	subKey := cache.SubKey_RunOutput
+	subKey := cache.RunOutput
 	value := "MOCK_OUTPUT"
 	client, mock := redismock.NewClientMock()
 	marshSubKey, _ := json.Marshal(subKey)
@@ -85,7 +85,7 @@ func TestRedisCache_GetValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mocks()
-			rc := &RedisCache{
+			rc := &Cache{
 				tt.fields.redisClient,
 			}
 			got, err := rc.GetValue(tt.args.ctx, tt.args.pipelineId, tt.args.subKey)
@@ -179,7 +179,7 @@ func TestRedisCache_SetExpTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mocks()
-			rc := &RedisCache{
+			rc := &Cache{
 				tt.fields.redisClient,
 			}
 			if err := rc.SetExpTime(tt.args.ctx, tt.args.pipelineId, tt.args.expTime); (err != nil) != tt.wantErr {
@@ -192,7 +192,7 @@ func TestRedisCache_SetExpTime(t *testing.T) {
 
 func TestRedisCache_SetValue(t *testing.T) {
 	pipelineId := uuid.New()
-	subKey := cache.SubKey_Status
+	subKey := cache.Status
 	value := pb.Status_STATUS_FINISHED
 	client, mock := redismock.NewClientMock()
 	marshSubKey, _ := json.Marshal(subKey)
@@ -229,21 +229,6 @@ func TestRedisCache_SetValue(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "error during Expire operation",
-			mocks: func() {
-				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetVal(1)
-				mock.ExpectExpire(pipelineId.String(), time.Minute*15).SetErr(fmt.Errorf("MOCK_ERROR"))
-			},
-			fields: fields{client},
-			args: args{
-				ctx:        context.Background(),
-				pipelineId: pipelineId,
-				subKey:     subKey,
-				value:      value,
-			},
-			wantErr: true,
-		},
-		{
 			name: "all success",
 			mocks: func() {
 				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetVal(1)
@@ -262,7 +247,7 @@ func TestRedisCache_SetValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mocks()
-			rc := &RedisCache{
+			rc := &Cache{
 				tt.fields.redisClient,
 			}
 			if err := rc.SetValue(tt.args.ctx, tt.args.pipelineId, tt.args.subKey, tt.args.value); (err != nil) != tt.wantErr {
@@ -322,7 +307,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 			name: "status subKey",
 			args: args{
 				ctx:    context.Background(),
-				subKey: cache.SubKey_Status,
+				subKey: cache.Status,
 				value:  string(statusValue),
 			},
 			want:    &status,
@@ -331,7 +316,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 		{
 			name: "runOutput subKey",
 			args: args{
-				subKey: cache.SubKey_RunOutput,
+				subKey: cache.RunOutput,
 				value:  string(outputValue),
 			},
 			want:    output,
@@ -340,7 +325,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 		{
 			name: "compileOutput subKey",
 			args: args{
-				subKey: cache.SubKey_CompileOutput,
+				subKey: cache.CompileOutput,
 				value:  string(outputValue),
 			},
 			want:    output,
