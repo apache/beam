@@ -985,34 +985,43 @@ class BigQueryServicesImpl implements BigQueryServices {
                 ref,
                 rowsToPublish.get(rowIndex));
             rowIndex++;
-            if (rows.size() == 0) {
-              // If we don't have any rows to insert, we move to the next row.
-              // If we have rows batched to insert, we follow in the rest of the iteration.
-              continue;
-            }
+            continue;
+          }
+
+          if (nextRowSize + dataSize >= maxRowBatchSize || rows.size() + 1 > maxRowsPerBatch) {
+            // If the row does not fit into the insert buffer, then we take the current buffer,
+            // issue the insert call, and we retry adding the same row to the troublesome buffer.
+            // Add a future to insert the current batch into BQ.
+            futures.add(
+                executor.submit(
+                    new InsertBatchofRowsCallable(
+                        ref,
+                        skipInvalidRows,
+                        ignoreUnkownValues,
+                        client,
+                        rateLimitBackoffFactory,
+                        rows,
+                        maxThrottlingMsec,
+                        sleeper)));
+            strideIndices.add(strideIndex);
+            retTotalDataSize += dataSize;
+            strideIndex = rowIndex;
+            rows = new ArrayList<>();
+            dataSize = 0L;
           }
           // If the row fits into the insert buffer, then we add it to the buffer to be inserted
           // later, and we move onto the next row.
-          if (nextRowSize + dataSize < maxRowBatchSize && rows.size() + 1 <= maxRowsPerBatch) {
-            TableDataInsertAllRequest.Rows out = new TableDataInsertAllRequest.Rows();
-            if (idsToPublish != null) {
-              out.setInsertId(idsToPublish.get(rowIndex));
-            }
-            out.setJson(row.getUnknownKeys());
-            rows.add(out);
-            rowIndex++;
-            dataSize += nextRowSize;
-            // If we have not reached the last row, then we continue the loop to insert the rows
-            // that follow.
-            // If we have reached the last row, then we do not continue to the next loop iteration,
-            // and instead we allow us to continue down to attempt to insert it.
-            if (rowIndex <= rowsToPublish.size() - 1) {
-              continue;
-            }
+          TableDataInsertAllRequest.Rows out = new TableDataInsertAllRequest.Rows();
+          if (idsToPublish != null) {
+            out.setInsertId(idsToPublish.get(rowIndex));
           }
-          // If the row does not fit into the insert buffer, then we take the current buffer,
-          // issue the insert call, and we retry adding the same row to the troublesome buffer.
-          // Add a future to insert the current batch into BQ.
+          out.setJson(row.getUnknownKeys());
+          rows.add(out);
+          rowIndex++;
+          dataSize += nextRowSize;
+        }
+
+        if (rows.size() > 0) {
           futures.add(
               executor.submit(
                   new InsertBatchofRowsCallable(
@@ -1026,9 +1035,6 @@ class BigQueryServicesImpl implements BigQueryServices {
                       sleeper)));
           strideIndices.add(strideIndex);
           retTotalDataSize += dataSize;
-          strideIndex = rowIndex;
-          rows = new ArrayList<>();
-          dataSize = 0L;
         }
 
         try {
