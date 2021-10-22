@@ -52,7 +52,7 @@ public interface ExternalTransformBuilder<ConfigT, InputT extends PInput, Output
    * List the dependencies needed for this transform. Jars from classpath are used by default when
    * Optional.empty() is returned.
    */
-  default Optional<List<String>> getDependencies(PipelineOptions options) {
+  default Optional<List<String>> getDependencies(ConfigT configuration, PipelineOptions options) {
     return Optional.empty();
   }
 }
