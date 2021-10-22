@@ -16,7 +16,7 @@
 package environment
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api"
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 )
 
 // ExecutorConfig contains needed for compiling and execution of the code commands

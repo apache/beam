@@ -16,7 +16,7 @@
 package environment
 
 import (
-	playground "beam.apache.org/playground/backend/internal/api"
+	playground "beam.apache.org/playground/backend/internal/api/v1"
 	"fmt"
 	"io/fs"
 	"os"
@@ -131,7 +131,7 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 			if err := setOsEnvs(tt.envsToSet); err != nil {
 				t.Fatalf("couldn't setup os env")
 			}
-			got, err := getSdkEnvsFromOsEnvs()
+			got, err := GetSdkEnvsFromOsEnvs()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getSdkEnvsFromOsEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -171,7 +171,7 @@ func Test_getNetworkEnvsFromOsEnvs(t *testing.T) {
 			if err := setOsEnvs(tt.envsToSet); err != nil {
 				t.Fatalf("couldn't setup os env")
 			}
-			got, err := getNetworkEnvsFromOsEnvs()
+			got, err := GetNetworkEnvsFromOsEnvs()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getNetworkEnvsFromOsEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -198,7 +198,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 			if err := setOsEnvs(tt.envsToSet); err != nil {
 				t.Fatalf("couldn't setup os env")
 			}
-			got, err := getApplicationEnvsFromOsEnvs()
+			got, err := GetApplicationEnvsFromOsEnvs()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getApplicationEnvsFromOsEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return
