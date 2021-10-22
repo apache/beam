@@ -30,27 +30,32 @@ const (
 	fileMode = 0600
 )
 
-// Folder contains names of folders with executable and compiled files (/src and /bin for java SDK)
+// Folder contains names of folders with executable and compiled files.
+// For each SDK these values should be set depending on folders that need for the SDK (/src and /bin for java SDK).
 type Folder struct {
 	BaseFolder       string
 	ExecutableFolder string
 	CompiledFolder   string
 }
 
-// Extension contains executable and compiled files' extensions (.java and .class for java SDK)
+// Extension contains executable and compiled files' extensions.
+// For each SDK these values should be set depending on SDK's extensions (.java and .class for java SDK).
 type Extension struct {
 	ExecutableExtension string
 	CompiledExtension   string
 }
 
+// LifeCycle is used for preparing folders and files to process code for one request.
+// For each SDK should set folders (Folder) and extensions (Extension) correctly.
 type LifeCycle struct {
-	folderGlobs []string
+	folderGlobs []string //folders that should be created to process code
 	Folder      Folder
 	Extension   Extension
 	pipelineId  uuid.UUID
 }
 
 // NewLifeCycle returns a corresponding LifeCycle depending on the given SDK.
+// workingDir should be existed and be prepared to create/delete/modify folders into him.
 func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, workingDir string) (*LifeCycle, error) {
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
