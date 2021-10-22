@@ -179,7 +179,6 @@ public class ParquetIOIT {
         fillMetricSuppliers(uuid, timestamp);
     final IOITMetrics metrics =
         new IOITMetrics(metricSuppliers, result, PARQUET_NAMESPACE, uuid, timestamp);
-    metrics.publish(bigQueryDataset, bigQueryTable);
     metrics.publishToInflux(settings);
   }
 

@@ -147,13 +147,11 @@ public class JdbcIOIT {
         getWriteMetricSuppliers(uuid, timestamp);
     IOITMetrics writeMetrics =
         new IOITMetrics(metricSuppliers, writeResult, NAMESPACE, uuid, timestamp);
-    writeMetrics.publish(bigQueryDataset, bigQueryTable);
     writeMetrics.publishToInflux(settings);
 
     IOITMetrics readMetrics =
         new IOITMetrics(
             getReadMetricSuppliers(uuid, timestamp), readResult, NAMESPACE, uuid, timestamp);
-    readMetrics.publish(bigQueryDataset, bigQueryTable);
     readMetrics.publishToInflux(settings);
   }
 

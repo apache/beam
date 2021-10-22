@@ -215,9 +215,7 @@ public class MongoDBIOIT {
         new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
     IOITMetrics writeMetrics =
         new IOITMetrics(writeSuppliers, writeResult, NAMESPACE, uuid, timestamp);
-    readMetrics.publish(bigQueryDataset, bigQueryTable);
     readMetrics.publishToInflux(settings);
-    writeMetrics.publish(bigQueryDataset, bigQueryTable);
     writeMetrics.publishToInflux(settings);
   }
 
