@@ -46,7 +46,7 @@ type Extension struct {
 }
 
 // LifeCycle is used for preparing folders and files to process code for one request.
-// For each SDK should set folders (Folder) and extensions (Extension) correctly.
+// For each SDK folders (Folder) and extensions (Extension) should be set correctly.
 type LifeCycle struct {
 	folderGlobs []string //folders that should be created to process code
 	Folder      Folder
