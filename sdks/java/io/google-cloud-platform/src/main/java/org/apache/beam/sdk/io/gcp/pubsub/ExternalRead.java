@@ -40,7 +40,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class ExternalRead implements ExternalTransformRegistrar {
   public ExternalRead() {}
 
-  public static final String URN = "beam:external:java:pubsub:read:v1";
+  public static final String URN = "beam:transform:org.apache.beam:pubsub_read:v1";
 
   @Override
   public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {

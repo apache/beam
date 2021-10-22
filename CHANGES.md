@@ -32,6 +32,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Remote packages can now be downloaded from locations supported by apache_beam.io.filesystems. The files will be downloaded on Stager and uploaded to staging location. For more information, see [BEAM-11275](https://issues.apache.org/jira/browse/BEAM-11275)
 
 ## Breaking Changes
 
@@ -68,6 +69,7 @@
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Python GBK values will always be a generic iterable rather than sometimes being a list. This means that direct indexing and len will never work (rather than sometimes passing in tests and failing on production runners).
 
 ## Deprecations
 

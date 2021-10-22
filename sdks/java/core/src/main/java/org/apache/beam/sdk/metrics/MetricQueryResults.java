@@ -61,7 +61,7 @@ public abstract class MetricQueryResults {
   }
 
   @Override
-  public String toString() {
+  public final String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("MetricQueryResults(");
     printMetrics("Counters", getCounters(), sb);

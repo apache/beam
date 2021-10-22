@@ -74,7 +74,7 @@ go build ./cmd/server/server.go
 Playground tests may be run using this command:
 
 ```
-go test ./test/... -v
+go test ... -v
 ```
 
 The full list of commands can be found [here](https://pkg.go.dev/cmd/go).

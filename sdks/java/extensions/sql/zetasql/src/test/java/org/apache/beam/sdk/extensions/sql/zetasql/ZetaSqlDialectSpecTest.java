@@ -1223,7 +1223,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   public void testZetaSQLSelectFromTableLimit0() {
     String sql = "SELECT Key, Value FROM KeyValue LIMIT 0;";
     PCollection<Row> stream = execute(sql);
-    PAssert.that(stream).containsInAnyOrder();
+    PAssert.that(stream).empty();
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -1551,7 +1551,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     String sql = "SELECT Key, Value FROM KeyValue WHERE Key = 14 AND Value = 'non-existing';";
 
     PCollection<Row> stream = execute(sql);
-    PAssert.that(stream).containsInAnyOrder();
+    PAssert.that(stream).empty();
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1854,7 +1854,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   public void testZetaSQLGroupByAndFiltering() {
     String sql = "SELECT int64_col FROM table_all_types WHERE int64_col = 1 GROUP BY int64_col;";
     PCollection<Row> stream = execute(sql);
-    PAssert.that(stream).containsInAnyOrder();
+    PAssert.that(stream).empty();
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -2575,7 +2575,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PCollection<Row> stream = execute(sql);
 
-    PAssert.that(stream).containsInAnyOrder();
+    PAssert.that(stream).empty();
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -2843,7 +2843,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   public void testSelectFromEmptyTable() {
     String sql = "SELECT * FROM table_empty;";
     PCollection<Row> stream = execute(sql);
-    PAssert.that(stream).containsInAnyOrder();
+    PAssert.that(stream).empty();
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
