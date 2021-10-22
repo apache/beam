@@ -149,10 +149,23 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                 }
 
                 @Override
-                public List<String> getDependencies(PipelineOptions options) {
-                  Optional<List<String>> dependencies = builderInstance.getDependencies(options);
-                  return dependencies.orElseGet(
-                      () -> TransformProvider.super.getDependencies(options));
+                public List<String> getDependencies(
+                    RunnerApi.FunctionSpec spec, PipelineOptions options) {
+                  try {
+                    Class configClass = getConfigClass(builderInstance);
+                    Optional<List<String>> dependencies =
+                        builderInstance.getDependencies(
+                            payloadToConfig(
+                                ExternalConfigurationPayload.parseFrom(spec.getPayload()),
+                                configClass),
+                            options);
+                    return dependencies.orElseGet(
+                        () -> TransformProvider.super.getDependencies(spec, options));
+                  } catch (Exception e) {
+                    throw new RuntimeException(
+                        String.format("Failed to get dependencies of %s from spec %s", urn, spec),
+                        e);
+                  }
                 }
               };
           builder.put(urn, transformProvider);
@@ -383,7 +396,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           Pipeline.applyTransform(name, createInput(p, inputs), getTransform(spec)));
     }
 
-    default List<String> getDependencies(PipelineOptions options) {
+    default List<String> getDependencies(RunnerApi.FunctionSpec spec, PipelineOptions options) {
       List<String> filesToStage = options.as(PortablePipelineOptions.class).getFilesToStage();
       if (filesToStage == null || filesToStage.isEmpty()) {
         ClassLoader classLoader = Environments.class.getClassLoader();
@@ -494,7 +507,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       }
     }
 
-    List<String> classpathResources = transformProvider.getDependencies(pipeline.getOptions());
+    List<String> classpathResources =
+        transformProvider.getDependencies(request.getTransform().getSpec(), pipeline.getOptions());
     pipeline.getOptions().as(PortablePipelineOptions.class).setFilesToStage(classpathResources);
 
     Map<String, PCollection<?>> outputs =
