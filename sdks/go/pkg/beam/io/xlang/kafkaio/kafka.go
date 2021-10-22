@@ -80,8 +80,8 @@ const (
 	// be found in Java's KafkaIO documentation.
 	LogAppendTime policy = "LogAppendTime"
 
-	readURN  = "beam:external:java:kafkaio:typedwithoutmetadata:v1"
-	writeURN = "beam:external:java:kafka:write:v1"
+	readURN  = "beam:transform:org.apache.beam:kafka_read_without_metadata:v1"
+	writeURN = "beam:transform:org.apache.beam:kafka_write:v1"
 )
 
 // Read is a cross-language PTransform which reads from Kafka and returns a
