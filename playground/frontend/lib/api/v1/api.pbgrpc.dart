@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 ///
 //  Generated code. Do not modify.
-//  source: playground.proto
+//  source: api/v1/api.proto
 //
 // @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
@@ -28,31 +27,31 @@ import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:grpc/service_api.dart' as $grpc;
-import 'playground.pb.dart' as $0;
-export 'playground.pb.dart';
+import 'api.pb.dart' as $0;
+export 'api.pb.dart';
 
 class PlaygroundServiceClient extends $grpc.Client {
   static final _$runCode =
       $grpc.ClientMethod<$0.RunCodeRequest, $0.RunCodeResponse>(
-          '/playground.v1.PlaygroundService/RunCode',
+          '/api.v1.PlaygroundService/RunCode',
           ($0.RunCodeRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $0.RunCodeResponse.fromBuffer(value));
   static final _$checkStatus =
       $grpc.ClientMethod<$0.CheckStatusRequest, $0.CheckStatusResponse>(
-          '/playground.v1.PlaygroundService/CheckStatus',
+          '/api.v1.PlaygroundService/CheckStatus',
           ($0.CheckStatusRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $0.CheckStatusResponse.fromBuffer(value));
   static final _$getRunOutput =
       $grpc.ClientMethod<$0.GetRunOutputRequest, $0.GetRunOutputResponse>(
-          '/playground.v1.PlaygroundService/GetRunOutput',
+          '/api.v1.PlaygroundService/GetRunOutput',
           ($0.GetRunOutputRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $0.GetRunOutputResponse.fromBuffer(value));
   static final _$getCompileOutput = $grpc.ClientMethod<
           $0.GetCompileOutputRequest, $0.GetCompileOutputResponse>(
-      '/playground.v1.PlaygroundService/GetCompileOutput',
+      '/api.v1.PlaygroundService/GetCompileOutput',
       ($0.GetCompileOutputRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetCompileOutputResponse.fromBuffer(value));
@@ -87,7 +86,7 @@ class PlaygroundServiceClient extends $grpc.Client {
 }
 
 abstract class PlaygroundServiceBase extends $grpc.Service {
-  $core.String get $name => 'playground.v1.PlaygroundService';
+  $core.String get $name => 'api.v1.PlaygroundService';
 
   PlaygroundServiceBase() {
     $addMethod($grpc.ServiceMethod<$0.RunCodeRequest, $0.RunCodeResponse>(

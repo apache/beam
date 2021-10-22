@@ -26,11 +26,7 @@ It provides a portable API layer for building sophisticated data-parallel proces
 
 ## Getting Started
 
-Website development requires [Flutter](https://flutter.dev/docs/get-started/install) installed.
-
-Create /lib/generated folder and run the next command to generate grpc files from proto:
-
-`$ protoc playground.proto --dart_out=grpc:lib/generated --proto_path=$(pwd)/../playground/v1`
+See [playground/README.md](../README.md) for details on requirements and setup.
 
 The following command is used to build and serve the website locally:
 

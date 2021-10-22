@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 })
 public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
   private static final Logger LOG = LoggerFactory.getLogger(DebeziumTransformRegistrar.class);
-  public static final String READ_JSON_URN = "beam:external:java:debezium:read:v1";
+  public static final String READ_JSON_URN = "beam:transform:org.apache.beam:debezium_read:v1";
 
   @Override
   public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {

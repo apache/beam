@@ -16,7 +16,7 @@
 package fs_tool
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api"
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"fmt"
 	"github.com/google/uuid"
 	"io/fs"
@@ -95,7 +95,7 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 				t.Errorf("CreateExecutableFile() got = %v, want %v", got, tt.want)
 			}
 		})
-		os.RemoveAll(parentBaseFileFolder)
+		os.RemoveAll(baseFileFolder)
 	}
 }
 
@@ -410,6 +410,7 @@ func TestLifeCycle_GetExecutableName(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("GetExecutableName() got = %v, want %v", got, tt.want)
 			}
+			os.RemoveAll(baseFileFolder)
 		})
 	}
 }
