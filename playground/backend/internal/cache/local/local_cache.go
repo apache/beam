@@ -24,19 +24,21 @@ import (
 	"time"
 )
 
-const cleanupInterval = 5 * time.Second
+const (
+	cleanupInterval = 5 * time.Second
+)
 
-type LocalCache struct {
+type Cache struct {
 	sync.RWMutex
 	cleanupInterval     time.Duration
 	items               map[uuid.UUID]map[cache.SubKey]interface{}
 	pipelinesExpiration map[uuid.UUID]time.Time
 }
 
-func New(ctx context.Context) *LocalCache {
+func New(ctx context.Context) *Cache {
 	items := make(map[uuid.UUID]map[cache.SubKey]interface{})
 	pipelinesExpiration := make(map[uuid.UUID]time.Time)
-	ls := &LocalCache{
+	ls := &Cache{
 		cleanupInterval:     cleanupInterval,
 		items:               items,
 		pipelinesExpiration: pipelinesExpiration,
@@ -47,7 +49,7 @@ func New(ctx context.Context) *LocalCache {
 
 }
 
-func (lc *LocalCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey) (interface{}, error) {
+func (lc *Cache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey) (interface{}, error) {
 	lc.RLock()
 	value, found := lc.items[pipelineId][subKey]
 	if !found {
@@ -68,27 +70,29 @@ func (lc *LocalCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey
 	return value, nil
 }
 
-func (lc *LocalCache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey, value interface{}) error {
+func (lc *Cache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey, value interface{}) error {
 	lc.Lock()
 	defer lc.Unlock()
 
 	_, ok := lc.items[pipelineId]
 	if !ok {
 		lc.items[pipelineId] = make(map[cache.SubKey]interface{})
-		lc.pipelinesExpiration[pipelineId] = time.Now().Add(time.Hour)
 	}
 	lc.items[pipelineId][subKey] = value
 	return nil
 }
 
-func (lc *LocalCache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error {
+func (lc *Cache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error {
 	lc.Lock()
 	defer lc.Unlock()
+	if _, found := lc.items[pipelineId]; !found {
+		return fmt.Errorf("%s pipeline id doesn't presented in cache", pipelineId.String())
+	}
 	lc.pipelinesExpiration[pipelineId] = time.Now().Add(expTime)
 	return nil
 }
 
-func (lc *LocalCache) startGC() {
+func (lc *Cache) startGC() {
 	for {
 		<-time.After(lc.cleanupInterval)
 
@@ -102,7 +106,7 @@ func (lc *LocalCache) startGC() {
 	}
 }
 
-func (lc *LocalCache) expiredPipelines() (pipelines []uuid.UUID) {
+func (lc *Cache) expiredPipelines() (pipelines []uuid.UUID) {
 	lc.RLock()
 	defer lc.RUnlock()
 	for pipelineId, expTime := range lc.pipelinesExpiration {
@@ -113,7 +117,7 @@ func (lc *LocalCache) expiredPipelines() (pipelines []uuid.UUID) {
 	return
 }
 
-func (lc *LocalCache) clearItems(pipelines []uuid.UUID) {
+func (lc *Cache) clearItems(pipelines []uuid.UUID) {
 	lc.Lock()
 	defer lc.Unlock()
 	for _, pipeline := range pipelines {
