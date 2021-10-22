@@ -17,9 +17,9 @@
  */
 
 syntax = "proto3";
+option go_package = "beam.apache.org/playground/backend/internal;playground";
 
-option go_package = "github.com/apache/beam/playground/v1;playground";
-package playground.v1;
+package api.v1;
 
 enum Sdk {
   SDK_UNSPECIFIED = 0;
