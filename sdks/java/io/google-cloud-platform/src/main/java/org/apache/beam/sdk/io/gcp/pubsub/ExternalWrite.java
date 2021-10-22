@@ -41,7 +41,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class ExternalWrite implements ExternalTransformRegistrar {
   public ExternalWrite() {}
 
-  public static final String URN = "beam:external:java:pubsub:write:v1";
+  public static final String URN = "beam:transform:org.apache.beam:pubsub_write:v1";
 
   @Override
   public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {

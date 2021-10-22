@@ -340,7 +340,10 @@ _LOGGER = logging.getLogger(__name__)
 try:
   import google.cloud.bigquery_storage_v1 as bq_storage
 except ImportError:
-  _LOGGER.warning('ERROR: ', exc_info=True)
+  _LOGGER.info(
+      'No module named google.cloud.bigquery_storage_v1. '
+      'As a result, the ReadFromBigQuery transform *CANNOT* be '
+      'used with `method=DIRECT_READ`.')
 
 __all__ = [
     'TableRowJsonCoder',
@@ -811,10 +814,10 @@ class _CustomBigQuerySource(BoundedSource):
         self.table_reference.projectId = self._get_project()
 
       schema, metadata_list = self._export_files(bq)
-      self.split_result = [
+      # Sources to be created lazily within a generator as they're output.
+      self.split_result = (
           self._create_source(metadata.path, schema)
-          for metadata in metadata_list
-      ]
+          for metadata in metadata_list)
 
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())

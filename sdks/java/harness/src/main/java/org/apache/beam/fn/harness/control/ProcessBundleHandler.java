@@ -39,6 +39,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.Context;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
@@ -55,7 +56,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
@@ -78,6 +78,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Message;
@@ -287,24 +288,107 @@ public class ProcessBundleHandler {
           urnToPTransformRunnerFactoryMap
               .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
               .createRunnerForPTransform(
-                  options,
-                  queueingClient,
-                  beamFnStateClient,
-                  beamFnTimerClient,
-                  pTransformId,
-                  pTransform,
-                  processBundleInstructionId,
-                  processBundleDescriptor.getPcollectionsMap(),
-                  processBundleDescriptor.getCodersMap(),
-                  processBundleDescriptor.getWindowingStrategiesMap(),
-                  pCollectionConsumerRegistry,
-                  startFunctionRegistry,
-                  finishFunctionRegistry,
-                  addResetFunction,
-                  addTearDownFunction,
-                  addProgressRequestCallback,
-                  splitListener,
-                  bundleFinalizer);
+                  new Context() {
+                    @Override
+                    public PipelineOptions getPipelineOptions() {
+                      return options;
+                    }
+
+                    @Override
+                    public BeamFnDataClient getBeamFnDataClient() {
+                      return queueingClient;
+                    }
+
+                    @Override
+                    public BeamFnStateClient getBeamFnStateClient() {
+                      return beamFnStateClient;
+                    }
+
+                    @Override
+                    public BeamFnTimerClient getBeamFnTimerClient() {
+                      return beamFnTimerClient;
+                    }
+
+                    @Override
+                    public String getPTransformId() {
+                      return pTransformId;
+                    }
+
+                    @Override
+                    public PTransform getPTransform() {
+                      return pTransform;
+                    }
+
+                    @Override
+                    public Supplier<String> getProcessBundleInstructionIdSupplier() {
+                      return processBundleInstructionId;
+                    }
+
+                    @Override
+                    public Map<String, PCollection> getPCollections() {
+                      return processBundleDescriptor.getPcollectionsMap();
+                    }
+
+                    @Override
+                    public Map<String, Coder> getCoders() {
+                      return processBundleDescriptor.getCodersMap();
+                    }
+
+                    @Override
+                    public Map<String, WindowingStrategy> getWindowingStrategies() {
+                      return processBundleDescriptor.getWindowingStrategiesMap();
+                    }
+
+                    @Override
+                    public <T> void addPCollectionConsumer(
+                        String pCollectionId,
+                        FnDataReceiver<WindowedValue<T>> consumer,
+                        org.apache.beam.sdk.coders.Coder<T> valueCoder) {
+                      pCollectionConsumerRegistry.register(
+                          pCollectionId, pTransformId, consumer, valueCoder);
+                    }
+
+                    @Override
+                    public FnDataReceiver<?> getPCollectionConsumer(String pCollectionId) {
+                      return pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId);
+                    }
+
+                    @Override
+                    public void addStartBundleFunction(ThrowingRunnable startFunction) {
+                      startFunctionRegistry.register(pTransformId, startFunction);
+                    }
+
+                    @Override
+                    public void addFinishBundleFunction(ThrowingRunnable finishFunction) {
+                      finishFunctionRegistry.register(pTransformId, finishFunction);
+                    }
+
+                    @Override
+                    public void addResetFunction(ThrowingRunnable resetFunction) {
+                      addResetFunction.accept(resetFunction);
+                    }
+
+                    @Override
+                    public void addTearDownFunction(ThrowingRunnable tearDownFunction) {
+                      addTearDownFunction.accept(tearDownFunction);
+                    }
+
+                    @Override
+                    public void addProgressRequestCallback(
+                        ProgressRequestCallback progressRequestCallback) {
+                      addProgressRequestCallback.accept(progressRequestCallback);
+                    }
+
+                    @Override
+                    public BundleSplitListener getSplitListener() {
+                      return splitListener;
+                    }
+
+                    @Override
+                    public BundleFinalizer getBundleFinalizer() {
+                      return bundleFinalizer;
+                    }
+                  });
       if (runner instanceof BeamFnDataReadRunner) {
         channelRoots.add((BeamFnDataReadRunner) runner);
       }
@@ -875,7 +959,7 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    public CompletableFuture<StateResponse> handle(Builder requestBuilder) {
+    public CompletableFuture<StateResponse> handle(BeamFnApi.StateRequest.Builder requestBuilder) {
       throw new IllegalStateException(
           String.format(
               "State API calls are unsupported because the "
@@ -918,29 +1002,11 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    public Object createRunnerForPTransform(
-        PipelineOptions pipelineOptions,
-        BeamFnDataClient beamFnDataClient,
-        BeamFnStateClient beamFnStateClient,
-        BeamFnTimerClient beamFnTimerClient,
-        String pTransformId,
-        PTransform pTransform,
-        Supplier<String> processBundleInstructionId,
-        Map<String, PCollection> pCollections,
-        Map<String, Coder> coders,
-        Map<String, WindowingStrategy> windowingStrategies,
-        PCollectionConsumerRegistry pCollectionConsumerRegistry,
-        PTransformFunctionRegistry startFunctionRegistry,
-        PTransformFunctionRegistry finishFunctionRegistry,
-        Consumer<ThrowingRunnable> addResetFunction,
-        Consumer<ThrowingRunnable> tearDownFunctions,
-        Consumer<ProgressRequestCallback> addProgressRequestCallback,
-        BundleSplitListener splitListener,
-        BundleFinalizer bundleFinalizer) {
+    public Object createRunnerForPTransform(Context context) {
       String message =
           String.format(
               "No factory registered for %s, known factories %s",
-              pTransform.getSpec().getUrn(), knownUrns);
+              context.getPTransform().getSpec().getUrn(), knownUrns);
       LOG.error(message);
       throw new IllegalStateException(message);
     }

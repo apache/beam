@@ -245,9 +245,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     current_pos = read_buffer.position
 
-    delimiter = self._delimiter.encode('UTF-8') if not isinstance(
-        self._delimiter, bytes) else self._delimiter
-    delimiter_len = len(delimiter)
+    delimiter_len = len(self._delimiter)
 
     while True:
       if current_pos >= len(read_buffer.data):
@@ -259,11 +257,11 @@ class _TextSource(filebasedsource.FileBasedSource):
 
       # Using find() here is more efficient than a linear scan
       # of the byte array.
-      next_lf = read_buffer.data.find(delimiter, current_pos)
+      next_lf = read_buffer.data.find(self._delimiter, current_pos)
 
       if next_lf >= 0:
-        if delimiter == b'\n' and read_buffer.data[next_lf -
-                                                   1:next_lf] == b'\r':
+        if self._delimiter == b'\n' and read_buffer.data[next_lf -
+                                                         1:next_lf] == b'\r':
           # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
         else:
@@ -570,7 +568,7 @@ class ReadFromText(PTransform):
         skipped from each source file. Must be 0 or higher. Large number of
         skipped lines might impact performance.
       coder (~apache_beam.coders.coders.Coder): Coder used to decode each line.
-      delimiter (str or bytes): delimiter to split records
+      delimiter (bytes): delimiter to split records
     """
 
     super().__init__(**kwargs)

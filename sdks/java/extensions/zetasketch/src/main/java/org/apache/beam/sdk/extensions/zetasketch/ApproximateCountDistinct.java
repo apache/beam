@@ -24,6 +24,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.zetasketch.HllCount.Init.Builder;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -97,6 +98,10 @@ public class ApproximateCountDistinct {
     return new AutoValue_ApproximateCountDistinct_PerKey.Builder<K, V>()
         .setPrecision(HllCount.DEFAULT_PRECISION)
         .build();
+  }
+
+  public static <T> Combine.CombineFn<T, ?, byte[]> getUdaf(TypeDescriptor<T> input) {
+    return ApproximateCountDistinct.<T>builderForType(input).asUdaf();
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -257,7 +262,7 @@ public class ApproximateCountDistinct {
 
   // HLLCount supports, Long, Integers, String and Byte primitives.
   // We will return an appropriate builder
-  protected static <T> Builder<T> builderForType(TypeDescriptor<T> input) {
+  protected static <T> HllCount.Init.Builder<T> builderForType(TypeDescriptor<T> input) {
 
     @SuppressWarnings("rawtypes")
     HllCount.Init.Builder builder = null;
@@ -281,7 +286,7 @@ public class ApproximateCountDistinct {
 
     // Safe to ignore warning, as we know the type based on the check we do above.
     @SuppressWarnings("unchecked")
-    Builder<T> output = (Builder<T>) builder;
+    HllCount.Init.Builder<T> output = (HllCount.Init.Builder<T>) builder;
 
     return output;
   }
