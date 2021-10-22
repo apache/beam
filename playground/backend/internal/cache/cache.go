@@ -26,16 +26,17 @@ type SubKey string
 
 // All possible subKeys to process with Cache
 const (
-	// SubKey_Status is used to keep playground.Status value
-	SubKey_Status SubKey = "STATUS"
+	// Status is used to keep playground.Status value
+	Status SubKey = "STATUS"
 
-	// SubKey_RunOutput is used to keep run code output value
-	SubKey_RunOutput SubKey = "RUN_OUTPUT"
+	// RunOutput is used to keep run code output value
+	RunOutput SubKey = "RUN_OUTPUT"
 
-	// SubKey_CompileOutput is used to keep compilation output value
-	SubKey_CompileOutput SubKey = "COMPILE_OUTPUT"
+	// CompileOutput is used to keep compilation output value
+	CompileOutput SubKey = "COMPILE_OUTPUT"
 )
 
+// Cache is used to store states and outputs for Apache Beam pipelines that running in Playground
 // Cache allows keep and read any value by pipelineId and subKey:
 // pipelineId_1:
 //				subKey_1: value_1
@@ -43,6 +44,7 @@ const (
 // pipelineId_2:
 //				subKey_1: value_3
 //				subKey_3: value_4
+// pipelineId is uuid that calculates in the controller when the server takes new request to run code
 type Cache interface {
 	// GetValue returns value from cache by pipelineId and subKey.
 	GetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey) (interface{}, error)
