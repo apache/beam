@@ -30,6 +30,8 @@ import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.Op;
+import com.google.cloud.spanner.Options;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
@@ -1653,7 +1655,8 @@ public class SpannerIO {
                 this.spannerConfig.getInstanceId().toString(),
                 "Write");
         try {
-          spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
+          spannerAccessor.getDatabaseClient().writeAtLeastOnceWithOptions(batch, Options
+              .priority(RpcPriority.HIGH));
           serviceCallMetric.call("ok");
           return;
         } catch (AbortedException e) {
