@@ -18,18 +18,31 @@ package cache
 import (
 	"context"
 	"github.com/google/uuid"
-	"os"
 	"time"
 )
 
+// SubKey is used to keep value with Cache using nested structure like pipelineId:subKey:value
 type SubKey string
 
+// All possible subKeys to process with Cache
 const (
-	SubKey_Status        SubKey = "STATUS"
-	SubKey_RunOutput     SubKey = "RUN_OUTPUT"
+	// SubKey_Status is used to keep playground.Status value
+	SubKey_Status SubKey = "STATUS"
+
+	// SubKey_RunOutput is used to keep run code output value
+	SubKey_RunOutput SubKey = "RUN_OUTPUT"
+
+	// SubKey_CompileOutput is used to keep compilation output value
 	SubKey_CompileOutput SubKey = "COMPILE_OUTPUT"
 )
 
+// Cache allows keep and read any value by pipelineId and subKey:
+// pipelineId_1:
+//				subKey_1: value_1
+//				subKey_2: value_2
+// pipelineId_2:
+//				subKey_1: value_3
+//				subKey_3: value_4
 type Cache interface {
 	// GetValue returns value from cache by pipelineId and subKey.
 	GetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey) (interface{}, error)
@@ -39,14 +52,4 @@ type Cache interface {
 
 	// SetExpTime adds expiration time of the pipeline to cache by pipelineId.
 	SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error
-}
-
-// NewCache returns new cache to save and read value
-func NewCache(ctx context.Context, cacheType string) (Cache, error) {
-	switch cacheType {
-	case "remote":
-		return newRedisCache(ctx, os.Getenv("remote_cache_address"))
-	default:
-		return newLocalCache(ctx), nil
-	}
 }

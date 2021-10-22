@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package local
 
 import (
+	"beam.apache.org/playground/backend/internal/cache"
 	"context"
 	"fmt"
 	"github.com/google/uuid"
@@ -28,12 +29,12 @@ const cleanupInterval = 5 * time.Second
 type LocalCache struct {
 	sync.RWMutex
 	cleanupInterval     time.Duration
-	items               map[uuid.UUID]map[SubKey]interface{}
+	items               map[uuid.UUID]map[cache.SubKey]interface{}
 	pipelinesExpiration map[uuid.UUID]time.Time
 }
 
-func newLocalCache(ctx context.Context) *LocalCache {
-	items := make(map[uuid.UUID]map[SubKey]interface{})
+func New(ctx context.Context) *LocalCache {
+	items := make(map[uuid.UUID]map[cache.SubKey]interface{})
 	pipelinesExpiration := make(map[uuid.UUID]time.Time)
 	ls := &LocalCache{
 		cleanupInterval:     cleanupInterval,
@@ -46,7 +47,7 @@ func newLocalCache(ctx context.Context) *LocalCache {
 
 }
 
-func (lc *LocalCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey) (interface{}, error) {
+func (lc *LocalCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey) (interface{}, error) {
 	lc.RLock()
 	value, found := lc.items[pipelineId][subKey]
 	if !found {
@@ -67,13 +68,13 @@ func (lc *LocalCache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey
 	return value, nil
 }
 
-func (lc *LocalCache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey SubKey, value interface{}) error {
+func (lc *LocalCache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey, value interface{}) error {
 	lc.Lock()
 	defer lc.Unlock()
 
 	_, ok := lc.items[pipelineId]
 	if !ok {
-		lc.items[pipelineId] = make(map[SubKey]interface{})
+		lc.items[pipelineId] = make(map[cache.SubKey]interface{})
 		lc.pipelinesExpiration[pipelineId] = time.Now().Add(time.Hour)
 	}
 	lc.items[pipelineId][subKey] = value
