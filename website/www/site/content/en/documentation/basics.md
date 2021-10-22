@@ -36,6 +36,10 @@ You need to know the core vocabulary:
  * _Runner_ - You are going to write a piece of software called a runner that
    takes a Beam pipeline and executes it using the capabilities of your data
    processing engine.
+ * [_Splittable DoFn_](#splittable-dofn) - Splittable DoFns let you process
+   elements in a non-monolithic way. You can checkpoint the processing of
+   an element, and you can split the remaining work to yield additional
+   parallelism.
 
 These concepts may be very similar to your processing engine's concepts. Since
 Beam's design is for cross-language operation and reusable libraries of
@@ -257,3 +261,42 @@ The `run(Pipeline)` method should be asynchronous and results in a
 PipelineResult which generally will be a job descriptor for your data
 processing engine, providing methods for checking its status, canceling it, and
 waiting for it to terminate.
+
+### Splittable DoFn
+
+Splittable `DoFn` (SDF) is a generalization of `DoFn` that lets you process
+elements in a non-monolithic way. Splittable `DoFn` makes it easier to create
+complex, modular I/O connectors in Beam.
+
+A regular `ParDo` processes an entire element at a time, applying your regular
+`DoFn` and waiting for the call to terminate. When you instead apply a
+splittable `DoFn` to each element, the runner has the option of splitting the
+element's processing into smaller tasks. You can checkpoint the processing of an
+element, and you can split the remaining work to yield additional parallelism.
+
+For example, imagine you want to read every line from very large text files.
+When you write your splittable `DoFn`, you can have separate pieces of logic to
+read a segment of a file, split a segment of a file into sub-segments, and
+report progress through the current segment. The runner can then invoke your
+splittable `DoFn` intelligently to split up each input and read portions
+separately, in parallel.
+
+A common computation pattern has the following steps:
+
+ 1. The runner splits an incoming element before starting any processing.
+ 2. The runner starts running your processing logic on each sub-element.
+ 3. If the runner notices that some sub-elements are taking longer than others,
+    the runner halts processing of those sub-elements and splits again.
+ 4. Repeat from step 2.
+
+You can also write your splittable `DoFn` so the runner can split the unbounded
+processing. For example, if you write a splittable `DoFn` to watch a set of
+directories and output filenames as they arrive, you can split to subdivide the
+work of different directories. This allows a hot directory to be split off and
+given additional resources.
+
+For more information about Splittable `DoFn`, see the following pages:
+
+ * [Splittable DoFns](/documentation/programming-guide/#splittable-dofns)
+ * [Splittable DoFn in Apache Beam is Ready to Use](/blog/splittable-do-fn-is-available/)
+
