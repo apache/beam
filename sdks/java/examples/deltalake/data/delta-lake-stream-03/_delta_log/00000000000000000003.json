@@ -1,5 +1,5 @@
-{"commitInfo":{"timestamp":1625288970231,"operation":"STREAMING UPDATE","operationParameters":{"outputMode":"Append","queryId":"32bdce17-fd78-4b6b-a142-bdb29c874d9c","epochId":"3"},"readVersion":2,"isBlindAppend":true,"operationMetrics":{"numRemovedFiles":"0","numOutputRows":"50","numOutputBytes":"5550","numAddedFiles":"3"}}}
-{"txn":{"appId":"32bdce17-fd78-4b6b-a142-bdb29c874d9c","version":3,"lastUpdated":1625288970231}}
-{"add":{"path":"part-00000-727005aa-e042-4e23-b30b-c1ef09d3f44e-c000.snappy.parquet","partitionValues":{},"size":1855,"modificationTime":1625288970000,"dataChange":true}}
-{"add":{"path":"part-00001-942415c5-61c6-419a-9e75-27bb3b9195ed-c000.snappy.parquet","partitionValues":{},"size":1863,"modificationTime":1625288970000,"dataChange":true}}
-{"add":{"path":"part-00002-13e5c07a-1024-411e-b46e-9668cd3064a6-c000.snappy.parquet","partitionValues":{},"size":1832,"modificationTime":1625288970000,"dataChange":true}}
+{"commitInfo":{"timestamp":1635019820178,"operation":"STREAMING UPDATE","operationParameters":{"outputMode":"Append","queryId":"1c728d63-6c24-48df-a191-a91a6440ee6b","epochId":"3"},"readVersion":2,"isBlindAppend":true,"operationMetrics":{"numRemovedFiles":"0","numOutputRows":"50","numOutputBytes":"5552","numAddedFiles":"3"}}}
+{"txn":{"appId":"1c728d63-6c24-48df-a191-a91a6440ee6b","version":3,"lastUpdated":1635019820177}}
+{"add":{"path":"part-00000-c6f488e7-6274-45f5-a0bc-9029546b221b-c000.snappy.parquet","partitionValues":{},"size":1862,"modificationTime":1635019820000,"dataChange":true}}
+{"add":{"path":"part-00001-9b0ebefc-7ed9-4f66-8a5b-00b440db1ef2-c000.snappy.parquet","partitionValues":{},"size":1862,"modificationTime":1635019820000,"dataChange":true}}
+{"add":{"path":"part-00002-3d469e6f-94fb-4fca-b4b5-fe3093624b9c-c000.snappy.parquet","partitionValues":{},"size":1828,"modificationTime":1635019820000,"dataChange":true}}
