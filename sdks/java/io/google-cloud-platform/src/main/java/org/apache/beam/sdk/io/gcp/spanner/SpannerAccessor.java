@@ -160,7 +160,7 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setCredentials(NoCredentials.getInstance());
     }
     String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
-    builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
+    // builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
     SpannerOptions options = builder.build();
 
     Spanner spanner = options.getService();

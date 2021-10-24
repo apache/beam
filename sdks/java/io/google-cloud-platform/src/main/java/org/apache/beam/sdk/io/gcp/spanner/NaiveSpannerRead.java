@@ -108,13 +108,16 @@ abstract class NaiveSpannerRead
 
     private ResultSet execute(ReadOperation op, BatchReadOnlyTransaction readOnlyTransaction) {
       if (op.getQuery() != null) {
-        return readOnlyTransaction.executeQuery(op.getQuery(), Options.priority(RpcPriority.HIGH));
+        return readOnlyTransaction.executeQuery(op.getQuery(), Options.priority(config.getRpcPriority()
+            .get()));
       }
       if (op.getIndex() != null) {
         return readOnlyTransaction.readUsingIndex(
-            op.getTable(), op.getIndex(), op.getKeySet(), op.getColumns(), Options.priority(RpcPriority.HIGH));
+            op.getTable(), op.getIndex(), op.getKeySet(), op.getColumns(), Options.priority(config.getRpcPriority()
+                .get()));
       }
-      return readOnlyTransaction.read(op.getTable(), op.getKeySet(), op.getColumns(), Options.priority(RpcPriority.HIGH));
+      return readOnlyTransaction.read(op.getTable(), op.getKeySet(), op.getColumns(), Options.priority(config.getRpcPriority()
+          .get()));
     }
   }
 }

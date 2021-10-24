@@ -508,6 +508,16 @@ public class SpannerIO {
       return toBuilder().setBatching(batching).build();
     }
 
+    public ReadAll withLowPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.LOW));
+    }
+
+    public ReadAll withHighPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
+    }
+
     abstract Boolean getBatching();
 
     @Override
@@ -681,6 +691,16 @@ public class SpannerIO {
 
     public Read withPartitionOptions(PartitionOptions partitionOptions) {
       return withReadOperation(getReadOperation().withPartitionOptions(partitionOptions));
+    }
+
+    public Read withLowPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.LOW));
+    }
+
+    public Read withHighPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
     }
 
     @Override
@@ -1059,6 +1079,16 @@ public class SpannerIO {
      */
     public Write withGroupingFactor(int groupingFactor) {
       return toBuilder().setGroupingFactor(groupingFactor).build();
+    }
+
+    public Write withLowPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.LOW));
+    }
+
+    public Write withHighPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
     }
 
     @Override
@@ -1656,7 +1686,7 @@ public class SpannerIO {
                 "Write");
         try {
           spannerAccessor.getDatabaseClient().writeAtLeastOnceWithOptions(batch, Options
-              .priority(RpcPriority.HIGH));
+              .priority(spannerConfig.getRpcPriority().get()));
           serviceCallMetric.call("ok");
           return;
         } catch (AbortedException e) {

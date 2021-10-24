@@ -123,7 +123,8 @@ abstract class BatchSpannerRead
     private List<Partition> execute(ReadOperation op, BatchReadOnlyTransaction tx) {
       // Query was selected.
       if (op.getQuery() != null) {
-        return tx.partitionQuery(op.getPartitionOptions(), op.getQuery(), Options.priority(RpcPriority.HIGH));
+        return tx.partitionQuery(op.getPartitionOptions(), op.getQuery(), Options.priority(config.getRpcPriority()
+            .get()));
       }
       // Read with index was selected.
       if (op.getIndex() != null) {
@@ -133,11 +134,12 @@ abstract class BatchSpannerRead
             op.getIndex(),
             op.getKeySet(),
             op.getColumns(),
-            Options.priority(RpcPriority.HIGH));
+            Options.priority(config.getRpcPriority().get()));
       }
       // Read from table was selected.
       return tx.partitionRead(
-          op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns(), Options.priority(RpcPriority.HIGH));
+          op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns(), Options.priority(config.getRpcPriority()
+              .get()));
     }
   }
 
