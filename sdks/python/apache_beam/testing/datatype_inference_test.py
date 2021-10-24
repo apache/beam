@@ -177,22 +177,10 @@ class DatatypeInferenceTest(unittest.TestCase):
 
   @parameterized.expand([(d["name"], d["data"], d["avro_schema"])
                          for d in TEST_DATA])
-  def test_infer_avro_schema(self, _, data, schema):
-    schema = schema.copy()  # Otherwise, it would be mutated by `.pop()`
-    avro_schema = datatype_inference.infer_avro_schema(data, use_fastavro=False)
-    avro_schema = avro_schema.to_json()
-    fields1 = avro_schema.pop("fields")
-    fields2 = schema.pop("fields")
-    self.assertDictEqual(avro_schema, schema)
-    for field1, field2 in zip(fields1, fields2):
-      self.assertDictEqual(field1, field2)
-
-  @parameterized.expand([(d["name"], d["data"], d["avro_schema"])
-                         for d in TEST_DATA])
   def test_infer_fastavro_schema(self, _, data, schema):
     from fastavro import parse_schema
     schema = parse_schema(schema)
-    avro_schema = datatype_inference.infer_avro_schema(data, use_fastavro=True)
+    avro_schema = datatype_inference.infer_avro_schema(data)
     fields1 = avro_schema.pop("fields")
     fields2 = schema.pop("fields")
     self.assertDictEqual(avro_schema, schema)

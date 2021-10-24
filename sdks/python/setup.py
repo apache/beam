@@ -125,7 +125,6 @@ except ImportError:
 
 REQUIRED_PACKAGES = [
     # Avro 1.9.2 for python3 was broken. The issue was fixed in version 1.9.2.1
-    'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
     'crcmod>=1.7,<2.0',
     # dataclasses backport for python_version<3.7. No version bound because this
     # is Python standard since Python 3.7 and each Python version is compatible
@@ -177,6 +176,7 @@ REQUIRED_TEST_PACKAGES = [
     'sqlalchemy>=1.3,<2.0',
     'psycopg2-binary>=2.8.5,<3.0.0',
     'testcontainers>=3.0.3,<4.0.0',
+    'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
 ]
 
 GCP_REQUIREMENTS = [
@@ -187,15 +187,13 @@ GCP_REQUIREMENTS = [
     # https://github.com/googleapis/google-cloud-python/issues/10566
     'google-auth>=1.18.0,<3',
     'google-cloud-datastore>=1.8.0,<2',
-    'google-cloud-pubsub>=0.39.0,<2',
-    # GCP packages required by tests
+    'google-cloud-pubsub>=0.39.0,<2',  # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<3',
     'google-cloud-bigquery-storage>=2.6.3',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<2',
     'google-cloud-spanner>=1.13.0,<2',
-    'grpcio-gcp>=0.2.2,<1',
-    # GCP Packages required by ML functionality
+    'grpcio-gcp>=0.2.2,<1',  # GCP Packages required by ML functionality
     'google-cloud-dlp>=0.12.0,<2',
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
@@ -217,8 +215,7 @@ INTERACTIVE_BEAM = [
 INTERACTIVE_BEAM_TEST = [
     # notebok utils
     'nbformat>=5.0.5,<6',
-    'nbconvert>=6.2.0,<7',
-    # headless chrome based integration tests
+    'nbconvert>=6.2.0,<7',  # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
     'chromedriver-binary>=93,<94',
@@ -259,7 +256,6 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 9:
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
-
 
 if __name__ == '__main__':
   setuptools.setup(
