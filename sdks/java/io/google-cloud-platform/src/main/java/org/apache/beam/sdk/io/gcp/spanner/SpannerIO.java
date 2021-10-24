@@ -1685,8 +1685,10 @@ public class SpannerIO {
                 this.spannerConfig.getInstanceId().toString(),
                 "Write");
         try {
-          spannerAccessor.getDatabaseClient().writeAtLeastOnceWithOptions(batch, Options
-              .priority(spannerConfig.getRpcPriority().get()));
+          spannerAccessor
+              .getDatabaseClient()
+              .writeAtLeastOnceWithOptions(
+                  batch, Options.priority(spannerConfig.getRpcPriority().get()));
           serviceCallMetric.call("ok");
           return;
         } catch (AbortedException e) {

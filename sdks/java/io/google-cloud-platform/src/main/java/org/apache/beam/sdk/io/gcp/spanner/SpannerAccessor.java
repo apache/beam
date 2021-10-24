@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.api.gax.retrying.RetrySettings;
-import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.ServerStreamingCallSettings;
 import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.cloud.NoCredentials;
@@ -42,7 +41,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.util.ReleaseInfo;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
