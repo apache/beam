@@ -68,6 +68,7 @@
 
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Add custom delimiters to Python TextIO reads ([BEAM-12730](https://issues.apache.org/jira/browse/BEAM-12730)).
+* Add escapechar parameter to Python TextIO reads ([BEAM-13189](https://issues.apache.org/jira/browse/BEAM-13189)).
 * Splittable reading is enabled by default while reading data with ParquetIO ([BEAM-12070](https://issues.apache.org/jira/browse/BEAM-12070)).
 * DoFn Execution Time metrics added to Go ([BEAM-13001](https://issues.apache.org/jira/browse/BEAM-13001)).
 * Upgraded the GCP Libraries BOM version to 24.0.0 and associated dependencies ([BEAM-11205](

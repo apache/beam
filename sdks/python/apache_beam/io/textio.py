@@ -100,7 +100,8 @@ class _TextSource(filebasedsource.FileBasedSource):
                validate=True,
                skip_header_lines=0,
                header_processor_fns=(None, None),
-               delimiter=None):
+               delimiter=None,
+               escapechar=None):
     """Initialize a _TextSource
 
     Args:
@@ -116,6 +117,8 @@ class _TextSource(filebasedsource.FileBasedSource):
       delimiter (bytes) Optional: delimiter to split records.
         Must not self-overlap, because self-overlapping delimiters cause
         ambiguous parsing.
+      escapechar (bytes) Optional: a single byte to escape the records
+        delimiter, can also escape itself.
     Raises:
       ValueError: if skip_lines is negative.
 
@@ -147,6 +150,11 @@ class _TextSource(filebasedsource.FileBasedSource):
       if self._is_self_overlapping(delimiter):
         raise ValueError('Delimiter must not self-overlap.')
     self._delimiter = delimiter
+    if escapechar is not None:
+      if not (isinstance(escapechar, bytes) and len(escapechar) == 1):
+        raise ValueError(
+            "escapechar must be bytes of size 1: '%s'" % escapechar)
+    self._escapechar = escapechar
 
   def display_data(self):
     parent_dd = super().display_data()
@@ -176,7 +184,7 @@ class _TextSource(filebasedsource.FileBasedSource):
       start_offset = max(start_offset, position_after_processing_header_lines)
       if start_offset > position_after_processing_header_lines:
         # Seeking to one delimiter length before the start index and ignoring
-        # the current line. If start_position is at beginning if the line, that
+        # the current line. If start_position is at beginning of the line, that
         # line belongs to the current bundle, hence ignoring that is incorrect.
         # Seeking to one delimiter before prevents that.
 
@@ -184,6 +192,16 @@ class _TextSource(filebasedsource.FileBasedSource):
           required_position = start_offset - len(self._delimiter)
         else:
           required_position = start_offset - 1
+
+        if self._escapechar is not None:
+          # Need more bytes to check if the delimiter is escaped.
+          # Seek until the first escapechar if any.
+          while required_position > 0:
+            file_to_read.seek(required_position - 1)
+            if file_to_read.read(1) == self._escapechar:
+              required_position -= 1
+            else:
+              break
 
         file_to_read.seek(required_position)
         read_buffer.reset()
@@ -277,11 +295,22 @@ class _TextSource(filebasedsource.FileBasedSource):
       if next_delim >= 0:
         if (self._delimiter is None and
             read_buffer.data[next_delim - 1:next_delim] == b'\r'):
-          # Accept both '\r\n' and '\n' as a default delimiter.
-          return (next_delim - 1, next_delim + 1)
+          if self._escapechar is not None and self._is_escaped(read_buffer,
+                                                               next_delim - 1):
+            # Accept '\n' as a default delimiter, because '\r' is escaped.
+            return (next_delim, next_delim + 1)
+          else:
+            # Accept both '\r\n' and '\n' as a default delimiter.
+            return (next_delim - 1, next_delim + 1)
         else:
-          # Found a delimiter. Accepting that as the next delimiter.
-          return (next_delim, next_delim + delimiter_len)
+          if self._escapechar is not None and self._is_escaped(read_buffer,
+                                                               next_delim):
+            # Skip an escaped delimiter.
+            current_pos = next_delim + delimiter_len + 1
+            continue
+          else:
+            # Found a delimiter. Accepting that as the next delimiter.
+            return (next_delim, next_delim + delimiter_len)
 
       elif self._delimiter is not None:
         # Corner case: custom delimiter is truncated at the end of the buffer.
@@ -360,6 +389,15 @@ class _TextSource(filebasedsource.FileBasedSource):
     for i in range(1, len(delimiter)):
       if delimiter[0:i] == delimiter[len(delimiter) - i:]:
         return True
+    return False
+
+  def _is_escaped(self, read_buffer, position):
+    # Returns True if byte at position is preceded with an odd number
+    # of escapechar bytes or False if preceded by 0 or even escapes
+    # (the even number means that all the escapes are escaped themselves).
+    for current_pos in reversed(range(-1, position)):
+      if read_buffer.data[current_pos:current_pos + 1] != self._escapechar:
+        return (position - current_pos + 1) % 2 == 1
     return False
 
 
@@ -467,7 +505,8 @@ def _create_text_source(
     strip_trailing_newlines=None,
     coder=None,
     skip_header_lines=None,
-    delimiter=None):
+    delimiter=None,
+    escapechar=None):
   return _TextSource(
       file_pattern=file_pattern,
       min_bundle_size=min_bundle_size,
@@ -476,7 +515,8 @@ def _create_text_source(
       coder=coder,
       validate=False,
       skip_header_lines=skip_header_lines,
-      delimiter=delimiter)
+      delimiter=delimiter,
+      escapechar=escapechar)
 
 
 class ReadAllFromText(PTransform):
@@ -508,6 +548,7 @@ class ReadAllFromText(PTransform):
       skip_header_lines=0,
       with_filename=False,
       delimiter=None,
+      escapechar=None,
       **kwargs):
     """Initialize the ``ReadAllFromText`` transform.
 
@@ -535,6 +576,8 @@ class ReadAllFromText(PTransform):
       delimiter (bytes) Optional: delimiter to split records.
         Must not self-overlap, because self-overlapping delimiters cause
         ambiguous parsing.
+      escapechar (bytes) Optional: a single byte to escape the records
+        delimiter, can also escape itself.
     """
     super().__init__(**kwargs)
     source_from_file = partial(
@@ -544,7 +587,8 @@ class ReadAllFromText(PTransform):
         strip_trailing_newlines=strip_trailing_newlines,
         coder=coder,
         skip_header_lines=skip_header_lines,
-        delimiter=delimiter)
+        delimiter=delimiter,
+        escapechar=escapechar)
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._compression_type = compression_type
@@ -585,6 +629,7 @@ class ReadFromText(PTransform):
       validate=True,
       skip_header_lines=0,
       delimiter=None,
+      escapechar=None,
       **kwargs):
     """Initialize the :class:`ReadFromText` transform.
 
@@ -611,6 +656,8 @@ class ReadFromText(PTransform):
       delimiter (bytes) Optional: delimiter to split records.
         Must not self-overlap, because self-overlapping delimiters cause
         ambiguous parsing.
+      escapechar (bytes) Optional: a single byte to escape the records
+        delimiter, can also escape itself.
     """
 
     super().__init__(**kwargs)
@@ -622,7 +669,8 @@ class ReadFromText(PTransform):
         coder,
         validate=validate,
         skip_header_lines=skip_header_lines,
-        delimiter=delimiter)
+        delimiter=delimiter,
+        escapechar=escapechar)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
