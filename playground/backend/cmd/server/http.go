@@ -22,7 +22,7 @@ import (
 )
 
 // listenHttp binds the http.Handler on the TCP network address
-func listenHttp(ctx context.Context, errChan chan error, envs environment.ServerEnvs, handler http.Handler) {
+func listenHttp(ctx context.Context, errChan chan error, envs environment.NetworkEnvs, handler http.Handler) {
 	grpclog.Infof("listening HTTP at %s\n", envs.Address())
 	if err := http.ListenAndServe(envs.Address(), handler); err != nil {
 		errChan <- err
