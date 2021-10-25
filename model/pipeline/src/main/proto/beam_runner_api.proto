@@ -1559,6 +1559,11 @@ message StandardProtocols {
     // cores.
     MULTI_CORE_BUNDLE_PROCESSING = 3 [(beam_urn) = "beam:protocol:multi_core_bundle_processing:v1"];
 
+    // Indicates this SDK can cheaply spawn sibling workers (e.g. within the
+    // same container) to work around the fact that it cannot take advantage
+    // of multiple cores (i.e. MULTI_CORE_BUNDLE_PROCESSING is not set).
+    SIBLING_WORKERS = 5 [(beam_urn) = "beam:protocol:sibling_workers:v1"];
+
     // Indicates that this SDK handles the InstructionRequest of type
     // HarnessMonitoringInfosRequest.
     // A request to provide full MonitoringInfo data associated with

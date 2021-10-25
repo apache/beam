@@ -44,11 +44,9 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
  * The {@code PCollectionConsumerRegistry} is used to maintain a collection of consuming
@@ -199,13 +197,6 @@ public class PCollectionConsumerRegistry {
   /** @return Execution Time Monitoring data based on the tracked start or finish function. */
   public Map<String, ByteString> getExecutionTimeMonitoringData(ShortIdMap shortIds) {
     return executionStates.getExecutionTimeMonitoringData(shortIds);
-  }
-
-  /** @return the underlying consumers for a pCollectionId, some tests may wish to check this. */
-  @VisibleForTesting
-  public List<FnDataReceiver> getUnderlyingConsumers(String pCollectionId) {
-    return Lists.transform(
-        pCollectionIdsToConsumers.get(pCollectionId), input -> input.getConsumer());
   }
 
   /**

@@ -165,7 +165,7 @@ public abstract class RecommendationAIImportCatalogItems
       ArrayList<CatalogItem> catalogItems = new ArrayList<>();
       for (GenericJson element : c.element().getValue()) {
         CatalogItem.Builder catalogItemBuilder = CatalogItem.newBuilder();
-        JsonFormat.parser().merge((new JSONObject(element)).toString(), catalogItemBuilder);
+        JsonFormat.parser().merge(new JSONObject(element).toString(), catalogItemBuilder);
         catalogItems.add(catalogItemBuilder.build());
       }
       CatalogInlineSource catalogInlineSource =

@@ -32,13 +32,13 @@ question, suggestion or idea you have. Contact us in the following channels:
 
 ## Mailing list, what are they and how they work
 
-The official communication channels for Apache projects are their mailing lists, and Apache Beam has two main lists: [user@beam.apache.org](user@beam.apache.org) and [dev@beam.apache.org](dev@beam.apache.org). The topics for each of them can be seen in the section above.
+The official communication channels for Apache projects are their mailing lists, and Apache Beam has two main lists: [user@beam.apache.org](https://lists.apache.org/list.html?user@beam.apache.org) and [dev@beam.apache.org](https://lists.apache.org/list.html?dev@beam.apache.org). The topics for each of them can be seen in the section above.
 
-### Subsribe and Unsubscribe:
+### Subscribe and Unsubscribe:
 
-Prior to sending emails to these lists, you need to subscribe. To subscribe, send a blank email to [user-subscribe@beam.apache.org](user-subscribe@beam.apache.org) or [dev-subscribe@beam.apache.org](dev-subscribe@beam.apache.org) depending on the list you want to write to.
+Prior to sending emails to these lists, you need to subscribe. To subscribe, send a blank email to [user-subscribe@beam.apache.org](mailto:user-subscribe@beam.apache.org) or [dev-subscribe@beam.apache.org](mailto:dev-subscribe@beam.apache.org) depending on the list you want to write to.
 
-To unsubscribe, send a blank email to [user-unsubscribe@beam.apache.org](user-unsubscribe@beam.apache.org) or [dev-unsubscribe@beam.apache.org](dev-unsubscribe@beam.apache.org) depending on the list you want to unsubscribe.
+To unsubscribe, send a blank email to [user-unsubscribe@beam.apache.org](mailto:user-unsubscribe@beam.apache.org) or [dev-unsubscribe@beam.apache.org](mailto:dev-unsubscribe@beam.apache.org) depending on the list you want to unsubscribe.
 
 ### Useful Tips for Sending Emails
 
