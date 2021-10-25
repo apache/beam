@@ -48,16 +48,44 @@ class Sdk extends $pb.ProtobufEnum {
 }
 
 class Status extends $pb.ProtobufEnum {
-  static const Status STATUS_UNSPECIFIED = Status._(0, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_UNSPECIFIED');
-  static const Status STATUS_EXECUTING = Status._(1, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_EXECUTING');
-  static const Status STATUS_FINISHED = Status._(2, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_FINISHED');
-  static const Status STATUS_ERROR = Status._(3, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_ERROR');
+  static const Status STATUS_UNSPECIFIED = Status._(
+      0,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_UNSPECIFIED');
+  static const Status STATUS_EXECUTING = Status._(
+      1,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_EXECUTING');
+  static const Status STATUS_FINISHED = Status._(
+      2,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_FINISHED');
+  static const Status STATUS_ERROR = Status._(
+      3,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_ERROR');
+  static const Status STATUS_COMPILE_ERROR = Status._(
+      4,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_COMPILE_ERROR');
+  static const Status STATUS_RUN_TIMEOUT = Status._(
+      5,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_RUN_TIMEOUT');
 
-  static const $core.List<Status> values = <Status> [
+  static const $core.List<Status> values = <Status>[
     STATUS_UNSPECIFIED,
     STATUS_EXECUTING,
     STATUS_FINISHED,
     STATUS_ERROR,
+    STATUS_COMPILE_ERROR,
+    STATUS_RUN_TIMEOUT,
   ];
 
   static final $core.Map<$core.int, Status> _byValue = $pb.ProtobufEnum.initByValue(values);

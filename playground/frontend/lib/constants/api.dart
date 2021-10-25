@@ -16,4 +16,4 @@
  * limitations under the License.
  */
 
-const String kApiClientURL = 'https://datatokenization.uc.r.appspot.com1';
+const String kApiClientURL = 'https://datatokenization.uc.r.appspot.com';

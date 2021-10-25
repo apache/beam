@@ -47,17 +47,27 @@ const Status$json = const {
     const {'1': 'STATUS_EXECUTING', '2': 1},
     const {'1': 'STATUS_FINISHED', '2': 2},
     const {'1': 'STATUS_ERROR', '2': 3},
+    const {'1': 'STATUS_COMPILE_ERROR', '2': 4},
+    const {'1': 'STATUS_RUN_TIMEOUT', '2': 5},
   ],
 };
 
 /// Descriptor for `Status`. Decode as a `google.protobuf.EnumDescriptorProto`.
-final $typed_data.Uint8List statusDescriptor = $convert.base64Decode('CgZTdGF0dXMSFgoSU1RBVFVTX1VOU1BFQ0lGSUVEEAASFAoQU1RBVFVTX0VYRUNVVElORxABEhMKD1NUQVRVU19GSU5JU0hFRBACEhAKDFNUQVRVU19FUlJPUhAD');
+final $typed_data.Uint8List statusDescriptor = $convert.base64Decode(
+    'CgZTdGF0dXMSFgoSU1RBVFVTX1VOU1BFQ0lGSUVEEAASFAoQU1RBVFVTX0VYRUNVVElORxABEhMKD1NUQVRVU19GSU5JU0hFRBACEhAKDFNUQVRVU19FUlJPUhADEhgKFFNUQVRVU19DT01QSUxFX0VSUk9SEAQSFgoSU1RBVFVTX1JVTl9USU1FT1VUEAU=');
 @$core.Deprecated('Use runCodeRequestDescriptor instead')
 const RunCodeRequest$json = const {
   '1': 'RunCodeRequest',
   '2': const [
     const {'1': 'code', '3': 1, '4': 1, '5': 9, '10': 'code'},
-    const {'1': 'sdk', '3': 2, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
+    const {
+      '1': 'sdk',
+      '3': 2,
+      '4': 1,
+      '5': 14,
+      '6': '.api.v1.Sdk',
+      '10': 'sdk'
+    },
   ],
 };
 
