@@ -17,13 +17,29 @@ package logger
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
 var preparedHandler testHandler
 
+const (
+	codeFatal     = "package main\n\nimport (\n\t\"beam.apache.org/playground/backend/internal/logger\"\n)\n\nfunc main() {\n\tlogger.Fatal(\"%v\")\n}"
+	codeFatalf    = "package main\n\nimport (\n\t\"beam.apache.org/playground/backend/internal/logger\"\n)\n\nfunc main() {\n\tlogger.Fatalf(\"%v\",\"%s\")\n}"
+	testLoggerDir = "testLogger"
+	testFatalDir  = "testFatal"
+	testFatalfDir = "testFatalf"
+)
+
+var testFatalPath, testFatalfPath string
+
 type testHandler struct {
-	array []string
+	logs []string
 }
 
 func (t *testHandler) Info(args ...interface{}) {
@@ -68,14 +84,48 @@ func (t *testHandler) Fatalf(format string, args ...interface{}) {
 
 func (t *testHandler) logMessage(severity Severity, args ...interface{}) {
 	args = append([]interface{}{severity}, args...)
-	t.array = append(t.array, fmt.Sprint(args...))
+	t.logs = append(t.logs, fmt.Sprint(args...))
 }
 
 func TestMain(m *testing.M) {
-	preparedHandler = testHandler{array: []string{}}
+	preparedHandler = testHandler{logs: []string{}}
 	handlersTest := []Handler{&preparedHandler}
 	SetHandlers(handlersTest)
+	err := preparedFolder()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer teardown()
 	m.Run()
+}
+
+func preparedFolder() error {
+	err := os.MkdirAll(filepath.Join(testLoggerDir, testFatalDir), 0755)
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(filepath.Join(testLoggerDir, testFatalfDir), 0755)
+	if err != nil {
+		return err
+	}
+	testFatalPath = filepath.Join(testLoggerDir, testFatalDir, "test.go")
+	testFatalfPath = filepath.Join(testLoggerDir, testFatalfDir, "test.go")
+	_, err = os.Create(testFatalPath)
+	if err != nil {
+		return err
+	}
+	_, err = os.Create(testFatalfPath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func teardown() {
+	err := os.RemoveAll(testLoggerDir)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func TestInfo(t *testing.T) {
@@ -95,9 +145,9 @@ func TestInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			Info(tt.args.args...)
 			value := append([]interface{}{INFO}, tt.args.args...)
-			expectedValue := preparedHandler.array[len(preparedHandler.array)-1]
+			expectedValue := preparedHandler.logs[len(preparedHandler.logs)-1]
 			if expectedValue != fmt.Sprint(value...) {
-				t.Errorf("Value %v not added in the array", expectedValue)
+				t.Errorf("Value %v not added in the logs", expectedValue)
 			}
 		})
 	}
@@ -123,9 +173,9 @@ func TestInfof(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			Infof(tt.args.format, tt.args.args...)
 			value := append([]interface{}{INFO}, fmt.Sprintf(tt.args.format, tt.args.args...))
-			expectedValue := preparedHandler.array[len(preparedHandler.array)-1]
+			expectedValue := preparedHandler.logs[len(preparedHandler.logs)-1]
 			if expectedValue != fmt.Sprint(value...) {
-				t.Errorf("Value %v not added in the array", expectedValue)
+				t.Errorf("Value %v not added in the logs", expectedValue)
 			}
 		})
 	}
@@ -148,9 +198,9 @@ func TestWarn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			Warn(tt.args.args...)
 			value := append([]interface{}{WARN}, tt.args.args...)
-			expectedValue := preparedHandler.array[len(preparedHandler.array)-1]
+			expectedValue := preparedHandler.logs[len(preparedHandler.logs)-1]
 			if expectedValue != fmt.Sprint(value...) {
-				t.Errorf("Value %v not added in the array", expectedValue)
+				t.Errorf("Value %v not added in the logs", expectedValue)
 			}
 		})
 	}
@@ -176,11 +226,9 @@ func TestWarnf(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			Warnf(tt.args.format, tt.args.args...)
 			value := append([]interface{}{WARN}, fmt.Sprintf(tt.args.format, tt.args.args...))
-			expectedValue := preparedHandler.array[len(preparedHandler.array)-1]
-			fmt.Println(expectedValue)
-			fmt.Println(fmt.Sprint(value...))
+			expectedValue := preparedHandler.logs[len(preparedHandler.logs)-1]
 			if expectedValue != fmt.Sprint(value...) {
-				t.Errorf("Value %v not added in the array", expectedValue)
+				t.Errorf("Value %v not added in the logs", expectedValue)
 			}
 		})
 	}
@@ -203,9 +251,9 @@ func TestError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			Error(tt.args.args...)
 			value := append([]interface{}{ERROR}, tt.args.args...)
-			expectedValue := preparedHandler.array[len(preparedHandler.array)-1]
+			expectedValue := preparedHandler.logs[len(preparedHandler.logs)-1]
 			if expectedValue != fmt.Sprint(value...) {
-				t.Errorf("Value %v not added in the array", expectedValue)
+				t.Errorf("Value %v not added in the logs", expectedValue)
 			}
 		})
 	}
@@ -231,9 +279,9 @@ func TestErrorf(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			Errorf(tt.args.format, tt.args.args...)
 			value := append([]interface{}{ERROR}, fmt.Sprintf(tt.args.format, tt.args.args...))
-			expectedValue := preparedHandler.array[len(preparedHandler.array)-1]
+			expectedValue := preparedHandler.logs[len(preparedHandler.logs)-1]
 			if expectedValue != fmt.Sprint(value...) {
-				t.Errorf("Value %v not added in the array", expectedValue)
+				t.Errorf("Value %v not added in the logs", expectedValue)
 			}
 		})
 	}
@@ -256,9 +304,9 @@ func TestDebug(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			Debug(tt.args.args...)
 			value := append([]interface{}{DEBUG}, tt.args.args...)
-			expectedValue := preparedHandler.array[len(preparedHandler.array)-1]
+			expectedValue := preparedHandler.logs[len(preparedHandler.logs)-1]
 			if expectedValue != fmt.Sprint(value...) {
-				t.Errorf("Value %v not added in the array", expectedValue)
+				t.Errorf("Value %v not added in the logs", expectedValue)
 			}
 		})
 	}
@@ -284,9 +332,9 @@ func TestDebugf(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			Debugf(tt.args.format, tt.args.args...)
 			value := append([]interface{}{DEBUG}, fmt.Sprintf(tt.args.format, tt.args.args...))
-			expectedValue := preparedHandler.array[len(preparedHandler.array)-1]
+			expectedValue := preparedHandler.logs[len(preparedHandler.logs)-1]
 			if expectedValue != fmt.Sprint(value...) {
-				t.Errorf("Value %v not added in the array", expectedValue)
+				t.Errorf("Value %v not added in the logs", expectedValue)
 			}
 		})
 	}
@@ -300,10 +348,33 @@ func TestFatal(t *testing.T) {
 		name string
 		args args
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Fatal",
+			args: args{args: []interface{}{"TEST_VALUE"}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			err := os.WriteFile(testFatalPath, []byte(fmt.Sprintf(codeFatal, tt.args.args[0])), 0755)
+			if err != nil {
+				t.Error(err)
+			}
+			cmd := exec.Command("go", "run", testFatalPath)
+			stdout, _ := cmd.StderrPipe()
+			if err := cmd.Start(); err != nil {
+				t.Error(err)
+			}
+			gotBytes, _ := ioutil.ReadAll(stdout)
+			got := strings.Split(string(gotBytes), "\n")
+			args := append([]interface{}{string(FATAL) + " "}, tt.args.args...)
+			expectedValue := fmt.Sprint(args...)
+			if !strings.HasSuffix(got[0], expectedValue) {
+				t.Errorf("Unexpected log message. Got '%s' but contain '%s'", got[:len(got)-1], expectedValue)
+			}
+			err = cmd.Wait()
+			if e, ok := err.(*exec.ExitError); !ok || e.Success() {
+				t.Errorf("Process ran with err %v, want exit status 1", err)
+			}
 		})
 	}
 }
@@ -317,10 +388,35 @@ func TestFatalf(t *testing.T) {
 		name string
 		args args
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Fatalf",
+			args: args{
+				format: "TEST FORMAT %s",
+				args:   []interface{}{"TEST_VALUE"}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			err := os.WriteFile(testFatalfPath, []byte(fmt.Sprintf(codeFatalf, tt.args.format, tt.args.args[0])), 0755)
+			if err != nil {
+				t.Error(err)
+			}
+			cmd := exec.Command("go", "run", testFatalfPath)
+			stdout, _ := cmd.StderrPipe()
+			if err := cmd.Start(); err != nil {
+				t.Error(err)
+			}
+			gotBytes, _ := ioutil.ReadAll(stdout)
+			got := strings.Split(string(gotBytes), "\n")
+			args := append([]interface{}{string(FATAL) + " "}, fmt.Sprintf(tt.args.format, tt.args.args...))
+			expectedValue := fmt.Sprint(args...)
+			if !strings.HasSuffix(got[0], expectedValue) {
+				t.Errorf("Unexpected log message. Got '%s' but contain '%s'", got[:len(got)-1], expectedValue)
+			}
+			err = cmd.Wait()
+			if e, ok := err.(*exec.ExitError); !ok || e.Success() {
+				t.Errorf("Process ran with err %v, want exit status 1", err)
+			}
 		})
 	}
 }

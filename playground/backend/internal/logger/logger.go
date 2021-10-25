@@ -100,16 +100,18 @@ func Debugf(format string, args ...interface{}) {
 
 func Fatal(args ...interface{}) {
 	for _, handler := range handlers {
-		handler.Fatal(args)
+		handler.Fatal(args...)
 	}
-	log.Fatal(FATAL, args)
+	args = append([]interface{}{FATAL}, args...)
+	log.Fatalln(args...)
 }
 
 func Fatalf(format string, args ...interface{}) {
 	for _, handler := range handlers {
 		handler.Fatalf(format, args...)
 	}
-	log.Fatalf(string(FATAL)+format, args...)
+	args = append([]interface{}{FATAL}, fmt.Sprintf(format, args...))
+	log.Fatalln(args...)
 }
 
 // logMessage logs a message at level severity.
