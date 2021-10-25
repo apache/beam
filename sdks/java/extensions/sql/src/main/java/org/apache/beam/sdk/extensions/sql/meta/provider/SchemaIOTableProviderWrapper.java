@@ -42,7 +42,6 @@ import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -145,8 +144,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
           FieldAccessDescriptor fieldAccessDescriptor =
               FieldAccessDescriptor.withFieldNames(fieldNames);
           readerTransform =
-              projectionProducer.actuateProjectionPushdown(
-                  ParDo.SingleOutput.MAIN_OUTPUT_TAG, fieldAccessDescriptor);
+              projectionProducer.actuateProjectionPushdown("output", fieldAccessDescriptor);
         } else {
           throw new UnsupportedOperationException(
               String.format("%s does not support projection pushdown.", this.getClass()));
