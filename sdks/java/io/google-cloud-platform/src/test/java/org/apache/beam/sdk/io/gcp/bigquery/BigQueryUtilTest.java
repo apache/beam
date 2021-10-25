@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -107,18 +106,13 @@ public class BigQueryUtilTest {
             anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class)))
         .thenReturn(mockInsertAll);
 
-    doAnswer(
-            invocation -> {
-              when(mockInsertAll.execute())
-                  .thenReturn(
-                      responses.get(0),
-                      responses
-                          .subList(1, responses.size())
-                          .toArray(new TableDataInsertAllResponse[responses.size() - 1]));
-              return mockInsertAll;
-            })
-        .when(mockInsertAll)
-        .setPrettyPrint(false);
+    when(mockInsertAll.setPrettyPrint(any())).thenReturn(mockInsertAll);
+    when(mockInsertAll.execute())
+        .thenReturn(
+            responses.get(0),
+            responses
+                .subList(1, responses.size())
+                .toArray(new TableDataInsertAllResponse[responses.size() - 1]));
   }
 
   private void verifyInsertAll(int expectedRetries) throws IOException {
@@ -209,24 +203,11 @@ public class BigQueryUtilTest {
       ids.add("");
     }
 
-    long totalBytes = 0;
-    try {
-      totalBytes =
-          datasetService.insertAll(
-              ref,
-              rows,
-              ids,
-              InsertRetryPolicy.alwaysRetry(),
-              null,
-              null,
-              false,
-              false,
-              false,
-              null);
-    } finally {
-      verifyInsertAll(5);
-      // Each of the 25 rows has 1 byte for length and 30 bytes: '{"f":[{"v":"foo"},{"v":1234}]}'
-      assertEquals("Incorrect byte count", 25L * 31L, totalBytes);
-    }
+    long totalBytes =
+        datasetService.insertAll(
+            ref, rows, ids, InsertRetryPolicy.alwaysRetry(), null, null, false, false, false, null);
+    verifyInsertAll(5);
+    // Each of the 25 rows has 1 byte for length and 30 bytes: '{"f":[{"v":"foo"},{"v":1234}]}'
+    assertEquals("Incorrect byte count", 25L * 31L, totalBytes);
   }
 }
