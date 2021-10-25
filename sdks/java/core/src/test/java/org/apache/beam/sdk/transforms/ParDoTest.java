@@ -4085,7 +4085,8 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesLoopingTimer.class
+      UsesLoopingTimer.class,
+      UsesStrictTimerOrdering.class
     })
     public void testEventTimeTimerLoop() {
       final String stateId = "count";
@@ -4105,6 +4106,7 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 @StateId(stateId) ValueState<Integer> countState,
                 @TimerId(timerId) Timer loopTimer) {
+              countState.write(0);
               loopTimer.offset(Duration.millis(1)).setRelative();
             }
 
@@ -4113,7 +4115,7 @@ public class ParDoTest implements Serializable {
                 @StateId(stateId) ValueState<Integer> countState,
                 @TimerId(timerId) Timer loopTimer,
                 OutputReceiver<Integer> r) {
-              int count = MoreObjects.firstNonNull(countState.read(), 0);
+              int count = Preconditions.checkNotNull(countState.read());
               if (count < loopCount) {
                 r.output(count);
                 countState.write(count + 1);
@@ -4123,7 +4125,9 @@ public class ParDoTest implements Serializable {
           };
 
       PCollection<Integer> output =
-          pipeline.apply(Create.of(KV.of("hello", 42))).apply(ParDo.of(fn));
+          pipeline
+              .apply(Create.of(KV.of("hello1", 42), KV.of("hello2", 42), KV.of("hello3", 42)))
+              .apply(ParDo.of(fn));
 
       PAssert.that(output).containsInAnyOrder(0, 1, 2, 3, 4);
       pipeline.run();
