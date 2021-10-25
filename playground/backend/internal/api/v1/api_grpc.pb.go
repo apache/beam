@@ -90,7 +90,7 @@ func (c *playgroundServiceClient) GetCompileOutput(ctx context.Context, in *GetC
 }
 
 // PlaygroundServiceServer is the server API for PlaygroundService service.
-// All implementations must embed UnimplementedPlaygroundServiceServer
+// All implementations should embed UnimplementedPlaygroundServiceServer
 // for forward compatibility
 type PlaygroundServiceServer interface {
 	// Submit the job for an execution and get the pipeline uuid.
@@ -101,10 +101,9 @@ type PlaygroundServiceServer interface {
 	GetRunOutput(context.Context, *GetRunOutputRequest) (*GetRunOutputResponse, error)
 	// Get the result of pipeline compilation.
 	GetCompileOutput(context.Context, *GetCompileOutputRequest) (*GetCompileOutputResponse, error)
-	mustEmbedUnimplementedPlaygroundServiceServer()
 }
 
-// UnimplementedPlaygroundServiceServer must be embedded to have forward compatible implementations.
+// UnimplementedPlaygroundServiceServer should be embedded to have forward compatible implementations.
 type UnimplementedPlaygroundServiceServer struct {
 }
 
@@ -120,7 +119,6 @@ func (UnimplementedPlaygroundServiceServer) GetRunOutput(context.Context, *GetRu
 func (UnimplementedPlaygroundServiceServer) GetCompileOutput(context.Context, *GetCompileOutputRequest) (*GetCompileOutputResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCompileOutput not implemented")
 }
-func (UnimplementedPlaygroundServiceServer) mustEmbedUnimplementedPlaygroundServiceServer() {}
 
 // UnsafePlaygroundServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to PlaygroundServiceServer will
@@ -230,5 +228,5 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api.proto",
+	Metadata: "api/v1/api.proto",
 }
