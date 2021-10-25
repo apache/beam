@@ -22,12 +22,20 @@
 package sqlx
 
 const (
+	// Urn is the URN for SQL transforms.
 	Urn = "beam:external:java:sql:v1"
 
+	// DefaultExpansionAddr is the default expansion service address for SQL.
 	// TODO: Change this to the Beam Java expansion address once Beam SQL
 	// is implemented in Beam Go.
 	DefaultExpansionAddr = "undefined"
 )
+
+// Options is the interface for adding SQL transform options.
+type Options interface {
+	// Add adds a custom option.
+	Add(opt Option)
+}
 
 // Option represents a custom SQL transform option. The option provider is
 // responsible for marshaling and unmarshaling the option.
