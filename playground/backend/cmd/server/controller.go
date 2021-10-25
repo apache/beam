@@ -15,8 +15,9 @@
 package main
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api"
 	"context"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"github.com/google/uuid"
 )
 
