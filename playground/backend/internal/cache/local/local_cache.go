@@ -73,8 +73,8 @@ func (lc *Cache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cach
 
 // SetValue puts element to cache.
 // If a particular pipelineId does not contain in the cache, SetValue creates a new element for this pipelineId without expiration time.
+// Use SetExpTime to set expiration time for cache elements.
 // If data for a particular pipelineId is already contained in the cache, SetValue sets or updates the value for the specific subKey.
-// Use SetExpTime to set expiration time cache elements.
 func (lc *Cache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey, value interface{}) error {
 	lc.Lock()
 	defer lc.Unlock()
