@@ -24,12 +24,14 @@ import (
 
 func Test_newJavaLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", javaBaseFileFolder, pipelineId)
+	workingDir := "workingDir"
+	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, javaBaseFileFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
 	type args struct {
 		pipelineId uuid.UUID
+		workingDir string
 	}
 	tests := []struct {
 		name string
@@ -38,7 +40,10 @@ func Test_newJavaLifeCycle(t *testing.T) {
 	}{
 		{
 			name: "newJavaLifeCycle",
-			args: args{pipelineId: pipelineId},
+			args: args{
+				pipelineId: pipelineId,
+				workingDir: workingDir,
+			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Folder: Folder{
@@ -56,7 +61,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newJavaLifeCycle(tt.args.pipelineId); !reflect.DeepEqual(got, tt.want) {
+			if got := newJavaLifeCycle(tt.args.pipelineId, tt.args.workingDir); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("newJavaLifeCycle() = %v, want %v", got, tt.want)
 			}
 		})

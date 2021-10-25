@@ -16,21 +16,23 @@
 package fs_tool
 
 import (
-	"fmt"
 	"github.com/google/uuid"
+	"path/filepath"
 )
 
 const (
-	javaBaseFileFolder          = parentBaseFileFolder + "/executable_files"
+	javaBaseFileFolder          = "executable_files"
 	javaExecutableFileExtension = "java"
 	javaCompiledFileExtension   = "class"
+	javaSourceFolderName        = "src"
+	javaCompiledFolderName      = "bin"
 )
 
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
-func newJavaLifeCycle(pipelineId uuid.UUID) *LifeCycle {
-	baseFileFolder := fmt.Sprintf("%s_%s", javaBaseFileFolder, pipelineId)
-	srcFileFolder := baseFileFolder + "/src"
-	binFileFolder := baseFileFolder + "/bin"
+func newJavaLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
+	baseFileFolder := filepath.Join(workingDir, javaBaseFileFolder, pipelineId.String())
+	srcFileFolder := filepath.Join(baseFileFolder, javaSourceFolderName)
+	binFileFolder := filepath.Join(baseFileFolder, javaCompiledFolderName)
 
 	return &LifeCycle{
 		folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
