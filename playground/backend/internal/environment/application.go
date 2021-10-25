@@ -15,7 +15,10 @@
 
 package environment
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // NetworkEnvs contains all environment variables that need to run server.
 type NetworkEnvs struct {
@@ -33,12 +36,63 @@ func (serverEnvs NetworkEnvs) Address() string {
 	return fmt.Sprintf("%s:%d", serverEnvs.ip, serverEnvs.port)
 }
 
+//CacheEnvs contains all environment variables that needed to use cache
+type CacheEnvs struct {
+	cacheType         string
+	address           string
+	keyExpirationTime time.Duration
+}
+
+// CacheType returns cache type
+func (ce *CacheEnvs) CacheType() string {
+	return ce.cacheType
+}
+
+// Address returns address to connect to remote cache service
+func (ce *CacheEnvs) Address() string {
+	return ce.address
+}
+
+// KeyExpirationTime returns cacheExpirationTime
+func (ce *CacheEnvs) KeyExpirationTime() time.Duration {
+	return ce.keyExpirationTime
+}
+
+// NewCacheEnvs constructor for CacheEnvs
+func NewCacheEnvs(cacheType, cacheAddress string, cacheExpirationTime time.Duration) *CacheEnvs {
+	return &CacheEnvs{
+		cacheType:         cacheType,
+		address:           cacheAddress,
+		keyExpirationTime: cacheExpirationTime,
+	}
+}
+
 //ApplicationEnvs contains all environment variables that needed to run backend processes
 type ApplicationEnvs struct {
-	workingDir string
+	workingDir             string
+	cacheEnvs              *CacheEnvs
+	pipelineExecuteTimeout time.Duration
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
-func NewApplicationEnvs(workingDir string) *ApplicationEnvs {
-	return &ApplicationEnvs{workingDir: workingDir}
+func NewApplicationEnvs(workingDir string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration) *ApplicationEnvs {
+	return &ApplicationEnvs{
+		workingDir:             workingDir,
+		cacheEnvs:              cacheEnvs,
+		pipelineExecuteTimeout: pipelineExecuteTimeout,
+	}
+}
+
+// WorkingDir returns workingDir
+func (ae *ApplicationEnvs) WorkingDir() string {
+	return ae.workingDir
+}
+
+func (ae *ApplicationEnvs) CacheEnvs() CacheEnvs {
+	return *ae.cacheEnvs
+}
+
+// PipelineExecuteTimeout returns pipelineExecuteTimeout
+func (ae *ApplicationEnvs) PipelineExecuteTimeout() time.Duration {
+	return ae.pipelineExecuteTimeout
 }

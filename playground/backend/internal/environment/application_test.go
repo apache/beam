@@ -17,11 +17,11 @@ package environment
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
+	"time"
 )
 
-func TestServerEnvs_GetAddress(t *testing.T) {
+func TestNetworkEnvs_Address(t *testing.T) {
 	type fields struct {
 		ip   string
 		port int
@@ -50,21 +50,211 @@ func TestServerEnvs_GetAddress(t *testing.T) {
 	}
 }
 
-func TestNewApplicationEnvs(t *testing.T) {
-	type args struct {
-		workingDir string
+func TestCacheEnvs_CacheType(t *testing.T) {
+	type fields struct {
+		cacheType         string
+		address           string
+		keyExpirationTime time.Duration
 	}
 	tests := []struct {
-		name string
-		args args
-		want *ApplicationEnvs
+		name   string
+		fields fields
+		want   string
 	}{
-		{name: "constructor for application envs", args: args{workingDir: "/app"}, want: &ApplicationEnvs{workingDir: "/app"}},
+		{
+			name: "all success",
+			fields: fields{
+				cacheType:         "MOCK_CACHE_TYPE",
+				address:           "MOCK_ADDRESS",
+				keyExpirationTime: 0,
+			},
+			want: "MOCK_CACHE_TYPE",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewApplicationEnvs(tt.args.workingDir); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewApplicationEnvs() = %v, want %v", got, tt.want)
+			ce := &CacheEnvs{
+				cacheType:         tt.fields.cacheType,
+				address:           tt.fields.address,
+				keyExpirationTime: tt.fields.keyExpirationTime,
+			}
+			if got := ce.CacheType(); got != tt.want {
+				t.Errorf("CacheType() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCacheEnvs_Address(t *testing.T) {
+	type fields struct {
+		cacheType         string
+		address           string
+		keyExpirationTime time.Duration
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "all success",
+			fields: fields{
+				cacheType:         "MOCK_CACHE_TYPE",
+				address:           "MOCK_ADDRESS",
+				keyExpirationTime: 0,
+			},
+			want: "MOCK_ADDRESS",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ce := &CacheEnvs{
+				cacheType:         tt.fields.cacheType,
+				address:           tt.fields.address,
+				keyExpirationTime: tt.fields.keyExpirationTime,
+			}
+			if got := ce.Address(); got != tt.want {
+				t.Errorf("Address() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCacheEnvs_KeyExpirationTime(t *testing.T) {
+	type fields struct {
+		cacheType         string
+		address           string
+		keyExpirationTime time.Duration
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   time.Duration
+	}{
+		{
+			name: "all success",
+			fields: fields{
+				cacheType:         "MOCK_CACHE_TYPE",
+				address:           "MOCK_ADDRESS",
+				keyExpirationTime: 0,
+			},
+			want: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ce := &CacheEnvs{
+				cacheType:         tt.fields.cacheType,
+				address:           tt.fields.address,
+				keyExpirationTime: tt.fields.keyExpirationTime,
+			}
+			if got := ce.KeyExpirationTime(); got != tt.want {
+				t.Errorf("KeyExpirationTime() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestApplicationEnvs_WorkingDir(t *testing.T) {
+	type fields struct {
+		workingDir             string
+		cacheEnvs              *CacheEnvs
+		pipelineExecuteTimeout time.Duration
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "all success",
+			fields: fields{
+				workingDir:             "MOCK_WORKING_DIR",
+				cacheEnvs:              &CacheEnvs{},
+				pipelineExecuteTimeout: 0,
+			},
+			want: "MOCK_WORKING_DIR",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ae := &ApplicationEnvs{
+				workingDir:             tt.fields.workingDir,
+				cacheEnvs:              tt.fields.cacheEnvs,
+				pipelineExecuteTimeout: tt.fields.pipelineExecuteTimeout,
+			}
+			if got := ae.WorkingDir(); got != tt.want {
+				t.Errorf("WorkingDir() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestApplicationEnvs_CacheEnvs(t *testing.T) {
+	type fields struct {
+		workingDir             string
+		cacheEnvs              *CacheEnvs
+		pipelineExecuteTimeout time.Duration
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   CacheEnvs
+	}{
+		{
+			name: "all success",
+			fields: fields{
+				workingDir:             "MOCK_WORKING_DIR",
+				cacheEnvs:              &CacheEnvs{},
+				pipelineExecuteTimeout: 0,
+			},
+			want: CacheEnvs{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ae := &ApplicationEnvs{
+				workingDir:             tt.fields.workingDir,
+				cacheEnvs:              tt.fields.cacheEnvs,
+				pipelineExecuteTimeout: tt.fields.pipelineExecuteTimeout,
+			}
+			if got := ae.CacheEnvs(); got != tt.want {
+				t.Errorf("CacheEnvs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestApplicationEnvs_PipelineExecuteTimeout(t *testing.T) {
+	type fields struct {
+		workingDir             string
+		cacheEnvs              *CacheEnvs
+		pipelineExecuteTimeout time.Duration
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   time.Duration
+	}{
+		{
+			name: "all success",
+			fields: fields{
+				workingDir:             "MOCK_WORKING_DIR",
+				cacheEnvs:              &CacheEnvs{},
+				pipelineExecuteTimeout: 0,
+			},
+			want: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ae := &ApplicationEnvs{
+				workingDir:             tt.fields.workingDir,
+				cacheEnvs:              tt.fields.cacheEnvs,
+				pipelineExecuteTimeout: tt.fields.pipelineExecuteTimeout,
+			}
+			if got := ae.PipelineExecuteTimeout(); got != tt.want {
+				t.Errorf("PipelineExecuteTimeout() = %v, want %v", got, tt.want)
 			}
 		})
 	}
