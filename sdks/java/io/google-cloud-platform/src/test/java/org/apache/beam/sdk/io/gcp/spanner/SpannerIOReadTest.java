@@ -126,7 +126,9 @@ public class SpannerIOReadTest implements Serializable {
         FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
 
     when(mockBatchTx.partitionQuery(
-            any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users")), any(ReadQueryUpdateTransactionOption.class)))
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
     when(mockBatchTx.execute(any(Partition.class)))
         .thenReturn(
@@ -219,7 +221,9 @@ public class SpannerIOReadTest implements Serializable {
         FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
 
     when(mockBatchTx.partitionQuery(
-            any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users")), any(ReadQueryUpdateTransactionOption.class)))
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
     when(mockBatchTx.execute(any(Partition.class)))
         .thenThrow(
@@ -268,7 +272,8 @@ public class SpannerIOReadTest implements Serializable {
             any(PartitionOptions.class),
             eq("users"),
             eq(KeySet.all()),
-            eq(Arrays.asList("id", "name")), any(ReadQueryUpdateTransactionOption.class)))
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
     when(mockBatchTx.execute(any(Partition.class)))
         .thenThrow(
@@ -352,7 +357,8 @@ public class SpannerIOReadTest implements Serializable {
             eq("users"),
             eq("theindex"),
             eq(KeySet.all()),
-            eq(Arrays.asList("id", "name")), any(ReadQueryUpdateTransactionOption.class)))
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
 
     when(mockBatchTx.execute(any(Partition.class)))
@@ -392,7 +398,9 @@ public class SpannerIOReadTest implements Serializable {
     Partition fakePartition =
         FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
     when(mockBatchTx.partitionQuery(
-            any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users")), any(ReadQueryUpdateTransactionOption.class)))
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
 
     when(mockBatchTx.execute(any(Partition.class)))
@@ -441,13 +449,16 @@ public class SpannerIOReadTest implements Serializable {
     Partition fakePartition =
         FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("partition"));
     when(mockBatchTx.partitionQuery(
-            any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users")), any(ReadQueryUpdateTransactionOption.class)))
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
     when(mockBatchTx.partitionRead(
             any(PartitionOptions.class),
             eq("users"),
             eq(KeySet.all()),
-            eq(Arrays.asList("id", "name")), any(ReadQueryUpdateTransactionOption.class)))
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition));
 
     when(mockBatchTx.execute(any(Partition.class)))
