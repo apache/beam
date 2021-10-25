@@ -48,9 +48,9 @@ should be generated firstly using the `playground/proto/playground.proto` file.
 Run the following command from `/playground` directory:
 
 ```
-protoc --go_out=backend/pkg/api --go_opt=paths=source_relative \
---go-grpc_out=backend/pkg/api --go-grpc_opt=paths=source_relative --proto_path=playground/v1 \
-playground.proto
+protoc --go_out=backend/internal/api/v1 --go_opt=paths=source_relative \
+--go-grpc_out=backend/internal/api/v1 --go-grpc_opt=paths=source_relative --proto_path=api/v1 \
+api.proto
 ```
 
 As a result you will receive 2 files into `backend/pkg/api` folder with models (`playground.pb.go`) and client/server
