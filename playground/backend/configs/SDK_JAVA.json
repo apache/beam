@@ -1,0 +1,13 @@
+{
+  "compile_cmd": "javac",
+  "run_cmd": "java",
+  "compile_args": [
+    "-d",
+    "bin",
+    "-classpath"
+  ],
+  "run_args": [
+    "-cp",
+    "bin:"
+  ]
+}
