@@ -17,7 +17,7 @@
 package executors
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api"
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"fmt"
 	"os/exec"

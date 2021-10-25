@@ -16,6 +16,8 @@
 // Package executors
 package executors
 
+import "beam.apache.org/playground/backend/internal/fs_tool"
+
 // NewGoExecutor creates an executor with Go specifics
 func NewGoExecutor(fs *fs_tool.LifeCycle, javaValidators *[]validatorWithArgs) *Executor {
 	return nil
