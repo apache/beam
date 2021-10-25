@@ -702,7 +702,7 @@ public class ParDo {
   public static class SingleOutput<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
 
-    public static final String MAIN_OUTPUT_TAG = "output";
+    private static final String MAIN_OUTPUT_TAG = "output";
 
     private final Map<String, PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
