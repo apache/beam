@@ -19,23 +19,27 @@ package org.apache.beam.runners.fnexecution.control;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.mockito.Matchers.any;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.sdk.fn.channel.AddHarnessIdInterceptor;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.server.InProcessServerFactory;
+import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusException;
@@ -76,23 +80,32 @@ public class FnApiControlClientPoolServiceTest {
 
   @Test
   public void testIncomingConnection() throws Exception {
-    StreamObserver<BeamFnApi.InstructionRequest> requestObserver = mock(StreamObserver.class);
-    StreamObserver<BeamFnApi.InstructionResponse> responseObserver =
-        controlService.control(requestObserver);
+    String id = "fakeInstruction";
+    CompletableFuture<StreamObserver<InstructionResponse>> clientResponseStream =
+        new CompletableFuture<>();
+    clientResponseStream.complete(
+        stub.control(
+            TestStreams.<InstructionRequest>withOnNext(
+                    (request) -> {
+                      try {
+                        clientResponseStream
+                            .get()
+                            .onNext(
+                                InstructionResponse.newBuilder()
+                                    .setInstructionId(request.getInstructionId())
+                                    .build());
+                      } catch (Exception e) {
+                        fail("Unexpected failure");
+                        throw new RuntimeException(e);
+                      }
+                    })
+                .build()));
 
     InstructionRequestHandler client = pool.getSource().take(WORKER_ID, Duration.ofSeconds(2));
-
     // Check that the client is wired up to the request channel
-    String id = "fakeInstruction";
     CompletionStage<BeamFnApi.InstructionResponse> responseFuture =
         client.handle(BeamFnApi.InstructionRequest.newBuilder().setInstructionId(id).build());
-    verify(requestObserver).onNext(any(BeamFnApi.InstructionRequest.class));
-    assertThat(MoreFutures.isDone(responseFuture), is(false));
-
-    // Check that the response channel really came from the client
-    responseObserver.onNext(
-        BeamFnApi.InstructionResponse.newBuilder().setInstructionId(id).build());
-    MoreFutures.get(responseFuture);
+    assertEquals(id, MoreFutures.get(responseFuture).getInstructionId());
   }
 
   @Test
