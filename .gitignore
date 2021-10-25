@@ -120,3 +120,9 @@ website/www/yarn-error.log
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 **/generated_plugin_registrant.dart
+
+# Ignore Beam Playground Terraform
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+**/*.hcl
