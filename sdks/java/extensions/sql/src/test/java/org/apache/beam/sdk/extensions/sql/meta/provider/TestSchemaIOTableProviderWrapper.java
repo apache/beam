@@ -29,7 +29,6 @@ import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -122,7 +121,7 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
     @Override
     public PTransform<PBegin, PCollection<Row>> actuateProjectionPushdown(
         String outputId, FieldAccessDescriptor fieldAccessDescriptor) {
-      if (!outputId.equals(SingleOutput.MAIN_OUTPUT_TAG)) {
+      if (!outputId.equals("output")) {
         throw new UnsupportedOperationException("Can only do pushdown on the main output.");
       }
       return new TestProjectionProducer(schema, fieldAccessDescriptor);
