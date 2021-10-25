@@ -49,6 +49,7 @@ func New(ctx context.Context) *Cache {
 
 }
 
+// GetValue returns value from cache. If not found or key is expired, GetValue returns an error.
 func (lc *Cache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey) (interface{}, error) {
 	lc.RLock()
 	value, found := lc.items[pipelineId][subKey]
@@ -56,10 +57,10 @@ func (lc *Cache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cach
 		lc.RUnlock()
 		return nil, fmt.Errorf("value with pipelineId: %s and subKey: %s not found", pipelineId, subKey)
 	}
-	expTime := lc.pipelinesExpiration[pipelineId]
+	expTime, found := lc.pipelinesExpiration[pipelineId]
 	lc.RUnlock()
 
-	if expTime.Before(time.Now()) {
+	if found && expTime.Before(time.Now()) {
 		lc.Lock()
 		delete(lc.items[pipelineId], subKey)
 		delete(lc.pipelinesExpiration, pipelineId)
@@ -70,6 +71,10 @@ func (lc *Cache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cach
 	return value, nil
 }
 
+// SetValue puts element to cache.
+// If a particular pipelineId does not contain in the cache, SetValue creates a new element for this pipelineId without expiration time.
+// Use SetExpTime to set expiration time for cache elements.
+// If data for a particular pipelineId is already contained in the cache, SetValue sets or updates the value for the specific subKey.
 func (lc *Cache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey, value interface{}) error {
 	lc.Lock()
 	defer lc.Unlock()
@@ -82,6 +87,8 @@ func (lc *Cache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey cach
 	return nil
 }
 
+// SetExpTime sets expiration time to particular pipelineId in cache.
+// If pipelineId doesn't present in the cache, SetExpTime returns an error.
 func (lc *Cache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error {
 	lc.Lock()
 	defer lc.Unlock()
