@@ -16,18 +16,22 @@ package main
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/cache/local"
 	"context"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 	"log"
 	"net"
+	"reflect"
 	"testing"
 )
 
 const bufSize = 1024 * 1024
 
 var lis *bufconn.Listener
+var cacheService cache.Cache
 
 func TestMain(m *testing.M) {
 	server := setup()
@@ -38,7 +42,9 @@ func TestMain(m *testing.M) {
 func setup() *grpc.Server {
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
-	pb.RegisterPlaygroundServiceServer(s, &playgroundController{})
+	cacheService = local.New(context.Background())
+
+	pb.RegisterPlaygroundServiceServer(s, &playgroundController{cacheService: cacheService})
 	go func() {
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("Server exited with error: %v", err)
@@ -54,6 +60,7 @@ func teardown(server *grpc.Server) {
 func bufDialer(context.Context, string) (net.Conn, error) {
 	return lis.Dial()
 }
+
 func TestPlaygroundController_RunCode(t *testing.T) {
 	ctx := context.Background()
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
@@ -75,20 +82,64 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 
 func TestPlaygroundController_CheckStatus(t *testing.T) {
 	ctx := context.Background()
+	pipelineId := uuid.New()
+	wantStatus := pb.Status_STATUS_FINISHED
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
 	defer conn.Close()
 	client := pb.NewPlaygroundServiceClient(conn)
-	pipelineMeta := pb.CheckStatusRequest{
-		PipelineUuid: uuid.NewString(),
+
+	type args struct {
+		ctx     context.Context
+		request *pb.CheckStatusRequest
 	}
-	status, err := client.CheckStatus(ctx, &pipelineMeta)
-	if err != nil {
-		t.Fatalf("runCode failed: %v", err)
+	tests := []struct {
+		name       string
+		prepare    func()
+		args       args
+		wantStatus *pb.Status
+		wantErr    bool
+	}{
+		{
+			name:    "status is not set",
+			prepare: func() {},
+			args: args{
+				ctx:     ctx,
+				request: &pb.CheckStatusRequest{PipelineUuid: pipelineId.String()},
+			},
+			wantStatus: nil,
+			wantErr:    true,
+		},
+		{
+			name: "all success",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.Status, wantStatus)
+			},
+			args: args{
+				ctx:     ctx,
+				request: &pb.CheckStatusRequest{PipelineUuid: pipelineId.String()},
+			},
+			wantStatus: &wantStatus,
+			wantErr:    false,
+		},
 	}
-	log.Printf("Response: %+v", status)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := client.CheckStatus(ctx, tt.args.request)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_CheckStatus() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got == nil && tt.wantStatus != nil {
+				t.Errorf("PlaygroundController_CheckStatus() return = %v, want response with status %v", got, tt.wantStatus)
+			}
+			if got != nil && !reflect.DeepEqual(got.Status, *tt.wantStatus) {
+				t.Errorf("PlaygroundController_CheckStatus() return status = %v, want status %v", got.Status, tt.wantStatus)
+			}
+		})
+	}
 }
 
 func TestPlaygroundController_GetCompileOutput(t *testing.T) {
