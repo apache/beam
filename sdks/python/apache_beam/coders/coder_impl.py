@@ -1227,7 +1227,7 @@ class IterableCoderImpl(SequenceCoderImpl):
 
   A coder for homogeneous iterable objects."""
   def __init__(self, *args, use_abstract_iterable=None, **kwargs):
-    super(IterableCoderImpl, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     if use_abstract_iterable is None:
       use_abstract_iterable = _iterable_coder_uses_abstract_iterable_by_default
     self._use_abstract_iterable = use_abstract_iterable
