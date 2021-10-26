@@ -69,6 +69,7 @@ public class TableRowToStorageApiProto {
           .put("TIME", Type.TYPE_STRING) // Pass through the JSON encoding.
           .put("DATETIME", Type.TYPE_STRING) // Pass through the JSON encoding.
           .put("TIMESTAMP", Type.TYPE_STRING) // Pass through the JSON encoding.
+          .put("JSON", Type.TYPE_STRING)
           .build();
 
   /**
