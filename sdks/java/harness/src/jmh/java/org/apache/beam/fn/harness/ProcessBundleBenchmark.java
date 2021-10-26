@@ -82,6 +82,8 @@ import org.openjdk.jmh.annotations.Threads;
 /** Benchmarks for processing a bundle end to end. */
 public class ProcessBundleBenchmark {
 
+  private static final String WORKER_ID = "benchmark_worker";
+
   /** Sets up the {@link ExecutionStateTracker} and an execution state. */
   @State(Scope.Benchmark)
   public static class SdkHarness {
@@ -136,7 +138,7 @@ public class ProcessBundleBenchmark {
                 () -> {
                   try {
                     FnHarness.main(
-                        "id",
+                        WORKER_ID,
                         PipelineOptionsFactory.create(),
                         Collections.emptySet(), // Runner capabilities.
                         loggingServer.getApiServiceDescriptor(),
@@ -148,9 +150,8 @@ public class ProcessBundleBenchmark {
                     throw new RuntimeException(e);
                   }
                 });
-        // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
         InstructionRequestHandler controlClient =
-            clientPool.getSource().take("", java.time.Duration.ofSeconds(2));
+            clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(2));
         this.controlClient =
             SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
       } catch (Exception e) {
