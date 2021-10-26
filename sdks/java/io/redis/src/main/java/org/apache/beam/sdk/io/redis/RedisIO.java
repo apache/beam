@@ -27,7 +27,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -315,11 +314,13 @@ public class RedisIO {
     }
   }
 
+  @DoFn.BoundedPerElement
   private static class ReadFn extends DoFn<String, KV<String, String>> {
 
     protected final RedisConnectionConfiguration connectionConfiguration;
     transient Jedis jedis;
     private long batchSize;
+    private static long nKeys;
     @Nullable AtomicInteger batchCount = null;
 
     ReadFn(RedisConnectionConfiguration connectionConfiguration, int batchSize) {
@@ -338,52 +339,36 @@ public class RedisIO {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(@Element String pattern) {
-      return new OffsetRange(0, getKeyPatters(pattern).size());
+    public RedisCursorRange getInitialRestriction() {
+      nKeys = jedis.dbSize();
+      return RedisCursorRange.of(RedisCursor.of("0", nKeys), RedisCursor.of("0", nKeys));
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
-      String pattern = c.element();
-      List<String> keys = getKeyPatters(pattern);
-      List<String> bundle = new ArrayList<>();
-      for (long i = tracker.currentRestriction().getFrom();
-          i < tracker.currentRestriction().getTo();
-          i++) {
-        if (tracker.tryClaim(i)) {
-          bundle.add(keys.get((int) i));
-        }
-      }
-      if (bundle.size() > 0) {
-        for (KV<String, String> kv : fetchAndFlush(bundle)) {
-          c.output(kv);
-        }
-      }
-    }
-
-    @SplitRestriction
-    public void split(@Restriction OffsetRange restriction, OutputReceiver<OffsetRange> out) {
-      for (OffsetRange offsetRange :
-          splitBlockWithLimit(restriction.getFrom(), restriction.getTo())) {
-        out.output(offsetRange);
-      }
-    }
-
-    public ArrayList<OffsetRange> splitBlockWithLimit(long start, long end) {
-      ArrayList<OffsetRange> offsetList = new ArrayList<>();
-      long newStart = start;
+    public ProcessContinuation processElement(
+        ProcessContext c, RestrictionTracker<RedisCursorRange, RedisCursor> tracker) {
+      String cursor = tracker.currentRestriction().getStartPosition().getCursor();
+      ScanParams scanParams = new ScanParams();
+      scanParams.match(c.element());
       while (true) {
-        if (newStart + batchSize <= end) {
-          offsetList.add(new OffsetRange(newStart, newStart + batchSize));
-          newStart = newStart + batchSize;
-        } else {
-          break;
+        ScanResult<String> scanResult = jedis.scan(cursor, scanParams);
+        if (!tracker.tryClaim(RedisCursor.of(scanResult.getCursor(), nKeys))) {
+          return ProcessContinuation.stop();
+        }
+        List<String> keys = new ArrayList<>();
+        for (String k : scanResult.getResult()) {
+          keys.add(k);
+        }
+        if (keys.size() > 0) {
+          for (KV<String, String> kv : fetchAndFlush(keys)) {
+            c.output(kv);
+          }
+        }
+        cursor = scanResult.getCursor();
+        if ("0".equals(cursor)) {
+          return ProcessContinuation.stop();
         }
       }
-      if (newStart < end) {
-        offsetList.add(new OffsetRange(newStart, end));
-      }
-      return offsetList;
     }
 
     private List<String> getKeyPatters(String pattern) {
