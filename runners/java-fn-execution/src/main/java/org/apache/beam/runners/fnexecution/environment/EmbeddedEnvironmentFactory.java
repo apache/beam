@@ -139,7 +139,7 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
         if (executor.isShutdown()) {
           throw new IllegalStateException("FnHarness startup failed");
         }
-        handler = clientSource.take("embedded_worker", Duration.ofSeconds(5L));
+        handler = clientSource.take(workerId, Duration.ofSeconds(5L));
       } catch (TimeoutException timeoutEx) {
         LOG.info("Still waiting for startup of FnHarness");
       } catch (InterruptedException interruptEx) {
