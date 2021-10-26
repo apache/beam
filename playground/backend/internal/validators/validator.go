@@ -13,17 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package executors
-package executors
+package validators
 
-import "beam.apache.org/playground/backend/internal/fs_tool"
-
-// NewGoExecutor creates an executor with Go specifics
-func NewGoExecutor(fs *fs_tool.LifeCycle, javaValidators *[]validatorWithArgs) *Executor {
-	return nil
-}
-
-// GetGoValidators return validators methods that needed for Go file
-func GetGoValidators() *[]validatorWithArgs {
-	return nil
+type Validator struct {
+	Validator func(args ...interface{}) error
+	Args      []interface{}
 }
