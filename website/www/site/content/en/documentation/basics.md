@@ -43,8 +43,8 @@ understand an important set of core concepts:
  * [_Runner_](#runner) - A runner runs a Beam pipeline using the capabilities of
    your chosen data processing engine.
  * [_Splittable DoFn_](#splittable-dofn) - Splittable DoFns let you process
-   elements in a non-monolithic way. You can checkpoint the processing of
-   an element, and you can split the remaining work to yield additional
+   elements in a non-monolithic way. You can checkpoint the processing of an
+   element, and the runner can split the remaining work to yield additional
    parallelism.
 
 The following sections cover these concepts in more detail and provide links to
@@ -389,14 +389,15 @@ A common computation pattern has the following steps:
  1. The runner splits an incoming element before starting any processing.
  2. The runner starts running your processing logic on each sub-element.
  3. If the runner notices that some sub-elements are taking longer than others,
-    the runner halts processing of those sub-elements and splits again.
- 4. Repeat from step 2.
+    the runner splits those sub-elements further and repeats step 2.
+ 4. The sub-element either finishes processing, or the user chooses to
+    checkpoint the sub-element and the runner repeats step 2.
 
 You can also write your splittable `DoFn` so the runner can split the unbounded
 processing. For example, if you write a splittable `DoFn` to watch a set of
 directories and output filenames as they arrive, you can split to subdivide the
-work of different directories. This allows a hot directory to be split off and
-given additional resources.
+work of different directories. This allows the runner to split off a hot
+directory and give it additional resources.
 
 For more information about Splittable `DoFn`, see the following pages:
 
