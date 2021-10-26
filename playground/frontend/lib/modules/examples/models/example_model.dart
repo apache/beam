@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:json_annotation/json_annotation.dart';
+
+part 'example_model.g.dart';
 
 enum ExampleType {
   all,
@@ -40,10 +42,37 @@ extension ExampleTypeToString on ExampleType {
   }
 }
 
+@JsonSerializable()
 class ExampleModel {
-  final Map<SDK, String> sources;
-  final ExampleType type;
-  final String name;
+  @JsonKey(includeIfNull: false)
+  final ExampleType? type;
 
-  const ExampleModel(this.sources, this.name, this.type);
+  @JsonKey(includeIfNull: false)
+  final String? name;
+
+  @JsonKey(includeIfNull: false)
+  final int? id;
+
+  @JsonKey(includeIfNull: false)
+  final String? description;
+
+  @JsonKey(includeIfNull: false)
+  String? source;
+
+  ExampleModel({
+    this.source,
+    this.name,
+    this.type,
+    this.id,
+    this.description,
+  });
+
+  setSource(String source) {
+    this.source = source;
+  }
+
+  factory ExampleModel.fromJson(Map<String, dynamic> data) =>
+      _$ExampleModelFromJson(data);
+
+  Map<String, dynamic> toJson() => _$ExampleModelToJson(this);
 }

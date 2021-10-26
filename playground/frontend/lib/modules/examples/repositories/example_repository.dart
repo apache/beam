@@ -17,7 +17,6 @@
  */
 
 import 'package:playground/modules/examples/models/category_model.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 const javaHelloWorld = '''class HelloWorld {
@@ -45,75 +44,100 @@ object Hello {
     }
 }''';
 
+const getListOfExamplesResponse = {
+  'java': [
+    {
+      'name': 'WordCountCategory',
+      'examples': [
+        {
+          'name': 'MinimalWordCount',
+          'id': 1111,
+          'type': 'example',
+          'description': 'ABCCDEFG',
+        },
+        {
+          'name': 'WordCount',
+          'id': 2222,
+          'type': 'kata',
+          'description': 'ABCCDEFG',
+        },
+      ],
+    },
+    {
+      'name': 'Kafka',
+      'examples': [
+        {
+          'name': 'KafkaToPubSub',
+          'id': 3333,
+          'type': 'test',
+          'description': 'ABCCDEFG',
+        },
+      ],
+    },
+  ],
+  'python': [
+    {
+      'name': 'WordCountCategory',
+      'examples': [
+        {
+          'name': 'MinimalWordCount',
+          'id': 4444,
+          'type': 'example',
+          'description': 'ABCCDEFG',
+        },
+      ],
+    },
+  ],
+  'go': [
+    {
+      'name': 'WordCountCategory',
+      'examples': [
+        {
+          'name': 'MinimalWordCount',
+          'id': 5555,
+          'type': 'example',
+          'description': 'ABCCDEFG',
+        },
+      ],
+    },
+  ],
+};
+
 class ExampleRepository {
-  List<CategoryModel>? getCategories() {
-    return const [
-      CategoryModel('Side Inputs', [
-        ExampleModel(
-          {
-            SDK.java: javaHelloWorld,
-            SDK.go: goHelloWorld,
-            SDK.python: pythonHelloWorld,
-            SDK.scio: scioHelloWorld,
-          },
-          'HelloWorld',
-          ExampleType.example,
-        ),
-        ExampleModel(
-          {
-            SDK.java: 'JAVA Source code 1',
-            SDK.go: 'GO  Source code 1',
-            SDK.python: 'PYTHON  Source code 1',
-            SDK.scio: 'SCIO  Source code 1',
-          },
-          'KATA Source code 1',
-          ExampleType.kata,
-        ),
-      ]),
-      CategoryModel('Side Outputs', [
-        ExampleModel(
-          {
-            SDK.java: 'JAVA Source code 2',
-            SDK.go: 'GO  Source code 2',
-            SDK.python: 'PYTHON  Source code 2',
-            SDK.scio: 'SCIO  Source code 2',
-          },
-          'UNIT TEST Source code 2',
-          ExampleType.test,
-        ),
-        ExampleModel(
-          {
-            SDK.java: 'JAVA Source code 3',
-            SDK.go: 'GO  Source code 3',
-            SDK.python: 'PYTHON  Source code 3',
-            SDK.scio: 'SCIO  Source code 3',
-          },
-          'EXAMPLE Source code 3',
-          ExampleType.example,
-        ),
-      ]),
-      CategoryModel('I/O', [
-        ExampleModel(
-          {
-            SDK.java: 'JAVA Source code 4',
-            SDK.go: 'GO  Source code 4',
-            SDK.python: 'PYTHON  Source code 4',
-            SDK.scio: 'SCIO  Source code 4',
-          },
-          'KATA Source code 4',
-          ExampleType.kata,
-        ),
-        ExampleModel(
-          {
-            SDK.java: 'JAVA Source code 5',
-            SDK.go: 'GO  Source code 5',
-            SDK.python: 'PYTHON  Source code 5',
-            SDK.scio: 'SCIO  Source code 5',
-          },
-          'UNIT TEST Source code 5',
-          ExampleType.test,
-        ),
-      ]),
-    ];
+  Future<Map<SDK, List<CategoryModel>>> getListOfExamples() async {
+    await Future.delayed(const Duration(seconds: 1));
+    int responseStatusCode = 200;
+    Map<String, List<dynamic>> responseBody = getListOfExamplesResponse;
+    switch (responseStatusCode) {
+      case 200:
+        return parseGetListOfExamplesResponse(responseBody);
+      default:
+        return {};
+    }
+  }
+
+  Future<String> getExampleSource(int id) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    int responseStatusCode = 200;
+    switch (responseStatusCode) {
+      case 200:
+        return id.toString();
+      default:
+        return '';
+    }
+  }
+
+  Map<SDK, List<CategoryModel>> parseGetListOfExamplesResponse(Map data) {
+    Map<SDK, List<CategoryModel>> output = {};
+    for (SDK sdk in SDK.values) {
+      final sdkName = sdk.displayName.toLowerCase();
+      if (data.containsKey(sdkName)) {
+        output[sdk] = data[sdkName]
+            .map((category) => CategoryModel.fromJson(category))
+            .cast<CategoryModel>()
+            .toList();
+      }
+    }
+    return output;
   }
 }

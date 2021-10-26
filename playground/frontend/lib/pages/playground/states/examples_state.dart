@@ -19,18 +19,28 @@
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
 class ExampleState with ChangeNotifier {
   final ExampleRepository _exampleRepository;
-  List<CategoryModel>? categories;
+  Map<SDK, List<CategoryModel>>? categoriesBySdkMap;
   bool isSelectorOpened = false;
 
   ExampleState(this._exampleRepository) {
     _loadCategories();
   }
 
-  _loadCategories() {
-    categories = _exampleRepository.getCategories() ?? [];
+  List<CategoryModel>? getCategories(SDK sdk) {
+    return categoriesBySdkMap?[sdk] ?? [];
+  }
+
+  Future<String> getSource(int id) async {
+    String source = await _exampleRepository.getExampleSource(id);
+    return source;
+  }
+
+  _loadCategories() async {
+    categoriesBySdkMap = await _exampleRepository.getListOfExamples();
     notifyListeners();
   }
 
