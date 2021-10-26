@@ -178,7 +178,8 @@ public class SplittableParDoViaKeyedWorkItems {
           original.getElementCoder(),
           original.getRestrictionCoder(),
           original.getWatermarkEstimatorStateCoder(),
-          original.getInputWindowingStrategy());
+          original.getInputWindowingStrategy(),
+          original.getSideInputMapping());
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -187,6 +188,10 @@ public class SplittableParDoViaKeyedWorkItems {
 
     public List<PCollectionView<?>> getSideInputs() {
       return original.getSideInputs();
+    }
+
+    public Map<String, PCollectionView<?>> getSideInputMapping() {
+      return original.getSideInputMapping();
     }
 
     public TupleTag<OutputT> getMainOutputTag() {
@@ -258,9 +263,11 @@ public class SplittableParDoViaKeyedWorkItems {
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
     private final WindowingStrategy<InputT, ?> inputWindowingStrategy;
+    private final Map<String, PCollectionView<?>> sideInputMapping;
 
     private transient @Nullable StateInternalsFactory<byte[]> stateInternalsFactory;
     private transient @Nullable TimerInternalsFactory<byte[]> timerInternalsFactory;
+    private transient @Nullable SideInputReader sideInputReader;
     private transient @Nullable SplittableProcessElementInvoker<
             InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
         processElementInvoker;
@@ -272,7 +279,8 @@ public class SplittableParDoViaKeyedWorkItems {
         Coder<InputT> elementCoder,
         Coder<RestrictionT> restrictionCoder,
         Coder<WatermarkEstimatorStateT> watermarkEstimatorStateCoder,
-        WindowingStrategy<InputT, ?> inputWindowingStrategy) {
+        WindowingStrategy<InputT, ?> inputWindowingStrategy,
+        Map<String, PCollectionView<?>> sideInputMapping) {
       this.fn = fn;
       this.elementCoder = elementCoder;
       this.restrictionCoder = restrictionCoder;
@@ -285,6 +293,7 @@ public class SplittableParDoViaKeyedWorkItems {
       this.restrictionTag = StateTags.value("restriction", restrictionCoder);
       this.watermarkEstimatorStateTag =
           StateTags.value("watermarkEstimatorState", watermarkEstimatorStateCoder);
+      this.sideInputMapping = sideInputMapping;
     }
 
     public void setStateInternalsFactory(StateInternalsFactory<byte[]> stateInternalsFactory) {
@@ -293,6 +302,10 @@ public class SplittableParDoViaKeyedWorkItems {
 
     public void setTimerInternalsFactory(TimerInternalsFactory<byte[]> timerInternalsFactory) {
       this.timerInternalsFactory = timerInternalsFactory;
+    }
+
+    public void setSideInputReader(SideInputReader sideInputReader) {
+      this.sideInputReader = sideInputReader;
     }
 
     public void setProcessElementInvoker(
@@ -347,7 +360,7 @@ public class SplittableParDoViaKeyedWorkItems {
      * <p>Uses a watermark hold to control watermark advancement.
      */
     @ProcessElement
-    public void processElement(final ProcessContext c, BoundedWindow boundedWindow) {
+    public void processElement(final ProcessContext c) {
       byte[] key = c.element().key();
       StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
       TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
@@ -400,7 +413,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                   @Override
                   public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                    return c.timestamp();
+                    return elementAndRestriction.getKey().getTimestamp();
                   }
 
                   @Override
@@ -410,12 +423,23 @@ public class SplittableParDoViaKeyedWorkItems {
 
                   @Override
                   public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                    return c.pane();
+                    return elementAndRestriction.getKey().getPane();
                   }
 
                   @Override
                   public BoundedWindow window() {
-                    return boundedWindow;
+                    return Iterables.getOnlyElement(elementAndRestriction.getKey().getWindows());
+                  }
+
+                  @Override
+                  public Object sideInput(String tagId) {
+                    PCollectionView<?> view = sideInputMapping.get(tagId);
+                    if (view == null) {
+                      throw new IllegalArgumentException(
+                          "calling getSideInput() with unknown view");
+                    }
+                    return sideInputReader.get(
+                        view, view.getWindowMappingFn().getSideInputWindow(window()));
                   }
 
                   @Override
@@ -449,7 +473,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                  return c.timestamp();
+                  return elementAndRestriction.getKey().getTimestamp();
                 }
 
                 @Override
@@ -459,17 +483,27 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                  return c.pane();
+                  return elementAndRestriction.getKey().getPane();
                 }
 
                 @Override
                 public BoundedWindow window() {
-                  return boundedWindow;
+                  return Iterables.getOnlyElement(elementAndRestriction.getKey().getWindows());
                 }
 
                 @Override
                 public Object watermarkEstimatorState() {
                   return watermarkEstimatorStateT;
+                }
+
+                @Override
+                public Object sideInput(String tagId) {
+                  PCollectionView<?> view = sideInputMapping.get(tagId);
+                  if (view == null) {
+                    throw new IllegalArgumentException("calling getSideInput() with unknown view");
+                  }
+                  return sideInputReader.get(
+                      view, view.getWindowMappingFn().getSideInputWindow(window()));
                 }
 
                 @Override
@@ -493,7 +527,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                  return c.timestamp();
+                  return elementAndRestriction.getKey().getTimestamp();
                 }
 
                 @Override
@@ -503,12 +537,22 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                  return c.pane();
+                  return elementAndRestriction.getKey().getPane();
                 }
 
                 @Override
                 public BoundedWindow window() {
-                  return boundedWindow;
+                  return Iterables.getOnlyElement(elementAndRestriction.getKey().getWindows());
+                }
+
+                @Override
+                public Object sideInput(String tagId) {
+                  PCollectionView<?> view = sideInputMapping.get(tagId);
+                  if (view == null) {
+                    throw new IllegalArgumentException("calling getSideInput() with unknown view");
+                  }
+                  return sideInputReader.get(
+                      view, view.getWindowMappingFn().getSideInputWindow(window()));
                 }
 
                 @Override
@@ -521,7 +565,11 @@ public class SplittableParDoViaKeyedWorkItems {
               .Result
           result =
               processElementInvoker.invokeProcessElement(
-                  invoker, elementAndRestriction.getKey(), tracker, watermarkEstimator);
+                  invoker,
+                  elementAndRestriction.getKey(),
+                  tracker,
+                  watermarkEstimator,
+                  sideInputMapping);
 
       // Save state for resuming.
       if (result.getResidualRestriction() == null) {
