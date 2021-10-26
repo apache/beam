@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/examples/models/outputs_model.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
@@ -32,6 +33,11 @@ class ExampleState with ChangeNotifier {
 
   List<CategoryModel>? getCategories(SDK sdk) {
     return categoriesBySdkMap?[sdk] ?? [];
+  }
+
+  Future<OutputsModel> getPrecompiledOutputs(int id) async {
+    OutputsModel outputs = await _exampleRepository.getPrecompiledOutputs(id);
+    return outputs;
   }
 
   Future<String> getSource(int id) async {

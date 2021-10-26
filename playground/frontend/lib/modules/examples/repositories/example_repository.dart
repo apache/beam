@@ -17,6 +17,7 @@
  */
 
 import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/examples/models/outputs_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 const javaHelloWorld = '''class HelloWorld {
@@ -103,6 +104,12 @@ const getListOfExamplesResponse = {
   ],
 };
 
+const getPrecompiledOutputsResponse = {
+  'output': 'precompiled output',
+  'graph': 'precompiled graph',
+  'log': 'precompiled log',
+};
+
 class ExampleRepository {
   Future<Map<SDK, List<CategoryModel>>> getListOfExamples() async {
     await Future.delayed(const Duration(seconds: 1));
@@ -110,7 +117,7 @@ class ExampleRepository {
     Map<String, List<dynamic>> responseBody = getListOfExamplesResponse;
     switch (responseStatusCode) {
       case 200:
-        return parseGetListOfExamplesResponse(responseBody);
+        return parseListOfExamplesResponse(responseBody);
       default:
         return {};
     }
@@ -127,7 +134,19 @@ class ExampleRepository {
     }
   }
 
-  Map<SDK, List<CategoryModel>> parseGetListOfExamplesResponse(Map data) {
+  Future<OutputsModel> getPrecompiledOutputs(int id) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    int responseStatusCode = 200;
+    Map<String, dynamic> responseBody = getPrecompiledOutputsResponse;
+    switch (responseStatusCode) {
+      case 200:
+        return parsePrecompiledOutputs(responseBody);
+      default:
+        return OutputsModel('', '', '');
+    }
+  }
+
+  Map<SDK, List<CategoryModel>> parseListOfExamplesResponse(Map data) {
     Map<SDK, List<CategoryModel>> output = {};
     for (SDK sdk in SDK.values) {
       final sdkName = sdk.displayName.toLowerCase();
@@ -139,5 +158,9 @@ class ExampleRepository {
       }
     }
     return output;
+  }
+
+  OutputsModel parsePrecompiledOutputs(Map<String, dynamic> data) {
+    return OutputsModel.fromJson(data);
   }
 }

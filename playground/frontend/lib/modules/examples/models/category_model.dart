@@ -28,7 +28,8 @@ class CategoryModel {
 
   const CategoryModel({required this.name, required this.examples});
 
-  factory CategoryModel.fromJson(Map<String, dynamic> data) => _$CategoryModelFromJson(data);
+  factory CategoryModel.fromJson(Map<String, dynamic> data) =>
+      _$CategoryModelFromJson(data);
 
   Map<String, dynamic> toJson() => _$CategoryModelToJson(this);
 }
