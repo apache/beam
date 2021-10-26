@@ -74,7 +74,7 @@ func dumperExtractor(store *Store, p func(format string, args ...interface{})) {
 		GaugeInt64: func(l Labels, v int64, t time.Time) {
 			m[l] = &gauge{v: v, t: t}
 		},
-		MsecsInt64: func(labels string, stateRegistry [4]*ExecutionState) {},
+		MsecsInt64: func(labels string, e [4]*ExecutionState) {},
 	}
 	e.ExtractFrom(store)
 	dumpTo(m, p)

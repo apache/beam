@@ -95,7 +95,7 @@ type Extractor struct {
 	// GaugeInt64 extracts data from Gauge Int64 counters.
 	GaugeInt64 func(labels Labels, v int64, t time.Time)
 	// MsecsInt64 extracts data from StateRegistry of ExecutionState
-	MsecsInt64 func(labels string, stateRegistry [4]*ExecutionState)
+	MsecsInt64 func(labels string, e [4]*ExecutionState)
 }
 
 // ExtractFrom the given metrics Store all the metrics for
@@ -129,7 +129,11 @@ func (e Extractor) ExtractFrom(store *Store) error {
 		}
 	}
 	for l, um := range store.stateRegistry {
+		// fmt.Println("+++++++++++++++++++++++++++++++++++++++++++")
+		// fmt.Println(int64(um[3].TotalTime))
+		// fmt.Println("+++++++++++++++++++++++++++++++++++++++++++")
 		e.MsecsInt64(l, um)
+		// e.MsecsInt64(l, int64(um[0].TotalTime), int64(um[1].TotalTime), int64(um[2].TotalTime), int64(um[3].TotalTime))
 	}
 	return nil
 }
@@ -195,15 +199,15 @@ type currentStateVal struct {
 
 // Store retains per transform countersets, intended for per bundle use.
 type Store struct {
-	mu  sync.RWMutex
-	css []*ptCounterSet
+	mu            sync.RWMutex
+	css           []*ptCounterSet
+	stateRegistry map[string][4]*ExecutionState
 
 	store map[Labels]userMetric
 
-	transitions   int64
-	bundleState   BundleState
-	states        [3]BundleState
-	stateRegistry map[string][4]*ExecutionState
+	transitions int64
+	bundleState BundleState
+	states      [3]BundleState
 }
 
 func newStore() *Store {

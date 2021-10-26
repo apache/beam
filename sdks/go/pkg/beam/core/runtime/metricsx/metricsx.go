@@ -29,19 +29,21 @@ import (
 // FromMonitoringInfos extracts metrics from monitored states and
 // groups them into counters, distributions and gauges.
 func FromMonitoringInfos(attempted []*pipepb.MonitoringInfo, committed []*pipepb.MonitoringInfo) *metrics.Results {
-	ac, ad, ag := groupByType(attempted)
-	cc, cd, cg := groupByType(committed)
+	ac, ad, ag, am := groupByType(attempted)
+	cc, cd, cg, cm := groupByType(committed)
 
-	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), metrics.MergeGauges(ag, cg))
+	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), metrics.MergeGauges(ag, cg), metrics.MergeMsecs(am, cm))
 }
 
 func groupByType(minfos []*pipepb.MonitoringInfo) (
 	map[metrics.StepKey]int64,
 	map[metrics.StepKey]metrics.DistributionValue,
-	map[metrics.StepKey]metrics.GaugeValue) {
+	map[metrics.StepKey]metrics.GaugeValue,
+	map[metrics.StepKey]metrics.MsecValue) {
 	counters := make(map[metrics.StepKey]int64)
 	distributions := make(map[metrics.StepKey]metrics.DistributionValue)
 	gauges := make(map[metrics.StepKey]metrics.GaugeValue)
+	msecs := make(map[metrics.StepKey]metrics.MsecValue)
 
 	for _, minfo := range minfos {
 		key, err := extractKey(minfo)
@@ -51,16 +53,15 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 		}
 
 		r := bytes.NewReader(minfo.GetPayload())
-
-		switch minfo.GetType() {
-		case "beam:metrics:sum_int64:v1":
+		switch minfo.GetUrn() {
+		case "beam:metric:user:sum_int64:v1":
 			value, err := extractCounterValue(r)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
 			counters[key] = value
-		case "beam:metrics:distribution_int64:v1":
+		case "beam:metric:user:distribution_int64:v1":
 			value, err := extractDistributionValue(r)
 			if err != nil {
 				log.Println(err)
@@ -68,25 +69,49 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 			}
 			distributions[key] = value
 		case
-			"beam:metrics:latest_int64:v1",
-			"beam:metrics:top_n_int64:v1",
-			"beam:metrics:bottom_n_int64:v1":
+			"beam:metric:user:latest_int64:v1",
+			"beam:metric:user:top_n_int64:v1",
+			"beam:metric:user:bottom_n_int64:v1":
 			value, err := extractGaugeValue(r)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
 			gauges[key] = value
+		case
+			"beam:metric:pardo_execution_time:start_bundle_msecs:v1",
+			"beam:metric:pardo_execution_time:process_bundle_msecs:v1",
+			"beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
+			"beam:metric:ptransform_execution_time:total_msecs:v1":
+			value, err := extractMsecValue(r)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			msecs[key] = value
 		default:
 			log.Println("unknown metric type")
 		}
 	}
-	return counters, distributions, gauges
+	return counters, distributions, gauges, msecs
 }
 
 func extractKey(mi *pipepb.MonitoringInfo) (metrics.StepKey, error) {
 	labels := newLabels(mi.GetLabels())
 	stepName := labels.Transform()
+	urn := mi.GetUrn()
+	switch urn {
+	case "beam:metric:pardo_execution_time:start_bundle_msecs:v1":
+		stepName += "/START"
+	case "beam:metric:pardo_execution_time:process_bundle_msecs:v1":
+		stepName += "/PROCESS"
+	case "beam:metric:pardo_execution_time:finish_bundle_msecs:v1":
+		stepName += "/FINISH"
+	case "beam:metric:ptransform_execution_time:total_msecs:v1":
+		stepName += "/TOTAL"
+		// TODO: add cases for PCollection metrics
+	}
+
 	if stepName == "" {
 		return metrics.StepKey{}, fmt.Errorf("Failed to deduce Step from MonitoringInfo: %v", mi)
 	}
@@ -99,6 +124,14 @@ func extractCounterValue(reader *bytes.Reader) (int64, error) {
 		return -1, err
 	}
 	return value, nil
+}
+
+func extractMsecValue(reader *bytes.Reader) (metrics.MsecValue, error) {
+	value, err := coder.DecodeVarInt(reader)
+	if err != nil {
+		return metrics.MsecValue{}, err
+	}
+	return metrics.MsecValue{Time: value}, nil
 }
 
 func extractDistributionValue(reader *bytes.Reader) (metrics.DistributionValue, error) {
