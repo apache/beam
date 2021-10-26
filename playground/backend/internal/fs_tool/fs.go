@@ -16,7 +16,7 @@
 package fs_tool
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api"
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
@@ -27,35 +27,39 @@ import (
 )
 
 const (
-	parentBaseFileFolder = "internal"
-	fileMode             = 0600
+	fileMode = 0600
 )
 
-// Folder contains names of folders with executable and compiled files (/src and /bin for java SDK)
+// Folder contains names of folders with executable and compiled files.
+// For each SDK these values should be set depending on folders that need for the SDK (/src and /bin for java SDK).
 type Folder struct {
 	BaseFolder       string
 	ExecutableFolder string
 	CompiledFolder   string
 }
 
-// Extension contains executable and compiled files' extensions (.java and .class for java SDK)
+// Extension contains executable and compiled files' extensions.
+// For each SDK these values should be set depending on SDK's extensions (.java and .class for java SDK).
 type Extension struct {
 	ExecutableExtension string
 	CompiledExtension   string
 }
 
+// LifeCycle is used for preparing folders and files to process code for one request.
+// For each SDK folders (Folder) and extensions (Extension) should be set correctly.
 type LifeCycle struct {
-	folderGlobs []string
+	folderGlobs []string //folders that should be created to process code
 	Folder      Folder
 	Extension   Extension
 	pipelineId  uuid.UUID
 }
 
 // NewLifeCycle returns a corresponding LifeCycle depending on the given SDK.
-func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID) (*LifeCycle, error) {
+// workingDir should be existed and be prepared to create/delete/modify folders into him.
+func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, workingDir string) (*LifeCycle, error) {
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		return newJavaLifeCycle(pipelineId), nil
+		return newJavaLifeCycle(pipelineId, workingDir), nil
 	default:
 		return nil, fmt.Errorf("%s isn't supported now", sdk)
 	}
@@ -63,10 +67,6 @@ func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID) (*LifeCycle, error) {
 
 // CreateFolders creates all folders which will be used for code execution.
 func (l *LifeCycle) CreateFolders() error {
-	err := os.Chdir("../..")
-	if err != nil {
-		return err
-	}
 	for _, folder := range l.folderGlobs {
 		err := os.MkdirAll(folder, fs.ModePerm)
 		if err != nil {
@@ -102,7 +102,7 @@ func (l *LifeCycle) CreateExecutableFile(code string) (string, error) {
 	return fileName, nil
 }
 
-// GetAbsoluteExecutableFilePath returns absolute filepath to executable file (.../internal/executable_files/src/file.java for java SDK).
+// GetAbsoluteExecutableFilePath returns absolute filepath to executable file (/path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.java for java SDK).
 func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
 	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
 	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
@@ -110,11 +110,10 @@ func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
 	return absoluteFilePath
 }
 
-// GetRelativeExecutableFilePath returns relative filepath to executable file (src/file.java for java SDK).
-func (l *LifeCycle) GetRelativeExecutableFilePath() string {
-	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
-	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
-	return filePath[len(l.Folder.BaseFolder)+1:]
+// GetAbsoluteExecutableFilesFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
+func (l *LifeCycle) GetAbsoluteExecutableFilesFolderPath() string {
+	absoluteFilePath, _ := filepath.Abs(l.Folder.BaseFolder)
+	return absoluteFilePath
 }
 
 // GetExecutableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
@@ -129,7 +128,7 @@ func (l *LifeCycle) GetExecutableName() (string, error) {
 	return strings.Split(dirEntries[0].Name(), ".")[0], nil
 }
 
-// getFileName returns fileName by pipelineId and fileType (pipelineId.java for java SDK).
+// getFileName returns fileName by pipelineId and fileType ({pipelineId}.java for java SDK).
 func getFileName(pipelineId uuid.UUID, fileType string) string {
 	return fmt.Sprintf("%s.%s", pipelineId, fileType)
 }
