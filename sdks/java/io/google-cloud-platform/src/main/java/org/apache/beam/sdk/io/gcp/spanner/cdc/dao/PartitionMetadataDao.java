@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataAdminD
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
-import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.WriteBuilder;
 import com.google.cloud.spanner.ResultSet;
@@ -295,12 +294,26 @@ public class PartitionMetadataDao {
     }
 
     public long getRecordsProcessed(String partitionToken) {
-      return transaction
-          .readRow(
-              metricsTableName,
-              Key.of(partitionToken),
-              ImmutableList.of(PartitionMetricsAdminDao.COLUMN_RECORDS_PROCESSED))
-          .getLong(0);
+      // TODO: Use readRow when java-spanner version >= 6.13.0
+      try (ResultSet resultSet =
+          transaction.executeQuery(
+              Statement.newBuilder(
+                      "SELECT "
+                          + PartitionMetricsAdminDao.COLUMN_RECORDS_PROCESSED
+                          + " FROM "
+                          + metricsTableName
+                          + " WHERE "
+                          + PartitionMetricsAdminDao.COLUMN_PARTITION_TOKEN
+                          + " = @partitionToken")
+                  .bind("partitionToken")
+                  .to(partitionToken)
+                  .build())) {
+        if (resultSet.next()) {
+          return resultSet.getLong(PartitionMetricsAdminDao.COLUMN_RECORDS_PROCESSED);
+        } else {
+          return 0L;
+        }
+      }
     }
 
     public PartitionMetadata getPartition(String partitionToken) {
