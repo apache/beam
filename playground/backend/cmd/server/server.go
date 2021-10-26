@@ -32,7 +32,10 @@ func runServer() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	envService := environment.NewEnvironment()
+	envService, err := setupEnvironment()
+	if err != nil {
+		return err
+	}
 	grpcServer := grpc.NewServer()
 	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{})
 
@@ -40,7 +43,7 @@ func runServer() error {
 	handler := Wrap(grpcServer, getGrpcWebOptions())
 	errChan := make(chan error)
 
-	go listenHttp(ctx, errChan, envService, handler)
+	go listenHttp(ctx, errChan, envService.NetworkEnvs, handler)
 
 	for {
 		select {
@@ -51,6 +54,22 @@ func runServer() error {
 			return nil
 		}
 	}
+}
+
+func setupEnvironment() (*environment.Environment, error) {
+	networkEnvs, err := environment.GetNetworkEnvsFromOsEnvs()
+	if err != nil {
+		return nil, err
+	}
+	beamEnvs, err := environment.GetSdkEnvsFromOsEnvs()
+	if err != nil {
+		return nil, err
+	}
+	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		return nil, err
+	}
+	return environment.NewEnvironment(*networkEnvs, *beamEnvs, *appEnvs), nil
 }
 
 // getGrpcWebOptions returns grpcweb options needed to configure wrapper

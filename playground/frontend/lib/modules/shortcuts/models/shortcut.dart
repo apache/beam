@@ -15,14 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.testing;
 
-import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.transforms.ParDo;
+import 'package:flutter/material.dart';
 
-/**
- * Category tag for validation tests which utilize splittable {@link ParDo} and use windowed side
- * inputs.
- */
-@Internal
-public interface UsesSplittableParDoWithWindowedSideInputs {}
+class Shortcut {
+  final String name;
+  final LogicalKeySet shortcuts;
+  final Intent actionIntent;
+  final Function createAction;
+
+  Shortcut({
+    required this.name,
+    required this.shortcuts,
+    required this.actionIntent,
+    required this.createAction,
+  });
+}

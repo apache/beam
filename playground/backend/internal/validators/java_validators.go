@@ -13,16 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: remove this code when merging https://github.com/apache/beam/pull/15654
+package validators
 
-package environment
+import (
+	"beam.apache.org/playground/backend/internal/fs_tool"
+)
 
-type ServerEnvs struct {}
+const (
+	javaExtension = ".java"
+)
 
-func (envs ServerEnvs) Address() string {
-	return ""
-}
-
-func NewEnvironment() ServerEnvs {
-	return ServerEnvs{}
+// GetJavaValidators return validators methods that should be applied to Java code
+func GetJavaValidators(filePath string) *[]Validator {
+	validatorArgs := make([]interface{}, 2)
+	validatorArgs[0] = filePath
+	validatorArgs[1] = javaExtension
+	pathCheckerValidator := Validator{
+		Validator: fs_tool.CheckPathIsValid,
+		Args:      validatorArgs,
+	}
+	validators := []Validator{pathCheckerValidator}
+	return &validators
 }

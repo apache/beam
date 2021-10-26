@@ -20,6 +20,10 @@ import 'package:flutter/material.dart';
 import 'package:playground/components/logo/logo_component.dart';
 import 'package:playground/components/toggle_theme_button/toggle_theme_button.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/shortcuts/components/shortcuts_manager.dart';
+import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
+import 'package:playground/pages/playground/components/playground_page_body.dart';
+import 'package:playground/pages/playground/components/playground_page_footer.dart';
 import 'package:playground/modules/actions/components/new_example_action.dart';
 import 'package:playground/modules/actions/components/reset_action.dart';
 import 'package:playground/modules/examples/example_selector.dart';
@@ -36,37 +40,40 @@ class PlaygroundPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Consumer<PlaygroundState>(
-          builder: (context, state, child) {
-            return Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: kLgSpacing,
-              children: [
-                const Logo(),
-                Consumer<ExampleState>(
-                  builder: (context, state, child) {
-                    return ExampleSelector(
-                      changeSelectorVisibility: state.changeSelectorVisibility,
-                      isSelectorOpened: state.isSelectorOpened,
-                    );
-                  },
-                ),
-                SDKSelector(sdk: state.sdk, setSdk: state.setSdk),
-                const NewExampleAction(),
-                ResetAction(reset: state.reset),
-              ],
-            );
-          },
+    return ShortcutsManager(
+      shortcuts: globalShortcuts,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Consumer<PlaygroundState>(
+            builder: (context, state, child) {
+              return Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: kLgSpacing,
+                children: [
+                  const Logo(),
+                  Consumer<ExampleState>(
+                    builder: (context, state, child) {
+                      return ExampleSelector(
+                        changeSelectorVisibility: state.changeSelectorVisibility,
+                        isSelectorOpened: state.isSelectorOpened,
+                      );
+                    },
+                  ),
+                  SDKSelector(sdk: state.sdk, setSdk: state.setSdk),
+                  const NewExampleAction(),
+                  ResetAction(reset: state.reset),
+                ],
+              );
+            },
+          ),
+          actions: const [ToggleThemeButton(), MoreActions()],
         ),
-        actions: const [ToggleThemeButton(), MoreActions()],
-      ),
-      body: Column(
-        children: const [
-          Expanded(child: PlaygroundPageBody()),
-          PlaygroundPageFooter(),
-        ],
+        body: Column(
+          children: const [
+            Expanded(child: PlaygroundPageBody()),
+            PlaygroundPageFooter(),
+          ],
+        ),
       ),
     );
   }
