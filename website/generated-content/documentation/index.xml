@@ -3180,10 +3180,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="basics-of-the-beam-model">Basics of the Beam model&lt;/h1>
-&lt;p>Suppose you have a data processing engine that can pretty easily process graphs
-of operations. You want to integrate it with the Beam ecosystem to get access
-to other languages, great event time processing, and a library of connectors.
-You need to know the core vocabulary:&lt;/p>
+&lt;p>Apache Beam is a unified model for defining both batch and streaming
+data-parallel processing pipelines. To get started with Beam, you&amp;rsquo;ll need to
+understand an important set of core concepts:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="#pipeline">&lt;em>Pipeline&lt;/em>&lt;/a> - A pipeline is a user-constructed graph of
 transformations that defines the desired data processing operations.&lt;/li>
@@ -3193,16 +3192,22 @@ stream. The data that a pipeline processes is part of a PCollection.&lt;/li>
 data processing operation, or a step, in your pipeline. A transform is
 applied to zero or more &lt;code>PCollection&lt;/code> objects, and produces zero or more
 &lt;code>PCollection&lt;/code> objects.&lt;/li>
-&lt;li>&lt;em>SDK&lt;/em> - A language-specific library for pipeline authors (we often call them
-&amp;ldquo;users&amp;rdquo; even though we have many kinds of users) to build transforms,
-construct their pipelines and submit them to a runner&lt;/li>
-&lt;li>&lt;em>Runner&lt;/em> - You are going to write a piece of software called a runner that
-takes a Beam pipeline and executes it using the capabilities of your data
-processing engine.&lt;/li>
+&lt;li>&lt;a href="#aggregation">&lt;em>Aggregation&lt;/em>&lt;/a> - Aggregation is computing a value from
+multiple (1 or more) input elements.&lt;/li>
+&lt;li>&lt;a href="#user-defined-function-udf">&lt;em>User-defined function (UDF)&lt;/em>&lt;/a> - Some Beam
+operations allow you to run user-defined code as a way to configure the
+transform.&lt;/li>
+&lt;li>&lt;a href="#schema">&lt;em>Schema&lt;/em>&lt;/a> - A schema is a language-independent type definition for
+a &lt;code>PCollection&lt;/code>. The schema for a &lt;code>PCollection&lt;/code> defines elements of that
+&lt;code>PCollection&lt;/code> as an ordered list of named fields.&lt;/li>
+&lt;li>&lt;a href="/documentation/sdks/java/">&lt;em>SDK&lt;/em>&lt;/a> - A language-specific library that lets
+pipeline authors build transforms, construct their pipelines, and submit
+them to a runner.&lt;/li>
+&lt;li>&lt;a href="#runner">&lt;em>Runner&lt;/em>&lt;/a> - A runner runs a Beam pipeline using the capabilities of
+your chosen data processing engine.&lt;/li>
 &lt;/ul>
-&lt;p>These concepts may be very similar to your processing engine&amp;rsquo;s concepts. Since
-Beam&amp;rsquo;s design is for cross-language operation and reusable libraries of
-transforms, there are some special features worth highlighting.&lt;/p>
+&lt;p>The following sections cover these concepts in more detail and provide links to
+additional documentation.&lt;/p>
 &lt;h3 id="pipeline">Pipeline&lt;/h3>
 &lt;p>A Beam pipeline is a graph (specifically, a
 &lt;a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">directed acyclic graph&lt;/a>)
@@ -3344,42 +3349,130 @@ behavior that is governed by the windowing strategy.&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#pcollections">Beam Programming Guide: PCollections&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;h3 id="user-defined-functions-udfs">User-Defined Functions (UDFs)&lt;/h3>
-&lt;p>Beam has seven varieties of user-defined function (UDF). A Beam pipeline
-may contain UDFs written in a language other than your runner, or even multiple
-languages in the same pipeline (see the &lt;a href="#the-runner-api">Runner API&lt;/a>) so the
-definitions are language-independent (see the &lt;a href="#the-fn-api">Fn API&lt;/a>).&lt;/p>
-&lt;p>The UDFs of Beam are:&lt;/p>
+&lt;h3 id="aggregation">Aggregation&lt;/h3>
+&lt;p>Aggregation is computing a value from multiple (1 or more) input elements. In
+Beam, the primary computational pattern for aggregation is to group all elements
+with a common key and window then combine each group of elements using an
+associative and commutative operation. This is similar to the &amp;ldquo;Reduce&amp;rdquo; operation
+in the &lt;a href="https://en.wikipedia.org/wiki/MapReduce">MapReduce&lt;/a> model, though it is
+enhanced to work with unbounded input streams as well as bounded data sets.&lt;/p>
+&lt;img src="/images/aggregation.png" alt="Aggregation of elements." width="120px">
+&lt;p>&lt;em>Figure 1: Aggregation of elements. Elements with the same color represent those
+with a common key and window.&lt;/em>&lt;/p>
+&lt;p>Some simple aggregation transforms include &lt;code>Count&lt;/code> (computes the count of all
+elements in the aggregation), &lt;code>Max&lt;/code> (computes the maximum element in the
+aggregation), and &lt;code>Sum&lt;/code> (computes the sum of all elements in the aggregation).&lt;/p>
+&lt;p>When elements are grouped and emitted as a bag, the aggregation is known as
+&lt;code>GroupByKey&lt;/code> (the associative/commutative operation is bag union). In this case,
+the output is no smaller than the input. Often, you will apply an operation such
+as summation, called a &lt;code>CombineFn&lt;/code>, in which the output is significantly smaller
+than the input. In this case the aggregation is called &lt;code>CombinePerKey&lt;/code>.&lt;/p>
+&lt;p>In a real application, you might have millions of keys and/or windows; that is
+why this is still an &amp;ldquo;embarassingly parallel&amp;rdquo; computational pattern. In those
+cases where you have fewer keys, you can add parallelism by adding a
+supplementary key, splitting each of your problem&amp;rsquo;s natural keys into many
+sub-keys. After these sub-keys are aggregated, the results can be further
+combined into a result for the original natural key for your problem. The
+associativity of your aggregation function ensures that this yields the same
+answer, but with more parallelism.&lt;/p>
+&lt;p>When your input is unbounded, the computational pattern of grouping elements by
+key and window is roughly the same, but governing when and how to emit the
+results of aggregation involves three concepts:&lt;/p>
 &lt;ul>
-&lt;li>&lt;em>DoFn&lt;/em> - per-element processing function (used in ParDo)&lt;/li>
-&lt;li>&lt;em>WindowFn&lt;/em> - places elements in windows and merges windows (used in Window
-and GroupByKey)&lt;/li>
-&lt;li>&lt;em>Source&lt;/em> - emits data read from external sources, including initial and
-dynamic splitting for parallelism (used in Read)&lt;/li>
-&lt;li>&lt;em>ViewFn&lt;/em> - adapts a materialized PCollection to a particular interface (used
-in side inputs)&lt;/li>
-&lt;li>&lt;em>WindowMappingFn&lt;/em> - maps one element&amp;rsquo;s window to another, and specifies
-bounds on how far in the past the result window will be (used in side
-inputs)&lt;/li>
-&lt;li>&lt;em>CombineFn&lt;/em> - associative and commutative aggregation (used in Combine and
-state)&lt;/li>
-&lt;li>&lt;em>Coder&lt;/em> - encodes user data; some coders have standard formats and are not really UDFs&lt;/li>
+&lt;li>Windowing, which partitions your input into bounded subsets that can be
+complete.&lt;/li>
+&lt;li>Watermarks, which estimate the completeness of your input.&lt;/li>
+&lt;li>Triggers, which govern when and how to emit aggregated results.&lt;/li>
 &lt;/ul>
-&lt;p>The various types of user-defined functions will be described further alongside
-the &lt;a href="#ptransforms">&lt;em>PTransforms&lt;/em>&lt;/a> that use them.&lt;/p>
+&lt;p>For more information about available aggregation transforms, see the following
+pages:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/programming-guide/#core-beam-transforms">Beam Programming Guide: Core Beam transforms&lt;/a>&lt;/li>
+&lt;li>Beam Transform catalog
+(&lt;a href="/documentation/transforms/java/overview/#aggregation">Java&lt;/a>,
+&lt;a href="/documentation/transforms/python/overview/#aggregation">Python&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="user-defined-function-udf">User-defined function (UDF)&lt;/h3>
+&lt;p>Some Beam operations allow you to run user-defined code as a way to configure
+the transform. For example, when using &lt;code>ParDo&lt;/code>, user-defined code specifies what
+operation to apply to every element. For &lt;code>Combine&lt;/code>, it specifies how values
+should be combined. By using &lt;a href="/documentation/patterns/cross-language/">cross-language transforms&lt;/a>,
+a Beam pipeline can contain UDFs written in a different language, or even
+multiple languages in the same pipeline.&lt;/p>
+&lt;p>Beam has several varieties of UDFs:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/programming-guide/#pardo">&lt;em>DoFn&lt;/em>&lt;/a> - per-element processing function (used
+in &lt;code>ParDo&lt;/code>)&lt;/li>
+&lt;li>&lt;a href="/programming-guide/#setting-your-pcollections-windowing-function">&lt;em>WindowFn&lt;/em>&lt;/a> -
+places elements in windows and merges windows (used in &lt;code>Window&lt;/code> and
+&lt;code>GroupByKey&lt;/code>)&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#side-inputs">&lt;em>ViewFn&lt;/em>&lt;/a> - adapts a
+materialized &lt;code>PCollection&lt;/code> to a particular interface (used in side inputs)&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#side-inputs-windowing">&lt;em>WindowMappingFn&lt;/em>&lt;/a> -
+maps one element&amp;rsquo;s window to another, and specifies bounds on how far in the
+past the result window will be (used in side inputs)&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#combine">&lt;em>CombineFn&lt;/em>&lt;/a> - associative and
+commutative aggregation (used in &lt;code>Combine&lt;/code> and state)&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#data-encoding-and-type-safety">&lt;em>Coder&lt;/em>&lt;/a> -
+encodes user data; some coders have standard formats and are not really UDFs&lt;/li>
+&lt;/ul>
+&lt;p>Each language SDK has its own idiomatic way of expressing the user-defined
+functions in Beam, but there are common requirements. When you build user code
+for a Beam transform, you should keep in mind the distributed nature of
+execution. For example, there might be many copies of your function running on a
+lot of different machines in parallel, and those copies function independently,
+without communicating or sharing state with any of the other copies. Each copy
+of your user code function might be retried or run multiple times, depending on
+the pipeline runner and the processing backend that you choose for your
+pipeline. Beam also supports stateful processing through the
+&lt;a href="/blog/stateful-processing/">stateful processing API&lt;/a>.&lt;/p>
+&lt;p>For more information about user-defined functions, see the following pages:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms">Requirements for writing user code for Beam transforms&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#pardo">Beam Programming Guide: ParDo&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/programming-guide/#setting-your-pcollections-windowing-function">Beam Programming Guide: WindowFn&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#combine">Beam Programming Guide: CombineFn&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#data-encoding-and-type-safety">Beam Programming Guide: Coder&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#side-inputs">Beam Programming Guide: Side inputs&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h3 id="schema">Schema&lt;/h3>
+&lt;p>A schema is a language-independent type definition for a &lt;code>PCollection&lt;/code>. The
+schema for a &lt;code>PCollection&lt;/code> defines elements of that &lt;code>PCollection&lt;/code> as an ordered
+list of named fields. Each field has a name, a type, and possibly a set of user
+options.&lt;/p>
+&lt;p>In many cases, the element type in a &lt;code>PCollection&lt;/code> has a structure that can be
+introspected. Some examples are JSON, Protocol Buffer, Avro, and database row
+objects. All of these formats can be converted to Beam Schemas. Even within a
+SDK pipeline, Simple Java POJOs (or equivalent structures in other languages)
+are often used as intermediate types, and these also have a clear structure that
+can be inferred by inspecting the class. By understanding the structure of a
+pipeline’s records, we can provide much more concise APIs for data processing.&lt;/p>
+&lt;p>Beam provides a collection of transforms that operate natively on schemas. For
+example, &lt;a href="/documentation/dsls/sql/overview/">Beam SQL&lt;/a> is a common transform
+that operates on schemas. These transforms allow selections and aggregations in
+terms of named schema fields. Another advantage of schemas is that they allow
+referencing of element fields by name. Beam provides a selection syntax for
+referencing fields, including nested and repeated fields.&lt;/p>
+&lt;p>For more information about schemas, see the following pages:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/programming-guide/#schemas">Beam Programming Guide: Schemas&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/patterns/schema/">Schema Patterns&lt;/a>&lt;/li>
+&lt;/ul>
 &lt;h3 id="runner">Runner&lt;/h3>
-&lt;p>The term &amp;ldquo;runner&amp;rdquo; is used for a couple of things. It generally refers to the
-software that takes a Beam pipeline and executes it somehow. Often, this is the
-translation code that you write. It usually also includes some customized
-operators for your data processing engine, and is sometimes used to refer to
-the full stack.&lt;/p>
-&lt;p>A runner has just a single method &lt;code>run(Pipeline)&lt;/code>. From here on, I will often
-use code font for proper nouns in our APIs, whether or not the identifiers
-match across all SDKs.&lt;/p>
-&lt;p>The &lt;code>run(Pipeline)&lt;/code> method should be asynchronous and results in a
-PipelineResult which generally will be a job descriptor for your data
-processing engine, providing methods for checking its status, canceling it, and
-waiting for it to terminate.&lt;/p></description></item><item><title>Documentation: Beam glossary</title><link>/documentation/glossary/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/glossary/</guid><description>
+&lt;p>A Beam runner runs a Beam pipeline on a specific platform. Most runners are
+translators or adapters to massively parallel big data processing systems, such
+as Apache Flink, Apache Spark, Google Cloud Dataflow, and more. For example, the
+Flink runner translates a Beam pipeline into a Flink job. The Direct Runner runs
+pipelines locally so you can test, debug, and validate that your pipeline
+adheres to the Apache Beam model as closely as possible.&lt;/p>
+&lt;p>For an up-to-date list of Beam runners and which features of the Apache Beam
+model they support, see the runner
+&lt;a href="/documentation/runners/capability-matrix/">capability matrix&lt;/a>.&lt;/p>
+&lt;p>For more information about runners, see the following pages:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/#choosing-a-runner">Choosing a Runner&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/runners/capability-matrix/">Beam Capability Matrix&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Documentation: Beam glossary</title><link>/documentation/glossary/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/glossary/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4304,6 +4397,11 @@ Depending on the pipeline runner and back-end that you choose, many different
 workers across a cluster may execute instances of your user code in parallel.
 The user code running on each worker generates the output elements that are
 ultimately added to the final output &lt;code>PCollection&lt;/code> that the transform produces.&lt;/p>
+&lt;blockquote>
+&lt;p>Aggregation is an important concept to understand when learning about Beam&amp;rsquo;s
+transforms. For an introduction to aggregation, see the Basics of the Beam
+model &lt;a href="/documentation/basics/#aggregation">Aggregation section&lt;/a>.&lt;/p>
+&lt;/blockquote>
 &lt;p>The Beam SDKs contain a number of different transforms that you can apply to
 your pipeline&amp;rsquo;s &lt;code>PCollection&lt;/code>s. These include general-purpose core transforms,
 such as &lt;a href="#pardo">ParDo&lt;/a> or &lt;a href="#combine">Combine&lt;/a>. There are also pre-written
@@ -5285,6 +5383,19 @@ and max.&lt;/p>
 function. More complex combination operations might require you to create a
 &lt;span class="language-java language-py">subclass of&lt;/span> &lt;code>CombineFn&lt;/code>
 that has an accumulation type distinct from the input/output type.&lt;/p>
+&lt;p>The associativity and commutativity of a &lt;code>CombineFn&lt;/code> allows runners to
+automatically apply some optimizations:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Combiner lifting&lt;/strong>: This is the most significant optimization. Input
+elements are combined per key and window before they are shuffled, so the
+volume of data shuffled might be reduced by many orders of magnitude. Another
+term for this optimization is &amp;ldquo;mapper-side combine.&amp;rdquo;&lt;/li>
+&lt;li>&lt;strong>Incremental combining&lt;/strong>: When you have a &lt;code>CombineFn&lt;/code> that reduces the data
+size by a lot, it is useful to combine elements as they emerge from a
+streaming shuffle. This spreads out the cost of doing combines over the time
+that your streaming computation might be idle. Incremental combining also
+reduces the storage of intermediate accumulators.&lt;/li>
+&lt;/ul>
 &lt;h5 id="simple-combines">4.2.4.1. Simple combinations using simple functions&lt;/h5>
 &lt;p>The following example code shows a simple combine function.&lt;/p>
 &lt;div class='language-java snippet'>
