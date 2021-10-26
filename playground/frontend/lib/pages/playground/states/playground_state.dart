@@ -76,6 +76,11 @@ class PlaygroundState with ChangeNotifier {
     _source = source;
   }
 
+  clearOutput() {
+    _result = null;
+    notifyListeners();
+  }
+
   reset() {
     _sdk = SDK.java;
     _source = _selectedExample?.sources[_sdk] ?? "";
