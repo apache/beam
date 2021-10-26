@@ -4,7 +4,7 @@ name: LI Build Python Source Distribution
 
 on:
   push:
-    branches: ['li_trunk']
+    branches: ['li_trunk', 'li-release-*']
     tags: 'v*'
     paths: ['sdks/python/**', 'model/**', 'release/**']
 
