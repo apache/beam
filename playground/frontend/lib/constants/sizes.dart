@@ -30,6 +30,7 @@ const kIconButtonSplashRadius = 24.0;
 const kFooterHeight = 32.0;
 
 // border radius
+const double kSmBorderRadius = 4.0;
 const double kBorderRadius = 8.0;
 
 // elevation
