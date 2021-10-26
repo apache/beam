@@ -25,6 +25,7 @@ import (
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"github.com/google/uuid"
+	"log"
 )
 
 // playgroundController processes `gRPC' requests from clients.
@@ -89,9 +90,19 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 
 //GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetCompileOutput(ctx context.Context, info *pb.GetCompileOutputRequest) (*pb.GetCompileOutputResponse, error) {
-	// TODO implement this method
-	compileOutput := pb.GetCompileOutputResponse{Output: "test compile output"}
-	return &compileOutput, nil
+	pipelineId := info.PipelineUuid
+	compileOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.CompileOutput)
+	if err != nil {
+		log.Printf("%s: GetCompileOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
+		return nil, errors.NotFoundError("GetCompileOutput", "there is no compile output for pipelineId: "+pipelineId+", subKey: cache.SubKey_CompileOutput")
+	}
+	compileOutput, converted := compileOutputInterface.(string)
+	if !converted {
+		return nil, errors.InternalError("GetCompileOutput", "compile output can't be converted to string")
+	}
+	pipelineResult := pb.GetCompileOutputResponse{Output: compileOutput}
+
+	return &pipelineResult, nil
 }
 
 // setupLifeCycle creates fs_tool.LifeCycle and prepares files and folders needed to code processing
