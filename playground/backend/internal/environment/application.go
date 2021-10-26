@@ -88,8 +88,8 @@ func (ae *ApplicationEnvs) WorkingDir() string {
 	return ae.workingDir
 }
 
-func (ae *ApplicationEnvs) CacheEnvs() CacheEnvs {
-	return *ae.cacheEnvs
+func (ae *ApplicationEnvs) CacheEnvs() *CacheEnvs {
+	return ae.cacheEnvs
 }
 
 // PipelineExecuteTimeout returns pipelineExecuteTimeout
