@@ -122,10 +122,10 @@ func (l *LifeCycle) GetExecutableName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(dirEntries) != 1 {
-		return "", errors.New("number of executable files should be equal to one")
+	if len(dirEntries) < 1 {
+		return "", errors.New("number of executable files must be more than 0")
 	}
-	return strings.Split(dirEntries[0].Name(), ".")[0], nil
+	return strings.Split(dirEntries[len(dirEntries)-1].Name(), ".")[0], nil
 }
 
 // getFileName returns fileName by pipelineId and fileType ({pipelineId}.java for java SDK).
