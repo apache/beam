@@ -365,8 +365,8 @@ class _MergeTopPerBundle(core.DoFn):
               for element in bundle
           ]
           continue
-        # TODO(robertwb): Remove once legacy dataflow correctly handles
-        # coders with combiner packing and/or is deprecated.
+        # TODO(BEAM-13117): Remove this workaround once legacy dataflow
+        # correctly handles coders with combiner packing and/or is deprecated.
         if not isinstance(bundle, list):
           bundle = list(bundle)
         for element in reversed(bundle):
