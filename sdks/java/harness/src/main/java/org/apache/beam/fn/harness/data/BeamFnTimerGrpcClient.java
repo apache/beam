@@ -23,15 +23,9 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 
-/**
- * A {@link BeamFnTimerClient} that uses gRPC for sending and receiving timers.
- *
- * <p>TODO: Handle closing clients that are currently not a consumer nor are being consumed.
- */
+/** A {@link BeamFnTimerClient} that uses gRPC for sending and receiving timers. */
 public class BeamFnTimerGrpcClient implements BeamFnTimerClient {
   private final BeamFnDataClient beamFnDataClient;
   private final ApiServiceDescriptor timerApiServiceDescriptor;
@@ -43,62 +37,12 @@ public class BeamFnTimerGrpcClient implements BeamFnTimerClient {
   }
 
   @Override
-  public <K> TimerHandler<K> register(
-      LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder, FnDataReceiver<Timer<K>> receiver) {
+  public <K> CloseableFnDataReceiver<Timer<K>> register(
+      LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder) {
     checkArgument(
         timerEndpoint.isTimer(),
         "Expected to receive timer endpoint but received %s",
         timerEndpoint);
-    InboundDataClient inbound =
-        beamFnDataClient.receive(timerApiServiceDescriptor, timerEndpoint, coder, receiver);
-    CloseableFnDataReceiver<Timer<K>> outbound =
-        beamFnDataClient.send(timerApiServiceDescriptor, timerEndpoint, coder);
-
-    return new TimerHandler<K>() {
-      @Override
-      public void flush() throws Exception {
-        outbound.flush();
-      }
-
-      @Override
-      public void close() throws Exception {
-        outbound.close();
-      }
-
-      @Override
-      public void accept(Timer<K> input) throws Exception {
-        outbound.accept(input);
-      }
-
-      @Override
-      public void awaitCompletion() throws InterruptedException, Exception {
-        inbound.awaitCompletion();
-      }
-
-      @Override
-      public void runWhenComplete(Runnable completeRunnable) {
-        inbound.runWhenComplete(completeRunnable);
-      }
-
-      @Override
-      public boolean isDone() {
-        return inbound.isDone();
-      }
-
-      @Override
-      public void cancel() {
-        inbound.cancel();
-      }
-
-      @Override
-      public void complete() {
-        inbound.complete();
-      }
-
-      @Override
-      public void fail(Throwable t) {
-        inbound.fail(t);
-      }
-    };
+    return beamFnDataClient.send(timerApiServiceDescriptor, timerEndpoint, coder);
   }
 }

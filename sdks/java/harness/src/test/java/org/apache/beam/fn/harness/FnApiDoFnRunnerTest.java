@@ -914,28 +914,46 @@ public class FnApiDoFnRunnerTest implements Serializable {
       mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y1"), new Instant(1100L)));
       mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X2"), new Instant(1200L)));
       mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y2"), new Instant(1300L)));
-      fakeTimerClient.sendTimer(
-          eventTimer, timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)));
-      fakeTimerClient.sendTimer(
-          eventTimer, timerInGlobalWindow("B", new Instant(1500L), new Instant(2500L)));
+
+      context
+          .getIncomingTimerEndpoint(eventTimer.getTimerFamilyId())
+          .getReceiver()
+          .accept(timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)));
+      context
+          .getIncomingTimerEndpoint(eventTimer.getTimerFamilyId())
+          .getReceiver()
+          .accept(timerInGlobalWindow("B", new Instant(1500L), new Instant(2500L)));
       // This will be ignored since there are earlier timers, and the earlier timer will eventually
       // push the timer past 1600L.
-      fakeTimerClient.sendTimer(
-          eventTimer, timerInGlobalWindow("A", new Instant(1600L), new Instant(2600L)));
+      context
+          .getIncomingTimerEndpoint(eventTimer.getTimerFamilyId())
+          .getReceiver()
+          .accept(timerInGlobalWindow("A", new Instant(1600L), new Instant(2600L)));
       // This will be ignored since the timer was already cleared in this bundle.
-      fakeTimerClient.sendTimer(
-          processingTimer, timerInGlobalWindow("X", new Instant(1700L), new Instant(2700L)));
-      fakeTimerClient.sendTimer(
-          processingTimer, timerInGlobalWindow("C", new Instant(1800L), new Instant(2800L)));
-      fakeTimerClient.sendTimer(
-          processingTimer, timerInGlobalWindow("B", new Instant(1500), new Instant(10032)));
-      fakeTimerClient.sendTimer(
-          eventFamilyTimer,
-          dynamicTimerInGlobalWindow("B", "event-timer2", new Instant(2000L), new Instant(1650L)));
-      fakeTimerClient.sendTimer(
-          processingFamilyTimer,
-          dynamicTimerInGlobalWindow(
-              "Y", "processing-timer2", new Instant(2100L), new Instant(3100L)));
+      context
+          .getIncomingTimerEndpoint(processingTimer.getTimerFamilyId())
+          .getReceiver()
+          .accept(timerInGlobalWindow("X", new Instant(1700L), new Instant(2700L)));
+      context
+          .getIncomingTimerEndpoint(processingTimer.getTimerFamilyId())
+          .getReceiver()
+          .accept(timerInGlobalWindow("C", new Instant(1800L), new Instant(2800L)));
+      context
+          .getIncomingTimerEndpoint(processingTimer.getTimerFamilyId())
+          .getReceiver()
+          .accept(timerInGlobalWindow("B", new Instant(1500), new Instant(10032)));
+      context
+          .getIncomingTimerEndpoint(eventFamilyTimer.getTimerFamilyId())
+          .getReceiver()
+          .accept(
+              dynamicTimerInGlobalWindow(
+                  "B", "event-timer2", new Instant(2000L), new Instant(1650L)));
+      context
+          .getIncomingTimerEndpoint(processingFamilyTimer.getTimerFamilyId())
+          .getReceiver()
+          .accept(
+              dynamicTimerInGlobalWindow(
+                  "Y", "processing-timer2", new Instant(2100L), new Instant(3100L)));
 
       assertThat(
           mainOutputValues,
@@ -974,10 +992,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertFalse(fakeTimerClient.isOutboundClosed(processingTimer));
       assertFalse(fakeTimerClient.isOutboundClosed(eventFamilyTimer));
       assertFalse(fakeTimerClient.isOutboundClosed(processingFamilyTimer));
-      fakeTimerClient.closeInbound(eventTimer);
-      fakeTimerClient.closeInbound(processingTimer);
-      fakeTimerClient.closeInbound(eventFamilyTimer);
-      fakeTimerClient.closeInbound(processingFamilyTimer);
 
       // Timers will get delivered to the client when finishBundle is called.
       Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
