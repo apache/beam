@@ -21,6 +21,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/assets.dart';
+import 'package:playground/modules/shortcuts/components/shortcuts_modal.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum HeaderAction {
@@ -50,9 +51,14 @@ const kBeamWebsiteLink = "https://beam.apache.org/";
 
 const kAboutBeamText = "About Apache Beam";
 
-class MoreActions extends StatelessWidget {
+class MoreActions extends StatefulWidget {
   const MoreActions({Key? key}) : super(key: key);
 
+  @override
+  State<MoreActions> createState() => _MoreActionsState();
+}
+
+class _MoreActionsState extends State<MoreActions> {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -69,6 +75,12 @@ class MoreActions extends StatelessWidget {
             child: ListTile(
               leading: SvgPicture.asset(kShortcutsIconAsset),
               title: const Text(kShortcutsText),
+              onTap: () => {
+                showDialog<void>(
+                  context: context,
+                  builder: (BuildContext context) => const ShortcutsModal(),
+                )
+              },
             ),
           ),
           PopupMenuItem<HeaderAction>(

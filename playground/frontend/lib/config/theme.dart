@@ -101,6 +101,16 @@ TabBarTheme createTabBarTheme(Color textColor, Color indicatorColor) {
   );
 }
 
+DialogTheme createDialogTheme(Color textColor) {
+  return DialogTheme(
+    titleTextStyle: TextStyle(
+      color: textColor,
+      fontSize: 32.0,
+      fontWeight: kBoldWeight,
+    ),
+  );
+}
+
 final kLightTheme = ThemeData(
   brightness: Brightness.light,
   primaryColor: kLightPrimary,
@@ -111,6 +121,7 @@ final kLightTheme = ThemeData(
   textButtonTheme: createTextButtonTheme(kLightText),
   elevatedButtonTheme: createElevatedButtonTheme(kLightPrimary),
   tabBarTheme: createTabBarTheme(kLightText, kLightPrimary),
+  dialogTheme: createDialogTheme(kLightText),
 );
 
 final kDarkTheme = ThemeData(
@@ -123,6 +134,7 @@ final kDarkTheme = ThemeData(
   textButtonTheme: createTextButtonTheme(kDarkText),
   elevatedButtonTheme: createElevatedButtonTheme(kDarkPrimary),
   tabBarTheme: createTabBarTheme(kDarkText, kDarkPrimary),
+  dialogTheme: createDialogTheme(kDarkText),
 );
 
 class ThemeColors {
