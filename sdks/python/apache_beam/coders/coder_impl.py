@@ -1219,7 +1219,6 @@ class _AbstractIterable(object):
 
 FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
 
-
 _iterable_coder_uses_abstract_iterable_by_default = False
 
 
