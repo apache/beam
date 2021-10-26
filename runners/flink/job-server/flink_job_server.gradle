@@ -176,7 +176,6 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
         } else {
           excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
           excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
         }
