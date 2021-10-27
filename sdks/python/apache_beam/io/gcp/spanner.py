@@ -173,7 +173,7 @@ class ReadFromSpanner(ExternalTransform):
   Experimental; no backwards compatibility guarantees.
   """
 
-  URN = 'beam:external:java:spanner:read:v1'
+  URN = 'beam:transform:org.apache.beam:spanner_read:v1'
 
   def __init__(
       self,
@@ -375,7 +375,7 @@ def _add_doc(
 )
 class SpannerDelete(ExternalTransform):
 
-  URN = 'beam:external:java:spanner:delete:v1'
+  URN = 'beam:transform:org.apache.beam:spanner_delete:v1'
 
   @_add_doc(_INIT_DOC, operation='a delete')
   def __init__(
@@ -427,7 +427,7 @@ class SpannerDelete(ExternalTransform):
 )
 class SpannerInsert(ExternalTransform):
 
-  URN = 'beam:external:java:spanner:insert:v1'
+  URN = 'beam:transform:org.apache.beam:spanner_insert:v1'
 
   @_add_doc(_INIT_DOC, operation='an insert')
   def __init__(
@@ -479,7 +479,7 @@ class SpannerInsert(ExternalTransform):
 )
 class SpannerReplace(ExternalTransform):
 
-  URN = 'beam:external:java:spanner:replace:v1'
+  URN = 'beam:transform:org.apache.beam:spanner_replace:v1'
 
   @_add_doc(_INIT_DOC, operation='a replace')
   def __init__(
@@ -531,7 +531,7 @@ class SpannerReplace(ExternalTransform):
 )
 class SpannerInsertOrUpdate(ExternalTransform):
 
-  URN = 'beam:external:java:spanner:insert_or_update:v1'
+  URN = 'beam:transform:org.apache.beam:spanner_insert_or_update:v1'
 
   @_add_doc(_INIT_DOC, operation='an insert-or-update')
   def __init__(
@@ -583,7 +583,7 @@ class SpannerInsertOrUpdate(ExternalTransform):
 )
 class SpannerUpdate(ExternalTransform):
 
-  URN = 'beam:external:java:spanner:update:v1'
+  URN = 'beam:transform:org.apache.beam:spanner_update:v1'
 
   @_add_doc(_INIT_DOC, operation='an update')
   def __init__(

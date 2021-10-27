@@ -17,9 +17,9 @@
  */
 
 syntax = "proto3";
+option go_package = "beam.apache.org/playground/backend/internal;playground";
 
-option go_package = "github.com/apache/beam/playground/v1;playground";
-package playground.v1;
+package api.v1;
 
 enum Sdk {
   SDK_UNSPECIFIED = 0;
@@ -34,6 +34,8 @@ enum Status {
   STATUS_EXECUTING = 1;
   STATUS_FINISHED = 2;
   STATUS_ERROR = 3;
+  STATUS_COMPILE_ERROR = 4;
+  STATUS_RUN_TIMEOUT = 5;
 }
 
 // RunCodeRequest represents a code text and options of SDK which executes the code.

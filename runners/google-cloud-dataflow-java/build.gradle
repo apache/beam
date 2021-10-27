@@ -162,7 +162,6 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesPythonExpansionService',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-  'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
@@ -422,6 +421,7 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* BEAM-8543 */,
       'org.apache.beam.sdk.testing.UsesTestStream',
     ],
     excludedTests: [
@@ -456,11 +456,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded',
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded',
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
-
-      // TODO(BEAM-8543): streaming timers are not strictly time ordered
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOther',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInput',
 
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
 

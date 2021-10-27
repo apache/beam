@@ -33,7 +33,6 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ByteArrayKafkaRecord;
-import org.apache.beam.sdk.io.kafka.KafkaIO.Read.External;
 import org.apache.beam.sdk.io.kafka.KafkaIO.RowsWithMetadata;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -129,7 +128,9 @@ public class KafkaIOExternalTest {
                     .setUniqueName("test")
                     .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn(External.URN_WITH_METADATA)
+                            .setUrn(
+                                org.apache.beam.sdk.io.kafka.KafkaIO.Read.External
+                                    .URN_WITH_METADATA)
                             .setPayload(payload.toByteString())))
             .setNamespace("test_namespace")
             .build();
@@ -232,7 +233,9 @@ public class KafkaIOExternalTest {
                     .setUniqueName("test")
                     .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn(External.URN_WITHOUT_METADATA)
+                            .setUrn(
+                                org.apache.beam.sdk.io.kafka.KafkaIO.Read.External
+                                    .URN_WITHOUT_METADATA)
                             .setPayload(payload.toByteString())))
             .setNamespace("test_namespace")
             .build();
@@ -304,7 +307,7 @@ public class KafkaIOExternalTest {
                     .putInputs("input", inputPCollection)
                     .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn("beam:external:java:kafka:write:v1")
+                            .setUrn(org.apache.beam.sdk.io.kafka.KafkaIO.Write.External.URN)
                             .setPayload(payload.toByteString())))
             .setNamespace("test_namespace")
             .build();
