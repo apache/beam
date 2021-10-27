@@ -39,7 +39,7 @@ mkdir -p "$DOWNLOAD_DIR"
 cp -r "${EXISTING_LICENSE_DIR}"/*.jar "${DOWNLOAD_DIR}"
 
 # activate virtualenv
-virtualenv --python=python3 ${ENV_DIR} && . ${ENV_DIR}/bin/activate
+python3 -m venv ${ENV_DIR} && . ${ENV_DIR}/bin/activate
 
 # install packages
 ${ENV_DIR}/bin/pip install -r ${SCRIPT_DIR}/requirement.txt

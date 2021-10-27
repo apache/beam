@@ -44,7 +44,7 @@ def envdir = "${buildDir}/gradleenv"
 task setupVirtualenv {
   doLast {
     exec {
-      commandLine 'virtualenv', "${envdir}"
+      commandLine 'python', '-m', 'venv', "${envdir}"
     }
     exec {
       executable 'sh'
