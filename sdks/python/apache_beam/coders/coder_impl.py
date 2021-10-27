@@ -1219,6 +1219,7 @@ class _AbstractIterable(object):
 
 FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
 
+# TODO(BEAM-13066): Enable using abstract iterables permanently
 _iterable_coder_uses_abstract_iterable_by_default = False
 
 
