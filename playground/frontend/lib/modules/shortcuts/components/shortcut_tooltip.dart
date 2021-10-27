@@ -17,32 +17,24 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/constants/assets.dart';
-import 'package:playground/modules/actions/components/header_icon_button.dart';
-import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
-import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
+import 'package:playground/modules/shortcuts/models/shortcut.dart';
+import 'package:playground/modules/shortcuts/utils/shortcuts_display_name.dart';
 
-const kResetButtonText = "Reset";
+class ShortcutTooltip extends StatelessWidget {
+  final Shortcut shortcut;
+  final Widget child;
 
-class ResetAction extends StatelessWidget {
-  final VoidCallback reset;
-
-  const ResetAction({Key? key, required this.reset}) : super(key: key);
+  const ShortcutTooltip({
+    Key? key,
+    required this.shortcut,
+    required this.child,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ShortcutTooltip(
-      shortcut: kResetShortcut,
-      child: HeaderIconButton(
-        icon: SvgPicture.asset(
-          kResetIconAsset,
-          color: ThemeColors.of(context).grey1Color,
-        ),
-        label: kResetButtonText,
-        onPressed: reset,
-      ),
+    return Tooltip(
+      message: getShortcutDisplayName(shortcut),
+      child: child,
     );
   }
 }

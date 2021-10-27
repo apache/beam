@@ -17,12 +17,9 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/shortcuts/models/shortcut.dart';
-
-const kMetaKeyName = 'CMD/CTRL';
-const kShortcutKeyJoinSymbol = ' + ';
+import 'package:playground/modules/shortcuts/utils/shortcuts_display_name.dart';
 
 class ShortcutRow extends StatelessWidget {
   final Shortcut shortcut;
@@ -37,27 +34,16 @@ class ShortcutRow extends StatelessWidget {
       children: [
         Container(
           decoration: BoxDecoration(
-            border: Border.all(
-              color: primaryColor,
-            ),
+            border: Border.all(color: primaryColor),
             borderRadius: BorderRadius.circular(kSmBorderRadius),
           ),
           padding: const EdgeInsets.all(kMdSpacing),
           child: Text(
-            shortcut.shortcuts.keys
-                .map((e) => getKeyDisplayName(e))
-                .join(kShortcutKeyJoinSymbol),
+            getShortcutDisplayName(shortcut),
             style: TextStyle(color: primaryColor),
           ),
         ),
       ],
     );
-  }
-
-  String getKeyDisplayName(LogicalKeyboardKey e) {
-    if (e.keyId == LogicalKeyboardKey.meta.keyId) {
-      return kMetaKeyName;
-    }
-    return e.keyLabel;
   }
 }
