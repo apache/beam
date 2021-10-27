@@ -16,13 +16,30 @@
  * limitations under the License.
  */
 
+/**
+ * Build a Docker image to bootstrap FlinkJobServerDriver which requires a Java environment.
+ * Alternatively, it can also be bootstrapped through the runShadow goal
+ * or by directly running the generated JAR file.
+ */
 
-plugins {
-    id 'com.bmuschko.docker-remote-api' version '6.7.0'
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'base'
+applyDockerNature()
+
+// Resolve the Flink project name (and version) the job-server-container is based on
+def playgroundJobServerProject = "${project.path.replace('-container', '')}"
+
+description = project(playgroundJobServerProject).description + " :: Container"
+
+configurations {
+  dockerDependency
 }
-import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
 
-task prepareBuild(type: Copy) {
+dependencies {
+  dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
+}
+
+task copyDockerfileDependencies(type: Copy) {
    copy {
       from '../../../backend/'
       into 'build/src'
@@ -38,8 +55,14 @@ task prepareBuild(type: Copy) {
    }
 }
 
-task buildImage(type: DockerBuildImage) {
-    dependsOn prepareBuild
-    inputDir = file('build/')
-    images.add('playground-backend')
+docker {
+  name containerImageName(
+          name: project.docker_image_default_repo_prefix + "playground-backend",
+          root: repoName)
+  files "./build/"
+  tags "latest"
+  buildArgs(['BASE_IMAGE': baseImage ])
 }
+
+// Ensure that we build the required resources and copy and file dependencies from related projects
+dockerPrepare.dependsOn copyDockerfileDependencies
