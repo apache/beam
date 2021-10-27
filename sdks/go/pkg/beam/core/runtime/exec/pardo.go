@@ -324,8 +324,10 @@ func (n *ParDo) postInvoke() error {
 
 func (n *ParDo) fail(err error) error {
 	n.status = Broken
-	for _, s := range n.cache.sideinput {
-		s.Reset()
+	if n.cache != nil {
+		for _, s := range n.cache.sideinput {
+			s.Reset()
+		}
 	}
 	if err2, ok := err.(*doFnError); ok {
 		return err2
