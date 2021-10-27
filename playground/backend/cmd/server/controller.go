@@ -21,12 +21,14 @@ import (
 	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"github.com/google/uuid"
-	"log"
 )
 
+// playgroundController processes `gRPC' requests from clients.
+// Contains methods to process receiving code, monitor current status of code processing and receive compile/run output.
 type playgroundController struct {
 	env          *environment.Environment
 	cacheService cache.Cache
@@ -34,67 +36,37 @@ type playgroundController struct {
 	pb.UnimplementedPlaygroundServiceServer
 }
 
-//RunCode is running code from requests using a particular SDK
+// RunCode is running code from requests using a particular SDK
+// - In case of incorrect sdk returns codes.InvalidArgument
+// - In case of error during preparing files/folders returns codes.Internal
+// - In case of no errors saves playground.Status_STATUS_EXECUTING as cache.Status into cache and sets expiration time
+//   for all cache values which will be saved into cache during processing received code.
+//   Returns id of code processing (pipelineId)
 func (controller *playgroundController) RunCode(ctx context.Context, info *pb.RunCodeRequest) (*pb.RunCodeResponse, error) {
 	// check for correct sdk
 	switch info.Sdk {
 	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_GO, pb.Sdk_SDK_PYTHON, pb.Sdk_SDK_SCIO:
-		log.Printf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
+		logger.Errorf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Run code()", "unimplemented sdk: "+info.Sdk.String())
 	}
 
+	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
 	pipelineId := uuid.New()
 
-	defer func() {
-		log.Printf("RunCode() is completed for pipeline with id: %s\n", pipelineId)
-	}()
-
-	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
-
-	// create file system service
-	lc, err := fs_tool.NewLifeCycle(info.Sdk, pipelineId, controller.env.ApplicationEnvs.WorkingDir())
+	lc, err := setupLifeCycle(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir())
 	if err != nil {
-		log.Printf("%s: RunCode(): NewLifeCycle(): %s\n", pipelineId, err.Error())
-		return nil, errors.InternalError("Run code", "Error during creating file system service: "+err.Error())
+		return nil, errors.InternalError("Run code", "Error during setup file system: "+err.Error())
 	}
 
-	// create folders
-	err = lc.CreateFolders()
-	if err != nil {
-		log.Printf("%s: RunCode(): CreateFolders(): %s\n", pipelineId, err.Error())
-		return nil, errors.InternalError("Run code()", "Error during preparing folders: "+err.Error())
-	}
-
-	// create file with code
-	_, err = lc.CreateExecutableFile(info.Code)
-	if err != nil {
-		log.Printf("%s: RunCode(): CreateExecutableFile(): %s\n", pipelineId, err.Error())
-		return nil, errors.InternalError("Run code()", "Error during creating file with code: "+err.Error())
-	}
-
-	filePath := lc.GetAbsoluteExecutableFilePath()
-	workingDir := lc.GetAbsoluteExecutableFilesFolderPath()
-
-	// create executor
-	val := setupValidators(info.Sdk, filePath)
-	exec := executors.NewExecutorBuilder().
-		WithValidator().
-		WithSdkValidators(val).
-		WithCompiler().
-		WithCommand(controller.env.BeamSdkEnvs.ExecutorConfig.CompileCmd).
-		WithArgs(controller.env.BeamSdkEnvs.ExecutorConfig.CompileArgs).
-		WithFileName(filePath).
-		WithWorkingDir(workingDir)
+	compileBuilder := setupCompileBuilder(lc, info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
 
 	setToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)
-
-	err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime)
-	if err != nil {
-		log.Printf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
+	if err := controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
+		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
 		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
 	}
 
-	go processCode(ctx, controller.cacheService, lc, exec, pipelineId, controller.env)
+	go processCode(ctx, controller.cacheService, lc, compileBuilder, pipelineId, controller.env, info.Sdk)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil
@@ -122,7 +94,77 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 	return &compileOutput, nil
 }
 
-// setupValidators returns validators based on sdk
+// setupLifeCycle creates fs_tool.LifeCycle and prepares files and folders needed to code processing
+func setupLifeCycle(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string) (*fs_tool.LifeCycle, error) {
+	// create file system service
+	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, workingDir)
+	if err != nil {
+		logger.Errorf("%s: RunCode(): NewLifeCycle(): %s\n", pipelineId, err.Error())
+		return nil, err
+	}
+
+	// create folders
+	err = lc.CreateFolders()
+	if err != nil {
+		logger.Errorf("%s: RunCode(): CreateFolders(): %s\n", pipelineId, err.Error())
+		return nil, err
+	}
+
+	// create file with code
+	_, err = lc.CreateExecutableFile(code)
+	if err != nil {
+		logger.Errorf("%s: RunCode(): CreateExecutableFile(): %s\n", pipelineId, err.Error())
+		return nil, err
+	}
+	return lc, nil
+}
+
+// setupCompileBuilder returns executors.CompileBuilder with validators and compiler based on sdk
+func setupCompileBuilder(lc *fs_tool.LifeCycle, sdk pb.Sdk, executorConfig *environment.ExecutorConfig) *executors.CompileBuilder {
+	filePath := lc.GetAbsoluteExecutableFilePath()
+	val := setupValidators(sdk, filePath)
+
+	compileBuilder := executors.NewExecutorBuilder().
+		WithValidator().
+		WithSdkValidators(val).
+		WithCompiler()
+
+	switch sdk {
+	case pb.Sdk_SDK_JAVA:
+		workingDir := lc.GetAbsoluteExecutableFilesFolderPath()
+
+		compileBuilder = compileBuilder.
+			WithCommand(executorConfig.CompileCmd).
+			WithArgs(executorConfig.CompileArgs).
+			WithFileName(filePath).
+			WithWorkingDir(workingDir)
+	}
+	return compileBuilder
+}
+
+// setupRunBuilder returns executors.RunBuilder based on sdk
+func setupRunBuilder(pipelineId uuid.UUID, lc *fs_tool.LifeCycle, sdk pb.Sdk, env *environment.Environment, compileBuilder *executors.CompileBuilder) (*executors.RunBuilder, error) {
+	runBuilder := compileBuilder.
+		WithRunner().
+		WithCommand(env.BeamSdkEnvs.ExecutorConfig.RunCmd).
+		WithArgs(env.BeamSdkEnvs.ExecutorConfig.RunArgs).
+		WithWorkingDir(lc.GetAbsoluteExecutableFilesFolderPath())
+
+	switch sdk {
+	case pb.Sdk_SDK_JAVA:
+		className, err := lc.ExecutableName(pipelineId, env.ApplicationEnvs.WorkingDir())
+		if err != nil {
+			logger.Errorf("%s: get executable file name: %s\n", pipelineId, err.Error())
+			return nil, err
+		}
+
+		runBuilder = runBuilder.
+			WithClassName(className)
+	}
+	return runBuilder, nil
+}
+
+// setupValidators returns slice of validators.Validator based on sdk
 func setupValidators(sdk pb.Sdk, filepath string) *[]validators.Validator {
 	var val *[]validators.Validator
 	switch sdk {
@@ -133,83 +175,79 @@ func setupValidators(sdk pb.Sdk, filepath string) *[]validators.Validator {
 }
 
 // processCode validates, compiles and runs code by pipelineId.
-// During each operation updates status of execution and saves it into cache.
-// In case of some step is failed saves output logs to cache.
-// After success code running saves output to cache.
-// At the end of this method deletes all created folders
-func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, execBuilder *executors.CompileBuilder, pipelineId uuid.UUID, env *environment.Environment) {
+// During each operation updates status of execution and saves it into cache:
+// - In case of validation step is failed saves playground.Status_STATUS_ERROR as cache.Status into cache.
+// - In case of compile step is failed saves playground.Status_STATUS_COMPILE_ERROR as cache.Status and compile logs as cache.CompileOutput into cache.
+// - In case of compile step is completed with no errors saves empty string ("") as cache.CompileOutput into cache.
+// - In case of run step is failed saves playground.Status_STATUS_ERROR as cache.Status and run logs as cache.RunOutput into cache.
+// - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
+// At the end of this method deletes all created folders.
+func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, compileBuilder *executors.CompileBuilder, pipelineId uuid.UUID, env *environment.Environment, sdk pb.Sdk) {
 	defer cleanUp(pipelineId, lc)
 
-	exec := execBuilder.Build()
+	// build executor for validate and compile steps
+	exec := compileBuilder.Build()
 
 	// validate
-	log.Printf("%s: Validate() ...\n", pipelineId)
-
+	logger.Infof("%s: Validate() ...\n", pipelineId)
 	validateFunc := exec.Validate()
 	if err := validateFunc(); err != nil {
 		// error during validation
 		// TODO move to processError when status for validation error will be added
-		log.Printf("%s: Validate: %s\n", pipelineId, err.Error())
+		logger.Errorf("%s: Validate: %s\n", pipelineId, err.Error())
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
 		return
 	}
-	log.Printf("%s: Validate() finish\n", pipelineId)
+	logger.Infof("%s: Validate() finish\n", pipelineId)
 
 	// compile
-	log.Printf("%s: Compile() ...\n", pipelineId)
+	logger.Infof("%s: Compile() ...\n", pipelineId)
 	compileCmd := exec.Compile()
 	if data, err := compileCmd.CombinedOutput(); err != nil {
 		processError(ctx, err, data, pipelineId, cacheService, pb.Status_STATUS_COMPILE_ERROR)
 		return
 	}
-	log.Printf("%s: Compile() finish\n", pipelineId)
+	logger.Infof("%s: Compile() finish\n", pipelineId)
 
 	// set empty value to pipelineId: cache.SubKey_CompileOutput
 	setToCache(ctx, cacheService, pipelineId, cache.CompileOutput, "")
 
-	className, err := lc.ExecutableName(pipelineId, env.ApplicationEnvs.WorkingDir())
+	runBuilder, err := setupRunBuilder(pipelineId, lc, sdk, env, compileBuilder)
 	if err != nil {
-		log.Printf("%s: get executable file name: %s\n", pipelineId, err.Error())
+		logger.Errorf("%s: error during setup runBuilder: %s\n", pipelineId, err.Error())
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
 		return
 	}
 
-	exec = execBuilder.
-		WithRunner().
-		WithCommand(env.BeamSdkEnvs.ExecutorConfig.RunCmd).
-		WithArgs(env.BeamSdkEnvs.ExecutorConfig.RunArgs).
-		WithClassName(className).
-		WithWorkingDir(lc.GetAbsoluteExecutableFilesFolderPath()).
-		Build()
+	// build executor for run step
+	exec = runBuilder.Build()
 
-	log.Printf("%s: Run() ...\n", pipelineId)
+	logger.Infof("%s: Run() ...\n", pipelineId)
 	runCmd := exec.Run()
-	data, err := runCmd.CombinedOutput()
-	if err != nil {
+	if data, err := runCmd.CombinedOutput(); err != nil {
 		// error during run code
 		processError(ctx, err, data, pipelineId, cacheService, pb.Status_STATUS_ERROR)
 		return
+	} else {
+		processSuccess(ctx, data, pipelineId, cacheService)
 	}
-	log.Printf("%s: Run() finish\n", pipelineId)
-	processSuccess(ctx, data, pipelineId, cacheService)
 }
 
 // cleanUp removes all prepared folders for received LifeCycle
 func cleanUp(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
-	log.Printf("%s: DeleteFolders() ...\n", pipelineId)
-	err := lc.DeleteFolders()
-	if err != nil {
-		log.Printf("%s: DeleteFolders(): %s\n", pipelineId, err.Error())
+	logger.Infof("%s: DeleteFolders() ...\n", pipelineId)
+	if err := lc.DeleteFolders(); err != nil {
+		logger.Error("%s: DeleteFolders(): %s\n", pipelineId, err.Error())
 	}
-	log.Printf("%s: DeleteFolders() complete\n", pipelineId)
-	log.Printf("%s: complete\n", pipelineId)
+	logger.Infof("%s: DeleteFolders() complete\n", pipelineId)
+	logger.Infof("%s: complete\n", pipelineId)
 }
 
 // processError processes error received during processing code via setting a corresponding status and output to cache
 func processError(ctx context.Context, err error, data []byte, pipelineId uuid.UUID, cacheService cache.Cache, status pb.Status) {
 	switch status {
 	case pb.Status_STATUS_ERROR:
-		log.Printf("%s: Run: err: %s, output: %s\n", pipelineId, err.Error(), data)
+		logger.Infof("%s: Run: err: %s, output: %s\n", pipelineId, err.Error(), data)
 
 		// set to cache pipelineId: cache.SubKey_RunOutput: err.Error()
 		setToCache(ctx, cacheService, pipelineId, cache.RunOutput, "error: "+err.Error()+", output: "+string(data))
@@ -217,7 +255,7 @@ func processError(ctx context.Context, err error, data []byte, pipelineId uuid.U
 		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
 	case pb.Status_STATUS_COMPILE_ERROR:
-		log.Printf("%s: Compile: err: %s, output: %s\n", pipelineId, err.Error(), data)
+		logger.Infof("%s: Compile: err: %s, output: %s\n", pipelineId, err.Error(), data)
 
 		// set to cache pipelineId: cache.SubKey_CompileOutput: err.Error()
 		setToCache(ctx, cacheService, pipelineId, cache.CompileOutput, "error: "+err.Error()+", output: "+string(data))
@@ -229,6 +267,8 @@ func processError(ctx context.Context, err error, data []byte, pipelineId uuid.U
 
 // processSuccess processes case after successful code processing via setting a corresponding status and output to cache
 func processSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, cacheService cache.Cache) {
+	logger.Infof("%s: Run() finish\n", pipelineId)
+
 	// set to cache pipelineId: cache.SubKey_RunOutput: output
 	setToCache(ctx, cacheService, pipelineId, cache.RunOutput, string(output))
 
@@ -238,8 +278,7 @@ func processSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, ca
 
 // setToCache puts value to cache by key and subKey
 func setToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, value interface{}) {
-	err := cacheService.SetValue(ctx, key, subKey, value)
-	if err != nil {
-		log.Printf("%s: cache.SetValue: %s\n", key, err.Error())
+	if err := cacheService.SetValue(ctx, key, subKey, value); err != nil {
+		logger.Errorf("%s: cache.SetValue: %s\n", key, err.Error())
 	}
 }
