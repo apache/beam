@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
+ARG BASE_IMAGE
 
 FROM golang:1.17-buster AS build
 
@@ -27,25 +28,28 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 &&\
 
 # Prepare Application
 COPY src /go/src/playground/backend
-COPY playground /go/src/playground/playground
+#COPY playground /go/src/playground/playground
 WORKDIR /go/src/playground/backend
-
+RUN ls
 # Build Application
 RUN go mod download &&\
-    go mod tidy &&\ 
+    go mod tidy &&\
     cd cmd/server &&\
-    go build -o /go/bin/server_java_backend 
+    go build -o /go/bin/server_java_backend
 
-FROM apache/beam_java8_sdk:2.33.0
+FROM $BASE_IMAGE
 ENV BEAM_VERSION=2.33.0
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
+ENV APP_WORK_DIR=/opt/playground/backend/
+ENV BEAM_SDK="SDK_JAVA"
 
 # Copy build result
-COPY --from=build /go/bin/server_java_backend /opt
+COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
+COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 
 # Install Beam DirectRunner
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java/$BEAM_VERSION/beam-runners-direct-java-$BEAM_VERSION.jar &&\
     mv beam-runners-direct-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-direct.jar
-
-ENTRYPOINT ["/opt/server_java_backend"]
+RUN printenv
+ENTRYPOINT ["/opt/playground/backend/server_java_backend"]
