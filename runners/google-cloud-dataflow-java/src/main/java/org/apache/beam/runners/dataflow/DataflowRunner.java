@@ -234,6 +234,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
 
+  private final Set<PCollection<?>> pCollectionsPreservedKeys;
   private final Set<PCollection<?>> pcollectionsRequiringAutoSharding;
 
   /**
@@ -475,6 +476,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.dataflowClient = DataflowClient.create(options);
     this.translator = DataflowPipelineTranslator.fromOptions(options);
     this.pcollectionsRequiringIndexedFormat = new HashSet<>();
+    this.pCollectionsPreservedKeys = new HashSet<>();
     this.pcollectionsRequiringAutoSharding = new HashSet<>();
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
   }
@@ -529,6 +531,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       overridesBuilder.add(
           PTransformOverride.of(
+              PTransformMatchers.groupIntoBatches(),
+              new GroupIntoBatchesOverride.StreamingGroupIntoBatchesOverrideFactory(this)));
+
+      overridesBuilder.add(
+          PTransformOverride.of(
               PTransformMatchers.groupWithShardableStates(),
               new GroupIntoBatchesOverride.StreamingGroupIntoBatchesWithShardedKeyOverrideFactory(
                   this)));
@@ -560,12 +567,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(GroupIntoBatches.class),
-                  new GroupIntoBatchesOverride.BatchGroupIntoBatchesOverrideFactory<>()))
+                  new GroupIntoBatchesOverride.BatchGroupIntoBatchesOverrideFactory<>(this)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(GroupIntoBatches.WithShardedKey.class),
-                  new GroupIntoBatchesOverride
-                      .BatchGroupIntoBatchesWithShardedKeyOverrideFactory<>()));
+                  new GroupIntoBatchesOverride.BatchGroupIntoBatchesWithShardedKeyOverrideFactory<>(
+                      this)));
 
       overridesBuilder
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
@@ -1490,6 +1497,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     pcollectionsRequiringIndexedFormat.add(pcol);
   }
 
+  void maybeRecordPCollectionPreservedKeys(PCollection<?> pcol) {
+    pCollectionsPreservedKeys.add(pcol);
+  }
+
   void maybeRecordPCollectionWithAutoSharding(PCollection<?> pcol) {
     // Auto-sharding is only supported in Streaming Engine.
     checkArgument(
@@ -1497,7 +1508,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         "Runner determined sharding not available in Dataflow for GroupIntoBatches for"
             + " non-Streaming-Engine jobs. In order to use runner determined sharding, please use"
             + " --streaming --enable_streaming_engine");
+    pCollectionsPreservedKeys.add(pcol);
     pcollectionsRequiringAutoSharding.add(pcol);
+  }
+
+  boolean doesPCollectionPreserveKeys(PCollection<?> pcol) {
+    return pCollectionsPreservedKeys.contains(pcol);
   }
 
   boolean doesPCollectionRequireAutoSharding(PCollection<?> pcol) {
