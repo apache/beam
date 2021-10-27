@@ -130,6 +130,9 @@ class SpannerReadIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_transaction_table_metrics_ok_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
     MetricsEnvironment.process_wide_container().reset()
 
     with beam.Pipeline(argv=self.args) as p:
@@ -150,6 +153,9 @@ class SpannerReadIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_transaction_table_metrics_error_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
     MetricsEnvironment.process_wide_container().reset()
 
     with self.assertRaises(Exception):
@@ -173,6 +179,9 @@ class SpannerReadIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_transaction_sql_metrics_ok_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
     MetricsEnvironment.process_wide_container().reset()
 
     with beam.Pipeline(argv=self.args) as p:
@@ -193,6 +202,9 @@ class SpannerReadIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_transaction_sql_metrics_error_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
     MetricsEnvironment.process_wide_container().reset()
 
     with self.assertRaises(Exception):
@@ -216,6 +228,9 @@ class SpannerReadIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_table_metrics_ok_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
     MetricsEnvironment.process_wide_container().reset()
 
     with beam.Pipeline(argv=self.args) as p:
@@ -232,6 +247,9 @@ class SpannerReadIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_table_metrics_error_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
     MetricsEnvironment.process_wide_container().reset()
 
     with self.assertRaises(Exception):
@@ -251,6 +269,9 @@ class SpannerReadIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_sql_metrics_ok_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
     MetricsEnvironment.process_wide_container().reset()
 
     with beam.Pipeline(argv=self.args) as p:
@@ -267,6 +288,9 @@ class SpannerReadIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_sql_metrics_error_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
     MetricsEnvironment.process_wide_container().reset()
 
     with self.assertRaises(Exception):

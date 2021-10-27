@@ -192,6 +192,9 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_metrics_ok_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
     MetricsEnvironment.process_wide_container().reset()
     _prefix = 'test_write_batches'
     mutations = [
@@ -218,6 +221,9 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_metrics_error_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
     MetricsEnvironment.process_wide_container().reset()
     _prefix = 'test_write_batches'
     mutations = [
