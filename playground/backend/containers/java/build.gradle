@@ -52,10 +52,14 @@ task copyDockerfileDependencies(type: Copy) {
 docker {
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "playground-backend",
-          root: repoName)
+          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+                  project.rootProject["docker-repository-root"] :
+                  project.docker_image_default_repo_root)
   files "./build/"
-  tags "latest"
-  buildArgs(['BASE_IMAGE': baseImage ])
+  tags project.rootProject.hasProperty(["image-tag"]) ?
+       project.rootProject["image-tag"] :
+       "latest"
+  buildArgs(['BASE_IMAGE': project.rootProject["base-image"] ])
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects
