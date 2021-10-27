@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 /**
- * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for configuring pipeline execution
- * for Amazon Web Services components.
+ * Defines serializers / deserializers for AWS.
  */
 @Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.kinesis.serde;
