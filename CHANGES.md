@@ -69,7 +69,6 @@
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Python GBK values will always be a generic iterable rather than sometimes being a list. This means that direct indexing and len will never work (rather than sometimes passing in tests and failing on production runners).
 
 ## Deprecations
 
