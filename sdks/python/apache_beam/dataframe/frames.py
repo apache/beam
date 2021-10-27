@@ -1468,7 +1468,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           else:
               m = x.std(ddof=0) ** 2 * n
               s = x.sum()
-              third_moment = (x.skew()*(m**(3/2)))/math.sqrt(n)
+              third_moment = (((x-x.mean())**3).sum())
           return pd.DataFrame(dict(m=[m], s=[s], n=[n], third_moment=[third_moment]))
 
       def combine_moments(data):
@@ -1496,7 +1496,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           elif m == 0:
               return float(0)
           else:
-              return (math.sqrt(n)*third_moment)/(m**(3/2))
+              return combined_n*math.sqrt(combined_n-1)/(combined_n-2)*third_moment/(m**(3/2))
 
       moments = expressions.ComputedExpression(
           'compute_moments',
