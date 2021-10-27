@@ -261,16 +261,28 @@ class RowCoderTest(unittest.TestCase):
     fields = [("field1", str), ("field2", int), ("field3", int)]
 
     expected = typing.NamedTuple('expected', fields)
-    reorder = typing.NamedTuple('reversed', fields[::-1])
+    reorder = schema_pb2.Schema(
+        id="new_order",
+        fields=[
+            schema_pb2.Field(
+                name="field3",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+                encoding_position=2),
+            schema_pb2.Field(
+                name="field2",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+                encoding_position=1),
+            schema_pb2.Field(
+                name="field1",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+                encoding_position=0)
+        ])
 
     old_coder = RowCoder.from_type_hint(expected, None)
-    new_coder = RowCoder.from_type_hint(reorder, None)
-
-    set_encoding_position(
-        reorder, [("field3", 2), ("field2", 1), ("field1", 0)])
+    new_coder = RowCoder(reorder)
 
     encode_expected = old_coder.encode(expected("foo", 7, 12))
-    encode_reorder = new_coder.encode(reorder(12, 7, "foo"))
+    encode_reorder = new_coder.encode(expected(12, 7, "foo"))
     self.assertEqual(encode_expected, encode_reorder)
 
   def test_encoding_position_add_fields(self):

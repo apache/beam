@@ -37,7 +37,6 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
 from apache_beam.typehints.schemas import PYTHON_ANY_URN
-from apache_beam.typehints.schemas import SCHEMA_REGISTRY
 from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import schema_from_element_type
@@ -165,12 +164,17 @@ class RowCoderImpl(StreamCoderImpl):
   def __init__(self, schema, components):
     self.schema = schema
     self.constructor = named_tuple_from_schema(schema)
-    self.components = list(c.get_impl() for c in components)
+    self.encoding_positions = list(range(len(self.schema.fields)))
+    if any(field.encoding_position for field in self.schema.fields):
+      self.encoding_positions = list(
+          field.encoding_position for field in self.schema.fields)
+    self.components = list(
+        components[self.encoding_positions.index(i)].get_impl()
+        for i in self.encoding_positions)
     self.has_nullable_fields = any(
         field.type.nullable for field in self.schema.fields)
 
   def encode_to_stream(self, value, out, nested):
-    self.schema = SCHEMA_REGISTRY.get_schema_by_id(self.schema.id)
     nvals = len(self.schema.fields)
     self.SIZE_CODER.encode_to_stream(nvals, out, True)
     attrs = [getattr(value, f.name) for f in self.schema.fields]
@@ -184,8 +188,6 @@ class RowCoderImpl(StreamCoderImpl):
           words[i // 8] |= is_null << (i % 8)
 
     self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
-    attrs_enc_pos = []
-
     for c, field, attr in zip(self.components, self.schema.fields, attrs):
       if attr is None:
         if not field.type.nullable:
@@ -193,10 +195,7 @@ class RowCoderImpl(StreamCoderImpl):
               "Attempted to encode null for non-nullable field \"{}\".".format(
                   field.name))
         continue
-      attrs_enc_pos.append((c, field.encoding_position, attr))
-    attrs_enc_pos = sorted(attrs_enc_pos, key=lambda x: x[1])
-    for c in attrs_enc_pos:
-      c[0].encode_to_stream(c[2], out, True)
+      c.encode_to_stream(attr, out, True)
 
   def decode_from_stream(self, in_stream, nested):
     nvals = self.SIZE_CODER.decode_from_stream(in_stream, True)

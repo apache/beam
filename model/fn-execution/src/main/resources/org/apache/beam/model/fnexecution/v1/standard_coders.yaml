@@ -412,22 +412,36 @@ examples:
 ---
 # Binary data generated with the python SDK:
 # 
-# fields = [("foo", str), ("bar", str)]
-# schema = typing.NamedTuple( "test", fields)
-# coder = RowCoder.from_type_hint(schema, None)
-# examples = (
-#             coder.encode(schema(foo="str1",bar="str2")),
-#             coder.encode(schema(bar="str2",foo="str1"))
-#            )
-# print("schema = %s" % coder.schema.SerializeToString())
-# for example in examples:
-#   print("example = %s" % example)
+# schema1 = schema_pb2.Schema(
+#    id="testcase",
+#    fields=[
+#      schema_pb2.Field(
+#        name="str",
+#        type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+#        encoding_position=2
+#      ),
+#      schema_pb2.Field(
+#        name="f_bool",
+#        type=schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN),
+#        encoding_position=0),
+#      schema_pb2.Field(
+#        name="i32",
+#        type=schema_pb2.FieldType(
+#          atomic_type=schema_pb2.INT32, nullable=True),
+#        encoding_position=1)
+#   ])
+#
+# coder = RowCoder(schema1)
+# c = coder.schema.SerializeToString()
+# print("payload = %s" % c)
+# test = typing.NamedTuple("test", [ ("f_bool", bool), ("i32", np.int32), ("str", str) ])
+# example = coder.encode(test(False,21,"str2"))
+# print("example = %s" % example)
 coder:
   urn: "beam:coder:row:v1"
-  payload: "\n\t\n\x03str\x1a\x02\x10\x07\n\x0e\n\x06f_bool\x1a\x02\x10\x08(\x01\x12$aae97d5f-8c88-42b1-a03a-9634f3ed9b29"
+  payload: "\n\x0b\n\x03str\x1a\x02\x10\x07(\x02\n\x0c\n\x06f_bool\x1a\x02\x10\x08\n\r\n\x03i32\x1a\x04\x08\x01\x10\x03(\x01\x12\x08"
 examples:
-  "\x02\x00\x04str2\x00": {str: "str2", f_bool: False}
-  "\x02\x00\x04str2\x00": {f_bool: False, str: "str2"}
+  "\x03\x00\x04str2\x00\x15": {f_bool: False, i32: 21, str: "str2"}
 
 ---
 
