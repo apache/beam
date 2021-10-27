@@ -164,7 +164,7 @@ func TestExecutor_Run(t *testing.T) {
 
 func TestBaseExecutorBuilder(t *testing.T) {
 	validatorsFuncs := validators.GetJavaValidators("filePath")
-	preparatorsFuncs := preparators.GetJavaPreparation("filePath")
+	preparatorsFuncs := preparators.GetJavaPreparators("filePath")
 
 	type args struct {
 		envs             environment.BeamEnvs

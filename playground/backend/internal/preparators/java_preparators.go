@@ -35,8 +35,8 @@ const (
 	tmpFileSuffix                     = "tmp"
 )
 
-// GetJavaPreparation returns preparation methods that should be applied to Java code
-func GetJavaPreparation(filePath string) *[]Preparator {
+// GetJavaPreparators returns preparation methods that should be applied to Java code
+func GetJavaPreparators(filePath string) *[]Preparator {
 	publicClassModification := Preparator{
 		Prepare: replace,
 		Args:    []interface{}{filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
@@ -45,8 +45,7 @@ func GetJavaPreparation(filePath string) *[]Preparator {
 		Prepare: replace,
 		Args:    []interface{}{filePath, packagePattern, emptyStringPattern},
 	}
-	preparation := []Preparator{publicClassModification, additionalPackage}
-	return &preparation
+	return &[]Preparator{publicClassModification, additionalPackage}
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern
@@ -84,7 +83,7 @@ func replace(args ...interface{}) error {
 	return nil
 }
 
-// writeWithReplace writes data with replacing all patterns to newPattern
+// writeWithReplace rewrites all lines from file with replacing all patterns to newPattern to another file
 func writeWithReplace(from *os.File, to *os.File, pattern, newPattern string) error {
 	newLine := false
 	reg := regexp.MustCompile(pattern)
@@ -102,7 +101,7 @@ func writeWithReplace(from *os.File, to *os.File, pattern, newPattern string) er
 	return scanner.Err()
 }
 
-// replaceAndWriteLine replaces pattern to newPattern and writes line to file
+// replaceAndWriteLine replaces pattern from line to newPattern and writes updated line to the file
 func replaceAndWriteLine(newLine bool, to *os.File, line string, reg *regexp.Regexp, newPattern string) error {
 	err := addNewLine(newLine, to)
 	if err != nil {

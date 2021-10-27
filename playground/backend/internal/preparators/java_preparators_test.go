@@ -77,7 +77,7 @@ func Test_replace(t *testing.T) {
 	}
 }
 
-func TestGetJavaPreparation(t *testing.T) {
+func TestGetJavaPreparators(t *testing.T) {
 	type args struct {
 		filePath string
 	}
@@ -94,7 +94,7 @@ func TestGetJavaPreparation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetJavaPreparation(tt.args.filePath); len(*got) != tt.want {
+			if got := GetJavaPreparators(tt.args.filePath); len(*got) != tt.want {
 				t.Errorf("GetJavaPreparation() returns %v Preparators, want %v", len(*got), tt.want)
 			}
 		})
