@@ -2786,7 +2786,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           'randomized_weights',
           assign_randomized_weights,
           [self._expr, weights._expr],
-          requires_partition_by=partitionings.Arbitrary(),
+          requires_partition_by=partitionings.Index(),
           preserves_partition_by=partitionings.Arbitrary()))
 
     return self_with_randomized_weights.nlargest(
