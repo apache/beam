@@ -37,7 +37,6 @@ type ScopedStateReader struct {
 	mgr    *StateChannelManager
 	instID instructionID
 
-	opened []io.Closer // track open readers to force close all
 	closed bool
 	mu     sync.Mutex
 
@@ -85,7 +84,6 @@ func (s *ScopedStateReader) openReader(ctx context.Context, id exec.StreamID, re
 		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
 	ret := readerFn(ch)
-	s.opened = append(s.opened, ret)
 	s.mu.Unlock()
 	return ret, nil
 }
@@ -107,10 +105,6 @@ func (s *ScopedStateReader) Close() error {
 	s.mu.Lock()
 	s.closed = true
 	s.mgr = nil
-	for _, r := range s.opened {
-		r.Close() // force close all opened readers
-	}
-	s.opened = nil
 	s.mu.Unlock()
 	return nil
 }
@@ -194,6 +188,9 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		get := resp.GetGet()
 		if get == nil { // no data associated with this segment.
 			r.eof = true
+			if err := r.Close(); err != nil {
+				return 0, err
+			}
 			return 0, io.EOF
 		}
 		r.token = get.GetContinuationToken()
@@ -211,6 +208,9 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		// If no data was copied, and this is the last segment anyway, return EOF now.
 		// This prevent spurious zero elements.
 		r.buf = nil
+		if err := r.Close(); err != nil {
+			return 0, err
+		}
 		return 0, io.EOF
 	case len(r.buf) == n:
 		r.buf = nil
