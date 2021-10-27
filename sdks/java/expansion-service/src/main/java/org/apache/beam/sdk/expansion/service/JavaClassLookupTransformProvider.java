@@ -325,7 +325,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
           }
           if (values != null) {
             @Nullable Row firstItem = values.iterator().next();
-            if (firstItem != null && !(firstItem.getSchema().assignableTo(arrayFieldSchema))) {
+            if (firstItem != null && !firstItem.getSchema().assignableTo(arrayFieldSchema)) {
               return false;
             }
           }

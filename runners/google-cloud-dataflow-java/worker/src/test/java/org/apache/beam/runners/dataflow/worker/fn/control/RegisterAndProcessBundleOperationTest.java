@@ -225,6 +225,7 @@ public class RegisterAndProcessBundleOperationTest {
                 BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
             .build());
     operation.finish();
+    assertEquals(false, operation.hasFailed());
 
     // Ensure on restart that we only send the process bundle request
     operation.start();
@@ -236,6 +237,7 @@ public class RegisterAndProcessBundleOperationTest {
                 BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
             .build());
     operation.finish();
+    assertEquals(false, operation.hasFailed());
   }
 
   @Test
@@ -261,7 +263,6 @@ public class RegisterAndProcessBundleOperationTest {
                           // Purposefully sleep simulating SDK harness doing work
                           Thread.sleep(100);
                           responseFuture.complete(responseFor(request).build());
-                          completeFuture(request, responseFuture);
                           return null;
                         });
                     return responseFuture;
@@ -283,6 +284,69 @@ public class RegisterAndProcessBundleOperationTest {
     operation.start();
     // This method blocks till the requests are completed
     operation.finish();
+    assertEquals(false, operation.hasFailed());
+
+    // Ensure that the messages were received
+    assertEquals(
+        requests.get(0),
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setInstructionId("777")
+            .setRegister(REGISTER_REQUEST)
+            .build());
+    assertEquals(
+        requests.get(1),
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setInstructionId("778")
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
+            .build());
+  }
+
+  @Test
+  public void testProcessingBundleBlocksOnFinishWithError() throws Exception {
+    List<BeamFnApi.InstructionRequest> requests = new ArrayList<>();
+    IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
+    ExecutorService executorService = Executors.newCachedThreadPool();
+    RegisterAndProcessBundleOperation operation =
+        new RegisterAndProcessBundleOperation(
+            idGenerator,
+            new TestInstructionRequestHandler() {
+              @Override
+              public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
+                requests.add(request);
+                switch (request.getRequestCase()) {
+                  case REGISTER:
+                    return CompletableFuture.completedFuture(responseFor(request).build());
+                  case PROCESS_BUNDLE:
+                    CompletableFuture<InstructionResponse> responseFuture =
+                        new CompletableFuture<>();
+                    executorService.submit(
+                        () -> {
+                          // Purposefully sleep simulating SDK harness doing work
+                          Thread.sleep(100);
+                          responseFuture.complete(responseFor(request).setError("error").build());
+                          return null;
+                        });
+                    return responseFuture;
+                  default:
+                    // Anything else hangs; nothing else should be blocking
+                    return new CompletableFuture<>();
+                }
+              }
+            },
+            mockBeamFnStateDelegator,
+            REGISTER_REQUEST,
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableTable.of(),
+            ImmutableMap.of(),
+            mockContext);
+
+    operation.start();
+    // This method blocks till the requests are completed
+    operation.finish();
+    assertEquals(true, operation.hasFailed());
 
     // Ensure that the messages were received
     assertEquals(

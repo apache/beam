@@ -320,7 +320,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               .apply(
                   "assignEventTimestamp",
                   WithTimestamps.<Row>of(row -> row.getDateTime(windowFieldIndex).toInstant())
-                      .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
+                      .withAllowedTimestampSkew(Duration.millis(Long.MAX_VALUE)))
               .setCoder(upstream.getCoder())
               .apply(Window.into(windowFn));
       return windowedStream;

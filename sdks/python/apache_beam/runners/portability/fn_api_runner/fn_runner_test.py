@@ -58,13 +58,11 @@ from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.tools import utils
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
@@ -171,6 +169,38 @@ class FnApiRunnerTest(unittest.TestCase):
           main | beam.FlatMap(cross_product, beam.pvalue.AsList(side)),
           equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'), ('a', 'y'), ('b', 'y'),
                     ('c', 'y')]))
+
+  @retry(stop=stop_after_attempt(3))
+  def test_pardo_side_input_dependencies(self):
+    with self.create_pipeline() as p:
+      inputs = [p | beam.Create([None])]
+      for k in range(1, 10):
+        inputs.append(
+            inputs[0] | beam.ParDo(
+                ExpectingSideInputsFn(f'Do{k}'),
+                *[beam.pvalue.AsList(inputs[s]) for s in range(1, k)]))
+
+  @unittest.skip('BEAM-13040')
+  @retry(stop=stop_after_attempt(3))
+  def test_pardo_side_input_sparse_dependencies(self):
+    with self.create_pipeline() as p:
+      inputs = []
+
+      def choose_input(s):
+        return inputs[(389 + s * 5077) % len(inputs)]
+
+      for k in range(30):
+        num_inputs = int((k * k % 16)**0.5)
+        if num_inputs == 0:
+          inputs.append(p | f'Create{k}' >> beam.Create([f'Create{k}']))
+        else:
+          inputs.append(
+              choose_input(0) | beam.ParDo(
+                  ExpectingSideInputsFn(f'Do{k}'),
+                  *[
+                      beam.pvalue.AsList(choose_input(s))
+                      for s in range(1, num_inputs)
+                  ]))
 
   @retry(stop=stop_after_attempt(3))
   def test_pardo_windowed_side_inputs(self):
@@ -2001,24 +2031,6 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
             default(),
             progress_request_frequency=0.5))
 
-  def test_lull_logging(self):
-
-    try:
-      utils.check_compiled('apache_beam.runners.worker.opcounters')
-    except RuntimeError:
-      self.skipTest('Cython is not available')
-
-    with self.assertLogs(level='WARNING') as logs:
-      with self.create_pipeline() as p:
-        sdk_worker.DEFAULT_LOG_LULL_TIMEOUT_NS = 1000 * 1000  # Lull after 1 ms
-
-        _ = (p | beam.Create([1]) | beam.Map(time.sleep))
-
-    self.assertRegex(
-        ''.join(logs.output),
-        '.*Operation ongoing for over.*',
-        'Unable to find a lull logged for this job.')
-
 
 class StateBackedTestElementType(object):
   live_element_count = 0
@@ -2081,6 +2093,20 @@ class CustomMergingWindowFn(window.WindowFn):
 
   def get_window_coder(self):
     return coders.IntervalWindowCoder()
+
+
+class ExpectingSideInputsFn(beam.DoFn):
+  def __init__(self, name):
+    self._name = name
+
+  def default_label(self):
+    return self._name
+
+  def process(self, element, *side_inputs):
+    logging.info('Running %s (side inputs: %s)', self._name, side_inputs)
+    if not all(list(s) for s in side_inputs):
+      raise ValueError(f'Missing data in side input {side_inputs}')
+    yield self._name
 
 
 if __name__ == '__main__':

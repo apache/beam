@@ -17,12 +17,80 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:code_text_field/code_text_field.dart';
+import 'package:flutter_highlight/themes/vs.dart';
+import 'package:flutter_highlight/themes/darcula.dart';
+import 'package:highlight/languages/java.dart';
+import 'package:highlight/languages/python.dart';
+import 'package:highlight/languages/scala.dart';
+import 'package:highlight/languages/go.dart';
+import 'package:playground/config/theme.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:provider/provider.dart';
 
-class EditorTextArea extends StatelessWidget {
-  const EditorTextArea({Key? key}) : super(key: key);
+class EditorTextArea extends StatefulWidget {
+  final SDK sdk;
+  final ExampleModel? example;
+  final void Function(String) onSourceChange;
+
+  const EditorTextArea({
+    Key? key,
+    required this.sdk,
+    this.example,
+    required this.onSourceChange,
+  }) : super(key: key);
+
+  @override
+  _EditorTextAreaState createState() => _EditorTextAreaState();
+}
+
+class _EditorTextAreaState extends State<EditorTextArea> {
+  CodeController? _codeController;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: true);
+    _codeController = CodeController(
+      text: _codeController?.text ?? widget.example?.sources[widget.sdk] ?? "",
+      language: _getLanguageFromSdk(),
+      theme: themeProvider.isDarkMode ? darculaTheme : vsTheme,
+      onChange: (newSource) => widget.onSourceChange(newSource),
+      webSpaceFix: false,
+    );
+    super.didChangeDependencies();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _codeController?.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('Editor Text Area'));
+    return CodeField(
+      controller: _codeController!,
+      textStyle: const TextStyle(fontFamily: 'SourceCode'),
+      expands: true,
+    );
+  }
+
+  _getLanguageFromSdk() {
+    switch (widget.sdk) {
+      case SDK.java:
+        return java;
+      case SDK.go:
+        return go;
+      case SDK.python:
+        return python;
+      case SDK.scio:
+        return scala;
+    }
   }
 }

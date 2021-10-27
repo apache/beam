@@ -357,7 +357,7 @@ class DockerEnvironment(Environment):
     # type: (str, Iterable[beam_runner_api_pb2.ArtifactInformation], Optional[Mapping[str, bytes]]) -> DockerEnvironment
     return cls(
         container_image=container_image,
-        capabilities=python_sdk_capabilities(),
+        capabilities=python_sdk_docker_capabilities(),
         artifacts=artifacts,
         resource_hints=resource_hints)
 
@@ -775,6 +775,10 @@ class PyPIArtifactRegistry(object):
 def python_sdk_capabilities():
   # type: () -> List[str]
   return list(_python_sdk_capabilities_iter())
+
+
+def python_sdk_docker_capabilities():
+  return python_sdk_capabilities() + [common_urns.protocols.SIBLING_WORKERS.urn]
 
 
 def _python_sdk_capabilities_iter():

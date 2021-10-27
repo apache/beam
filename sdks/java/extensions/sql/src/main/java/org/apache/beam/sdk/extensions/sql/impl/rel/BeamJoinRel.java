@@ -275,7 +275,7 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
       // input is Seekable
       if (relInput != null
           && relInput instanceof BeamRelNode
-          && (BeamJoinRel.seekable((BeamRelNode) relInput))) {
+          && BeamJoinRel.seekable((BeamRelNode) relInput)) {
         return true;
       }
     }
