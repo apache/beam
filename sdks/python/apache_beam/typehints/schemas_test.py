@@ -224,28 +224,25 @@ class SchemaTest(unittest.TestCase):
                         name='name',
                         type=schema_pb2.FieldType(
                             atomic_type=schema_pb2.STRING),
-                        encoding_position=0),
+                    ),
                     schema_pb2.Field(
                         name='age',
                         type=schema_pb2.FieldType(
-                            nullable=True, atomic_type=schema_pb2.INT64),
-                        encoding_position=1),
+                            nullable=True, atomic_type=schema_pb2.INT64)),
                     schema_pb2.Field(
                         name='interests',
                         type=schema_pb2.FieldType(
                             array_type=schema_pb2.ArrayType(
                                 element_type=schema_pb2.FieldType(
-                                    atomic_type=schema_pb2.STRING))),
-                        encoding_position=2),
+                                    atomic_type=schema_pb2.STRING)))),
                     schema_pb2.Field(
                         name='height',
                         type=schema_pb2.FieldType(
-                            atomic_type=schema_pb2.DOUBLE),
-                        encoding_position=3),
+                            atomic_type=schema_pb2.DOUBLE)),
                     schema_pb2.Field(
                         name='blob',
-                        type=schema_pb2.FieldType(atomic_type=schema_pb2.BYTES),
-                        encoding_position=4),
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.BYTES)),
                 ])))
 
     # Only test that the fields are equal. If we attempt to test the entire type

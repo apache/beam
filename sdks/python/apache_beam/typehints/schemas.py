@@ -139,7 +139,7 @@ def named_fields_to_schema(names_and_types):
   return schema_pb2.Schema(
       fields=[
           schema_pb2.Field(name=name, type=typing_to_runner_api(type))
-          for (name, type) in enumerate(names_and_types)
+          for (name, type) in names_and_types
       ],
       id=str(uuid4()))
 
@@ -156,7 +156,6 @@ def typing_to_runner_api(type_):
     if hasattr(type_, _BEAM_SCHEMA_ID):
       schema = SCHEMA_REGISTRY.get_schema_by_id(getattr(type_, _BEAM_SCHEMA_ID))
     if schema is None:
-
       fields = [
           schema_pb2.Field(
               name=name, type=typing_to_runner_api(type_.__annotations__[name]))
