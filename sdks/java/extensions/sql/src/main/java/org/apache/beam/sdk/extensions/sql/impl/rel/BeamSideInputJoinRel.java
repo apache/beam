@@ -195,7 +195,7 @@ public class BeamSideInputJoinRel extends BeamJoinRel {
     String lhsSelect = org.apache.beam.sdk.schemas.transforms.Join.LHS_TAG + ".*";
     String rhsSelect = org.apache.beam.sdk.schemas.transforms.Join.RHS_TAG + ".*";
     PCollection<Row> selected =
-        (!swapped)
+        !swapped
             ? joined.apply(Select.<Row>fieldNames(lhsSelect, rhsSelect).withOutputSchema(schema))
             : joined.apply(Select.<Row>fieldNames(rhsSelect, lhsSelect).withOutputSchema(schema));
     return selected;

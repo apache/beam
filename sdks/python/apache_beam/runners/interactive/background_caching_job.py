@@ -88,7 +88,7 @@ class BackgroundCachingJob(object):
       time.sleep(0.5)
 
   def _should_end_condition_checker(self):
-    return any([l.is_triggered() for l in self._limiters])
+    return any(l.is_triggered() for l in self._limiters)
 
   def is_done(self):
     with self._result_lock:

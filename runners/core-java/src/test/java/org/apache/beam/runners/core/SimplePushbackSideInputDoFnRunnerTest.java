@@ -305,14 +305,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
 
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
-    runner.onTimer(
-        timerId,
-        "",
-        null,
-        window,
-        new Instant(timestamp),
-        new Instant(timestamp),
-        TimeDomain.EVENT_TIME);
+    runner.onTimer(timerId, "", null, window, timestamp, timestamp, TimeDomain.EVENT_TIME);
 
     assertThat(
         underlying.firedTimers,
@@ -396,8 +389,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     MetricsContainerImpl container = new MetricsContainerImpl("any");
     MetricsEnvironment.setCurrentContainer(container);
 
-    timerInternals.advanceInputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
-    timerInternals.advanceOutputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    timerInternals.advanceOutputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     PushbackSideInputDoFnRunner runner =
         createRunner(statefulRunner, ImmutableList.of(singletonView));

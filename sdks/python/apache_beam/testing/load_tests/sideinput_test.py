@@ -79,7 +79,7 @@ class SideInputTest(LoadTest):
   SDF_INITIAL_ELEMENTS = 1000
 
   def __init__(self):
-    super(SideInputTest, self).__init__()
+    super().__init__()
     self.windows = self.get_option_or_default('window_count', default=1)
 
     self.access_percentage = self.get_option_or_default(

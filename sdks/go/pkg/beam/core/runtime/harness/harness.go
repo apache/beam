@@ -47,8 +47,10 @@ const cacheSize = 20
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	hooks.DeserializeHooksFromOptions(ctx)
 
+	// Pass in the logging endpoint for use w/the default remote logging hook.
+	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
 	hooks.RunInitHooks(ctx)
-	setupRemoteLogging(ctx, loggingEndpoint)
+
 	recordHeader()
 
 	// Connect to FnAPI control server. Receive and execute work.
@@ -317,6 +319,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(ctx, instID, "Failed: %v", err)
 		}
 
+		// TODO(BEAM-11097): Get and set valid tokens in cache
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
 

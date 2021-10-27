@@ -230,7 +230,7 @@ class IOTest(unittest.TestCase):
         min(len(s) for s in splits), len(numbers) * 0.9**20 * 0.1)
 
   @parameterized.expand([
-      ('defaults', dict()),
+      ('defaults', {}),
       ('header', dict(header=1)),
       ('multi_header', dict(header=[0, 1])),
       ('multi_header', dict(header=[0, 1, 4])),

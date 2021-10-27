@@ -606,7 +606,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     @Override
     public boolean equals(@Nullable Object other) {
       if (other instanceof CountWindow) {
-        return value == (((CountWindow) other).value);
+        return value == ((CountWindow) other).value;
       }
       return false;
     }

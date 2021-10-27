@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
 _RUNNER_MAP = {
-    path.split('.')[-1].lower(): path
+    path.rsplit('.', maxsplit=1)[-1].lower(): path
     for path in StandardOptions.ALL_KNOWN_RUNNERS
 }
 

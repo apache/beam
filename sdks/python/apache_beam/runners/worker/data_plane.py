@@ -76,7 +76,7 @@ class ClosableOutputStream(OutputStream):
       close_callback=None  # type: Optional[Callable[[bytes], None]]
   ):
     # type: (...) -> None
-    super(ClosableOutputStream, self).__init__()
+    super().__init__()
     self._close_callback = close_callback
 
   def close(self):
@@ -117,7 +117,7 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
       flush_callback=None,  # type: Optional[Callable[[bytes], None]]
       size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD  # type: int
   ):
-    super(SizeBasedBufferingClosableOutputStream, self).__init__(close_callback)
+    super().__init__(close_callback)
     self._flush_callback = flush_callback
     self._size_flush_threshold = size_flush_threshold
 
@@ -147,8 +147,7 @@ class TimeBasedBufferingClosableOutputStream(
       time_flush_threshold_ms=_DEFAULT_TIME_FLUSH_THRESHOLD_MS  # type: int
   ):
     # type: (...) -> None
-    super(TimeBasedBufferingClosableOutputStream,
-          self).__init__(close_callback, flush_callback, size_flush_threshold)
+    super().__init__(close_callback, flush_callback, size_flush_threshold)
     assert time_flush_threshold_ms > 0
     self._time_flush_threshold_ms = time_flush_threshold_ms
     self._flush_lock = threading.Lock()
@@ -159,7 +158,7 @@ class TimeBasedBufferingClosableOutputStream(
   def flush(self):
     # type: () -> None
     with self._flush_lock:
-      super(TimeBasedBufferingClosableOutputStream, self).flush()
+      super().flush()
 
   def close(self):
     # type: () -> None
@@ -168,7 +167,7 @@ class TimeBasedBufferingClosableOutputStream(
       if self._periodic_flusher:
         self._periodic_flusher.cancel()
         self._periodic_flusher = None
-    super(TimeBasedBufferingClosableOutputStream, self).close()
+    super().close()
 
   def _schedule_periodic_flush(self):
     # type: () -> None
@@ -663,7 +662,7 @@ class GrpcClientDataChannel(_GrpcDataChannel):
       data_buffer_time_limit_ms=0  # type: int
   ):
     # type: (...) -> None
-    super(GrpcClientDataChannel, self).__init__(data_buffer_time_limit_ms)
+    super().__init__(data_buffer_time_limit_ms)
     self.set_inputs(data_stub.Data(self._write_outputs()))
 
 

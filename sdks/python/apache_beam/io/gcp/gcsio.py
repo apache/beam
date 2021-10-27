@@ -53,9 +53,9 @@ _LOGGER = logging.getLogger(__name__)
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
-  import apitools.base.py.transfer as transfer
   from apitools.base.py.batch import BatchApiRequest
   from apitools.base.py.exceptions import HttpError
+  from apitools.base.py import transfer
   from apache_beam.internal.gcp import auth
   from apache_beam.io.gcp.internal.clients import storage
 except ImportError:

@@ -69,7 +69,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.Builder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
@@ -139,7 +138,7 @@ public class CloudObjectsTest {
   public static class DefaultCoders {
     @Parameters(name = "{index}: {0}")
     public static Iterable<Coder<?>> data() {
-      Builder<Coder<?>> dataBuilder =
+      ImmutableList.Builder<Coder<?>> dataBuilder =
           ImmutableList.<Coder<?>>builder()
               .add(new ArbitraryCoder())
               .add(new ObjectCoder())

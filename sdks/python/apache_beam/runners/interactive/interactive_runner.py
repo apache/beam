@@ -203,7 +203,7 @@ class InteractiveRunner(runners.PipelineRunner):
       main_job_result.wait_until_finish()
 
     if main_job_result.state is beam.runners.runner.PipelineState.DONE:
-      # pylint: disable=dict-values-not-iterating
+      # pylint: disable=bad-option-value
       ie.current_env().mark_pcollection_computed(
           pipeline_instrument.cached_pcolls)
 
@@ -222,7 +222,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
           the pipeline being executed with interactivity applied and related
           metadata including where the interactivity-backing cache lies.
     """
-    super(PipelineResult, self).__init__(underlying_result.state)
+    super().__init__(underlying_result.state)
     self._underlying_result = underlying_result
     self._pipeline_instrument = pipeline_instrument
 

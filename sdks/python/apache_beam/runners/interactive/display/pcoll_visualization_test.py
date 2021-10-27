@@ -59,7 +59,7 @@ class PCollectionVisualizationTest(unittest.TestCase):
     ib.options.display_timezone = pytz.timezone('US/Pacific')
 
     self._p = beam.Pipeline(ir.InteractiveRunner())
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     self._pcoll = self._p | 'Create' >> beam.Create(range(5))
 
     ib.watch(self)

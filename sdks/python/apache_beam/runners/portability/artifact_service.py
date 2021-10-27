@@ -22,7 +22,6 @@ The staging service here can be backed by any beam filesystem.
 # pytype: skip-file
 
 import concurrent.futures
-import contextlib
 import hashlib
 import os
 import queue
@@ -77,8 +76,7 @@ class ArtifactRetrievalService(
     elif request.artifact.type_urn == common_urns.artifact_types.URL.urn:
       payload = proto_utils.parse_Bytes(
           request.artifact.type_payload, beam_runner_api_pb2.ArtifactUrlPayload)
-      # TODO(Py3): Remove the unneeded contextlib wrapper.
-      read_handle = contextlib.closing(urlopen(payload.url))
+      read_handle = urlopen(payload.url)
     elif request.artifact.type_urn == common_urns.artifact_types.EMBEDDED.urn:
       payload = proto_utils.parse_Bytes(
           request.artifact.type_payload,
@@ -290,6 +288,7 @@ def maybe_store_artifact(artifact, service, dest_dir):
   elif artifact.type_urn == common_urns.artifact_types.FILE.urn:
     payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
         artifact.type_payload)
+    # pylint: disable=condition-evals-to-constant
     if os.path.exists(
         payload.path) and payload.sha256 and payload.sha256 == sha256(
             payload.path) and False:

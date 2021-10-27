@@ -119,7 +119,7 @@ class RunnerIOOperation(operations.Operation):
   """Common baseclass for runner harness IO operations."""
 
   def __init__(self,
-               name_context,  # type: Union[str, common.NameContext]
+               name_context,  # type: common.NameContext
                step_name,  # type: Any
                consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
                counter_factory,  # type: counters.CounterFactory
@@ -129,8 +129,7 @@ class RunnerIOOperation(operations.Operation):
                data_channel  # type: data_plane.DataChannel
               ):
     # type: (...) -> None
-    super(RunnerIOOperation,
-          self).__init__(name_context, None, counter_factory, state_sampler)
+    super().__init__(name_context, None, counter_factory, state_sampler)
     self.windowed_coder = windowed_coder
     self.windowed_coder_impl = windowed_coder.get_impl()
     # transform_id represents the consumer for the bytes in the data plane for a
@@ -158,14 +157,14 @@ class DataOutputOperation(RunnerIOOperation):
   def finish(self):
     # type: () -> None
     self.output_stream.close()
-    super(DataOutputOperation, self).finish()
+    super().finish()
 
 
 class DataInputOperation(RunnerIOOperation):
   """A source-like operation that gathers input from the runner."""
 
   def __init__(self,
-               operation_name,  # type: Union[str, common.NameContext]
+               operation_name,  # type: common.NameContext
                step_name,
                consumers,  # type: Mapping[Any, List[operations.Operation]]
                counter_factory,  # type: counters.CounterFactory
@@ -175,7 +174,7 @@ class DataInputOperation(RunnerIOOperation):
                data_channel  # type: data_plane.GrpcClientDataChannel
               ):
     # type: (...) -> None
-    super(DataInputOperation, self).__init__(
+    super().__init__(
         operation_name,
         step_name,
         consumers,
@@ -201,7 +200,7 @@ class DataInputOperation(RunnerIOOperation):
 
   def start(self):
     # type: () -> None
-    super(DataInputOperation, self).start()
+    super().start()
     with self.splitting_lock:
       self.started = True
 
@@ -223,7 +222,7 @@ class DataInputOperation(RunnerIOOperation):
 
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):
     # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
-    all_monitoring_infos = super(DataInputOperation, self).monitoring_infos(
+    all_monitoring_infos = super().monitoring_infos(
         transform_id, tag_to_pcollection_id)
     read_progress_info = monitoring_infos.int64_counter(
         monitoring_infos.DATA_CHANNEL_READ_INDEX,
@@ -297,7 +296,7 @@ class DataInputOperation(RunnerIOOperation):
           element_primaries, element_residuals = split
           return index - 1, element_primaries, element_residuals, index + 1
     # Otherwise, split at the closest element boundary.
-    # pylint: disable=round-builtin
+    # pylint: disable=bad-option-value
     stop_index = index + max(1, int(round(current_element_progress + keep)))
     if allowed_split_points and stop_index not in allowed_split_points:
       # Choose the closest allowed split point.
@@ -330,7 +329,7 @@ class DataInputOperation(RunnerIOOperation):
     with self.splitting_lock:
       self.index = -1
       self.stop = float('inf')
-    super(DataInputOperation, self).reset()
+    super().reset()
 
 
 class _StateBackedIterable(object):

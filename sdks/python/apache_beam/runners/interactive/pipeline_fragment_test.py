@@ -49,7 +49,7 @@ class PipelineFragmentTest(unittest.TestCase):
       ib.watch(locals())
 
     with cell:  # Cell 2
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       init = p | 'Init' >> beam.Create(range(10))
       init_expected = p_expected | 'Init' >> beam.Create(range(10))
 
@@ -71,7 +71,7 @@ class PipelineFragmentTest(unittest.TestCase):
       ib.watch({'p': p})
 
     with cell:  # Cell 2
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       init = p | 'Init' >> beam.Create(range(10))
 
     with cell:  # Cell 3
@@ -100,7 +100,7 @@ class PipelineFragmentTest(unittest.TestCase):
       ib.watch({'p': p})
 
     with cell:  # Cell 2
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       init = p | 'Init' >> beam.Create(range(5))
 
     with cell:  # Cell 3
@@ -138,7 +138,7 @@ class PipelineFragmentTest(unittest.TestCase):
       ib.watch({'p': p})
 
     with cell:  # Cell 2
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       init = p | 'Init' >> beam.Create(range(5))
 
     with cell:  # Cell 3

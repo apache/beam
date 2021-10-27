@@ -267,6 +267,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 	if err != nil {
 		return err
 	}
+	n.cache.key = w
 	n.cache.sideinput = sideinput
 	for i := 0; i < len(n.Side); i++ {
 		n.cache.extra[i] = sideinput[i].Value()

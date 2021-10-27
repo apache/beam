@@ -997,7 +997,7 @@ class RunnerApiTest(unittest.TestCase):
         return p | beam.Create([None])
 
       def display_data(self):  # type: () -> dict
-        parent_dd = super(MyParentTransform, self).display_data()
+        parent_dd = super().display_data()
         parent_dd['p_dd_string'] = DisplayDataItem(
             'p_dd_string_value', label='p_dd_string_label')
         parent_dd['p_dd_string_2'] = DisplayDataItem('p_dd_string_value_2')
@@ -1011,7 +1011,7 @@ class RunnerApiTest(unittest.TestCase):
         return p | beam.Create([None])
 
       def display_data(self):  # type: () -> dict
-        parent_dd = super(MyPTransform, self).display_data()
+        parent_dd = super().display_data()
         parent_dd['dd_string'] = DisplayDataItem(
             'dd_string_value', label='dd_string_label')
         parent_dd['dd_string_2'] = DisplayDataItem('dd_string_value_2')
