@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -30,7 +31,6 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSe
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Minus;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.SetOp;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
  * {@code BeamRelNode} to replace a {@code Minus} node.
@@ -45,7 +45,7 @@ public class BeamMinusRel extends Minus implements BeamRelNode {
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats inputsEstimatesSummation =
         inputs.stream()
             .map(input -> BeamSqlRelUtils.getNodeStats(input, mq))
@@ -66,7 +66,7 @@ public class BeamMinusRel extends Minus implements BeamRelNode {
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     NodeStats firstInputEstimates = BeamSqlRelUtils.getNodeStats(inputs.get(0), mq);
     // The first input minus half of the others. (We are assuming half of them have intersection)
     for (int i = 1; i < inputs.size(); i++) {

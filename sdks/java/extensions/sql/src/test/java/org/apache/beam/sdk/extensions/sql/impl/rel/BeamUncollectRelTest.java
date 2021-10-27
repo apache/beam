@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -44,7 +45,8 @@ public class BeamUncollectRelTest extends BaseRelTest {
       root = root.getInput(0);
     }
 
-    return BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    return BeamSqlRelUtils.getNodeStats(
+        root, ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
   }
 
   @Test

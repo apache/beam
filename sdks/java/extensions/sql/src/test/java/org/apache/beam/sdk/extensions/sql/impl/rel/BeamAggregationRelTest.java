@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
@@ -103,7 +104,8 @@ public class BeamAggregationRelTest extends BaseRelTest {
       root = root.getInput(0);
     }
 
-    return BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    return BeamSqlRelUtils.getNodeStats(
+        root, ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
   }
 
   @Test
