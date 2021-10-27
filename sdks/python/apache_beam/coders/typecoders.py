@@ -80,12 +80,12 @@ __all__ = ['registry']
 
 class CoderRegistry(object):
   """A coder registry for typehint/coder associations."""
-  def __init__(self, fallback_coder=None):
+  def __init__(self):
     self._coders = {}  # type: Dict[Any, Type[coders.Coder]]
     self.custom_types = []  # type: List[Any]
-    self.register_standard_coders(fallback_coder)
+    self.register_standard_coders()
 
-  def register_standard_coders(self, fallback_coder):
+  def register_standard_coders(self):
     """Register coders for all basic and composite types."""
     # Coders without subclasses.
     self._register_coder_internal(int, coders.VarIntCoder)
@@ -97,8 +97,10 @@ class CoderRegistry(object):
     self._register_coder_internal(typehints.DictConstraint, coders.MapCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.
-    default_fallback_coders = [coders.ProtoCoder, coders.FastPrimitivesCoder]
-    self._fallback_coder = fallback_coder or FirstOf(default_fallback_coders)
+    default_fallback_coders = [
+        coders.ProtoCoder, coders.ProtoPlusCoder, coders.FastPrimitivesCoder
+    ]
+    self._fallback_coder = FirstOf(default_fallback_coders)
 
   def register_fallback_coder(self, fallback_coder):
     self._fallback_coder = FirstOf([fallback_coder, self._fallback_coder])
