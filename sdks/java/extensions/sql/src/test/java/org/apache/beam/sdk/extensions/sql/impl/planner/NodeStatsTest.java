@@ -88,7 +88,9 @@ public class NodeStatsTest extends BaseRelTest {
     // tests if we are actually testing what we want.
     Assert.assertTrue(root instanceof RelSubset);
 
-    NodeStats estimates = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    NodeStats estimates =
+        BeamSqlRelUtils.getNodeStats(
+            root, ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
     Assert.assertFalse(estimates.isUnknown());
   }
 }
