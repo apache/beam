@@ -37,7 +37,7 @@ _ReadSchema = typing.NamedTuple(
 
 def _default_io_expansion_service():
   return BeamJarExpansionService(
-    'sdks:java:io:google-cloud-platform:expansion-service')
+    'sdks:java:io:google-cloud-platform:expansion-service:shadowJar')
 
 
 class _ReadExternal(ExternalTransform):

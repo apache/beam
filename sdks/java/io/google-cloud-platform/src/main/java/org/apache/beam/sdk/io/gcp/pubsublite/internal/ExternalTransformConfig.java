@@ -43,7 +43,7 @@ class ExternalTransformConfig {
       builder.setTopicPath(TopicPath.parse(path));
     }
 
-    public void setAddUuids(boolean addUuids) {
+    public void setAddUuids(Boolean addUuids) {
       this.addUuids = addUuids;
     }
   }
@@ -76,11 +76,11 @@ class ExternalTransformConfig {
       builder.setSubscriptionPath(SubscriptionPath.parse(path));
     }
 
-    public void setMinBundleTimeout(long durationMillis) {
+    public void setMinBundleTimeout(Long durationMillis) {
       builder.setMinBundleTimeout(Duration.millis(durationMillis));
     }
 
-    public void setDeduplicate(boolean deduplicate) {
+    public void setDeduplicate(Boolean deduplicate) {
       this.deduplicate = deduplicate;
     }
   }
