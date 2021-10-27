@@ -159,7 +159,7 @@ cdef class _AbstractIterable:
 
 
 cdef class IterableCoderImpl(SequenceCoderImpl):
-  pass
+  cdef bint _use_abstract_iterable
 
 
 cdef class ListCoderImpl(SequenceCoderImpl):
