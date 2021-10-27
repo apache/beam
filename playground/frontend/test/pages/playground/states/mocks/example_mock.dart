@@ -17,22 +17,15 @@
  */
 
 import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
 
-const javaExample = 'java example';
+final ExampleModel exampleMock1 = ExampleModel(
+  source: 'ex1',
+  name: 'Example',
+  type: ExampleType.example,
+);
 
-const pythonExample = 'python example';
-
-const goExample = 'go example';
-
-const sdkMap = {
-  SDK.java: javaExample,
-  SDK.go: goExample,
-  SDK.python: pythonExample,
-};
-
-const ExampleModel exampleMock = ExampleModel(
-  sdkMap,
-  'Example',
-  ExampleType.example,
+final ExampleModel exampleMock2 = ExampleModel(
+  source: 'ex2',
+  name: 'Kata',
+  type: ExampleType.kata,
 );

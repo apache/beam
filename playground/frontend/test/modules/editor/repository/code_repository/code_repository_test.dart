@@ -18,6 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/check_status_response.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
@@ -26,7 +27,6 @@ import 'package:playground/modules/editor/repository/code_repository/code_reposi
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:mockito/mockito.dart';
 
 import 'code_repository_test.mocks.dart';
 
@@ -35,16 +35,16 @@ final kRequestMock = RunCodeRequestWrapper(
   sdk: SDK.java,
 );
 
-const kPipelineUuid = "1234";
-const kRunOutput = "RunOutput";
-const kCompileOutput = "CompileOutput";
+const kPipelineUuid = '1234';
+const kRunOutput = 'RunOutput';
+const kCompileOutput = 'CompileOutput';
 
 final kRunCodeResponse = RunCodeResponse(kPipelineUuid);
 final kFinishedStatusResponse = CheckStatusResponse(RunCodeStatus.finished);
 final kErrorStatusResponse = CheckStatusResponse(RunCodeStatus.error);
 final kRunOutputResponse = OutputResponse(kRunOutput);
 final kCompileOutputResponse = OutputResponse(kCompileOutput);
-final kEmptyCompileOutputResponse = OutputResponse("");
+final kEmptyCompileOutputResponse = OutputResponse('');
 
 @GenerateMocks([CodeClient])
 void main() {

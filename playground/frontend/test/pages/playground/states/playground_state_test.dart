@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 
 import 'mocks/example_mock.dart';
@@ -39,10 +39,10 @@ void main() {
   test('Playground state reset should set new state and notify all listeners',
       () {
     final state = PlaygroundState(sdk: SDK.go);
-    state.setSource("source");
+    state.setSource('source');
     state.addListener(() {
       expect(state.sdk, SDK.java);
-      expect(state.source, "");
+      expect(state.source, '');
     });
     state.reset();
   });
@@ -53,9 +53,9 @@ void main() {
     final state = PlaygroundState(sdk: SDK.go);
     state.addListener(() {
       expect(state.sdk, SDK.go);
-      expect(state.source, exampleMock.sources[SDK.go]);
-      expect(state.selectedExample, exampleMock);
+      expect(state.source, exampleMock1.source);
+      expect(state.selectedExample, exampleMock1);
     });
-    state.setExample(exampleMock);
+    state.setExample(exampleMock1);
   });
 }
