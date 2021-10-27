@@ -51,6 +51,13 @@ class PlaygroundPageProviders extends StatelessWidget {
 
             if (exampleState.defaultExamples != null &&
                 playground.selectedExample == null) {
+              final defaultExample =
+                  exampleState.defaultExamples![playground.sdk];
+              exampleState
+                  .getPrecompiledOutputs(defaultExample!.id!)
+                  .then((value) {
+                defaultExample.setOutputs(value);
+              });
               return PlaygroundState(
                 codeRepository: kCodeRepository,
                 sdk: playground.sdk,
