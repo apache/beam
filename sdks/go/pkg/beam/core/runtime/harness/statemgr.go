@@ -183,6 +183,7 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		}
 		resp, err := localChannel.Send(req)
 		if err != nil {
+			r.Close()
 			return 0, err
 		}
 		get := resp.GetGet()
