@@ -32,6 +32,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Remote packages can now be downloaded from locations supported by apache_beam.io.filesystems. The files will be downloaded on Stager and uploaded to staging location. For more information, see [BEAM-11275](https://issues.apache.org/jira/browse/BEAM-11275)
 
 ## Breaking Changes
 
@@ -49,6 +50,38 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
+# [2.35.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Add custom delimiters to Python TextIO reads ([BEAM-12730](https://issues.apache.org/jira/browse/BEAM-12730)).
+
+## Breaking Changes
+
+* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Python GBK values will always be a generic iterable rather than sometimes being a list. This means that direct indexing and len will never work (rather than sometimes passing in tests and failing on production runners).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Known Issues
+
+* ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 # [2.34.0] - Unreleased
 * Add an [example](https://github.com/cometta/python-apache-beam-spark) of deploying Python Apache Beam job with Spark Cluster
@@ -57,6 +90,7 @@
 * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 * The Beam Java API for Calcite SqlTransform is no longer experimental ([BEAM-12680](https://issues.apache.org/jira/browse/BEAM-12680)).
+* Python's ParDo (Map, FlatMap, etc.) transforms now suport a `with_exception_handling` option for easily ignoring bad records and implementing the dead letter pattern.
 
 ## I/Os
 
@@ -69,6 +103,10 @@
 
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Upgrade to Calcite 1.26.0 ([BEAM-9379](https://issues.apache.org/jira/browse/BEAM-9379)).
+* Added a new `dataframe` extra to the Python SDK that tracks `pandas` versions
+  we've verified compatibility with. We now recommend installing Beam with `pip
+  install apache-beam[dataframe]` when you intend to use the DataFrame API
+  ([BEAM-12906](https://issues.apache.org/jira/browse/BEAM-12906)).
 
 ## Breaking Changes
 
@@ -84,20 +122,18 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Fixed error while writing multiple DeferredFrames to csv (Python)
-([BEAM-12701](https://issues.apache.org/jira/browse/BEAM-12701)).
+* Fixed error while writing multiple DeferredFrames to csv (Python) ([BEAM-12701](https://issues.apache.org/jira/browse/BEAM-12701)).
+* Fixed error when importing the DataFrame API with pandas 1.0.x installed ([BEAM-12945](https://issues.apache.org/jira/browse/BEAM-12945)).
 * Fixed top.SmallestPerKey implementation in the Go SDK ([BEAM-12946](https://issues.apache.org/jira/browse/BEAM-12946)).
 
 ## Known Issues
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.33.0] - Unreleased
+# [2.33.0] - 2021-10-07
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 * Go SDK is no longer experimental, and is officially part of the Beam release process.
   * Matching Go SDK containers are published on release.
   * Batch usage is well supported, and tested on Flink, Spark, and the Python Portable Runner.
@@ -105,37 +141,43 @@
   * The SDK supports Splittable DoFns, Cross Language transforms, and most Beam Model basics.
   * Go Modules are now used for dependency management.
     * This is a breaking change, see Breaking Changes for resolution.
-    * Easier path to contribute to the Go SDK, no need to set up a GO_PATH.
+    * Easier path to contribute to the Go SDK, no need to set up a GO\_PATH.
     * Minimum Go version is now Go v1.16
-  * See the announcement blogpost for full information (TODO(lostluck): Add link once published.)
+  * See the announcement blogpost for full information once published.
 
+<!--
 ## I/Os
 
-* `DebeziumIO` now uses Debezium 1.7.0.Final ([BEAM-12993](https://issues.apache.org/jira/browse/BEAM-12993)).
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+-->
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Projection pushdown in SchemaIO ([BEAM-12609](https://issues.apache.org/jira/browse/BEAM-12609)).
 * Upgrade Flink runner to Flink versions 1.13.2, 1.12.5 and 1.11.4 ([BEAM-10955](https://issues.apache.org/jira/browse/BEAM-10955)).
 
 ## Breaking Changes
 
-* Python GBK by defualt will fail on unbounded PCollections that have global windowing and a default trigger. The `--allow_unsafe_triggers` flag can be used to override this. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
-* Python GBK will fail if it detects an unsafe trigger unless the `--allow_unsafe_triggers` flag is set. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 * Go SDK pipelines require new import paths to use this release due to migration to Go Modules.
   * `go.mod` files will need to change to require `github.com/apache/beam/sdks/v2`.
   * Code depending on beam imports need to include v2 on the module path.
     * Fix by'v2' to the import paths, turning  `.../sdks/go/...` to `.../sdks/v2/go/...`
   * No other code change should be required to use v2.33.0 of the Go SDK.
+* Since release 2.30.0, "The AvroCoder changes for BEAM-2303 \[changed\] the reader/writer from the Avro ReflectDatum* classes to the SpecificDatum* classes" (Java). This default behavior change has been reverted in this release. Use the `useReflectApi` setting to control it ([BEAM-12628](https://issues.apache.org/jira/browse/BEAM-12628)).
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Python GBK will stop supporting unbounded PCollections that have global windowing and a default trigger in Beam 2.34. This can be overriden with `--allow_unsafe_triggers`. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
+* Python GBK will start requiring safe triggers or the `--allow_unsafe_triggers` flag starting with Beam 2.34. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
+
+## Bug fixes
+
+* Workaround to not delete orphaned files to avoid missing events when using Python WriteToFiles in streaming pipeline ([BEAM-12950](https://issues.apache.org/jira/browse/BEAM-12950)))
 
 ## Known Issues
 
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Spark 2.x users will need to update Spark's Jackson runtime dependencies (`spark.jackson.version`) to at least version 2.9.2, due to Beam updating its dependencies.
+* Go SDK jobs may produce "Failed to deduce Step from MonitoringInfo" messages following successful job execution. The messages are benign and don't indicate job failure. These are due to not yet handling PCollection metrics.
 
 # [2.32.0] - 2021-08-25
 

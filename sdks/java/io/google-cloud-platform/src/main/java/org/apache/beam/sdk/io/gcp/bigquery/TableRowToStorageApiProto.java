@@ -35,6 +35,7 @@ import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.util.AbstractMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -162,7 +163,10 @@ public class TableRowToStorageApiProto {
     if (bqValue == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
-      } else {
+      } else if (fieldDescriptor.isRepeated()) {
+        return Collections.emptyList();
+      }
+      {
         throw new IllegalArgumentException(
             "Received null value for non-nullable field " + fieldDescriptor.getName());
       }
@@ -191,17 +195,7 @@ public class TableRowToStorageApiProto {
       FieldDescriptor fieldDescriptor, Object jsonBQValue, boolean isRepeated) {
     if (isRepeated) {
       return ((List<Object>) jsonBQValue)
-          .stream()
-              .map(
-                  v -> {
-                    if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
-                      return ((Map<String, Object>) v).get("v");
-                    } else {
-                      return v;
-                    }
-                  })
-              .map(v -> toProtoValue(fieldDescriptor, v, false))
-              .collect(toList());
+          .stream().map(v -> toProtoValue(fieldDescriptor, v, false)).collect(toList());
     }
 
     if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {

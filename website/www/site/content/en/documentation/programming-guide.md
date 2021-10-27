@@ -526,6 +526,10 @@ workers across a cluster may execute instances of your user code in parallel.
 The user code running on each worker generates the output elements that are
 ultimately added to the final output `PCollection` that the transform produces.
 
+> Aggregation is an important concept to understand when learning about Beam's
+> transforms. For an introduction to aggregation, see the Basics of the Beam
+> model [Aggregation section](/documentation/basics/#aggregation).
+
 The Beam SDKs contain a number of different transforms that you can apply to
 your pipeline's `PCollection`s. These include general-purpose core transforms,
 such as [ParDo](#pardo) or [Combine](#combine). There are also pre-written
@@ -1273,6 +1277,19 @@ Simple combine operations, such as sums, can usually be implemented as a simple
 function. More complex combination operations might require you to create a
 <span class="language-java language-py">subclass of</span> `CombineFn`
 that has an accumulation type distinct from the input/output type.
+
+The associativity and commutativity of a `CombineFn` allows runners to
+automatically apply some optimizations:
+
+ * **Combiner lifting**: This is the most significant optimization. Input
+   elements are combined per key and window before they are shuffled, so the
+   volume of data shuffled might be reduced by many orders of magnitude. Another
+   term for this optimization is "mapper-side combine."
+ * **Incremental combining**: When you have a `CombineFn` that reduces the data
+   size by a lot, it is useful to combine elements as they emerge from a
+   streaming shuffle. This spreads out the cost of doing combines over the time
+   that your streaming computation might be idle. Incremental combining also
+   reduces the storage of intermediate accumulators.
 
 ##### 4.2.4.1. Simple combinations using simple functions {#simple-combines}
 
@@ -5333,16 +5350,22 @@ program logic is resilient to this. Unit tests written using the DirectRunner wi
 processing, and are recommended to test for correctness.
 
 {{< paragraph class="language-java" >}}
-In Java DoFn declares states to be accessed by creating final `StateSpec` member variables representing each state. Each
+In Java, DoFn declares states to be accessed by creating final `StateSpec` member variables representing each state. Each
 state must be named using the `StateId` annotation; this name is unique to a ParDo in the graph and has no relation
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-In Python DoFn declares states to be accessed by creating `StateSpec` class member variables representing each state. Each
+In Python, DoFn declares states to be accessed by creating `StateSpec` class member variables representing each state. Each
 `StateSpec` is initialized with a name, this name is unique to a ParDo in the graph and has no relation
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
 {{< /paragraph >}}
+
+<span class="language-go">
+
+> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [BEAM-10660](https://issues.apache.org/jira/browse/BEAM-10660) to contribute.
+
+</span>
 
 ### 11.1. Types of state {#types-of-state}
 
@@ -5397,6 +5420,10 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'state pardo' >> beam.ParDo(ReadModifyWriteStateDoFn()))
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
+{{< /highlight >}}
+
 #### CombiningState
 
 `CombiningState` allows you to create a state object that is updated using a Beam combiner. For example, the previous
@@ -5423,6 +5450,10 @@ class CombiningStateDoFn(DoFn):
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'Combine state pardo' >> beam.ParDo(CombiningStateDofn()))
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 #### BagState
@@ -5467,6 +5498,10 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'Bag state pardo' >> beam.ParDo(BagStateDoFn()))
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
+{{< /highlight >}}
+
 ### 11.2. Deferred state reads {#deferred-state-reads}
 
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
@@ -5492,9 +5527,12 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-
 {{< highlight py >}}
 This is not supported yet, see BEAM-11506.
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
@@ -5583,6 +5621,10 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'EventTime timer pardo' >> beam.ParDo(EventTimerDoFn()))
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
+{{< /highlight >}}
+
 #### 11.3.2. Processing-time timers {#processing-time-timers}
 
 Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
@@ -5629,6 +5671,10 @@ class ProcessingTimerDoFn(DoFn):
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'ProcessingTime timer pardo' >> beam.ParDo(ProcessingTimerDoFn()))
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
@@ -5686,6 +5732,10 @@ class TimerDoFn(DoFn):
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'ProcessingTime timer pardo' >> beam.ParDo(TimerDoFn()))
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
@@ -5795,6 +5845,10 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 Timer output timestamps is not yet supported in Python SDK. See BEAM-11507.
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
+{{< /highlight >}}
+
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.
@@ -5835,6 +5889,10 @@ class StateDoFn(DoFn):
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'Windowing' >> beam.WindowInto(FixedWindows(60 * 60 * 24))
        | 'DoFn' >> beam.ParDo(StateDoFn()))
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -5915,6 +5973,10 @@ class UserDoFn(DoFn):
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'User DoFn' >> beam.ParDo(UserDoFn()))
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10660.
 {{< /highlight >}}
 
 ### 11.5. State and timers examples {#state-timers-examples}
@@ -6338,6 +6400,10 @@ resource utilization.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_UserInitiatedCheckpoint >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-11104.
+{{< /highlight >}}
+
 ### 12.4. Runner-initiated split {#runner-initiated-split}
 
 A runner at any time may attempt to split a restriction while it is being processed. This allows the
@@ -6425,6 +6491,10 @@ watermark estimator implementation. You can also provide your own watermark esti
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_CustomWatermarkEstimator >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-11105.
+{{< /highlight >}}
+
 ### 12.6. Truncating during drain {#truncating-during-drain}
 
 Runners which support draining pipelines need the ability to drain SDFs; otherwise, the
@@ -6441,6 +6511,10 @@ provider.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_Truncate >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+This is not supported yet, see BEAM-11106.
+{{< /highlight >}}
+
 ### 12.7. Bundle finalization {#bundle-finalization}
 
 Bundle finalization enables a `DoFn` to perform side effects by registering a callback.
@@ -6455,6 +6529,10 @@ use case.
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" BundleFinalize >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+This is not supported yet, see BEAM-10976.
 {{< /highlight >}}
 
 ## 13. Multi-language pipelines {#multi-language-pipelines}
@@ -6564,7 +6642,7 @@ $ jar -jar /path/to/expansion_service.jar <PORT_NUMBER>
 
 The expansion service is now ready to serve transforms on the specified port.
 
-When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the utilities [JavaJarExpansionService and BeamJarExpansionService](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) utility for starting up a Java expansion service using a JAR file.
+When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the utilities [`JavaJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService) and [`BeamJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService) for starting up a Java expansion service using a JAR file.
 
 **Including dependencies**
 
@@ -6572,12 +6650,12 @@ If your transform requires external libraries, you can include them by adding th
 
 **Writing SDK-specific wrappers**
 
-Your cross-language Java transform can be called through the lower-level [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) class in a multi-language pipeline (as described in the next section); however, if possible, you should create a SDK-specific wrapper written in the programming language of the pipeline (such as Python) to access the transform instead. This higher-level abstraction will make it easier for pipeline authors to use your transform.
+Your cross-language Java transform can be called through the lower-level [`ExternalTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform) class in a multi-language pipeline (as described in the next section); however, if possible, you should create a SDK-specific wrapper written in the programming language of the pipeline (such as Python) to access the transform instead. This higher-level abstraction will make it easier for pipeline authors to use your transform.
 
 To create an SDK wrapper for use in a Python pipeline, do the following:
 
 1. Create a Python module for your cross-language transform(s).
-2. In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes.
+2. In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available [`PayloadBuilder`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder) classes.
 
     The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java `ExternalTransformBuilder`. Parameter types are mapped across SDKs using a [Beam schema](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/schema.proto). Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).
 
@@ -6592,7 +6670,7 @@ class ReadFromKafkaSchema(typing.NamedTuple):
 payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
     {{< /highlight >}}
 
-3. Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities `JavaJarExpansionService` and `BeamJarExpansionService` for easily starting up an expansion service using a JAR file.. `JavaJarExpansionService` can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. `BeamJarExpansionService` can be used for easily starting an expansion service based on a JAR released with Beam.
+3. Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities [`JavaJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService) and [`BeamJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService) for easily starting up an expansion service using a JAR file.. [`JavaJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService) can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. [`BeamJarExpansionService`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService) can be used for easily starting an expansion service based on a JAR released with Beam.
 
     For transforms released with Beam do the following:
 
@@ -6602,7 +6680,7 @@ payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
         {{< highlight >}}
     expansion_service = BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
         {{< /highlight >}}
-4. Add a Python wrapper transform class that extends [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py). Pass the payload and expansion service defined above as parameters to the constructor of the `ExternalTransform` parent class.
+4. Add a Python wrapper transform class that extends [`ExternalTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform). Pass the payload and expansion service defined above as parameters to the constructor of the [`ExternalTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform) parent class.
 
 #### 13.1.2. Creating cross-language Python transforms
 
@@ -6695,7 +6773,7 @@ Currently, to access cross-language transforms from the Java SDK, you have to us
 
 #### 13.2.2. Using cross-language transforms in a Python pipeline
 
-If a Python-specific wrapper for a cross-language transform is available, use that; otherwise, you have to use the lower-level [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) class to access the transform.
+If a Python-specific wrapper for a cross-language transform is available, use that; otherwise, you have to use the lower-level [`ExternalTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform) class to access the transform.
 
 **Using an SDK wrapper**
 
@@ -6724,7 +6802,7 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
 2. Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
 
     Make sure the transform you're trying to use is available and can be used by the expansion service. For Java, make sure the builder and registrar for the transform are available in the classpath of the expansion service.
-3. Include `ExternalTransform` when instantiating your pipeline. Reference the URN, Payload, and expansion service. You can use one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes to build the payload for `ExternalTransform`.
+3. Include `ExternalTransform` when instantiating your pipeline. Reference the URN, Payload, and expansion service. You can use one of the available [`PayloadBuilder`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder) classes to build the payload for `ExternalTransform`.
 
     {{< highlight >}}
 with pipeline as p:
