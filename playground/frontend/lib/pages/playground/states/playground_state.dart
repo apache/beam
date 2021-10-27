@@ -47,7 +47,7 @@ class PlaygroundState with ChangeNotifier {
   }) {
     _selectedExample = selectedExample;
     _sdk = sdk;
-    _source = _selectedExample?.sources[_sdk] ?? "";
+    _source = _selectedExample?.sources[_sdk] ?? '';
     _codeRepository = codeRepository;
   }
 
@@ -83,7 +83,7 @@ class PlaygroundState with ChangeNotifier {
 
   reset() {
     _sdk = SDK.java;
-    _source = _selectedExample?.sources[_sdk] ?? "";
+    _source = _selectedExample?.sources[_sdk] ?? '';
     notifyListeners();
   }
 

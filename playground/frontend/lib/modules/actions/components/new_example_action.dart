@@ -21,7 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/modules/actions/components/header_icon_button.dart';
 
-const kNewExampleButtonText = "New Example";
+const kNewExampleButtonText = 'New Example';
 
 class NewExampleAction extends StatelessWidget {
   const NewExampleAction({Key? key}) : super(key: key);
@@ -34,7 +34,7 @@ class NewExampleAction extends StatelessWidget {
         color: ThemeColors.of(context).grey1Color,
       ),
       label: kNewExampleButtonText,
-      onPressed: () => launch("/"),
+      onPressed: () => launch('/'),
     );
   }
 }
