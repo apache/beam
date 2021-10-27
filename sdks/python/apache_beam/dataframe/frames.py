@@ -1280,6 +1280,68 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
+  def idxmin(self, **kwargs):
+    skipna = kwargs.get('skipna', True)
+
+    if not skipna:
+      raise NotImplementedError("Skipping nan is not yet supported.")
+
+    def compute_idxmin(s):
+      min_index = s.idxmin(**kwargs)
+      if pd.isna(min_index):
+        return s
+      else:
+        return s.loc[[min_index]]
+
+    idx_min = expressions.ComputedExpression(
+        'idx_min',
+        compute_idxmin, [self._expr],
+        proxy=pd.Series([1], index=['Z']),
+        requires_partition_by=partitionings.Index(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'idxmin_combine',
+              lambda s: s.idxmin(**kwargs), [idx_min],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def idxmax(self, **kwargs):
+    skipna = kwargs.get('skipna', True)
+
+    if not skipna:
+      raise NotImplementedError("Skipping nan is not yet supported.")
+
+    def compute_idxmax(s):
+      max_index = s.idxmax(**kwargs)
+      if pd.isna(max_index):
+        return s
+      else:
+        return s.loc[[max_index]]
+
+    idx_max = expressions.ComputedExpression(
+        'idx_max',
+        compute_idxmax, [self._expr],
+        proxy=pd.Series([1], index=['Z']),
+        requires_partition_by=partitionings.Index(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'idxmax_combine',
+              lambda s: s.idxmax(**kwargs), [idx_max],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
   def explode(self, ignore_index):
     # ignoring the index will not preserve it
     preserves = (
@@ -3318,6 +3380,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             proxy=proxy,
             preserves_partition_by=preserves,
             requires_partition_by=partitionings.Arbitrary()))
+
 
   shape = property(frame_base.wont_implement_method(
       pd.DataFrame, 'shape', reason="non-deferred-result"))

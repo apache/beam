@@ -499,7 +499,7 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
-            'pandas.core.series.Series.idxmin': ['*'],
+            'pandas.core.series.Series.idxmin': ['s.idxmin(skipna=False)'],
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
             # Raises right exception, but testing framework has matching issues.
