@@ -469,7 +469,7 @@ type GaugeValue struct {
 }
 
 type executionState struct {
-	state *ExecutionState
+	state [4]*ExecutionState
 }
 
 func (m *executionState) String() string {
@@ -733,9 +733,10 @@ func ResultsExtractor(ctx context.Context) Results {
 			m[l] = &gauge{v: v, t: t}
 		},
 		MsecsInt64: func(labels string, e [4]*ExecutionState) {
-			for l, s := range e {
-				m[PTransformLabels(labels+"_"+fmt.Sprint(l))] = &executionState{state: s}
-			}
+			// for l, s := range e {
+			// m[PTransformLabels(labels)] = &executionState{state: s}
+			// }
+			m[PTransformLabels(labels)] = &executionState{state: e}
 		},
 	}
 	e.ExtractFrom(store)
@@ -783,11 +784,18 @@ func ResultsExtractor(ctx context.Context) Results {
 			committed[key] = GaugeValue{opt.(*gauge).v, opt.(*gauge).t}
 			r.gauges = append(r.gauges, MergeGauges(attempted, committed)...)
 		case *executionState:
-			attempted := make(map[StepKey]MsecValue)
-			committed := make(map[StepKey]MsecValue)
-			attempted[key] = MsecValue{}
-			committed[key] = MsecValue{int64(opt.(*executionState).state.TotalTime)}
-			r.msecs = append(r.msecs, MergeMsecs(attempted, committed)...)
+			for _, v := range opt.(*executionState).state {
+				attempted := make(map[StepKey]MsecValue)
+				committed := make(map[StepKey]MsecValue)
+				attempted[key] = MsecValue{}
+				committed[key] = MsecValue{int64(v.TotalTime)}
+				r.msecs = append(r.msecs, MergeMsecs(attempted, committed)...)
+			}
+			// attempted := make(map[StepKey]MsecValue)
+			// committed := make(map[StepKey]MsecValue)
+			// attempted[key] = MsecValue{}
+			// committed[key] = MsecValue{int64(opt.(*executionState).state.TotalTime)}
+			// r.msecs = append(r.msecs, MergeMsecs(attempted, committed)...)
 		}
 	}
 	return r
