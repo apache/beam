@@ -132,19 +132,43 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             registrar.knownBuilderInstances().entrySet()) {
           String urn = entry.getKey();
           ExternalTransformBuilder builderInstance = entry.getValue();
-          builder.put(
-              urn,
-              spec -> {
-                try {
-                  Class configClass = getConfigClass(builderInstance);
-                  return builderInstance.buildExternal(
-                      payloadToConfig(
-                          ExternalConfigurationPayload.parseFrom(spec.getPayload()), configClass));
-                } catch (Exception e) {
-                  throw new RuntimeException(
-                      String.format("Failed to build transform %s from spec %s", urn, spec), e);
+          TransformProvider transformProvider =
+              new TransformProvider() {
+                @Override
+                public PTransform getTransform(RunnerApi.FunctionSpec spec) {
+                  try {
+                    Class configClass = getConfigClass(builderInstance);
+                    return builderInstance.buildExternal(
+                        payloadToConfig(
+                            ExternalConfigurationPayload.parseFrom(spec.getPayload()),
+                            configClass));
+                  } catch (Exception e) {
+                    throw new RuntimeException(
+                        String.format("Failed to build transform %s from spec %s", urn, spec), e);
+                  }
                 }
-              });
+
+                @Override
+                public List<String> getDependencies(
+                    RunnerApi.FunctionSpec spec, PipelineOptions options) {
+                  try {
+                    Class configClass = getConfigClass(builderInstance);
+                    Optional<List<String>> dependencies =
+                        builderInstance.getDependencies(
+                            payloadToConfig(
+                                ExternalConfigurationPayload.parseFrom(spec.getPayload()),
+                                configClass),
+                            options);
+                    return dependencies.orElseGet(
+                        () -> TransformProvider.super.getDependencies(spec, options));
+                  } catch (Exception e) {
+                    throw new RuntimeException(
+                        String.format("Failed to get dependencies of %s from spec %s", urn, spec),
+                        e);
+                  }
+                }
+              };
+          builder.put(urn, transformProvider);
         }
       }
 
@@ -371,6 +395,23 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       return extractOutputs(
           Pipeline.applyTransform(name, createInput(p, inputs), getTransform(spec)));
     }
+
+    default List<String> getDependencies(RunnerApi.FunctionSpec spec, PipelineOptions options) {
+      List<String> filesToStage = options.as(PortablePipelineOptions.class).getFilesToStage();
+      if (filesToStage == null || filesToStage.isEmpty()) {
+        ClassLoader classLoader = Environments.class.getClassLoader();
+        if (classLoader == null) {
+          throw new RuntimeException(
+              "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
+        }
+        filesToStage = detectClassPathResourcesToStage(classLoader, options);
+        if (filesToStage.isEmpty()) {
+          throw new IllegalArgumentException("No classpath elements found.");
+        }
+      }
+      LOG.debug("Staging to files from the classpath: {}", filesToStage.size());
+      return filesToStage;
+    }
   }
 
   private @MonotonicNonNull Map<String, TransformProvider> registeredTransforms;
@@ -434,22 +475,6 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
               + "native Read transform, your Pipeline will fail during Pipeline submission.");
     }
 
-    List<String> filesToStage = pipelineOptions.as(PortablePipelineOptions.class).getFilesToStage();
-    if (filesToStage == null || filesToStage.isEmpty()) {
-      ClassLoader classLoader = Environments.class.getClassLoader();
-      if (classLoader == null) {
-        throw new RuntimeException(
-            "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
-      }
-
-      filesToStage = detectClassPathResourcesToStage(classLoader, pipeline.getOptions());
-      if (filesToStage.isEmpty()) {
-        throw new IllegalArgumentException("No classpath elements found.");
-      }
-      LOG.debug("Staging to files from the classpath: {}", filesToStage.size());
-    }
-    pipeline.getOptions().as(PortablePipelineOptions.class).setFilesToStage(filesToStage);
-
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(request.getComponents()).withPipeline(pipeline);
 
@@ -481,6 +506,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             "Unknown urn: " + request.getTransform().getSpec().getUrn());
       }
     }
+
+    List<String> classpathResources =
+        transformProvider.getDependencies(request.getTransform().getSpec(), pipeline.getOptions());
+    pipeline.getOptions().as(PortablePipelineOptions.class).setFilesToStage(classpathResources);
 
     Map<String, PCollection<?>> outputs =
         transformProvider.apply(
