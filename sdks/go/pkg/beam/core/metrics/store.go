@@ -129,11 +129,7 @@ func (e Extractor) ExtractFrom(store *Store) error {
 		}
 	}
 	for l, um := range store.stateRegistry {
-		// fmt.Println("+++++++++++++++++++++++++++++++++++++++++++")
-		// fmt.Println(int64(um[3].TotalTime))
-		// fmt.Println("+++++++++++++++++++++++++++++++++++++++++++")
 		e.MsecsInt64(l, um)
-		// e.MsecsInt64(l, int64(um[0].TotalTime), int64(um[1].TotalTime), int64(um[2].TotalTime), int64(um[3].TotalTime))
 	}
 	return nil
 }

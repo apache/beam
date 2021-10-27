@@ -79,7 +79,6 @@ func (n *ParDo) Up(ctx context.Context) error {
 	// Subsequent bundles might run this same node, and the context here would be
 	// incorrectly refering to the older bundleId.
 	setupCtx := metrics.SetPTransformID(ctx, n.PID)
-
 	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
 	}

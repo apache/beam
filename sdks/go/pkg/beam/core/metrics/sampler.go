@@ -33,6 +33,7 @@ func NewSampler(store *Store) StateSampler {
 	return StateSampler{store: store}
 }
 
+// Sample checks for state transition in processing a DoFn
 func (s *StateSampler) Sample(t time.Duration) {
 	ps := loadCurrentState(s)
 	if ps.pid == "" {

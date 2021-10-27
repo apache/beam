@@ -480,6 +480,7 @@ func (m *executionState) kind() kind {
 	return kindDoFnMsec
 }
 
+// MsecValue is the value of a single msec metric
 type MsecValue struct {
 	Time int64
 }
@@ -796,9 +797,6 @@ func ResultsExtractor(ctx context.Context) Results {
 			m[l] = &gauge{v: v, t: t}
 		},
 		MsecsInt64: func(labels string, e [4]*ExecutionState) {
-			// for l, s := range e {
-			// m[PTransformLabels(labels)] = &executionState{state: s}
-			// }
 			m[PTransformLabels(labels)] = &executionState{state: e}
 		},
 	}
@@ -854,11 +852,6 @@ func ResultsExtractor(ctx context.Context) Results {
 				committed[key] = MsecValue{int64(v.TotalTime)}
 				r.msecs = append(r.msecs, MergeMsecs(attempted, committed)...)
 			}
-			// attempted := make(map[StepKey]MsecValue)
-			// committed := make(map[StepKey]MsecValue)
-			// attempted[key] = MsecValue{}
-			// committed[key] = MsecValue{int64(opt.(*executionState).state.TotalTime)}
-			// r.msecs = append(r.msecs, MergeMsecs(attempted, committed)...)
 		}
 	}
 	return r
