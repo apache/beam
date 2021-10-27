@@ -269,6 +269,7 @@ func Test_processCode(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		env *environment.Environment
+		sdk pb.Sdk
 	}
 	tests := []struct {
 		name                  string
@@ -289,6 +290,7 @@ func Test_processCode(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				env: env,
+				sdk: pb.Sdk_SDK_JAVA,
 			},
 		},
 		{
@@ -301,6 +303,7 @@ func Test_processCode(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				env: env,
+				sdk: pb.Sdk_SDK_JAVA,
 			},
 		},
 		{
@@ -313,6 +316,7 @@ func Test_processCode(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				env: env,
+				sdk: pb.Sdk_SDK_JAVA,
 			},
 		},
 		{
@@ -325,6 +329,7 @@ func Test_processCode(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				env: env,
+				sdk: pb.Sdk_SDK_JAVA,
 			},
 		},
 	}
@@ -338,7 +343,7 @@ func Test_processCode(t *testing.T) {
 				_, _ = lc.CreateExecutableFile(tt.code)
 			}
 
-			processCode(tt.args.ctx, cacheService, lc, exec, pipelineId, tt.args.env)
+			processCode(tt.args.ctx, cacheService, lc, exec, pipelineId, tt.args.env, tt.args.sdk)
 
 			status, _ := cacheService.GetValue(tt.args.ctx, pipelineId, cache.Status)
 			if !reflect.DeepEqual(status, tt.expectedStatus) {
