@@ -539,7 +539,7 @@ func (mr Results) Query(f func(SingleResult) bool) QueryResults {
 			gauges = append(gauges, gauge)
 		}
 	}
-	return QueryResults{counters, distributions, gauges}
+	return QueryResults{counters: counters, distributions: distributions, gauges: gauges}
 }
 
 // QueryResults is the result of a query. Allows accessing all of the
