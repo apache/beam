@@ -203,7 +203,6 @@ class _AbstractFrameTest(unittest.TestCase):
       if isinstance(expected, pd.core.generic.NDFrame):
         if isinstance(expected, pd.Series):
           self.assertEqual(actual.dtype, proxy.dtype)
-          breakpoint()
           self.assertEqual(actual.name, proxy.name)
         elif isinstance(expected, pd.DataFrame):
           pd.testing.assert_series_equal(actual.dtypes, proxy.dtypes)
@@ -218,9 +217,6 @@ class _AbstractFrameTest(unittest.TestCase):
           self.assertEqual(
               actual.index.get_level_values(i).dtype,
               proxy.index.get_level_values(i).dtype)
-
-
-
 
 
 class DeferredFrameTest(_AbstractFrameTest):
@@ -734,9 +730,6 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda s: s.corr(s * s), s)
       self._run_test(lambda s: s.cov(s * s), s)
       self._run_test(lambda s: s.skew(), s)
-
-
-
 
   def test_dataframe_cov_corr(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
