@@ -17,6 +17,7 @@
  */
 
 import 'package:json_annotation/json_annotation.dart';
+import 'package:playground/modules/examples/models/outputs_model.dart';
 
 part 'example_model.g.dart';
 
@@ -59,16 +60,24 @@ class ExampleModel {
   @JsonKey(includeIfNull: false)
   String? source;
 
+  @JsonKey(includeIfNull: false)
+  OutputsModel? outputs;
+
   ExampleModel({
     this.source,
     this.name,
     this.type,
     this.id,
     this.description,
+    this.outputs,
   });
 
   setSource(String source) {
     this.source = source;
+  }
+
+  setOutputs(OutputsModel outputs) {
+    this.outputs = outputs;
   }
 
   factory ExampleModel.fromJson(Map<String, dynamic> data) =>

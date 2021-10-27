@@ -17,6 +17,7 @@
  */
 
 import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/models/outputs_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
@@ -110,10 +111,42 @@ const getPrecompiledOutputsResponse = {
   'log': 'precompiled log',
 };
 
+final getDefaultExamplesResponse = {
+  SDK.java: ExampleModel(
+    source: javaHelloWorld,
+    name: 'Default Java',
+    type: ExampleType.example,
+    id: 1,
+    description: 'ABCDEFG',
+  ),
+  SDK.python: ExampleModel(
+    source: pythonHelloWorld,
+    name: 'Default Python',
+    type: ExampleType.example,
+    id: 2,
+    description: 'ABCDEFG',
+  ),
+  SDK.go: ExampleModel(
+    source: goHelloWorld,
+    name: 'Default Go',
+    type: ExampleType.example,
+    id: 3,
+    description: 'ABCDEFG',
+  ),
+  SDK.scio: ExampleModel(
+    source: scioHelloWorld,
+    name: 'Default SCIO',
+    type: ExampleType.example,
+    id: 4,
+    description: 'ABCDEFG',
+  ),
+};
+
+const responseStatusCode = 200;
+
 class ExampleRepository {
   Future<Map<SDK, List<CategoryModel>>> getListOfExamples() async {
     await Future.delayed(const Duration(seconds: 1));
-    int responseStatusCode = 200;
     Map<String, List<dynamic>> responseBody = getListOfExamplesResponse;
     switch (responseStatusCode) {
       case 200:
@@ -123,9 +156,18 @@ class ExampleRepository {
     }
   }
 
+  Future<Map<SDK, ExampleModel>> getDefaultExamples() async {
+    await Future.delayed(const Duration(seconds: 1));
+    switch (responseStatusCode) {
+      case 200:
+        return getDefaultExamplesResponse;
+      default:
+        return {};
+    }
+  }
+
   Future<String> getExampleSource(int id) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    int responseStatusCode = 200;
     switch (responseStatusCode) {
       case 200:
         return id.toString();
@@ -135,8 +177,7 @@ class ExampleRepository {
   }
 
   Future<OutputsModel> getPrecompiledOutputs(int id) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    int responseStatusCode = 200;
+    await Future.delayed(const Duration(seconds: 5));
     Map<String, dynamic> responseBody = getPrecompiledOutputsResponse;
     switch (responseStatusCode) {
       case 200:

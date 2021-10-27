@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/models/outputs_model.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
@@ -39,6 +40,10 @@ class ExpansionPanelItem extends StatelessWidget {
               String source = await exampleState.getSource(example.id!);
               example.setSource(source);
               playgroundState.setExample(example);
+              Future<OutputsModel> outputs = exampleState
+                  .getPrecompiledOutputs(example.id!)
+                  .then((value) => example.setOutputs(value));
+              print(outputs);
             }
           },
           child: Container(

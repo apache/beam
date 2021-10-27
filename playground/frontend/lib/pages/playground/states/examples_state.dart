@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/models/outputs_model.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
@@ -25,10 +26,12 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 class ExampleState with ChangeNotifier {
   final ExampleRepository _exampleRepository;
   Map<SDK, List<CategoryModel>>? categoriesBySdkMap;
+  Map<SDK, ExampleModel>? defaultExamples;
   bool isSelectorOpened = false;
 
   ExampleState(this._exampleRepository) {
     _loadCategories();
+    _loadDefaultExamples();
   }
 
   List<CategoryModel>? getCategories(SDK sdk) {
@@ -47,6 +50,11 @@ class ExampleState with ChangeNotifier {
 
   _loadCategories() async {
     categoriesBySdkMap = await _exampleRepository.getListOfExamples();
+    notifyListeners();
+  }
+
+  _loadDefaultExamples() async {
+    defaultExamples = await _exampleRepository.getDefaultExamples();
     notifyListeners();
   }
 

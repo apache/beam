@@ -12,6 +12,9 @@ ExampleModel _$ExampleModelFromJson(Map<String, dynamic> json) => ExampleModel(
       type: $enumDecodeNullable(_$ExampleTypeEnumMap, json['type']),
       id: json['id'] as int?,
       description: json['description'] as String?,
+      outputs: json['outputs'] == null
+          ? null
+          : OutputsModel.fromJson(json['outputs'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$ExampleModelToJson(ExampleModel instance) {
@@ -28,6 +31,7 @@ Map<String, dynamic> _$ExampleModelToJson(ExampleModel instance) {
   writeNotNull('id', instance.id);
   writeNotNull('description', instance.description);
   writeNotNull('source', instance.source);
+  writeNotNull('outputs', instance.outputs);
   return val;
 }
 
