@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,36 +17,20 @@
 # under the License.
 #
 
-variable "examples_bucket_name" {
-  description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-examples"
-}
-
-variable "examples_bucket_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
-
 variable "project_id" {
-  description = "The GCP Project ID where Playground Applications will be created"
+  description = "Project ID"
 }
 
-variable "examples_storage_class" {
-  description = "Examples Bucket Storage Class"
-  default     = "STANDARD"
+variable "docker_registry_address" {
+  description = "Docker registry address"
 }
 
-variable "terraform_bucket_name" {
-  description = "Name of Bucket to Store Terraform States"
-  default     = "playground_terraform"
+variable "docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default = "beam_playground-backend"
 }
 
-variable "terraform_bucket_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
-
-variable "terraform_storage_class" {
-  description = "Terrafomr Bucket Storage Class"
-  default     = "STANDARD"
+variable "docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default = "latest"
 }

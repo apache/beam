@@ -1,0 +1,970 @@
+2021-10-27T12:52:46.289Z [INFO]  Terraform version: 1.0.9
+2021-10-27T12:52:46.289Z [INFO]  Go runtime version: go1.16.4
+2021-10-27T12:52:46.289Z [INFO]  CLI args: []string{"/usr/bin/terraform", "apply", "-var=project_id=datatokenization"}
+2021-10-27T12:52:46.289Z [TRACE] Stdout is a terminal of width 204
+2021-10-27T12:52:46.289Z [TRACE] Stderr is a terminal of width 204
+2021-10-27T12:52:46.289Z [TRACE] Stdin is a terminal
+2021-10-27T12:52:46.289Z [DEBUG] Attempting to open CLI config file: /root/.terraformrc
+2021-10-27T12:52:46.289Z [DEBUG] File doesn't exist, but doesn't need to. Ignoring.
+2021-10-27T12:52:46.289Z [DEBUG] ignoring non-existing provider search directory terraform.d/plugins
+2021-10-27T12:52:46.289Z [DEBUG] ignoring non-existing provider search directory /root/.terraform.d/plugins
+2021-10-27T12:52:46.289Z [DEBUG] ignoring non-existing provider search directory /root/.local/share/terraform/plugins
+2021-10-27T12:52:46.289Z [DEBUG] ignoring non-existing provider search directory /usr/local/share/terraform/plugins
+2021-10-27T12:52:46.289Z [DEBUG] ignoring non-existing provider search directory /usr/share/terraform/plugins
+2021-10-27T12:52:46.290Z [INFO]  CLI command args: []string{"apply", "-var=project_id=datatokenization"}
+2021-10-27T12:52:46.290Z [TRACE] Meta.Backend: no config given or present on disk, so returning nil config
+2021-10-27T12:52:46.290Z [TRACE] Meta.Backend: backend has not previously been initialized in this working directory
+2021-10-27T12:52:46.290Z [DEBUG] New state was assigned lineage "e978088c-b073-601a-bf6d-613b901def33"
+2021-10-27T12:52:46.290Z [TRACE] Meta.Backend: using default local state only (no backend configuration, and no existing initialized backend)
+2021-10-27T12:52:46.290Z [TRACE] Meta.Backend: instantiated backend of type <nil>
+2021-10-27T12:52:46.291Z [TRACE] providercache.fillMetaCache: scanning directory .terraform/providers
+2021-10-27T12:52:46.291Z [TRACE] getproviders.SearchLocalDirectory: found registry.terraform.io/hashicorp/google v3.89.0 for linux_amd64 at .terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64
+2021-10-27T12:52:46.291Z [TRACE] providercache.fillMetaCache: including .terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64 as a candidate package for registry.terraform.io/hashicorp/google 3.89.0
+2021-10-27T12:52:46.529Z [DEBUG] checking for provisioner in "."
+2021-10-27T12:52:46.535Z [DEBUG] checking for provisioner in "/usr/bin"
+2021-10-27T12:52:46.535Z [INFO]  Failed to read plugin lock file .terraform/plugins/linux_amd64/lock.json: open .terraform/plugins/linux_amd64/lock.json: no such file or directory
+2021-10-27T12:52:46.536Z [TRACE] Meta.Backend: backend <nil> does not support operations, so wrapping it in a local backend
+2021-10-27T12:52:46.538Z [INFO]  backend/local: starting Apply operation
+2021-10-27T12:52:46.538Z [TRACE] backend/local: requesting state manager for workspace "default"
+2021-10-27T12:52:46.538Z [TRACE] backend/local: state manager for workspace "default" will:
+ - read initial snapshot from terraform.tfstate
+ - write new snapshots to terraform.tfstate
+ - create any backup at terraform.tfstate.backup
+2021-10-27T12:52:46.538Z [TRACE] backend/local: requesting state lock for workspace "default"
+2021-10-27T12:52:46.538Z [TRACE] statemgr.Filesystem: preparing to manage state snapshots at terraform.tfstate
+2021-10-27T12:52:46.538Z [TRACE] statemgr.Filesystem: existing snapshot has lineage "80e99a23-4f80-6a07-adce-0fafa1f00577" serial 1
+2021-10-27T12:52:46.538Z [TRACE] statemgr.Filesystem: locking terraform.tfstate using fcntl flock
+2021-10-27T12:52:46.538Z [TRACE] statemgr.Filesystem: writing lock metadata to .terraform.tfstate.lock.info
+2021-10-27T12:52:46.538Z [TRACE] backend/local: reading remote state for workspace "default"
+2021-10-27T12:52:46.538Z [TRACE] statemgr.Filesystem: reading latest snapshot from terraform.tfstate
+2021-10-27T12:52:46.539Z [TRACE] statemgr.Filesystem: read snapshot with lineage "80e99a23-4f80-6a07-adce-0fafa1f00577" serial 1
+2021-10-27T12:52:46.539Z [TRACE] backend/local: retrieving local state snapshot for workspace "default"
+2021-10-27T12:52:46.539Z [TRACE] backend/local: building context for current working directory
+2021-10-27T12:52:46.539Z [TRACE] terraform.NewContext: starting
+2021-10-27T12:52:46.539Z [TRACE] terraform.NewContext: loading provider schemas
+2021-10-27T12:52:46.539Z [TRACE] LoadSchemas: retrieving schema for provider type "registry.terraform.io/hashicorp/google"
+2021-10-27T12:52:46.539Z [DEBUG] created provider logger: level=off
+2021-10-27T12:52:46.539Z [INFO]  provider: configuring client automatic mTLS
+2021-10-27T12:52:46.601Z [DEBUG] provider: starting plugin: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 args=[.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5]
+2021-10-27T12:52:46.601Z [DEBUG] provider: plugin started: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 pid=11263
+2021-10-27T12:52:46.601Z [DEBUG] provider: waiting for RPC address: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5
+2021-10-27T12:52:46.630Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: configuring server automatic mTLS: timestamp=2021-10-27T12:52:46.629Z
+2021-10-27T12:52:46.699Z [DEBUG] provider.terraform-provider-google_v3.89.0_x5: plugin address: address=/tmp/plugin615119687 network=unix timestamp=2021-10-27T12:52:46.699Z
+2021-10-27T12:52:46.699Z [DEBUG] provider: using plugin: version=5
+2021-10-27T12:52:46.782Z [TRACE] GRPCProvider: GetProviderSchema
+2021-10-27T12:52:46.782Z [TRACE] provider.stdio: waiting for stdio data
+2021-10-27T12:52:46.889Z [TRACE] GRPCProvider: Close
+2021-10-27T12:52:46.893Z [DEBUG] provider: plugin process exited: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 pid=11263
+2021-10-27T12:52:46.894Z [DEBUG] provider: plugin exited
+2021-10-27T12:52:46.894Z [TRACE] terraform.NewContext: complete
+2021-10-27T12:52:46.894Z [TRACE] backend/local: finished building terraform.Context
+2021-10-27T12:52:46.894Z [TRACE] backend/local: requesting interactive input, if necessary
+2021-10-27T12:52:46.894Z [TRACE] Context.Input: Prompting for provider arguments
+2021-10-27T12:52:46.894Z [TRACE] Context.Input: Provider provider.google implied by resource block at main.tf:1,1-64
+2021-10-27T12:52:46.894Z [TRACE] Context.Input: Input for provider.google: map[string]cty.Value{}
+2021-10-27T12:52:46.894Z [TRACE] backend/local: running validation operation
+2021-10-27T12:52:46.894Z [INFO]  terraform: building graph: GraphTypeValidate
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.ConfigTransformer
+2021-10-27T12:52:46.894Z [TRACE] ConfigTransformer: Starting for path:
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.ConfigTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+  ------
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.RootVariableTransformer
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.RootVariableTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.ModuleVariableTransformer
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.ModuleVariableTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.LocalTransformer
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.LocalTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.OutputTransformer
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.OutputTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.OrphanResourceInstanceTransformer
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.OrphanResourceInstanceTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.StateTransformer
+2021-10-27T12:52:46.894Z [TRACE] StateTransformer: state is empty, so nothing to do
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.StateTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.AttachStateTransformer
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.AttachStateTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.OrphanOutputTransformer
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.OrphanOutputTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.AttachResourceConfigTransformer
+2021-10-27T12:52:46.894Z [TRACE] AttachResourceConfigTransformer: attaching to "google_app_engine_flexible_app_version.backend_app" (*terraform.NodeValidatableResource) config from main.tf:1,1-64
+2021-10-27T12:52:46.894Z [TRACE] AttachResourceConfigTransformer: attaching provider meta configs to google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.AttachResourceConfigTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.graphTransformerMulti
+2021-10-27T12:52:46.894Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.ProviderConfigTransformer
+2021-10-27T12:52:46.894Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.ProviderConfigTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:46.894Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.MissingProviderTransformer
+2021-10-27T12:52:46.894Z [DEBUG] adding implicit provider configuration provider["registry.terraform.io/hashicorp/google"], implied first by google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:46.894Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.MissingProviderTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:46.894Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.ProviderTransformer
+2021-10-27T12:52:46.894Z [TRACE] ProviderTransformer: exact match for provider["registry.terraform.io/hashicorp/google"] serving google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:46.894Z [DEBUG] ProviderTransformer: "google_app_engine_flexible_app_version.backend_app" (*terraform.NodeValidatableResource) needs provider["registry.terraform.io/hashicorp/google"]
+2021-10-27T12:52:46.894Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.ProviderTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:46.894Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.PruneProviderTransformer
+2021-10-27T12:52:46.894Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.PruneProviderTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.graphTransformerMulti with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.RemovedModuleTransformer
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.RemovedModuleTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.AttachSchemaTransformer
+2021-10-27T12:52:46.894Z [TRACE] AttachSchemaTransformer: attaching resource schema to google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:46.894Z [TRACE] AttachSchemaTransformer: attaching provider config schema to provider["registry.terraform.io/hashicorp/google"]
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.AttachSchemaTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.ModuleExpansionTransformer
+2021-10-27T12:52:46.894Z [TRACE] Completed graph transform *terraform.ModuleExpansionTransformer (no changes)
+2021-10-27T12:52:46.894Z [TRACE] Executing graph transform *terraform.ReferenceTransformer
+2021-10-27T12:52:46.895Z [DEBUG] ReferenceTransformer: "google_app_engine_flexible_app_version.backend_app" references: [var.project_id]
+2021-10-27T12:52:46.895Z [DEBUG] ReferenceTransformer: "var.project_id" references: []
+2021-10-27T12:52:46.895Z [DEBUG] ReferenceTransformer: "provider[\"registry.terraform.io/hashicorp/google\"]" references: []
+2021-10-27T12:52:46.895Z [TRACE] Completed graph transform *terraform.ReferenceTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:46.895Z [TRACE] Executing graph transform *terraform.AttachDependenciesTransformer
+2021-10-27T12:52:46.895Z [TRACE] Completed graph transform *terraform.AttachDependenciesTransformer (no changes)
+2021-10-27T12:52:46.895Z [TRACE] Executing graph transform *terraform.attachDataResourceDependsOnTransformer
+2021-10-27T12:52:46.895Z [TRACE] Completed graph transform *terraform.attachDataResourceDependsOnTransformer (no changes)
+2021-10-27T12:52:46.895Z [TRACE] Executing graph transform *terraform.TargetsTransformer
+2021-10-27T12:52:46.895Z [TRACE] Completed graph transform *terraform.TargetsTransformer (no changes)
+2021-10-27T12:52:46.895Z [TRACE] Executing graph transform *terraform.ForcedCBDTransformer
+2021-10-27T12:52:46.895Z [TRACE] Completed graph transform *terraform.ForcedCBDTransformer (no changes)
+2021-10-27T12:52:46.895Z [TRACE] Executing graph transform *terraform.CountBoundaryTransformer
+2021-10-27T12:52:46.895Z [TRACE] Completed graph transform *terraform.CountBoundaryTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:46.895Z [TRACE] Executing graph transform *terraform.CloseProviderTransformer
+2021-10-27T12:52:46.895Z [TRACE] Completed graph transform *terraform.CloseProviderTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:46.895Z [TRACE] Executing graph transform *terraform.CloseRootModuleTransformer
+2021-10-27T12:52:46.895Z [TRACE] Completed graph transform *terraform.CloseRootModuleTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  root - *terraform.nodeCloseModule
+    meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:46.895Z [TRACE] Executing graph transform *terraform.TransitiveReductionTransformer
+2021-10-27T12:52:46.895Z [TRACE] Completed graph transform *terraform.TransitiveReductionTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeValidatableResource
+  root - *terraform.nodeCloseModule
+    meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:46.895Z [DEBUG] Starting graph walk: walkValidate
+2021-10-27T12:52:46.897Z [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = transport is closing"
+2021-10-27T12:52:46.897Z [TRACE] vertex "var.project_id": starting visit (*terraform.NodeRootVariable)
+2021-10-27T12:52:46.897Z [TRACE] vertex "var.project_id": visit complete
+2021-10-27T12:52:46.897Z [TRACE] vertex "provider[\"registry.terraform.io/hashicorp/google\"]": starting visit (*terraform.NodeApplyableProvider)
+2021-10-27T12:52:46.897Z [DEBUG] created provider logger: level=off
+2021-10-27T12:52:46.897Z [INFO]  provider: configuring client automatic mTLS
+2021-10-27T12:52:46.961Z [DEBUG] provider: starting plugin: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 args=[.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5]
+2021-10-27T12:52:46.961Z [DEBUG] provider: plugin started: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 pid=11269
+2021-10-27T12:52:46.961Z [DEBUG] provider: waiting for RPC address: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5
+2021-10-27T12:52:46.993Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: configuring server automatic mTLS: timestamp=2021-10-27T12:52:46.993Z
+2021-10-27T12:52:47.063Z [DEBUG] provider.terraform-provider-google_v3.89.0_x5: plugin address: address=/tmp/plugin824856920 network=unix timestamp=2021-10-27T12:52:47.063Z
+2021-10-27T12:52:47.063Z [DEBUG] provider: using plugin: version=5
+2021-10-27T12:52:47.148Z [TRACE] BuiltinEvalContext: Initialized "provider[\"registry.terraform.io/hashicorp/google\"]" provider for provider["registry.terraform.io/hashicorp/google"]
+2021-10-27T12:52:47.148Z [TRACE] buildProviderConfig for provider["registry.terraform.io/hashicorp/google"]: no configuration at all
+2021-10-27T12:52:47.148Z [TRACE] vertex "provider[\"registry.terraform.io/hashicorp/google\"]": visit complete
+2021-10-27T12:52:47.148Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": starting visit (*terraform.NodeValidatableResource)
+2021-10-27T12:52:47.149Z [TRACE] GRPCProvider: ValidateResourceConfig
+2021-10-27T12:52:47.149Z [TRACE] GRPCProvider: GetProviderSchema
+2021-10-27T12:52:47.149Z [TRACE] provider.stdio: waiting for stdio data
+2021-10-27T12:52:47.257Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": visit complete
+2021-10-27T12:52:47.257Z [TRACE] vertex "meta.count-boundary (EachMode fixup)": starting visit (*terraform.NodeCountBoundary)
+2021-10-27T12:52:47.257Z [TRACE] vertex "meta.count-boundary (EachMode fixup)": visit complete
+2021-10-27T12:52:47.257Z [TRACE] vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)": starting visit (*terraform.graphNodeCloseProvider)
+2021-10-27T12:52:47.257Z [TRACE] GRPCProvider: Close
+2021-10-27T12:52:47.260Z [DEBUG] provider: plugin process exited: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 pid=11269
+2021-10-27T12:52:47.260Z [DEBUG] provider: plugin exited
+2021-10-27T12:52:47.260Z [TRACE] vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)": visit complete
+2021-10-27T12:52:47.260Z [TRACE] vertex "root": starting visit (*terraform.nodeCloseModule)
+2021-10-27T12:52:47.260Z [TRACE] vertex "root": visit complete
+2021-10-27T12:52:47.260Z [INFO]  backend/local: apply calling Plan
+2021-10-27T12:52:47.260Z [INFO]  terraform: building graph: GraphTypePlan
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.ConfigTransformer
+2021-10-27T12:52:47.260Z [TRACE] ConfigTransformer: Starting for path:
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.ConfigTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+  ------
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.RootVariableTransformer
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.RootVariableTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.ModuleVariableTransformer
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.ModuleVariableTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.LocalTransformer
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.LocalTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.OutputTransformer
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.OutputTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.OrphanResourceInstanceTransformer
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.OrphanResourceInstanceTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.StateTransformer
+2021-10-27T12:52:47.260Z [TRACE] StateTransformer: state is empty, so nothing to do
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.StateTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.AttachStateTransformer
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.AttachStateTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.OrphanOutputTransformer
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.OrphanOutputTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.AttachResourceConfigTransformer
+2021-10-27T12:52:47.260Z [TRACE] AttachResourceConfigTransformer: attaching to "google_app_engine_flexible_app_version.backend_app (expand)" (*terraform.nodeExpandPlannableResource) config from main.tf:1,1-64
+2021-10-27T12:52:47.260Z [TRACE] AttachResourceConfigTransformer: attaching provider meta configs to google_app_engine_flexible_app_version.backend_app (expand)
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.AttachResourceConfigTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.graphTransformerMulti
+2021-10-27T12:52:47.260Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.ProviderConfigTransformer
+2021-10-27T12:52:47.260Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.ProviderConfigTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:47.260Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.MissingProviderTransformer
+2021-10-27T12:52:47.260Z [DEBUG] adding implicit provider configuration provider["registry.terraform.io/hashicorp/google"], implied first by google_app_engine_flexible_app_version.backend_app (expand)
+2021-10-27T12:52:47.260Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.MissingProviderTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:47.260Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.ProviderTransformer
+2021-10-27T12:52:47.260Z [TRACE] ProviderTransformer: exact match for provider["registry.terraform.io/hashicorp/google"] serving google_app_engine_flexible_app_version.backend_app (expand)
+2021-10-27T12:52:47.260Z [DEBUG] ProviderTransformer: "google_app_engine_flexible_app_version.backend_app (expand)" (*terraform.nodeExpandPlannableResource) needs provider["registry.terraform.io/hashicorp/google"]
+2021-10-27T12:52:47.260Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.ProviderTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:47.260Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.PruneProviderTransformer
+2021-10-27T12:52:47.260Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.PruneProviderTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.graphTransformerMulti with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.RemovedModuleTransformer
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.RemovedModuleTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.AttachSchemaTransformer
+2021-10-27T12:52:47.260Z [TRACE] AttachSchemaTransformer: attaching resource schema to google_app_engine_flexible_app_version.backend_app (expand)
+2021-10-27T12:52:47.260Z [TRACE] AttachSchemaTransformer: attaching provider config schema to provider["registry.terraform.io/hashicorp/google"]
+2021-10-27T12:52:47.260Z [TRACE] Completed graph transform *terraform.AttachSchemaTransformer (no changes)
+2021-10-27T12:52:47.260Z [TRACE] Executing graph transform *terraform.ModuleExpansionTransformer
+2021-10-27T12:52:47.261Z [TRACE] Completed graph transform *terraform.ModuleExpansionTransformer (no changes)
+2021-10-27T12:52:47.261Z [TRACE] Executing graph transform *terraform.ReferenceTransformer
+2021-10-27T12:52:47.261Z [DEBUG] ReferenceTransformer: "google_app_engine_flexible_app_version.backend_app (expand)" references: [var.project_id]
+2021-10-27T12:52:47.261Z [DEBUG] ReferenceTransformer: "var.project_id" references: []
+2021-10-27T12:52:47.261Z [DEBUG] ReferenceTransformer: "provider[\"registry.terraform.io/hashicorp/google\"]" references: []
+2021-10-27T12:52:47.261Z [TRACE] Completed graph transform *terraform.ReferenceTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:47.261Z [TRACE] Executing graph transform *terraform.AttachDependenciesTransformer
+2021-10-27T12:52:47.261Z [TRACE] AttachDependenciesTransformer: google_app_engine_flexible_app_version.backend_app depends on []
+2021-10-27T12:52:47.261Z [TRACE] Completed graph transform *terraform.AttachDependenciesTransformer (no changes)
+2021-10-27T12:52:47.261Z [TRACE] Executing graph transform *terraform.attachDataResourceDependsOnTransformer
+2021-10-27T12:52:47.261Z [TRACE] Completed graph transform *terraform.attachDataResourceDependsOnTransformer (no changes)
+2021-10-27T12:52:47.261Z [TRACE] Executing graph transform *terraform.TargetsTransformer
+2021-10-27T12:52:47.261Z [TRACE] Completed graph transform *terraform.TargetsTransformer (no changes)
+2021-10-27T12:52:47.261Z [TRACE] Executing graph transform *terraform.ForcedCBDTransformer
+2021-10-27T12:52:47.261Z [TRACE] ForcedCBDTransformer: "google_app_engine_flexible_app_version.backend_app (expand)" (*terraform.nodeExpandPlannableResource) has no CBD descendent, so skipping
+2021-10-27T12:52:47.261Z [TRACE] Completed graph transform *terraform.ForcedCBDTransformer (no changes)
+2021-10-27T12:52:47.261Z [TRACE] Executing graph transform *terraform.CountBoundaryTransformer
+2021-10-27T12:52:47.261Z [TRACE] Completed graph transform *terraform.CountBoundaryTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:47.261Z [TRACE] Executing graph transform *terraform.CloseProviderTransformer
+2021-10-27T12:52:47.261Z [TRACE] Completed graph transform *terraform.CloseProviderTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:47.261Z [TRACE] Executing graph transform *terraform.CloseRootModuleTransformer
+2021-10-27T12:52:47.261Z [TRACE] Completed graph transform *terraform.CloseRootModuleTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  root - *terraform.nodeCloseModule
+    meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:47.261Z [TRACE] Executing graph transform *terraform.TransitiveReductionTransformer
+2021-10-27T12:52:47.261Z [TRACE] Completed graph transform *terraform.TransitiveReductionTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandPlannableResource
+  root - *terraform.nodeCloseModule
+    meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:47.261Z [DEBUG] Starting graph walk: walkPlan
+2021-10-27T12:52:47.261Z [TRACE] vertex "provider[\"registry.terraform.io/hashicorp/google\"]": starting visit (*terraform.NodeApplyableProvider)
+2021-10-27T12:52:47.261Z [DEBUG] created provider logger: level=off
+2021-10-27T12:52:47.261Z [INFO]  provider: configuring client automatic mTLS
+2021-10-27T12:52:47.273Z [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = transport is closing"
+2021-10-27T12:52:47.275Z [TRACE] vertex "var.project_id": starting visit (*terraform.NodeRootVariable)
+2021-10-27T12:52:47.275Z [TRACE] vertex "var.project_id": visit complete
+2021-10-27T12:52:47.320Z [DEBUG] provider: starting plugin: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 args=[.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5]
+2021-10-27T12:52:47.320Z [DEBUG] provider: plugin started: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 pid=11275
+2021-10-27T12:52:47.320Z [DEBUG] provider: waiting for RPC address: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5
+2021-10-27T12:52:47.357Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: configuring server automatic mTLS: timestamp=2021-10-27T12:52:47.357Z
+2021-10-27T12:52:47.426Z [DEBUG] provider.terraform-provider-google_v3.89.0_x5: plugin address: address=/tmp/plugin251973879 network=unix timestamp=2021-10-27T12:52:47.425Z
+2021-10-27T12:52:47.426Z [DEBUG] provider: using plugin: version=5
+2021-10-27T12:52:47.505Z [TRACE] BuiltinEvalContext: Initialized "provider[\"registry.terraform.io/hashicorp/google\"]" provider for provider["registry.terraform.io/hashicorp/google"]
+2021-10-27T12:52:47.505Z [TRACE] buildProviderConfig for provider["registry.terraform.io/hashicorp/google"]: no configuration at all
+2021-10-27T12:52:47.505Z [TRACE] GRPCProvider: GetProviderSchema
+2021-10-27T12:52:47.505Z [TRACE] provider.stdio: waiting for stdio data
+2021-10-27T12:52:47.609Z [TRACE] GRPCProvider: ValidateProviderConfig
+2021-10-27T12:52:47.682Z [WARN]  ValidateProviderConfig from "provider[\"registry.terraform.io/hashicorp/google\"]" changed the config value, but that value is unused
+2021-10-27T12:52:47.682Z [TRACE] GRPCProvider: ConfigureProvider
+2021-10-27T12:52:47.683Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:47 [INFO] Authenticating using DefaultClient...: timestamp=2021-10-27T12:52:47.683Z
+2021-10-27T12:52:47.684Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:47 [INFO]   -- Scopes: [https://www.googleapis.com/auth/compute https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/cloud-identity https://www.googleapis.com/auth/ndev.clouddns.readwrite https://www.googleapis.com/auth/devstorage.full_control https://www.googleapis.com/auth/userinfo.email]: timestamp=2021-10-27T12:52:47.683Z
+2021-10-27T12:52:47.684Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:47 [INFO] Authenticating using DefaultClient...: timestamp=2021-10-27T12:52:47.684Z
+2021-10-27T12:52:47.684Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:47 [INFO]   -- Scopes: [https://www.googleapis.com/auth/compute https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/cloud-identity https://www.googleapis.com/auth/ndev.clouddns.readwrite https://www.googleapis.com/auth/devstorage.full_control https://www.googleapis.com/auth/userinfo.email]: timestamp=2021-10-27T12:52:47.684Z
+2021-10-27T12:52:47.684Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:47 [DEBUG] Waiting for state to become: [success]: timestamp=2021-10-27T12:52:47.684Z
+2021-10-27T12:52:47.830Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:47 [INFO] Terraform is using this identity: datatokenization-test@datatokenization.iam.gserviceaccount.com: timestamp=2021-10-27T12:52:47.830Z
+2021-10-27T12:52:47.830Z [TRACE] vertex "provider[\"registry.terraform.io/hashicorp/google\"]": visit complete
+2021-10-27T12:52:47.830Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app (expand)": starting visit (*terraform.nodeExpandPlannableResource)
+2021-10-27T12:52:47.831Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app (expand)": expanding dynamic subgraph
+2021-10-27T12:52:47.831Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app (expand)": entering dynamic subgraph
+2021-10-27T12:52:47.831Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": starting visit (*terraform.NodePlannableResource)
+2021-10-27T12:52:47.831Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": expanding dynamic subgraph
+2021-10-27T12:52:47.831Z [TRACE] Executing graph transform *terraform.ResourceCountTransformer
+2021-10-27T12:52:47.831Z [TRACE] ResourceCountTransformer: adding google_app_engine_flexible_app_version.backend_app as *terraform.NodePlannableResourceInstance
+2021-10-27T12:52:47.831Z [TRACE] Completed graph transform *terraform.ResourceCountTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodePlannableResourceInstance
+  ------
+2021-10-27T12:52:47.831Z [TRACE] Executing graph transform *terraform.OrphanResourceInstanceCountTransformer
+2021-10-27T12:52:47.831Z [TRACE] Completed graph transform *terraform.OrphanResourceInstanceCountTransformer (no changes)
+2021-10-27T12:52:47.831Z [TRACE] Executing graph transform *terraform.AttachStateTransformer
+2021-10-27T12:52:47.831Z [DEBUG] Resource instance state not found for node "google_app_engine_flexible_app_version.backend_app", instance google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.831Z [TRACE] Completed graph transform *terraform.AttachStateTransformer (no changes)
+2021-10-27T12:52:47.831Z [TRACE] Executing graph transform *terraform.TargetsTransformer
+2021-10-27T12:52:47.831Z [TRACE] Completed graph transform *terraform.TargetsTransformer (no changes)
+2021-10-27T12:52:47.831Z [TRACE] Executing graph transform *terraform.ReferenceTransformer
+2021-10-27T12:52:47.831Z [INFO]  ReferenceTransformer: reference not found: "var.project_id"
+2021-10-27T12:52:47.831Z [DEBUG] ReferenceTransformer: "google_app_engine_flexible_app_version.backend_app" references: []
+2021-10-27T12:52:47.831Z [TRACE] Completed graph transform *terraform.ReferenceTransformer (no changes)
+2021-10-27T12:52:47.831Z [TRACE] Executing graph transform *terraform.RootTransformer
+2021-10-27T12:52:47.831Z [TRACE] Completed graph transform *terraform.RootTransformer (no changes)
+2021-10-27T12:52:47.831Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": entering dynamic subgraph
+2021-10-27T12:52:47.831Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": starting visit (*terraform.NodePlannableResourceInstance)
+2021-10-27T12:52:47.831Z [TRACE] readResourceInstanceState: reading state for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.831Z [TRACE] readResourceInstanceState: no state present for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.831Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState to prevRunState for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.831Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState: removing state object for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.831Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState to refreshState for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.831Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState: removing state object for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.831Z [TRACE] NodeAbstractResourceInstance.refresh for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.831Z [DEBUG] refresh: google_app_engine_flexible_app_version.backend_app: no state, so not refreshing
+2021-10-27T12:52:47.831Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState to refreshState for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.831Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState: removing state object for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.832Z [TRACE] Re-validating config for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:52:47.832Z [TRACE] GRPCProvider: ValidateResourceConfig
+2021-10-27T12:52:47.835Z [TRACE] GRPCProvider: PlanResourceChange
+2021-10-27T12:52:47.841Z [WARN]  Provider "registry.terraform.io/hashicorp/google" produced an invalid plan for google_app_engine_flexible_app_version.backend_app, but we are tolerating it because it is using the legacy plugin SDK.
+    The following problems may be the cause of any confusing errors from downstream operations:
+      - .noop_on_destroy: planned value cty.False for a non-computed attribute
+      - .serving_status: planned value cty.StringVal("SERVING") for a non-computed attribute
+      - .delete_service_on_destroy: planned value cty.False for a non-computed attribute
+      - .liveness_check[0].success_threshold: planned value cty.NumberIntVal(2) for a non-computed attribute
+      - .liveness_check[0].timeout: planned value cty.StringVal("4s") for a non-computed attribute
+      - .liveness_check[0].check_interval: planned value cty.StringVal("30s") for a non-computed attribute
+      - .liveness_check[0].failure_threshold: planned value cty.NumberIntVal(4) for a non-computed attribute
+      - .liveness_check[0].initial_delay: planned value cty.StringVal("300s") for a non-computed attribute
+      - .handlers: attribute representing nested block must not be unknown itself; set nested attribute values to unknown instead
+      - .readiness_check[0].success_threshold: planned value cty.NumberIntVal(2) for a non-computed attribute
+      - .readiness_check[0].timeout: planned value cty.StringVal("4s") for a non-computed attribute
+      - .readiness_check[0].app_start_timeout: planned value cty.StringVal("300s") for a non-computed attribute
+      - .readiness_check[0].check_interval: planned value cty.StringVal("5s") for a non-computed attribute
+      - .readiness_check[0].failure_threshold: planned value cty.NumberIntVal(2) for a non-computed attribute
+2021-10-27T12:52:47.841Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState to workingState for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.841Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState: writing state object for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.842Z [TRACE] writeChange: recorded Create change for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:47.842Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": visit complete
+2021-10-27T12:52:47.842Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": dynamic subgraph completed successfully
+2021-10-27T12:52:47.842Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": visit complete
+2021-10-27T12:52:47.842Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app (expand)": dynamic subgraph completed successfully
+2021-10-27T12:52:47.842Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app (expand)": visit complete
+2021-10-27T12:52:47.842Z [TRACE] vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)": starting visit (*terraform.graphNodeCloseProvider)
+2021-10-27T12:52:47.842Z [TRACE] GRPCProvider: Close
+2021-10-27T12:52:47.842Z [TRACE] vertex "meta.count-boundary (EachMode fixup)": starting visit (*terraform.NodeCountBoundary)
+2021-10-27T12:52:47.842Z [TRACE] vertex "meta.count-boundary (EachMode fixup)": visit complete
+2021-10-27T12:52:47.843Z [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = transport is closing"
+2021-10-27T12:52:47.846Z [DEBUG] provider: plugin process exited: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 pid=11275
+2021-10-27T12:52:47.846Z [DEBUG] provider: plugin exited
+2021-10-27T12:52:47.846Z [TRACE] vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)": visit complete
+2021-10-27T12:52:47.846Z [TRACE] vertex "root": starting visit (*terraform.nodeCloseModule)
+2021-10-27T12:52:47.846Z [TRACE] vertex "root": visit complete
+2021-10-27T12:52:47.853Z [DEBUG] command: asking for input: "\nDo you want to perform these actions?"
+2021-10-27T12:52:51.112Z [INFO]  backend/local: apply calling Apply
+2021-10-27T12:52:51.112Z [INFO]  terraform: building graph: GraphTypeApply
+2021-10-27T12:52:51.112Z [TRACE] Executing graph transform *terraform.ConfigTransformer
+2021-10-27T12:52:51.112Z [TRACE] ConfigTransformer: Starting for path:
+2021-10-27T12:52:51.112Z [TRACE] Completed graph transform *terraform.ConfigTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+  ------
+2021-10-27T12:52:51.112Z [TRACE] Executing graph transform *terraform.RootVariableTransformer
+2021-10-27T12:52:51.113Z [TRACE] Completed graph transform *terraform.RootVariableTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.113Z [TRACE] Executing graph transform *terraform.ModuleVariableTransformer
+2021-10-27T12:52:51.113Z [TRACE] Completed graph transform *terraform.ModuleVariableTransformer (no changes)
+2021-10-27T12:52:51.113Z [TRACE] Executing graph transform *terraform.LocalTransformer
+2021-10-27T12:52:51.113Z [TRACE] Completed graph transform *terraform.LocalTransformer (no changes)
+2021-10-27T12:52:51.113Z [TRACE] Executing graph transform *terraform.OutputTransformer
+2021-10-27T12:52:51.113Z [TRACE] Completed graph transform *terraform.OutputTransformer (no changes)
+2021-10-27T12:52:51.113Z [TRACE] Executing graph transform *terraform.DiffTransformer
+2021-10-27T12:52:51.113Z [TRACE] DiffTransformer starting
+2021-10-27T12:52:51.113Z [TRACE] DiffTransformer: found Create change for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.113Z [TRACE] DiffTransformer: google_app_engine_flexible_app_version.backend_app will be represented by google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.113Z [TRACE] DiffTransformer complete
+2021-10-27T12:52:51.113Z [TRACE] Completed graph transform *terraform.DiffTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.113Z [TRACE] Executing graph transform *terraform.AttachStateTransformer
+2021-10-27T12:52:51.113Z [DEBUG] Resource state not found for node "google_app_engine_flexible_app_version.backend_app", instance google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.113Z [TRACE] Completed graph transform *terraform.AttachStateTransformer (no changes)
+2021-10-27T12:52:51.113Z [TRACE] Executing graph transform *terraform.OrphanOutputTransformer
+2021-10-27T12:52:51.113Z [TRACE] Completed graph transform *terraform.OrphanOutputTransformer (no changes)
+2021-10-27T12:52:51.113Z [TRACE] Executing graph transform *terraform.AttachResourceConfigTransformer
+2021-10-27T12:52:51.113Z [TRACE] AttachResourceConfigTransformer: attaching to "google_app_engine_flexible_app_version.backend_app (expand)" (*terraform.nodeExpandApplyableResource) config from main.tf:1,1-64
+2021-10-27T12:52:51.113Z [TRACE] AttachResourceConfigTransformer: attaching provider meta configs to google_app_engine_flexible_app_version.backend_app (expand)
+2021-10-27T12:52:51.113Z [TRACE] AttachResourceConfigTransformer: attaching to "google_app_engine_flexible_app_version.backend_app" (*terraform.NodeApplyableResourceInstance) config from main.tf:1,1-64
+2021-10-27T12:52:51.113Z [TRACE] AttachResourceConfigTransformer: attaching provider meta configs to google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.113Z [TRACE] Completed graph transform *terraform.AttachResourceConfigTransformer (no changes)
+2021-10-27T12:52:51.113Z [TRACE] Executing graph transform *terraform.graphTransformerMulti
+2021-10-27T12:52:51.113Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.ProviderConfigTransformer
+2021-10-27T12:52:51.113Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.ProviderConfigTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.113Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.MissingProviderTransformer
+2021-10-27T12:52:51.113Z [DEBUG] adding implicit provider configuration provider["registry.terraform.io/hashicorp/google"], implied first by google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.113Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.MissingProviderTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.113Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.ProviderTransformer
+2021-10-27T12:52:51.114Z [TRACE] ProviderTransformer: exact match for provider["registry.terraform.io/hashicorp/google"] serving google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.114Z [DEBUG] ProviderTransformer: "google_app_engine_flexible_app_version.backend_app" (*terraform.NodeApplyableResourceInstance) needs provider["registry.terraform.io/hashicorp/google"]
+2021-10-27T12:52:51.114Z [TRACE] ProviderTransformer: exact match for provider["registry.terraform.io/hashicorp/google"] serving google_app_engine_flexible_app_version.backend_app (expand)
+2021-10-27T12:52:51.114Z [DEBUG] ProviderTransformer: "google_app_engine_flexible_app_version.backend_app (expand)" (*terraform.nodeExpandApplyableResource) needs provider["registry.terraform.io/hashicorp/google"]
+2021-10-27T12:52:51.114Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.ProviderTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.114Z [TRACE] (graphTransformerMulti) Executing graph transform *terraform.PruneProviderTransformer
+2021-10-27T12:52:51.114Z [TRACE] (graphTransformerMulti) Completed graph transform *terraform.PruneProviderTransformer (no changes)
+2021-10-27T12:52:51.114Z [TRACE] Completed graph transform *terraform.graphTransformerMulti with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.114Z [TRACE] Executing graph transform *terraform.RemovedModuleTransformer
+2021-10-27T12:52:51.114Z [TRACE] Completed graph transform *terraform.RemovedModuleTransformer (no changes)
+2021-10-27T12:52:51.114Z [TRACE] Executing graph transform *terraform.AttachSchemaTransformer
+2021-10-27T12:52:51.114Z [TRACE] AttachSchemaTransformer: attaching resource schema to google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.114Z [TRACE] AttachSchemaTransformer: attaching provider config schema to provider["registry.terraform.io/hashicorp/google"]
+2021-10-27T12:52:51.114Z [TRACE] AttachSchemaTransformer: attaching resource schema to google_app_engine_flexible_app_version.backend_app (expand)
+2021-10-27T12:52:51.114Z [TRACE] Completed graph transform *terraform.AttachSchemaTransformer (no changes)
+2021-10-27T12:52:51.114Z [TRACE] Executing graph transform *terraform.ModuleExpansionTransformer
+2021-10-27T12:52:51.114Z [TRACE] Completed graph transform *terraform.ModuleExpansionTransformer (no changes)
+2021-10-27T12:52:51.114Z [TRACE] Executing graph transform *terraform.ReferenceTransformer
+2021-10-27T12:52:51.114Z [DEBUG] ReferenceTransformer: "google_app_engine_flexible_app_version.backend_app (expand)" references: []
+2021-10-27T12:52:51.114Z [DEBUG] ReferenceTransformer: "var.project_id" references: []
+2021-10-27T12:52:51.115Z [DEBUG] ReferenceTransformer: "google_app_engine_flexible_app_version.backend_app" references: [var.project_id]
+2021-10-27T12:52:51.115Z [DEBUG] ReferenceTransformer: "provider[\"registry.terraform.io/hashicorp/google\"]" references: []
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.ReferenceTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.115Z [TRACE] Executing graph transform *terraform.AttachDependenciesTransformer
+2021-10-27T12:52:51.115Z [TRACE] AttachDependenciesTransformer: google_app_engine_flexible_app_version.backend_app depends on []
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.AttachDependenciesTransformer (no changes)
+2021-10-27T12:52:51.115Z [TRACE] Executing graph transform *terraform.ForcedCBDTransformer
+2021-10-27T12:52:51.115Z [TRACE] ForcedCBDTransformer: "google_app_engine_flexible_app_version.backend_app" (*terraform.NodeApplyableResourceInstance) has no CBD descendent, so skipping
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.ForcedCBDTransformer (no changes)
+2021-10-27T12:52:51.115Z [TRACE] Executing graph transform *terraform.DestroyEdgeTransformer
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.DestroyEdgeTransformer (no changes)
+2021-10-27T12:52:51.115Z [TRACE] Executing graph transform *terraform.CBDEdgeTransformer
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.CBDEdgeTransformer (no changes)
+2021-10-27T12:52:51.115Z [TRACE] Executing graph transform *terraform.pruneUnusedNodesTransformer
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.pruneUnusedNodesTransformer (no changes)
+2021-10-27T12:52:51.115Z [TRACE] Executing graph transform *terraform.TargetsTransformer
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.TargetsTransformer (no changes)
+2021-10-27T12:52:51.115Z [TRACE] Executing graph transform *terraform.CountBoundaryTransformer
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.CountBoundaryTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.115Z [TRACE] Executing graph transform *terraform.CloseProviderTransformer
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.CloseProviderTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.115Z [TRACE] Executing graph transform *terraform.CloseRootModuleTransformer
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.CloseRootModuleTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+    var.project_id - *terraform.NodeRootVariable
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  root - *terraform.nodeCloseModule
+    meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.115Z [TRACE] Executing graph transform *terraform.TransitiveReductionTransformer
+2021-10-27T12:52:51.115Z [TRACE] Completed graph transform *terraform.TransitiveReductionTransformer with new graph:
+  google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+    google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    var.project_id - *terraform.NodeRootVariable
+  google_app_engine_flexible_app_version.backend_app (expand) - *terraform.nodeExpandApplyableResource
+    provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+  provider["registry.terraform.io/hashicorp/google"] - *terraform.NodeApplyableProvider
+  provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+    google_app_engine_flexible_app_version.backend_app - *terraform.NodeApplyableResourceInstance
+  root - *terraform.nodeCloseModule
+    meta.count-boundary (EachMode fixup) - *terraform.NodeCountBoundary
+    provider["registry.terraform.io/hashicorp/google"] (close) - *terraform.graphNodeCloseProvider
+  var.project_id - *terraform.NodeRootVariable
+  ------
+2021-10-27T12:52:51.115Z [DEBUG] Starting graph walk: walkApply
+2021-10-27T12:52:51.115Z [TRACE] vertex "provider[\"registry.terraform.io/hashicorp/google\"]": starting visit (*terraform.NodeApplyableProvider)
+2021-10-27T12:52:51.115Z [DEBUG] created provider logger: level=off
+2021-10-27T12:52:51.116Z [INFO]  provider: configuring client automatic mTLS
+2021-10-27T12:52:51.130Z [TRACE] vertex "var.project_id": starting visit (*terraform.NodeRootVariable)
+2021-10-27T12:52:51.130Z [TRACE] vertex "var.project_id": visit complete
+2021-10-27T12:52:51.176Z [DEBUG] provider: starting plugin: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 args=[.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5]
+2021-10-27T12:52:51.177Z [DEBUG] provider: plugin started: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 pid=11282
+2021-10-27T12:52:51.177Z [DEBUG] provider: waiting for RPC address: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5
+2021-10-27T12:52:51.214Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: configuring server automatic mTLS: timestamp=2021-10-27T12:52:51.214Z
+2021-10-27T12:52:51.282Z [DEBUG] provider.terraform-provider-google_v3.89.0_x5: plugin address: address=/tmp/plugin468130261 network=unix timestamp=2021-10-27T12:52:51.282Z
+2021-10-27T12:52:51.282Z [DEBUG] provider: using plugin: version=5
+2021-10-27T12:52:51.366Z [TRACE] BuiltinEvalContext: Initialized "provider[\"registry.terraform.io/hashicorp/google\"]" provider for provider["registry.terraform.io/hashicorp/google"]
+2021-10-27T12:52:51.366Z [TRACE] buildProviderConfig for provider["registry.terraform.io/hashicorp/google"]: no configuration at all
+2021-10-27T12:52:51.366Z [TRACE] GRPCProvider: GetProviderSchema
+2021-10-27T12:52:51.366Z [TRACE] provider.stdio: waiting for stdio data
+2021-10-27T12:52:51.469Z [TRACE] GRPCProvider: ValidateProviderConfig
+2021-10-27T12:52:51.541Z [WARN]  ValidateProviderConfig from "provider[\"registry.terraform.io/hashicorp/google\"]" changed the config value, but that value is unused
+2021-10-27T12:52:51.541Z [TRACE] GRPCProvider: ConfigureProvider
+2021-10-27T12:52:51.543Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [INFO] Authenticating using DefaultClient...: timestamp=2021-10-27T12:52:51.543Z
+2021-10-27T12:52:51.543Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [INFO]   -- Scopes: [https://www.googleapis.com/auth/compute https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/cloud-identity https://www.googleapis.com/auth/ndev.clouddns.readwrite https://www.googleapis.com/auth/devstorage.full_control https://www.googleapis.com/auth/userinfo.email]: timestamp=2021-10-27T12:52:51.543Z
+2021-10-27T12:52:51.544Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [INFO] Authenticating using DefaultClient...: timestamp=2021-10-27T12:52:51.543Z
+2021-10-27T12:52:51.544Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [INFO]   -- Scopes: [https://www.googleapis.com/auth/compute https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/cloud-identity https://www.googleapis.com/auth/ndev.clouddns.readwrite https://www.googleapis.com/auth/devstorage.full_control https://www.googleapis.com/auth/userinfo.email]: timestamp=2021-10-27T12:52:51.544Z
+2021-10-27T12:52:51.544Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [DEBUG] Waiting for state to become: [success]: timestamp=2021-10-27T12:52:51.544Z
+2021-10-27T12:52:51.670Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [INFO] Terraform is using this identity: datatokenization-test@datatokenization.iam.gserviceaccount.com: timestamp=2021-10-27T12:52:51.670Z
+2021-10-27T12:52:51.670Z [TRACE] vertex "provider[\"registry.terraform.io/hashicorp/google\"]": visit complete
+2021-10-27T12:52:51.670Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app (expand)": starting visit (*terraform.nodeExpandApplyableResource)
+2021-10-27T12:52:51.670Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app (expand)": expanding dynamic subgraph
+2021-10-27T12:52:51.670Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app (expand)": entering dynamic subgraph
+2021-10-27T12:52:51.670Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": starting visit (*terraform.NodeApplyableResource)
+2021-10-27T12:52:51.670Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": visit complete
+2021-10-27T12:52:51.670Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app (expand)": dynamic subgraph completed successfully
+2021-10-27T12:52:51.670Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app (expand)": visit complete
+2021-10-27T12:52:51.670Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": starting visit (*terraform.NodeApplyableResourceInstance)
+2021-10-27T12:52:51.671Z [TRACE] readDiff: Read Create change from plan for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.671Z [TRACE] readResourceInstanceState: reading state for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.671Z [TRACE] readResourceInstanceState: no state present for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.671Z [TRACE] readDiff: Read Create change from plan for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.672Z [TRACE] Re-validating config for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:52:51.672Z [TRACE] GRPCProvider: ValidateResourceConfig
+2021-10-27T12:52:51.674Z [TRACE] GRPCProvider: PlanResourceChange
+2021-10-27T12:52:51.680Z [WARN]  Provider "registry.terraform.io/hashicorp/google" produced an invalid plan for google_app_engine_flexible_app_version.backend_app, but we are tolerating it because it is using the legacy plugin SDK.
+    The following problems may be the cause of any confusing errors from downstream operations:
+      - .delete_service_on_destroy: planned value cty.False for a non-computed attribute
+      - .serving_status: planned value cty.StringVal("SERVING") for a non-computed attribute
+      - .noop_on_destroy: planned value cty.False for a non-computed attribute
+      - .handlers: attribute representing nested block must not be unknown itself; set nested attribute values to unknown instead
+      - .readiness_check[0].app_start_timeout: planned value cty.StringVal("300s") for a non-computed attribute
+      - .readiness_check[0].check_interval: planned value cty.StringVal("5s") for a non-computed attribute
+      - .readiness_check[0].failure_threshold: planned value cty.NumberIntVal(2) for a non-computed attribute
+      - .readiness_check[0].success_threshold: planned value cty.NumberIntVal(2) for a non-computed attribute
+      - .readiness_check[0].timeout: planned value cty.StringVal("4s") for a non-computed attribute
+      - .liveness_check[0].initial_delay: planned value cty.StringVal("300s") for a non-computed attribute
+      - .liveness_check[0].success_threshold: planned value cty.NumberIntVal(2) for a non-computed attribute
+      - .liveness_check[0].timeout: planned value cty.StringVal("4s") for a non-computed attribute
+      - .liveness_check[0].check_interval: planned value cty.StringVal("30s") for a non-computed attribute
+      - .liveness_check[0].failure_threshold: planned value cty.NumberIntVal(4) for a non-computed attribute
+2021-10-27T12:52:51.680Z [TRACE] checkPlannedChange: Verifying that actual change (action Create) matches planned change (action Create)
+2021-10-27T12:52:51.681Z [TRACE] readResourceInstanceState: reading state for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.681Z [TRACE] readResourceInstanceState: no state present for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.681Z [INFO]  Starting apply for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:52:51.681Z [DEBUG] google_app_engine_flexible_app_version.backend_app: applying the planned Create change
+2021-10-27T12:52:51.681Z [TRACE] GRPCProvider: ApplyResourceChange
+2021-10-27T12:52:51.684Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [DEBUG] setting computed for "handlers" from ComputedKeys: timestamp=2021-10-27T12:52:51.684Z
+2021-10-27T12:52:51.685Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [DEBUG] Locking "apps/datatokenization": timestamp=2021-10-27T12:52:51.685Z
+2021-10-27T12:52:51.685Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [DEBUG] Locked "apps/datatokenization": timestamp=2021-10-27T12:52:51.685Z
+2021-10-27T12:52:51.685Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [DEBUG] Creating new FlexibleAppVersion: map[string]interface {}{"deployment":map[string]interface {}{"container":map[string]interface {}{"image":"us-central1-docker.pkg.dev/datatokenization/playground-repository/beam_playground-backend"}}, "env":"flex", "id":"v1", "livenessCheck":map[string]interface {}{"checkInterval":"30s", "failureThreshold":4, "initialDelay":"300s", "successThreshold":2, "timeout":"4s"}, "manualScaling":map[string]interface {}{"instances":1}, "readinessCheck":map[string]interface {}{"appStartTimeout":"300s", "checkInterval":"5s", "failureThreshold":2, "successThreshold":2, "timeout":"4s"}, "runtime":"custom", "servingStatus":"SERVING"}: timestamp=2021-10-27T12:52:51.685Z
+2021-10-27T12:52:51.686Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [DEBUG] Waiting for state to become: [success]: timestamp=2021-10-27T12:52:51.686Z
+2021-10-27T12:52:51.687Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:52:51.687Z
+2021-10-27T12:52:51.687Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:51 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:52:51.687Z
+2021-10-27T12:52:52.147Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:52 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:52:52.147Z
+2021-10-27T12:52:52.147Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:52 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:52:52.147Z
+2021-10-27T12:52:52.148Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:52 [INFO] Instantiating App Engine client for path https://appengine.googleapis.com/: timestamp=2021-10-27T12:52:52.147Z
+2021-10-27T12:52:52.148Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:52 [DEBUG] Waiting for state to become: [done: true]: timestamp=2021-10-27T12:52:52.148Z
+2021-10-27T12:52:52.148Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:52 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:52:52.148Z
+2021-10-27T12:52:52.148Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:52 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:52:52.148Z
+2021-10-27T12:52:52.274Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:52 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:52:52.274Z
+2021-10-27T12:52:52.274Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:52 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:52:52.274Z
+2021-10-27T12:52:52.274Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:52 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:52:52.274Z
+2021-10-27T12:52:52.274Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:52:52 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:52:52.274Z
+2021-10-27T12:52:56.117Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:52:56.117Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:52:56.117Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:01.119Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:01.119Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:01.119Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:02.275Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:02 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:53:02.275Z
+2021-10-27T12:53:02.275Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:02 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:53:02.275Z
+2021-10-27T12:53:02.355Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:02 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:53:02.355Z
+2021-10-27T12:53:02.355Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:02 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:53:02.355Z
+2021-10-27T12:53:02.355Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:02 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:53:02.355Z
+2021-10-27T12:53:02.355Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:02 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:53:02.355Z
+2021-10-27T12:53:06.120Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:06.120Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:06.120Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:11.121Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:11.121Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:11.121Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:12.356Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:12 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:53:12.356Z
+2021-10-27T12:53:12.356Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:12 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:53:12.356Z
+2021-10-27T12:53:12.431Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:12 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:53:12.431Z
+2021-10-27T12:53:12.431Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:12 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:53:12.431Z
+2021-10-27T12:53:12.431Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:12 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:53:12.431Z
+2021-10-27T12:53:12.431Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:12 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:53:12.431Z
+2021-10-27T12:53:16.123Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:16.123Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:16.123Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:21.127Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:21.127Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:21.128Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:22.432Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:22 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:53:22.432Z
+2021-10-27T12:53:22.432Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:22 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:53:22.432Z
+2021-10-27T12:53:22.492Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:22 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:53:22.491Z
+2021-10-27T12:53:22.492Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:22 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:53:22.491Z
+2021-10-27T12:53:22.492Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:22 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:53:22.492Z
+2021-10-27T12:53:22.492Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:22 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:53:22.492Z
+2021-10-27T12:53:26.130Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:26.130Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:26.130Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:31.130Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:31.130Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:31.130Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:32.492Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:32 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:53:32.492Z
+2021-10-27T12:53:32.492Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:32 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:53:32.492Z
+2021-10-27T12:53:32.555Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:32 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:53:32.555Z
+2021-10-27T12:53:32.555Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:32 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:53:32.555Z
+2021-10-27T12:53:32.556Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:32 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:53:32.555Z
+2021-10-27T12:53:32.556Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:32 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:53:32.556Z
+2021-10-27T12:53:36.130Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:36.130Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:36.130Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:41.133Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:41.133Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:41.133Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:42.556Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:42 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:53:42.556Z
+2021-10-27T12:53:42.556Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:42 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:53:42.556Z
+2021-10-27T12:53:42.617Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:42 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:53:42.616Z
+2021-10-27T12:53:42.617Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:42 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:53:42.616Z
+2021-10-27T12:53:42.617Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:42 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:53:42.617Z
+2021-10-27T12:53:42.617Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:42 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:53:42.617Z
+2021-10-27T12:53:46.133Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:46.133Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:46.134Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:51.134Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:51.134Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:51.134Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:52.617Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:52 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:53:52.617Z
+2021-10-27T12:53:52.617Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:52 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:53:52.617Z
+2021-10-27T12:53:52.682Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:52 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:53:52.682Z
+2021-10-27T12:53:52.682Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:52 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:53:52.682Z
+2021-10-27T12:53:52.682Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:52 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:53:52.682Z
+2021-10-27T12:53:52.682Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:53:52 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:53:52.682Z
+2021-10-27T12:53:56.136Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:53:56.136Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:53:56.136Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:01.137Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:01.137Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:01.137Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:02.683Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:02 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:54:02.683Z
+2021-10-27T12:54:02.683Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:02 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:54:02.683Z
+2021-10-27T12:54:02.748Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:02 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:54:02.748Z
+2021-10-27T12:54:02.748Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:02 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:54:02.748Z
+2021-10-27T12:54:02.748Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:02 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:54:02.748Z
+2021-10-27T12:54:02.748Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:02 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:54:02.748Z
+2021-10-27T12:54:06.137Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:06.137Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:06.137Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:11.137Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:11.137Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:11.137Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:12.749Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:12 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:54:12.748Z
+2021-10-27T12:54:12.749Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:12 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:54:12.748Z
+2021-10-27T12:54:12.817Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:12 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:54:12.816Z
+2021-10-27T12:54:12.817Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:12 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:54:12.817Z
+2021-10-27T12:54:12.817Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:12 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:54:12.817Z
+2021-10-27T12:54:12.817Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:12 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:54:12.817Z
+2021-10-27T12:54:16.137Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:16.137Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:16.137Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:21.139Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:21.140Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:21.140Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:22.817Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:22 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:54:22.817Z
+2021-10-27T12:54:22.817Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:22 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:54:22.817Z
+2021-10-27T12:54:22.875Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:22 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:54:22.875Z
+2021-10-27T12:54:22.875Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:22 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:54:22.875Z
+2021-10-27T12:54:22.875Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:22 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:54:22.875Z
+2021-10-27T12:54:22.875Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:22 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:54:22.875Z
+2021-10-27T12:54:26.140Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:26.140Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:26.140Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:31.143Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:31.143Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:31.143Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:32.876Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:32 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:54:32.876Z
+2021-10-27T12:54:32.876Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:32 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:54:32.876Z
+2021-10-27T12:54:32.936Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:32 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:54:32.936Z
+2021-10-27T12:54:32.936Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:32 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:54:32.936Z
+2021-10-27T12:54:32.936Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:32 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:54:32.936Z
+2021-10-27T12:54:32.936Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:32 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:54:32.936Z
+2021-10-27T12:54:36.144Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:36.144Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:36.144Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:41.144Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:41.144Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:41.144Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:42.936Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:42 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:54:42.936Z
+2021-10-27T12:54:42.937Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:42 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:54:42.936Z
+2021-10-27T12:54:42.999Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:42 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:54:42.999Z
+2021-10-27T12:54:42.999Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:42 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:54:42.999Z
+2021-10-27T12:54:42.999Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:42 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:54:42.999Z
+2021-10-27T12:54:42.999Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:42 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:54:42.999Z
+2021-10-27T12:54:46.144Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:46.144Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:46.144Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:51.144Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:51.144Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:51.144Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:53.003Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:52 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:54:52.999Z
+2021-10-27T12:54:53.003Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:52 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:54:52.999Z
+2021-10-27T12:54:53.068Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:53 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:54:53.068Z
+2021-10-27T12:54:53.068Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:53 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:54:53.068Z
+2021-10-27T12:54:53.068Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:53 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:54:53.068Z
+2021-10-27T12:54:53.069Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:54:53 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:54:53.068Z
+2021-10-27T12:54:56.145Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:54:56.145Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:54:56.145Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:55:01.149Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:55:01.149Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:55:01.149Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:55:03.069Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:03 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:55:03.069Z
+2021-10-27T12:55:03.069Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:03 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:55:03.069Z
+2021-10-27T12:55:03.133Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:03 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:55:03.133Z
+2021-10-27T12:55:03.133Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:03 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:55:03.133Z
+2021-10-27T12:55:03.133Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:03 [DEBUG] Got done: false while polling for operation apps/datatokenization/operations/f65c4a89-0ca5-4069-be21-b7e02b12d463's status: timestamp=2021-10-27T12:55:03.133Z
+2021-10-27T12:55:03.133Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:03 [TRACE] Waiting 10s before next try: timestamp=2021-10-27T12:55:03.133Z
+2021-10-27T12:55:06.151Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:55:06.151Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:55:06.151Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:55:11.152Z [TRACE] dag/walk: vertex "meta.count-boundary (EachMode fixup)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:55:11.152Z [TRACE] dag/walk: vertex "root" is waiting for "provider[\"registry.terraform.io/hashicorp/google\"] (close)"
+2021-10-27T12:55:11.152Z [TRACE] dag/walk: vertex "provider[\"registry.terraform.io/hashicorp/google\"] (close)" is waiting for "google_app_engine_flexible_app_version.backend_app"
+2021-10-27T12:55:13.134Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:13 [DEBUG] Retry Transport: starting RoundTrip retry loop: timestamp=2021-10-27T12:55:13.134Z
+2021-10-27T12:55:13.134Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:13 [DEBUG] Retry Transport: request attempt 0: timestamp=2021-10-27T12:55:13.134Z
+2021-10-27T12:55:13.199Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:13 [DEBUG] Retry Transport: Stopping retries, last request was successful: timestamp=2021-10-27T12:55:13.198Z
+2021-10-27T12:55:13.199Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:13 [DEBUG] Retry Transport: Returning after 1 attempts: timestamp=2021-10-27T12:55:13.198Z
+2021-10-27T12:55:13.199Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:13 [DEBUG] Unlocking "apps/datatokenization": timestamp=2021-10-27T12:55:13.199Z
+2021-10-27T12:55:13.199Z [INFO]  provider.terraform-provider-google_v3.89.0_x5: 2021/10/27 12:55:13 [DEBUG] Unlocked "apps/datatokenization": timestamp=2021-10-27T12:55:13.199Z
+2021-10-27T12:55:13.200Z [TRACE] maybeTainted: google_app_engine_flexible_app_version.backend_app encountered an error during creation, so it is now marked as tainted
+2021-10-27T12:55:13.200Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState to workingState for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:55:13.200Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState: removing state object for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:55:13.200Z [TRACE] evalApplyProvisioners: google_app_engine_flexible_app_version.backend_app is tainted, so skipping provisioning
+2021-10-27T12:55:13.200Z [TRACE] maybeTainted: google_app_engine_flexible_app_version.backend_app was already tainted, so nothing to do
+2021-10-27T12:55:13.200Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState to workingState for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:55:13.200Z [TRACE] NodeAbstractResouceInstance.writeResourceInstanceState: removing state object for google_app_engine_flexible_app_version.backend_app
+2021-10-27T12:55:13.200Z [TRACE] statemgr.Filesystem: not making a backup, because the new snapshot is identical to the old
+2021-10-27T12:55:13.201Z [TRACE] statemgr.Filesystem: no state changes since last snapshot
+2021-10-27T12:55:13.201Z [TRACE] statemgr.Filesystem: writing snapshot at terraform.tfstate
+2021-10-27T12:55:13.203Z [TRACE] vertex "google_app_engine_flexible_app_version.backend_app": visit complete
+2021-10-27T12:55:13.203Z [TRACE] dag/walk: upstream of "meta.count-boundary (EachMode fixup)" errored, so skipping
+2021-10-27T12:55:13.203Z [TRACE] dag/walk: upstream of "provider[\"registry.terraform.io/hashicorp/google\"] (close)" errored, so skipping
+2021-10-27T12:55:13.203Z [TRACE] dag/walk: upstream of "root" errored, so skipping
+2021-10-27T12:55:13.203Z [TRACE] statemgr.Filesystem: not making a backup, because the new snapshot is identical to the old
+2021-10-27T12:55:13.203Z [TRACE] statemgr.Filesystem: no state changes since last snapshot
+2021-10-27T12:55:13.203Z [TRACE] statemgr.Filesystem: writing snapshot at terraform.tfstate
+2021-10-27T12:55:13.207Z [TRACE] statemgr.Filesystem: removing lock metadata file .terraform.tfstate.lock.info
+2021-10-27T12:55:13.207Z [TRACE] statemgr.Filesystem: unlocking terraform.tfstate using fcntl flock
+2021-10-27T12:55:13.210Z [DEBUG] provider: plugin process exited: path=.terraform/providers/registry.terraform.io/hashicorp/google/3.89.0/linux_amd64/terraform-provider-google_v3.89.0_x5 pid=11282
+2021-10-27T12:55:13.210Z [DEBUG] provider: plugin exited
+
+panic: env BEAM_SDK must be specified in the environment variables
+[31m│[0m [0m
+[31m│[0m [0mgoroutine 1 [running]:
+[31m│[0m [0mmain.main()
+[31m│[0m [0m	/go/src/playground/backend/cmd/server/server.go:90 +0x33
+[31m│[0m [0m[0m
+[31m│[0m [0m
+[31m│[0m [0m[0m  with google_app_engine_flexible_app_version.backend_app,
+[31m│[0m [0m  on main.tf line 1, in resource "google_app_engine_flexible_app_version" "backend_app":
+[31m│[0m [0m   1: resource "google_app_engine_flexible_app_version" "backend_app" [4m{[0m[0m
+[31m│[0m [0m
+[31m╵[0m[0m
