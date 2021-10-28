@@ -21,9 +21,9 @@ import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
 
-const kSendFeedbackText = "Send Feedback";
-const kPrivacyPolicyText = "Privacy Policy";
-const kCopyright = "© The Apache Software Foundation";
+const kSendFeedbackText = 'Send Feedback';
+const kPrivacyPolicyText = 'Privacy Policy';
+const kCopyright = '© The Apache Software Foundation';
 
 class PlaygroundPageFooter extends StatelessWidget {
   const PlaygroundPageFooter({Key? key}) : super(key: key);

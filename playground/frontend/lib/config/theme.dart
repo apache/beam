@@ -61,7 +61,7 @@ TextButtonThemeData createTextButtonTheme(Color textColor) {
     style: TextButton.styleFrom(
       primary: textColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(kBorderRadius)),
+        borderRadius: BorderRadius.all(Radius.circular(kLgBorderRadius)),
       ),
     ),
   );
@@ -77,7 +77,7 @@ PopupMenuThemeData createPopupMenuTheme() {
   return const PopupMenuThemeData(
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.all(
-        Radius.circular(kBorderRadius),
+        Radius.circular(kLgBorderRadius),
       ),
     ),
   );
@@ -148,6 +148,14 @@ class ThemeColors {
   ThemeColors(this.isDark);
 
   Color get greyColor => isDark ? kDarkGrey : kLightGrey;
+
+  Color get lightGreyColor => isDark ? kLightGrey1 : kLightGrey;
+
+  Color get primary => isDark ? kLightPrimary : kDarkPrimary;
+
+  Color get primaryBackgroundTextColor => Colors.white;
+
+  Color get lightGreyBackgroundTextColor => Colors.black;
 
   Color get grey1Color => isDark ? kDarkGrey1 : kLightGrey1;
 

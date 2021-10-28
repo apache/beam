@@ -17,33 +17,37 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
-import 'package:provider/provider.dart';
+import 'package:playground/modules/examples/components/examples_components.dart';
 
-const kLogText = 'Log';
-const kGraphText = 'Graph';
+class ExampleList extends StatelessWidget {
+  final List items;
+  final ScrollController controller;
 
-class OutputArea extends StatelessWidget {
-  const OutputArea({Key? key}) : super(key: key);
+  const ExampleList({
+    Key? key,
+    required this.items,
+    required this.controller,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).backgroundColor,
-      child: Consumer<PlaygroundState>(
-        builder: (context, state, child) {
-          return TabBarView(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(kLgSpacing),
-                child: Text(state.result?.output ?? ''),
-              ),
-              const Center(child: Text(kLogText)),
-              const Center(child: Text(kGraphText)),
-            ],
-          );
-        },
+    return Expanded(
+      child: Container(
+        color: Theme.of(context).backgroundColor,
+        child: Scrollbar(
+          isAlwaysShown: true,
+          showTrackOnHover: true,
+          controller: controller,
+          child: ListView.builder(
+            itemCount: items.length,
+            itemBuilder: (context, index) => CategoryExpansionPanel(
+              categoryName: items[index].name,
+              examples: items[index].examples,
+            ),
+            controller: controller,
+            shrinkWrap: true,
+          ),
+        ),
       ),
     );
   }

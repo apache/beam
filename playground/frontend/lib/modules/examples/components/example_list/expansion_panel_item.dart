@@ -18,32 +18,38 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
-const kLogText = 'Log';
-const kGraphText = 'Graph';
+class ExpansionPanelItem extends StatelessWidget {
+  final ExampleModel example;
 
-class OutputArea extends StatelessWidget {
-  const OutputArea({Key? key}) : super(key: key);
+  const ExpansionPanelItem({Key? key, required this.example}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).backgroundColor,
-      child: Consumer<PlaygroundState>(
-        builder: (context, state, child) {
-          return TabBarView(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(kLgSpacing),
-                child: Text(state.result?.output ?? ''),
-              ),
-              const Center(child: Text(kLogText)),
-              const Center(child: Text(kGraphText)),
-            ],
-          );
-        },
+    return Consumer<PlaygroundState>(
+      builder: (context, state, child) => MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () {
+            if (state.selectedExample != example) {
+              state.setExample(example);
+            }
+          },
+          child: Container(
+            color: Colors.transparent,
+            margin: const EdgeInsets.only(left: kXxlSpacing),
+            height: kContainerHeight,
+            child: Row(
+              children: [
+                // Wrapped with Row for better user interaction and positioning
+                Text(example.name),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

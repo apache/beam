@@ -35,16 +35,16 @@ final kRequestMock = RunCodeRequestWrapper(
   sdk: SDK.java,
 );
 
-const kPipelineUuid = "1234";
-const kRunOutput = "RunOutput";
-const kCompileOutput = "CompileOutput";
+const kPipelineUuid = '1234';
+const kRunOutput = 'RunOutput';
+const kCompileOutput = 'CompileOutput';
 
 final kRunCodeResponse = RunCodeResponse(kPipelineUuid);
 final kFinishedStatusResponse = CheckStatusResponse(RunCodeStatus.finished);
 final kErrorStatusResponse = CheckStatusResponse(RunCodeStatus.error);
 final kRunOutputResponse = OutputResponse(kRunOutput);
 final kCompileOutputResponse = OutputResponse(kCompileOutput);
-final kEmptyCompileOutputResponse = OutputResponse("");
+final kEmptyCompileOutputResponse = OutputResponse('');
 
 @GenerateMocks([CodeClient])
 void main() {

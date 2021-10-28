@@ -17,31 +17,16 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
 
-const kRunText = 'Run';
+class ExampleDropdownState with ChangeNotifier {
+  String _selectedCategory;
 
-class RunButton extends StatelessWidget {
-  final bool isRunning;
-  final VoidCallback runCode;
+  ExampleDropdownState([this._selectedCategory = 'All']);
 
-  const RunButton({Key? key, required this.isRunning, required this.runCode})
-      : super(key: key);
+  String get selectedCategory => _selectedCategory;
 
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      icon: isRunning
-          ? SizedBox(
-              width: kIconSizeSm,
-              height: kIconSizeSm,
-              child: CircularProgressIndicator(
-                color: Theme.of(context).primaryColor,
-              ),
-            )
-          : const Icon(Icons.play_arrow),
-      label: const Text(kRunText),
-      onPressed: !isRunning ? runCode : null,
-    );
+  setSelectedCategory(String name) async {
+    _selectedCategory = name;
+    notifyListeners();
   }
 }

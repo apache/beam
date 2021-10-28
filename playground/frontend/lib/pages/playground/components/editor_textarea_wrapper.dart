@@ -63,7 +63,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
 
   _handleError(BuildContext context, PlaygroundState state) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(state.result?.errorMessage ?? "")),
+      SnackBar(content: Text(state.result?.errorMessage ?? '')),
     );
     state.resetError();
   }
