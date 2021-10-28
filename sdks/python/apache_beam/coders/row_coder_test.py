@@ -97,7 +97,8 @@ class RowCoderTest(unittest.TestCase):
   ]
 
   def test_row_accepts_trailing_zeros_truncated(self):
-    expected_coder = RowCoder(typing_to_runner_api(NullablePerson).row_type.schema)
+    expected_coder = RowCoder(
+      typing_to_runner_api(NullablePerson).row_type.schema)
     person = NullablePerson(
       None,
       np.int32(25),
