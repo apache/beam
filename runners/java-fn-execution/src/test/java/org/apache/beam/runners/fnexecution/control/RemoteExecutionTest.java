@@ -106,6 +106,7 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
@@ -148,7 +149,6 @@ import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -166,8 +166,10 @@ import org.slf4j.LoggerFactory;
   "keyfor"
 })
 public class RemoteExecutionTest implements Serializable {
+
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
 
+  private static final String WORKER_ID = "remote_test";
   private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutionTest.class);
 
   private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
@@ -181,8 +183,7 @@ public class RemoteExecutionTest implements Serializable {
   private transient ExecutorService sdkHarnessExecutor;
   private transient Future<?> sdkHarnessExecutorFuture;
 
-  @Before
-  public void setup() throws Exception {
+  public void launchSdkHarness(PipelineOptions options) throws Exception {
     // Setup execution-time servers
     ThreadFactory threadFactory = new ThreadFactoryBuilder().setDaemon(true).build();
     serverExecutor = Executors.newCachedThreadPool(threadFactory);
@@ -214,8 +215,8 @@ public class RemoteExecutionTest implements Serializable {
             () -> {
               try {
                 FnHarness.main(
-                    "id",
-                    PipelineOptionsFactory.create(),
+                    WORKER_ID,
+                    options,
                     Collections.emptySet(), // Runner capabilities.
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
@@ -226,9 +227,8 @@ public class RemoteExecutionTest implements Serializable {
                 throw new RuntimeException(e);
               }
             });
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     InstructionRequestHandler controlClient =
-        clientPool.getSource().take("", java.time.Duration.ofSeconds(2));
+        clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(2));
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 
@@ -255,6 +255,7 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testExecution() throws Exception {
+    launchSdkHarness(PipelineOptionsFactory.create());
     Pipeline p = Pipeline.create();
     p.apply("impulse", Impulse.create())
         .apply(
@@ -330,6 +331,7 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testBundleProcessorThrowsExecutionExceptionWhenUserCodeThrows() throws Exception {
+    launchSdkHarness(PipelineOptionsFactory.create());
     Pipeline p = Pipeline.create();
     p.apply("impulse", Impulse.create())
         .apply(
@@ -410,6 +412,7 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testExecutionWithSideInput() throws Exception {
+    launchSdkHarness(PipelineOptionsFactory.create());
     Pipeline p = Pipeline.create();
     addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
     // TODO(BEAM-10097): Remove experiment once all portable runners support this view type
@@ -539,8 +542,13 @@ public class RemoteExecutionTest implements Serializable {
   public void testExecutionWithSideInputCaching() throws Exception {
     Pipeline p = Pipeline.create();
     addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    // TODO(BEAM-10212): Remove experiment once cross bundle caching is used by default
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "cross_bundle_caching");
     // TODO(BEAM-10097): Remove experiment once all portable runners support this view type
     addExperiment(p.getOptions().as(ExperimentalOptions.class), "use_runner_v2");
+
+    launchSdkHarness(p.getOptions());
+
     PCollection<String> input =
         p.apply("impulse", Impulse.create())
             .apply(
@@ -749,6 +757,7 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testMetrics() throws Exception {
+    launchSdkHarness(PipelineOptionsFactory.create());
     MetricsDoFn metricsDoFn = new MetricsDoFn();
     Pipeline p = Pipeline.create();
 
@@ -1043,6 +1052,7 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testExecutionWithUserState() throws Exception {
+    launchSdkHarness(PipelineOptionsFactory.create());
     Pipeline p = Pipeline.create();
     final String stateId = "foo";
     final String stateId2 = "foo2";
@@ -1200,6 +1210,11 @@ public class RemoteExecutionTest implements Serializable {
   @Test
   public void testExecutionWithUserStateCaching() throws Exception {
     Pipeline p = Pipeline.create();
+    // TODO(BEAM-10212): Remove experiment once cross bundle caching is used by default
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "cross_bundle_caching");
+
+    launchSdkHarness(p.getOptions());
+
     final String stateId = "foo";
     final String stateId2 = "bar";
 
@@ -1449,6 +1464,7 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testExecutionWithTimer() throws Exception {
+    launchSdkHarness(PipelineOptionsFactory.create());
     Pipeline p = Pipeline.create();
 
     p.apply("impulse", Impulse.create())
@@ -1629,6 +1645,7 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testExecutionWithMultipleStages() throws Exception {
+    launchSdkHarness(PipelineOptionsFactory.create());
     Pipeline p = Pipeline.create();
 
     Function<String, PCollection<String>> pCollectionGenerator =
@@ -1773,6 +1790,7 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test(timeout = 60000L)
   public void testSplit() throws Exception {
+    launchSdkHarness(PipelineOptionsFactory.create());
     Pipeline p = Pipeline.create();
     p.apply("impulse", Impulse.create())
         .apply(

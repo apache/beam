@@ -70,6 +70,7 @@ import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
@@ -1513,43 +1514,31 @@ class WindmillStateInternals<K> implements StateInternals {
     @Override
     public @UnknownKeyFor @NonNull @Initialized ReadableState<V> computeIfAbsent(
         K key, Function<? super K, ? extends V> mappingFunction) {
-      return new ReadableState<V>() {
-        @Override
-        public @Nullable V read() {
-          Future<V> persistedData = getFutureForKey(key);
-          try (Closeable scope = scopedReadState()) {
-            if (localRemovals.contains(key) || negativeCache.contains(key)) {
-              return null;
-            }
-            @Nullable V cachedValue = cachedValues.get(key);
-            if (cachedValue != null || complete) {
-              return cachedValue;
-            }
-
-            V persistedValue = persistedData.get();
-            if (persistedValue == null) {
-              // This is a new value. Add it to the map and return null.
-              put(key, mappingFunction.apply(key));
-              return null;
-            }
-            // TODO: Don't do this if it was already in cache.
-            cachedValues.put(key, persistedValue);
-            return persistedValue;
-          } catch (InterruptedException | ExecutionException | IOException e) {
-            if (e instanceof InterruptedException) {
-              Thread.currentThread().interrupt();
-            }
-            throw new RuntimeException("Unable to read state", e);
-          }
+      Future<V> persistedData = getFutureForKey(key);
+      try (Closeable scope = scopedReadState()) {
+        if (localRemovals.contains(key) || negativeCache.contains(key)) {
+          return ReadableStates.immediate(null);
+        }
+        @Nullable V cachedValue = cachedValues.get(key);
+        if (cachedValue != null || complete) {
+          return ReadableStates.immediate(cachedValue);
         }
 
-        @Override
-        @SuppressWarnings("FutureReturnValueIgnored")
-        public @UnknownKeyFor @NonNull @Initialized ReadableState<V> readLater() {
-          WindmillMap.this.getFutureForKey(key);
-          return this;
+        V persistedValue = persistedData.get();
+        if (persistedValue == null) {
+          // This is a new value. Add it to the map and return null.
+          put(key, mappingFunction.apply(key));
+          return ReadableStates.immediate(null);
         }
-      };
+        // TODO: Don't do this if it was already in cache.
+        cachedValues.put(key, persistedValue);
+        return ReadableStates.immediate(persistedValue);
+      } catch (InterruptedException | ExecutionException | IOException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        throw new RuntimeException("Unable to read state", e);
+      }
     }
 
     @Override

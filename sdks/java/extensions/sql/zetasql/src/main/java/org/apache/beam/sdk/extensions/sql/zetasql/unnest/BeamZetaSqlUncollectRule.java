@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.unnest;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.Convention;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.convert.ConverterRule;
 
 /**
  * A {@code ConverterRule} to replace {@link ZetaSqlUnnest} with {@link BeamZetaSqlUncollectRel}.

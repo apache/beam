@@ -19,18 +19,18 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Intersect;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.SetOp;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Intersect;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.SetOp;
 
 /**
  * {@code BeamRelNode} to replace a {@code Intersect} node.
@@ -55,7 +55,7 @@ public class BeamIntersectRel extends Intersect implements BeamRelNode {
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     // This takes the minimum of the inputs for all the estimate factors.
     double minimumRows = Double.POSITIVE_INFINITY;
     double minimumWindowSize = Double.POSITIVE_INFINITY;
@@ -72,7 +72,7 @@ public class BeamIntersectRel extends Intersect implements BeamRelNode {
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
 
     NodeStats inputsStatSummation =
         inputs.stream()

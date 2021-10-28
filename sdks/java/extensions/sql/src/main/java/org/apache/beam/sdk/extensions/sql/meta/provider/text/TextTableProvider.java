@@ -51,9 +51,9 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 

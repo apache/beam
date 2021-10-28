@@ -43,9 +43,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -79,6 +83,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -660,6 +665,10 @@ public class SpannerIO {
       return withQuery(Statement.of(sql));
     }
 
+    public Read withQueryName(String queryName) {
+      return withReadOperation(getReadOperation().withQueryName(queryName));
+    }
+
     public Read withKeySet(KeySet keySet) {
       return withReadOperation(getReadOperation().withKeySet(keySet));
     }
@@ -739,13 +748,15 @@ public class SpannerIO {
   }
 
   /**
-   * A {@link PTransform} that create a transaction.
+   * A {@link PTransform} that create a transaction. If applied to a {@link PCollection}, it will
+   * create a transaction after the {@link PCollection} is closed.
    *
    * @see SpannerIO
+   * @see Wait
    */
   @AutoValue
   public abstract static class CreateTransaction
-      extends PTransform<PBegin, PCollectionView<Transaction>> {
+      extends PTransform<PInput, PCollectionView<Transaction>> {
 
     abstract SpannerConfig getSpannerConfig();
 
@@ -754,12 +765,21 @@ public class SpannerIO {
     abstract Builder toBuilder();
 
     @Override
-    public PCollectionView<Transaction> expand(PBegin input) {
+    public PCollectionView<Transaction> expand(PInput input) {
       getSpannerConfig().validate();
 
-      return input
-          .apply(Create.of(1))
-          .apply("Create transaction", ParDo.of(new CreateTransactionFn(this)))
+      PCollection<?> collection = input.getPipeline().apply(Create.of(1));
+
+      if (input instanceof PCollection) {
+        collection = collection.apply(Wait.on((PCollection<?>) input));
+      } else if (!(input instanceof PBegin)) {
+        throw new RuntimeException("input must be PBegin or PCollection");
+      }
+
+      return collection
+          .apply(
+              "Create transaction",
+              ParDo.of(new CreateTransactionFn(this.getSpannerConfig(), this.getTimestampBound())))
           .apply("As PCollectionView", View.asSingleton());
     }
 
@@ -1626,10 +1646,18 @@ public class SpannerIO {
     private void spannerWriteWithRetryIfSchemaChange(Iterable<Mutation> batch)
         throws SpannerException {
       for (int retry = 1; ; retry++) {
+        ServiceCallMetric serviceCallMetric =
+            createServiceCallMetric(
+                this.spannerConfig.getProjectId().toString(),
+                this.spannerConfig.getDatabaseId().toString(),
+                this.spannerConfig.getInstanceId().toString(),
+                "Write");
         try {
           spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
+          serviceCallMetric.call("ok");
           return;
         } catch (AbortedException e) {
+          serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
           if (retry >= ABORTED_RETRY_ATTEMPTS) {
             throw e;
           }
@@ -1637,8 +1665,28 @@ public class SpannerIO {
             continue;
           }
           throw e;
+        } catch (SpannerException e) {
+          serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
+          throw e;
         }
       }
+    }
+
+    private ServiceCallMetric createServiceCallMetric(
+        String projectId, String databaseId, String tableId, String method) {
+      HashMap<String, String> baseLabels = new HashMap<>();
+      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
+      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, method);
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.RESOURCE,
+          GcpResourceIdentifiers.spannerTable(projectId, databaseId, tableId));
+      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID, projectId);
+      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, databaseId);
+      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, tableId);
+      ServiceCallMetric serviceCallMetric =
+          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+      return serviceCallMetric;
     }
 
     /** Write the Mutations to Spanner, handling DEADLINE_EXCEEDED with backoff/retries. */

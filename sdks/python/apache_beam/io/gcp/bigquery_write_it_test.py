@@ -396,9 +396,12 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=BigqueryFullResultMatcher(
             project=self.project,
-            query=
-            "SELECT bytes, date, time, int64, bool, nested_field.fruit FROM %s"
-            % table_id,
+            query="""
+            SELECT bytes, date, time, int64, bool, fruit
+            FROM %s,
+            UNNEST(nested_field) as nested_field
+            ORDER BY int64
+            """ % table_id,
             data=[(None, None, None, num, True, "Apple")
                   for num in range(1, 3)]))
 

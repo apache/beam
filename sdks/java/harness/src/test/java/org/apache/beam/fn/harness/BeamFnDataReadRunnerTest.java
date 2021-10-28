@@ -44,8 +44,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
-import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
@@ -58,8 +56,6 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.Coder;
@@ -71,11 +67,8 @@ import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
-import org.apache.beam.sdk.function.ThrowingRunnable;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -146,59 +139,37 @@ public class BeamFnDataReadRunnerTest {
     public void testCreatingAndProcessingBeamFnDataReadRunner() throws Exception {
       List<WindowedValue<String>> outputValues = new ArrayList<>();
 
-      MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-      PCollectionConsumerRegistry consumers =
-          new PCollectionConsumerRegistry(
-              metricsContainerRegistry, mock(ExecutionStateTracker.class));
-      String localOutputId = "outputPC";
       String pTransformId = "pTransformId";
-      consumers.register(
-          localOutputId,
-          pTransformId,
-          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add,
-          StringUtf8Coder.of());
-      PTransformFunctionRegistry startFunctionRegistry =
-          new PTransformFunctionRegistry(
-              mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
-      PTransformFunctionRegistry finishFunctionRegistry =
-          new PTransformFunctionRegistry(
-              mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
-      List<ThrowingRunnable> resetFunctions = new ArrayList<>();
-      List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
+      String localOutputId = "outputPC";
 
       RunnerApi.PTransform pTransform =
           RemoteGrpcPortRead.readFromPort(PORT_SPEC, localOutputId).toPTransform();
 
-      new BeamFnDataReadRunner.Factory<String>()
-          .createRunnerForPTransform(
-              PipelineOptionsFactory.create(),
-              mockBeamFnDataClient,
-              null /* beamFnStateClient */,
-              null /* beamFnTimerClient */,
-              pTransformId,
-              pTransform,
-              Suppliers.ofInstance(DEFAULT_BUNDLE_ID)::get,
-              ImmutableMap.of(
-                  localOutputId,
-                  RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
-              COMPONENTS.getCodersMap(),
-              COMPONENTS.getWindowingStrategiesMap(),
-              consumers,
-              startFunctionRegistry,
-              finishFunctionRegistry,
-              resetFunctions::add,
-              teardownFunctions::add,
-              (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
-              null /* splitListener */,
-              null /* bundleFinalizer */);
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(pTransformId, pTransform)
+              .beamFnDataClient(mockBeamFnDataClient)
+              .processBundleInstructionId(DEFAULT_BUNDLE_ID)
+              .pCollections(
+                  ImmutableMap.of(
+                      localOutputId,
+                      RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()))
+              .coders(COMPONENTS.getCodersMap())
+              .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+              .build();
+      context.addPCollectionConsumer(
+          localOutputId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add,
+          StringUtf8Coder.of());
 
-      assertThat(teardownFunctions, empty());
+      new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
+
+      assertThat(context.getTearDownFunctions(), empty());
 
       verifyZeroInteractions(mockBeamFnDataClient);
 
       InboundDataClient completionFuture = CompletableFutureInboundDataClient.create();
       when(mockBeamFnDataClient.receive(any(), any(), any(), any())).thenReturn(completionFuture);
-      Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
+      Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       verify(mockBeamFnDataClient)
           .receive(
               eq(PORT_SPEC.getApiServiceDescriptor()),
@@ -210,10 +181,10 @@ public class BeamFnDataReadRunnerTest {
       assertThat(outputValues, contains(valueInGlobalWindow("TestValue")));
       outputValues.clear();
 
-      assertThat(consumers.keySet(), containsInAnyOrder(localOutputId));
+      assertThat(context.getPCollectionConsumers().keySet(), containsInAnyOrder(localOutputId));
 
       completionFuture.complete();
-      Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+      Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
 
       verifyNoMoreInteractions(mockBeamFnDataClient);
     }
@@ -755,46 +726,24 @@ public class BeamFnDataReadRunnerTest {
       BeamFnDataClient dataClient)
       throws Exception {
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     String localOutputId = "outputPC";
-    consumers.register(localOutputId, pTransformId, consumer, StringUtf8Coder.of());
-    PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
-    PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
-    List<ThrowingRunnable> resetFunctions = new ArrayList<>();
-    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
-
     RunnerApi.PTransform pTransform =
         RemoteGrpcPortRead.readFromPort(PORT_SPEC, localOutputId).toPTransform();
 
-    return new BeamFnDataReadRunner.Factory<String>()
-        .createRunnerForPTransform(
-            PipelineOptionsFactory.create(),
-            dataClient,
-            null /* beamFnStateClient */,
-            null /* beamFnTimerClient */,
-            pTransformId,
-            pTransform,
-            Suppliers.ofInstance(DEFAULT_BUNDLE_ID)::get,
-            ImmutableMap.of(
-                localOutputId,
-                RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
-            COMPONENTS.getCodersMap(),
-            COMPONENTS.getWindowingStrategiesMap(),
-            consumers,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            resetFunctions::add,
-            teardownFunctions::add,
-            (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
-            null /* splitListener */,
-            null /* bundleFinalizer */);
+    PTransformRunnerFactoryTestContext context =
+        PTransformRunnerFactoryTestContext.builder(pTransformId, pTransform)
+            .beamFnDataClient(dataClient)
+            .processBundleInstructionId(DEFAULT_BUNDLE_ID)
+            .pCollections(
+                ImmutableMap.of(
+                    localOutputId,
+                    RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()))
+            .coders(COMPONENTS.getCodersMap())
+            .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+            .build();
+    context.addPCollectionConsumer(localOutputId, consumer, StringUtf8Coder.of());
+
+    return new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
   }
 
   private static MonitoringInfo createReadIndexMonitoringInfoAt(int index) {

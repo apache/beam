@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
 
 /** SerializableRexInputRef. */
 public class SerializableRexInputRef extends SerializableRexNode {

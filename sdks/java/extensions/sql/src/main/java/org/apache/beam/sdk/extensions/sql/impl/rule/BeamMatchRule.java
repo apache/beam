@@ -19,11 +19,11 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamMatchRel;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Match;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalMatch;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.Convention;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Match;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalMatch;
 
 /** {@code ConverterRule} to replace {@code Match} with {@code BeamMatchRel}. */
 public class BeamMatchRule extends ConverterRule {

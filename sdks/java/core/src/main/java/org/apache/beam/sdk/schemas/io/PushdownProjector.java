@@ -32,12 +32,12 @@ import org.apache.beam.sdk.values.Row;
  * return a {@link PushdownProjector} to which a projection may be applied later.
  */
 @Experimental
-public interface PushdownProjector {
+public interface PushdownProjector<InputT extends PInput> {
   /**
    * Returns a {@link PTransform} that will execute the projection specified by the {@link
    * FieldAccessDescriptor}.
    */
-  PTransform<? extends PInput, PCollection<Row>> withProjectionPushdown(
+  PTransform<InputT, PCollection<Row>> withProjectionPushdown(
       FieldAccessDescriptor fieldAccessDescriptor);
 
   /**

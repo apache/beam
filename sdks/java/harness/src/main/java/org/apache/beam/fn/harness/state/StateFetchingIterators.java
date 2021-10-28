@@ -17,20 +17,21 @@
  */
 package org.apache.beam.fn.harness.state;
 
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.stream.DataStreams;
+import org.apache.beam.sdk.fn.stream.DataStreams.DataStreamDecoder;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterators;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * Adapters which convert a a logical series of chunks using continuation tokens over the Beam Fn
@@ -54,7 +55,7 @@ public class StateFetchingIterators {
    *     only) chunk of a state stream. This state request will be populated with a continuation
    *     token to request further chunks of the stream if required.
    */
-  public static Iterator<ByteString> readAllStartingFrom(
+  public static PrefetchableIterator<ByteString> readAllStartingFrom(
       BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
     return new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk);
   }
@@ -74,98 +75,141 @@ public class StateFetchingIterators {
    *     token to request further chunks of the stream if required.
    * @param valueCoder A coder for decoding the state stream.
    */
-  public static <T> Iterable<T> readAllAndDecodeStartingFrom(
+  public static <T> PrefetchableIterable<T> readAllAndDecodeStartingFrom(
       BeamFnStateClient beamFnStateClient,
       StateRequest stateRequestForFirstChunk,
       Coder<T> valueCoder) {
-    FirstPageAndRemainder firstPageAndRemainder =
-        new FirstPageAndRemainder(beamFnStateClient, stateRequestForFirstChunk);
-    return Iterables.concat(
-        new LazyCachingIteratorToIterable<T>(
-            new DataStreams.DataStreamDecoder<>(
-                valueCoder,
-                DataStreams.inbound(
-                    new LazySingletonIterator<>(firstPageAndRemainder::firstPage)))),
-        () ->
-            new DataStreams.DataStreamDecoder<>(
-                valueCoder, DataStreams.inbound(firstPageAndRemainder.remainder())));
-  }
-
-  /** A iterable that contains a single element, provided by a Supplier which is invoked lazily. */
-  static class LazySingletonIterator<T> implements Iterator<T> {
-
-    private final Supplier<T> supplier;
-    private boolean hasNext;
-
-    private LazySingletonIterator(Supplier<T> supplier) {
-      this.supplier = supplier;
-      hasNext = true;
-    }
-
-    @Override
-    public boolean hasNext() {
-      return hasNext;
-    }
-
-    @Override
-    public T next() {
-      hasNext = false;
-      return supplier.get();
-    }
+    return new FirstPageAndRemainder<>(beamFnStateClient, stateRequestForFirstChunk, valueCoder);
   }
 
   /**
-   * An helper class that (lazily) gives the first page of a paginated state request separately from
+   * A helper class that (lazily) gives the first page of a paginated state request separately from
    * all the remaining pages.
    */
-  static class FirstPageAndRemainder {
+  @VisibleForTesting
+  static class FirstPageAndRemainder<T> implements PrefetchableIterable<T> {
     private final BeamFnStateClient beamFnStateClient;
     private final StateRequest stateRequestForFirstChunk;
-    private ByteString firstPage = null;
+    private final Coder<T> valueCoder;
+    private LazyCachingIteratorToIterable<T> firstPage;
+    private CompletableFuture<StateResponse> firstPageResponseFuture;
     private ByteString continuationToken;
 
-    private FirstPageAndRemainder(
-        BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
+    FirstPageAndRemainder(
+        BeamFnStateClient beamFnStateClient,
+        StateRequest stateRequestForFirstChunk,
+        Coder<T> valueCoder) {
       this.beamFnStateClient = beamFnStateClient;
       this.stateRequestForFirstChunk = stateRequestForFirstChunk;
+      this.valueCoder = valueCoder;
     }
 
-    public ByteString firstPage() {
-      if (firstPage == null) {
-        CompletableFuture<StateResponse> stateResponseFuture = new CompletableFuture<>();
-        beamFnStateClient.handle(
-            stateRequestForFirstChunk.toBuilder().setGet(stateRequestForFirstChunk.getGet()),
-            stateResponseFuture);
-        StateResponse stateResponse;
-        try {
-          stateResponse = stateResponseFuture.get();
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new IllegalStateException(e);
-        } catch (ExecutionException e) {
-          if (e.getCause() == null) {
-            throw new IllegalStateException(e);
+    @Override
+    public PrefetchableIterator<T> iterator() {
+      return new PrefetchableIterator<T>() {
+        PrefetchableIterator<T> delegate;
+
+        private void ensureDelegateExists() {
+          if (delegate == null) {
+            // Fetch the first page if necessary
+            prefetchFirstPage();
+            if (firstPage == null) {
+              StateResponse stateResponse;
+              try {
+                stateResponse = firstPageResponseFuture.get();
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+              } catch (ExecutionException e) {
+                if (e.getCause() == null) {
+                  throw new IllegalStateException(e);
+                }
+                Throwables.throwIfUnchecked(e.getCause());
+                throw new IllegalStateException(e.getCause());
+              }
+              continuationToken = stateResponse.getGet().getContinuationToken();
+              firstPage =
+                  new LazyCachingIteratorToIterable<>(
+                      new DataStreamDecoder<>(
+                          valueCoder,
+                          PrefetchableIterators.fromArray(stateResponse.getGet().getData())));
+            }
+
+            if (ByteString.EMPTY.equals(continuationToken)) {
+              delegate = firstPage.iterator();
+            } else {
+              delegate =
+                  PrefetchableIterators.concat(
+                      firstPage.iterator(),
+                      new DataStreamDecoder<>(
+                          valueCoder,
+                          new LazyBlockingStateFetchingIterator(
+                              beamFnStateClient,
+                              stateRequestForFirstChunk
+                                  .toBuilder()
+                                  .setGet(
+                                      StateGetRequest.newBuilder()
+                                          .setContinuationToken(continuationToken))
+                                  .build())));
+            }
           }
-          Throwables.throwIfUnchecked(e.getCause());
-          throw new IllegalStateException(e.getCause());
         }
-        continuationToken = stateResponse.getGet().getContinuationToken();
-        firstPage = stateResponse.getGet().getData();
-      }
-      return firstPage;
+
+        @Override
+        public boolean isReady() {
+          if (delegate == null) {
+            if (firstPageResponseFuture != null) {
+              return firstPageResponseFuture.isDone();
+            }
+            return false;
+          }
+          return delegate.isReady();
+        }
+
+        @Override
+        public void prefetch() {
+          if (firstPageResponseFuture == null) {
+            prefetchFirstPage();
+          } else if (delegate != null && !delegate.isReady()) {
+            delegate.prefetch();
+          }
+        }
+
+        @Override
+        public boolean hasNext() {
+          if (delegate == null) {
+            // Ensure that we prefetch the second page after the first has been accessed.
+            // Prefetching subsequent pages after the first will be handled by the
+            // LazyBlockingStateFetchingIterator
+            ensureDelegateExists();
+            boolean rval = delegate.hasNext();
+            delegate.prefetch();
+            return rval;
+          }
+          return delegate.hasNext();
+        }
+
+        @Override
+        public T next() {
+          if (delegate == null) {
+            // Ensure that we prefetch the second page after the first has been accessed.
+            // Prefetching subsequent pages after the first will be handled by the
+            // LazyBlockingStateFetchingIterator
+            ensureDelegateExists();
+            T rval = delegate.next();
+            delegate.prefetch();
+            return rval;
+          }
+          return delegate.next();
+        }
+      };
     }
 
-    public Iterator<ByteString> remainder() {
-      firstPage();
-      if (ByteString.EMPTY.equals(continuationToken)) {
-        return Collections.emptyIterator();
-      } else {
-        return new LazyBlockingStateFetchingIterator(
-            beamFnStateClient,
-            stateRequestForFirstChunk
-                .toBuilder()
-                .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken))
-                .build());
+    private void prefetchFirstPage() {
+      if (firstPageResponseFuture == null) {
+        firstPageResponseFuture =
+            beamFnStateClient.handle(
+                stateRequestForFirstChunk.toBuilder().setGet(stateRequestForFirstChunk.getGet()));
       }
     }
   }
@@ -173,10 +217,11 @@ public class StateFetchingIterators {
   /**
    * An {@link Iterator} which fetches {@link ByteString} chunks using the State API.
    *
-   * <p>This iterator will only request a chunk on first access. Subsiquently it eagerly pre-fetches
-   * one future chunks at a time.
+   * <p>This iterator will only request a chunk on first access. Subsequently it eagerly pre-fetches
+   * one future chunk at a time.
    */
-  static class LazyBlockingStateFetchingIterator implements Iterator<ByteString> {
+  @VisibleForTesting
+  static class LazyBlockingStateFetchingIterator implements PrefetchableIterator<ByteString> {
 
     private enum State {
       READ_REQUIRED,
@@ -199,14 +244,22 @@ public class StateFetchingIterators {
       this.continuationToken = stateRequestForFirstChunk.getGet().getContinuationToken();
     }
 
-    private void prefetch() {
-      if (prefetchedResponse == null && currentState == State.READ_REQUIRED) {
-        prefetchedResponse = new CompletableFuture<>();
-        beamFnStateClient.handle(
-            stateRequestForFirstChunk
-                .toBuilder()
-                .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)),
-            prefetchedResponse);
+    @Override
+    public boolean isReady() {
+      if (prefetchedResponse == null) {
+        return currentState != State.READ_REQUIRED;
+      }
+      return prefetchedResponse.isDone();
+    }
+
+    @Override
+    public void prefetch() {
+      if (currentState == State.READ_REQUIRED && prefetchedResponse == null) {
+        prefetchedResponse =
+            beamFnStateClient.handle(
+                stateRequestForFirstChunk
+                    .toBuilder()
+                    .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)));
       }
     }
 

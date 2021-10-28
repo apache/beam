@@ -178,7 +178,8 @@ class CoGroupByKey(PTransform):
       pcolls_dict = {str(ix): pcolls[ix] for ix in range(num_tags)}
       restore_tags = lambda vs: tuple(vs[str(ix)] for ix in range(num_tags))
 
-    result = pcolls_dict | _CoGBKImpl(pipeline=self.pipeline)
+    result = (
+        pcolls_dict | 'CoGroupByKeyImpl' >> _CoGBKImpl(pipeline=self.pipeline))
     if restore_tags:
       return result | 'RestoreTags' >> MapTuple(
           lambda k, vs: (k, restore_tags(vs)))
@@ -631,7 +632,7 @@ class _IdentityWindowFn(NonMergingWindowFn):
     Arguments:
       window_coder: coders.Coder object to be used on windows.
     """
-    super(_IdentityWindowFn, self).__init__()
+    super().__init__()
     if window_coder is None:
       raise ValueError('window_coder should not be None')
     self._window_coder = window_coder
@@ -767,9 +768,9 @@ def WithKeys(pcoll, k, *args, **kwargs):
   """
   if callable(k):
     if fn_takes_side_inputs(k):
-      if all([isinstance(arg, AsSideInput)
-              for arg in args]) and all([isinstance(kwarg, AsSideInput)
-                                         for kwarg in kwargs.values()]):
+      if all(isinstance(arg, AsSideInput)
+             for arg in args) and all(isinstance(kwarg, AsSideInput)
+                                      for kwarg in kwargs.values()):
         return pcoll | Map(
             lambda v,
             *args,
@@ -962,6 +963,7 @@ def _pardo_group_into_batches(
       if count == 1 and max_buffering_duration_secs > 0:
         # This is the first element in batch. Start counting buffering time if a
         # limit was set.
+        # pylint: disable=deprecated-method
         buffering_timer.set(clock() + max_buffering_duration_secs)
       if count >= batch_size:
         return self.flush_batch(element_state, count_state, buffering_timer)

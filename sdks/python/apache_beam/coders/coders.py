@@ -18,11 +18,27 @@
 """Collection of useful coders.
 
 Only those coders listed in __all__ are part of the public API of this module.
+
+## On usage of `pickle`, `dill` and `pickler` in Beam
+
+In Beam, we generally we use `pickle` for pipeline elements and `dill` for
+more complex types, like user functions.
+
+`pickler` is Beam's own wrapping of dill + compression + error handling.
+It serves also as an API to mask the actual encoding layer (so we can
+change it from `dill` if necessary).
+
+We created `_MemoizingPickleCoder` to improve performance when serializing
+complex user types for the execution of SDF. Specifically to address
+BEAM-12781, where many identical `BoundedSource` instances are being
+encoded.
+
 """
 # pytype: skip-file
 
 import base64
 import pickle
+from functools import lru_cache
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -515,6 +531,13 @@ class MapCoder(FastCoder):
     return coder_impl.MapCoderImpl(
         self._key_coder.get_impl(), self._value_coder.get_impl())
 
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
+    # type: (typehints.DictConstraint, CoderRegistry) -> MapCoder
+    return cls(
+        registry.get_coder(typehint.key_type),
+        registry.get_coder(typehint.value_type))
+
   def to_type_hint(self):
     return typehints.Dict[self._key_coder.to_type_hint(),
                           self._value_coder.to_type_hint()]
@@ -707,7 +730,7 @@ class _PickleCoderBase(FastCoder):
     return False
 
   def as_cloud_object(self, coders_context=None, is_pair_like=True):
-    value = super(_PickleCoderBase, self).as_cloud_object(coders_context)
+    value = super().as_cloud_object(coders_context)
     # We currently use this coder in places where we cannot infer the coder to
     # use for the value type in a more granular way.  In places where the
     # service expects a pair, it checks for the "is_pair_like" key, in which
@@ -739,6 +762,33 @@ class _PickleCoderBase(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+class _MemoizingPickleCoder(_PickleCoderBase):
+  """Coder using Python's pickle functionality with memoization."""
+  def __init__(self, cache_size=16):
+    super().__init__()
+    self.cache_size = cache_size
+
+  def _create_impl(self):
+    from apache_beam.internal import pickler
+    dumps = pickler.dumps
+
+    mdumps = lru_cache(maxsize=self.cache_size, typed=True)(dumps)
+
+    def _nonhashable_dumps(x):
+      try:
+        return mdumps(x)
+      except TypeError:
+        return dumps(x)
+
+    return coder_impl.CallbackCoderImpl(_nonhashable_dumps, pickler.loads)
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return FastPrimitivesCoder(self, requires_deterministic=step_label)
+
+  def to_type_hint(self):
+    return Any
 
 
 class PickleCoder(_PickleCoderBase):
@@ -817,7 +867,7 @@ class FastPrimitivesCoder(FastCoder):
     return Any
 
   def as_cloud_object(self, coders_context=None, is_pair_like=True):
-    value = super(FastCoder, self).as_cloud_object(coders_context)
+    value = super().as_cloud_object(coders_context)
     # We currently use this coder in places where we cannot infer the coder to
     # use for the value type in a more granular way.  In places where the
     # service expects a pair, it checks for the "is_pair_like" key, in which
@@ -1038,7 +1088,7 @@ class TupleCoder(FastCoder):
           ],
       }
 
-    return super(TupleCoder, self).as_cloud_object(coders_context)
+    return super().as_cloud_object(coders_context)
 
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
@@ -1195,12 +1245,15 @@ class ListCoder(ListLikeCoder):
   def to_type_hint(self):
     return typehints.List[self._elem_coder.to_type_hint()]
 
+  def _create_impl(self):
+    return coder_impl.ListCoderImpl(self._elem_coder.get_impl())
+
 
 class GlobalWindowCoder(SingletonCoder):
   """Coder for global windows."""
   def __init__(self):
     from apache_beam.transforms import window
-    super(GlobalWindowCoder, self).__init__(window.GlobalWindow())
+    super().__init__(window.GlobalWindow())
 
   def as_cloud_object(self, coders_context=None):
     return {
@@ -1307,7 +1360,7 @@ Coder.register_structured_urn(
 class ParamWindowedValueCoder(WindowedValueCoder):
   """A coder used for parameterized windowed values."""
   def __init__(self, payload, components):
-    super(ParamWindowedValueCoder, self).__init__(components[0], components[1])
+    super().__init__(components[0], components[1])
     self.payload = payload
 
   def _create_impl(self):

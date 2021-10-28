@@ -18,8 +18,8 @@ package dataflowlib
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/google/go-cmp/cmp"
 	df "google.golang.org/api/dataflow/v1b3"
 )

@@ -31,7 +31,6 @@ import threading
 import time
 import traceback
 from concurrent import futures
-from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -45,7 +44,6 @@ from typing import List
 from typing import MutableMapping
 from typing import Optional
 from typing import Tuple
-from typing import Type
 from typing import TypeVar
 from typing import Union
 
@@ -65,7 +63,6 @@ from apache_beam.runners.worker.data_plane import PeriodicThread
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
-from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.sentinel import Sentinel
 
@@ -73,27 +70,13 @@ if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
   from apache_beam.utils.profiler import Profile
 
-ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
-
 T = TypeVar('T')
 _KT = TypeVar('_KT')
 _VT = TypeVar('_VT')
 
 _LOGGER = logging.getLogger(__name__)
 
-# This SDK harness will (by default), log a "lull" in processing if it sees no
-# transitions in over 5 minutes.
-# 5 minutes * 60 seconds * 1000 millis * 1000 micros * 1000 nanoseconds
-DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
-
 DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 60
-
-# Full thread dump is performed at most every 20 minutes.
-LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S = 20 * 60
-
-# Full thread dump is performed if the lull is more than 20 minutes.
-LOG_LULL_FULL_THREAD_DUMP_LULL_S = 20 * 60
 
 # The number of ProcessBundleRequest instruction ids the BundleProcessorCache
 # will remember for not running instructions.
@@ -583,15 +566,11 @@ class SdkWorker(object):
       bundle_processor_cache,  # type: BundleProcessorCache
       state_cache_metrics_fn=list,  # type: Callable[[], Iterable[metrics_pb2.MonitoringInfo]]
       profiler_factory=None,  # type: Optional[Callable[..., Profile]]
-      log_lull_timeout_ns=None,  # type: Optional[int]
   ):
     # type: (...) -> None
     self.bundle_processor_cache = bundle_processor_cache
     self.state_cache_metrics_fn = state_cache_metrics_fn
     self.profiler_factory = profiler_factory
-    self.log_lull_timeout_ns = (
-        log_lull_timeout_ns or DEFAULT_LOG_LULL_TIMEOUT_NS)
-    self._last_full_thread_dump_secs = 0.0
 
   def do_instruction(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
@@ -678,55 +657,6 @@ class SdkWorker(object):
         instruction_id=instruction_id,
         process_bundle_split=process_bundle_split)
 
-  def _log_lull_in_bundle_processor(self, processor):
-    # type: (bundle_processor.BundleProcessor) -> None
-    sampler_info = processor.state_sampler.get_info()
-    self._log_lull_sampler_info(sampler_info)
-
-  def _log_lull_sampler_info(self, sampler_info):
-    # type: (statesampler.StateSamplerInfo) -> None
-    if (sampler_info and sampler_info.time_since_transition and
-        sampler_info.time_since_transition > self.log_lull_timeout_ns):
-      step_name = sampler_info.state_name.step_name
-      state_name = sampler_info.state_name.name
-      lull_seconds = sampler_info.time_since_transition / 1e9
-      state_lull_log = (
-          'Operation ongoing for over %.2f seconds in state %s' %
-          (lull_seconds, state_name))
-      step_name_log = (' in step %s ' % step_name) if step_name else ''
-
-      exec_thread = getattr(sampler_info, 'tracked_thread', None)
-      if exec_thread is not None:
-        thread_frame = sys._current_frames().get(exec_thread.ident)  # pylint: disable=protected-access
-        stack_trace = '\n'.join(
-            traceback.format_stack(thread_frame)) if thread_frame else ''
-      else:
-        stack_trace = '-NOT AVAILABLE-'
-
-      _LOGGER.warning(
-          '%s%s without returning. Current Traceback:\n%s',
-          state_lull_log,
-          step_name_log,
-          stack_trace)
-
-      if self._should_log_full_thread_dump(lull_seconds):
-        self._log_full_thread_dump()
-
-  def _should_log_full_thread_dump(self, lull_seconds):
-    # type: (float) -> bool
-    if lull_seconds < LOG_LULL_FULL_THREAD_DUMP_LULL_S:
-      return False
-    now = time.time()
-    if (self._last_full_thread_dump_secs + LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S
-        < now):
-      self._last_full_thread_dump_secs = now
-      return True
-    return False
-
-  def _log_full_thread_dump(self):
-    # type: () -> None
-    thread_dump()
-
   def process_bundle_progress(
       self,
       request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
@@ -739,7 +669,6 @@ class SdkWorker(object):
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id, error=traceback.format_exc())
     if processor:
-      self._log_lull_in_bundle_processor(processor)
       monitoring_infos = processor.monitoring_infos()
     else:
       # Return an empty response if we aren't running. This can happen
@@ -992,7 +921,7 @@ class GrpcStateHandler(StateHandler):
     )  # type: queue.Queue[Union[beam_fn_api_pb2.StateRequest, Sentinel]]
     self._responses_by_id = {}  # type: Dict[str, _Future]
     self._last_id = 0
-    self._exc_info = None  # type: Optional[OptExcInfo]
+    self._exception = None  # type: Optional[Exception]
     self._context = threading.local()
     self.start()
 
@@ -1031,8 +960,8 @@ class GrpcStateHandler(StateHandler):
           future.set(response)
           if self._done:
             break
-      except:  # pylint: disable=bare-except
-        self._exc_info = sys.exc_info()
+      except Exception as e:
+        self._exception = e
         raise
 
     reader = threading.Thread(target=pull_responses, name='read_state')
@@ -1089,10 +1018,8 @@ class GrpcStateHandler(StateHandler):
     # type: (beam_fn_api_pb2.StateRequest) -> beam_fn_api_pb2.StateResponse
     req_future = self._request(request)
     while not req_future.wait(timeout=1):
-      if self._exc_info:
-        t, v, tb = self._exc_info
-        if t and v and tb:
-          raise t(v).with_traceback(tb)
+      if self._exception:
+        raise self._exception
       elif self._done:
         raise RuntimeError()
     response = req_future.get()

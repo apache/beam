@@ -106,7 +106,8 @@ public class S3WritableByteChannelTest {
         options.getSSEAlgorithm(),
         toMd5(options.getSSECustomerKey()),
         options.getSSEAwsKeyManagementParams(),
-        options.getS3UploadBufferSizeBytes());
+        options.getS3UploadBufferSizeBytes(),
+        options.getBucketKeyEnabled());
   }
 
   private void writeFromConfig(S3FileSystemConfiguration config) throws IOException {
@@ -120,7 +121,8 @@ public class S3WritableByteChannelTest {
         config.getSSEAlgorithm(),
         toMd5(config.getSSECustomerKey()),
         config.getSSEAwsKeyManagementParams(),
-        config.getS3UploadBufferSizeBytes());
+        config.getS3UploadBufferSizeBytes(),
+        config.getBucketKeyEnabled());
   }
 
   private void write(
@@ -130,7 +132,8 @@ public class S3WritableByteChannelTest {
       String sseAlgorithm,
       String sseCustomerKeyMd5,
       SSEAwsKeyManagementParams sseAwsKeyManagementParams,
-      long s3UploadBufferSizeBytes)
+      long s3UploadBufferSizeBytes,
+      boolean bucketKeyEnabled)
       throws IOException {
     InitiateMultipartUploadResult initiateMultipartUploadResult =
         new InitiateMultipartUploadResult();
@@ -145,6 +148,7 @@ public class S3WritableByteChannelTest {
       sseAlgorithm = "aws:kms";
       initiateMultipartUploadResult.setSSEAlgorithm(sseAlgorithm);
     }
+    initiateMultipartUploadResult.setBucketKeyEnabled(bucketKeyEnabled);
     doReturn(initiateMultipartUploadResult)
         .when(mockAmazonS3)
         .initiateMultipartUpload(any(InitiateMultipartUploadRequest.class));
@@ -153,6 +157,7 @@ public class S3WritableByteChannelTest {
         mockAmazonS3.initiateMultipartUpload(
             new InitiateMultipartUploadRequest(path.getBucket(), path.getKey()));
     assertEquals(sseAlgorithm, mockInitiateMultipartUploadResult.getSSEAlgorithm());
+    assertEquals(bucketKeyEnabled, mockInitiateMultipartUploadResult.getBucketKeyEnabled());
     assertEquals(sseCustomerKeyMd5, mockInitiateMultipartUploadResult.getSSECustomerKeyMd5());
 
     UploadPartResult result = new UploadPartResult();

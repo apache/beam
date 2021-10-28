@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;

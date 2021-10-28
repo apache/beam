@@ -16,8 +16,8 @@
 package primitives
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
 func emit3Fn(elm int, emit, emit2, emit3 func(int)) {

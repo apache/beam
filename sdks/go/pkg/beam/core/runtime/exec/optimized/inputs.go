@@ -22,8 +22,8 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 func init() {

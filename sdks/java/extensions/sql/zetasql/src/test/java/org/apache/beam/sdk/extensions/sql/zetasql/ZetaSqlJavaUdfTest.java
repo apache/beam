@@ -43,7 +43,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
@@ -248,13 +248,9 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
-  /**
-   * This is a loophole in type checking. The SQL function signature does not need to match the Java
-   * function signature; only the generated code is typechecked.
-   */
-  // TODO(BEAM-11171): fix this and adjust test accordingly.
   @Test
-  public void testNullArgumentIsNotTypeChecked() {
+  public void testNullArgumentIsTypeChecked() {
+    // The Java definition for isNull takes a String, but here we declare it in SQL with INT64.
     String sql =
         String.format(
             "CREATE FUNCTION isNull(i INT64) RETURNS INT64 LANGUAGE java "
@@ -263,12 +259,17 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    Schema singleField = Schema.builder().addBooleanField("field1").build();
-
-    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(true).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    // TODO(BEAM-11171) This should fail earlier, before compiling the CalcFn.
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("Could not compile CalcFn");
+    thrown.expectCause(
+        allOf(
+            isA(CompileException.class),
+            hasProperty(
+                "message",
+                containsString(
+                    "No applicable constructor/method found for actual parameters \"java.lang.Long\""))));
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
   }
 
   @Test

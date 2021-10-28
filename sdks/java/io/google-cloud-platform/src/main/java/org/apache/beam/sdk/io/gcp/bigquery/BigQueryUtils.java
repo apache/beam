@@ -663,8 +663,10 @@ public class BigQueryUtils {
   }
 
   private static Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
-    if (jsonBQValue instanceof String) {
-      String jsonBQString = (String) jsonBQValue;
+    if (jsonBQValue instanceof String
+        || jsonBQValue instanceof Number
+        || jsonBQValue instanceof Boolean) {
+      String jsonBQString = jsonBQValue.toString();
       if (JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
         return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply(jsonBQString);
       } else if (fieldType.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {

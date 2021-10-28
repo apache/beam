@@ -22,10 +22,10 @@ applyPythonNature()
 
 description = "Apache Beam :: SDKs :: Go :: Test"
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
+// Disable gogradle's dependency resolution so it uses Go modules instead.
+installDependencies.enabled = false
+resolveBuildDependencies.enabled = false
+resolveTestDependencies.enabled = false
 
 clean.dependsOn cleanVendor
 
@@ -39,20 +39,36 @@ dependencies {
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/go/test'
+  packagePath = 'github.com/apache/beam/sdks/v2/go/test'
+
+  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
+  goTest {
+    environment 'GOFLAGS', '-modcacherw'
+  }
+  goVet {
+    environment 'GOFLAGS', '-modcacherw'
+  }
+  gofmt {
+    environment 'GOFLAGS', '-modcacherw'
+    gofmt '-w ./integration ./regression' // Avoid sub-directories with gradle modules.
+  }
   goBuild {
+    environment 'GOFLAGS', '-modcacherw'
+
     // Build the linux-amd64 worker. The native version is built in the parent to
     // have a fixed name, which is not possible with multiple target platforms. The
     // script would otherwise have to figure out which arch/platform binary to invoke.
 
     targetPlatform = ['linux-amd64']
-    go 'build -o ./build/bin/linux-amd64/worker github.com/apache/beam/sdks/go/test/integration/driver'
+    go 'build -o ./build/bin/linux-amd64/worker github.com/apache/beam/sdks/v2/go/test/integration/driver'
   }
 }
 
 // ValidatesRunner tests for Dataflow. Runs tests in the integration directory
 // with Dataflow to validate that the runner behaves as expected.
 task dataflowValidatesRunner() {
+  group = "Verification"
+
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
@@ -63,9 +79,6 @@ task dataflowValidatesRunner() {
             "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
             "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
-      options.add("--jenkins")
-    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -76,6 +89,8 @@ task dataflowValidatesRunner() {
 // ValidatesRunner tests for Flink. Runs tests in the integration directory
 // with Flink to validate that the runner behaves as expected.
 task flinkValidatesRunner {
+  group = "Verification"
+
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:java8:docker"
@@ -88,9 +103,6 @@ task flinkValidatesRunner {
             "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
             "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
-      options.add("--jenkins")
-    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -113,9 +125,6 @@ task samzaValidatesRunner {
             "--samza_job_server_jar ${project(":runners:samza:job-server").shadowJar.archivePath}",
             "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
-      options.add("--jenkins")
-    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -126,6 +135,8 @@ task samzaValidatesRunner {
 // ValidatesRunner tests for Spark. Runs tests in the integration directory
 // with Spark to validate that the runner behaves as expected.
 task sparkValidatesRunner {
+  group = "Verification"
+
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:java:container:java8:docker"
   dependsOn ":sdks:java:container:java11:docker"
@@ -137,9 +148,6 @@ task sparkValidatesRunner {
             "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
             "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
-      options.add("--jenkins")
-    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -155,6 +163,8 @@ task sparkValidatesRunner {
 // vendored directories. For best results use the clean task, like so:
 //   ./gradlew clean :sdks:go:test:ulrValidatesRunner
 task ulrValidatesRunner {
+  group = "Verification"
+
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:java8:docker"
@@ -167,9 +177,6 @@ task ulrValidatesRunner {
             "--runner portable",
             "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
-      options.add("--jenkins")
-    }
     exec {
       executable "sh"
       workingDir "${project.rootDir}/sdks/python"
@@ -178,6 +185,34 @@ task ulrValidatesRunner {
     exec {
       executable "sh"
       args "-c", ". ${envdir}/bin/activate && ./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
+// A method for configuring a cross-language validates runner test task,
+// intended to be used in calls to createCrossLanguageValidatesRunnerTask.
+ext.goIoValidatesRunnerTask = { proj, name, scriptOpts ->
+  return proj.tasks.create(name: name) {
+    group = "Verification"
+
+    dependsOn ":sdks:go:test:goBuild"
+    dependsOn ":sdks:go:container:docker"
+    dependsOn ":sdks:java:io:expansion-service:build"
+    dependsOn ":sdks:java:testing:kafka-service:buildTestKafkaServiceJar"
+
+    doLast {
+      def ioExpJar = project(":sdks:java:io:expansion-service").shadowJar.archivePath
+      def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
+      def options = [
+          "--io_expansion_jar ${ioExpJar}",
+          "--pipeline_opts \"--kafka_jar=${kafkaJar}\"",
+      ]
+      options.addAll(scriptOpts)
+      logger.info("Running the command: sh -c ./run_validatesrunner_tests.sh ${options.join(' ')}")
+      exec {
+        executable "sh"
+        args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+      }
     }
   }
 }

@@ -551,6 +551,10 @@ See the source of the script for more details, or to run commands manually in ca
 
 ### Run build_release_candidate.sh to create a release candidate
 
+Before you start, run this command to make sure you'll be using the latest docker images:
+
+      docker system prune -a
+
 * **Script:** [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
 
 * **Usage**
@@ -632,37 +636,6 @@ See the source of the script for more details or to run commands manually in cas
 
 ## 8. Prepare documents
 
-### Update and Verify Javadoc
-
-The build with `-PisRelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
-
-The file `sdks/java/javadoc/build.gradle` contains a list of modules to include and exclude, plus a list of offline URLs that populate links from Beam's Javadoc to the Javadoc for other modules that Beam depends on.
-
-* Confirm that new modules added since the last release have been added to the inclusion list as appropriate.
-
-* Confirm that the excluded package list is up to date.
-
-* Verify the version numbers for offline links match the versions used by Beam.
-  If the version number has changed, download a new version of the corresponding `<module>-docs/package-list` file.
-
-
-### Build the Pydoc API reference
-
-Make sure you have ```tox``` installed:
-
-```
-pip install tox
-```
-
-Create the Python SDK documentation using sphinx by running a helper script.
-
-```
-cd sdks/python && pip install -r build-requirements.txt && tox -e py37-docs
-```
-
-By default the Pydoc is generated in `sdks/python/target/docs/_build`.
-Let `${PYDOC_ROOT}` be the absolute path to `_build`.
-
 ### Propose pull requests for website updates
 
 Beam publishes API reference manuals for each release on the website.
@@ -681,18 +654,19 @@ It is created by `build_release_candidate.sh` (see above).
 
 **PR 2: apache/beam**
 
-This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/11727)).
+This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/15068)).
 
+* Update `CHANGES.md` to update release date and remove template.
 * Update release version in `website/www/site/config.toml`.
 * Add new release in `website/www/site/content/en/get-started/downloads.md`.
   * Download links will not work until the release is finalized.
 * Update `website/www/site/static/.htaccess` to redirect to the new version.
+* Create the Blog post:
 
-
-### Blog post
+#### Blog post
 
 Use the template below to write a blog post for the release.
-See [beam-2.23.0.md](https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d) as an example.
+See [beam-2.31.0.md](https://github.com/apache/beam/commit/a32a75ed0657c122c6625aee1ace27994e7df195#diff-1e2b83a4f61dce8014a1989869b6d31eb3f80cb0d6dade42fb8df5d9407b4748) as an example.
 - Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
 - Be sure to add yourself to [authors.yml](https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml) if necessary.
 
@@ -804,9 +778,9 @@ Here’s an email template; please adjust as you see fit.
     * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF [3],
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
-    * website pull request listing the release [6], publishing the API reference manual [7], and the blog post [8].
+    * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
     * Java artifacts were built with Maven MAVEN_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
-    * Python artifacts are deployed along with the source release to the dist.apache.org [2].
+    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and pypy[8].
     * Validation sheet with a tab for 1.2.3 release to help with validation [9].
     * Docker images published to Docker Hub [10].
 
@@ -824,7 +798,7 @@ Here’s an email template; please adjust as you see fit.
     [5] https://github.com/apache/beam/tree/v1.2.3-RC3
     [6] https://github.com/apache/beam/pull/...
     [7] https://github.com/apache/beam-site/pull/...
-    [8] https://github.com/apache/beam/pull/...
+    [8] https://pypi.org/project/apache-beam/1.2.3rc3/
     [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
     [10] https://hub.docker.com/search?q=apache%2Fbeam&type=image
 
@@ -1177,6 +1151,9 @@ Merge all of the website pull requests
 Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
 
 ```
+# Optional: unlock the signing key by signing an arbitrary file.
+gpg --output ~/doc.sig --sign ~/.bashrc
+
 VERSION_TAG="v${RELEASE}"
 git tag -s "$VERSION_TAG" "$RC_TAG"
 git push https://github.com/apache/beam "$VERSION_TAG"

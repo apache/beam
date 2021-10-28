@@ -133,6 +133,18 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
+  public void testWriteWithErrorsReturned() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithErrorsReturned();
+  }
+
+  @Test
+  public void testWriteWithErrorsReturnedAllowedErrors() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithErrorsReturnedAllowedErrors();
+  }
+
+  @Test
   public void testWriteWithMaxBatchSize() throws Exception {
     elasticsearchIOTestCommon.testWriteWithMaxBatchSize();
   }
@@ -244,5 +256,16 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithPartialUpdates();
     elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithoutPartialUpdate();
+  }
+
+  @Test
+  public void testDocumentCoder() throws Exception {
+    elasticsearchIOTestCommon.testDocumentCoder();
+  }
+
+  @Test
+  public void testPDone() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testPipelineDone();
   }
 }

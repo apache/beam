@@ -21,8 +21,6 @@
 
 import contextlib
 import logging
-import threading
-import time
 import unittest
 from collections import namedtuple
 
@@ -40,12 +38,10 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statecache
-from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.sdk_worker import BundleProcessorCache
 from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler
 from apache_beam.runners.worker.sdk_worker import SdkWorker
 from apache_beam.utils import thread_pool_executor
-from apache_beam.utils.counters import CounterName
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -126,13 +122,6 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_fn_registration(self):
     self._check_fn_registration_multi_request((1, 4), (4, 4))
-
-  def _get_state_sampler_info_for_lull(self, lull_duration_s):
-    return statesampler.StateSamplerInfo(
-        CounterName('progress-msecs', 'stage_name', 'step_name'),
-        1,
-        lull_duration_s * 1e9,
-        threading.current_thread())
 
   def test_inactive_bundle_processor_returns_empty_progress_response(self):
     bundle_processor = mock.MagicMock()
@@ -282,57 +271,6 @@ class SdkWorkerTest(unittest.TestCase):
         worker.do_instruction(split_request).error,
         hc.contains_string(
             'Bundle processing associated with instruction_id has failed'))
-
-  def test_log_lull_in_bundle_processor(self):
-    bundle_processor_cache = mock.MagicMock()
-    worker = SdkWorker(bundle_processor_cache)
-
-    now = time.time()
-    log_full_thread_dump_fn_name = \
-        'apache_beam.runners.worker.sdk_worker.SdkWorker._log_full_thread_dump'
-    with mock.patch('logging.Logger.warning') as warn_mock:
-      with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
-        with mock.patch('time.time') as time_mock:
-          time_mock.return_value = now
-          sampler_info = self._get_state_sampler_info_for_lull(21 * 60)
-          worker._log_lull_sampler_info(sampler_info)
-
-          processing_template = warn_mock.call_args[0][1]
-          step_name_template = warn_mock.call_args[0][2]
-          traceback = warn_mock.call_args = warn_mock.call_args[0][3]
-
-          self.assertIn('progress-msecs', processing_template)
-          self.assertIn('step_name', step_name_template)
-          self.assertIn('test_log_lull_in_bundle_processor', traceback)
-
-          log_full_thread_dump.assert_called_once_with()
-
-    with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
-      with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 6 * 60  # 6 minutes
-        sampler_info = self._get_state_sampler_info_for_lull(21 * 60)
-        worker._log_lull_sampler_info(sampler_info)
-        self.assertFalse(
-            log_full_thread_dump.called,
-            'log_full_thread_dump should not be called because only 6 minutes '
-            'have passed since the last dump.')
-
-    with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
-      with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 21 * 60  # 21 minutes
-        sampler_info = self._get_state_sampler_info_for_lull(10 * 60)
-        worker._log_lull_sampler_info(sampler_info)
-        self.assertFalse(
-            log_full_thread_dump.called,
-            'log_full_thread_dump should not be called because lull is only '
-            'for 10 minutes.')
-
-    with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
-      with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 21 * 60  # 21 minutes
-        sampler_info = self._get_state_sampler_info_for_lull(21 * 60)
-        worker._log_lull_sampler_info(sampler_info)
-        log_full_thread_dump.assert_called_once_with()
 
 
 class CachingStateHandlerTest(unittest.TestCase):

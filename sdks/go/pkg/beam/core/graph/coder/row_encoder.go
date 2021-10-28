@@ -20,7 +20,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // RowEncoderBuilder allows one to build Beam Schema row encoders for provided types.

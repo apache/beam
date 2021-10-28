@@ -99,7 +99,8 @@ class _TextSource(filebasedsource.FileBasedSource):
                buffer_size=DEFAULT_READ_BUFFER_SIZE,
                validate=True,
                skip_header_lines=0,
-               header_processor_fns=(None, None)):
+               header_processor_fns=(None, None),
+               delimiter=b'\n'):
     """Initialize a _TextSource
 
     Args:
@@ -118,7 +119,7 @@ class _TextSource(filebasedsource.FileBasedSource):
     Please refer to documentation in class `ReadFromText` for the rest
     of the arguments.
     """
-    super(_TextSource, self).__init__(
+    super().__init__(
         file_pattern,
         min_bundle_size,
         compression_type=compression_type,
@@ -137,9 +138,10 @@ class _TextSource(filebasedsource.FileBasedSource):
           'lines might significantly slow down processing.')
     self._skip_header_lines = skip_header_lines
     self._header_matcher, self._header_processor = header_processor_fns
+    self._delimiter = delimiter
 
   def display_data(self):
-    parent_dd = super(_TextSource, self).display_data()
+    parent_dd = super().display_data()
     parent_dd['strip_newline'] = DisplayDataItem(
         self._strip_trailing_newlines, label='Strip Trailing New Lines')
     parent_dd['buffer_size'] = DisplayDataItem(
@@ -236,32 +238,35 @@ class _TextSource(filebasedsource.FileBasedSource):
   def _find_separator_bounds(self, file_to_read, read_buffer):
     # Determines the start and end positions within 'read_buffer.data' of the
     # next separator starting from position 'read_buffer.position'.
-    # Currently supports following separators.
-    # * '\n'
-    # * '\r\n'
+    # Use the custom delimiter to be used in place of
+    # the default ones ('\r', '\n' or '\r\n')'
     # This method may increase the size of buffer but it will not decrease the
     # size of it.
 
     current_pos = read_buffer.position
 
+    delimiter_len = len(self._delimiter)
+
     while True:
       if current_pos >= len(read_buffer.data):
-        # Ensuring that there are enough bytes to determine if there is a '\n'
+        # Ensuring that there are enough bytes to determine
         # at current_pos.
         if not self._try_to_ensure_num_bytes_in_buffer(
-            file_to_read, read_buffer, current_pos + 1):
+            file_to_read, read_buffer, current_pos + delimiter_len):
           return
 
-      # Using find() here is more efficient than a linear scan of the byte
-      # array.
-      next_lf = read_buffer.data.find(b'\n', current_pos)
+      # Using find() here is more efficient than a linear scan
+      # of the byte array.
+      next_lf = read_buffer.data.find(self._delimiter, current_pos)
+
       if next_lf >= 0:
-        if next_lf > 0 and read_buffer.data[next_lf - 1:next_lf] == b'\r':
+        if self._delimiter == b'\n' and read_buffer.data[next_lf -
+                                                         1:next_lf] == b'\r':
           # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
         else:
-          # Found a '\n'. Accepting that as the next separator.
-          return (next_lf, next_lf + 1)
+          # Found a delimiter. Accepting that as the next separator.
+          return (next_lf, next_lf + delimiter_len)
 
       current_pos = len(read_buffer.data)
 
@@ -327,8 +332,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
 class _TextSourceWithFilename(_TextSource):
   def read_records(self, file_name, range_tracker):
-    records = super(_TextSourceWithFilename,
-                    self).read_records(file_name, range_tracker)
+    records = super().read_records(file_name, range_tracker)
     for record in records:
       yield (file_name, record)
 
@@ -383,7 +387,7 @@ class _TextSink(filebasedsink.FileBasedSink):
     Returns:
       A _TextSink object usable for writing.
     """
-    super(_TextSink, self).__init__(
+    super().__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
         num_shards=num_shards,
@@ -396,7 +400,7 @@ class _TextSink(filebasedsink.FileBasedSink):
     self._footer = footer
 
   def open(self, temp_path):
-    file_handle = super(_TextSink, self).open(temp_path)
+    file_handle = super().open(temp_path)
     if self._header is not None:
       file_handle.write(coders.ToBytesCoder().encode(self._header))
       if self._append_trailing_newlines:
@@ -408,10 +412,10 @@ class _TextSink(filebasedsink.FileBasedSink):
       file_handle.write(coders.ToBytesCoder().encode(self._footer))
       if self._append_trailing_newlines:
         file_handle.write(b'\n')
-    super(_TextSink, self).close(file_handle)
+    super().close(file_handle)
 
   def display_data(self):
-    dd_parent = super(_TextSink, self).display_data()
+    dd_parent = super().display_data()
     dd_parent['append_newline'] = DisplayDataItem(
         self._append_trailing_newlines, label='Append Trailing New Lines')
     return dd_parent
@@ -449,6 +453,10 @@ class ReadAllFromText(PTransform):
   Parses a text file as newline-delimited elements, by default assuming
   UTF-8 encoding. Supports newline delimiters '\\n' and '\\r\\n'.
 
+  If `with_filename` is ``True`` the output will include the file name. This is
+  similar to ``ReadFromTextWithFilename`` but this ``PTransform`` can be placed
+  anywhere in the pipeline.
+
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32.
   """
@@ -463,6 +471,7 @@ class ReadAllFromText(PTransform):
       strip_trailing_newlines=True,
       coder=coders.StrUtf8Coder(),  # type: coders.Coder
       skip_header_lines=0,
+      with_filename=False,
       **kwargs):
     """Initialize the ``ReadAllFromText`` transform.
 
@@ -484,8 +493,11 @@ class ReadAllFromText(PTransform):
         from each source file. Must be 0 or higher. Large number of skipped
         lines might impact performance.
       coder: Coder used to decode each line.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
-    super(ReadAllFromText, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     source_from_file = partial(
         _create_text_source,
         min_bundle_size=min_bundle_size,
@@ -501,7 +513,8 @@ class ReadAllFromText(PTransform):
         compression_type,
         desired_bundle_size,
         min_bundle_size,
-        source_from_file)
+        source_from_file,
+        with_filename)
 
   def expand(self, pvalue):
     return pvalue | 'ReadAllFiles' >> self._read_all_files
@@ -512,7 +525,8 @@ class ReadFromText(PTransform):
   files.
 
   Parses a text file as newline-delimited elements, by default assuming
-  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``.
+  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``
+  or specified delimiter .
 
   This implementation only supports reading text encoded using ``UTF-8`` or
   ``ASCII``.
@@ -530,6 +544,7 @@ class ReadFromText(PTransform):
       coder=coders.StrUtf8Coder(),  # type: coders.Coder
       validate=True,
       skip_header_lines=0,
+      delimiter=b'\n',
       **kwargs):
     """Initialize the :class:`ReadFromText` transform.
 
@@ -553,9 +568,10 @@ class ReadFromText(PTransform):
         skipped from each source file. Must be 0 or higher. Large number of
         skipped lines might impact performance.
       coder (~apache_beam.coders.coders.Coder): Coder used to decode each line.
+      delimiter (bytes): delimiter to split records
     """
 
-    super(ReadFromText, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     self._source = self._source_class(
         file_pattern,
         min_bundle_size,
@@ -563,7 +579,8 @@ class ReadFromText(PTransform):
         strip_trailing_newlines,
         coder,
         validate=validate,
-        skip_header_lines=skip_header_lines)
+        skip_header_lines=skip_header_lines,
+        delimiter=delimiter)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)

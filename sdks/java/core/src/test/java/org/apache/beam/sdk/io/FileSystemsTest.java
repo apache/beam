@@ -23,7 +23,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.io.FileNotFoundException;
 import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +37,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -190,6 +196,86 @@ public class FileSystemsTest {
   }
 
   @Test
+  public void testRenameWithFilteringAfterUnsupportedOptions() throws Exception {
+    FileSystem mockFileSystem = mock(FileSystem.class);
+
+    Path srcPath1 = temporaryFolder.newFile().toPath();
+    Path nonExistentPath = srcPath1.resolveSibling("non-existent");
+    Path srcPath3 = temporaryFolder.newFile().toPath();
+
+    Path destPath1 = srcPath1.resolveSibling("dest1");
+    Path destPath2 = nonExistentPath.resolveSibling("dest2");
+    Path destPath3 = srcPath1.resolveSibling("dest3");
+
+    doThrow(new UnsupportedOperationException("move options not supported."))
+        .when(mockFileSystem)
+        .rename(
+            toResourceIds(ImmutableList.of(srcPath1, nonExistentPath, srcPath3), false),
+            toResourceIds(ImmutableList.of(destPath1, destPath2, destPath3), false),
+            MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS,
+            MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+    when(mockFileSystem.match(
+            ImmutableList.of(
+                srcPath1.toString(),
+                nonExistentPath.toString(),
+                srcPath3.toString(),
+                destPath1.toString(),
+                destPath2.toString(),
+                destPath3.toString())))
+        .thenReturn(
+            ImmutableList.of(
+                MatchResult.create(
+                    MatchResult.Status.OK,
+                    ImmutableList.of(
+                        MatchResult.Metadata.builder()
+                            .setChecksum("1")
+                            .setResourceId(LocalResourceId.fromPath(srcPath1, false))
+                            .setSizeBytes(1)
+                            .build())),
+                MatchResult.create(MatchResult.Status.NOT_FOUND, new FileNotFoundException("")),
+                MatchResult.create(
+                    MatchResult.Status.OK,
+                    ImmutableList.of(
+                        MatchResult.Metadata.builder()
+                            .setChecksum("3")
+                            .setResourceId(LocalResourceId.fromPath(srcPath3, false))
+                            .setSizeBytes(1)
+                            .build())),
+                MatchResult.create(MatchResult.Status.NOT_FOUND, new FileNotFoundException("")),
+                MatchResult.create(
+                    MatchResult.Status.OK,
+                    ImmutableList.of(
+                        MatchResult.Metadata.builder()
+                            .setChecksum("2")
+                            .setResourceId(LocalResourceId.fromPath(destPath2, false))
+                            .setSizeBytes(1)
+                            .build())),
+                MatchResult.create(
+                    MatchResult.Status.OK,
+                    ImmutableList.of(
+                        MatchResult.Metadata.builder()
+                            .setChecksum("3")
+                            .setResourceId(LocalResourceId.fromPath(destPath3, false))
+                            .setSizeBytes(1)
+                            .build()))));
+
+    FileSystems.renameInternal(
+        mockFileSystem,
+        toResourceIds(
+            ImmutableList.of(srcPath1, nonExistentPath, srcPath3), false /* isDirectory */),
+        toResourceIds(ImmutableList.of(destPath1, destPath2, destPath3), false /* isDirectory */),
+        MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS,
+        MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+
+    verify(mockFileSystem)
+        .rename(
+            toResourceIds(ImmutableList.of(srcPath1), false /* isDirectory */),
+            toResourceIds(ImmutableList.of(destPath1), false /* isDirectory */));
+    verify(mockFileSystem)
+        .delete(toResourceIds(ImmutableList.of(srcPath3), false /* isDirectory */));
+  }
+
+  @Test
   public void testValidMatchNewResourceForLocalFileSystem() {
     assertEquals("file", FileSystems.matchNewResource("/tmp/f1", false).getScheme());
     assertEquals("file", FileSystems.matchNewResource("tmp/f1", false).getScheme());
@@ -202,7 +288,7 @@ public class FileSystemsTest {
     assertEquals("file", FileSystems.matchNewResource("c:/tmp/f1", false));
   }
 
-  private List<ResourceId> toResourceIds(List<Path> paths, final boolean isDirectory) {
+  private static List<ResourceId> toResourceIds(List<Path> paths, final boolean isDirectory) {
     return FluentIterable.from(paths)
         .transform(path -> (ResourceId) LocalResourceId.fromPath(path, isDirectory))
         .toList();

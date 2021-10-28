@@ -58,7 +58,7 @@ public class BigqueryClientTest {
     when(mockBigqueryClient.jobs()).thenReturn(mockJobs);
     when(mockJobs.query(anyString(), any(QueryRequest.class))).thenReturn(mockQuery);
     PowerMockito.mockStatic(BigqueryClient.class);
-    when(BigqueryClient.getNewBigquerryClient(anyString())).thenReturn(mockBigqueryClient);
+    when(BigqueryClient.getNewBigqueryClient(anyString())).thenReturn(mockBigqueryClient);
     bqClient = spy(new BigqueryClient("test-app"));
   }
 

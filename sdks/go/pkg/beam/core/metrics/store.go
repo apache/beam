@@ -52,10 +52,32 @@ func PCollectionLabels(pcollection string) Labels {
 	return Labels{pcollection: pcollection}
 }
 
+// PCollection returns the PCollection id for this metric.
+func (l Labels) PCollection() string { return l.pcollection }
+
 // PTransformLabels builds a Labels for transform metrics.
 // Intended for framework use.
 func PTransformLabels(transform string) Labels {
 	return Labels{transform: transform}
+}
+
+// Map produces a map of present labels to their values.
+//
+// Returns nil map if invalid.
+func (l Labels) Map() map[string]string {
+	if l.transform != "" {
+		return map[string]string{
+			"PTRANSFORM": l.transform,
+			"NAMESPACE":  l.namespace,
+			"NAME":       l.name,
+		}
+	}
+	if l.pcollection != "" {
+		return map[string]string{
+			"PCOLLECTION": l.pcollection,
+		}
+	}
+	return nil
 }
 
 // Extractor allows users to access metrics programatically after

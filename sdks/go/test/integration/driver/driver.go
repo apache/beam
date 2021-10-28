@@ -23,13 +23,13 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/test/integration/primitives"
-	"github.com/apache/beam/sdks/go/test/integration/synthetic"
-	"github.com/apache/beam/sdks/go/test/integration/wordcount"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/memfs"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/test/integration/primitives"
+	"github.com/apache/beam/sdks/v2/go/test/integration/synthetic"
+	"github.com/apache/beam/sdks/v2/go/test/integration/wordcount"
 )
 
 var (

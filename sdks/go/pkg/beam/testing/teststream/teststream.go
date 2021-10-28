@@ -18,7 +18,11 @@
 //
 // See https://beam.apache.org/blog/test-stream/ for more information.
 //
-// TestStream is supported on the Flink runner.
+// TestStream is supported on the Flink runner and currently supports int64,
+// float64, and boolean types.
+//
+// TODO(BEAM-12753): Flink currently displays unexpected behavior with TestStream,
+// should not be used until this issue is resolved.
 package teststream
 
 import (
@@ -26,12 +30,12 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
 
 const urn = "beam:transform:teststream:v1"
@@ -105,6 +109,8 @@ func (c *Config) AdvanceProcessingTimeToInfinity() {
 //
 // On the first call, a type will be inferred from the passed in elements, which must be of all the same type.
 // Type mismatches on this or subsequent calls will cause AddElements to return an error.
+//
+// Element types must have built-in coders in Beam.
 func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
 	t := reflect.TypeOf(elements[0])
 	if c.elmType == nil {
@@ -130,6 +136,25 @@ func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
 	elementEvent := &pipepb.TestStreamPayload_Event_ElementEvent{ElementEvent: addElementsEvent}
 	c.events = append(c.events, &pipepb.TestStreamPayload_Event{Event: elementEvent})
 	return nil
+}
+
+// AddElementList inserts a slice of elements into the stream at the specified event timestamp. Must be called with
+// at least one element.
+//
+// Calls into AddElements, which panics if an inserted type does not match a previously inserted element type.
+//
+// Element types must have built-in coders in Beam.
+func (c *Config) AddElementList(timestamp int64, elements interface{}) error {
+	val := reflect.ValueOf(elements)
+	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
+		return fmt.Errorf("input %v must be a slice or array", elements)
+	}
+
+	var inputs []interface{}
+	for i := 0; i < val.Len(); i++ {
+		inputs = append(inputs, val.Index(i).Interface())
+	}
+	return c.AddElements(timestamp, inputs...)
 }
 
 // Create inserts a TestStream primitive into a pipeline, taking a scope and a Config object and

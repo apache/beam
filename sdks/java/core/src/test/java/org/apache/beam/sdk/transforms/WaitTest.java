@@ -101,7 +101,8 @@ public class WaitTest implements Serializable {
     // allowedLateness of it.
     List<Instant> watermarks = Lists.newArrayList();
     for (int i = 0; i < numElements; ++i) {
-      watermarks.add(base.plus(new Duration((long) (totalDuration.getMillis() * Math.random()))));
+      watermarks.add(
+          base.plus(Duration.millis((long) (totalDuration.getMillis() * Math.random()))));
     }
     Collections.sort(watermarks);
 

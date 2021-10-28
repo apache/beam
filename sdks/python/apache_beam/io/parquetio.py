@@ -64,14 +64,20 @@ __all__ = [
 class _ArrowTableToRowDictionaries(DoFn):
   """ A DoFn that consumes an Arrow table and yields a python dictionary for
   each row in the table."""
-  def process(self, table):
+  def process(self, table, with_filename=False):
+    if with_filename:
+      file_name = table[0]
+      table = table[1]
     num_rows = table.num_rows
     data_items = table.to_pydict().items()
     for n in range(num_rows):
       row = {}
       for column, values in data_items:
         row[column] = values[n]
-      yield row
+      if with_filename:
+        yield (file_name, row)
+      else:
+        yield row
 
 
 class ReadFromParquetBatched(PTransform):
@@ -118,7 +124,7 @@ class ReadFromParquetBatched(PTransform):
         'a.b', 'a.c', and 'a.d.e'
     """
 
-    super(ReadFromParquetBatched, self).__init__()
+    super().__init__()
     self._source = _create_parquet_source(
         file_pattern,
         min_bundle_size,
@@ -184,7 +190,7 @@ class ReadFromParquet(PTransform):
         A column name may be a prefix of a nested field, e.g. 'a' will select
         'a.b', 'a.c', and 'a.d.e'
     """
-    super(ReadFromParquet, self).__init__()
+    super().__init__()
     self._source = _create_parquet_source(
         file_pattern,
         min_bundle_size,
@@ -215,6 +221,7 @@ class ReadAllFromParquetBatched(PTransform):
       min_bundle_size=0,
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       columns=None,
+      with_filename=False,
       label='ReadAllFiles'):
     """Initializes ``ReadAllFromParquet``.
 
@@ -226,8 +233,11 @@ class ReadAllFromParquetBatched(PTransform):
       columns: list of columns that will be read from files. A column name
                        may be a prefix of a nested field, e.g. 'a' will select
                        'a.b', 'a.c', and 'a.d.e'
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
-    super(ReadAllFromParquetBatched, self).__init__()
+    super().__init__()
     source_from_file = partial(
         _create_parquet_source,
         min_bundle_size=min_bundle_size,
@@ -237,7 +247,8 @@ class ReadAllFromParquetBatched(PTransform):
         CompressionTypes.UNCOMPRESSED,
         desired_bundle_size,
         min_bundle_size,
-        source_from_file)
+        source_from_file,
+        with_filename)
 
     self.label = label
 
@@ -246,11 +257,14 @@ class ReadAllFromParquetBatched(PTransform):
 
 
 class ReadAllFromParquet(PTransform):
-  def __init__(self, **kwargs):
-    self._read_batches = ReadAllFromParquetBatched(**kwargs)
+  def __init__(self, with_filename=False, **kwargs):
+    self._with_filename = with_filename
+    self._read_batches = ReadAllFromParquetBatched(
+        with_filename=self._with_filename, **kwargs)
 
   def expand(self, pvalue):
-    return pvalue | self._read_batches | ParDo(_ArrowTableToRowDictionaries())
+    return pvalue | self._read_batches | ParDo(
+        _ArrowTableToRowDictionaries(), with_filename=self._with_filename)
 
 
 def _create_parquet_source(
@@ -291,7 +305,7 @@ class _ParquetSource(filebasedsource.FileBasedSource):
   """A source for reading Parquet files.
   """
   def __init__(self, file_pattern, min_bundle_size, validate, columns):
-    super(_ParquetSource, self).__init__(
+    super().__init__(
         file_pattern=file_pattern,
         min_bundle_size=min_bundle_size,
         validate=validate)
@@ -433,7 +447,7 @@ class WriteToParquet(PTransform):
     Returns:
       A WriteToParquet transform usable for writing.
     """
-    super(WriteToParquet, self).__init__()
+    super().__init__()
     self._sink = \
       _create_parquet_sink(
           file_path_prefix,
@@ -495,7 +509,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
       num_shards,
       shard_name_template,
       mime_type):
-    super(_ParquetSink, self).__init__(
+    super().__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
         num_shards=num_shards,
@@ -521,7 +535,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     self._file_handle = None
 
   def open(self, temp_path):
-    self._file_handle = super(_ParquetSink, self).open(temp_path)
+    self._file_handle = super().open(temp_path)
     return pq.ParquetWriter(
         self._file_handle,
         self._schema,
@@ -551,7 +565,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
       self._file_handle = None
 
   def display_data(self):
-    res = super(_ParquetSink, self).display_data()
+    res = super().display_data()
     res['codec'] = str(self._codec)
     res['schema'] = str(self._schema)
     res['row_group_buffer_size'] = str(self._row_group_buffer_size)

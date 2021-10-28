@@ -20,11 +20,11 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIntersectRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Intersect;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalIntersect;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.Convention;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Intersect;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalIntersect;
 
 /** {@code ConverterRule} to replace {@code Intersect} with {@code BeamIntersectRel}. */
 public class BeamIntersectRule extends ConverterRule {

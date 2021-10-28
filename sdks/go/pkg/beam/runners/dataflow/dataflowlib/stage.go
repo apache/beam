@@ -22,10 +22,10 @@ import (
 	"os"
 
 	"cloud.google.com/go/storage"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
 )
 
 // StageModel uploads the pipeline model to GCS as a unique object.

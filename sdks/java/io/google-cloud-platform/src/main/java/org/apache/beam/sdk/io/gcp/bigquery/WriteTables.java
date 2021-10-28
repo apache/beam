@@ -332,7 +332,7 @@ class WriteTables<DestinationT>
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
       DatasetService datasetService =
-          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
+          getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
 
       PendingJobManager jobManager = new PendingJobManager();
       for (final PendingJobData pendingJob : pendingJobs) {

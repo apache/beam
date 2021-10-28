@@ -86,12 +86,11 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   public T copy(T t) {
     if (fasterCopy) {
       return t;
-    } else {
-      try {
-        return CoderUtils.clone(coder, t);
-      } catch (CoderException e) {
-        throw new RuntimeException("Could not clone.", e);
-      }
+    }
+    try {
+      return CoderUtils.clone(coder, t);
+    } catch (CoderException e) {
+      throw new RuntimeException("Could not clone.", e);
     }
   }
 

@@ -106,6 +106,9 @@ public abstract class RowCoderGenerator {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final BitSetCoder NULL_LIST_CODER = BitSetCoder.of();
   private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
+  // BitSet.get(n) will return false for any n >= nbits, so a BitSet with 0 bits will return false
+  // for all calls to get.
+  private static final BitSet EMPTY_BIT_SET = new BitSet(0);
 
   private static final String CODERS_FIELD_NAME = "FIELD_CODERS";
   private static final String POSITIONS_FIELD_NAME = "FIELD_ENCODING_POSITIONS";
@@ -316,27 +319,47 @@ public abstract class RowCoderGenerator {
 
       // Encode the field count. This allows us to handle compatible schema changes.
       VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
-      // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
-      NULL_LIST_CODER.encode(scanNullFields(value, hasNullableFields), outputStream);
-      for (int encodingPos = 0; encodingPos < value.getFieldCount(); ++encodingPos) {
-        @Nullable Object fieldValue = value.getValue(encodingPosToIndex[encodingPos]);
-        if (fieldValue != null) {
-          coders[encodingPos].encode(fieldValue, outputStream);
+
+      if (hasNullableFields) {
+        // If the row has null fields, extract the values out once so that both scanNullFields and
+        // the encoding can share it and avoid having to extract them twice.
+
+        Object[] fieldValues = new Object[value.getFieldCount()];
+        for (int idx = 0; idx < fieldValues.length; ++idx) {
+          fieldValues[idx] = value.getValue(idx);
+        }
+
+        // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
+        NULL_LIST_CODER.encode(scanNullFields(fieldValues), outputStream);
+        for (int encodingPos = 0; encodingPos < fieldValues.length; ++encodingPos) {
+          @Nullable Object fieldValue = fieldValues[encodingPosToIndex[encodingPos]];
+          if (fieldValue != null) {
+            coders[encodingPos].encode(fieldValue, outputStream);
+          }
+        }
+      } else {
+        // Otherwise, we know all fields are non-null, so the null list is always empty.
+
+        NULL_LIST_CODER.encode(EMPTY_BIT_SET, outputStream);
+        for (int encodingPos = 0; encodingPos < value.getFieldCount(); ++encodingPos) {
+          @Nullable Object fieldValue = value.getValue(encodingPosToIndex[encodingPos]);
+          if (fieldValue != null) {
+            coders[encodingPos].encode(fieldValue, outputStream);
+          }
         }
       }
     }
 
     // Figure out which fields of the Row are null, and returns a BitSet. This allows us to save
     // on encoding each null field separately.
-    private static BitSet scanNullFields(Row row, boolean hasNullableFields) {
-      BitSet nullFields = new BitSet(row.getFieldCount());
-      if (hasNullableFields) {
-        for (int idx = 0; idx < row.getFieldCount(); ++idx) {
-          if (row.getValue(idx) == null) {
-            nullFields.set(idx);
-          }
+    private static BitSet scanNullFields(Object[] fieldValues) {
+      BitSet nullFields = new BitSet(fieldValues.length);
+      for (int idx = 0; idx < fieldValues.length; ++idx) {
+        if (fieldValues[idx] == null) {
+          nullFields.set(idx);
         }
       }
+
       return nullFields;
     }
   }

@@ -125,7 +125,7 @@ class _BeamArgumentParser(argparse.ArgumentParser):
   def error(self, message):
     if message.startswith('ambiguous option: '):
       return
-    super(_BeamArgumentParser, self).error(message)
+    super().error(message)
 
 
 class PipelineOptions(HasDisplayData):
@@ -391,7 +391,7 @@ class PipelineOptions(HasDisplayData):
 
   def __setattr__(self, name, value):
     if name in ('_flags', '_all_options', '_visible_options'):
-      super(PipelineOptions, self).__setattr__(name, value)
+      super().__setattr__(name, value)
     elif name in self._visible_option_list():
       self._all_options[name] = value
     else:
@@ -534,8 +534,7 @@ class TypeOptions(PipelineOptions):
         'compatibility. See BEAM-11719.')
     parser.add_argument(
         '--allow_unsafe_triggers',
-        # TODO(BEAM-9487): Set to False for Beam 2.33
-        default=True,
+        default=False,
         action='store_true',
         help='Allow the use of unsafe triggers. Unsafe triggers have the '
         'potential to cause data loss due to finishing and/or never having '

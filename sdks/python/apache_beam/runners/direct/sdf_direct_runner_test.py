@@ -146,7 +146,7 @@ class ExpandStrings(DoFn):
 
 class SDFDirectRunnerTest(unittest.TestCase):
   def setUp(self):
-    super(SDFDirectRunnerTest, self).setUp()
+    super().setUp()
     # Importing following for DirectRunner SDF implemenation for testing.
     from apache_beam.runners.direct import transform_evaluator
     self._old_default_max_num_outputs = (

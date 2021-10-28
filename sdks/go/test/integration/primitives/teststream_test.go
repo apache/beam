@@ -18,16 +18,46 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/test/integration"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
-func TestTestStreamSingleSequence(t *testing.T) {
+func TestTestStreamStrings(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamSingleSequence())
+	ptest.RunAndValidate(t, TestStreamStrings())
 }
 
-func TestTestStreamTwoSequences(t *testing.T) {
+func TestTestStreamByteSliceSequence(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamTwoSequences())
+	ptest.RunAndValidate(t, TestStreamByteSliceSequence())
+}
+
+func TestTestStreamInt64Sequence(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, TestStreamInt64Sequence())
+}
+
+func TestTestStreamTwoInt64Sequences(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, TestStreamTwoInt64Sequences())
+}
+
+func TestTestStreamFloat64Sequence(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, TestStreamFloat64Sequence())
+}
+
+func TestTestStreamTwoFloat64Sequences(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, TestStreamTwoFloat64Sequences())
+}
+
+func TestTestStreamBoolSequence(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, TestStreamBoolSequence())
+}
+
+func TestTestStreamTwoBoolSequences(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, TestStreamTwoBoolSequences())
 }

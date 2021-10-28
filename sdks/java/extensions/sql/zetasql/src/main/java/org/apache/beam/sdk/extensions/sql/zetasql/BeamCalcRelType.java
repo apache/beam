@@ -21,23 +21,22 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ZetaSqlScalarFunctionImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.CallImplementor;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexImpTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexDynamicParam;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexFieldAccess;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLocalRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilder;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.RexImpTable;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexDynamicParam;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexFieldAccess;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLocalRef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RelBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +67,7 @@ class BeamCalcRelType extends CalcRelSplitter.RelType {
   protected boolean canImplement(RexCall call) {
     final SqlOperator operator = call.getOperator();
 
-    CallImplementor implementor = RexImpTable.INSTANCE.get(operator);
+    RexImpTable.RexCallImplementor implementor = RexImpTable.INSTANCE.get(operator);
     if (implementor == null) {
       // Reject methods with no implementation
       return false;

@@ -136,6 +136,8 @@ import org.joda.time.format.DateTimeFormatter;
  *   <li>Only getters may be annotated with {@link JsonIgnore @JsonIgnore}.
  *   <li>If any getter is annotated with {@link JsonIgnore @JsonIgnore}, then all getters for this
  *       property must be annotated with {@link JsonIgnore @JsonIgnore}.
+ *   <li>If any getter is annotated with {@link JsonDeserialize} and {@link JsonSerialize}, then all
+ *       getters for this property must also be.
  * </ul>
  *
  * <h3>Annotations For PipelineOptions</h3>
@@ -160,6 +162,10 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <p>{@link JsonIgnore @JsonIgnore} is used to prevent a property from being serialized and
  * available during execution of {@link DoFn}. See the Serialization section below for more details.
+ *
+ * <p>{@link JsonSerialize @JsonSerialize} and {@link JsonDeserialize @JsonDeserialize} is used to
+ * control how a property is (de)serialized when the PipelineOptions are (de)serialized to JSON. See
+ * the Serialization section below for more details.
  *
  * <h2>Registration Of PipelineOptions</h2>
  *
@@ -197,6 +203,14 @@ import org.joda.time.format.DateTimeFormatter;
  * serialization support for your custom types. Note that {@link PipelineOptions} relies on
  * Jackson's ability to automatically configure the {@link ObjectMapper} with additional modules via
  * {@link ObjectMapper#findModules()}.
+ *
+ * <p>To further customize serialization, getter methods may be annotated with {@link
+ * JsonSerialize @JsonSerialize} and {@link JsonDeserialize @JsonDeserialize}. {@link
+ * JsonDeserialize @JsonDeserialize} is also used when parsing command line arguments.
+ *
+ * <p>Note: A property must be annotated with <b>BOTH</b>{@link JsonDeserialize @JsonDeserialize}
+ * and {@link JsonSerialize @JsonSerialize} or neither. It is an error to have a property annotated
+ * with only {@link JsonDeserialize @JsonDeserialize} or {@link JsonSerialize @JsonSerialize}.
  *
  * <p>Note: It is an error to have the same property available in multiple interfaces with only some
  * of them being annotated with {@link JsonIgnore @JsonIgnore}. It is also an error to mark a setter

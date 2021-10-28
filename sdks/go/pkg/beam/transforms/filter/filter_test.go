@@ -18,9 +18,9 @@ package filter_test
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 )
 
 func TestInclude(t *testing.T) {

@@ -19,7 +19,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // TODO(lostluck): 2020.06.29 export these for use for others?

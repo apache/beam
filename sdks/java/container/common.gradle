@@ -60,7 +60,7 @@ task copySdkHarnessLauncher(type: Copy) {
 }
 
 task copyJavaThirdPartyLicenses(type: Copy) {
-    from("${project(':sdks:java:container').buildDir}/build/target/third_party_licenses")
+    from("${project(':sdks:java:container').buildDir}/target/third_party_licenses")
     into "build/target/third_party_licenses"
     dependsOn ':sdks:java:container:pullLicenses'
 }

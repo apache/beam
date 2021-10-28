@@ -18,7 +18,7 @@ package runtime
 import "testing"
 
 func TestOptions(t *testing.T) {
-	opt := &Options{opt: make(map[string]string)}
+	opt := NewOptions()
 
 	if len(opt.Export().Options) != 0 {
 		t.Errorf("fresh map not empty")

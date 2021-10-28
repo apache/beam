@@ -126,7 +126,7 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     return 'localhost:%s' % cls.expansion_port
 
   def create_options(self):
-    options = super(SamzaRunnerTest, self).create_options()
+    options = super().create_options()
     options.view_as(PortableOptions).environment_type = self.environment_type
     options.view_as(
         PortableOptions).environment_options = self.environment_options
@@ -140,8 +140,7 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
     # https://issues.apache.org/jira/browse/BEAM-12681
-    super(SamzaRunnerTest,
-          self).test_flattened_side_input(with_transcoding=False)
+    super().test_flattened_side_input(with_transcoding=False)
 
   def test_pack_combiners(self):
     # Stages produced by translations.pack_combiners are fused
@@ -150,28 +149,8 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     self._test_pack_combiners(assert_using_counter_names=False)
 
   def test_pardo_timers(self):
-    # Skip until Samza portable runner supports timer in ParDo.
-    raise unittest.SkipTest("BEAM-12349")
-
-  def test_pardo_timers_clear(self):
-    # Skip until Samza portable runner supports timer in ParDo.
-    raise unittest.SkipTest("BEAM-12349")
-
-  def test_pardo_dynamic_timer(self):
-    # Skip until Samza portable runner supports timer in ParDo.
-    raise unittest.SkipTest("BEAM-12349")
-
-  def test_pardo_state_timers(self):
-    # Skip until Samza portable runner supports timer in ParDo.
-    raise unittest.SkipTest("BEAM-12349")
-
-  def test_pardo_state_timers_non_standard_coder(self):
-    # Skip until Samza portable runner supports timer in ParDo.
-    raise unittest.SkipTest("BEAM-12349")
-
-  def test_windowed_pardo_state_timers(self):
-    # Skip until Samza portable runner supports timer in ParDo.
-    raise unittest.SkipTest("BEAM-12349")
+    # Skip until Samza portable runner supports clearing timer.
+    raise unittest.SkipTest("BEAM-12774")
 
   def test_register_finalizations(self):
     # Skip until Samza runner supports bundle finalization.

@@ -21,8 +21,6 @@ applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.arrow')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Arrow"
 
-def arrow_version = "4.0.0"
-
 dependencies {
     compile library.java.vendored_guava_26_0_jre
     compile project(path: ":sdks:java:core", configuration: "shadow")

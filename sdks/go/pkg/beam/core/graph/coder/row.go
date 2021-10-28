@@ -20,8 +20,8 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 var (

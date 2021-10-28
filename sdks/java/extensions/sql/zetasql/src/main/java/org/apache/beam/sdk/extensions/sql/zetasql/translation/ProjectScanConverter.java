@@ -21,9 +21,10 @@ import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
 
 /** Converts projection. */
 class ProjectScanConverter extends RelConverter<ResolvedProjectScan> {
@@ -44,6 +45,6 @@ class ProjectScanConverter extends RelConverter<ResolvedProjectScan> {
     List<RexNode> projects =
         getExpressionConverter().retrieveRexNode(zetaNode, input.getRowType().getFieldList());
     List<String> fieldNames = getTrait().retrieveFieldNames(zetaNode.getColumnList());
-    return LogicalProject.create(input, projects, fieldNames);
+    return LogicalProject.create(input, ImmutableList.of(), projects, fieldNames);
   }
 }

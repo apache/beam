@@ -24,15 +24,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.zetasql.unnest.ZetaSqlUnnest;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.CorrelationId;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalJoin;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.CorrelationId;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.JoinRelType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
 
 /** Converts array scan that represents join of an uncollect(array_field) to uncollect. */
 class ArrayScanToJoinConverter extends RelConverter<ResolvedArrayScan> {
@@ -80,7 +80,8 @@ class ArrayScanToJoinConverter extends RelConverter<ResolvedArrayScan> {
                         columnRef.getColumn().getId(), zetaNode.getInputScan().getColumnList())));
 
     RelNode projectNode =
-        LogicalProject.create(createOneRow(getCluster()), projects, ImmutableList.of(columnName));
+        LogicalProject.create(
+            createOneRow(getCluster()), ImmutableList.of(), projects, ImmutableList.of(columnName));
 
     // Create an UnCollect
     boolean ordinality = (zetaNode.getArrayOffsetColumn() != null);
@@ -104,13 +105,22 @@ class ArrayScanToJoinConverter extends RelConverter<ResolvedArrayScan> {
               zetaNode.getArrayOffsetColumn().getColumn().getName()));
     }
 
-    RelNode rightInput = LogicalProject.create(uncollectNode, rightProjects, rightNames);
+    RelNode rightInput =
+        LogicalProject.create(uncollectNode, ImmutableList.of(), rightProjects, rightNames);
 
     // Join condition should be a RexNode converted from join_expr.
     RexNode condition =
         getExpressionConverter().convertRexNodeFromResolvedExpr(zetaNode.getJoinExpr());
     JoinRelType joinRelType = zetaNode.getIsOuter() ? JoinRelType.LEFT : JoinRelType.INNER;
 
-    return LogicalJoin.create(leftInput, rightInput, condition, ImmutableSet.of(), joinRelType);
+    return LogicalJoin.create(
+        leftInput,
+        rightInput,
+        ImmutableList.of(),
+        condition,
+        ImmutableSet.of(),
+        joinRelType,
+        false,
+        ImmutableList.of());
   }
 }

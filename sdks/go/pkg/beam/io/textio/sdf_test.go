@@ -19,9 +19,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
 // TestReadSdf tests that readSdf successfully reads a test text file, and

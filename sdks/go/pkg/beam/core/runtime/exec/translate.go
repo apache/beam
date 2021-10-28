@@ -21,17 +21,17 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/stringx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/stringx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 )
@@ -82,12 +82,18 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 		for key, pid := range transform.GetOutputs() {
 			u.SID = StreamID{PtransformID: id, Port: port}
 			u.Name = key
-			u.outputPID = pid
 
 			u.Out, err = b.makePCollection(pid)
 			if err != nil {
 				return nil, err
 			}
+			// Elide the PCollection Node for DataSources
+			// DataSources can get byte samples directly, and can handle CoGBKs.
+			// Copying the PCollection here is fine, as the PCollection will never
+			// have used it's mutex yet.
+			u.PCol = *u.Out.(*PCollection)
+			u.Out = u.PCol.Out
+			b.units = b.units[:len(b.units)-1]
 		}
 
 		b.units = append(b.units, u)
@@ -103,8 +109,8 @@ type builder struct {
 	succ map[string][]linkID // PCollectionID -> []linkID
 
 	windowing map[string]*window.WindowingStrategy
-	nodes     map[string]Node // PCollectionID -> Node (cache)
-	links     map[linkID]Node // linkID -> Node (cache)
+	nodes     map[string]*PCollection // PCollectionID -> Node (cache)
+	links     map[linkID]Node         // linkID -> Node (cache)
 
 	units []Unit // result
 	idgen *GenID
@@ -146,7 +152,7 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 		succ: succ,
 
 		windowing: make(map[string]*window.WindowingStrategy),
-		nodes:     make(map[string]Node),
+		nodes:     make(map[string]*PCollection),
 		links:     make(map[linkID]Node),
 
 		idgen: &GenID{},
@@ -223,6 +229,39 @@ func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 	}
 }
 
+func unmarshalAndMakeWindowMapping(wmfn *pipepb.FunctionSpec) (WindowMapper, error) {
+	switch urn := wmfn.GetUrn(); urn {
+	case graphx.URNWindowMappingGlobal:
+		return &windowMapper{wfn: window.NewGlobalWindows()}, nil
+	case graphx.URNWindowMappingFixed:
+		var payload pipepb.FixedWindowsPayload
+		if err := proto.Unmarshal(wmfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		size, err := ptypes.Duration(payload.GetSize())
+		if err != nil {
+			return nil, err
+		}
+		return &windowMapper{wfn: window.NewFixedWindows(size)}, nil
+	case graphx.URNWindowMappingSliding:
+		var payload pipepb.SlidingWindowsPayload
+		if err := proto.Unmarshal(wmfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		period, err := ptypes.Duration(payload.GetPeriod())
+		if err != nil {
+			return nil, err
+		}
+		size, err := ptypes.Duration(payload.GetSize())
+		if err != nil {
+			return nil, err
+		}
+		return &windowMapper{wfn: window.NewSlidingWindows(period, size)}, nil
+	default:
+		return nil, fmt.Errorf("unsupported window mapping fn URN %v", urn)
+	}
+}
+
 func (b *builder) makePCollections(out []string) ([]Node, error) {
 	var ret []Node
 	for _, o := range out {
@@ -230,7 +269,22 @@ func (b *builder) makePCollections(out []string) ([]Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		ret = append(ret, n)
+		// This is the cleanest place to do this check and filtering,
+		// since DataSinks don't know their inputs, due to the construction
+		// call stack.
+		// A Source->Sink is both uncommon and inefficent, with the Source eliding the
+		// collection anyway.
+		// TODO[BEAM-6374): Properly handle the multiplex and flatten cases.
+		// Right now we just stop datasink collection.
+		switch out := n.Out.(type) {
+		case *DataSink:
+			// We don't remove the PCollection from units here, since we
+			// want to ensure it's included in snapshots.
+			out.PCol = n
+			ret = append(ret, out)
+		default:
+			ret = append(ret, n)
+		}
 	}
 	return ret, nil
 }
@@ -263,7 +317,7 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 	return c, wc, nil
 }
 
-func (b *builder) makePCollection(id string) (Node, error) {
+func (b *builder) makePCollection(id string) (*PCollection, error) {
 	if n, exists := b.nodes[id]; exists {
 		return n, nil
 	}
@@ -278,8 +332,11 @@ func (b *builder) makePCollection(id string) (Node, error) {
 		u = &Discard{UID: b.idgen.New()}
 
 	case 1:
-		return b.makeLink(id, list[0])
-
+		out, err := b.makeLink(id, list[0])
+		if err != nil {
+			return nil, err
+		}
+		return b.newPCollectionNode(id, out)
 	default:
 		// Multiplex.
 
@@ -296,7 +353,16 @@ func (b *builder) makePCollection(id string) (Node, error) {
 		b.units = append(b.units, u)
 		u = &Flatten{UID: b.idgen.New(), N: count, Out: u}
 	}
+	b.units = append(b.units, u)
+	return b.newPCollectionNode(id, u)
+}
 
+func (b *builder) newPCollectionNode(id string, out Node) (*PCollection, error) {
+	ec, _, err := b.makeCoderForPCollection(id)
+	if err != nil {
+		return nil, err
+	}
+	u := &PCollection{UID: b.idgen.New(), Out: out, PColID: id, Coder: ec, Seed: rand.Int63()}
 	b.nodes[id] = u
 	b.units = append(b.units, u)
 	return u, nil
@@ -345,6 +411,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		urnSplitAndSizeRestrictions,
 		urnProcessSizedElementsAndRestrictions:
 		var data string
+		var sides map[string]*pipepb.SideInput
 		switch urn {
 		case graphx.URNParDo,
 			urnPairWithRestriction,
@@ -355,6 +422,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
 			}
 			data = string(pardo.GetDoFn().GetPayload())
+			sides = pardo.GetSideInputs()
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
@@ -400,10 +468,19 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					input := unmarshalKeyedValues(transform.GetInputs())
 					for i := 1; i < len(input); i++ {
-						// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
-						// For now, assume we don't need any information in the pardo payload.
+						// TODO(BEAM-3305) Handle ViewFns for side inputs
 
 						ec, wc, err := b.makeCoderForPCollection(input[i])
+						if err != nil {
+							return nil, err
+						}
+
+						sidePB, ok := sides[indexToInputId(i)]
+						if !ok {
+							return nil, fmt.Errorf("missing side input info for collection %v", input[i])
+						}
+
+						mapper, err := unmarshalAndMakeWindowMapping(sidePB.GetWindowMappingFn())
 						if err != nil {
 							return nil, err
 						}
@@ -413,7 +490,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							PtransformID: id.to,
 						}
 						sideInputID := fmt.Sprintf("i%v", i) // SideInputID (= local id, "iN")
-						side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc))
+						side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc), mapper)
 						n.Side = append(n.Side, side)
 					}
 					u = n
@@ -449,7 +526,14 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					}
 					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0], WindowCoder: wc}
 				case urnPerKeyCombineMerge:
-					u = &MergeAccumulators{Combine: cn}
+					ma := &MergeAccumulators{Combine: cn}
+					if eo, ok := ma.Out.(*PCollection).Out.(*ExtractOutput); ok {
+						// Strip PCollections from between MergeAccumulators and ExtractOutputs
+						// as it's a synthetic PCollection.
+						b.units = b.units[:len(b.units)-1]
+						ma.Out = eo
+					}
+					u = ma
 				case urnPerKeyCombineExtract:
 					u = &ExtractOutput{Combine: cn}
 				case urnPerKeyCombineConvert:
@@ -498,7 +582,11 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			for _, dc := range c.Components[1:] {
 				decoders = append(decoders, MakeElementDecoder(dc))
 			}
-			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
+			// Strip PCollections from Expand nodes, as CoGBK metrics are handled by
+			// the DataSource that preceeds them.
+			trueOut := out[0].(*PCollection).Out
+			b.units = b.units[:len(b.units)-1]
+			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: trueOut}
 
 		case graphx.URNReshuffleInput:
 			c, w, err := b.makeCoderForPCollection(from)
@@ -521,7 +609,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
 
 		default:
-			return nil, errors.Errorf("unexpected payload: %v", tp)
+			return nil, errors.Errorf("unexpected payload: %v", &tp)
 		}
 
 	case graphx.URNWindow:
@@ -624,7 +712,7 @@ func inputIdToIndex(id string) (int, error) {
 	return strconv.Atoi(strings.TrimPrefix(id, "i"))
 }
 
-// inputIdToIndex converts an index into a local input ID for a transform. Use
+// indexToInputId converts an index into a local input ID for a transform. Use
 // this to avoid relying on format details for input IDs.
 func indexToInputId(i int) string {
 	return "i" + strconv.Itoa(i)

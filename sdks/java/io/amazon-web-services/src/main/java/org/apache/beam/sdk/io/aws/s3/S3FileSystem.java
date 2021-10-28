@@ -64,6 +64,7 @@ import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -545,8 +546,13 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
   @Override
   protected void rename(
-      List<S3ResourceId> sourceResourceIds, List<S3ResourceId> destinationResourceIds)
+      List<S3ResourceId> sourceResourceIds,
+      List<S3ResourceId> destinationResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
+    if (moveOptions.length > 0) {
+      throw new UnsupportedOperationException("Support for move options is not yet implemented.");
+    }
     copy(sourceResourceIds, destinationResourceIds);
     delete(sourceResourceIds);
   }

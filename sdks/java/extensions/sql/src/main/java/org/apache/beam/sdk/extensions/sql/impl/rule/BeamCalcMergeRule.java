@@ -18,10 +18,11 @@
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleOperand;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcMergeRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rules.CalcMergeRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rules.CoreRules;
 
 /**
  * Planner rule to merge a {@link BeamCalcRel} with a {@link BeamCalcRel}. Subset of {@link
@@ -36,6 +37,6 @@ public class BeamCalcMergeRule extends RelOptRule {
 
   @Override
   public void onMatch(RelOptRuleCall call) {
-    CalcMergeRule.INSTANCE.onMatch(call);
+    CoreRules.CALC_MERGE.onMatch(call);
   }
 }

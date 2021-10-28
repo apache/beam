@@ -28,6 +28,8 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
+import org.apache.beam.runners.samza.state.SamzaMapState;
+import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -87,8 +89,10 @@ class KeyedInternals<K> {
     final List<State> states = threadLocalKeyedStates.get().states;
     states.forEach(
         state -> {
-          if (state instanceof SamzaStoreStateInternals.KeyValueIteratorState) {
-            ((SamzaStoreStateInternals.KeyValueIteratorState) state).closeIterators();
+          if (state instanceof SamzaMapState) {
+            ((SamzaMapState) state).closeIterators();
+          } else if (state instanceof SamzaSetState) {
+            ((SamzaSetState) state).closeIterators();
           }
         });
     states.clear();

@@ -65,7 +65,6 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
               "sdk_location": files(configurations.distTarBall.files).singleFile,
               "worker_jar"  : dataflowWorkerJar,
               "suite"       : "preCommitIT-df${pythonSuffix}",
-              "pytest"      : true, // TODO(BEAM-3713): Remove this once nose is removed.
       ]
 
       if (runnerV2) {
@@ -115,7 +114,6 @@ task postCommitIT {
         "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
-        "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
         "collect": "it_postcommit"
     ]
     def cmdArgs = mapToArgString(argMap)
@@ -137,7 +135,6 @@ task validatesRunnerBatchTests {
           "worker_jar"  : dataflowWorkerJar,
           "sdk_location": files(configurations.distTarBall.files).singleFile,
           "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
-          "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
           "collect": "it_validatesrunner and not no_sickbay_batch"
           ]
 
@@ -172,7 +169,6 @@ task validatesRunnerStreamingTests {
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
                 "worker_jar": dataflowWorkerJar,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
-                "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed
                 "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist"
                 ]
     if (project.hasProperty('useRunnerV2')) {
@@ -196,7 +192,6 @@ task validatesRunnerStreamingTests {
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
                 "worker_jar": dataflowWorkerJar,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-noxdist",
-                "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed
                 "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist"
                 ]
     if (project.hasProperty('useRunnerV2')) {

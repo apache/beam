@@ -47,6 +47,7 @@ optional parameters are database, partition and batchsize.
 The destination table should exist beforehand as the transform will not create a new table if missing.
 
 For example:
+
 {{< highlight java >}}
 Map<String, String> configProperties = new HashMap<String, String>();
 configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
@@ -60,7 +61,6 @@ pipeline
     .withPartition(partitionValues) //optional, may be specified if the table is partitioned
     .withBatchSize(1024L)) //optional, assumes a default batch size of 1024 if none specified
 {{< /highlight >}}
-
 {{< highlight py >}}
   # The Beam SDK for Python does not support HCatalogIO.
 {{< /highlight >}}

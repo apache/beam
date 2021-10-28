@@ -21,12 +21,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )

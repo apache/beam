@@ -50,11 +50,12 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 )
 
 // Metric cells are named and scoped by ptransform, and bundle,
@@ -481,7 +482,40 @@ func (mr Results) AllMetrics() QueryResults {
 	return QueryResults{mr.counters, mr.distributions, mr.gauges}
 }
 
-// TODO(BEAM-11217): Implement Query(Filter) and metrics filtering
+// TODO(BEAM-11217): Implement querying metrics by DoFn
+
+// SingleResult interface facilitates metrics query filtering methods.
+type SingleResult interface {
+	Name() string
+	Namespace() string
+}
+
+// Query allows metrics querying with filter. The filter takes the form of predicate function. Example:
+//   qr = pr.Metrics().Query(func(sr metrics.SingleResult) bool {
+//       return sr.Namespace() == test.namespace
+//   })
+func (mr Results) Query(f func(SingleResult) bool) QueryResults {
+	counters := []CounterResult{}
+	distributions := []DistributionResult{}
+	gauges := []GaugeResult{}
+
+	for _, counter := range mr.counters {
+		if f(counter) {
+			counters = append(counters, counter)
+		}
+	}
+	for _, distribution := range mr.distributions {
+		if f(distribution) {
+			distributions = append(distributions, distribution)
+		}
+	}
+	for _, gauge := range mr.gauges {
+		if f(gauge) {
+			gauges = append(gauges, gauge)
+		}
+	}
+	return QueryResults{counters, distributions, gauges}
+}
 
 // QueryResults is the result of a query. Allows accessing all of the
 // metrics that matched the filter.
@@ -528,6 +562,16 @@ func (r CounterResult) Result() int64 {
 	return r.Attempted
 }
 
+// Name returns the Name of this Counter.
+func (r CounterResult) Name() string {
+	return r.Key.Name
+}
+
+// Namespace returns the Namespace of this Counter.
+func (r CounterResult) Namespace() string {
+	return r.Key.Namespace
+}
+
 // MergeCounters combines counter metrics that share a common key.
 func MergeCounters(
 	attempted map[StepKey]int64,
@@ -568,6 +612,16 @@ func (r DistributionResult) Result() DistributionValue {
 		return r.Committed
 	}
 	return r.Attempted
+}
+
+// Name returns the Name of this Distribution.
+func (r DistributionResult) Name() string {
+	return r.Key.Name
+}
+
+// Namespace returns the Namespace of this Distribution.
+func (r DistributionResult) Namespace() string {
+	return r.Key.Namespace
 }
 
 // MergeDistributions combines distribution metrics that share a common key.
@@ -612,6 +666,16 @@ func (r GaugeResult) Result() GaugeValue {
 	return r.Attempted
 }
 
+// Name returns the Name of this Gauge.
+func (r GaugeResult) Name() string {
+	return r.Key.Name
+}
+
+// Namespace returns the Namespace of this Gauge.
+func (r GaugeResult) Namespace() string {
+	return r.Key.Namespace
+}
+
 // StepKey uniquely identifies a metric within a pipeline graph.
 type StepKey struct {
 	Step, Name, Namespace string
@@ -640,4 +704,69 @@ func MergeGauges(
 		res = append(res, v)
 	}
 	return res
+}
+
+// ResultsExtractor extracts the metrics.Results from Store using ctx.
+// This is same as what metrics.dumperExtractor and metrics.dumpTo would do together.
+func ResultsExtractor(ctx context.Context) Results {
+	store := GetStore(ctx)
+	m := make(map[Labels]interface{})
+	e := &Extractor{
+		SumInt64: func(l Labels, v int64) {
+			m[l] = &counter{value: v}
+		},
+		DistributionInt64: func(l Labels, count, sum, min, max int64) {
+			m[l] = &distribution{count: count, sum: sum, min: min, max: max}
+		},
+		GaugeInt64: func(l Labels, v int64, t time.Time) {
+			m[l] = &gauge{v: v, t: t}
+		},
+	}
+	e.ExtractFrom(store)
+
+	var ls []Labels
+	for l := range m {
+		ls = append(ls, l)
+	}
+
+	sort.Slice(ls, func(i, j int) bool {
+		if ls[i].transform < ls[j].transform {
+			return true
+		}
+		tEq := ls[i].transform == ls[j].transform
+		if tEq && ls[i].namespace < ls[j].namespace {
+			return true
+		}
+		nsEq := ls[i].namespace == ls[j].namespace
+		if tEq && nsEq && ls[i].name < ls[j].name {
+			return true
+		}
+		return false
+	})
+
+	r := Results{counters: []CounterResult{}, distributions: []DistributionResult{}, gauges: []GaugeResult{}}
+	for _, l := range ls {
+		key := StepKey{Step: l.transform, Name: l.name, Namespace: l.namespace}
+		switch opt := m[l]; opt.(type) {
+		case *counter:
+			attempted := make(map[StepKey]int64)
+			committed := make(map[StepKey]int64)
+			attempted[key] = 0
+			committed[key] = opt.(*counter).value
+			r.counters = append(r.counters, MergeCounters(attempted, committed)...)
+		case *distribution:
+			attempted := make(map[StepKey]DistributionValue)
+			committed := make(map[StepKey]DistributionValue)
+			attempted[key] = DistributionValue{}
+			committed[key] = DistributionValue{opt.(*distribution).count, opt.(*distribution).sum, opt.(*distribution).min, opt.(*distribution).max}
+			r.distributions = append(r.distributions, MergeDistributions(attempted, committed)...)
+		case *gauge:
+			attempted := make(map[StepKey]GaugeValue)
+			committed := make(map[StepKey]GaugeValue)
+			attempted[key] = GaugeValue{}
+			committed[key] = GaugeValue{opt.(*gauge).v, opt.(*gauge).t}
+			r.gauges = append(r.gauges, MergeGauges(attempted, committed)...)
+		}
+	}
+	return r
 }

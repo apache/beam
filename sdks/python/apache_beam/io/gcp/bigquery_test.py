@@ -451,18 +451,20 @@ class TestReadFromBigQuery(unittest.TestCase):
             'empty, using temp_location instead'
         ])
 
+  @mock.patch.object(BigQueryWrapper, '_delete_table')
   @mock.patch.object(BigQueryWrapper, '_delete_dataset')
   @mock.patch('apache_beam.io.gcp.internal.clients.bigquery.BigqueryV2')
-  def test_temp_dataset_location_is_configurable(self, api, delete_dataset):
+  def test_temp_dataset_is_configurable(
+      self, api, delete_dataset, delete_table):
     temp_dataset = bigquery.DatasetReference(
         projectId='temp-project', datasetId='bq_dataset')
     bq = BigQueryWrapper(client=api, temp_dataset_id=temp_dataset.datasetId)
     gcs_location = 'gs://gcs_location'
 
-    # bq.get_or_create_dataset.return_value = temp_dataset
     c = beam.io.gcp.bigquery._CustomBigQuerySource(
         query='select * from test_table',
         gcs_location=gcs_location,
+        method=beam.io.ReadFromBigQuery.Method.EXPORT,
         validate=True,
         pipeline_options=beam.options.pipeline_options.PipelineOptions(),
         job_name='job_name',
@@ -470,30 +472,15 @@ class TestReadFromBigQuery(unittest.TestCase):
         project='execution_project',
         **{'temp_dataset': temp_dataset})
 
-    api.datasets.Get.side_effect = HttpError({
-        'status_code': 404, 'status': 404
-    },
-                                             '',
-                                             '')
-
     c._setup_temporary_dataset(bq)
-    api.datasets.Insert.assert_called_with(
-        bigquery.BigqueryDatasetsInsertRequest(
-            dataset=bigquery.Dataset(datasetReference=temp_dataset),
-            projectId=temp_dataset.projectId))
+    api.datasets.assert_not_called()
 
-    api.datasets.Get.return_value = temp_dataset
-    api.datasets.Get.side_effect = None
+    # User provided temporary dataset should not be deleted but the temporary
+    # table created by Beam should be deleted.
     bq.clean_up_temporary_dataset(temp_dataset.projectId)
-    delete_dataset.assert_called_with(
-        temp_dataset.projectId, temp_dataset.datasetId, True)
-
-    self.assertEqual(
-        bq._get_temp_table(temp_dataset.projectId),
-        bigquery.TableReference(
-            projectId=temp_dataset.projectId,
-            datasetId=temp_dataset.datasetId,
-            tableId=BigQueryWrapper.TEMP_TABLE + bq._temporary_table_suffix))
+    delete_dataset.assert_not_called()
+    delete_table.assert_called_with(
+        temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -25,7 +26,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.hamcrest.core.StringContains;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -99,13 +100,17 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
       root = root.getInput(0);
     }
 
-    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    NodeStats estimate =
+        BeamSqlRelUtils.getNodeStats(
+            root, ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
     NodeStats leftEstimate =
         BeamSqlRelUtils.getNodeStats(
-            ((BeamCoGBKJoinRel) root).getLeft(), root.getCluster().getMetadataQuery());
+            ((BeamCoGBKJoinRel) root).getLeft(),
+            ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
     NodeStats rightEstimate =
         BeamSqlRelUtils.getNodeStats(
-            ((BeamCoGBKJoinRel) root).getRight(), root.getCluster().getMetadataQuery());
+            ((BeamCoGBKJoinRel) root).getRight(),
+            ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
 
     Assert.assertFalse(estimate.isUnknown());
     Assert.assertEquals(0d, estimate.getRate(), 0.01);
@@ -147,9 +152,11 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
     }
 
     NodeStats estimate1 =
-        BeamSqlRelUtils.getNodeStats(root1, root1.getCluster().getMetadataQuery());
+        BeamSqlRelUtils.getNodeStats(
+            root1, ((BeamRelMetadataQuery) root1.getCluster().getMetadataQuery()));
     NodeStats estimate2 =
-        BeamSqlRelUtils.getNodeStats(root2, root1.getCluster().getMetadataQuery());
+        BeamSqlRelUtils.getNodeStats(
+            root2, ((BeamRelMetadataQuery) root1.getCluster().getMetadataQuery()));
 
     Assert.assertNotEquals(0d, estimate2.getRowCount(), 0.001);
     // A join with two conditions should have lower estimate.

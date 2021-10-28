@@ -29,7 +29,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.BigDecimalConverter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.runtime.SqlFunctions;
 
 /**
  * {@link Combine.CombineFn} for <em>Variance</em> on {@link Number} types.
@@ -140,6 +140,11 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
 
     BigDecimal adjustedCount =
         this.isSample ? variance.count().subtract(BigDecimal.ONE) : variance.count();
+
+    // Avoid ArithmeticException: Division is undefined when adjustedCount is 0
+    if (adjustedCount.equals(BigDecimal.ZERO)) {
+      return BigDecimal.ZERO;
+    }
 
     return variance.variance().divide(adjustedCount, MATH_CTX);
   }

@@ -17,29 +17,29 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.AND;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.BETWEEN;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.CAST;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.COMPARISON;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.DIVIDE;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.LIKE;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.MINUS;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.MOD;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.OR;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.PLUS;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.TIMES;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.AND;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.BETWEEN;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.CAST;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.COMPARISON;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.DIVIDE;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.LIKE;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.MINUS;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.MOD;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.OR;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.PLUS;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.TIMES;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 @SuppressWarnings({

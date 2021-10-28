@@ -75,7 +75,7 @@ class AvroBase(object):
   _temp_files = []  # type: List[str]
 
   def __init__(self, methodName='runTest'):
-    super(AvroBase, self).__init__(methodName)
+    super().__init__(methodName)
     self.RECORDS = RECORDS
     self.SCHEMA_STRING = '''
           {"namespace": "example.avro",
@@ -103,16 +103,20 @@ class AvroBase(object):
   def _write_data(self, directory, prefix, codec, count, sync_interval):
     raise NotImplementedError
 
-  def _write_pattern(self, num_files):
+  def _write_pattern(self, num_files, return_filenames=False):
     assert num_files > 0
     temp_dir = tempfile.mkdtemp()
 
     file_name = None
+    file_list = []
     for _ in range(num_files):
       file_name = self._write_data(directory=temp_dir, prefix='mytemp')
+      file_list.append(file_name)
 
     assert file_name
     file_name_prefix = file_name[:file_name.rfind(os.path.sep)]
+    if return_filenames:
+      return (file_name_prefix + os.path.sep + 'mytemp*', file_list)
     return file_name_prefix + os.path.sep + 'mytemp*'
 
   def _run_avro_test(
@@ -388,6 +392,17 @@ class AvroBase(object):
           | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
           equal_to(self.RECORDS * 10))
 
+  def test_read_all_from_avro_with_filename(self):
+    file_pattern, file_paths = self._write_pattern(3, return_filenames=True)
+    result = [(path, record) for path in file_paths for record in self.RECORDS]
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([file_pattern]) \
+          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro,
+                                   with_filename=True),
+          equal_to(result))
+
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
@@ -432,7 +447,7 @@ class AvroBase(object):
     'See: BEAM-6522.')
 class TestAvro(AvroBase, unittest.TestCase):
   def __init__(self, methodName='runTest'):
-    super(TestAvro, self).__init__(methodName)
+    super().__init__(methodName)
     self.use_fastavro = False
     self.SCHEMA = Parse(self.SCHEMA_STRING)
 
@@ -462,7 +477,7 @@ class TestAvro(AvroBase, unittest.TestCase):
 
 class TestFastAvro(AvroBase, unittest.TestCase):
   def __init__(self, methodName='runTest'):
-    super(TestFastAvro, self).__init__(methodName)
+    super().__init__(methodName)
     self.use_fastavro = True
     self.SCHEMA = parse_schema(json.loads(self.SCHEMA_STRING))
 

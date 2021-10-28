@@ -17,22 +17,22 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexImpTable.createImplementor;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.RexImpTable.createImplementor;
 
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.CallImplementor;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.NotNullImplementor;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.NullPolicy;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexImpTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexToLixTranslator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expression;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ImplementableFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.CallImplementor;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.NotNullImplementor;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.NullPolicy;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.RexImpTable;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.RexToLixTranslator;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.tree.Expressions;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.FunctionParameter;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.ImplementableFunction;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
 
 /** ZetaSQLCastFunctionImpl. */
 @Internal

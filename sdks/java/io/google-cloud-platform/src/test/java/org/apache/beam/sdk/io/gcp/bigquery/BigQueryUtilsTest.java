@@ -88,6 +88,9 @@ public class BigQueryUtilsTest {
           .addNullableField("valid", Schema.FieldType.BOOLEAN)
           .addNullableField("binary", Schema.FieldType.BYTES)
           .addNullableField("numeric", Schema.FieldType.DECIMAL)
+          .addNullableField("boolean", Schema.FieldType.BOOLEAN)
+          .addNullableField("long", Schema.FieldType.INT64)
+          .addNullableField("double", Schema.FieldType.DOUBLE)
           .build();
 
   private static final Schema ENUM_TYPE =
@@ -185,6 +188,15 @@ public class BigQueryUtilsTest {
   private static final TableFieldSchema NUMERIC =
       new TableFieldSchema().setName("numeric").setType(StandardSQLTypeName.NUMERIC.toString());
 
+  private static final TableFieldSchema BOOLEAN =
+      new TableFieldSchema().setName("boolean").setType(StandardSQLTypeName.BOOL.toString());
+
+  private static final TableFieldSchema LONG =
+      new TableFieldSchema().setName("long").setType(StandardSQLTypeName.INT64.toString());
+
+  private static final TableFieldSchema DOUBLE =
+      new TableFieldSchema().setName("double").setType(StandardSQLTypeName.FLOAT64.toString());
+
   private static final TableFieldSchema COLOR =
       new TableFieldSchema().setName("color").setType(StandardSQLTypeName.STRING.toString());
 
@@ -231,7 +243,10 @@ public class BigQueryUtilsTest {
                   TIME_0S_0NS,
                   VALID,
                   BINARY,
-                  NUMERIC));
+                  NUMERIC,
+                  BOOLEAN,
+                  LONG,
+                  DOUBLE));
 
   private static final TableFieldSchema ROWS =
       new TableFieldSchema()
@@ -258,7 +273,10 @@ public class BigQueryUtilsTest {
                   TIME_0S_0NS,
                   VALID,
                   BINARY,
-                  NUMERIC));
+                  NUMERIC,
+                  BOOLEAN,
+                  LONG,
+                  DOUBLE));
 
   private static final TableFieldSchema MAP =
       new TableFieldSchema()
@@ -295,7 +313,10 @@ public class BigQueryUtilsTest {
               LocalTime.parse("12:34"),
               false,
               Base64.getDecoder().decode("ABCD1234"),
-              new BigDecimal(123.456).setScale(3, RoundingMode.HALF_UP))
+              new BigDecimal("123.456").setScale(3, RoundingMode.HALF_UP),
+              true,
+              123L,
+              123.456d)
           .build();
 
   private static final TableRow BQ_FLAT_ROW =
@@ -322,13 +343,16 @@ public class BigQueryUtilsTest {
           .set("time0s_0ns", "12:34:00")
           .set("valid", "false")
           .set("binary", "ABCD1234")
-          .set("numeric", "123.456");
+          .set("numeric", "123.456")
+          .set("boolean", true)
+          .set("long", 123L)
+          .set("double", 123.456d);
 
   private static final Row NULL_FLAT_ROW =
       Row.withSchema(FLAT_TYPE)
           .addValues(
               null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-              null, null, null, null, null)
+              null, null, null, null, null, null, null, null)
           .build();
 
   private static final TableRow BQ_NULL_FLAT_ROW =
@@ -351,7 +375,10 @@ public class BigQueryUtilsTest {
           .set("time0s_0ns", null)
           .set("valid", null)
           .set("binary", null)
-          .set("numeric", null);
+          .set("numeric", null)
+          .set("boolean", null)
+          .set("long", null)
+          .set("double", null);
 
   private static final Row ENUM_ROW =
       Row.withSchema(ENUM_TYPE).addValues(new EnumerationType.Value(1)).build();
@@ -407,7 +434,10 @@ public class BigQueryUtilsTest {
                   TIME_0S_0NS,
                   VALID,
                   BINARY,
-                  NUMERIC));
+                  NUMERIC,
+                  BOOLEAN,
+                  LONG,
+                  DOUBLE));
 
   private static final TableSchema BQ_ENUM_TYPE = new TableSchema().setFields(Arrays.asList(COLOR));
 
@@ -459,7 +489,10 @@ public class BigQueryUtilsTest {
             TIME_0S_0NS,
             VALID,
             BINARY,
-            NUMERIC));
+            NUMERIC,
+            BOOLEAN,
+            LONG,
+            DOUBLE));
   }
 
   @Test
@@ -506,7 +539,10 @@ public class BigQueryUtilsTest {
             TIME_0S_0NS,
             VALID,
             BINARY,
-            NUMERIC));
+            NUMERIC,
+            BOOLEAN,
+            LONG,
+            DOUBLE));
   }
 
   @Test
@@ -539,7 +575,10 @@ public class BigQueryUtilsTest {
             TIME_0S_0NS,
             VALID,
             BINARY,
-            NUMERIC));
+            NUMERIC,
+            BOOLEAN,
+            LONG,
+            DOUBLE));
   }
 
   @Test
@@ -558,7 +597,7 @@ public class BigQueryUtilsTest {
   public void testToTableRow_flat() {
     TableRow row = toTableRow().apply(FLAT_ROW);
 
-    assertThat(row.size(), equalTo(19));
+    assertThat(row.size(), equalTo(22));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
@@ -574,6 +613,9 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
     assertThat(row, hasEntry("numeric", "123.456"));
+    assertThat(row, hasEntry("boolean", "true"));
+    assertThat(row, hasEntry("long", "123"));
+    assertThat(row, hasEntry("double", "123.456"));
   }
 
   @Test
@@ -609,7 +651,7 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
-    assertThat(row.size(), equalTo(19));
+    assertThat(row.size(), equalTo(22));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
@@ -625,6 +667,9 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
     assertThat(row, hasEntry("numeric", "123.456"));
+    assertThat(row, hasEntry("boolean", "true"));
+    assertThat(row, hasEntry("long", "123"));
+    assertThat(row, hasEntry("double", "123.456"));
   }
 
   @Test
@@ -633,7 +678,7 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
-    assertThat(row.size(), equalTo(19));
+    assertThat(row.size(), equalTo(22));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
@@ -649,13 +694,16 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
     assertThat(row, hasEntry("numeric", "123.456"));
+    assertThat(row, hasEntry("boolean", "true"));
+    assertThat(row, hasEntry("long", "123"));
+    assertThat(row, hasEntry("double", "123.456"));
   }
 
   @Test
   public void testToTableRow_null_row() {
     TableRow row = toTableRow().apply(NULL_FLAT_ROW);
 
-    assertThat(row.size(), equalTo(19));
+    assertThat(row.size(), equalTo(22));
     assertThat(row, hasEntry("id", null));
     assertThat(row, hasEntry("value", null));
     assertThat(row, hasEntry("name", null));
@@ -675,6 +723,9 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("valid", null));
     assertThat(row, hasEntry("binary", null));
     assertThat(row, hasEntry("numeric", null));
+    assertThat(row, hasEntry("boolean", null));
+    assertThat(row, hasEntry("long", null));
+    assertThat(row, hasEntry("double", null));
   }
 
   private static final BigQueryUtils.ConversionOptions TRUNCATE_OPTIONS =

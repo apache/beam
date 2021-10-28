@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
 import org.joda.time.ReadableDateTime;
 
 /**

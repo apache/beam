@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtils.makeOrderKeysFromCollation;
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtils;
 import org.apache.beam.sdk.extensions.sql.impl.cep.OrderKey;
 import org.apache.beam.sdk.extensions.sql.impl.nfa.NFA;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -48,18 +49,17 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Match;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollation;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Match;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.ImmutableBitSet;
 
 /**
  * {@code BeamRelNode} to replace a {@code Match} node.
@@ -87,7 +87,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       RexNode after,
       Map<String, ? extends SortedSet<String>> subsets,
       boolean allRows,
-      List<RexNode> partitionKeys,
+      ImmutableBitSet partitionKeys,
       RelCollation orderKeys,
       RexNode interval) {
 
@@ -110,12 +110,12 @@ public class BeamMatchRel extends Match implements BeamRelNode {
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     return BeamCostModel.FACTORY.makeTinyCost(); // return constant costModel for now
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     // a simple way of getting some estimate data
     // to be examined further
     NodeStats inputEstimate = BeamSqlRelUtils.getNodeStats(input, mq);
@@ -134,7 +134,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
   private class MatchTransform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
-    private final List<RexNode> parKeys;
+    private final ImmutableBitSet partitionKeys;
     private final RelCollation orderKeys;
     private final Map<String, RexNode> measures;
     private final boolean allRows;
@@ -142,13 +142,13 @@ public class BeamMatchRel extends Match implements BeamRelNode {
     private final Map<String, RexNode> patternDefs;
 
     public MatchTransform(
-        List<RexNode> parKeys,
+        ImmutableBitSet partitionKeys,
         RelCollation orderKeys,
         Map<String, RexNode> measures,
         boolean allRows,
         RexNode pattern,
         Map<String, RexNode> patternDefs) {
-      this.parKeys = parKeys;
+      this.partitionKeys = partitionKeys;
       this.orderKeys = orderKeys;
       this.measures = measures;
       this.allRows = allRows;
@@ -168,9 +168,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       Schema outSchema = CalciteUtils.toSchema(getRowType());
 
       Schema.Builder schemaBuilder = new Schema.Builder();
-      for (RexNode i : parKeys) {
-        RexInputRef varNode = (RexInputRef) i;
-        int index = varNode.getIndex();
+      for (int index : partitionKeys.asList()) {
         schemaBuilder.addField(upstreamSchema.getField(index));
       }
       Schema partitionKeySchema = schemaBuilder.build();
@@ -217,7 +215,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       // apply the ParDo for the match process and measures clause
       // for now, support FINAL only
       // TODO: add support for FINAL/RUNNING
-      List<CEPFieldRef> cepParKeys = CEPUtils.getCEPFieldRefFromParKeys(parKeys);
+      List<CEPFieldRef> cepParKeys = CEPUtils.getCEPFieldRefFromParKeys(partitionKeys);
       PCollection<Row> outStream =
           orderedUpstream
               .apply(
@@ -236,20 +234,20 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
     private final Schema upstreamSchema;
     private final Schema outSchema;
-    private final List<CEPFieldRef> parKeys;
+    private final List<CEPFieldRef> partitionKeys;
     private final ArrayList<CEPPattern> pattern;
     private final List<CEPMeasure> measures;
     private final boolean allRows;
 
     MatchPattern(
         Schema upstreamSchema,
-        List<CEPFieldRef> parKeys,
+        List<CEPFieldRef> partitionKeys,
         ArrayList<CEPPattern> pattern,
         List<CEPMeasure> measures,
         boolean allRows,
         Schema outSchema) {
       this.upstreamSchema = upstreamSchema;
-      this.parKeys = parKeys;
+      this.partitionKeys = partitionKeys;
       this.pattern = pattern;
       this.measures = measures;
       this.allRows = allRows;
@@ -283,18 +281,18 @@ public class BeamMatchRel extends Match implements BeamRelNode {
           Row.FieldValueBuilder newFieldBuilder = null;
 
           // add partition key columns
-          for (CEPFieldRef i : parKeys) {
+          for (CEPFieldRef i : partitionKeys) {
             int colIndex = i.getIndex();
             Schema.Field parSchema = upstreamSchema.getField(colIndex);
             String fieldName = parSchema.getName();
             if (!result.isEmpty()) {
-              Row parKeyRow = keyRows.getKey();
+              Row partitionKeyRow = keyRows.getKey();
               if (newFieldBuilder == null) {
                 newFieldBuilder =
-                    newRowBuilder.withFieldValue(fieldName, parKeyRow.getValue(fieldName));
+                    newRowBuilder.withFieldValue(fieldName, partitionKeyRow.getValue(fieldName));
               } else {
                 newFieldBuilder =
-                    newFieldBuilder.withFieldValue(fieldName, parKeyRow.getValue(fieldName));
+                    newFieldBuilder.withFieldValue(fieldName, partitionKeyRow.getValue(fieldName));
               }
             } else {
               break;
@@ -432,7 +430,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
     }
   }
 
-  @Override
   public Match copy(
       RelNode input,
       RelDataType rowType,
@@ -444,7 +441,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       RexNode after,
       Map<String, ? extends SortedSet<String>> subsets,
       boolean allRows,
-      List<RexNode> partitionKeys,
+      ImmutableBitSet partitionKeys,
       RelCollation orderKeys,
       RexNode interval) {
 
@@ -452,6 +449,26 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         getCluster(),
         getTraitSet(),
         input,
+        rowType,
+        pattern,
+        strictStart,
+        strictEnd,
+        patternDefinitions,
+        measures,
+        after,
+        subsets,
+        allRows,
+        partitionKeys,
+        orderKeys,
+        interval);
+  }
+
+  @Override
+  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    return new BeamMatchRel(
+        getCluster(),
+        traitSet,
+        inputs.get(0),
         rowType,
         pattern,
         strictStart,

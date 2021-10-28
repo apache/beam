@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql.unnest;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -31,17 +32,16 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelWriter;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Correlate;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelWriter;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Correlate;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.JoinRelType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -90,7 +90,7 @@ public class BeamZetaSqlUnnestRel extends ZetaSqlUnnest implements BeamRelNode {
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     // We estimate the average length of each array by a constant.
     // We might be able to get an estimate of the length by making a MetadataHandler for this
     // purpose, and get the estimate by reading the first couple of the rows in the source.
@@ -98,7 +98,7 @@ public class BeamZetaSqlUnnestRel extends ZetaSqlUnnest implements BeamRelNode {
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
     return BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
   }

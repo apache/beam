@@ -17,12 +17,17 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
@@ -419,6 +424,50 @@ public class JmsIOTest {
     Coder coder = new JmsIO.UnboundedJmsSource(null).getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
     CoderProperties.coderDecodeEncodeEqual(coder, jmsCheckpointMark);
+  }
+
+  @Test
+  public void testDefaultAutoscaler() throws IOException {
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactory)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE);
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    // start the reader and check getSplitBacklogBytes and getTotalBacklogBytes values
+    reader.start();
+    assertEquals(BACKLOG_UNKNOWN, reader.getSplitBacklogBytes());
+    assertEquals(BACKLOG_UNKNOWN, reader.getTotalBacklogBytes());
+    reader.close();
+  }
+
+  @Test
+  public void testCustomAutoscaler() throws IOException {
+    long excpectedTotalBacklogBytes = 1111L;
+
+    AutoScaler autoScaler = mock(DefaultAutoscaler.class);
+    when(autoScaler.getTotalBacklogBytes()).thenReturn(excpectedTotalBacklogBytes);
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactory)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE)
+            .withAutoScaler(autoScaler);
+
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    // start the reader and check getSplitBacklogBytes and getTotalBacklogBytes values
+    reader.start();
+    verify(autoScaler, times(1)).start();
+    assertEquals(excpectedTotalBacklogBytes, reader.getTotalBacklogBytes());
+    verify(autoScaler, times(1)).getTotalBacklogBytes();
+    reader.close();
+    verify(autoScaler, times(1)).stop();
   }
 
   private int count(String queue) throws Exception {

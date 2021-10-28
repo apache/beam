@@ -25,7 +25,7 @@ syntax = "proto3";
 
 package org.apache.beam.model.pipeline.v1;
 
-option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1;pipeline_v1";
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1;pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "RunnerApi";
 
@@ -1559,6 +1559,11 @@ message StandardProtocols {
     // cores.
     MULTI_CORE_BUNDLE_PROCESSING = 3 [(beam_urn) = "beam:protocol:multi_core_bundle_processing:v1"];
 
+    // Indicates this SDK can cheaply spawn sibling workers (e.g. within the
+    // same container) to work around the fact that it cannot take advantage
+    // of multiple cores (i.e. MULTI_CORE_BUNDLE_PROCESSING is not set).
+    SIBLING_WORKERS = 5 [(beam_urn) = "beam:protocol:sibling_workers:v1"];
+
     // Indicates that this SDK handles the InstructionRequest of type
     // HarnessMonitoringInfosRequest.
     // A request to provide full MonitoringInfo data associated with
@@ -1718,7 +1723,14 @@ message LabelledPayload {
     string string_value = 2;
     bool bool_value = 3;
     double double_value = 4;
+    int64 int_value = 5;
   }
+
+  // (Required) The key identifies the actual content of the metadata.
+  string key = 6;
+
+  // (Required) The namespace describes the context that specified the key.
+  string namespace = 7;
 }
 
 // Static display data associated with a pipeline component. Display data is

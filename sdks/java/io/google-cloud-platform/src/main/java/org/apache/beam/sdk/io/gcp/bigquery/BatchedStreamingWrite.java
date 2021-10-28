@@ -86,7 +86,6 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
   private final Set<String> allowedMetricUrns;
-  private @Nullable DatasetService datasetService;
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
   private Counter byteCounter = SinkMetrics.bytesWritten();
@@ -222,6 +221,15 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     /** The list of unique ids for each BigQuery table row. */
     private transient Map<String, List<String>> uniqueIdsForTableRows;
 
+    private transient @Nullable DatasetService datasetService;
+
+    private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
+      if (datasetService == null) {
+        datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return datasetService;
+    }
+
     /** Prepares a target BigQuery table. */
     @StartBundle
     public void startBundle() {
@@ -257,10 +265,10 @@ class BatchedStreamingWrite<ErrorT, ElementT>
           tableRows.entrySet()) {
         TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());
         flushRows(
+            getDatasetService(options),
             tableReference,
             entry.getValue(),
             uniqueIdsForTableRows.get(entry.getKey()),
-            options,
             failedInserts,
             successfulInserts);
       }
@@ -271,6 +279,18 @@ class BatchedStreamingWrite<ErrorT, ElementT>
         context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
       }
       reportStreamingApiLogging(options);
+    }
+
+    @Teardown
+    public void onTeardown() {
+      try {
+        if (datasetService != null) {
+          datasetService.close();
+          datasetService = null;
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
@@ -325,13 +345,22 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   // shuffling.
   private class InsertBatchedElements
       extends DoFn<KV<ShardedKey<String>, Iterable<TableRowInfo<ElementT>>>, Void> {
+    private transient @Nullable DatasetService datasetService;
+
+    private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
+      if (datasetService == null) {
+        datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return datasetService;
+    }
+
     @ProcessElement
     public void processElement(
         @Element KV<ShardedKey<String>, Iterable<TableRowInfo<ElementT>>> input,
         BoundedWindow window,
         ProcessContext context,
         MultiOutputReceiver out)
-        throws InterruptedException {
+        throws InterruptedException, IOException {
       List<FailsafeValueInSingleWindow<TableRow, TableRow>> tableRows = new ArrayList<>();
       List<String> uniqueIds = new ArrayList<>();
       for (TableRowInfo<ElementT> row : input.getValue()) {
@@ -347,7 +376,13 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       TableReference tableReference = BigQueryHelpers.parseTableSpec(input.getKey().getKey());
       List<ValueInSingleWindow<ErrorT>> failedInserts = Lists.newArrayList();
       List<ValueInSingleWindow<TableRow>> successfulInserts = Lists.newArrayList();
-      flushRows(tableReference, tableRows, uniqueIds, options, failedInserts, successfulInserts);
+      flushRows(
+          getDatasetService(options),
+          tableReference,
+          tableRows,
+          uniqueIds,
+          failedInserts,
+          successfulInserts);
 
       for (ValueInSingleWindow<ErrorT> row : failedInserts) {
         out.get(failedOutputTag).output(row.getValue());
@@ -357,56 +392,48 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       }
       reportStreamingApiLogging(options);
     }
-  }
 
-  @Teardown
-  public void onTeardown() {
-    try {
-      if (datasetService != null) {
-        datasetService.close();
-        datasetService = null;
+    @Teardown
+    public void onTeardown() {
+      try {
+        if (datasetService != null) {
+          datasetService.close();
+          datasetService = null;
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
   /** Writes the accumulated rows into BigQuery with streaming API. */
   private void flushRows(
+      DatasetService datasetService,
       TableReference tableReference,
       List<FailsafeValueInSingleWindow<TableRow, TableRow>> tableRows,
       List<String> uniqueIds,
-      BigQueryOptions options,
       List<ValueInSingleWindow<ErrorT>> failedInserts,
       List<ValueInSingleWindow<TableRow>> successfulInserts)
       throws InterruptedException {
     if (!tableRows.isEmpty()) {
       try {
         long totalBytes =
-            getDatasetService(options)
-                .insertAll(
-                    tableReference,
-                    tableRows,
-                    uniqueIds,
-                    retryPolicy,
-                    failedInserts,
-                    errorContainer,
-                    skipInvalidRows,
-                    ignoreUnknownValues,
-                    ignoreInsertIds,
-                    successfulInserts);
+            datasetService.insertAll(
+                tableReference,
+                tableRows,
+                uniqueIds,
+                retryPolicy,
+                failedInserts,
+                errorContainer,
+                skipInvalidRows,
+                ignoreUnknownValues,
+                ignoreInsertIds,
+                successfulInserts);
         byteCounter.inc(totalBytes);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     }
-  }
-
-  private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
-    if (datasetService == null) {
-      datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
-    }
-    return datasetService;
   }
 
   private void reportStreamingApiLogging(BigQueryOptions options) {

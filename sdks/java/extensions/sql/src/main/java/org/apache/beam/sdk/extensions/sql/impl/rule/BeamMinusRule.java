@@ -20,11 +20,11 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamMinusRel;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Minus;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalMinus;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.Convention;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Minus;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalMinus;
 
 /** {@code ConverterRule} to replace {@code Minus} with {@code BeamMinusRel}. */
 public class BeamMinusRule extends ConverterRule {

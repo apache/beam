@@ -24,6 +24,7 @@ pipeline runs, there should only be per-user pipeline state. This makes sure
 that derived pipelines can link back to the parent user pipeline.
 """
 
+import shutil
 from typing import Iterator
 from typing import Optional
 
@@ -66,6 +67,10 @@ class UserPipelineTracker:
 
   def clear(self) -> None:
     """Clears the tracker of all user and derived pipelines."""
+    # Remove all local_tempdir of created pipelines.
+    for p in self._pid_to_pipelines.values():
+      shutil.rmtree(p.local_tempdir, ignore_errors=True)
+
     self._user_pipelines.clear()
     self._derived_pipelines.clear()
     self._pid_to_pipelines.clear()

@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 // This file contains support for side input.
@@ -41,11 +41,12 @@ type sideInputAdapter struct {
 	wc          WindowEncoder
 	kc          ElementEncoder
 	ec          ElementDecoder
+	wm          WindowMapper
 }
 
 // NewSideInputAdapter returns a side input adapter for the given StreamID and coder.
 // It expects a W<KV<K,V>> coder, because the protocol supports MultiSet access only.
-func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder) SideInputAdapter {
+func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder, wm WindowMapper) SideInputAdapter {
 	if !coder.IsW(c) || !coder.IsKV(coder.SkipW(c)) {
 		panic(fmt.Sprintf("expected WKV coder for side input %v: %v", sid, c))
 	}
@@ -53,7 +54,7 @@ func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder) SideI
 	wc := MakeWindowEncoder(c.Window)
 	kc := MakeElementEncoder(coder.SkipW(c).Components[0])
 	ec := MakeElementDecoder(coder.SkipW(c).Components[1])
-	return &sideInputAdapter{sid: sid, sideInputID: sideInputID, wc: wc, kc: kc, ec: ec}
+	return &sideInputAdapter{sid: sid, sideInputID: sideInputID, wc: wc, kc: kc, ec: ec, wm: wm}
 }
 
 func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error) {
@@ -61,11 +62,22 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 	if err != nil {
 		return nil, err
 	}
-	win, err := EncodeWindow(s.wc, w)
+	mw, err := s.wm.MapWindow(w)
 	if err != nil {
 		return nil, err
 	}
-	return &proxyReStream{
+	win, err := EncodeWindow(s.wc, mw)
+	if err != nil {
+		return nil, err
+	}
+	cache := reader.GetSideInputCache()
+	// Cache hit
+	if r := cache.QueryCache(ctx, s.sid.PtransformID, s.sideInputID, win, key); r != nil {
+		return r, nil
+	}
+
+	// Cache miss, build new ReStream
+	r := &proxyReStream{
 		open: func() (Stream, error) {
 			r, err := reader.OpenSideInput(ctx, s.sid, s.sideInputID, key, win)
 			if err != nil {
@@ -73,7 +85,8 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 			}
 			return &elementStream{r: r, ec: s.ec}, nil
 		},
-	}, nil
+	}
+	return cache.SetCache(ctx, s.sid.PtransformID, s.sideInputID, win, key, r), nil
 }
 
 func (s *sideInputAdapter) String() string {

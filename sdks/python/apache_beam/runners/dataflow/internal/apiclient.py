@@ -27,6 +27,8 @@ import io
 import json
 import logging
 import os
+import random
+
 import pkg_resources
 import re
 import sys
@@ -161,7 +163,7 @@ class Environment(object):
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
     self._proto_pipeline = proto_pipeline
-    self._sdk_image_overrides = _sdk_image_overrides or dict()
+    self._sdk_image_overrides = _sdk_image_overrides or {}
 
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
@@ -403,7 +405,7 @@ class Job(object):
     # further modify it to not output too-long strings, aimed at the
     # 10,000+ character hex-encoded "serialized_fn" values.
     return json.dumps(
-        json.loads(encoding.MessageToJson(self.proto), encoding='shortstrings'),
+        json.loads(encoding.MessageToJson(self.proto)),
         indent=2,
         sort_keys=True)
 
@@ -496,6 +498,11 @@ class Job(object):
         self.proto.labels.additionalProperties.append(
             dataflow.Job.LabelsValue.AdditionalProperty(key=key, value=value))
 
+    # Client Request ID
+    self.proto.clientRequestId = '{}-{}'.format(
+        datetime.utcnow().strftime('%Y%m%d%H%M%S%f'),
+        random.randrange(9000) + 1000)
+
     self.base64_str_re = re.compile(r'^[A-Za-z0-9+/]*=*$')
     self.coder_str_re = re.compile(r'^([A-Za-z]+\$)([A-Za-z0-9+/]*=*)$')
 
@@ -547,11 +554,10 @@ class DataflowApplicationClient(object):
     worker_options = pipeline_options.view_as(WorkerOptions)
     sdk_overrides = worker_options.sdk_harness_container_image_overrides
     return (
-        dict(s.split(',', 1)
-             for s in sdk_overrides) if sdk_overrides else dict())
+        dict(s.split(',', 1) for s in sdk_overrides) if sdk_overrides else {})
 
-  # TODO(silviuc): Refactor so that retry logic can be applied.
-  @retry.no_retries  # Using no_retries marks this as an integration point.
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _gcs_file_copy(self, from_path, to_path):
     to_folder, to_name = os.path.split(to_path)
     total_size = os.path.getsize(from_path)
@@ -795,6 +801,20 @@ class DataflowApplicationClient(object):
           self.google_cloud_options.dataflow_endpoint)
       _LOGGER.fatal('details of server error: %s', e)
       raise
+
+    if response.clientRequestId and \
+        response.clientRequestId != job.proto.clientRequestId:
+      if self.google_cloud_options.update:
+        raise DataflowJobAlreadyExistsError(
+            "The job named %s with id: %s has already been updated into job "
+            "id: %s and cannot be updated again." %
+            (response.name, job.proto.replaceJobId, response.id))
+      else:
+        raise DataflowJobAlreadyExistsError(
+            'There is already active job named %s with id: %s. If you want to '
+            'submit a second job, try again by setting a different name using '
+            '--job_name.' % (response.name, response.id))
+
     _LOGGER.info('Create job: %s', response)
     # The response is a Job proto with the id for the new job.
     _LOGGER.info('Created job with id: [%s]', response.id)
@@ -1010,7 +1030,7 @@ class MetricUpdateTranslators(object):
 
 class _LegacyDataflowStager(Stager):
   def __init__(self, dataflow_application_client):
-    super(_LegacyDataflowStager, self).__init__()
+    super().__init__()
     self._dataflow_application_client = dataflow_application_client
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
@@ -1029,6 +1049,13 @@ class _LegacyDataflowStager(Stager):
     return shared_names.BEAM_PACKAGE_NAME
 
 
+class DataflowJobAlreadyExistsError(retry.PermanentException):
+  """A non-retryable exception that a job with the given name already exists."""
+  # Inherits retry.PermanentException to avoid retry in
+  # DataflowApplicationClient.submit_job_description
+  pass
+
+
 def to_split_int(n):
   res = dataflow.SplitInt64()
   res.lowBits = n & 0xffffffff
@@ -1036,6 +1063,8 @@ def to_split_int(n):
   return res
 
 
+# TODO: Used in legacy batch worker. Move under MetricUpdateTranslators
+# after Runner V2 transition.
 def translate_distribution(distribution_update, metric_update_proto):
   """Translate metrics DistributionUpdate to dataflow distribution update.
 
@@ -1056,18 +1085,9 @@ def translate_distribution(distribution_update, metric_update_proto):
   metric_update_proto.distribution = dist_update_proto
 
 
+# TODO: Used in legacy batch worker. Delete after Runner V2 transition.
 def translate_value(value, metric_update_proto):
   metric_update_proto.integer = to_split_int(value)
-
-
-def translate_mean(accumulator, metric_update):
-  if accumulator.count:
-    metric_update.meanSum = to_json_value(accumulator.sum, with_type=True)
-    metric_update.meanCount = to_json_value(accumulator.count, with_type=True)
-  else:
-    # A denominator of 0 will raise an error in the service.
-    # What it means is we have nothing to report yet, so don't.
-    metric_update.kind = None
 
 
 def _use_fnapi(pipeline_options):

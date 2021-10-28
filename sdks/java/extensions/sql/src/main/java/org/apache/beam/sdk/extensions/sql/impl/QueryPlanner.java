@@ -22,10 +22,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RuleSet;
 
 /**
  * An interface that planners should implement to convert sql statement to {@link BeamRelNode} or

@@ -24,9 +24,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 func init() {

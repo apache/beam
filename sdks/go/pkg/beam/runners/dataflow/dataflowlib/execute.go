@@ -22,12 +22,12 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal/runnerlib"
 	"github.com/golang/protobuf/proto"
 	df "google.golang.org/api/dataflow/v1b3"
 )
@@ -104,7 +104,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	}
 	log.Infof(ctx, "Submitted job: %v", upd.Id)
 	if endpoint == "" {
-		log.Infof(ctx, "Console: https://console.cloud.google.com/dataflow/jobs/%v?project=%v", upd.Id, opts.Project)
+		log.Infof(ctx, "Console: https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", opts.Region, upd.Id, opts.Project)
 	}
 	log.Infof(ctx, "Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", opts.Project, upd.Id)
 

@@ -202,8 +202,7 @@ class _MaterializedResult(object):
 
 class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
   def __init__(self, deferred, results_by_tag):
-    super(_MaterializedDoOutputsTuple,
-          self).__init__(None, None, deferred._tags, deferred._main_tag)
+    super().__init__(None, None, deferred._tags, deferred._main_tag)
     self._deferred = deferred
     self._results_by_tag = results_by_tag
 
@@ -351,7 +350,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   def __init__(self, label=None):
     # type: (Optional[str]) -> None
-    super(PTransform, self).__init__()
+    super().__init__()
     self.label = label  # type: ignore # https://github.com/python/mypy/issues/3004
 
   @property
@@ -402,7 +401,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         input_type_hint)
     validate_composite_type_param(
         input_type_hint, 'Type hints for a PTransform')
-    return super(PTransform, self).with_input_types(input_type_hint)
+    return super().with_input_types(input_type_hint)
 
   def with_output_types(self, type_hint):
     """Annotates the output type of a :class:`PTransform` with a type-hint.
@@ -423,7 +422,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     """
     type_hint = native_type_compatibility.convert_to_beam_type(type_hint)
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
-    return super(PTransform, self).with_output_types(type_hint)
+    return super().with_output_types(type_hint)
 
   def with_resource_hints(self, **kwargs):  # type: (...) -> PTransform
     """Adds resource hints to the :class:`PTransform`.
@@ -599,7 +598,8 @@ class PTransform(WithTypeHints, HasDisplayData):
         for pp in pipelines:
           if p != pp:
             raise ValueError(
-                'Mixing value from different pipelines not allowed.')
+                'Mixing values in different pipelines is not allowed.'
+                '\n{%r} != {%r}' % (p, pp))
       deferred = not getattr(p.runner, 'is_eager', False)
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Create
@@ -805,7 +805,7 @@ def _unpickle_transform(unused_ptransform, pickled_bytes, unused_context):
 class _ChainedPTransform(PTransform):
   def __init__(self, *parts):
     # type: (*PTransform) -> None
-    super(_ChainedPTransform, self).__init__(label=self._chain_label(parts))
+    super().__init__(label=self._chain_label(parts))
     self._parts = parts
 
   def _chain_label(self, parts):
@@ -841,10 +841,10 @@ class PTransformWithSideInputs(PTransform):
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
     self.fn = self.make_fn(fn, bool(args or kwargs))
     # Now that we figure out the label, initialize the super-class.
-    super(PTransformWithSideInputs, self).__init__()
+    super().__init__()
 
-    if (any([isinstance(v, pvalue.PCollection) for v in args]) or
-        any([isinstance(v, pvalue.PCollection) for v in kwargs.values()])):
+    if (any(isinstance(v, pvalue.PCollection) for v in args) or
+        any(isinstance(v, pvalue.PCollection) for v in kwargs.values())):
       raise error.SideInputError(
           'PCollection used directly as side input argument. Specify '
           'AsIter(pcollection) or AsSingleton(pcollection) to indicate how the '
@@ -897,7 +897,7 @@ class PTransformWithSideInputs(PTransform):
       :class:`PTransform` object. This allows chaining type-hinting related
       methods.
     """
-    super(PTransformWithSideInputs, self).with_input_types(input_type_hint)
+    super().with_input_types(input_type_hint)
 
     side_inputs_arg_hints = native_type_compatibility.convert_to_beam_types(
         side_inputs_arg_hints)
@@ -963,7 +963,7 @@ class PTransformWithSideInputs(PTransform):
 class _PTransformFnPTransform(PTransform):
   """A class wrapper for a function-based transform."""
   def __init__(self, fn, *args, **kwargs):
-    super(_PTransformFnPTransform, self).__init__()
+    super().__init__()
     self._fn = fn
     self._args = args
     self._kwargs = kwargs
@@ -1030,7 +1030,7 @@ def ptransform_fn(fn):
     class CustomMapper(PTransform):
 
       def __init__(self, mapfn):
-        super(CustomMapper, self).__init__()
+        super().__init__()
         self.mapfn = mapfn
 
       def expand(self, pcoll):
@@ -1083,7 +1083,7 @@ def label_from_callable(fn):
 
 class _NamedPTransform(PTransform):
   def __init__(self, transform, label):
-    super(_NamedPTransform, self).__init__(label)
+    super().__init__(label)
     self.transform = transform
 
   def __ror__(self, pvalueish, _unused=None):

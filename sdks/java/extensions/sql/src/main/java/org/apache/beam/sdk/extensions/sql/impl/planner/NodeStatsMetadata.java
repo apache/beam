@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
 import java.lang.reflect.Method;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Types;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.Metadata;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.MetadataDef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.MetadataHandler;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.tree.Types;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.Metadata;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.MetadataDef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.MetadataHandler;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
  * This is a metadata used for row count and rate estimation. It extends Calcite's Metadata

@@ -27,7 +27,7 @@
 package session
 
 import (
-	fnexecution_v1 "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnexecution_v1 "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

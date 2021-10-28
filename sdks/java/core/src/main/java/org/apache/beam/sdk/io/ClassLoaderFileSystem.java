@@ -30,6 +30,7 @@ import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -85,7 +86,9 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
 
   @Override
   protected void rename(
-      List<ClassLoaderResourceId> srcResourceIds, List<ClassLoaderResourceId> destResourceIds)
+      List<ClassLoaderResourceId> srcResourceIds,
+      List<ClassLoaderResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
     throw new UnsupportedOperationException("Read-only filesystem.");
   }

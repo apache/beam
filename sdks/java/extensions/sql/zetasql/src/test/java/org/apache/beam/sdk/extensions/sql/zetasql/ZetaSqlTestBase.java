@@ -26,11 +26,11 @@ import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Contexts;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.Contexts;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.FrameworkConfig;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Common setup for ZetaSQL tests. */

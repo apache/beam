@@ -22,7 +22,7 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
 
 /**
  * A {@link MetaStore} which stores the meta info in memory.

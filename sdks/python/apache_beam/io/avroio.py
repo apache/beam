@@ -143,7 +143,7 @@ class ReadFromAvro(PTransform):
       use_fastavro (bool); when set, use the `fastavro` library for IO, which
         is significantly faster, and is now the default.
     """
-    super(ReadFromAvro, self).__init__()
+    super().__init__()
     self._source = _create_avro_source(
         file_pattern,
         min_bundle_size,
@@ -171,6 +171,7 @@ class ReadAllFromAvro(PTransform):
       min_bundle_size=0,
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       use_fastavro=True,
+      with_filename=False,
       label='ReadAllFiles'):
     """Initializes ``ReadAllFromAvro``.
 
@@ -181,6 +182,9 @@ class ReadAllFromAvro(PTransform):
                        splitting the input into bundles.
       use_fastavro (bool); when set, use the `fastavro` library for IO, which
         is significantly faster, and is now the default.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
     source_from_file = partial(
         _create_avro_source,
@@ -191,7 +195,8 @@ class ReadAllFromAvro(PTransform):
         CompressionTypes.AUTO,
         desired_bundle_size,
         min_bundle_size,
-        source_from_file)
+        source_from_file,
+        with_filename)
 
     self.label = label
 
@@ -573,7 +578,7 @@ class _BaseAvroSink(filebasedsink.FileBasedSink):
       num_shards,
       shard_name_template,
       mime_type):
-    super(_BaseAvroSink, self).__init__(
+    super().__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
         num_shards=num_shards,
@@ -587,7 +592,7 @@ class _BaseAvroSink(filebasedsink.FileBasedSink):
     self._codec = codec
 
   def display_data(self):
-    res = super(_BaseAvroSink, self).display_data()
+    res = super().display_data()
     res['codec'] = str(self._codec)
     res['schema'] = str(self._schema)
     return res
@@ -596,7 +601,7 @@ class _BaseAvroSink(filebasedsink.FileBasedSink):
 class _AvroSink(_BaseAvroSink):
   """A sink for avro files using Avro. """
   def open(self, temp_path):
-    file_handle = super(_AvroSink, self).open(temp_path)
+    file_handle = super().open(temp_path)
     return avro.datafile.DataFileWriter(
         file_handle, avro.io.DatumWriter(), self._schema, self._codec)
 
@@ -607,7 +612,7 @@ class _AvroSink(_BaseAvroSink):
 class _FastAvroSink(_BaseAvroSink):
   """A sink for avro files using FastAvro. """
   def open(self, temp_path):
-    file_handle = super(_FastAvroSink, self).open(temp_path)
+    file_handle = super().open(temp_path)
     return Writer(file_handle, self._schema, self._codec)
 
   def write_record(self, writer, value):

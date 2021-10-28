@@ -24,13 +24,13 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expression;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelProtoDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Schema;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaVersion;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Schemas;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Schema;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.SchemaVersion;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Schemas;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Adapter from {@link TableProvider} to {@link Schema}. */
@@ -101,7 +101,7 @@ public class BeamCalciteSchema implements Schema {
   }
 
   @Override
-  public org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table getTable(
+  public org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Table getTable(
       String name) {
     Table table = tableProvider.getTable(name);
     if (table == null) {

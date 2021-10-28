@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
+import static org.apache.beam.sdk.io.common.DatabaseTestHelper.getTestDataToWrite;
 import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 
 import com.google.cloud.Timestamp;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -44,8 +47,10 @@ import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -79,6 +84,7 @@ import org.postgresql.ds.PGSimpleDataSource;
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
 
+  private static final int EXPECTED_ROW_COUNT = 1000;
   private static final String NAMESPACE = JdbcIOIT.class.getName();
   private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
@@ -254,5 +260,55 @@ public class JdbcIOIT {
     PAssert.thatSingletonIterable(backOfList).containsInAnyOrder(expectedBackOfList);
 
     return pipelineRead.run();
+  }
+
+  @Test
+  public void testWriteWithWriteResults() throws Exception {
+    String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    DatabaseTestHelper.createTable(dataSource, firstTableName);
+    try {
+      ArrayList<KV<Integer, String>> data = getTestDataToWrite(EXPECTED_ROW_COUNT);
+
+      PCollection<KV<Integer, String>> dataCollection = pipelineWrite.apply(Create.of(data));
+      PCollection<JdbcTestHelper.TestDto> resultSetCollection =
+          dataCollection.apply(
+              getJdbcWriteWithReturning(firstTableName)
+                  .withWriteResults(
+                      resultSet -> {
+                        if (resultSet != null && resultSet.next()) {
+                          return new JdbcTestHelper.TestDto(resultSet.getInt(1));
+                        }
+                        return new JdbcTestHelper.TestDto(JdbcTestHelper.TestDto.EMPTY_RESULT);
+                      }));
+      resultSetCollection.setCoder(JdbcTestHelper.TEST_DTO_CODER);
+
+      List<JdbcTestHelper.TestDto> expectedResult = new ArrayList<>();
+      for (int id = 0; id < EXPECTED_ROW_COUNT; id++) {
+        expectedResult.add(new JdbcTestHelper.TestDto(id));
+      }
+
+      PAssert.that(resultSetCollection).containsInAnyOrder(expectedResult);
+
+      pipelineWrite.run();
+
+      assertRowCount(dataSource, firstTableName, EXPECTED_ROW_COUNT);
+    } finally {
+      DatabaseTestHelper.deleteTable(dataSource, firstTableName);
+    }
+  }
+
+  /**
+   * @return {@link JdbcIO.Write} transform that writes to {@param tableName} Postgres table and
+   *     returns all fields of modified rows.
+   */
+  private static JdbcIO.Write<KV<Integer, String>> getJdbcWriteWithReturning(String tableName) {
+    return JdbcIO.<KV<Integer, String>>write()
+        .withDataSourceProviderFn(voidInput -> dataSource)
+        .withStatement(String.format("insert into %s values(?, ?) returning *", tableName))
+        .withPreparedStatementSetter(
+            (element, statement) -> {
+              statement.setInt(1, element.getKey());
+              statement.setString(2, element.getValue());
+            });
   }
 }

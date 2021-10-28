@@ -269,7 +269,7 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict(), pipeline_options)
+        proto_pipeline, {}, pipeline_options)
 
     from apache_beam.utils import proto_utils
     found_override = False
@@ -300,7 +300,7 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict(), pipeline_options)
+        proto_pipeline, {}, pipeline_options)
 
     self.assertIsNotNone(2, len(proto_pipeline.components.environments))
 
@@ -336,7 +336,7 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict(), pipeline_options)
+        proto_pipeline, {}, pipeline_options)
 
     self.assertIsNotNone(2, len(proto_pipeline.components.environments))
 
@@ -1038,6 +1038,86 @@ class UtilTest(unittest.TestCase):
           client.stage_file.assert_called_once_with(
               mock.ANY, "dataflow_graph.json", mock.ANY)
           client.create_job_description.assert_called_once()
+
+  def test_create_job_returns_existing_job(self):
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+    ])
+    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    self.assertTrue(job.proto.clientRequestId)  # asserts non-empty string
+    pipeline_options.view_as(GoogleCloudOptions).no_auth = True
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+
+    response = dataflow.Job()
+    # different clientRequestId from `job`
+    response.clientRequestId = "20210821081910123456-1234"
+    response.name = 'test_job_name'
+    response.id = '2021-08-19_21_18_43-9756917246311111021'
+
+    with mock.patch.object(client._client.projects_locations_jobs,
+                           'Create',
+                           side_effect=[response]):
+      with mock.patch.object(client, 'create_job_description',
+                             side_effect=None):
+        with self.assertRaises(
+            apiclient.DataflowJobAlreadyExistsError) as context:
+          client.create_job(job)
+
+        self.assertEqual(
+            str(context.exception),
+            'There is already active job named %s with id: %s. If you want to '
+            'submit a second job, try again by setting a different name using '
+            '--job_name.' % ('test_job_name', response.id))
+
+  def test_update_job_returns_existing_job(self):
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--region',
+        'us-central1',
+        '--update',
+    ])
+    replace_job_id = '2021-08-21_00_00_01-6081497447916622336'
+    with mock.patch('apache_beam.runners.dataflow.internal.apiclient.Job.'
+                    'job_id_for_name',
+                    return_value=replace_job_id) as job_id_for_name_mock:
+      job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job_id_for_name_mock.assert_called_once()
+
+    self.assertTrue(job.proto.clientRequestId)  # asserts non-empty string
+
+    pipeline_options.view_as(GoogleCloudOptions).no_auth = True
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+
+    response = dataflow.Job()
+    # different clientRequestId from `job`
+    response.clientRequestId = "20210821083254123456-1234"
+    response.name = 'test_job_name'
+    response.id = '2021-08-19_21_29_07-5725551945600207770'
+
+    with mock.patch.object(client, 'create_job_description', side_effect=None):
+      with mock.patch.object(client._client.projects_locations_jobs,
+                             'Create',
+                             side_effect=[response]):
+
+        with self.assertRaises(
+            apiclient.DataflowJobAlreadyExistsError) as context:
+          client.create_job(job)
+
+      self.assertEqual(
+          str(context.exception),
+          'The job named %s with id: %s has already been updated into job '
+          'id: %s and cannot be updated again.' %
+          ('test_job_name', replace_job_id, response.id))
 
   def test_template_file_generation_with_upload_graph(self):
     pipeline_options = PipelineOptions([

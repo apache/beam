@@ -20,8 +20,8 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // TODO(herohde) 1/29/2018: using FullValue for nested KVs is somewhat of a hack
@@ -37,13 +37,14 @@ type FullValue struct {
 
 	Timestamp typex.EventTime
 	Windows   []typex.Window
+	Pane      typex.PaneInfo
 }
 
 func (v *FullValue) String() string {
 	if v.Elm2 == nil {
-		return fmt.Sprintf("%v [@%v:%v]", v.Elm, v.Timestamp, v.Windows)
+		return fmt.Sprintf("%v [@%v:%v:%v]", v.Elm, v.Timestamp, v.Windows, v.Pane)
 	}
-	return fmt.Sprintf("KV<%v,%v> [@%v:%v]", v.Elm, v.Elm2, v.Timestamp, v.Windows)
+	return fmt.Sprintf("KV<%v,%v> [@%v:%v:%v]", v.Elm, v.Elm2, v.Timestamp, v.Windows, v.Pane)
 }
 
 // Stream is a FullValue reader. It returns io.EOF when complete, but can be

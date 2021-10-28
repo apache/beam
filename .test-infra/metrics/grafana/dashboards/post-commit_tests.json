@@ -10,6 +10,12 @@
         "limit": 100,
         "name": "Annotations & Alerts",
         "showIn": 0,
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
@@ -17,11 +23,10 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 1,
   "links": [],
   "panels": [
     {
-      "content": "This dashboard tracks Post-commit test reliability over-time.\n\n* [Post-commit test policies](https://beam.apache.org/contribute/postcommits-policies/)\n* [Existing test failure issues](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20test-failures%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC)\n* [File a new test failure issue](https://s.apache.org/beam-test-failure)",
+      "datasource": null,
       "gridPos": {
         "h": 4,
         "w": 24,
@@ -30,7 +35,11 @@
       },
       "id": 11,
       "links": [],
-      "mode": "markdown",
+      "options": {
+        "content": "This dashboard tracks Post-commit test reliability over-time.\n\n* [Post-commit test policies](https://beam.apache.org/contribute/postcommits-policies/)\n* [Existing test failure issues](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20test-failures%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC)\n* [File a new test failure issue](https://s.apache.org/beam-test-failure)",
+        "mode": "markdown"
+      },
+      "pluginVersion": "8.1.2",
       "title": "Dashboard guidelines",
       "type": "text"
     },
@@ -68,14 +77,62 @@
         "noDataState": "keep_state",
         "notifications": []
       },
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": "BeamPSQL",
-      "decimals": 0,
       "description": "Percent reliability of all post-commit job runs for a given week.\n\nUnreliability of a test suite impact developer productivity by forcing contributors to re-run tests. When tests are consistently unreliable, developers will simply ignore them.\n\nWe aim for >= 70% reliability per test suite.",
-      "fill": 0,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "% successful runs",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "transparent",
+                "value": 0.7
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 7,
         "w": 24,
@@ -83,31 +140,20 @@
         "y": 4
       },
       "id": 6,
-      "legend": {
-        "alignAsTable": true,
-        "avg": false,
-        "current": true,
-        "hideEmpty": false,
-        "hideZero": true,
-        "max": false,
-        "min": false,
-        "rightSide": true,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
-      "percentage": false,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "alias": "",
@@ -115,7 +161,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (((job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')) OR job_name like '%_Cron')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
+          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (((job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')) OR job_name like '%_Cron')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name\n",
           "refId": "A",
           "select": [
             [
@@ -137,55 +183,10 @@
           ]
         }
       ],
-      "thresholds": [
-        {
-          "colorMode": "critical",
-          "fill": true,
-          "line": true,
-          "op": "lt",
-          "value": 0.7
-        }
-      ],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "Post-commit reliability per week",
-      "tooltip": {
-        "shared": true,
-        "sort": 1,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "decimals": 1,
-          "format": "percentunit",
-          "label": "% successful runs",
-          "logBase": 1,
-          "max": "1",
-          "min": "0",
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
       "alert": {
@@ -221,14 +222,62 @@
         "noDataState": "no_data",
         "notifications": []
       },
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": "BeamPSQL",
-      "decimals": 0,
       "description": "Percent reliability of all post-commit job runs per-day.\n\nUnreliability of a test suite impact developer productivity by forcing contributors to re-run tests. When tests are consistently unreliable, developers will simply ignore them.\n\nWe aim for >= 70% reliability per test suite.",
-      "fill": 0,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "% successful runs",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "transparent",
+                "value": 0.7
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 12,
         "w": 15,
@@ -236,31 +285,20 @@
         "y": 11
       },
       "id": 9,
-      "legend": {
-        "alignAsTable": true,
-        "avg": false,
-        "current": true,
-        "hideZero": true,
-        "max": false,
-        "min": false,
-        "rightSide": true,
-        "show": false,
-        "sideWidth": null,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
-      "percentage": false,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "hidden",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "alias": "",
@@ -268,7 +306,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('day', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
+          "rawSql": "SELECT\n  DATE_TRUNC('day', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name\n",
           "refId": "A",
           "select": [
             [
@@ -290,61 +328,197 @@
           ]
         }
       ],
-      "thresholds": [
-        {
-          "colorMode": "critical",
-          "fill": true,
-          "line": true,
-          "op": "lt",
-          "value": 0.7
-        }
-      ],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "Post-commit reliability per day",
-      "tooltip": {
-        "shared": true,
-        "sort": 1,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "decimals": 1,
-          "format": "percentunit",
-          "label": "% successful runs",
-          "logBase": 1,
-          "max": "1",
-          "min": "0",
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
-      "columns": [],
       "datasource": "BeamPSQL",
       "description": "List of jobs which have failed. Click on the job to view it in Jenkins.",
-      "fontSize": "100%",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Time"
+              },
+              {
+                "id": "unit",
+                "value": "time: YYYY-MM-DD HH:mm:ss"
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "build_url"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Build Url"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "Link to Jenkins job.",
+                    "url": "${__cell:raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "job_name"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Job Name"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "View Jenkins job: ${__cell_1}_${__cell_2}",
+                    "url": "${__cell_0:raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "build_id"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Build ID"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "View Jenkins job: ${__cell_1}_${__cell_2}",
+                    "url": "${__cell_0:raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "build_timestamp"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Start Time"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "unit",
+                "value": "time: MM/DD/YY h:mm:ss a"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "View Jenkins job: ${__cell_1}_${__cell_2}",
+                    "url": "${__cell_0:raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          }
+        ]
+      },
       "gridPos": {
         "h": 12,
         "w": 9,
@@ -355,109 +529,15 @@
       "id": 8,
       "links": [
         {
-          "includeVars": false,
           "targetBlank": true,
           "title": "Beam Jenkins",
-          "type": "absolute",
           "url": "https://ci-beam.apache.org/"
         }
       ],
-      "pageSize": null,
-      "scroll": true,
-      "showHeader": true,
-      "sort": {
-        "col": 0,
-        "desc": true
+      "options": {
+        "showHeader": true
       },
-      "styles": [
-        {
-          "alias": "Time",
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "link": false,
-          "pattern": "Time",
-          "type": "date"
-        },
-        {
-          "alias": "Build Url",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "link": true,
-          "linkTargetBlank": true,
-          "linkTooltip": "Link to Jenkins job.",
-          "linkUrl": "${__cell:raw}",
-          "mappingType": 1,
-          "pattern": "build_url",
-          "thresholds": [],
-          "type": "hidden",
-          "unit": "short"
-        },
-        {
-          "alias": "Job Name",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "link": true,
-          "linkTargetBlank": true,
-          "linkTooltip": "View Jenkins job: ${__cell_1}_${__cell_2}",
-          "linkUrl": "${__cell_0:raw}",
-          "mappingType": 1,
-          "pattern": "job_name",
-          "thresholds": [],
-          "type": "string",
-          "unit": "short"
-        },
-        {
-          "alias": "Build ID",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 0,
-          "link": true,
-          "linkTargetBlank": true,
-          "linkTooltip": "View Jenkins job: ${__cell_1}_${__cell_2}",
-          "linkUrl": "${__cell_0:raw}",
-          "mappingType": 1,
-          "pattern": "build_id",
-          "thresholds": [],
-          "type": "number",
-          "unit": "short"
-        },
-        {
-          "alias": "Start Time",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "MM/DD/YY h:mm:ss a",
-          "decimals": 2,
-          "link": true,
-          "linkTargetBlank": true,
-          "linkTooltip": "View Jenkins job: ${__cell_1}_${__cell_2}",
-          "linkUrl": "${__cell_0:raw}",
-          "mappingType": 1,
-          "pattern": "build_timestamp",
-          "thresholds": [],
-          "type": "date",
-          "unit": "short"
-        }
-      ],
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "alias": "",
@@ -489,18 +569,71 @@
       ],
       "timeShift": null,
       "title": "Failed builds",
-      "transform": "table",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {
+            "reducers": []
+          }
+        }
+      ],
       "type": "table"
     },
     {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": "BeamPSQL",
-      "decimals": 1,
       "description": "Execution time for each post-commit job",
-      "fill": 0,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Average job duration",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 15,
@@ -508,29 +641,20 @@
         "y": 23
       },
       "id": 5,
-      "legend": {
-        "alignAsTable": true,
-        "avg": false,
-        "current": true,
-        "max": false,
-        "min": false,
-        "rightSide": true,
-        "show": false,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
-      "percentage": false,
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "hidden",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "alias": "",
@@ -538,7 +662,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\nORDER BY\n  job_name, time",
+          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\nORDER BY\n  time, job_name",
           "refId": "A",
           "select": [
             [
@@ -560,57 +684,98 @@
           ]
         }
       ],
-      "thresholds": [],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "Post-commit job duration",
-      "tooltip": {
-        "shared": true,
-        "sort": 2,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "decimals": null,
-          "format": "ms",
-          "label": "Average job duration",
-          "logBase": 1,
-          "max": null,
-          "min": "0",
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
-      "aliasColors": {},
-      "bars": true,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": "BeamPSQL",
-      "decimals": 0,
       "description": "Tracks the count of test failure JIRA issues currently open.",
-      "fill": 3,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "# of JIRA issues",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total_open"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#eab839",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "currently_failing"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#bf1b00",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
       "gridPos": {
         "h": 8,
         "w": 9,
@@ -618,45 +783,24 @@
         "y": 23
       },
       "id": 14,
-      "legend": {
-        "alignAsTable": false,
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "rightSide": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": false,
-      "linewidth": 1,
       "links": [
         {
           "targetBlank": true,
           "title": "Jira tickets",
-          "type": "absolute",
           "url": "https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20test-failures%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC"
         }
       ],
-      "nullPointMode": "null",
-      "percentage": false,
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [
-        {
-          "alias": "total_open",
-          "color": "#eab839"
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
         },
-        {
-          "alias": "currently_failing",
-          "color": "#bf1b00"
+        "tooltip": {
+          "mode": "single"
         }
-      ],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
+      },
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "format": "time_series",
@@ -713,51 +857,14 @@
           ]
         }
       ],
-      "thresholds": [],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "Test Failure JIRA issues",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "decimals": 0,
-          "format": "short",
-          "label": "# of JIRA issues",
-          "logBase": 1,
-          "max": null,
-          "min": "0",
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     }
   ],
   "refresh": false,
-  "schemaVersion": 18,
+  "schemaVersion": 30,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -793,5 +900,5 @@
   "timezone": "",
   "title": "Post-commit Test Reliability",
   "uid": "D81lW0pmk",
-  "version": 46
+  "version": 2
 }

@@ -160,13 +160,16 @@ class TestParquet(unittest.TestCase):
 
       return f.name
 
-  def _write_pattern(self, num_files):
+  def _write_pattern(self, num_files, with_filename=False):
     assert num_files > 0
     temp_dir = tempfile.mkdtemp(dir=self.temp_dir)
 
+    file_list = []
     for _ in range(num_files):
-      self._write_data(directory=temp_dir, prefix='mytemp')
+      file_list.append(self._write_data(directory=temp_dir, prefix='mytemp'))
 
+    if with_filename:
+      return (temp_dir + os.path.sep + 'mytemp*', file_list)
     return temp_dir + os.path.sep + 'mytemp*'
 
   def _run_parquet_test(
@@ -533,6 +536,16 @@ class TestParquet(unittest.TestCase):
           | Create([file_pattern1, file_pattern2, file_pattern3]) \
           | ReadAllFromParquetBatched(),
           equal_to([self._records_as_arrow()] * 10))
+
+  def test_read_all_from_parquet_with_filename(self):
+    file_pattern, file_paths = self._write_pattern(3, with_filename=True)
+    result = [(path, record) for path in file_paths for record in self.RECORDS]
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([file_pattern]) \
+          | ReadAllFromParquet(with_filename=True),
+          equal_to(result))
 
 
 if __name__ == '__main__':

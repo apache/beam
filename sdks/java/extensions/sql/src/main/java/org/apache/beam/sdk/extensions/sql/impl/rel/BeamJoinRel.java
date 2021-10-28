@@ -22,26 +22,26 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.volcano.RelSubset;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.CorrelationId;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Join;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexFieldAccess;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.CorrelationId;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Join;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.JoinRelType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexFieldAccess;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Pair;
 
 /**
  * An abstract {@code BeamRelNode} to implement Join Rels.
@@ -111,7 +111,7 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats leftEstimates = BeamSqlRelUtils.getNodeStats(this.left, mq);
     NodeStats rightEstimates = BeamSqlRelUtils.getNodeStats(this.right, mq);
     NodeStats selfEstimates = BeamSqlRelUtils.getNodeStats(this, mq);
@@ -120,7 +120,7 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     double selectivity = mq.getSelectivity(this, getCondition());
     NodeStats leftEstimates = BeamSqlRelUtils.getNodeStats(this.left, mq);
     NodeStats rightEstimates = BeamSqlRelUtils.getNodeStats(this.right, mq);
@@ -275,7 +275,7 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
       // input is Seekable
       if (relInput != null
           && relInput instanceof BeamRelNode
-          && (BeamJoinRel.seekable((BeamRelNode) relInput))) {
+          && BeamJoinRel.seekable((BeamRelNode) relInput)) {
         return true;
       }
     }

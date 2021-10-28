@@ -41,6 +41,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -51,6 +52,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -339,7 +342,7 @@ public class JdbcIO {
    * @param <T> Type of the data to be written.
    */
   public static <T> Write<T> write() {
-    return new Write();
+    return new Write<>();
   }
 
   public static <T> WriteVoid<T> writeVoid() {
@@ -1280,43 +1283,43 @@ public class JdbcIO {
 
     /** See {@link WriteVoid#withDataSourceConfiguration(DataSourceConfiguration)}. */
     public Write<T> withDataSourceConfiguration(DataSourceConfiguration config) {
-      return new Write(inner.withDataSourceConfiguration(config));
+      return new Write<>(inner.withDataSourceConfiguration(config));
     }
 
     /** See {@link WriteVoid#withDataSourceProviderFn(SerializableFunction)}. */
     public Write<T> withDataSourceProviderFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn) {
-      return new Write(inner.withDataSourceProviderFn(dataSourceProviderFn));
+      return new Write<>(inner.withDataSourceProviderFn(dataSourceProviderFn));
     }
 
     /** See {@link WriteVoid#withStatement(String)}. */
     public Write<T> withStatement(String statement) {
-      return new Write(inner.withStatement(statement));
+      return new Write<>(inner.withStatement(statement));
     }
 
     /** See {@link WriteVoid#withPreparedStatementSetter(PreparedStatementSetter)}. */
     public Write<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
-      return new Write(inner.withPreparedStatementSetter(setter));
+      return new Write<>(inner.withPreparedStatementSetter(setter));
     }
 
     /** See {@link WriteVoid#withBatchSize(long)}. */
     public Write<T> withBatchSize(long batchSize) {
-      return new Write(inner.withBatchSize(batchSize));
+      return new Write<>(inner.withBatchSize(batchSize));
     }
 
     /** See {@link WriteVoid#withRetryStrategy(RetryStrategy)}. */
     public Write<T> withRetryStrategy(RetryStrategy retryStrategy) {
-      return new Write(inner.withRetryStrategy(retryStrategy));
+      return new Write<>(inner.withRetryStrategy(retryStrategy));
     }
 
     /** See {@link WriteVoid#withRetryConfiguration(RetryConfiguration)}. */
     public Write<T> withRetryConfiguration(RetryConfiguration retryConfiguration) {
-      return new Write(inner.withRetryConfiguration(retryConfiguration));
+      return new Write<>(inner.withRetryConfiguration(retryConfiguration));
     }
 
     /** See {@link WriteVoid#withTable(String)}. */
     public Write<T> withTable(String table) {
-      return new Write(inner.withTable(table));
+      return new Write<>(inner.withTable(table));
     }
 
     /**
@@ -1336,6 +1339,24 @@ public class JdbcIO {
      */
     public WriteVoid<T> withResults() {
       return inner;
+    }
+
+    /**
+     * Returns {@link WriteWithResults} transform that could return a specific result.
+     *
+     * <p>See {@link WriteWithResults}
+     */
+    public <V extends JdbcWriteResult> WriteWithResults<T, V> withWriteResults(
+        RowMapper<V> rowMapper) {
+      return new AutoValue_JdbcIO_WriteWithResults.Builder<T, V>()
+          .setRowMapper(rowMapper)
+          .setRetryStrategy(inner.getRetryStrategy())
+          .setRetryConfiguration(inner.getRetryConfiguration())
+          .setDataSourceProviderFn(inner.getDataSourceProviderFn())
+          .setPreparedStatementSetter(inner.getPreparedStatementSetter())
+          .setStatement(inner.getStatement())
+          .setTable(inner.getTable())
+          .build();
     }
 
     @Override
@@ -1361,7 +1382,244 @@ public class JdbcIO {
         throws SQLException;
   }
 
-  /** A {@link PTransform} to write to a JDBC datasource. */
+  /**
+   * A {@link PTransform} to write to a JDBC datasource. Executes statements one by one.
+   *
+   * <p>The INSERT, UPDATE, and DELETE commands sometimes have an optional RETURNING clause that
+   * supports obtaining data from modified rows while they are being manipulated. Output {@link
+   * PCollection} of this transform is a collection of such returning results mapped by {@link
+   * RowMapper}.
+   */
+  @AutoValue
+  public abstract static class WriteWithResults<T, V extends JdbcWriteResult>
+      extends PTransform<PCollection<T>, PCollection<V>> {
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    abstract @Nullable ValueProvider<String> getStatement();
+
+    abstract @Nullable PreparedStatementSetter<T> getPreparedStatementSetter();
+
+    abstract @Nullable RetryStrategy getRetryStrategy();
+
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
+
+    abstract @Nullable String getTable();
+
+    abstract @Nullable RowMapper<V> getRowMapper();
+
+    abstract Builder<T, V> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T, V extends JdbcWriteResult> {
+      abstract Builder<T, V> setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
+      abstract Builder<T, V> setStatement(ValueProvider<String> statement);
+
+      abstract Builder<T, V> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
+
+      abstract Builder<T, V> setRetryStrategy(RetryStrategy deadlockPredicate);
+
+      abstract Builder<T, V> setRetryConfiguration(RetryConfiguration retryConfiguration);
+
+      abstract Builder<T, V> setTable(String table);
+
+      abstract Builder<T, V> setRowMapper(RowMapper<V> rowMapper);
+
+      abstract WriteWithResults<T, V> build();
+    }
+
+    public WriteWithResults<T, V> withDataSourceConfiguration(DataSourceConfiguration config) {
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
+    }
+
+    public WriteWithResults<T, V> withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
+    }
+
+    public WriteWithResults<T, V> withStatement(String statement) {
+      return withStatement(ValueProvider.StaticValueProvider.of(statement));
+    }
+
+    public WriteWithResults<T, V> withStatement(ValueProvider<String> statement) {
+      return toBuilder().setStatement(statement).build();
+    }
+
+    public WriteWithResults<T, V> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
+      return toBuilder().setPreparedStatementSetter(setter).build();
+    }
+
+    /**
+     * When a SQL exception occurs, {@link Write} uses this {@link RetryStrategy} to determine if it
+     * will retry the statements. If {@link RetryStrategy#apply(SQLException)} returns {@code true},
+     * then {@link Write} retries the statements.
+     */
+    public WriteWithResults<T, V> withRetryStrategy(RetryStrategy retryStrategy) {
+      checkArgument(retryStrategy != null, "retryStrategy can not be null");
+      return toBuilder().setRetryStrategy(retryStrategy).build();
+    }
+
+    /**
+     * When a SQL exception occurs, {@link Write} uses this {@link RetryConfiguration} to
+     * exponentially back off and retry the statements based on the {@link RetryConfiguration}
+     * mentioned.
+     *
+     * <p>Usage of RetryConfiguration -
+     *
+     * <pre>{@code
+     * pipeline.apply(JdbcIO.<T>write())
+     *    .withReturningResults(...)
+     *    .withDataSourceConfiguration(...)
+     *    .withRetryStrategy(...)
+     *    .withRetryConfiguration(JdbcIO.RetryConfiguration.
+     *        create(5, Duration.standardSeconds(5), Duration.standardSeconds(1))
+     *
+     * }</pre>
+     *
+     * maxDuration and initialDuration are Nullable
+     *
+     * <pre>{@code
+     * pipeline.apply(JdbcIO.<T>write())
+     *    .withReturningResults(...)
+     *    .withDataSourceConfiguration(...)
+     *    .withRetryStrategy(...)
+     *    .withRetryConfiguration(JdbcIO.RetryConfiguration.
+     *        create(5, null, null)
+     *
+     * }</pre>
+     */
+    public WriteWithResults<T, V> withRetryConfiguration(RetryConfiguration retryConfiguration) {
+      checkArgument(retryConfiguration != null, "retryConfiguration can not be null");
+      return toBuilder().setRetryConfiguration(retryConfiguration).build();
+    }
+
+    public WriteWithResults<T, V> withTable(String table) {
+      checkArgument(table != null, "table name can not be null");
+      return toBuilder().setTable(table).build();
+    }
+
+    public WriteWithResults<T, V> withRowMapper(RowMapper<V> rowMapper) {
+      checkArgument(rowMapper != null, "result set getter can not be null");
+      return toBuilder().setRowMapper(rowMapper).build();
+    }
+
+    @Override
+    public PCollection<V> expand(PCollection<T> input) {
+      checkArgument(getStatement() != null, "withStatement() is required");
+      checkArgument(
+          getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
+      checkArgument(
+          (getDataSourceProviderFn() != null),
+          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+
+      return input.apply(ParDo.of(new WriteWithResultsFn<>(this)));
+    }
+
+    private static class WriteWithResultsFn<T, V extends JdbcWriteResult> extends DoFn<T, V> {
+
+      private final WriteWithResults<T, V> spec;
+      private DataSource dataSource;
+      private Connection connection;
+      private PreparedStatement preparedStatement;
+      private static FluentBackoff retryBackOff;
+
+      public WriteWithResultsFn(WriteWithResults<T, V> spec) {
+        this.spec = spec;
+      }
+
+      @Setup
+      public void setup() {
+        dataSource = spec.getDataSourceProviderFn().apply(null);
+        RetryConfiguration retryConfiguration = spec.getRetryConfiguration();
+
+        retryBackOff =
+            FluentBackoff.DEFAULT
+                .withInitialBackoff(retryConfiguration.getInitialDuration())
+                .withMaxCumulativeBackoff(retryConfiguration.getMaxDuration())
+                .withMaxRetries(retryConfiguration.getMaxAttempts());
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context) throws Exception {
+        T record = context.element();
+
+        // Only acquire the connection if there is something to write.
+        if (connection == null) {
+          connection = dataSource.getConnection();
+          connection.setAutoCommit(false);
+          preparedStatement = connection.prepareStatement(spec.getStatement().get());
+        }
+        Sleeper sleeper = Sleeper.DEFAULT;
+        BackOff backoff = retryBackOff.backoff();
+        while (true) {
+          try (PreparedStatement preparedStatement =
+              connection.prepareStatement(spec.getStatement().get())) {
+            try {
+
+              try {
+                spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+
+              // execute the statement
+              preparedStatement.execute();
+              // commit the changes
+              connection.commit();
+              context.output(spec.getRowMapper().mapRow(preparedStatement.getResultSet()));
+              return;
+            } catch (SQLException exception) {
+              if (!spec.getRetryStrategy().apply(exception)) {
+                throw exception;
+              }
+              LOG.warn("Deadlock detected, retrying", exception);
+              connection.rollback();
+              if (!BackOffUtils.next(sleeper, backoff)) {
+                // we tried the max number of times
+                throw exception;
+              }
+            }
+          }
+        }
+      }
+
+      @FinishBundle
+      public void finishBundle() throws Exception {
+        cleanUpStatementAndConnection();
+      }
+
+      @Override
+      protected void finalize() throws Throwable {
+        cleanUpStatementAndConnection();
+      }
+
+      private void cleanUpStatementAndConnection() throws Exception {
+        try {
+          if (preparedStatement != null) {
+            try {
+              preparedStatement.close();
+            } finally {
+              preparedStatement = null;
+            }
+          }
+        } finally {
+          if (connection != null) {
+            try {
+              connection.close();
+            } finally {
+              connection = null;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * A {@link PTransform} to write to a JDBC datasource. Executes statements in a batch, and returns
+   * a trivial result.
+   */
   @AutoValue
   public abstract static class WriteVoid<T> extends PTransform<PCollection<T>, PCollection<Void>> {
 
@@ -1515,7 +1773,7 @@ public class JdbcIO {
 
       try (Connection connection = getDataSourceProviderFn().apply(null).getConnection();
           PreparedStatement statement =
-              connection.prepareStatement((String.format("SELECT * FROM %s", getTable())))) {
+              connection.prepareStatement(String.format("SELECT * FROM %s", getTable()))) {
         tableSchema = SchemaUtil.toBeamSchema(statement.getMetaData());
         statement.close();
       } catch (SQLException e) {
@@ -1615,6 +1873,10 @@ public class JdbcIO {
 
     private static class WriteFn<T> extends DoFn<T, Void> {
 
+      private static final Distribution RECORDS_PER_BATCH =
+          Metrics.distribution(WriteFn.class, "records_per_jdbc_batch");
+      private static final Distribution MS_PER_BATCH =
+          Metrics.distribution(WriteFn.class, "milliseconds_per_batch");
       private final WriteVoid<T> spec;
       private DataSource dataSource;
       private Connection connection;
@@ -1636,6 +1898,17 @@ public class JdbcIO {
                 .withInitialBackoff(retryConfiguration.getInitialDuration())
                 .withMaxCumulativeBackoff(retryConfiguration.getMaxDuration())
                 .withMaxRetries(retryConfiguration.getMaxAttempts());
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        spec.populateDisplayData(builder);
+        builder.add(
+            DisplayData.item(
+                "query", preparedStatement == null ? "null" : preparedStatement.toString()));
+        builder.add(
+            DisplayData.item("dataSource", dataSource == null ? "null" : dataSource.toString()));
+        builder.add(DisplayData.item("spec", spec == null ? "null" : spec.toString()));
       }
 
       @ProcessElement
@@ -1694,6 +1967,7 @@ public class JdbcIO {
         if (records.isEmpty()) {
           return;
         }
+        Long startTimeNs = System.nanoTime();
         // Only acquire the connection if there is something to write.
         if (connection == null) {
           connection = dataSource.getConnection();
@@ -1714,6 +1988,8 @@ public class JdbcIO {
               preparedStatement.executeBatch();
               // commit the changes
               connection.commit();
+              RECORDS_PER_BATCH.update(records.size());
+              MS_PER_BATCH.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs));
               break;
             } catch (SQLException exception) {
               if (!spec.getRetryStrategy().apply(exception)) {
