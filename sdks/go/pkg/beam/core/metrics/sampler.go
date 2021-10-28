@@ -20,6 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // StateSampler tracks the state of a bundle.
@@ -58,7 +60,7 @@ func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
 		}
 
 		if s.millisSinceLastTransition > s.nextLogTime {
-			// log.Info(ctx, "...standard long running operation log ...", ps.pid, ps.state, s.millisSinceLastTransition)
+			log.Info(ctx, "...standard long running operation log ...", ps.pid, ps.state, s.millisSinceLastTransition)
 			s.nextLogTime += s.logInterval
 		}
 	}

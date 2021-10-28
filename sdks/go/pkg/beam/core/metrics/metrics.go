@@ -138,7 +138,6 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 	if bctx, ok := ctx.(*beamCtx); ok {
 		if _, ok := bctx.store.stateRegistry[id]; !ok {
 			bctx.store.stateRegistry[id] = &[4]ExecutionState{}
-			// bctx.store.states = [3]BundleState{{currentState: StartBundle}, {currentState: ProcessBundle}, {currentState: FinishBundle}}
 		}
 		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, store: bctx.store, ptransformID: id}
 	}
