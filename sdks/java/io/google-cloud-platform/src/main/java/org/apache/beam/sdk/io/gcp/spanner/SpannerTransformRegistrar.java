@@ -215,7 +215,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
 
     @Override
     @NonNull
-    public PTransform<PBegin, PCollection<Row>> buildExternal(Configuration configuration) {
+    public PTransform<PBegin, PCollection<Row>> buildExternal(
+        ReadBuilder.Configuration configuration) {
       configuration.checkMandatoryFields();
 
       SpannerIO.Read readTransform =
@@ -334,7 +335,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
 
     @Override
     @NonNull
-    public PTransform<PCollection<Row>, PDone> buildExternal(Configuration configuration) {
+    public PTransform<PCollection<Row>, PDone> buildExternal(
+        WriteBuilder.Configuration configuration) {
       configuration.checkMandatoryFields();
 
       SpannerIO.Write writeTransform =

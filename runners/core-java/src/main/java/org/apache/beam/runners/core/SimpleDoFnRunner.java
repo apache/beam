@@ -287,7 +287,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
     }
 
-    private final Context context = new Context();
+    private final DoFnStartBundleArgumentProvider.Context context =
+        new DoFnStartBundleArgumentProvider.Context();
 
     @Override
     public PipelineOptions pipelineOptions() {
@@ -330,7 +331,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
     }
 
-    private final Context context = new Context();
+    private final DoFnFinishBundleArgumentProvider.Context context =
+        new DoFnFinishBundleArgumentProvider.Context();
 
     @Override
     public PipelineOptions pipelineOptions() {
