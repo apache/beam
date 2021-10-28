@@ -25,6 +25,7 @@ import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -202,6 +203,8 @@ public class CalciteQueryPlanner implements QueryPlanner {
                       NonCumulativeCostImpl.SOURCE,
                       RelMdNodeStats.SOURCE,
                       root.rel.getCluster().getMetadataProvider())));
+
+      root.rel.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
       RelMetadataQuery.THREAD_PROVIDERS.set(
           JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
       root.rel.getCluster().invalidateMetadataQuery();
@@ -233,11 +236,14 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
     @SuppressWarnings("UnusedDeclaration")
     public RelOptCost getNonCumulativeCost(RelNode rel, RelMetadataQuery mq) {
+      assert mq instanceof BeamRelMetadataQuery;
+      BeamRelMetadataQuery bmq = (BeamRelMetadataQuery) mq;
+
       // This is called by a generated code in calcite MetadataQuery.
       // If the rel is Calcite rel or we are in JDBC path and cost factory is not set yet we should
       // use calcite cost estimation
       if (!(rel instanceof BeamRelNode)) {
-        return rel.computeSelfCost(rel.getCluster().getPlanner(), mq);
+        return rel.computeSelfCost(rel.getCluster().getPlanner(), bmq);
       }
 
       // Currently we do nothing in this case, however, we can plug our own cost estimation method
@@ -245,14 +251,14 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
       // We need to first remove the cached values.
       List<Table.Cell<RelNode, List, Object>> costKeys =
-          mq.map.cellSet().stream()
+          bmq.map.cellSet().stream()
               .filter(entry -> entry.getValue() instanceof BeamCostModel)
               .filter(entry -> ((BeamCostModel) entry.getValue()).isInfinite())
               .collect(Collectors.toList());
 
-      costKeys.forEach(cell -> mq.map.remove(cell.getRowKey(), cell.getColumnKey()));
+      costKeys.forEach(cell -> bmq.map.remove(cell.getRowKey(), cell.getColumnKey()));
 
-      return ((BeamRelNode) rel).beamComputeSelfCost(rel.getCluster().getPlanner(), mq);
+      return ((BeamRelNode) rel).beamComputeSelfCost(rel.getCluster().getPlanner(), bmq);
     }
   }
 }
