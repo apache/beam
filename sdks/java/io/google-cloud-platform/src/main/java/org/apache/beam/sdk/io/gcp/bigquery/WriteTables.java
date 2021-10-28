@@ -488,7 +488,10 @@ class WriteTables<DestinationT>
       loadConfig.setDestinationEncryptionConfiguration(
           new EncryptionConfiguration().setKmsKeyName(kmsKey));
     }
-    String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
+    String projectId =
+        loadJobProjectId == null || loadJobProjectId.get() == null
+            ? ref.getProjectId()
+            : loadJobProjectId.get();
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
 
