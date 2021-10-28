@@ -16,6 +16,7 @@
 package harness
 
 import (
+	"context"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
@@ -30,13 +31,13 @@ func newSampler(store *metrics.Store) *stateSampler {
 	return &stateSampler{sampler: metrics.NewSampler(store), done: make(chan int)}
 }
 
-func (s *stateSampler) start(t time.Duration) {
+func (s *stateSampler) start(ctx context.Context, t time.Duration) {
 	for {
 		select {
 		case <-s.done:
 			return
 		default:
-			s.sampler.Sample(t)
+			s.sampler.Sample(ctx, t)
 			time.Sleep(20 * time.Millisecond)
 		}
 	}

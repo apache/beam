@@ -137,8 +137,8 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 	// for ids if not necessary.
 	if bctx, ok := ctx.(*beamCtx); ok {
 		if _, ok := bctx.store.stateRegistry[id]; !ok {
-			bctx.store.stateRegistry[id] = [4]*ExecutionState{&ExecutionState{}, &ExecutionState{}, &ExecutionState{}, &ExecutionState{}}
-			bctx.store.states = [3]BundleState{{currentState: StartBundle}, {currentState: ProcessBundle}, {currentState: FinishBundle}}
+			bctx.store.stateRegistry[id] = &[4]ExecutionState{}
+			// bctx.store.states = [3]BundleState{{currentState: StartBundle}, {currentState: ProcessBundle}, {currentState: FinishBundle}}
 		}
 		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, store: bctx.store, ptransformID: id}
 	}
@@ -469,7 +469,7 @@ type GaugeValue struct {
 }
 
 type executionState struct {
-	state [4]*ExecutionState
+	state *[4]ExecutionState
 }
 
 func (m *executionState) String() string {
@@ -796,7 +796,7 @@ func ResultsExtractor(ctx context.Context) Results {
 		GaugeInt64: func(l Labels, v int64, t time.Time) {
 			m[l] = &gauge{v: v, t: t}
 		},
-		MsecsInt64: func(labels string, e [4]*ExecutionState) {
+		MsecsInt64: func(labels string, e *[4]ExecutionState) {
 			m[PTransformLabels(labels)] = &executionState{state: e}
 		},
 	}

@@ -79,10 +79,10 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 			}
 			gauges[key] = value
 		case
-			"beam:metric:pardo_execution_time:start_bundle_msecs:v1",
-			"beam:metric:pardo_execution_time:process_bundle_msecs:v1",
-			"beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
-			"beam:metric:ptransform_execution_time:total_msecs:v1":
+			UrnToString(UrnStartBundle),
+			UrnToString(UrnProcessBundle),
+			UrnToString(UrnFinishBundle),
+			UrnToString(UrnTransformTotalTime):
 			value, err := extractMsecValue(r)
 			if err != nil {
 				log.Println(err)
@@ -101,13 +101,13 @@ func extractKey(mi *pipepb.MonitoringInfo) (metrics.StepKey, error) {
 	stepName := labels.Transform()
 	urn := mi.GetUrn()
 	switch urn {
-	case "beam:metric:pardo_execution_time:start_bundle_msecs:v1":
+	case UrnToString(UrnStartBundle):
 		stepName += "/START"
-	case "beam:metric:pardo_execution_time:process_bundle_msecs:v1":
+	case UrnToString(UrnProcessBundle):
 		stepName += "/PROCESS"
-	case "beam:metric:pardo_execution_time:finish_bundle_msecs:v1":
+	case UrnToString(UrnFinishBundle):
 		stepName += "/FINISH"
-	case "beam:metric:ptransform_execution_time:total_msecs:v1":
+	case UrnToString(UrnTransformTotalTime):
 		stepName += "/TOTAL"
 		// TODO: add cases for PCollection metrics
 	}

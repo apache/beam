@@ -48,6 +48,8 @@ type ParDo struct {
 
 	status Status
 	err    errorx.GuardedError
+
+	states *metrics.PTransformState
 }
 
 // GetPID returns the PTransformID for this ParDo.
@@ -74,6 +76,9 @@ func (n *ParDo) Up(ctx context.Context) error {
 	}
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
+
+	// initialize states for current PTransform
+	n.states = metrics.NewPTransformState(n.PID)
 
 	// We can't cache the context during Setup since it runs only once per bundle.
 	// Subsequent bundles might run this same node, and the context here would be
@@ -104,7 +109,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	n.ctx = metrics.SetPTransformID(ctx, n.PID)
 
 	// set current state for execution time metrics
-	metrics.SetPTransformState(n.ctx, metrics.StartBundle)
+	metrics.SetPTransformState(n.ctx, n.states, metrics.StartBundle)
 
 	if err := MultiStartBundle(n.ctx, id, data, n.Out...); err != nil {
 		return n.fail(err)
@@ -125,7 +130,7 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 	}
 
 	// set current state for execution time metrics
-	metrics.SetPTransformState(n.ctx, metrics.ProcessBundle)
+	metrics.SetPTransformState(n.ctx, n.states, metrics.ProcessBundle)
 
 	return n.processMainInput(&MainInput{Key: *elm, Values: values})
 }
@@ -197,6 +202,7 @@ func mustExplodeWindows(fn *funcx.Fn, elm *FullValue, usesSideInput bool) bool {
 // FinishBundle does post-bundle processing operations for the DoFn.
 // Note: This is not a "FinalizeBundle" operation. Data is not yet durably
 // persisted at this point.
+
 func (n *ParDo) FinishBundle(_ context.Context) error {
 	if n.status != Active {
 		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
@@ -205,7 +211,7 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	n.inv.Reset()
 
 	// set current state for execution time metrics
-	metrics.SetPTransformState(n.ctx, metrics.FinishBundle)
+	metrics.SetPTransformState(n.ctx, n.states, metrics.FinishBundle)
 
 	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)

@@ -94,8 +94,11 @@ type Extractor struct {
 	DistributionInt64 func(labels Labels, count, sum, min, max int64)
 	// GaugeInt64 extracts data from Gauge Int64 counters.
 	GaugeInt64 func(labels Labels, v int64, t time.Time)
+
+	// Extraction of Msec counters is experimental and subject to change.
+
 	// MsecsInt64 extracts data from StateRegistry of ExecutionState
-	MsecsInt64 func(labels string, e [4]*ExecutionState)
+	MsecsInt64 func(labels string, e *[4]ExecutionState)
 }
 
 // ExtractFrom the given metrics Store all the metrics for
@@ -177,12 +180,13 @@ type BundleState struct {
 }
 
 // SetPTransformState stores the state of PTransform in its bundle.
-func SetPTransformState(ctx context.Context, state bundleProcState) {
+func SetPTransformState(ctx context.Context, s *PTransformState, state bundleProcState) {
 	if bctx, ok := ctx.(*beamCtx); ok {
-		pid := bctx.ptransformID
-		bctx.store.states[state].pid = pid
-		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&bctx.store.bundleState)), unsafe.Pointer(&bctx.store.states[state]))
-		atomic.AddInt64(&bctx.store.transitions, 1)
+		// pid := bctx.ptransformID
+		// bctx.store.states[state].pid = pid
+		// states[pid] =
+		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&bctx.store.bundleState)), unsafe.Pointer(&s.states[state]))
+		atomic.AddInt64(bctx.store.transitions, 1)
 	}
 }
 
@@ -197,17 +201,16 @@ type currentStateVal struct {
 type Store struct {
 	mu            sync.RWMutex
 	css           []*ptCounterSet
-	stateRegistry map[string][4]*ExecutionState
+	stateRegistry map[string]*[4]ExecutionState
 
 	store map[Labels]userMetric
 
-	transitions int64
-	bundleState BundleState
-	states      [3]BundleState
+	transitions *int64
+	bundleState *BundleState
 }
 
 func newStore() *Store {
-	return &Store{store: make(map[Labels]userMetric), stateRegistry: make(map[string][4]*ExecutionState)}
+	return &Store{store: make(map[Labels]userMetric), stateRegistry: make(map[string]*[4]ExecutionState), transitions: new(int64), bundleState: &BundleState{}}
 }
 
 // storeMetric stores a metric away on its first use so it may be retrieved later on.

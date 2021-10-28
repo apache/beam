@@ -16,6 +16,7 @@
 package metrics
 
 import (
+	"context"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -26,15 +27,17 @@ type StateSampler struct {
 	store                     *Store // used to store states into state registry
 	millisSinceLastTransition time.Duration
 	transitionsAtLastSample   int64
+	nextLogTime               time.Duration
+	logInterval               time.Duration
 }
 
 // NewSampler creates a new state sampler.
 func NewSampler(store *Store) StateSampler {
-	return StateSampler{store: store}
+	return StateSampler{store: store, nextLogTime: 5 * time.Minute, logInterval: 5 * time.Minute}
 }
 
 // Sample checks for state transition in processing a DoFn
-func (s *StateSampler) Sample(t time.Duration) {
+func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
 	ps := loadCurrentState(s)
 	if ps.pid == "" {
 		return
@@ -53,6 +56,11 @@ func (s *StateSampler) Sample(t time.Duration) {
 		} else {
 			s.millisSinceLastTransition += t
 		}
+
+		if s.millisSinceLastTransition > s.nextLogTime {
+			// log.Info(ctx, "...standard long running operation log ...", ps.pid, ps.state, s.millisSinceLastTransition)
+			s.nextLogTime += s.logInterval
+		}
 	}
 }
 
@@ -61,6 +69,24 @@ func loadCurrentState(s *StateSampler) currentStateVal {
 		return currentStateVal{}
 	} else {
 		bs := *(*BundleState)(ts)
-		return currentStateVal{pid: bs.pid, state: bs.currentState, transitions: atomic.LoadInt64(&s.store.transitions)}
+		return currentStateVal{pid: bs.pid, state: bs.currentState, transitions: atomic.LoadInt64(s.store.transitions)}
 	}
+}
+
+type PTransformState struct {
+	states [3]BundleState
+}
+
+func NewPTransformState(pid string) *PTransformState {
+	return &PTransformState{
+		states: [3]BundleState{
+			{pid, StartBundle},
+			{pid, ProcessBundle},
+			{pid, FinishBundle},
+		},
+	}
+}
+
+func SetPTransform(ctx context.Context) {
+
 }
