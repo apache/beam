@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.io.kinesis.serde;
 
+import static org.apache.commons.lang3.reflect.FieldUtils.readField;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -31,19 +37,12 @@ import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.List;
-
-import static org.apache.commons.lang3.reflect.FieldUtils.readField;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
 
 /** Tests {@link AwsModule}. */
 @RunWith(JUnit4.class)
@@ -71,7 +70,7 @@ public class AwsModuleTest {
   public void testObjectMapperCannotFindModule() {
     // module shall not be discoverable to not conflict with the one in amazon-web-services
     List<Module> modules = ObjectMapper.findModules(ReflectHelpers.findClassLoader());
-    assertThat(modules,  not(hasItem(Matchers.instanceOf(AwsModule.class))));
+    assertThat(modules, not(hasItem(Matchers.instanceOf(AwsModule.class))));
   }
 
   private void checkStaticBasicCredentials(AWSCredentialsProvider provider) {
