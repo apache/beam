@@ -21,6 +21,9 @@ plugins {
   id 'org.ajoberstar.grgit'  // Publish website to asf-git branch.
 }
 
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyPythonNature()
+
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/opt"
 def buildDir = "${project.rootDir}/build/website"
@@ -41,10 +44,10 @@ def shell = { cmd ->
 
 def envdir = "${buildDir}/gradleenv"
 
-task setupVirtualenv {
+task setupVirtualenvWithDependencies {
   doLast {
     exec {
-      commandLine 'python', '-m', 'venv', "${envdir}"
+      commandLine "python${project.ext.pythonVersion}", '-m', 'venv', "${envdir}"
     }
     exec {
       executable 'sh'
@@ -360,5 +363,5 @@ task stageWebsite {
   }
 }
 
-stageWebsite.dependsOn setupVirtualenv
+stageWebsite.dependsOn setupVirtualenvWithDependencies
 stageWebsite.dependsOn buildGcsWebsite
