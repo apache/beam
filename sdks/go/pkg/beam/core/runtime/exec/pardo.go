@@ -319,6 +319,9 @@ func (n *ParDo) preInvoke(ctx context.Context, ws []typex.Window, ts typex.Event
 	return n.initSideInput(ctx, ws[0])
 }
 
+// postInvoke cleans up all of the open side inputs. postInvoke is deferred in invokeDataFn() and invokeProcessFn() to
+// ensure that it is called even if a panic occurs. ReIter side input types may leak memory if the spawned iterators
+// are not fully read before a panic/bundle failure occurs as they do not track the iterators they return.
 func (n *ParDo) postInvoke() error {
 	if n.cache != nil {
 		for _, s := range n.cache.sideinput {
