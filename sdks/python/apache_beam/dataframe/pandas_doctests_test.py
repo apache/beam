@@ -275,6 +275,10 @@ class DoctestTest(unittest.TestCase):
                 "df.set_index([s, s**2])",
             ],
 
+            'pandas.core.frame.DataFrame.set_axis': [
+                "df.set_axis(range(0,2), axis='index')",
+            ],
+
             # TODO(BEAM-12495)
             'pandas.core.frame.DataFrame.value_counts': [
               'df.value_counts(dropna=False)'
@@ -311,6 +315,11 @@ class DoctestTest(unittest.TestCase):
                 # TODO(BEAM-11711): This could pass in the index as
                 # a DeferredIndex, and we should fail it as order-sensitive.
                 "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
+            ],
+            'pandas.core.frame.DataFrame.set_axis': [
+                # This should pass as set_axis(axis='columns')
+                # and fail with set_axis(axis='index')
+                "df.set_axis(['a', 'b', 'c'], axis='index')"
             ],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],

@@ -436,12 +436,13 @@ class DeferredFrameTest(_AbstractFrameTest):
   def test_set_axis(self):
     df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}, index=['X', 'Y', 'Z'])
 
-    self._run_test(lambda df: df.set_axis(['a', 'b', 'c'], axis='index'), df)
-    self._run_test(lambda df: df.set_axis([0, 1, 2], axis=0), df)
     self._run_test(lambda df: df.set_axis(['I', 'II'], axis='columns'), df)
     self._run_test(lambda df: df.set_axis([0, 1], axis=1), df)
     self._run_inplace_test(
         lambda df: df.set_axis(['i', 'ii'], axis='columns'), df)
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda df: df.set_axis(['a', 'b', 'c'], axis='index'), df)
+      self._run_test(lambda df: df.set_axis([0, 1, 2], axis=0), df)
 
   def test_series_set_axis(self):
     s = pd.Series(list(range(3)), index=['X', 'Y', 'Z'])

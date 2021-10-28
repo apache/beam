@@ -2256,23 +2256,22 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def set_axis(self, labels, axis, **kwargs):
-    if axis in ('columns', 1):
-      requires_partition = partitionings.Arbitrary()
-      proxy = None
-    else: #rows
-      index = pd.Index([], dtype=np.asarray(labels).dtype)
-      proxy = self._expr.proxy().copy()
-      proxy.index = index
-      requires_partition = partitionings.Singleton()
-    with expressions.allow_non_parallel_operations(True):
+    if axis in ('index', 0):
+      # TODO: assigning the index is generally order-sensitive, but we could
+      # support it in some rare cases, e.g. when assigning the index from one
+      # of a DataFrame's columns
+      raise NotImplementedError(
+          "Assigning an index is not yet supported. "
+          "Consider using set_index() instead.")
+    else:
       return frame_base.DeferredFrame.wrap(
-              expressions.ComputedExpression(
-                  'set_axis',
-                  lambda df: df.set_axis(labels, axis, **kwargs),
-                  [self._expr],
-                  proxy=proxy,
-                  requires_partition_by=requires_partition,
-                  preserves_partition_by=partitionings.Arbitrary()))
+          expressions.ComputedExpression(
+              'set_axis',
+              lambda df: df.set_axis(labels, axis, **kwargs),
+              [self._expr],
+              requires_partition_by=partitionings.Arbitrary(),
+              preserves_partition_by=partitionings.Arbitrary()))
+
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
