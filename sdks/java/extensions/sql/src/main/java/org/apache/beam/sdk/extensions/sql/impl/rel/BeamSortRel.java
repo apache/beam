@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -58,7 +59,6 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollatio
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelFieldCollation;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Sort;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
@@ -143,13 +143,13 @@ public class BeamSortRel extends Sort implements BeamRelNode {
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     // Sorting does not change rate or row count of the input.
     return BeamSqlRelUtils.getNodeStats(this.input, mq);
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(this.input, mq);
 
     final double rowSize = getRowType().getFieldCount();

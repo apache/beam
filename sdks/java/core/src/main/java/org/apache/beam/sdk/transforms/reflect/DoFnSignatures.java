@@ -20,6 +20,8 @@ package org.apache.beam.sdk.transforms.reflect;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -210,7 +212,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_SPLIT_RESTRICTION_PARAMETERS =
       ImmutableList.of(
@@ -221,7 +224,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_TRUNCATE_RESTRICTION_PARAMETERS =
@@ -232,7 +236,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_NEW_TRACKER_PARAMETERS =
       ImmutableList.of(
@@ -241,7 +246,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_GET_SIZE_PARAMETERS =
       ImmutableList.of(
@@ -250,7 +256,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_WATERMARK_ESTIMATOR_STATE_PARAMETERS =
@@ -260,7 +267,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_NEW_WATERMARK_ESTIMATOR_PARAMETERS =
@@ -271,7 +279,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
@@ -898,10 +907,10 @@ public class DoFnSignatures {
     } else {
       errors.checkArgument(
           isBounded == null,
-          "Non-splittable, but annotated as @"
-              + ((isBounded == PCollection.IsBounded.BOUNDED)
-                  ? format(DoFn.BoundedPerElement.class)
-                  : format(DoFn.UnboundedPerElement.class)));
+          "Non-splittable, but annotated as @%s",
+          ((isBounded == PCollection.IsBounded.BOUNDED)
+              ? format(DoFn.BoundedPerElement.class)
+              : format(DoFn.UnboundedPerElement.class)));
       checkState(!processElement.hasReturnValue(), "Should have been inferred splittable");
       isBounded = PCollection.IsBounded.BOUNDED;
     }
@@ -1318,7 +1327,7 @@ public class DoFnSignatures {
     if (fieldAccessString != null) {
       return Parameter.schemaElementParameter(paramT, fieldAccessString, param.getIndex());
     } else if (hasAnnotation(DoFn.Element.class, param.getAnnotations())) {
-      return (paramT.equals(inputT))
+      return paramT.equals(inputT)
           ? Parameter.elementParameter(paramT)
           : Parameter.schemaElementParameter(paramT, null, param.getIndex());
     } else if (hasAnnotation(DoFn.Restriction.class, param.getAnnotations())) {
@@ -1347,7 +1356,7 @@ public class DoFnSignatures {
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
       String sideInputId = getSideInputId(param.getAnnotations());
       paramErrors.checkArgument(
-          sideInputId != null, "%s missing %s annotation", format(SideInput.class));
+          sideInputId != null, "%s missing %s annotation", sideInputId, format(SideInput.class));
       return Parameter.sideInputParameter(paramT, sideInputId);
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
@@ -1948,7 +1957,7 @@ public class DoFnSignatures {
     }
 
     Class<?> timerSpecRawType = field.getType();
-    if (!(timerSpecRawType.equals(TimerSpec.class))) {
+    if (!timerSpecRawType.equals(TimerSpec.class)) {
       errors.throwIllegalArgument(
           "%s annotation on non-%s field [%s]",
           format(DoFn.TimerId.class), format(TimerSpec.class), field.toString());
@@ -1984,7 +1993,7 @@ public class DoFnSignatures {
     }
 
     Class<?> timerSpecRawType = field.getType();
-    if (!(timerSpecRawType.equals(TimerSpec.class))) {
+    if (!timerSpecRawType.equals(TimerSpec.class)) {
       errors.throwIllegalArgument(
           "%s annotation on non-%s field [%s]",
           format(DoFn.TimerFamily.class), format(TimerSpec.class), field.toString());
@@ -2285,7 +2294,7 @@ public class DoFnSignatures {
       }
 
       Class<?> stateSpecRawType = field.getType();
-      if (!(TypeDescriptor.of(stateSpecRawType).isSubtypeOf(TypeDescriptor.of(StateSpec.class)))) {
+      if (!TypeDescriptor.of(stateSpecRawType).isSubtypeOf(TypeDescriptor.of(StateSpec.class))) {
         errors.throwIllegalArgument(
             "%s annotation on non-%s field [%s] that has class %s",
             format(DoFn.StateId.class),
@@ -2396,17 +2405,20 @@ public class DoFnSignatures {
               "parameter of type %s at index %s", format(param.getType()), param.getIndex()));
     }
 
-    void throwIllegalArgument(String message, Object... args) {
+    @FormatMethod
+    void throwIllegalArgument(@FormatString String message, Object... args) {
       throw new IllegalArgumentException(label + ": " + String.format(message, args));
     }
 
-    public void checkArgument(boolean condition, String message, Object... args) {
+    @FormatMethod
+    public void checkArgument(boolean condition, @FormatString String message, Object... args) {
       if (!condition) {
         throwIllegalArgument(message, args);
       }
     }
 
-    public void checkNotNull(Object value, String message, Object... args) {
+    @FormatMethod
+    public void checkNotNull(Object value, @FormatString String message, Object... args) {
       if (value == null) {
         throwIllegalArgument(message, args);
       }

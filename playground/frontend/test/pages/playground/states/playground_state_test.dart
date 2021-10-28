@@ -38,11 +38,11 @@ void main() {
 
   test('Playground state reset should set new state and notify all listeners',
       () {
-    final state = PlaygroundState(SDK.go);
-    state.setSource("source");
+    final state = PlaygroundState(sdk: SDK.go);
+    state.setSource('source');
     state.addListener(() {
       expect(state.sdk, SDK.java);
-      expect(state.source, "");
+      expect(state.source, '');
     });
     state.reset();
   });
@@ -50,7 +50,7 @@ void main() {
   test(
       'Playground state setExample should update source and example and notify all listeners',
       () {
-    final state = PlaygroundState(SDK.go);
+    final state = PlaygroundState(sdk: SDK.go);
     state.addListener(() {
       expect(state.sdk, SDK.go);
       expect(state.source, exampleMock.sources[SDK.go]);

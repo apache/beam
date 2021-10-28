@@ -346,14 +346,6 @@ public class TestPubsubSignal implements TestRule {
     return result.get();
   }
 
-  private void sleep(long t) {
-    try {
-      Thread.sleep(t);
-    } catch (InterruptedException ex) {
-      throw new RuntimeException(ex);
-    }
-  }
-
   /** {@link PTransform} that signals once when the pipeline has started. */
   static class PublishStart extends PTransform<PBegin, PDone> {
     private final TopicPath startTopicPath;

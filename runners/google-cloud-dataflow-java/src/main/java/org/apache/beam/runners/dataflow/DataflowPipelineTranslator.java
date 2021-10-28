@@ -716,13 +716,13 @@ public class DataflowPipelineTranslator {
       translator.registerOutputName(value, name);
 
       // If the output requires runner determined sharding, also append necessary input properties.
-      if (value instanceof PCollection
-          && translator.runner.doesPCollectionRequireAutoSharding((PCollection<?>) value)) {
-        addInput(PropertyNames.ALLOWS_SHARDABLE_STATE, "true");
-        // Currently we only allow auto-sharding to be enabled through the GroupIntoBatches
-        // transform. So we also add the following property which GroupIntoBatchesDoFn has, to allow
-        // the backend to perform graph optimization.
-        addInput(PropertyNames.PRESERVES_KEYS, "true");
+      if (value instanceof PCollection) {
+        if (translator.runner.doesPCollectionRequireAutoSharding((PCollection<?>) value)) {
+          addInput(PropertyNames.ALLOWS_SHARDABLE_STATE, "true");
+        }
+        if (translator.runner.doesPCollectionPreserveKeys((PCollection<?>) value)) {
+          addInput(PropertyNames.PRESERVES_KEYS, "true");
+        }
       }
 
       Map<String, Object> properties = getProperties();
@@ -749,8 +749,8 @@ public class DataflowPipelineTranslator {
       if ((value instanceof PCollection
               && translator.runner.doesPCollectionRequireIndexedFormat((PCollection<?>) value))
           || ((value instanceof PCollectionView)
-              && (Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
-                  ((PCollectionView) value).getViewFn().getMaterialization().getUrn())))) {
+              && Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+                  ((PCollectionView) value).getViewFn().getMaterialization().getUrn()))) {
         addBoolean(outputInfo, PropertyNames.USE_INDEXED_FORMAT, true);
       }
       if (valueCoder != null) {

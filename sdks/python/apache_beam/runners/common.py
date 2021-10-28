@@ -98,41 +98,6 @@ class NameContext(object):
     return self.step_name
 
 
-# TODO(BEAM-4028): Move DataflowNameContext to Dataflow internal code.
-class DataflowNameContext(NameContext):
-  """Holds the name information for a step in Dataflow.
-
-  This includes a step_name (e.g. s2), a user_name (e.g. Foo/Bar/ParDo(Fab)),
-  and a system_name (e.g. s2-shuffle-read34)."""
-  def __init__(self, step_name, user_name, system_name):
-    """Creates a new step NameContext.
-
-    Args:
-      step_name: The internal name of the step (e.g. s2).
-      user_name: The full user-given name of the step (e.g. Foo/Bar/ParDo(Far)).
-      system_name: The step name in the optimized graph (e.g. s2-1).
-    """
-    super().__init__(step_name)
-    self.user_name = user_name
-    self.system_name = system_name
-
-  def __eq__(self, other):
-    return (
-        self.step_name == other.step_name and
-        self.user_name == other.user_name and
-        self.system_name == other.system_name)
-
-  def __hash__(self):
-    return hash((self.step_name, self.user_name, self.system_name))
-
-  def __repr__(self):
-    return 'DataflowNameContext(%s)' % self.__dict__
-
-  def logging_name(self):
-    """Stackdriver logging relies on user-given step names (e.g. Foo/Bar)."""
-    return self.user_name
-
-
 class Receiver(object):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -447,10 +412,10 @@ class DoFnInvoker(object):
     """
     side_inputs = side_inputs or []
     default_arg_values = signature.process_method.defaults
-    use_simple_invoker = not process_invocation or (
-        not side_inputs and not input_args and not input_kwargs and
-        not default_arg_values and not signature.is_stateful_dofn())
-    if use_simple_invoker:
+    use_per_window_invoker = process_invocation and (
+        side_inputs or input_args or input_kwargs or default_arg_values or
+        signature.is_stateful_dofn())
+    if not use_per_window_invoker:
       return SimpleInvoker(output_processor, signature)
     else:
       if context is None:

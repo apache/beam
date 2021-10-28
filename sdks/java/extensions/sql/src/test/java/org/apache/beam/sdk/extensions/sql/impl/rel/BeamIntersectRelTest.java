@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -140,7 +141,9 @@ public class BeamIntersectRelTest extends BaseRelTest {
       root = root.getInput(0);
     }
 
-    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    NodeStats estimate =
+        BeamSqlRelUtils.getNodeStats(
+            root, ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
 
     Assert.assertFalse(estimate.isUnknown());
     Assert.assertEquals(0d, estimate.getRate(), 0.01);

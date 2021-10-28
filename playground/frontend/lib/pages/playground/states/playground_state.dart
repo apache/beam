@@ -16,16 +16,40 @@
  * limitations under the License.
  */
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
+import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
+import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
-class PlaygroundState with ChangeNotifier {
-  SDK _sdk;
-  ExampleModel? _selectedExample;
-  String _source = "";
+const kTitleLength = 15;
+const kTitle = 'Catalog';
 
-  PlaygroundState([this._sdk = SDK.java, this._selectedExample]);
+class PlaygroundState with ChangeNotifier {
+  late SDK _sdk;
+  CodeRepository? _codeRepository;
+  ExampleModel? _selectedExample;
+  String _source = '';
+  RunCodeResult? _result;
+
+  String get examplesTitle {
+    final name = _selectedExample?.name ?? '';
+    return name.substring(0, min(kTitleLength, name.length));
+  }
+
+  PlaygroundState({
+    SDK sdk = SDK.java,
+    ExampleModel? selectedExample,
+    CodeRepository? codeRepository,
+  }) {
+    _selectedExample = selectedExample;
+    _sdk = sdk;
+    _source = _selectedExample?.sources[_sdk] ?? '';
+    _codeRepository = codeRepository;
+  }
 
   ExampleModel? get selectedExample => _selectedExample;
 
@@ -33,9 +57,13 @@ class PlaygroundState with ChangeNotifier {
 
   String get source => _source;
 
+  bool get isCodeRunning => result?.status == RunCodeStatus.executing;
+
+  RunCodeResult? get result => _result;
+
   setExample(ExampleModel example) {
     _selectedExample = example;
-    _source = example.sources[_sdk] ?? "";
+    _source = example.sources[_sdk] ?? '';
     notifyListeners();
   }
 
@@ -48,14 +76,31 @@ class PlaygroundState with ChangeNotifier {
     _source = source;
   }
 
-  reset() {
-    _sdk = SDK.java;
-    _source = _selectedExample?.sources[_sdk] ?? "";
+  clearOutput() {
+    _result = null;
     notifyListeners();
   }
 
-  @override
-  String toString() {
-    return 'PlaygroundState{_sdk: $_sdk, _selectedExample: $_selectedExample}';
+  reset() {
+    _sdk = SDK.java;
+    _source = _selectedExample?.sources[_sdk] ?? '';
+    notifyListeners();
+  }
+
+  resetError() {
+    if (result == null) {
+      return;
+    }
+    _result = RunCodeResult(status: result!.status, output: result!.output);
+    notifyListeners();
+  }
+
+  void runCode() {
+    _codeRepository
+        ?.runCode(RunCodeRequestWrapper(code: source, sdk: sdk))
+        .listen((event) {
+      _result = event;
+      notifyListeners();
+    });
   }
 }

@@ -30,7 +30,6 @@ import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.bigtable.config.BigtableOptions.Builder;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableAdminClient;
@@ -81,7 +80,7 @@ public class BigtableWriteIT implements Serializable {
     project = options.as(GcpOptions.class).getProject();
 
     bigtableOptions =
-        new Builder()
+        new BigtableOptions.Builder()
             .setProjectId(project)
             .setInstanceId(options.getInstanceId())
             .setUserAgent("apache-beam-test")

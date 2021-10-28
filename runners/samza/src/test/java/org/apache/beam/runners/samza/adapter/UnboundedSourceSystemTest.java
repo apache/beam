@@ -38,7 +38,6 @@ import java.util.concurrent.CountDownLatch;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.adapter.TestUnboundedSource.SplittableBuilder;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
-import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -380,10 +379,6 @@ public class UnboundedSourceSystemTest {
       now = System.currentTimeMillis();
     }
     return accumulator;
-  }
-
-  private static OpMessage.Type getMessageType(IncomingMessageEnvelope envelope) {
-    return ((OpMessage) envelope.getMessage()).getType();
   }
 
   private static List<IncomingMessageEnvelope> pollOnce(
