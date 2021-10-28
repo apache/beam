@@ -20,38 +20,23 @@ package org.apache.beam.sdk.extensions.sql.integrationtest;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
 import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Preconditions.checkArgument;
-import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
-import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
-import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.junit.Rule;
@@ -287,120 +272,6 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       }
 
       inputCollection.getPipeline().run();
-    }
-  }
-
-  /**
-   * Helper class to write tests for SQL Expressions.
-   *
-   * <p>Differs from {@link ExpressionChecker}:
-   *
-   * <ul>
-   *   <li>Tests a SQL expression is SQL true, not against a Java return type. Correctness relies on
-   *       bootstrapped testing of literals and whatever operators, like {@code =} and {@code <} are
-   *       used in the expression.
-   *   <li>There is no implicit table to reference columns from, just literals.
-   *   <li>Runs tests both via QueryTransform and also via JDBC driver.
-   *   <li>Requires a pipeline to be provided where it will attach transforms.
-   * </ul>
-   *
-   * <p>example usage:
-   *
-   * <pre>{@code
-   * SqlExpressionChecker checker = new ExpressionChecker()
-   *   .addExpr("1 + 1 = 2")
-   *   .addExpr("1.0 + 1 = 2.0")
-   *   .addExpr("1 + 1.0 = 2.0")
-   *   .addExpr("1.0 + 1.0 = 2.0")
-   *   .addExpr("CAST(1 AS TINYINT) + CAST(1 AS TINYINT) = CAST(1 AS TINYINT)");
-   * checker.check(pipeline);
-   * }</pre>
-   */
-  public static class SqlExpressionChecker {
-
-    private transient List<String> exprs = new ArrayList<>();
-
-    public SqlExpressionChecker addExpr(String expr) {
-      exprs.add(expr);
-      return this;
-    }
-
-    /**
-     * Tests the cases set up via a PTransform in the given pipeline as well as via the JDBC driver.
-     */
-    public void check(Pipeline pipeline) throws Exception {
-      checkPTransform(pipeline);
-      checkJdbc(pipeline.getOptions());
-    }
-
-    private static final Schema DUMMY_SCHEMA = Schema.builder().addBooleanField("dummy").build();
-    private static final Row DUMMY_ROW = Row.withSchema(DUMMY_SCHEMA).addValue(true).build();
-
-    private void checkPTransform(Pipeline pipeline) {
-      for (String expr : exprs) {
-        pipeline.apply(expr, new CheckPTransform(expr));
-      }
-    }
-
-    private static final ReadOnlyTableProvider BOUNDED_TABLE =
-        new ReadOnlyTableProvider(
-            "test",
-            ImmutableMap.of(
-                "test",
-                TestBoundedTable.of(
-                        Schema.FieldType.INT32, "id",
-                        Schema.FieldType.STRING, "name")
-                    .addRows(1, "first")));
-
-    private void checkJdbc(PipelineOptions pipelineOptions) throws Exception {
-      // Beam SQL code is only invoked when the calling convention insists on it, so we
-      // have to express this as selecting from a Beam table, even though the contents are
-      // irrelevant.
-      //
-      // Sometimes this means the results are incorrect, because other calling conventions
-      // are incorrect: https://issues.apache.org/jira/browse/BEAM-4704
-      //
-      // Here we create a Beam table just to force the calling convention.
-      TestTableProvider tableProvider = new TestTableProvider();
-      Connection connection = JdbcDriver.connect(tableProvider, pipelineOptions);
-      connection
-          .createStatement()
-          .executeUpdate("CREATE EXTERNAL TABLE dummy (dummy BOOLEAN) TYPE 'test'");
-      tableProvider.addRows("dummy", DUMMY_ROW);
-
-      for (String expr : exprs) {
-        ResultSet exprResult =
-            connection.createStatement().executeQuery(String.format("SELECT %s FROM dummy", expr));
-        exprResult.next();
-        exprResult.getBoolean(1);
-        assertTrue("Test expression is false: " + expr, exprResult.getBoolean(1));
-      }
-    }
-
-    private static class CheckPTransform extends PTransform<PBegin, PDone> {
-
-      private final String expr;
-
-      private CheckPTransform(String expr) {
-        this.expr = expr;
-      }
-
-      @Override
-      public PDone expand(PBegin begin) {
-        PCollection<Boolean> result =
-            begin
-                .apply(Create.of(DUMMY_ROW).withRowSchema(DUMMY_SCHEMA))
-                .apply(SqlTransform.query("SELECT " + expr))
-                .apply(MapElements.into(TypeDescriptors.booleans()).via(row -> row.getBoolean(0)));
-
-        PAssert.that(result)
-            .satisfies(
-                input -> {
-                  assertTrue("Test expression is false: " + expr, Iterables.getOnlyElement(input));
-                  return null;
-                });
-        return PDone.in(begin.getPipeline());
-      }
     }
   }
 }
