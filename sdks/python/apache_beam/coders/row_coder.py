@@ -199,9 +199,8 @@ class RowCoderImpl(StreamCoderImpl):
 
     if words:
       nulls = (
-        0 if i // 8 >= len(words) else ((words[i // 8] >> (i % 8)) & 0x01)
-        for i in range(nvals)
-      )
+          0 if i // 8 >= len(words) else ((words[i // 8] >> (i % 8)) & 0x01)
+          for i in range(nvals))
     else:
       nulls = itertools.repeat(False, nvals)
 

@@ -48,18 +48,13 @@ Person = typing.NamedTuple(
     ])
 
 NullablePerson = typing.NamedTuple(
-  "NullablePerson",
-  [
-    ("name", typing.Optional[str]),
-    ("age", np.int32),
-    ("address", typing.Optional[str]),
-    ("aliases", typing.List[str]),
-    ("knows_javascript", bool),
-    ("payload", typing.Optional[bytes]),
-    ("custom_metadata", typing.Mapping[str, int]),
-    ("favorite_time", typing.Optional[Timestamp]),
-    ("one_more_field", typing.Optional[str])
-  ])
+    "NullablePerson",
+    [("name", typing.Optional[str]), ("age", np.int32),
+     ("address", typing.Optional[str]), ("aliases", typing.List[str]),
+     ("knows_javascript", bool), ("payload", typing.Optional[bytes]),
+     ("custom_metadata", typing.Mapping[str, int]),
+     ("favorite_time", typing.Optional[Timestamp]),
+     ("one_more_field", typing.Optional[str])])
 
 coders_registry.register_coder(Person, RowCoder)
 
@@ -98,18 +93,17 @@ class RowCoderTest(unittest.TestCase):
 
   def test_row_accepts_trailing_zeros_truncated(self):
     expected_coder = RowCoder(
-      typing_to_runner_api(NullablePerson).row_type.schema)
+        typing_to_runner_api(NullablePerson).row_type.schema)
     person = NullablePerson(
-      None,
-      np.int32(25),
-      "Westeros",
-      ["Mother of Dragons"],
-      False,
-      None,
-      {"dragons": 3},
-      None,
-      "NotNull"
-    )
+        None,
+        np.int32(25),
+        "Westeros",
+        ["Mother of Dragons"],
+        False,
+        None,
+        {"dragons": 3},
+        None,
+        "NotNull")
     out = expected_coder.encode(person)
     # 9 fields, 1 null byte, field 0, 5, 7 are null
     new_payload = bytes([9, 1, 1 | 1 << 5 | 1 << 7]) + out[4:]
