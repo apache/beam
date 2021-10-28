@@ -59,7 +59,9 @@ docker {
   tags project.rootProject.hasProperty(["image-tag"]) ?
        project.rootProject["image-tag"] :
        "latest"
-  buildArgs(['BASE_IMAGE': project.rootProject["base-image"] ])
+  buildArgs(['BASE_IMAGE': project.rootProject.hasProperty(["image-tag"]) ?
+                           project.rootProject["base-image"] :
+                           "apache/beam_java8_sdk" ])
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects
