@@ -312,7 +312,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_double + c_bigint", 2.0)
             .addExpr("1 - 1", 0)
             .addExpr("1.0 - 1", ZERO_1)
-            .addExpr("1 - 0.0", ONE_1)
+            .addExpr("1 - 0.0", ONE_0)
             .addExpr("1.0 - 1.0", ZERO_1)
             .addExpr("c_tinyint - c_tinyint", (byte) 0)
             .addExpr("c_smallint - c_smallint", (short) 0)
@@ -327,9 +327,9 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_float - c_bigint", 0.0f)
             .addExpr("c_double - c_bigint", 0.0)
             .addExpr("1 * 1", 1)
-            .addExpr("1.0 * 1", ONE_1)
+            .addExpr("1.0 * 1", ONE_0)
             .addExpr("1 * 1.0", ONE_1)
-            .addExpr("1.0 * 1.0", ONE_2)
+            .addExpr("1.0 * 1.0", ONE_1)
             .addExpr("c_tinyint * c_tinyint", (byte) 1)
             .addExpr("c_smallint * c_smallint", (short) 1)
             .addExpr("c_bigint * c_bigint", 1L)
@@ -744,10 +744,10 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 5) = 'w3resou3rce'")
             .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 7) = 'w3resouce'")
             .addExpr("SUBSTRING('hello' FROM 2) = 'ello'")
-            .addExpr("SUBSTRING('hello' FROM -1) = 'o'")
+            .addExpr("SUBSTRING('hello' FROM -1) = 'hello'")
             .addExpr("SUBSTRING('hello' FROM 2 FOR 2) = 'el'")
             .addExpr("SUBSTRING('hello' FROM 2 FOR 100) = 'ello'")
-            .addExpr("SUBSTRING('hello' FROM -3 for 2) = 'll'")
+            .addExpr("SUBSTRING('hello' FROM -3 for 2) = ''")
             .addExpr("UPPER('hello') = 'HELLO'");
 
     checker.check(pipeline);
