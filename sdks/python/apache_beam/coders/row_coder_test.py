@@ -97,7 +97,7 @@ class RowCoderTest(unittest.TestCase):
     person = NullablePerson(
         None,
         np.int32(25),
-        "Westeros",["Mother of Dragons"],
+        "Westeros", ["Mother of Dragons"],
         False,
         None, {"dragons": 3},
         None,
