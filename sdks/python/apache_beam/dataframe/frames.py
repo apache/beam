@@ -1548,7 +1548,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           elif m == 0:
               return float(0)
           else:
-              return ((n * fourth_moment) / (m ** 2)) - 3
+              return (((combined_n+1)*(combined_n)*(combined_n-1))/((combined_n-2)*(combined_n-3)))*(fourth_moment/(np.floor(m)**2))-((3*(combined_n-1)**2)/((combined_n-2)*(combined_n-3)))
 
       moments = expressions.ComputedExpression(
           'compute_moments',
