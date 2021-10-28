@@ -263,6 +263,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
         false,
         argList,
         -1,
+        null,
         RelCollations.EMPTY,
         groupCount,
         input,
