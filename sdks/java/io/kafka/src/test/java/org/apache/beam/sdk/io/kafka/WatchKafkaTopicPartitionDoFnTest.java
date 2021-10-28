@@ -58,6 +58,7 @@ public class WatchKafkaTopicPartitionDoFnTest {
   @Mock Consumer<byte[], byte[]> mockConsumer;
   @Mock Timer timer;
 
+  @SuppressWarnings("UnnecessaryAnonymousClass")
   private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFn =
       new SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>() {
         @Override

@@ -525,12 +525,8 @@ public class BigQueryIO {
 
   private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
       DEFAULT_AVRO_SCHEMA_FACTORY =
-          new SerializableFunction<TableSchema, org.apache.avro.Schema>() {
-            @Override
-            public org.apache.avro.Schema apply(TableSchema input) {
-              return BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
-            }
-          };
+          (SerializableFunction<TableSchema, org.apache.avro.Schema>)
+              input -> BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
 
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead. {@link
