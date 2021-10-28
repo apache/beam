@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.kinesis.serde;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -44,9 +46,9 @@ import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.commons.lang3.reflect.FieldUtils;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
@@ -62,6 +64,7 @@ class AwsModule extends SimpleModule {
   private static final String SESSION_TOKEN = "sessionToken";
   private static final String CREDENTIALS_FILE_PATH = "credentialsFilePath";
 
+  @SuppressWarnings({"nullness"})
   AwsModule() {
     super("AwsModule");
     setMixInAnnotation(AWSCredentialsProvider.class, AWSCredentialsProviderMixin.class);
@@ -87,7 +90,7 @@ class AwsModule extends SimpleModule {
         JsonParser jsonParser, DeserializationContext context, TypeDeserializer typeDeserializer)
         throws IOException {
       Map<String, String> asMap =
-          jsonParser.readValueAs(new TypeReference<Map<String, String>>() {});
+          checkNotNull(jsonParser.readValueAs(new TypeReference<Map<String, String>>() {}));
 
       String typeNameKey = typeDeserializer.getPropertyName();
       String typeName = asMap.get(typeNameKey);
@@ -96,37 +99,54 @@ class AwsModule extends SimpleModule {
             String.format("AWS credentials provider type name key '%s' not found", typeNameKey));
       }
 
-      if (typeName.equals(AWSStaticCredentialsProvider.class.getSimpleName())) {
+      if (hasName(AWSStaticCredentialsProvider.class, typeName)) {
         boolean isSession = asMap.containsKey(SESSION_TOKEN);
         if (isSession) {
           return new AWSStaticCredentialsProvider(
               new BasicSessionCredentials(
-                  asMap.get(AWS_ACCESS_KEY_ID),
-                  asMap.get(AWS_SECRET_KEY),
-                  asMap.get(SESSION_TOKEN)));
+                  getNotNull(asMap, AWS_ACCESS_KEY_ID, typeName),
+                  getNotNull(asMap, AWS_SECRET_KEY, typeName),
+                  getNotNull(asMap, SESSION_TOKEN, typeName)));
         } else {
           return new AWSStaticCredentialsProvider(
-              new BasicAWSCredentials(asMap.get(AWS_ACCESS_KEY_ID), asMap.get(AWS_SECRET_KEY)));
+              new BasicAWSCredentials(
+                  getNotNull(asMap, AWS_ACCESS_KEY_ID, typeName),
+                  getNotNull(asMap, AWS_SECRET_KEY, typeName)));
         }
-      } else if (typeName.equals(PropertiesFileCredentialsProvider.class.getSimpleName())) {
-        return new PropertiesFileCredentialsProvider(asMap.get(CREDENTIALS_FILE_PATH));
-      } else if (typeName.equals(
-          ClasspathPropertiesFileCredentialsProvider.class.getSimpleName())) {
-        return new ClasspathPropertiesFileCredentialsProvider(asMap.get(CREDENTIALS_FILE_PATH));
-      } else if (typeName.equals(DefaultAWSCredentialsProviderChain.class.getSimpleName())) {
+      } else if (hasName(PropertiesFileCredentialsProvider.class, typeName)) {
+        return new PropertiesFileCredentialsProvider(
+            getNotNull(asMap, CREDENTIALS_FILE_PATH, typeName));
+      } else if (hasName(ClasspathPropertiesFileCredentialsProvider.class, typeName)) {
+        return new ClasspathPropertiesFileCredentialsProvider(
+            getNotNull(asMap, CREDENTIALS_FILE_PATH, typeName));
+      } else if (hasName(DefaultAWSCredentialsProviderChain.class, typeName)) {
         return DefaultAWSCredentialsProviderChain.getInstance();
-      } else if (typeName.equals(EnvironmentVariableCredentialsProvider.class.getSimpleName())) {
+      } else if (hasName(EnvironmentVariableCredentialsProvider.class, typeName)) {
         return new EnvironmentVariableCredentialsProvider();
-      } else if (typeName.equals(SystemPropertiesCredentialsProvider.class.getSimpleName())) {
+      } else if (hasName(SystemPropertiesCredentialsProvider.class, typeName)) {
         return new SystemPropertiesCredentialsProvider();
-      } else if (typeName.equals(ProfileCredentialsProvider.class.getSimpleName())) {
+      } else if (hasName(ProfileCredentialsProvider.class, typeName)) {
         return new ProfileCredentialsProvider();
-      } else if (typeName.equals(EC2ContainerCredentialsProviderWrapper.class.getSimpleName())) {
+      } else if (hasName(EC2ContainerCredentialsProviderWrapper.class, typeName)) {
         return new EC2ContainerCredentialsProviderWrapper();
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
       }
+    }
+
+    private String getNotNull(Map<String, String> map, String key, String typeName)
+        throws IOException {
+      String value = map.get(key);
+      if (value == null) {
+        throw new IOException(
+            String.format("AWS credentials provider type '%s' is missing '%s'", typeName, key));
+      }
+      return value;
+    }
+
+    private boolean hasName(Class<? extends AWSCredentialsProvider> clazz, String typeName) {
+      return typeName.equals(clazz.getSimpleName());
     }
   }
 
@@ -160,7 +180,8 @@ class AwsModule extends SimpleModule {
       // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
       typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
 
-      if (credentialsProvider.getClass().equals(AWSStaticCredentialsProvider.class)) {
+      Class<?> providerClass = credentialsProvider.getClass();
+      if (providerClass.equals(AWSStaticCredentialsProvider.class)) {
         AWSCredentials credentials = credentialsProvider.getCredentials();
         if (credentials.getClass().equals(BasicSessionCredentials.class)) {
           BasicSessionCredentials sessionCredentials = (BasicSessionCredentials) credentials;
@@ -171,40 +192,31 @@ class AwsModule extends SimpleModule {
           jsonGenerator.writeStringField(AWS_ACCESS_KEY_ID, credentials.getAWSAccessKeyId());
           jsonGenerator.writeStringField(AWS_SECRET_KEY, credentials.getAWSSecretKey());
         }
-      } else if (credentialsProvider.getClass().equals(PropertiesFileCredentialsProvider.class)) {
-        try {
-          PropertiesFileCredentialsProvider specificProvider =
-              (PropertiesFileCredentialsProvider) credentialsProvider;
-          Field field =
-              PropertiesFileCredentialsProvider.class.getDeclaredField(CREDENTIALS_FILE_PATH);
-          field.setAccessible(true);
-          String credentialsFilePath = (String) field.get(specificProvider);
-          jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-          throw new IOException("failed to access private field with reflection", e);
-        }
-
-      } else if (credentialsProvider
-          .getClass()
-          .equals(ClasspathPropertiesFileCredentialsProvider.class)) {
-        try {
-          ClasspathPropertiesFileCredentialsProvider specificProvider =
-              (ClasspathPropertiesFileCredentialsProvider) credentialsProvider;
-          Field field =
-              ClasspathPropertiesFileCredentialsProvider.class.getDeclaredField(
-                  CREDENTIALS_FILE_PATH);
-          field.setAccessible(true);
-          String credentialsFilePath = (String) field.get(specificProvider);
-          jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-          throw new IOException("failed to access private field with reflection", e);
-        }
+      } else if (providerClass.equals(PropertiesFileCredentialsProvider.class)) {
+        jsonGenerator.writeStringField(
+            CREDENTIALS_FILE_PATH, readProviderField(credentialsProvider, CREDENTIALS_FILE_PATH));
+      } else if (providerClass.equals(ClasspathPropertiesFileCredentialsProvider.class)) {
+        jsonGenerator.writeStringField(
+            CREDENTIALS_FILE_PATH, readProviderField(credentialsProvider, CREDENTIALS_FILE_PATH));
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(credentialsProvider.getClass())) {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
       }
       // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
       typeSerializer.writeTypeSuffixForObject(credentialsProvider, jsonGenerator);
+    }
+
+    private String readProviderField(AWSCredentialsProvider provider, String fieldName)
+        throws IOException {
+      try {
+        return (String) checkNotNull(FieldUtils.readField(provider, fieldName, true));
+      } catch (NullPointerException | IllegalArgumentException | IllegalAccessException e) {
+        throw new IOException(
+            String.format(
+                "Failed to access private field '%s' of AWS credential provider type '%s' with reflection",
+                fieldName, provider.getClass().getSimpleName()),
+            e);
+      }
     }
   }
 }

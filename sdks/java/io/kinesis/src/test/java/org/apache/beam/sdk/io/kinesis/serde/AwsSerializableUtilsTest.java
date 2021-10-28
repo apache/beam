@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.kinesis.serde;
 
+import static org.apache.beam.sdk.io.kinesis.serde.AwsSerializableUtils.deserialize;
+import static org.apache.beam.sdk.io.kinesis.serde.AwsSerializableUtils.serialize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -26,7 +28,13 @@ import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.BasicSessionCredentials;
+import com.amazonaws.auth.ClasspathPropertiesFileCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
+import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.auth.PropertiesFileCredentialsProvider;
+import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -54,9 +62,9 @@ public class AwsSerializableUtilsTest {
   public void testBasicCredentialsProviderSerialization() {
     AWSCredentialsProvider credentialsProvider =
         new AWSStaticCredentialsProvider(new BasicAWSCredentials(ACCESS_KEY_ID, SECRET_ACCESS_KEY));
-    String serializedProvider = AwsSerializableUtils.serialize(credentialsProvider);
+    String serializedProvider = serialize(credentialsProvider);
 
-    checkStaticBasicCredentials(AwsSerializableUtils.deserialize(serializedProvider));
+    checkStaticBasicCredentials(deserialize(serializedProvider));
   }
 
   @Test
@@ -64,17 +72,83 @@ public class AwsSerializableUtilsTest {
     AWSCredentialsProvider credentialsProvider =
         new AWSStaticCredentialsProvider(
             new BasicSessionCredentials(ACCESS_KEY_ID, SECRET_ACCESS_KEY, SESSION_TOKEN));
-    String serializedCredentials = AwsSerializableUtils.serialize(credentialsProvider);
+    String serializedCredentials = serialize(credentialsProvider);
 
-    checkStaticSessionCredentials(AwsSerializableUtils.deserialize(serializedCredentials));
+    checkStaticSessionCredentials(deserialize(serializedCredentials));
   }
 
   @Test
-  public void testDefaultCredentialsProviderSerialization() {
+  public void testDefaultAWSCredentialsProviderChainSerialization() {
     AWSCredentialsProvider credentialsProvider = DefaultAWSCredentialsProviderChain.getInstance();
-    String serializedCredentials = AwsSerializableUtils.serialize(credentialsProvider);
+    String expectedSerializedProvider = "{\"@type\":\"DefaultAWSCredentialsProviderChain\"}";
+    String serializedProvider = serialize(credentialsProvider);
 
-    assertEquals(credentialsProvider, AwsSerializableUtils.deserialize(serializedCredentials));
+    assertEquals(expectedSerializedProvider, serializedProvider);
+    assertEquals(expectedSerializedProvider, serialize(deserialize(serializedProvider)));
+  }
+
+  @Test
+  public void testPropertiesFileCredentialsProviderSerialization() {
+    AWSCredentialsProvider credentialsProvider =
+        new PropertiesFileCredentialsProvider("AwsCredentials.properties");
+    String expectedSerializedProvider =
+        "{\"@type\":\"PropertiesFileCredentialsProvider\",\"credentialsFilePath\":\"AwsCredentials.properties\"}";
+    String serializedProvider = serialize(credentialsProvider);
+
+    assertEquals(expectedSerializedProvider, serializedProvider);
+    assertEquals(expectedSerializedProvider, serialize(deserialize(serializedProvider)));
+  }
+
+  @Test
+  public void testClasspathPropertiesFileCredentialsProviderSerialization() {
+    AWSCredentialsProvider credentialsProvider =
+        new ClasspathPropertiesFileCredentialsProvider("AwsCredentials.properties");
+    String expectedSerializedProvider =
+        "{\"@type\":\"ClasspathPropertiesFileCredentialsProvider\",\"credentialsFilePath\":\"/AwsCredentials.properties\"}";
+    String serializedProvider = serialize(credentialsProvider);
+
+    assertEquals(expectedSerializedProvider, serializedProvider);
+    assertEquals(expectedSerializedProvider, serialize(deserialize(serializedProvider)));
+  }
+
+  @Test
+  public void testEnvironmentVariableCredentialsProviderSerialization() {
+    AWSCredentialsProvider credentialsProvider = new EnvironmentVariableCredentialsProvider();
+    String expectedSerializedProvider = "{\"@type\":\"EnvironmentVariableCredentialsProvider\"}";
+    String serializedProvider = serialize(credentialsProvider);
+
+    assertEquals(expectedSerializedProvider, serializedProvider);
+    assertEquals(expectedSerializedProvider, serialize(deserialize(serializedProvider)));
+  }
+
+  @Test
+  public void testSystemPropertiesCredentialsProviderSerialization() {
+    AWSCredentialsProvider credentialsProvider = new SystemPropertiesCredentialsProvider();
+    String expectedSerializedProvider = "{\"@type\":\"SystemPropertiesCredentialsProvider\"}";
+    String serializedProvider = serialize(credentialsProvider);
+
+    assertEquals(expectedSerializedProvider, serializedProvider);
+    assertEquals(expectedSerializedProvider, serialize(deserialize(serializedProvider)));
+  }
+
+  @Test
+  public void testProfileCredentialsProviderSerialization() {
+    AWSCredentialsProvider credentialsProvider = new ProfileCredentialsProvider();
+    String expectedSerializedProvider = "{\"@type\":\"ProfileCredentialsProvider\"}";
+    String serializedProvider = serialize(credentialsProvider);
+
+    assertEquals(expectedSerializedProvider, serializedProvider);
+    assertEquals(expectedSerializedProvider, serialize(deserialize(serializedProvider)));
+  }
+
+  @Test
+  public void testEC2ContainerCredentialsProviderWrapperSerialization() {
+    AWSCredentialsProvider credentialsProvider = new EC2ContainerCredentialsProviderWrapper();
+    String expectedSerializedProvider = "{\"@type\":\"EC2ContainerCredentialsProviderWrapper\"}";
+    String serializedProvider = serialize(credentialsProvider);
+
+    assertEquals(expectedSerializedProvider, serializedProvider);
+    assertEquals(expectedSerializedProvider, serialize(deserialize(serializedProvider)));
   }
 
   static class UnknownAwsCredentialsProvider implements AWSCredentialsProvider {
@@ -90,11 +164,11 @@ public class AwsSerializableUtilsTest {
   @Test(expected = IllegalArgumentException.class)
   public void testFailOnAWSCredentialsProviderSerialization() {
     AWSCredentialsProvider credentialsProvider = new UnknownAwsCredentialsProvider();
-    AwsSerializableUtils.serialize(credentialsProvider);
+    serialize(credentialsProvider);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testFailOnAWSCredentialsProviderDeserialization() {
-    AwsSerializableUtils.deserialize("invalid string");
+    deserialize("invalid string");
   }
 }

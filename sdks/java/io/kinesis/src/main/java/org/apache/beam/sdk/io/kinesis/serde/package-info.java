@@ -15,9 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Defines serializers / deserializers for AWS.
- */
+/** Defines serializers / deserializers for AWS. */
 @Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.kinesis.serde;
 
