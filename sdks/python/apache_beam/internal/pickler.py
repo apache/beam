@@ -28,20 +28,27 @@ The pickler module should be used to pickle functions and modules; for values,
 the coders.*PickleCoder classes should be used instead.
 """
 
-PICKLE_LIB = 'cloudPickle'
-if PICKLE_LIB  == 'dill':
-  from apache_beam.internal import dill_pickler as pickler_lib
-elif PICKLE_LIB == 'cloudPickle':
-  from apache_beam.internal import cloudPickle_pickler as pickler_lib
+from apache_beam.internal import cloudPickle_pickler
+from apache_beam.internal import dill_pickler
+
+pickler_lib = dill_pickler
+
+USE_CLOUDPICKLE = 1
+USE_DILL = 2
+
 
 def dumps(o, enable_trace=True, use_zlib=False):
   # type: (...) -> bytes
 
   return pickler_lib.dumps(o, enable_trace=enable_trace, use_zlib=use_zlib)
 
+
 def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
-  return pickler_lib.loads(encoded, enable_trace=enable_trace, use_zlib=use_zlib)
+
+  return pickler_lib.loads(encoded, enable_trace=enable_trace,
+                           use_zlib=use_zlib)
+
 
 def dump_session(file_path):
   """For internal use only; no backwards-compatibility guarantees.
@@ -51,5 +58,16 @@ def dump_session(file_path):
 
   return pickler_lib.dump_session(file_path)
 
+
 def load_session(file_path):
   return pickler_lib.load_session(file_path)
+
+
+def change_pickle_lib(pickle_lib):
+  """ Changes pickling library. Users should prefer the default library."""
+  global pickler_lib
+  if pickle_lib == USE_CLOUDPICKLE:
+    pickler_lib = dill_pickler
+  elif pickler_lib == USE_DILL:
+    pickler_lib = cloudPickle_pickler
+

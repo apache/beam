@@ -61,19 +61,12 @@ def dumps(o, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
     with io.BytesIO() as file:
-      try:
-          pickler = cloudpickle.CloudPickler(file)
-          pickler.dispatch_table[RLockType] = _pickle_rlock
-          pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
-          pickler.dump(o)
-          s = file.getvalue()
-      except Exception as e:  # pylint: disable=broad-except
-        # TODO: decide what to do on exceptions.
-        if enable_trace:
-          s = b''
-          # return pickler.dump(o)
-        else:
-          raise
+      pickler = cloudpickle.CloudPickler(file)
+      pickler.dispatch_table[RLockType] = _pickle_rlock
+      pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
+      pickler.dump(o)
+      s = file.getvalue()
+      # TODO(ryanthompson): See if echoing dill.enable_trace is useful.
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
@@ -103,16 +96,8 @@ def loads(encoded, enable_trace=True, use_zlib=False):
   del c  # Free up some possibly large and no-longer-needed memory.
 
   with _pickle_lock:
-    try:
-      unpickled = cloudpickle.loads(s)
-      print('Unpickle Successful - ' + str(unpickled))
-      return unpickled
-    except Exception as e:  # pylint: disable=broad-except
-      if enable_trace:
-        print('TODO figure out what to do with cloudpickle exceptions. ' + str(e))
-        return cloudpickle.loads(s)
-      else:
-        raise
+    unpickled = cloudpickle.loads(s)
+    return unpickled
 
 
 def _pickle_rlock(obj):
@@ -122,26 +107,22 @@ def _pickle_rlock(obj):
 def _create_rlock():
   return RLockType()
 
+
 def _pickle_absl_flags(obj):
-    return _create_absl_flags, tuple([])
+  return _create_absl_flags, tuple([])
+
 
 def _create_absl_flags():
-    return flags.FLAGS
+  return flags.FLAGS
+
 
 def dump_session(file_path):
-  try:
-    module_dict = _main_module.__dict__.copy()
-    with open(file_path, 'wb') as file:
-      pickler = cloudpickle.CloudPickler(file)
-      pickler.dispatch_table[RLockType] = _pickle_rlock
-      pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
-      pickler.dump(module_dict)
-  except Exception:
-    print('TODO figure out what to do with cloudpickle exceptions.')
-    raise
+  # It is possible to dump session with cloudpickle. However, since references
+  # are saved it should not be necessary. See https://s.apache.org/beam-picklers
+  pass
 
 
 def load_session(file_path):
-  with open(file_path,'rb') as file:
-    module = cloudpickle.load(file)
-    _main_module.__dict__.update(module)
+  # It is possible to load_session with cloudpickle. However, since references
+  # are saved it should not be necessary. See https://s.apache.org/beam-picklers
+  pass
