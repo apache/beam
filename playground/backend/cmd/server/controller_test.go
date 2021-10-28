@@ -124,6 +124,8 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 		wantErr    bool
 	}{
 		{
+			// Test case with calling RunCode method with incorrect SDK.
+			// As a result want to receive error.
 			name: "RunCode with incorrect sdk",
 			args: args{
 				ctx: context.Background(),
@@ -135,6 +137,8 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			// Test case with calling RunCode method with correct SDK.
+			// As a result want to receive response with pipelineId and status into cache should be set as Status_STATUS_EXECUTING.
 			name: "RunCode with correct sdk",
 			args: args{
 				ctx: context.Background(),
@@ -281,6 +285,8 @@ func Test_processCode(t *testing.T) {
 		args                  args
 	}{
 		{
+			// Test case with calling processCode method without preparing files with code.
+			// As a result status into cache should be set as Status_STATUS_ERROR.
 			name:                  "validation failed",
 			createExecFile:        false,
 			code:                  "",
@@ -294,6 +300,8 @@ func Test_processCode(t *testing.T) {
 			},
 		},
 		{
+			// Test case with calling processCode method with incorrect code.
+			// As a result status into cache should be set as Status_STATUS_COMPILE_ERROR.
 			name:                  "compilation failed",
 			createExecFile:        true,
 			code:                  "MOCK_CODE",
@@ -307,6 +315,8 @@ func Test_processCode(t *testing.T) {
 			},
 		},
 		{
+			// Test case with calling processCode method with incorrect logic into code.
+			// As a result status into cache should be set as Status_STATUS_ERROR.
 			name:                  "run failed",
 			createExecFile:        true,
 			code:                  "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(1/0);\n    }\n}",
@@ -320,6 +330,8 @@ func Test_processCode(t *testing.T) {
 			},
 		},
 		{
+			// Test case with calling processCode without any error cases.
+			// As a result status into cache should be set as Status_STATUS_FINISHED.
 			name:                  "all success",
 			createExecFile:        true,
 			code:                  "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
