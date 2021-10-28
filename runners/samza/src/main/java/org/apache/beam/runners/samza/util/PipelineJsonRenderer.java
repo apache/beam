@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.samza.util;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -172,8 +174,8 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     indent -= 4;
   }
 
-  @SuppressWarnings("AnnotateFormatMethod")
-  private void writeLine(String format, Object... args) {
+  @FormatMethod
+  private void writeLine(@FormatString String format, Object... args) {
     // Since we append a comma after every entry to the graph, we will need to remove that one extra
     // comma towards the end of the JSON.
     int secondLastCharIndex = jsonBuilder.length() - 2;

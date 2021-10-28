@@ -17,9 +17,10 @@
  */
 package org.apache.beam.runners.core.construction.renderer;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -112,8 +113,8 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
     indent -= 4;
   }
 
-  @SuppressWarnings("AnnotateFormatMethod")
-  private void writeLine(String format, Object... args) {
+  @FormatMethod
+  private void writeLine(@FormatString String format, Object... args) {
     if (indent != 0) {
       dotBuilder.append(String.format("%-" + indent + "s", ""));
     }

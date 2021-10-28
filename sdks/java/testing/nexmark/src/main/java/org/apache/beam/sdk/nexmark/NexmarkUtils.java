@@ -21,6 +21,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -320,8 +322,8 @@ public class NexmarkUtils {
   private static final boolean LOG_TO_CONSOLE = false;
 
   /** Log info message. */
-  @SuppressWarnings("AnnotateFormatMethod")
-  public static void info(String format, Object... args) {
+  @FormatMethod
+  public static void info(@FormatString String format, Object... args) {
     if (LOG_INFO) {
       LOG.info(String.format(format, args));
       if (LOG_TO_CONSOLE) {
@@ -331,8 +333,8 @@ public class NexmarkUtils {
   }
 
   /** Log message to console. For client side only. */
-  @SuppressWarnings("AnnotateFormatMethod")
-  public static void console(String format, Object... args) {
+  @FormatMethod
+  public static void console(@FormatString String format, Object... args) {
     System.out.printf("%s %s%n", Instant.now(), String.format(format, args));
   }
 
