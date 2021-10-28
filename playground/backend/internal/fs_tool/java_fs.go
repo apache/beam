@@ -62,7 +62,8 @@ func executableName(pipelineId uuid.UUID, workingDir string) (string, error) {
 		return "", err
 	}
 	if len(dirEntries) < 1 {
-		return "", errors.New("number of executable files should be more than one")
+		return "", errors.New("number of executable files should be at least one")
 	}
+	//TODO need to find a class with a main method instead of using the last file
 	return strings.Split(dirEntries[len(dirEntries)-1].Name(), ".")[0], nil
 }
