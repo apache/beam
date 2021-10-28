@@ -651,6 +651,18 @@ class DeferredFrameTest(_AbstractFrameTest):
     s.index = s.index.map(float)
     self._run_test(lambda s: s[1.5:6], s)
 
+  def test_dataframe_truncate(self):
+    s = pd.Series(['a', 'b', 'c', 'd', 'e', 'f'])
+    self._run_test(lambda s: s.truncate(before=1, after=3), s)
+
+  def test_series_truncate(self):
+    df = pd.DataFrame({
+        'A': list('abcde'), 'B': list('fghij'), 'C': list('klmno')
+    },
+                      index=[1, 2, 3, 4, 5])
+    self._run_test(lambda df: df.truncate(before=1, after=3), df)
+    self._run_test(lambda df: df.truncate(before='A', after='B', axis=1), df)
+
   @parameterized.expand([
       (pd.Series(range(10)), ),  # unique
       (pd.Series(list(range(100)) + [0]), ),  # non-unique int

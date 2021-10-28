@@ -925,6 +925,19 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
+  def truncate(self, before, after, axis):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'truncate',
+            lambda df: df.truncate(before=before, after=after, axis=axis),
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()
+            if axis in (1, 'columns') else partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
   def xs(self, key, axis, level, **kwargs):
     """Note that ``xs(axis='index')`` will raise a ``KeyError`` at execution
     time if the key does not exist in the index."""
