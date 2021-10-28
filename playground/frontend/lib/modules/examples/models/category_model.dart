@@ -16,32 +16,11 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 
-const kRunText = 'Run';
+class CategoryModel {
+  final String name;
+  final List<ExampleModel> examples;
 
-class RunButton extends StatelessWidget {
-  final bool isRunning;
-  final VoidCallback runCode;
-
-  const RunButton({Key? key, required this.isRunning, required this.runCode})
-      : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      icon: isRunning
-          ? SizedBox(
-              width: kIconSizeSm,
-              height: kIconSizeSm,
-              child: CircularProgressIndicator(
-                color: Theme.of(context).primaryColor,
-              ),
-            )
-          : const Icon(Icons.play_arrow),
-      label: const Text(kRunText),
-      onPressed: !isRunning ? runCode : null,
-    );
-  }
+  CategoryModel(this.name, this.examples);
 }

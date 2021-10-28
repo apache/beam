@@ -35,11 +35,11 @@ class SDKSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         vertical: kZeroSpacing,
-        horizontal: kLgSpacing,
+        horizontal: kXlSpacing,
       ),
       decoration: BoxDecoration(
         color: ThemeColors.of(context).greyColor,
-        borderRadius: BorderRadius.circular(kBorderRadius),
+        borderRadius: BorderRadius.circular(kLgBorderRadius),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<SDK>(
@@ -47,7 +47,7 @@ class SDKSelector extends StatelessWidget {
           icon: const Icon(Icons.keyboard_arrow_down),
           iconSize: kIconSizeMd,
           elevation: kElevation,
-          borderRadius: BorderRadius.circular(kBorderRadius),
+          borderRadius: BorderRadius.circular(kLgBorderRadius),
           alignment: Alignment.bottomCenter,
           onChanged: (SDK? newSdk) {
             if (newSdk != null) {

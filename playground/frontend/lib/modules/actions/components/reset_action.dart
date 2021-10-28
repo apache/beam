@@ -22,7 +22,7 @@ import 'package:playground/config/theme.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/modules/actions/components/header_icon_button.dart';
 
-const kResetButtonText = "Reset";
+const kResetButtonText = 'Reset';
 
 class ResetAction extends StatelessWidget {
   final VoidCallback reset;
