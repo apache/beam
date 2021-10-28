@@ -272,33 +272,39 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 }
 
 // invokeDataFn handle non-per element invocations.
-func (n *ParDo) invokeDataFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput) (*FullValue, error) {
+func (n *ParDo) invokeDataFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput) (val *FullValue, err error) {
 	if fn == nil {
 		return nil, nil
 	}
+	// Defer side input clean-up in case of panic
+	defer func() {
+		if postErr := n.postInvoke(); postErr != nil {
+			err = postErr
+		}
+	}()
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err := Invoke(ctx, ws, ts, fn, opt, n.cache.extra...)
+	val, err = Invoke(ctx, ws, ts, fn, opt, n.cache.extra...)
 	if err != nil {
-		return nil, err
-	}
-	if err := n.postInvoke(); err != nil {
 		return nil, err
 	}
 	return val, nil
 }
 
 // invokeProcessFn handles the per element invocations
-func (n *ParDo) invokeProcessFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, opt *MainInput) (*FullValue, error) {
+func (n *ParDo) invokeProcessFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, opt *MainInput) (val *FullValue, err error) {
+	// Defer side input clean-up in case of panic
+	defer func() {
+		if postErr := n.postInvoke(); postErr != nil {
+			err = postErr
+		}
+	}()
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err := n.inv.Invoke(ctx, ws, ts, opt, n.cache.extra...)
+	val, err = n.inv.Invoke(ctx, ws, ts, opt, n.cache.extra...)
 	if err != nil {
-		return nil, err
-	}
-	if err := n.postInvoke(); err != nil {
 		return nil, err
 	}
 	return val, nil
@@ -314,9 +320,11 @@ func (n *ParDo) preInvoke(ctx context.Context, ws []typex.Window, ts typex.Event
 }
 
 func (n *ParDo) postInvoke() error {
-	for _, s := range n.cache.sideinput {
-		if err := s.Reset(); err != nil {
-			return err
+	if n.cache != nil {
+		for _, s := range n.cache.sideinput {
+			if err := s.Reset(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -324,11 +332,6 @@ func (n *ParDo) postInvoke() error {
 
 func (n *ParDo) fail(err error) error {
 	n.status = Broken
-	if n.cache != nil {
-		for _, s := range n.cache.sideinput {
-			s.Reset()
-		}
-	}
 	if err2, ok := err.(*doFnError); ok {
 		return err2
 	}
