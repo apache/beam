@@ -25,7 +25,6 @@ import (
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"github.com/google/uuid"
-	"log"
 )
 
 // playgroundController processes `gRPC' requests from clients.
@@ -85,7 +84,7 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 	pipelineId := info.PipelineUuid
 	runOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.RunOutput)
 	if err != nil {
-		log.Printf("%s: GetRunOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
+		logger.Errorf("%s: GetRunOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
 		return nil, errors.NotFoundError("GetRunOutput", "there is no run output for pipelineId: "+pipelineId+", subKey: cache.SubKey_RunOutput")
 	}
 	runOutput, converted := runOutputInterface.(string)
