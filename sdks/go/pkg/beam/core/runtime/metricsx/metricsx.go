@@ -54,14 +54,14 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 
 		r := bytes.NewReader(minfo.GetPayload())
 		switch minfo.GetUrn() {
-		case "beam:metric:user:sum_int64:v1":
+		case UrnToString(UrnUserSumInt64):
 			value, err := extractCounterValue(r)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
 			counters[key] = value
-		case "beam:metric:user:distribution_int64:v1":
+		case UrnToString(UrnUserDistInt64):
 			value, err := extractDistributionValue(r)
 			if err != nil {
 				log.Println(err)
@@ -69,9 +69,9 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 			}
 			distributions[key] = value
 		case
-			"beam:metric:user:latest_int64:v1",
-			"beam:metric:user:top_n_int64:v1",
-			"beam:metric:user:bottom_n_int64:v1":
+			UrnToString(UrnUserLatestMsInt64),
+			UrnToString(UrnUserTopNInt64),
+			UrnToString(UrnUserBottomNInt64):
 			value, err := extractGaugeValue(r)
 			if err != nil {
 				log.Println(err)

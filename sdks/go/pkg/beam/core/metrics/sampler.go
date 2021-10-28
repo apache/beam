@@ -89,6 +89,10 @@ func NewPTransformState(pid string) *PTransformState {
 	}
 }
 
-func SetPTransform(ctx context.Context) {
-
+// SetPTransformState stores the state of PTransform in its bundle.
+func (s *PTransformState) Set(ctx context.Context, state bundleProcState) {
+	if bctx, ok := ctx.(*beamCtx); ok {
+		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&bctx.store.bundleState)), unsafe.Pointer(&s.states[state]))
+		atomic.AddInt64(bctx.store.transitions, 1)
+	}
 }

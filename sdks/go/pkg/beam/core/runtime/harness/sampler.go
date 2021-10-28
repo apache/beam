@@ -38,7 +38,7 @@ func (s *stateSampler) start(ctx context.Context, t time.Duration) {
 			return
 		default:
 			s.sampler.Sample(ctx, t)
-			time.Sleep(20 * time.Millisecond)
+			time.Sleep(t)
 		}
 	}
 }

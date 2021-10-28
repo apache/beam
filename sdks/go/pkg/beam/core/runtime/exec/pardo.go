@@ -77,7 +77,6 @@ func (n *ParDo) Up(ctx context.Context) error {
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
 
-	// initialize states for current PTransform
 	n.states = metrics.NewPTransformState(n.PID)
 
 	// We can't cache the context during Setup since it runs only once per bundle.
@@ -108,8 +107,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	// per-unit, to avoid the constant allocation overhead.
 	n.ctx = metrics.SetPTransformID(ctx, n.PID)
 
-	// set current state for execution time metrics
-	metrics.SetPTransformState(n.ctx, n.states, metrics.StartBundle)
+	n.states.Set(n.ctx, metrics.StartBundle)
 
 	if err := MultiStartBundle(n.ctx, id, data, n.Out...); err != nil {
 		return n.fail(err)
@@ -129,8 +127,7 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
 
-	// set current state for execution time metrics
-	metrics.SetPTransformState(n.ctx, n.states, metrics.ProcessBundle)
+	n.states.Set(n.ctx, metrics.ProcessBundle)
 
 	return n.processMainInput(&MainInput{Key: *elm, Values: values})
 }
@@ -202,7 +199,6 @@ func mustExplodeWindows(fn *funcx.Fn, elm *FullValue, usesSideInput bool) bool {
 // FinishBundle does post-bundle processing operations for the DoFn.
 // Note: This is not a "FinalizeBundle" operation. Data is not yet durably
 // persisted at this point.
-
 func (n *ParDo) FinishBundle(_ context.Context) error {
 	if n.status != Active {
 		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
@@ -210,8 +206,7 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	n.status = Up
 	n.inv.Reset()
 
-	// set current state for execution time metrics
-	metrics.SetPTransformState(n.ctx, n.states, metrics.FinishBundle)
+	n.states.Set(n.ctx, metrics.FinishBundle)
 
 	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)

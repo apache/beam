@@ -24,8 +24,7 @@ import (
 
 func checkStateTime(t *testing.T, s StateSampler, label string, sb, pb, fb, tb time.Duration) {
 	t.Helper()
-	r := s.store.stateRegistry
-	v := r[label]
+	v := s.store.stateRegistry[label]
 	if v[StartBundle].TotalTime != sb || v[ProcessBundle].TotalTime != pb || v[FinishBundle].TotalTime != fb || v[TotalBundle].TotalTime != tb {
 		t.Errorf("got: start: %v, process:%v, finish:%v, total:%v; want start: %v, process:%v, finish:%v, total:%v",
 			v[StartBundle].TotalTime, v[ProcessBundle].TotalTime, v[FinishBundle].TotalTime, v[TotalBundle].TotalTime, sb, pb, fb, tb)
@@ -52,17 +51,17 @@ func TestSampler(t *testing.T) {
 
 	pt := NewPTransformState("transform")
 
-	SetPTransformState(pctx, pt, StartBundle)
+	pt.Set(pctx, StartBundle)
 	s.Sample(bctx, interval)
 
 	// validate states and their time till now
 	checkStateTime(t, s, label, 200*time.Millisecond, 0, 0, 200*time.Millisecond)
 	checkBundleState(bctx, t, s, 1, 0)
 
-	SetPTransformState(pctx, pt, ProcessBundle)
+	pt.Set(pctx, ProcessBundle)
 	s.Sample(bctx, interval)
-	SetPTransformState(pctx, pt, ProcessBundle)
-	SetPTransformState(pctx, pt, ProcessBundle)
+	pt.Set(pctx, ProcessBundle)
+	pt.Set(pctx, ProcessBundle)
 	s.Sample(bctx, interval)
 
 	// validate states and their time till now
@@ -77,7 +76,7 @@ func TestSampler(t *testing.T) {
 	checkStateTime(t, s, label, 200*time.Millisecond, 1000*time.Millisecond, 0, 1200*time.Millisecond)
 	checkBundleState(bctx, t, s, 4, 600*time.Millisecond)
 
-	SetPTransformState(pctx, pt, FinishBundle)
+	pt.Set(pctx, FinishBundle)
 	s.Sample(bctx, interval)
 	// validate states and their time till now
 	checkStateTime(t, s, label, 200*time.Millisecond, 1000*time.Millisecond, 200*time.Millisecond, 1400*time.Millisecond)
@@ -99,7 +98,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 
 	ptA := NewPTransformState(labelA)
 	ptB := NewPTransformState(labelB)
-	SetPTransformState(ctxA, ptA, ProcessBundle)
+	ptA.Set(ctxA, ProcessBundle)
 	s.Sample(bctx, interval)
 
 	// validate states and their time till now
@@ -107,10 +106,10 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	checkStateTime(t, s, labelB, 0, 0, 0, 0)
 	checkBundleState(bctx, t, s, 1, 0)
 
-	SetPTransformState(ctxB, ptB, ProcessBundle)
+	ptB.Set(ctxB, ProcessBundle)
 	s.Sample(bctx, interval)
-	SetPTransformState(ctxA, ptA, ProcessBundle)
-	SetPTransformState(ctxB, ptB, ProcessBundle)
+	ptA.Set(ctxA, ProcessBundle)
+	ptB.Set(ctxB, ProcessBundle)
 	s.Sample(bctx, interval)
 
 	// validate states and their time till now
@@ -127,9 +126,9 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	checkStateTime(t, s, labelB, 0, 1000*time.Millisecond, 0, 1000*time.Millisecond)
 	checkBundleState(bctx, t, s, 4, 600*time.Millisecond)
 
-	SetPTransformState(ctxA, ptA, FinishBundle)
+	ptA.Set(ctxA, FinishBundle)
 	s.Sample(bctx, interval)
-	SetPTransformState(ctxB, ptB, FinishBundle)
+	ptB.Set(ctxB, FinishBundle)
 
 	// validate states and their time till now
 	checkStateTime(t, s, labelA, 0, 200*time.Millisecond, 200*time.Millisecond, 400*time.Millisecond)
@@ -149,7 +148,7 @@ func BenchmarkMsec_SetPTransformState(b *testing.B) {
 
 	pt := NewPTransformState("transform")
 	for i := 0; i < b.N; i++ {
-		SetPTransformState(pctx, pt, StartBundle)
+		pt.Set(pctx, StartBundle)
 	}
 }
 
@@ -164,7 +163,7 @@ func BenchmarkMsec_Sample(b *testing.B) {
 	pctx := SetPTransformID(bctx, "transform")
 
 	pt := NewPTransformState("transform")
-	SetPTransformState(pctx, pt, StartBundle)
+	pt.Set(pctx, StartBundle)
 	st := GetStore(bctx)
 	s := NewSampler(st)
 	interval := 200 * time.Millisecond
@@ -205,8 +204,8 @@ func BenchmarkMsec_Combined(b *testing.B) {
 	ptB := NewPTransformState("transformB")
 
 	for i := 0; i < b.N; i++ {
-		SetPTransformState(ctxA, ptA, ProcessBundle)
-		SetPTransformState(ctxB, ptB, ProcessBundle)
+		ptA.Set(ctxA, ProcessBundle)
+		ptB.Set(ctxB, ProcessBundle)
 	}
 	close(done)
 }

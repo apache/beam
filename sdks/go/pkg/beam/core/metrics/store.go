@@ -16,12 +16,9 @@
 package metrics
 
 import (
-	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
-	"unsafe"
 )
 
 // Implementation note: We avoid depending on the FnAPI protos here
@@ -156,7 +153,6 @@ type ptCounterSet struct {
 	gauges        map[nameHash]*gauge
 }
 
-// Bundle processing state (START_BUNDLE, PROCESS_BUNDLE, FINISH_BUNDLE)
 type bundleProcState int
 
 const (
@@ -177,14 +173,6 @@ type ExecutionState struct {
 type BundleState struct {
 	pid          string
 	currentState bundleProcState
-}
-
-// SetPTransformState stores the state of PTransform in its bundle.
-func SetPTransformState(ctx context.Context, s *PTransformState, state bundleProcState) {
-	if bctx, ok := ctx.(*beamCtx); ok {
-		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&bctx.store.bundleState)), unsafe.Pointer(&s.states[state]))
-		atomic.AddInt64(bctx.store.transitions, 1)
-	}
 }
 
 // currentStateVal exports the current state of a bundle wrt PTransform.
