@@ -87,6 +87,12 @@ class PicklerTest(unittest.TestCase):
         'RecursiveClass:abc',
         loads(dumps(module_test.RecursiveClass('abc').datum)))
 
+  def test_function_with_external_reference(self):
+    out_of_scope_var = 'expected_value'
+    def foo():
+      return out_of_scope_var
+    self.assertEqual('expected_value', loads(dumps(foo))())
+
   @unittest.skipIf(NO_MAPPINGPROXYTYPE, 'test if MappingProxyType introduced')
   def test_dump_and_load_mapping_proxy(self):
     self.assertEqual(
