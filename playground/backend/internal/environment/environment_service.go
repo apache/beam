@@ -118,8 +118,8 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 	return NewNetworkEnvs(ip, port), nil
 }
 
-// GetSdkEnvsFromOsEnvs lookups in os environment variables and takes value for Apache Beam SDK. If not exists - using default
-func GetSdkEnvsFromOsEnvs() (*BeamEnvs, error) {
+// ConfigureBeamEnvs lookups in os environment variables and takes value for Apache Beam SDK. If not exists - using default
+func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
 	if value, present := os.LookupEnv(beamSdkKey); present {
 
@@ -137,7 +137,7 @@ func GetSdkEnvsFromOsEnvs() (*BeamEnvs, error) {
 	if sdk == pb.Sdk_SDK_UNSPECIFIED {
 		return nil, errors.New("env BEAM_SDK must be specified in the environment variables")
 	}
-	configPath := filepath.Join(os.Getenv(workingDirKey), configFolderName, sdk.String()+jsonExt)
+	configPath := filepath.Join(workDir, configFolderName, sdk.String()+jsonExt)
 	executorConfig, err := createExecutorConfig(sdk, configPath)
 	if err != nil {
 		return nil, err
