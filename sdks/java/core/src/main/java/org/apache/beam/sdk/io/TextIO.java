@@ -846,7 +846,14 @@ public class TextIO {
      */
     public TypedWrite<UserT, DestinationT> withNumShards(int numShards) {
       checkArgument(numShards >= 0);
-      return withNumShards(StaticValueProvider.of(numShards));
+      if (numShards == 0) {
+        // If 0 shards are passed, then the user wants runner-determined
+        // sharding to kick in, thus we pass a null StaticValueProvider
+        // so that the runner-determined-sharding path will be activated.
+        return withNumShards(null);
+      } else {
+        return withNumShards(StaticValueProvider.of(numShards));
+      }
     }
 
     /**
