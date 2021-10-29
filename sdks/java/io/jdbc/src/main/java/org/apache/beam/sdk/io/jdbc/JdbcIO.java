@@ -33,7 +33,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -53,6 +52,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
+import org.apache.beam.sdk.io.jdbc.JdbcUtil.JdbcReadWithPartitionsHelper;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -65,7 +65,6 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -325,10 +324,19 @@ public class JdbcIO {
    *
    * @param <T> Type of the data to be read.
    */
-  public static <T> ReadWithPartitions<T> readWithPartitions() {
-    return new AutoValue_JdbcIO_ReadWithPartitions.Builder<T>()
+  // public static <T, PartitionColumnT extends Comparable<PartitionColumnT>>
+  public static <T, PartitionColumnT> ReadWithPartitions<T, PartitionColumnT> readWithPartitions(
+      TypeDescriptor<PartitionColumnT> partitioningColumnType) {
+    return new AutoValue_JdbcIO_ReadWithPartitions.Builder<T, PartitionColumnT>()
+        .setPartitionColumnType(partitioningColumnType)
         .setNumPartitions(DEFAULT_NUM_PARTITIONS)
         .build();
+  }
+
+  public static <T> ReadWithPartitions<T, Long> readWithPartitions() {
+    return JdbcIO.<T, Long>readWithPartitions(TypeDescriptors.longs())
+        .withLowerBound(DEFAULT_LOWER_BOUND)
+        .withUpperBound(DEFAULT_UPPER_BOUND);
   }
 
   private static final long DEFAULT_BATCH_SIZE = 1000L;
@@ -336,6 +344,9 @@ public class JdbcIO {
   // Default values used from fluent backoff.
   private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(1);
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
+  // Default values used for partitioning a table
+  private static final long DEFAULT_LOWER_BOUND = 0;
+  private static final long DEFAULT_UPPER_BOUND = Integer.MAX_VALUE;
   private static final int DEFAULT_NUM_PARTITIONS = 200;
 
   /**
@@ -794,7 +805,7 @@ public class JdbcIO {
                   });
 
       if (getCoder() != null) {
-        readAll = readAll.withCoder(getCoder());
+        readAll = readAll.toBuilder().setCoder(getCoder()).build();
       }
       return input.apply(Create.of((Void) null)).apply(readAll);
     }
@@ -924,7 +935,7 @@ public class JdbcIO {
       return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
-    private Coder<OutputT> inferCoder(CoderRegistry registry) {
+    private Coder<OutputT> inferCoder(CoderRegistry registry, SchemaRegistry schemaRegistry) {
       if (getCoder() != null) {
         return getCoder();
       } else {
@@ -934,6 +945,13 @@ public class JdbcIO {
                 rowMapper,
                 RowMapper.class,
                 new TypeVariableExtractor<RowMapper<OutputT>, OutputT>() {});
+        try {
+          return schemaRegistry.getSchemaCoder(outputType);
+        } catch (NoSuchSchemaException e) {
+          LOG.warn(
+              "Unable to infer a schema for type {}. Attempting to infer a coder without a schema.",
+              outputType);
+        }
         try {
           return registry.getCoder(outputType);
         } catch (CannotProvideCoderException e) {
@@ -945,7 +963,9 @@ public class JdbcIO {
 
     @Override
     public PCollection<OutputT> expand(PCollection<ParameterT> input) {
-      Coder<OutputT> coder = inferCoder(input.getPipeline().getCoderRegistry());
+      Coder<OutputT> coder =
+          inferCoder(
+              input.getPipeline().getCoderRegistry(), input.getPipeline().getSchemaRegistry());
       checkNotNull(
           coder,
           "Unable to infer a coder for JdbcIO.readAll() transform. "
@@ -999,7 +1019,10 @@ public class JdbcIO {
 
   /** Implementation of {@link #readWithPartitions}. */
   @AutoValue
-  public abstract static class ReadWithPartitions<T> extends PTransform<PBegin, PCollection<T>> {
+  public abstract static class ReadWithPartitions<
+          // T, PartitionColumnT extends Comparable<PartitionColumnT>>
+          T, PartitionColumnT>
+      extends PTransform<PBegin, PCollection<T>> {
 
     abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
@@ -1007,51 +1030,58 @@ public class JdbcIO {
 
     abstract @Nullable Coder<T> getCoder();
 
-    abstract Integer getNumPartitions();
+    abstract @Nullable Integer getNumPartitions();
 
     abstract @Nullable String getPartitionColumn();
 
-    abstract @Nullable Long getLowerBound();
+    abstract @javax.annotation.Nullable @Nullable PartitionColumnT getLowerBound();
 
-    abstract @Nullable Long getUpperBound();
+    abstract @javax.annotation.Nullable @Nullable PartitionColumnT getUpperBound();
 
     abstract @Nullable String getTable();
 
-    abstract Builder<T> toBuilder();
+    abstract TypeDescriptor<PartitionColumnT> getPartitionColumnType();
+
+    abstract Builder<T, PartitionColumnT> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<T> {
+    // abstract static class Builder<T, PartitionColumnT extends Comparable<PartitionColumnT>> {
+    abstract static class Builder<T, PartitionColumnT> {
 
-      abstract Builder<T> setDataSourceProviderFn(
+      abstract Builder<T, PartitionColumnT> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
-      abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
+      abstract Builder<T, PartitionColumnT> setRowMapper(RowMapper<T> rowMapper);
 
-      abstract Builder<T> setCoder(Coder<T> coder);
+      abstract Builder<T, PartitionColumnT> setCoder(Coder<T> coder);
 
-      abstract Builder<T> setNumPartitions(Integer numPartitions);
+      abstract Builder<T, PartitionColumnT> setNumPartitions(int numPartitions);
 
-      abstract Builder<T> setPartitionColumn(String partitionColumn);
+      abstract Builder<T, PartitionColumnT> setPartitionColumn(String partitionColumn);
 
-      abstract Builder<T> setLowerBound(Long lowerBound);
+      abstract Builder<T, PartitionColumnT> setLowerBound(PartitionColumnT lowerBound);
 
-      abstract Builder<T> setUpperBound(Long upperBound);
+      abstract Builder<T, PartitionColumnT> setUpperBound(PartitionColumnT upperBound);
 
-      abstract Builder<T> setTable(String tableName);
+      abstract Builder<T, PartitionColumnT> setTable(String tableName);
 
-      abstract ReadWithPartitions<T> build();
+      abstract Builder<T, PartitionColumnT> setPartitionColumnType(
+          TypeDescriptor<PartitionColumnT> partitionColumnType);
+
+      abstract ReadWithPartitions<T, PartitionColumnT> build();
     }
 
-    public ReadWithPartitions<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
+    public ReadWithPartitions<T, PartitionColumnT> withDataSourceConfiguration(
+        final DataSourceConfiguration config) {
       return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
-    public ReadWithPartitions<T> withDataSourceProviderFn(
+    public ReadWithPartitions<T, PartitionColumnT> withDataSourceProviderFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn) {
       return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
     }
 
-    public ReadWithPartitions<T> withRowMapper(RowMapper<T> rowMapper) {
+    public ReadWithPartitions<T, PartitionColumnT> withRowMapper(RowMapper<T> rowMapper) {
       checkNotNull(rowMapper, "rowMapper can not be null");
       return toBuilder().setRowMapper(rowMapper).build();
     }
@@ -1061,7 +1091,7 @@ public class JdbcIO {
      *     <p>{@link JdbcIO} is able to infer aprppriate coders from other parameters.
      */
     @Deprecated
-    public ReadWithPartitions<T> withCoder(Coder<T> coder) {
+    public ReadWithPartitions<T, PartitionColumnT> withCoder(Coder<T> coder) {
       checkNotNull(coder, "coder can not be null");
       return toBuilder().setCoder(coder).build();
     }
@@ -1071,30 +1101,32 @@ public class JdbcIO {
      * strides for generated WHERE clause expressions used to split the column withPartitionColumn
      * evenly. When the input is less than 1, the number is set to 1.
      */
-    public ReadWithPartitions<T> withNumPartitions(int numPartitions) {
+    public ReadWithPartitions<T, PartitionColumnT> withNumPartitions(int numPartitions) {
       checkArgument(numPartitions > 0, "numPartitions can not be less than 1");
       return toBuilder().setNumPartitions(numPartitions).build();
     }
 
     /** The name of a column of numeric type that will be used for partitioning. */
-    public ReadWithPartitions<T> withPartitionColumn(String partitionColumn) {
+    public ReadWithPartitions<T, PartitionColumnT> withPartitionColumn(String partitionColumn) {
       checkNotNull(partitionColumn, "partitionColumn can not be null");
       return toBuilder().setPartitionColumn(partitionColumn).build();
     }
 
-    public ReadWithPartitions<T> withLowerBound(Long lowerBound) {
+    public ReadWithPartitions<T, PartitionColumnT> withLowerBound(PartitionColumnT lowerBound) {
       return toBuilder().setLowerBound(lowerBound).build();
     }
 
-    public ReadWithPartitions<T> withUpperBound(Long upperBound) {
+    public ReadWithPartitions<T, PartitionColumnT> withUpperBound(PartitionColumnT upperBound) {
       return toBuilder().setUpperBound(upperBound).build();
     }
 
     /** Name of the table in the external database. Can be used to pass a user-defined subqery. */
-    public ReadWithPartitions<T> withTable(String tableName) {
+    public ReadWithPartitions<T, PartitionColumnT> withTable(String tableName) {
       checkNotNull(tableName, "table can not be null");
       return toBuilder().setTable(tableName).build();
     }
+
+    private static final int EQUAL = 0;
 
     @Override
     public PCollection<T> expand(PBegin input) {
@@ -1108,24 +1140,31 @@ public class JdbcIO {
           "Upper and lower bounds are mandatory parameters for JdbcIO.readWithPartitions");
       checkNotNull(getTable(), "withTable() is required");
       checkArgument(
-          getLowerBound() < getUpperBound(),
-          "The lower bound of partitioning column is larger or equal than the upper bound");
+          getLowerBound() != null && getUpperBound() != null,
+          "lowerBound and higherBound are required properties. Please provide both.");
+      if (getLowerBound() instanceof Comparable<?>) {
+        // Not all partition types are comparable. For example, LocalDateTime, which is a valid
+        // partitioning type, is not Comparable, so we can't enforce this for all sorts of
+        // partitioning.
+        checkArgument(
+            ((Comparable<PartitionColumnT>) getLowerBound()).compareTo(getUpperBound()) < EQUAL,
+            "The lower bound of partitioning column is larger or equal than the upper bound");
+      }
       checkArgument(
-          getUpperBound() - getLowerBound() >= getNumPartitions(),
-          "The specified number of partitions is more than the difference between upper bound and lower bound");
+          JdbcUtil.PRESET_HELPERS.containsKey(getPartitionColumnType().getRawType()),
+          "readWithPartitions only supports the following types: %s",
+          JdbcUtil.PRESET_HELPERS.keySet());
 
-      PCollection<KV<Integer, KV<Long, Long>>> params =
+      PCollection<KV<Integer, KV<PartitionColumnT, PartitionColumnT>>> params =
           input.apply(
-              Create.of(
-                  Collections.singletonList(
-                      KV.of(getNumPartitions(), KV.of(getLowerBound(), getUpperBound())))));
-      PCollection<KV<String, Iterable<Long>>> ranges =
+              Create.of(KV.of(getNumPartitions(), KV.of(getLowerBound(), getUpperBound()))));
+      PCollection<KV<PartitionColumnT, PartitionColumnT>> ranges =
           params
-              .apply("Partitioning", ParDo.of(new PartitioningFn()))
-              .apply("Group partitions", GroupByKey.create());
+              .apply("Partitioning", ParDo.of(new PartitioningFn<>(getPartitionColumnType())))
+              .apply("Reshuffle partitions", Reshuffle.viaRandomKey());
 
-      JdbcIO.ReadAll<KV<String, Iterable<Long>>, T> readAll =
-          JdbcIO.<KV<String, Iterable<Long>>, T>readAll()
+      JdbcIO.ReadAll<KV<PartitionColumnT, PartitionColumnT>, T> readAll =
+          JdbcIO.<KV<PartitionColumnT, PartitionColumnT>, T>readAll()
               .withDataSourceProviderFn(getDataSourceProviderFn())
               .withQuery(
                   String.format(
@@ -1133,12 +1172,12 @@ public class JdbcIO {
                       getTable(), getPartitionColumn()))
               .withRowMapper(getRowMapper())
               .withParameterSetter(
-                  (PreparedStatementSetter<KV<String, Iterable<Long>>>)
-                      (element, preparedStatement) -> {
-                        String[] range = element.getKey().split(",", -1);
-                        preparedStatement.setLong(1, Long.parseLong(range[0]));
-                        preparedStatement.setLong(2, Long.parseLong(range[1]));
-                      })
+                  // This cast is unchecked, thus this is a small type-checking risk. We just need
+                  // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched
+                  // in type from their Key and their Value.
+                  ((JdbcReadWithPartitionsHelper<PartitionColumnT>)
+                          JdbcUtil.PRESET_HELPERS.get(getPartitionColumnType().getRawType()))
+                      ::setParameters)
               .withOutputParallelization(false);
 
       if (getCoder() != null) {
@@ -1158,8 +1197,8 @@ public class JdbcIO {
       builder.add(DisplayData.item("partitionColumn", getPartitionColumn()));
       builder.add(DisplayData.item("table", getTable()));
       builder.add(DisplayData.item("numPartitions", getNumPartitions()));
-      builder.add(DisplayData.item("lowerBound", getLowerBound()));
-      builder.add(DisplayData.item("upperBound", getUpperBound()));
+      builder.add(DisplayData.item("lowerBound", getLowerBound().toString()));
+      builder.add(DisplayData.item("upperBound", getUpperBound().toString()));
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
       }
@@ -1204,6 +1243,11 @@ public class JdbcIO {
       if (connection == null) {
         connection = dataSource.getConnection();
       }
+      // System.out.println(
+      //     this.query.get()
+      //         + String.valueOf(this.fetchSize)
+      //         + this.rowMapper.toString()
+      //         + this.parameterSetter.toString());
       // PostgreSQL requires autocommit to be disabled to enable cursor streaming
       // see https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor
       LOG.info("Autocommit has been disabled");
@@ -1867,7 +1911,12 @@ public class JdbcIO {
 
       checkState(
           tableFilteredFields.size() == schema.getFieldCount(),
-          "Provided schema doesn't match with database schema.");
+          "Provided schema doesn't match with database schema. " + " Table has fields: ",
+          tableFilteredFields.stream()
+              .map(f -> f.getIndex().toString() + "-" + f.getField().getName())
+              .collect(Collectors.joining(",")),
+          " while provided schema has fields:",
+          schema.getFieldNames().toString());
 
       return tableFilteredFields;
     }

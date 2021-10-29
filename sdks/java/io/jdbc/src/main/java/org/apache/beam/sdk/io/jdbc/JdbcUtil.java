@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import avro.shaded.com.google.common.collect.Lists;
 import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -33,13 +35,18 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.joda.time.ReadableDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
 @SuppressWarnings({
@@ -334,30 +341,123 @@ class JdbcUtil {
   }
 
   /** Create partitions on a table. */
-  static class PartitioningFn extends DoFn<KV<Integer, KV<Long, Long>>, KV<String, Long>> {
+  // static class PartitioningFn<T extends Comparable<T>>
+  static class PartitioningFn<T> extends DoFn<KV<Integer, KV<T, T>>, KV<T, T>> {
+    private static final Logger LOG = LoggerFactory.getLogger(PartitioningFn.class);
+    final TypeDescriptor<T> partitioningColumnType;
+
+    PartitioningFn(TypeDescriptor<T> partitioningColumnType) {
+      this.partitioningColumnType = partitioningColumnType;
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c) {
-      Integer numPartitions = c.element().getKey();
-      Long lowerBound = c.element().getValue().getKey();
-      Long upperBound = c.element().getValue().getValue();
-      if (lowerBound > upperBound) {
-        throw new RuntimeException(
-            String.format(
-                "Lower bound [%s] is higher than upper bound [%s]", lowerBound, upperBound));
-      }
-      long stride = (upperBound - lowerBound) / numPartitions + 1;
-      for (long i = lowerBound; i < upperBound - stride; i += stride) {
-        String range = String.format("%s,%s", i, i + stride);
-        KV<String, Long> kvRange = KV.of(range, 1L);
-        c.output(kvRange);
-      }
-      if (upperBound - lowerBound > stride * (numPartitions - 1)) {
-        long indexFrom = (numPartitions - 1) * stride;
-        long indexTo = upperBound + 1;
-        String range = String.format("%s,%s", indexFrom, indexTo);
-        KV<String, Long> kvRange = KV.of(range, 1L);
-        c.output(kvRange);
+      T lowerBound = c.element().getValue().getKey();
+      T upperBound = c.element().getValue().getValue();
+      JdbcReadWithPartitionsHelper<T> helper =
+          (JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(partitioningColumnType.getRawType());
+      List<KV<T, T>> ranges =
+          Lists.newArrayList(helper.calculateRanges(lowerBound, upperBound, c.element().getKey()));
+      LOG.warn("Total of {} ranges: {}", ranges.size(), ranges);
+      for (KV<T, T> e : ranges) {
+        c.output(e);
       }
     }
+  }
+
+  public static final Map<Class<?>, JdbcReadWithPartitionsHelper<?>> PRESET_HELPERS =
+      ImmutableMap.of(
+          String.class,
+          new JdbcReadWithPartitionsHelper<String>() {
+            @Override
+            public Iterable<KV<String, String>> calculateRanges(
+                String lowerBound, String upperBound, Integer partitions) {
+              // TODO(pabloem): Write this method.
+              throw new RuntimeException(
+                  "Automatic String range partitioning is not yet supported!");
+            }
+
+            @Override
+            public void setParameters(
+                KV<String, String> element, PreparedStatement preparedStatement) {
+              try {
+                preparedStatement.setString(1, element.getKey());
+                preparedStatement.setString(2, element.getValue());
+              } catch (SQLException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          },
+          Long.class,
+          new JdbcReadWithPartitionsHelper<Long>() {
+            @Override
+            public Iterable<KV<Long, Long>> calculateRanges(
+                Long lowerBound, Long upperBound, Integer partitions) {
+              List<KV<Long, Long>> ranges = new ArrayList<>();
+              // We divide by partitions FIRST to make sure that we can cover the whole LONG range.
+              // If we substract first, then we may end up with Long.MAX - Long.MIN, which is 2*MAX,
+              // and we'd have trouble with the pipeline.
+              long stride = (upperBound / partitions - lowerBound / partitions) + 1;
+              for (long i = lowerBound; i < upperBound - stride; i += stride) {
+                ranges.add(KV.of(i, i + stride));
+              }
+              if (upperBound - lowerBound > stride * (partitions - 1)) {
+                long indexFrom = (partitions - 1) * stride;
+                long indexTo = upperBound + 1;
+                ranges.add(KV.of(indexFrom, indexTo));
+              }
+              return ranges;
+            }
+
+            @Override
+            public void setParameters(KV<Long, Long> element, PreparedStatement preparedStatement) {
+              try {
+                preparedStatement.setLong(1, element.getKey());
+                preparedStatement.setLong(2, element.getValue());
+              } catch (SQLException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          },
+          DateTime.class,
+          new JdbcReadWithPartitionsHelper<DateTime>() {
+            @Override
+            public Iterable<KV<DateTime, DateTime>> calculateRanges(
+                DateTime lowerBound, DateTime upperBound, Integer partitions) {
+              final List<KV<DateTime, DateTime>> result = new ArrayList<>();
+
+              final long intervalMillis = upperBound.getMillis() - lowerBound.getMillis();
+              final long strideMillis = intervalMillis / partitions;
+              // Add the first advancement
+              DateTime currentUpperBound = lowerBound.plus(Duration.millis(strideMillis));
+              // Zero output in a comparison means that elements are equal
+              while (currentUpperBound.compareTo(upperBound) <= 0) {
+                result.add(
+                    KV.of(
+                        currentUpperBound.minus(Duration.millis(strideMillis)), currentUpperBound));
+                currentUpperBound = currentUpperBound.plus(Duration.millis(strideMillis));
+              }
+              return result;
+            }
+
+            @Override
+            public void setParameters(
+                KV<DateTime, DateTime> element, PreparedStatement preparedStatement) {
+              try {
+                preparedStatement.setTimestamp(1, new Timestamp(element.getKey().getMillis()));
+                preparedStatement.setTimestamp(2, new Timestamp(element.getValue().getMillis()));
+              } catch (SQLException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          });
+
+  public interface JdbcReadWithPartitionsHelper<PartitionT>
+      extends PreparedStatementSetter<KV<PartitionT, PartitionT>> {
+    Iterable<KV<PartitionT, PartitionT>> calculateRanges(
+        PartitionT lowerBound, PartitionT upperBound, Integer partitions);
+
+    @Override
+    void setParameters(KV<PartitionT, PartitionT> element, PreparedStatement preparedStatement);
   }
 }
