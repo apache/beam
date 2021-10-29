@@ -712,11 +712,18 @@ public class ApiSurface {
   private void addExposedTypes(Invokable<?, ?> invokable, Class<?> cause) {
     addExposedTypes(invokable.getReturnType(), cause);
     for (Annotation annotation : invokable.getAnnotations()) {
+      Class<? extends Annotation> annotationClass = annotation.annotationType();
+      if (!Modifier.isPublic(annotationClass.getModifiers())) {
+        // Non-public annotations are invisible to Beam users. Example: Guava's
+        // ParametricNullness is package-private and exists to support Kotlin platform
+        // Details: https://github.com/apache/beam/pull/15835
+        continue;
+      }
       LOG.debug(
           "Adding exposed types from {}, which is an annotation on invokable {}",
           annotation,
           invokable);
-      addExposedTypes(annotation.annotationType(), cause);
+      addExposedTypes(annotationClass, cause);
     }
     for (Parameter parameter : invokable.getParameters()) {
       LOG.debug(
@@ -741,11 +748,18 @@ public class ApiSurface {
         parameter);
     addExposedTypes(parameter.getType(), cause);
     for (Annotation annotation : parameter.getAnnotations()) {
+      Class<? extends Annotation> annotationClass = annotation.annotationType();
+      if (!Modifier.isPublic(annotationClass.getModifiers())) {
+        // Non-public annotations are invisible to Beam users. Example: Guava's
+        // ParametricNullness is package-private and exists to support Kotlin platform
+        // Details: https://github.com/apache/beam/pull/15835
+        continue;
+      }
       LOG.debug(
           "Adding exposed types from {}, which is an annotation on parameter {}",
           annotation,
           parameter);
-      addExposedTypes(annotation.annotationType(), cause);
+      addExposedTypes(annotationClass, cause);
     }
   }
 
