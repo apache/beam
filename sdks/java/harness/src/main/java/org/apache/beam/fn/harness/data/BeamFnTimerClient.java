@@ -21,32 +21,20 @@ import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 
 /**
- * The {@link BeamFnTimerClient} is able to forward inbound timers to a {@link FnDataReceiver} and
- * provide a receiver for outbound timers. Callers can register a timer {@link LogicalEndpoint} to
- * both send and receive timers.
+ * The {@link BeamFnTimerClient} is able to register to forward outbound timers to a {@link
+ * FnDataReceiver}. Callers can register to receive timers via {@link
+ * org.apache.beam.fn.harness.PTransformRunnerFactory.Context#addIncomingTimerEndpoint}.
  */
 public interface BeamFnTimerClient {
   /**
-   * A handler capable of blocking for inbound timers and also capable of consuming outgoing timers.
-   * See {@link InboundDataClient} for all details related to handling inbound timers and see {@link
-   * CloseableFnDataReceiver} for all details related to sending outbound timers.
-   */
-  interface TimerHandler<K> extends InboundDataClient, CloseableFnDataReceiver<Timer<K>> {}
-
-  /**
-   * Registers for a timer handler for for the provided instruction id and target.
+   * Registers for a timer handler for the provided logical endpoint.
    *
-   * <p>The provided coder is used to encode and decode timers. The inbound timers are passed to the
-   * provided receiver. Any failure during decoding or processing of the timer will complete the
-   * timer handler exceptionally. On successful termination of the stream, the returned timer
-   * handler is completed successfully.
-   *
-   * <p>The receiver is not required to be thread safe.
+   * <p>The provided coder is used to encode timers. The outbound timers should be passed to the
+   * returned receiver.
    */
-  <K> TimerHandler<K> register(
-      LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder, FnDataReceiver<Timer<K>> receiver);
+  <K> CloseableFnDataReceiver<Timer<K>> register(
+      LogicalEndpoint logicalEndpoint, Coder<Timer<K>> coder);
 }

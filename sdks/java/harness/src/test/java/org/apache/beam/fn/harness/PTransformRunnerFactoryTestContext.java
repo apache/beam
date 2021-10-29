@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
@@ -32,6 +33,7 @@ import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -40,16 +42,16 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 
 /**
@@ -67,10 +69,16 @@ public abstract class PTransformRunnerFactoryTestContext
         .beamFnDataClient(
             new BeamFnDataClient() {
               @Override
-              public InboundDataClient receive(
-                  ApiServiceDescriptor apiServiceDescriptor,
-                  LogicalEndpoint inputLocation,
-                  FnDataReceiver<ByteString> receiver) {
+              public void registerReceiver(
+                  String instructionId,
+                  List<ApiServiceDescriptor> apiServiceDescriptors,
+                  CloseableFnDataReceiver<Elements> receiver) {
+                throw new UnsupportedOperationException("Unexpected call during test.");
+              }
+
+              @Override
+              public void unregisterReceiver(
+                  String instructionId, List<ApiServiceDescriptor> apiServiceDescriptors) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
 
@@ -93,10 +101,8 @@ public abstract class PTransformRunnerFactoryTestContext
             new BeamFnTimerClient() {
 
               @Override
-              public <K> TimerHandler<K> register(
-                  LogicalEndpoint timerEndpoint,
-                  Coder<Timer<K>> coder,
-                  FnDataReceiver<Timer<K>> receiver) {
+              public <K> CloseableFnDataReceiver<Timer<K>> register(
+                  LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
             })
@@ -115,6 +121,8 @@ public abstract class PTransformRunnerFactoryTestContext
         .resetFunctions(new ArrayList<>())
         .tearDownFunctions(new ArrayList<>())
         .progressRequestCallbacks(new ArrayList<>())
+        .incomingDataEndpoints(new HashMap<>())
+        .incomingTimerEndpoints(new ArrayList<>())
         .splitListener(
             new BundleSplitListener() {
               @Override
@@ -162,6 +170,10 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder pCollectionConsumers(Map<String, List<FnDataReceiver<?>>> value);
 
+    Builder incomingDataEndpoints(Map<ApiServiceDescriptor, List<DataEndpoint<?>>> value);
+
+    Builder incomingTimerEndpoints(List<TimerEndpoint<?>> value);
+
     Builder startBundleFunctions(List<ThrowingRunnable> value);
 
     Builder finishBundleFunctions(List<ThrowingRunnable> value);
@@ -208,6 +220,34 @@ public abstract class PTransformRunnerFactoryTestContext
         }
       }
     };
+  }
+
+  public abstract Map<ApiServiceDescriptor, List<DataEndpoint<?>>> getIncomingDataEndpoints();
+
+  @Override
+  public <T> void addIncomingDataEndpoint(
+      ApiServiceDescriptor apiServiceDescriptor, Coder<T> coder, FnDataReceiver<T> receiver) {
+    getIncomingDataEndpoints()
+        .computeIfAbsent(apiServiceDescriptor, (unused) -> new ArrayList<>())
+        .add(DataEndpoint.create(getPTransformId(), coder, receiver));
+  }
+
+  public abstract List<TimerEndpoint<?>> getIncomingTimerEndpoints();
+
+  public <T> TimerEndpoint<T> getIncomingTimerEndpoint(String timerFamilyId) {
+    for (TimerEndpoint<?> timerEndpoint : getIncomingTimerEndpoints()) {
+      if (timerFamilyId.equals(timerEndpoint.getTimerFamilyId())) {
+        return (TimerEndpoint<T>) timerEndpoint;
+      }
+    }
+    throw new NoSuchElementException();
+  }
+
+  @Override
+  public <T> void addIncomingTimerEndpoint(
+      String timerFamilyId, Coder<Timer<T>> coder, FnDataReceiver<Timer<T>> receiver) {
+    getIncomingTimerEndpoints()
+        .add(TimerEndpoint.create(getPTransformId(), timerFamilyId, coder, receiver));
   }
 
   /** Returns a list of methods registered to perform {@link DoFn.StartBundle}. */
