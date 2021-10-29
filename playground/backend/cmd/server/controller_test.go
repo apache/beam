@@ -33,6 +33,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -225,20 +226,67 @@ func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 
 func TestPlaygroundController_GetRunOutput(t *testing.T) {
 	ctx := context.Background()
+	pipelineId := uuid.New()
+	runOutput := "MOCK_RUN_OUTPUT"
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
 	defer conn.Close()
 	client := pb.NewPlaygroundServiceClient(conn)
-	pipelineMeta := pb.GetRunOutputRequest{
-		PipelineUuid: uuid.NewString(),
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetRunOutputRequest
 	}
-	runOutput, err := client.GetRunOutput(ctx, &pipelineMeta)
-	if err != nil {
-		t.Fatalf("runCode failed: %v", err)
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		want    *pb.GetRunOutputResponse
+		wantErr bool
+	}{
+		{
+			name:    "pipelineId doesn't exist",
+			prepare: func() {},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetRunOutputRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "run output exist",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutput, runOutput)
+			},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetRunOutputRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    &pb.GetRunOutputResponse{Output: runOutput},
+			wantErr: false,
+		},
 	}
-	log.Printf("Response: %+v", runOutput)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := client.GetRunOutput(tt.args.ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetRunOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if !strings.EqualFold(got.Output, tt.want.Output) {
+					t.Errorf("GetRunOutput() got = %v, want %v", got.Output, tt.want.Output)
+				}
+				if !reflect.DeepEqual(got.CompilationStatus, tt.want.CompilationStatus) {
+					t.Errorf("GetRunOutput() got = %v, want %v", got.CompilationStatus, tt.want.CompilationStatus)
+				}
+			}
+		})
+	}
 }
 
 func Test_processCode(t *testing.T) {

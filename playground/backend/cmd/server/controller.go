@@ -81,8 +81,17 @@ func (controller *playgroundController) CheckStatus(ctx context.Context, info *p
 
 //GetRunOutput is returning output of execution for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetRunOutput(ctx context.Context, info *pb.GetRunOutputRequest) (*pb.GetRunOutputResponse, error) {
-	// TODO implement this method
-	pipelineResult := pb.GetRunOutputResponse{Output: "Test Pipeline Result"}
+	pipelineId := info.PipelineUuid
+	runOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.RunOutput)
+	if err != nil {
+		logger.Errorf("%s: GetRunOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
+		return nil, errors.NotFoundError("GetRunOutput", "there is no run output for pipelineId: "+pipelineId+", subKey: cache.SubKey_RunOutput")
+	}
+	runOutput, converted := runOutputInterface.(string)
+	if !converted {
+		return nil, errors.InternalError("GetRunOutput", "run output can't be converted to string")
+	}
+	pipelineResult := pb.GetRunOutputResponse{Output: runOutput}
 
 	return &pipelineResult, nil
 }
