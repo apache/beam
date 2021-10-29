@@ -183,7 +183,8 @@ public class KinesisIOIT implements Serializable {
   }
 
   private static AmazonKinesis createKinesisClient() {
-    AWSCredentials credentials = new BasicAWSCredentials(options.getAwsAccessKey(), options.getAwsSecretKey());
+    AWSCredentials credentials =
+        new BasicAWSCredentials(options.getAwsAccessKey(), options.getAwsSecretKey());
     AmazonKinesisClientBuilder clientBuilder =
         AmazonKinesisClientBuilder.standard()
             .withCredentials(new AWSStaticCredentialsProvider(credentials));
