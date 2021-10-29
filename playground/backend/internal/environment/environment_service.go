@@ -55,6 +55,7 @@ const (
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
+// Environment contains all environment variables which are used by the application
 type Environment struct {
 	NetworkEnvs     NetworkEnvs
 	BeamSdkEnvs     BeamEnvs
@@ -76,7 +77,14 @@ func NewEnvironment(networkEnvs NetworkEnvs, beamEnvs BeamEnvs, appEnvs Applicat
 	return &svc
 }
 
-//GetApplicationEnvsFromOsEnvs lookups in os environment variables and takes value for app working dir. If not exists - return error
+// GetApplicationEnvsFromOsEnvs returns ApplicationEnvs.
+// Lookups in os environment variables and tries to take values for all (exclude working dir) ApplicationEnvs parameters.
+// In case some value doesn't exist sets default values:
+// 	- pipeline execution timeout: 10 minutes
+//	- cache expiration time: 15 minutes
+//	- type of cache: local
+//	- cache address: localhost:6379
+// If os environment variables don't contain a value for app working dir - returns error.
 func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	pipelineExecuteTimeout := defaultPipelineExecuteTimeout
 	cacheExpirationTime := defaultCacheKeyExpirationTime
@@ -104,7 +112,11 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }
 
-// GetNetworkEnvsFromOsEnvs lookups in os environment variables and takes value for ip and port. If not exists - using default
+// GetNetworkEnvsFromOsEnvs returns NetworkEnvs.
+// Lookups in os environment variables and takes values for ip and port.
+// In case some value doesn't exist sets default values:
+//  - ip:	localhost
+//  - port: 8080
 func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 	ip := getEnv(serverIpKey, defaultIp)
 	port := defaultPort
@@ -118,7 +130,10 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 	return NewNetworkEnvs(ip, port), nil
 }
 
-// ConfigureBeamEnvs lookups in os environment variables and takes value for Apache Beam SDK. If not exists - using default
+// ConfigureBeamEnvs returns BeamEnvs.
+// Lookups in os environment variables and takes value for Apache Beam SDK.
+// If os environment variables don't contain a value for Apache Beam SDK - returns error.
+// Configures ExecutorConfig with config file.
 func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
 	if value, present := os.LookupEnv(beamSdkKey); present {
@@ -145,7 +160,8 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	return NewBeamEnvs(sdk, executorConfig), nil
 }
 
-//createExecutorConfig creates ExecutorConfig object that corresponds to specific apache beam sdk
+// createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.
+// Configures ExecutorConfig with config file which is located at configPath.
 func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorConfig, error) {
 	executorConfig, err := getConfigFromJson(configPath)
 	if err != nil {
@@ -170,7 +186,7 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	return executorConfig, nil
 }
 
-//getConfigFromJson reads a json file to ExecutorConfig struct
+// getConfigFromJson reads a json file to ExecutorConfig
 func getConfigFromJson(configPath string) (*ExecutorConfig, error) {
 	file, err := ioutil.ReadFile(configPath)
 	if err != nil {
@@ -184,7 +200,7 @@ func getConfigFromJson(configPath string) (*ExecutorConfig, error) {
 	return &executorConfig, err
 }
 
-//getEnv returns a environment variable or default value
+// getEnv returns an environment variable or default value
 func getEnv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
