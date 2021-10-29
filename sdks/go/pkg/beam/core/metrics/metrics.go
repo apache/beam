@@ -739,8 +739,7 @@ func MergeGauges(
 	return res
 }
 
-// MsecResult is an attempted and a commited value of a counter metric plus
-// key.
+// MsecResult is an attempted and a commited value of a counter metric plus key.
 type MsecResult struct {
 	Attempted, Committed MsecValue
 	Key                  StepKey

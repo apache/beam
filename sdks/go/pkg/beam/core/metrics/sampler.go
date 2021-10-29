@@ -17,6 +17,7 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -55,24 +56,31 @@ func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
 			// state change detected
 			s.millisSinceLastTransition = 0
 			s.transitionsAtLastSample = ps.transitions
+			s.nextLogTime = s.logInterval
 		} else {
 			s.millisSinceLastTransition += t
 		}
 
 		if s.millisSinceLastTransition > s.nextLogTime {
-			log.Info(ctx, "...standard long running operation log ...", ps.pid, ps.state, s.millisSinceLastTransition)
+			log.Info(ctx, "Operation ongoing in transform "+ps.pid+
+				" for at least "+fmt.Sprint(s.millisSinceLastTransition)+
+				" without outputting or completing in state "+getState(ps.state))
 			s.nextLogTime += s.logInterval
 		}
 	}
 }
 
+func (s *StateSampler) updateLogInterval(t time.Duration) {
+	s.logInterval = t
+}
+
 func loadCurrentState(s *StateSampler) currentStateVal {
-	if ts := (atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&s.store.bundleState)))); ts == nil {
+	ts := (atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&s.store.bundleState))))
+	if ts == nil {
 		return currentStateVal{}
-	} else {
-		bs := *(*BundleState)(ts)
-		return currentStateVal{pid: bs.pid, state: bs.currentState, transitions: atomic.LoadInt64(s.store.transitions)}
 	}
+	bs := *(*BundleState)(ts)
+	return currentStateVal{pid: bs.pid, state: bs.currentState, transitions: atomic.LoadInt64(s.store.transitions)}
 }
 
 type PTransformState struct {
@@ -94,5 +102,18 @@ func (s *PTransformState) Set(ctx context.Context, state bundleProcState) {
 	if bctx, ok := ctx.(*beamCtx); ok {
 		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&bctx.store.bundleState)), unsafe.Pointer(&s.states[state]))
 		atomic.AddInt64(bctx.store.transitions, 1)
+	}
+}
+
+func getState(s bundleProcState) string {
+	switch s {
+	case 0:
+		return "START_BUNDLE"
+	case 1:
+		return "PROCESS_BUNDLE"
+	case 2:
+		return "FINISH BUNDLE"
+	default:
+		return ""
 	}
 }

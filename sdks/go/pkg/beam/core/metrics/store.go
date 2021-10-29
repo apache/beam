@@ -92,9 +92,8 @@ type Extractor struct {
 	// GaugeInt64 extracts data from Gauge Int64 counters.
 	GaugeInt64 func(labels Labels, v int64, t time.Time)
 
+	// MsecsInt64 extracts data from StateRegistry of ExecutionState.
 	// Extraction of Msec counters is experimental and subject to change.
-
-	// MsecsInt64 extracts data from StateRegistry of ExecutionState
 	MsecsInt64 func(labels string, e *[4]ExecutionState)
 }
 
