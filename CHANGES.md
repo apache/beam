@@ -69,6 +69,7 @@
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* A new URN convention was adopted for cross-language transforms and existing URNs were updated ([BEAM-12047](https://issues.apache.org/jira/browse/BEAM-12047)).
 
 ## Deprecations
 
