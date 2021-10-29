@@ -74,9 +74,17 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 
 //CheckStatus is checking status for the specific pipeline by PipelineUuid
 func (controller *playgroundController) CheckStatus(ctx context.Context, info *pb.CheckStatusRequest) (*pb.CheckStatusResponse, error) {
-	// TODO implement this method
-	status := pb.CheckStatusResponse{Status: pb.Status_STATUS_FINISHED}
-	return &status, nil
+	pipelineId := info.PipelineUuid
+	statusInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.Status)
+	if err != nil {
+		logger.Errorf("%s: CheckStatus(): cache.GetValue: error: %s", pipelineId, err.Error())
+		return nil, errors.NotFoundError("CheckStatus", "Error during getting cache by pipelineId: "+pipelineId+", subKey: cache.SubKey_Status")
+	}
+	status, converted := statusInterface.(pb.Status)
+	if !converted {
+		return nil, errors.InternalError("CheckStatus", "status value from cache couldn't be converted to correct status enum")
+	}
+	return &pb.CheckStatusResponse{Status: status}, nil
 }
 
 //GetRunOutput is returning output of execution for specific pipeline by PipelineUuid
