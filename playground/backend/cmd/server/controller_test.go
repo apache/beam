@@ -79,11 +79,11 @@ func setup() *grpc.Server {
 	if err != nil {
 		panic(err)
 	}
-	sdkEnv, err := environment.GetSdkEnvsFromOsEnvs()
+	appEnv, err := environment.GetApplicationEnvsFromOsEnvs()
 	if err != nil {
 		panic(err)
 	}
-	appEnv, err := environment.GetApplicationEnvsFromOsEnvs()
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnv.WorkingDir())
 	if err != nil {
 		panic(err)
 	}
@@ -243,15 +243,15 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 
 func Test_processCode(t *testing.T) {
 	pipelineId := uuid.New()
-	sdkEnv, err := environment.GetSdkEnvsFromOsEnvs()
-	if err != nil {
-		panic(err)
-	}
 	networkEnvs, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {
 		panic(err)
 	}
 	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		panic(err)
+	}
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
 	if err != nil {
 		panic(err)
 	}
