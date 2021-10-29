@@ -17,7 +17,6 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -62,15 +61,14 @@ func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
 		}
 
 		if s.millisSinceLastTransition > s.nextLogTime {
-			log.Info(ctx, "Operation ongoing in transform "+ps.pid+
-				" for at least "+fmt.Sprint(s.millisSinceLastTransition)+
-				" without outputting or completing in state "+getState(ps.state))
+			log.Infof(ctx, "Operation ongoing in transform %v for at least %v ms without outputting or completing in state %v", ps.pid, s.millisSinceLastTransition, getState(ps.state))
 			s.nextLogTime += s.logInterval
 		}
 	}
 }
 
-func (s *StateSampler) updateLogInterval(t time.Duration) {
+// SetLogInterval sets the logging interval for lull reporting.
+func (s *StateSampler) SetLogInterval(t time.Duration) {
 	s.logInterval = t
 }
 
@@ -112,7 +110,7 @@ func getState(s bundleProcState) string {
 	case 1:
 		return "PROCESS_BUNDLE"
 	case 2:
-		return "FINISH BUNDLE"
+		return "FINISH_BUNDLE"
 	default:
 		return ""
 	}
