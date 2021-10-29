@@ -44,7 +44,7 @@ from _thread import RLock as RLockType
 
 try:
   from absl import flags
-except ImportError:
+except (ImportError, ModuleNotFoundError):
   pass
 
 import cloudpickle
