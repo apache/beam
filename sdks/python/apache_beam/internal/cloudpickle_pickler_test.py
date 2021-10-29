@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for the pickler module."""
+"""Unit tests for the cloudpickle_pickler module."""
 
 # pytype: skip-file
 

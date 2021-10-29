@@ -189,7 +189,7 @@ class CodersTest(unittest.TestCase):
         self.assertEqual(
             coder.get_impl().get_estimated_size_and_observables(v),
             (coder.get_impl().estimate_size(v), []))
-        copy1 = pickler.loads(pickler.dumps(coder))
+      copy1 = pickler.loads(pickler.dumps(coder))
     copy2 = coders.Coder.from_runner_api(coder.to_runner_api(context), context)
     for v in values:
       self.assertEqual(v, copy1.decode(copy2.encode(v)))
