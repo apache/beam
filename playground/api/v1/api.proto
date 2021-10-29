@@ -81,6 +81,37 @@ message GetRunOutputResponse {
   Status compilation_status = 2;
 }
 
+// ListOfExamplesRequest contains information of the needed examples sdk and categories.
+message GetListOfExamplesRequest{
+  Sdk sdk = 1;
+  string category = 2;
+}
+
+// Examples represent the array of examples.
+message Examples{
+  repeated string example = 1;
+}
+
+// CategoryList represent the map between the category and examples corresponding to this category.
+message CategoryList{
+  map<string, Examples> category_examples = 1;
+}
+
+// ListOfExamplesResponse represent the map between sdk and categories for the sdk.
+message GetListOfExamplesResponse{
+  map<string, CategoryList> sdk_categories = 1;
+}
+
+// ExampleRequest contains information of the example uuid.
+message GetExampleRequest{
+  string example_uuid = 1;
+}
+
+// ExampleResponse represents the source code of the example.
+message GetExampleResponse{
+  string code = 1;
+}
+
 service PlaygroundService {
 
   // Submit the job for an execution and get the pipeline uuid.
@@ -94,4 +125,13 @@ service PlaygroundService {
 
   // Get the result of pipeline compilation.
   rpc GetCompileOutput(GetCompileOutputRequest) returns (GetCompileOutputResponse);
+
+  // Get the list of precompiled examples.
+  rpc GetListOfExamples(GetListOfExamplesRequest) returns (GetListOfExamplesResponse);
+
+  // Get the code of an example.
+  rpc GetExample(GetExampleRequest) returns (GetExampleResponse);
+
+  // Get the precompiled details of an example.
+  rpc GetExampleOutput(GetExampleRequest) returns (GetRunOutputResponse);
 }
