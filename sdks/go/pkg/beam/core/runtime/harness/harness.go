@@ -322,7 +322,14 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		// TODO(BEAM-11097): Get and set valid tokens in cache
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
+
+		sampler := newSampler(store)
+		go sampler.start(ctx, time.Millisecond*200)
+
 		err = plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
+
+		sampler.stop()
+
 		data.Close()
 		state.Close()
 
