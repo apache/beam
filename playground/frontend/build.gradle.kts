@@ -27,6 +27,7 @@ task("analyze") {
       args("analyze", ".")
     }
   }
+  mustRunAfter("pubGet")
 }
 
 task("pubGet") {
