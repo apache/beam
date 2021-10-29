@@ -1398,7 +1398,6 @@ class AggregationTest(_AbstractFrameTest):
         'median',
         'sem',
         'mad',
-        'skew',
         'kurtosis',
         'kurt')
 
