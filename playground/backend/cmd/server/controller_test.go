@@ -252,20 +252,67 @@ func TestPlaygroundController_CheckStatus(t *testing.T) {
 
 func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 	ctx := context.Background()
+	pipelineId := uuid.New()
+	compileOutput := "MOCK_COMPILE_OUTPUT"
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
 	defer conn.Close()
 	client := pb.NewPlaygroundServiceClient(conn)
-	pipelineMeta := pb.GetCompileOutputRequest{
-		PipelineUuid: uuid.NewString(),
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetCompileOutputRequest
 	}
-	compileOutput, err := client.GetCompileOutput(ctx, &pipelineMeta)
-	if err != nil {
-		t.Fatalf("runCode failed: %v", err)
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		want    *pb.GetRunOutputResponse
+		wantErr bool
+	}{
+		{
+			name:    "pipelineId doesn't exist",
+			prepare: func() {},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetCompileOutputRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "run output exist",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.CompileOutput, compileOutput)
+			},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetCompileOutputRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    &pb.GetRunOutputResponse{Output: compileOutput},
+			wantErr: false,
+		},
 	}
-	log.Printf("Response: %+v", compileOutput)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := client.GetCompileOutput(tt.args.ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetCompileOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if !strings.EqualFold(got.Output, tt.want.Output) {
+					t.Errorf("GetCompileOutput() got = %v, want %v", got.Output, tt.want.Output)
+				}
+				if !reflect.DeepEqual(got.CompilationStatus, tt.want.CompilationStatus) {
+					t.Errorf("GetCompileOutput() got = %v, want %v", got.CompilationStatus, tt.want.CompilationStatus)
+				}
+			}
+		})
+	}
 }
 
 func TestPlaygroundController_GetRunOutput(t *testing.T) {
