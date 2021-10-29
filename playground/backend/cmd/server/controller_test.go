@@ -33,6 +33,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -79,11 +80,11 @@ func setup() *grpc.Server {
 	if err != nil {
 		panic(err)
 	}
-	sdkEnv, err := environment.GetSdkEnvsFromOsEnvs()
+	appEnv, err := environment.GetApplicationEnvsFromOsEnvs()
 	if err != nil {
 		panic(err)
 	}
-	appEnv, err := environment.GetApplicationEnvsFromOsEnvs()
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnv.WorkingDir())
 	if err != nil {
 		panic(err)
 	}
@@ -189,69 +190,207 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 
 func TestPlaygroundController_CheckStatus(t *testing.T) {
 	ctx := context.Background()
+	pipelineId := uuid.New()
+	wantStatus := pb.Status_STATUS_FINISHED
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
 	defer conn.Close()
 	client := pb.NewPlaygroundServiceClient(conn)
-	pipelineMeta := pb.CheckStatusRequest{
-		PipelineUuid: uuid.NewString(),
+
+	type args struct {
+		ctx     context.Context
+		request *pb.CheckStatusRequest
 	}
-	status, err := client.CheckStatus(ctx, &pipelineMeta)
-	if err != nil {
-		t.Fatalf("runCode failed: %v", err)
+	tests := []struct {
+		name       string
+		prepare    func()
+		args       args
+		wantStatus *pb.Status
+		wantErr    bool
+	}{
+		{
+			name:    "status is not set",
+			prepare: func() {},
+			args: args{
+				ctx:     ctx,
+				request: &pb.CheckStatusRequest{PipelineUuid: pipelineId.String()},
+			},
+			wantStatus: nil,
+			wantErr:    true,
+		},
+		{
+			name: "all success",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.Status, wantStatus)
+			},
+			args: args{
+				ctx:     ctx,
+				request: &pb.CheckStatusRequest{PipelineUuid: pipelineId.String()},
+			},
+			wantStatus: &wantStatus,
+			wantErr:    false,
+		},
 	}
-	log.Printf("Response: %+v", status)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := client.CheckStatus(ctx, tt.args.request)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_CheckStatus() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got == nil && tt.wantStatus != nil {
+				t.Errorf("PlaygroundController_CheckStatus() return = %v, want response with status %v", got, tt.wantStatus)
+			}
+			if got != nil && !reflect.DeepEqual(got.Status, *tt.wantStatus) {
+				t.Errorf("PlaygroundController_CheckStatus() return status = %v, want status %v", got.Status, tt.wantStatus)
+			}
+		})
+	}
 }
 
 func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 	ctx := context.Background()
+	pipelineId := uuid.New()
+	compileOutput := "MOCK_COMPILE_OUTPUT"
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
 	defer conn.Close()
 	client := pb.NewPlaygroundServiceClient(conn)
-	pipelineMeta := pb.GetCompileOutputRequest{
-		PipelineUuid: uuid.NewString(),
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetCompileOutputRequest
 	}
-	compileOutput, err := client.GetCompileOutput(ctx, &pipelineMeta)
-	if err != nil {
-		t.Fatalf("runCode failed: %v", err)
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		want    *pb.GetRunOutputResponse
+		wantErr bool
+	}{
+		{
+			name:    "pipelineId doesn't exist",
+			prepare: func() {},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetCompileOutputRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "run output exist",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.CompileOutput, compileOutput)
+			},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetCompileOutputRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    &pb.GetRunOutputResponse{Output: compileOutput},
+			wantErr: false,
+		},
 	}
-	log.Printf("Response: %+v", compileOutput)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := client.GetCompileOutput(tt.args.ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetCompileOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if !strings.EqualFold(got.Output, tt.want.Output) {
+					t.Errorf("GetCompileOutput() got = %v, want %v", got.Output, tt.want.Output)
+				}
+				if !reflect.DeepEqual(got.CompilationStatus, tt.want.CompilationStatus) {
+					t.Errorf("GetCompileOutput() got = %v, want %v", got.CompilationStatus, tt.want.CompilationStatus)
+				}
+			}
+		})
+	}
 }
 
 func TestPlaygroundController_GetRunOutput(t *testing.T) {
 	ctx := context.Background()
+	pipelineId := uuid.New()
+	runOutput := "MOCK_RUN_OUTPUT"
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
 	defer conn.Close()
 	client := pb.NewPlaygroundServiceClient(conn)
-	pipelineMeta := pb.GetRunOutputRequest{
-		PipelineUuid: uuid.NewString(),
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetRunOutputRequest
 	}
-	runOutput, err := client.GetRunOutput(ctx, &pipelineMeta)
-	if err != nil {
-		t.Fatalf("runCode failed: %v", err)
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		want    *pb.GetRunOutputResponse
+		wantErr bool
+	}{
+		{
+			name:    "pipelineId doesn't exist",
+			prepare: func() {},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetRunOutputRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "run output exist",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutput, runOutput)
+			},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetRunOutputRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    &pb.GetRunOutputResponse{Output: runOutput},
+			wantErr: false,
+		},
 	}
-	log.Printf("Response: %+v", runOutput)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := client.GetRunOutput(tt.args.ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetRunOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if !strings.EqualFold(got.Output, tt.want.Output) {
+					t.Errorf("GetRunOutput() got = %v, want %v", got.Output, tt.want.Output)
+				}
+				if !reflect.DeepEqual(got.CompilationStatus, tt.want.CompilationStatus) {
+					t.Errorf("GetRunOutput() got = %v, want %v", got.CompilationStatus, tt.want.CompilationStatus)
+				}
+			}
+		})
+	}
 }
 
 func Test_processCode(t *testing.T) {
 	pipelineId := uuid.New()
-	sdkEnv, err := environment.GetSdkEnvsFromOsEnvs()
-	if err != nil {
-		panic(err)
-	}
 	networkEnvs, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {
 		panic(err)
 	}
 	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		panic(err)
+	}
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
 	if err != nil {
 		panic(err)
 	}

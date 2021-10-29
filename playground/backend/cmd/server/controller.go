@@ -74,24 +74,51 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 
 //CheckStatus is checking status for the specific pipeline by PipelineUuid
 func (controller *playgroundController) CheckStatus(ctx context.Context, info *pb.CheckStatusRequest) (*pb.CheckStatusResponse, error) {
-	// TODO implement this method
-	status := pb.CheckStatusResponse{Status: pb.Status_STATUS_FINISHED}
-	return &status, nil
+	pipelineId := info.PipelineUuid
+	statusInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.Status)
+	if err != nil {
+		logger.Errorf("%s: CheckStatus(): cache.GetValue: error: %s", pipelineId, err.Error())
+		return nil, errors.NotFoundError("CheckStatus", "Error during getting cache by pipelineId: "+pipelineId+", subKey: cache.SubKey_Status")
+	}
+	status, converted := statusInterface.(pb.Status)
+	if !converted {
+		return nil, errors.InternalError("CheckStatus", "status value from cache couldn't be converted to correct status enum")
+	}
+	return &pb.CheckStatusResponse{Status: status}, nil
 }
 
 //GetRunOutput is returning output of execution for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetRunOutput(ctx context.Context, info *pb.GetRunOutputRequest) (*pb.GetRunOutputResponse, error) {
-	// TODO implement this method
-	pipelineResult := pb.GetRunOutputResponse{Output: "Test Pipeline Result"}
+	pipelineId := info.PipelineUuid
+	runOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.RunOutput)
+	if err != nil {
+		logger.Errorf("%s: GetRunOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
+		return nil, errors.NotFoundError("GetRunOutput", "there is no run output for pipelineId: "+pipelineId+", subKey: cache.SubKey_RunOutput")
+	}
+	runOutput, converted := runOutputInterface.(string)
+	if !converted {
+		return nil, errors.InternalError("GetRunOutput", "run output can't be converted to string")
+	}
+	pipelineResult := pb.GetRunOutputResponse{Output: runOutput}
 
 	return &pipelineResult, nil
 }
 
 //GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetCompileOutput(ctx context.Context, info *pb.GetCompileOutputRequest) (*pb.GetCompileOutputResponse, error) {
-	// TODO implement this method
-	compileOutput := pb.GetCompileOutputResponse{Output: "test compile output"}
-	return &compileOutput, nil
+	pipelineId := info.PipelineUuid
+	compileOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.CompileOutput)
+	if err != nil {
+		logger.Errorf("%s: GetCompileOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
+		return nil, errors.NotFoundError("GetCompileOutput", "there is no compile output for pipelineId: "+pipelineId+", subKey: cache.SubKey_CompileOutput")
+	}
+	compileOutput, converted := compileOutputInterface.(string)
+	if !converted {
+		return nil, errors.InternalError("GetCompileOutput", "compile output can't be converted to string")
+	}
+	pipelineResult := pb.GetCompileOutputResponse{Output: compileOutput}
+
+	return &pipelineResult, nil
 }
 
 // setupLifeCycle creates fs_tool.LifeCycle and prepares files and folders needed to code processing
