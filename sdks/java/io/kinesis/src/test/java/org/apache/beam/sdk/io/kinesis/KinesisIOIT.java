@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import com.amazonaws.SDKGlobalConfiguration;
-import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -26,8 +25,11 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
+import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -46,9 +48,12 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.containers.localstack.LocalStackContainer.Service;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -58,36 +63,39 @@ import org.testcontainers.utility.DockerImageName;
  */
 @RunWith(JUnit4.class)
 public class KinesisIOIT implements Serializable {
-  private static final String LOCALSTACK_VERSION = "0.11.4";
+  private static final String LOCALSTACK_VERSION = "0.12.18";
 
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();
 
+  // Will be run in reverse order
+  private static final List<ThrowingRunnable> teardownTasks = new ArrayList<>();
+
   private static KinesisTestOptions options;
 
-  private static AmazonKinesis kinesisClient;
-  private static LocalStackContainer localstackContainer;
   private static Instant now = Instant.now();
 
   @BeforeClass
   public static void setup() throws Exception {
     PipelineOptionsFactory.register(KinesisTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(KinesisTestOptions.class);
+
     if (options.getUseLocalstack()) {
       setupLocalstack();
-      kinesisClient = createKinesisClient();
-      createStream(options.getAwsKinesisStream());
+    }
+    if (options.getCreateStream()) {
+      AmazonKinesis kinesisClient = createKinesisClient();
+      teardownTasks.add(kinesisClient::shutdown);
+
+      createStream(kinesisClient);
+      teardownTasks.add(() -> deleteStream(kinesisClient));
     }
   }
 
   @AfterClass
   public static void teardown() {
-    if (options.getUseLocalstack()) {
-      kinesisClient.deleteStream(options.getAwsKinesisStream());
-      System.clearProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY);
-      System.clearProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY);
-      localstackContainer.stop();
-    }
+    Lists.reverse(teardownTasks).forEach(KinesisIOIT::safeRun);
+    teardownTasks.clear();
   }
 
   /** Test which write and then read data for a Kinesis stream. */
@@ -156,49 +164,34 @@ public class KinesisIOIT implements Serializable {
     // For some unclear reason localstack requires a timestamp in seconds
     now = Instant.ofEpochMilli(Long.divideUnsigned(now.getMillis(), 1000L));
 
-    System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");
-    System.setProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY, "true");
-
-    localstackContainer =
+    LocalStackContainer kinesisContainer =
         new LocalStackContainer(
                 DockerImageName.parse("localstack/localstack").withTag(LOCALSTACK_VERSION))
-            .withServices(LocalStackContainer.Service.KINESIS)
+            .withServices(Service.KINESIS)
             .withEnv("USE_SSL", "true")
             .withStartupAttempts(3);
-    localstackContainer.start();
 
-    options.setAwsServiceEndpoint(
-        localstackContainer
-            .getEndpointConfiguration(LocalStackContainer.Service.KINESIS)
-            .getServiceEndpoint()
-            .replace("http", "https"));
-    options.setAwsKinesisRegion(
-        localstackContainer
-            .getEndpointConfiguration(LocalStackContainer.Service.KINESIS)
-            .getSigningRegion());
-    options.setAwsAccessKey(
-        localstackContainer.getDefaultCredentialsProvider().getCredentials().getAWSAccessKeyId());
-    options.setAwsSecretKey(
-        localstackContainer.getDefaultCredentialsProvider().getCredentials().getAWSSecretKey());
-    options.setNumberOfRecords(1000);
-    options.setNumberOfShards(1);
-    options.setAwsKinesisStream("beam_kinesis_test");
+    kinesisContainer.start();
+    teardownTasks.add(() -> kinesisContainer.stop());
+
+    options.setAwsServiceEndpoint(kinesisContainer.getEndpointOverride(Service.KINESIS).toString());
+    options.setAwsKinesisRegion(kinesisContainer.getRegion());
+    options.setAwsAccessKey(kinesisContainer.getAccessKey());
+    options.setAwsSecretKey(kinesisContainer.getSecretKey());
     options.setAwsVerifyCertificate(false);
+    options.setCreateStream(true);
   }
 
   private static AmazonKinesis createKinesisClient() {
-    AmazonKinesisClientBuilder clientBuilder = AmazonKinesisClientBuilder.standard();
-
-    AWSCredentialsProvider credentialsProvider =
-        new AWSStaticCredentialsProvider(
-            new BasicAWSCredentials(options.getAwsAccessKey(), options.getAwsSecretKey()));
-    clientBuilder.setCredentials(credentialsProvider);
+    AWSCredentials credentials = new BasicAWSCredentials(options.getAwsAccessKey(), options.getAwsSecretKey());
+    AmazonKinesisClientBuilder clientBuilder =
+        AmazonKinesisClientBuilder.standard()
+            .withCredentials(new AWSStaticCredentialsProvider(credentials));
 
     if (options.getAwsServiceEndpoint() != null) {
-      AwsClientBuilder.EndpointConfiguration endpointConfiguration =
+      clientBuilder.setEndpointConfiguration(
           new AwsClientBuilder.EndpointConfiguration(
-              options.getAwsServiceEndpoint(), options.getAwsKinesisRegion());
-      clientBuilder.setEndpointConfiguration(endpointConfiguration);
+              options.getAwsServiceEndpoint(), options.getAwsKinesisRegion()));
     } else {
       clientBuilder.setRegion(options.getAwsKinesisRegion());
     }
@@ -206,19 +199,32 @@ public class KinesisIOIT implements Serializable {
     return clientBuilder.build();
   }
 
-  private static void createStream(String streamName) throws Exception {
-    kinesisClient.createStream(streamName, 1);
-    int repeats = 10;
-    for (int i = 0; i <= repeats; ++i) {
+  private static void createStream(AmazonKinesis kinesisClient) throws Exception {
+    kinesisClient.createStream(options.getAwsKinesisStream(), options.getNumberOfShards());
+    int attempts = 10;
+    for (int i = 0; i <= attempts; ++i) {
       String streamStatus =
-          kinesisClient.describeStream(streamName).getStreamDescription().getStreamStatus();
+          kinesisClient
+              .describeStream(options.getAwsKinesisStream())
+              .getStreamDescription()
+              .getStreamStatus();
       if ("ACTIVE".equals(streamStatus)) {
-        break;
-      }
-      if (i == repeats) {
-        throw new RuntimeException("Unable to initialize stream");
+        return;
       }
       Thread.sleep(1000L);
+    }
+    throw new RuntimeException("Unable to initialize stream");
+  }
+
+  private static void deleteStream(AmazonKinesis kinesisClient) {
+    kinesisClient.deleteStream(options.getAwsKinesisStream());
+  }
+
+  private static void safeRun(ThrowingRunnable task) {
+    try {
+      task.run();
+    } catch (Throwable e) {
+      LoggerFactory.getLogger(KinesisIOIT.class).warn("Cleanup task failed", e);
     }
   }
 
