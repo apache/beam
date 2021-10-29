@@ -66,7 +66,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
 	}
 
-	go processCode(ctx, controller.cacheService, lc, compileBuilder, pipelineId, controller.env, info.Sdk)
+	go processCode(context.TODO(), controller.cacheService, lc, compileBuilder, pipelineId, controller.env, info.Sdk)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil
@@ -203,6 +203,7 @@ func setupValidators(sdk pb.Sdk, filepath string) *[]validators.Validator {
 
 // processCode validates, compiles and runs code by pipelineId.
 // During each operation updates status of execution and saves it into cache:
+// - In case of processing works more that timeout duration saves playground.Status_STATUS_RUN_TIMEOUT as cache.Status into cache.
 // - In case of validation step is failed saves playground.Status_STATUS_ERROR as cache.Status into cache.
 // - In case of compile step is failed saves playground.Status_STATUS_COMPILE_ERROR as cache.Status and compile logs as cache.CompileOutput into cache.
 // - In case of compile step is completed with no errors saves empty string ("") as cache.CompileOutput into cache.
@@ -210,7 +211,15 @@ func setupValidators(sdk pb.Sdk, filepath string) *[]validators.Validator {
 // - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
 // At the end of this method deletes all created folders.
 func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, compileBuilder *executors.CompileBuilder, pipelineId uuid.UUID, env *environment.Environment, sdk pb.Sdk) {
-	defer cleanUp(pipelineId, lc)
+	ctxWithTimeout, cancelByTimeoutFunc := context.WithTimeout(ctx, env.ApplicationEnvs.PipelineExecuteTimeout())
+	defer func(lc *fs_tool.LifeCycle) {
+		cancelByTimeoutFunc()
+		cleanUp(pipelineId, lc)
+	}(lc)
+
+	errorChannel := make(chan error, 1)
+	dataChannel := make(chan interface{}, 1)
+	doneChannel := make(chan bool, 1)
 
 	// build executor for validate and compile steps
 	exec := compileBuilder.Build()
@@ -218,44 +227,99 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	// validate
 	logger.Infof("%s: Validate() ...\n", pipelineId)
 	validateFunc := exec.Validate()
-	if err := validateFunc(); err != nil {
-		// error during validation
-		// TODO move to processError when status for validation error will be added
-		logger.Errorf("%s: Validate: %s\n", pipelineId, err.Error())
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
+	go validateFunc(doneChannel, errorChannel)
+
+	select {
+	case <-ctxWithTimeout.Done():
+		finishByContext(ctxWithTimeout, pipelineId, cacheService)
 		return
+	case ok := <-doneChannel:
+		if !ok {
+			// error during validation
+			err := <-errorChannel
+			// TODO move to processError when status for validation error will be added
+			logger.Errorf("%s: Validate: %s\n", pipelineId, err.Error())
+			setToCache(ctxWithTimeout, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
+			return
+		}
 	}
 	logger.Infof("%s: Validate() finish\n", pipelineId)
 
 	// compile
 	logger.Infof("%s: Compile() ...\n", pipelineId)
-	compileCmd := exec.Compile()
-	if data, err := compileCmd.CombinedOutput(); err != nil {
-		processError(ctx, err, data, pipelineId, cacheService, pb.Status_STATUS_COMPILE_ERROR)
+	compileCmd := exec.Compile(ctxWithTimeout)
+	go func(doneCh chan bool, errCh chan error, dataCh chan interface{}) {
+		data, err := compileCmd.CombinedOutput()
+		dataCh <- data
+		if err != nil {
+			errCh <- err
+			doneCh <- false
+		} else {
+			doneCh <- true
+		}
+	}(doneChannel, errorChannel, dataChannel)
+
+	select {
+	case <-ctxWithTimeout.Done():
+		finishByContext(ctxWithTimeout, pipelineId, cacheService)
 		return
-	} else {
-		processSuccess(ctx, data, pipelineId, cacheService, pb.Status_STATUS_EXECUTING)
+	case ok := <-doneChannel:
+		data := <-dataChannel
+		if !ok {
+			// error during compilation
+			err := <-errorChannel
+			processError(ctxWithTimeout, err, data.([]byte), pipelineId, cacheService, pb.Status_STATUS_COMPILE_ERROR)
+			return
+		}
+		processSuccess(ctxWithTimeout, data.([]byte), pipelineId, cacheService, pb.Status_STATUS_EXECUTING)
 	}
 
 	runBuilder, err := setupRunBuilder(pipelineId, lc, sdk, env, compileBuilder)
 	if err != nil {
 		logger.Errorf("%s: error during setup runBuilder: %s\n", pipelineId, err.Error())
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
+		setToCache(ctxWithTimeout, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
 		return
 	}
 
 	// build executor for run step
 	exec = runBuilder.Build()
 
+	// run
 	logger.Infof("%s: Run() ...\n", pipelineId)
-	runCmd := exec.Run()
-	if data, err := runCmd.CombinedOutput(); err != nil {
-		// error during run code
-		processError(ctx, err, data, pipelineId, cacheService, pb.Status_STATUS_ERROR)
+	runCmd := exec.Run(ctxWithTimeout)
+	go func(doneCh chan bool, errCh chan error, dataCh chan interface{}) {
+		data, err := runCmd.CombinedOutput()
+		dataCh <- data
+		if err != nil {
+			errCh <- err
+			doneCh <- false
+		} else {
+			doneCh <- true
+		}
+	}(doneChannel, errorChannel, dataChannel)
+
+	select {
+	case <-ctxWithTimeout.Done():
+		finishByContext(ctxWithTimeout, pipelineId, cacheService)
 		return
-	} else {
-		processSuccess(ctx, data, pipelineId, cacheService, pb.Status_STATUS_FINISHED)
+	case ok := <-doneChannel:
+		data := <-dataChannel
+		if !ok {
+			// error during run code
+			err := <-errorChannel
+			processError(ctxWithTimeout, err.(error), data.([]byte), pipelineId, cacheService, pb.Status_STATUS_ERROR)
+			return
+		}
+		processSuccess(ctxWithTimeout, data.([]byte), pipelineId, cacheService, pb.Status_STATUS_FINISHED)
 	}
+}
+
+// finishByContext is used in case of runCode method finished by timeout
+func finishByContext(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache) {
+	logger.Errorf("%s: processCode finish because of timeout\n", pipelineId)
+
+	// set to cache pipelineId: cache.SubKey_Status: Status_STATUS_RUN_TIMEOUT
+	setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_RUN_TIMEOUT)
 }
 
 // cleanUp removes all prepared folders for received LifeCycle

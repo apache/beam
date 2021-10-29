@@ -18,6 +18,7 @@ package executors
 
 import (
 	"beam.apache.org/playground/backend/internal/validators"
+	"context"
 	"os/exec"
 )
 
@@ -37,32 +38,35 @@ type Executor struct {
 }
 
 // Validate return the function that apply all validators of executor
-func (ex *Executor) Validate() func() error {
-	return func() error {
+func (ex *Executor) Validate() func(chan bool, chan error) {
+	return func(doneCh chan bool, errCh chan error) {
 		for _, validator := range ex.validators {
 			err := validator.Validator(validator.Args...)
 			if err != nil {
-				return err
+				errCh <- err
+				doneCh <- false
+				return
 			}
 		}
-		return nil
+		doneCh <- true
+		return
 	}
 }
 
 // Compile prepares the Cmd for code compilation
 // Returns Cmd instance
-func (ex *Executor) Compile() *exec.Cmd {
+func (ex *Executor) Compile(ctx context.Context) *exec.Cmd {
 	args := append(ex.compileArgs.commandArgs, ex.compileArgs.fileName)
-	cmd := exec.Command(ex.compileArgs.commandName, args...)
+	cmd := exec.CommandContext(ctx, ex.compileArgs.commandName, args...)
 	cmd.Dir = ex.compileArgs.workingDir
 	return cmd
 }
 
 // Run prepares the Cmd for execution of the code
 // Returns Cmd instance
-func (ex *Executor) Run() *exec.Cmd {
+func (ex *Executor) Run(ctx context.Context) *exec.Cmd {
 	args := append(ex.runArgs.commandArgs, ex.runArgs.fileName)
-	cmd := exec.Command(ex.runArgs.commandName, args...)
+	cmd := exec.CommandContext(ctx, ex.runArgs.commandName, args...)
 	cmd.Dir = ex.runArgs.workingDir
 	return cmd
 }

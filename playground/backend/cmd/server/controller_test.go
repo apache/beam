@@ -394,8 +394,6 @@ func Test_processCode(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	env := environment.NewEnvironment(*networkEnvs, *sdkEnv, *appEnvs)
-
 	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, os.Getenv("APP_WORK_DIR"))
 	filePath := lc.GetAbsoluteExecutableFilePath()
 	workingDir := lc.GetAbsoluteExecutableFilesFolderPath()
@@ -424,6 +422,21 @@ func Test_processCode(t *testing.T) {
 		args                  args
 	}{
 		{
+			// Test case with calling processCode method with small timeout.
+			// As a result status into cache should be set as Status_STATUS_RUN_TIMEOUT.
+			name:                  "small pipeline execution timeout",
+			createExecFile:        false,
+			code:                  "",
+			expectedStatus:        pb.Status_STATUS_RUN_TIMEOUT,
+			expectedCompileOutput: nil,
+			expectedRunOutput:     nil,
+			args: args{
+				ctx: context.Background(),
+				env: environment.NewEnvironment(*networkEnvs, *sdkEnv, environment.ApplicationEnvs{}),
+				sdk: pb.Sdk_SDK_JAVA,
+			},
+		},
+		{
 			// Test case with calling processCode method without preparing files with code.
 			// As a result status into cache should be set as Status_STATUS_ERROR.
 			name:                  "validation failed",
@@ -434,7 +447,7 @@ func Test_processCode(t *testing.T) {
 			expectedRunOutput:     nil,
 			args: args{
 				ctx: context.Background(),
-				env: env,
+				env: environment.NewEnvironment(*networkEnvs, *sdkEnv, *appEnvs),
 				sdk: pb.Sdk_SDK_JAVA,
 			},
 		},
@@ -449,7 +462,7 @@ func Test_processCode(t *testing.T) {
 			expectedRunOutput:     nil,
 			args: args{
 				ctx: context.Background(),
-				env: env,
+				env: environment.NewEnvironment(*networkEnvs, *sdkEnv, *appEnvs),
 				sdk: pb.Sdk_SDK_JAVA,
 			},
 		},
@@ -464,7 +477,7 @@ func Test_processCode(t *testing.T) {
 			expectedRunOutput:     fmt.Sprintf("error: exit status 1, output: Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat HelloWorld.main(%s.java:3)\n", pipelineId),
 			args: args{
 				ctx: context.Background(),
-				env: env,
+				env: environment.NewEnvironment(*networkEnvs, *sdkEnv, *appEnvs),
 				sdk: pb.Sdk_SDK_JAVA,
 			},
 		},
@@ -479,7 +492,7 @@ func Test_processCode(t *testing.T) {
 			expectedRunOutput:     "Hello world!\n",
 			args: args{
 				ctx: context.Background(),
-				env: env,
+				env: environment.NewEnvironment(*networkEnvs, *sdkEnv, *appEnvs),
 				sdk: pb.Sdk_SDK_JAVA,
 			},
 		},
