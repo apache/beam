@@ -26,6 +26,7 @@
 # TODO(AVRO-2429): Upgrade to >= 1.9.0 only after resolved
 avro-python3==1.8.2
 fastavro==1.0.0.post1
+cloudpickle=2.0.0
 crcmod==1.7
 dill==0.3.1.1
 future==0.18.2
