@@ -70,7 +70,6 @@ import org.junit.runners.JUnit4;
 @Category(UsesSchema.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "SameNameButDifferent"
 })
 public class GroupTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -538,7 +537,7 @@ public class GroupTest implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class BasicEnum {
-    enum Test {
+    enum TestEnum {
       ZERO,
       ONE,
       TWO
@@ -546,9 +545,9 @@ public class GroupTest implements Serializable {
 
     abstract String getKey();
 
-    abstract Test getEnumeration();
+    abstract TestEnum getEnumeration();
 
-    static BasicEnum of(String key, Test value) {
+    static BasicEnum of(String key, TestEnum value) {
       return new AutoValue_GroupTest_BasicEnum(key, value);
     }
   }
@@ -566,7 +565,7 @@ public class GroupTest implements Serializable {
   public void testAggregateBaseValuesGlobally() {
     Collection<BasicEnum> elements =
         Lists.newArrayList(
-            BasicEnum.of("a", BasicEnum.Test.ONE), BasicEnum.of("a", BasicEnum.Test.TWO));
+            BasicEnum.of("a", BasicEnum.TestEnum.ONE), BasicEnum.of("a", BasicEnum.TestEnum.TWO));
 
     PCollection<Row> aggregate =
         pipeline
@@ -586,7 +585,7 @@ public class GroupTest implements Serializable {
   public void testAggregateLogicalValuesGlobally() {
     Collection<BasicEnum> elements =
         Lists.newArrayList(
-            BasicEnum.of("a", BasicEnum.Test.ONE), BasicEnum.of("a", BasicEnum.Test.TWO));
+            BasicEnum.of("a", BasicEnum.TestEnum.ONE), BasicEnum.of("a", BasicEnum.TestEnum.TWO));
 
     CombineFn<EnumerationType.Value, ?, Iterable<EnumerationType.Value>> sampleAnyCombineFn =
         Sample.anyCombineFn(100);
