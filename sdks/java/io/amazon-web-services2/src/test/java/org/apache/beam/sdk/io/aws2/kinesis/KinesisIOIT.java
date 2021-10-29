@@ -220,7 +220,7 @@ public class KinesisIOIT implements Serializable {
     throw new RuntimeException("Unable to initialize stream");
   }
 
-  private static void safeRun(ThrowingRunnable task){
+  private static void safeRun(ThrowingRunnable task) {
     try {
       task.run();
     } catch (Throwable e) {
