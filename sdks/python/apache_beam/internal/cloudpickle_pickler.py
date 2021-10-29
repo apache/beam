@@ -42,7 +42,10 @@ from typing import Dict
 from typing import Tuple
 from _thread import RLock as RLockType
 
-from absl import flags
+try:
+  from absl import flags
+except ImportError:
+  pass
 
 import cloudpickle
 
@@ -60,7 +63,10 @@ def dumps(o, enable_trace=True, use_zlib=False):
     with io.BytesIO() as file:
       pickler = cloudpickle.CloudPickler(file)
       pickler.dispatch_table[RLockType] = _pickle_rlock
-      pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
+      try:
+        pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
+      except NameError:
+        pass
       pickler.dump(o)
       s = file.getvalue()
       # TODO(ryanthompson): See if echoing dill.enable_trace is useful.
