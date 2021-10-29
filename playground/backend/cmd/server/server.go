@@ -50,10 +50,16 @@ func runServer() error {
 	})
 
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
-	handler := Wrap(grpcServer, getGrpcWebOptions())
+
 	errChan := make(chan error)
 
-	go listenHttp(ctx, errChan, envService.NetworkEnvs, handler)
+	switch envService.NetworkEnvs.Protocol() {
+	case "TCP":
+		go listenTcp(ctx, errChan, envService.NetworkEnvs, grpcServer)
+	case "HTTP":
+		handler := Wrap(grpcServer, getGrpcWebOptions())
+		go listenHttp(ctx, errChan, envService.NetworkEnvs, handler)
+	}
 
 	for {
 		select {

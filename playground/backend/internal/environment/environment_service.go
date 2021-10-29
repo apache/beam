@@ -40,6 +40,8 @@ const (
 	SLF4jKey                      = "SLF4J"
 	cacheKeyExpirationTimeKey     = "KEY_EXPIRATION_TIME"
 	pipelineExecuteTimeoutKey     = "PIPELINE_EXPIRATION_TIMEOUT"
+	protocolTypeKey               = "PROTOCOL_TYPE"
+	defaultProtocol               = "HTTP"
 	defaultIp                     = "localhost"
 	defaultPort                   = 8080
 	defaultSdk                    = pb.Sdk_SDK_JAVA
@@ -64,7 +66,7 @@ type Environment struct {
 // NewEnvironment is a constructor for Environment.
 // Default values:
 // LogWriters: by default using os.Stdout
-// NetworkEnvs: by default using defaultIp and defaultPort from constants
+// NetworkEnvs: by default using defaultIp, defaultPort and defaultProtocol from constants
 // BeamEnvs: by default using pb.Sdk_SDK_JAVA
 // ApplicationEnvs: required field not providing by default value
 func NewEnvironment(networkEnvs NetworkEnvs, beamEnvs BeamEnvs, appEnvs ApplicationEnvs) *Environment {
@@ -108,6 +110,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 	ip := getEnv(serverIpKey, defaultIp)
 	port := defaultPort
+	protocol := getEnv(protocolTypeKey, defaultProtocol)
 	var err error
 	if value, present := os.LookupEnv(serverPortKey); present {
 		port, err = strconv.Atoi(value)
@@ -115,7 +118,7 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 			return nil, err
 		}
 	}
-	return NewNetworkEnvs(ip, port), nil
+	return NewNetworkEnvs(ip, port, protocol), nil
 }
 
 // ConfigureBeamEnvs lookups in os environment variables and takes value for Apache Beam SDK. If not exists - using default
