@@ -32,6 +32,9 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
@@ -47,13 +50,23 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  *
  * <h3>Reading from Kinesis</h3>
  *
- * <p>Example usage:
+ * <p>Example usages:
  *
  * <pre>{@code
  * p.apply(KinesisIO.read()
  *     .withStreamName("streamName")
  *     .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *     .withAWSClientsProvider("AWS_KEY", _"AWS_SECRET", STREAM_REGION)
+ *     // using AWS default credentials provider chain (recommended)
+ *     .withAWSClientsProvider(DefaultCredentialsProvider.create(), STREAM_REGION)
+ *  .apply( ... ) // other transformations
+ * }</pre>
+ *
+ * <pre>{@code
+ * p.apply(KinesisIO.read()
+ *     .withStreamName("streamName")
+ *     .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *     // using plain AWS key and secret
+ *     .withAWSClientsProvider("AWS_KEY", "AWS_SECRET", STREAM_REGION)
  *  .apply( ... ) // other transformations
  * }</pre>
  *
@@ -69,7 +82,7 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  *       </ul>
  *   <li>data used to initialize {@link KinesisClient} and {@link CloudWatchClient} clients:
  *       <ul>
- *         <li>credentials (aws key, aws secret)
+ *         <li>AWS credentials
  *         <li>region where the stream is located
  *       </ul>
  * </ul>
@@ -313,7 +326,7 @@ public final class KinesisIO {
      * Allows to specify custom {@link AWSClientsProvider}. {@link AWSClientsProvider} provides
      * {@link KinesisClient} and {@link CloudWatchClient} instances which are later used for
      * communication with Kinesis. You should use this method if {@link
-     * Read#withAWSClientsProvider(String, String, Region)} does not suit your needs.
+     * Read#withAWSClientsProvider(AwsCredentialsProvider, Region)} does not suit your needs.
      */
     public Read withAWSClientsProvider(AWSClientsProvider awsClientsProvider) {
       return toBuilder().setAWSClientsProvider(awsClientsProvider).build();
@@ -338,8 +351,33 @@ public final class KinesisIO {
      */
     public Read withAWSClientsProvider(
         String awsAccessKey, String awsSecretKey, Region region, String serviceEndpoint) {
+      AwsCredentialsProvider awsCredentialsProvider =
+          StaticCredentialsProvider.create(AwsBasicCredentials.create(awsAccessKey, awsSecretKey));
+      return withAWSClientsProvider(awsCredentialsProvider, region, serviceEndpoint);
+    }
+
+    /**
+     * Specify {@link AwsCredentialsProvider} and region to be used to read from Kinesis. If you
+     * need more sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
+     */
+    public Read withAWSClientsProvider(
+        AwsCredentialsProvider awsCredentialsProvider, Region region) {
+      return withAWSClientsProvider(awsCredentialsProvider, region, null);
+    }
+
+    /**
+     * Specify {@link AwsCredentialsProvider} and region to be used to read from Kinesis. If you
+     * need more sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with a kinesis service emulator.
+     */
+    public Read withAWSClientsProvider(
+        AwsCredentialsProvider awsCredentialsProvider, Region region, String serviceEndpoint) {
       return withAWSClientsProvider(
-          new BasicKinesisProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+          new BasicKinesisProvider(awsCredentialsProvider, region, serviceEndpoint));
     }
 
     /** Specifies to read at most a given number of records. */
