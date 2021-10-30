@@ -711,7 +711,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.nlargest(3, ['A', 'B'], keep='all'), df)
 
   def test_series_cov_corr(self):
-    for s in [pd.Series([1, 2, 3]),
+    for s in [pd.Series([0, 1]),
+              pd.Series([1, 2, 3]),
               pd.Series(range(100)),
               pd.Series([x**3 for x in range(-50, 50)])]:
       self._run_test(lambda s: s.std(), s)
