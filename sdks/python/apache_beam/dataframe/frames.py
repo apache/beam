@@ -1435,131 +1435,80 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
-  def skew(self, axis, skipna, level, numeric_only, **kwargs):
-      if level is not None:
-          raise NotImplementedError("per-level aggregation")
-      if skipna is None or skipna:
-          self = self.dropna()  # pylint: disable=self-cls-assignment
-      # See the online, numerically stable formulae at
-      # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
-      def compute_moments(x):
-          n = len(x)
-          if n == 0:
-              m, s, third_moment = 0, 0, 0
-          elif n < 3:
-              m = x.std(ddof=0)**2 * n
-              s = x.sum()
-              third_moment = (((x-x.mean())**3).sum())
-          else:
-              m = x.std(ddof=0) ** 2 * n
-              s = x.sum()
-              third_moment = (((x-x.mean())**3).sum())
-          return pd.DataFrame(dict(m=[m], s=[s], n=[n], third_moment=[third_moment]))
-
-      def combine_moments(data):
-          m = s = n = third_moment = 0.0
-          for datum in data.itertuples():
-            if datum.n == 0:
-                continue
-            elif n == 0:
-                m, s, n, third_moment = datum.m, datum.s, datum.n, datum.third_moment
-            else:
-                mean_b = s / n
-                mean_a = datum.s / datum.n
-                delta = mean_b - mean_a
-                n_a = datum.n
-                n_b = n
-                combined_n = n + datum.n
-                third_moment += datum.third_moment + ((delta ** 3 * ((n_a * n_b) * (n_a - n_b)) / ((combined_n) ** 2)) +
-                                                      ((3 * delta) * ((n_a * m) - (n_b * datum.m)) / (combined_n)))
-                m += datum.m + delta ** 2 * n * datum.n / (n + datum.n)
-                s += datum.s
-                n += datum.n
-
-          if n < 3:
-              return float('nan')
-          elif m == 0:
-              return float(0)
-          else:
-              return combined_n*math.sqrt(combined_n-1)/(combined_n-2)*third_moment/(m**(3/2))
-
-      moments = expressions.ComputedExpression(
-          'compute_moments',
-          compute_moments, [self._expr],
-          requires_partition_by=partitionings.Arbitrary())
-      with expressions.allow_non_parallel_operations(True):
-          return frame_base.DeferredFrame.wrap(
-              expressions.ComputedExpression(
-                  'combine_moments',
-                  combine_moments, [moments],
-                  requires_partition_by=partitionings.Singleton()))
-
-  @frame_base.with_docs_from(pd.Series)
-  @frame_base.args_to_kwargs(pd.Series)
-  @frame_base.populate_defaults(pd.Series)
   def kurtosis(self, axis, skipna, level, numeric_only, **kwargs):
-      if level is not None:
-          raise NotImplementedError("per-level aggregation")
-      if skipna is None or skipna:
-          self = self.dropna()  # pylint: disable=self-cls-assignment
+    if level is not None:
+      raise NotImplementedError("per-level aggregation")
+    if skipna is None or skipna:
+      self = self.dropna()  # pylint: disable=self-cls-assignment
 
-      # See the online, numerically stable formulae at
-      # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
-      def compute_moments(x):
-          n = len(x)
-          if n == 0:
-              m, s, third_moment, fourth_moment = 0, 0, 0, 0
-          else:
-              m = x.std(ddof=0) ** 2 * n
-              s = x.sum()
-              third_moment = (((x-x.mean())**3).sum())
-              fourth_moment = (((x-x.mean())**4).sum())
-          return pd.DataFrame(dict(m=[m], s=[s], n=[n], third_moment=[third_moment], fourth_moment=[fourth_moment]))
+    # See the online, numerically stable formulae at
+    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
+    def compute_moments(x):
+      n = len(x)
+      if n == 0:
+        m, s, third_moment, fourth_moment = 0, 0, 0, 0
+      else:
+        m = x.std(ddof=0)**2 * n
+        s = x.sum()
+        third_moment = (((x - x.mean())**3).sum())
+        fourth_moment = (((x - x.mean())**4).sum())
+      return pd.DataFrame(
+          dict(
+              m=[m],
+              s=[s],
+              n=[n],
+              third_moment=[third_moment],
+              fourth_moment=[fourth_moment]))
 
-      def combine_moments(data):
-          m = s = n = third_moment = fourth_moment = 0.0
-          for datum in data.itertuples():
-              if datum.n == 0:
-                  continue
-              elif n == 0:
-                  m, s, n, third_moment, fourth_moment = datum.m, datum.s, datum.n, datum.third_moment, datum.fourth_moment
-              else:
-                  mean_b = s / n
-                  mean_a = datum.s / datum.n
-                  delta = mean_b - mean_a
-                  n_a = datum.n
-                  n_b = n
-                  combined_n = n + datum.n
-                  fourth_moment += datum.fourth_moment + (
-                              (delta ** 4) * (n_a * n_b) * (n_a ** 2 - (n_a * n_b) + n_b ** 2) / combined_n ** 3) + (
-                                               (6 * delta ** 2) * (
-                                                   (n_a ** 2 * m) + (n_b ** 2 * datum.m)) / combined_n ** 2) + (
-                                               (4 * delta) * (
-                                                   (n_a * third_moment) - (n_b * datum.third_moment)) / combined_n)
-                  third_moment += datum.third_moment + (
-                          (delta ** 3 * ((n_a * n_b) * (n_a - n_b)) / ((combined_n) ** 2)) +
-                          ((3 * delta) * ((n_a * m) - (n_b * datum.m)) / (combined_n)))
-                  m += datum.m + delta ** 2 * n * datum.n / (n + datum.n)
-                  s += datum.s
-                  n += datum.n
+    def combine_moments(data):
+      m = s = n = third_moment = fourth_moment = 0.0
+      for datum in data.itertuples():
+        if datum.n == 0:
+          continue
+        elif n == 0:
+          m, s, n, third_moment, fourth_moment = datum.m, datum.s, datum.n, datum.third_moment, datum.fourth_moment
+        else:
+          mean_b = s / n
+          mean_a = datum.s / datum.n
+          delta = mean_b - mean_a
+          n_a = datum.n
+          n_b = n
+          combined_n = n + datum.n
+          fourth_moment += datum.fourth_moment + (
+              (delta**4) * (n_a * n_b) *
+              (n_a**2 -
+               (n_a * n_b) + n_b**2) / combined_n**3) + ((6 * delta**2) * (
+                   (n_a**2 * m) + (n_b**2 * datum.m)) / combined_n**2) + (
+                       (4 * delta) * ((n_a * third_moment) -
+                                      (n_b * datum.third_moment)) / combined_n)
+          third_moment += datum.third_moment + (
+              (delta**3 * ((n_a * n_b) * (n_a - n_b)) / ((combined_n)**2)) +
+              ((3 * delta) * ((n_a * m) - (n_b * datum.m)) / (combined_n)))
+          m += datum.m + delta**2 * n * datum.n / (n + datum.n)
+          s += datum.s
+          n += datum.n
 
-          if n < 4:
-              return float('nan')
-          elif m == 0:
-              return float(0)
-          else:
-              return (((combined_n+1)*(combined_n)*(combined_n-1))/((combined_n-2)*(combined_n-3)))*(fourth_moment/(np.floor(m)**2))-((3*(combined_n-1)**2)/((combined_n-2)*(combined_n-3)))
+      if n < 4:
+        return float('nan')
+      elif m == 0:
+        return float(0)
+      else:
+        return (((combined_n + 1) * (combined_n) * (combined_n - 1)) /
+                ((combined_n - 2) *
+                 (combined_n - 3))) * (fourth_moment / (np.floor(m)**2)) - (
+                     (3 * (combined_n - 1)**2) / ((combined_n - 2) *
+                                                  (combined_n - 3)))
 
-      moments = expressions.ComputedExpression(
-          'compute_moments',
-          compute_moments, [self._expr],
-          requires_partition_by=partitionings.Arbitrary())
-      with expressions.allow_non_parallel_operations(True):
-          return frame_base.DeferredFrame.wrap(
-              expressions.ComputedExpression(
-                  'combine_moments',
-                  combine_moments, [moments],
-                  requires_partition_by=partitionings.Singleton()))
+    moments = expressions.ComputedExpression(
+        'compute_moments',
+        compute_moments, [self._expr],
+        requires_partition_by=partitionings.Arbitrary())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'combine_moments',
+              combine_moments, [moments],
+              requires_partition_by=partitionings.Singleton()))
 
   def _corr_aligned(self, other, min_periods):
     std_x = self.std()
@@ -1823,9 +1772,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   median = _agg_method(pd.Series, 'median')
   sem = _agg_method(pd.Series, 'sem')
   mad = _agg_method(pd.Series, 'mad')
-  #skew = _agg_method(pd.Series, 'skew')
+  skew = _agg_method(pd.Series, 'skew')
   kurt = _agg_method(pd.Series, 'kurt')
-  #kurtosis = _agg_method(pd.Series, 'kurtosis')
 
   argmax = frame_base.wont_implement_method(
       pd.Series, 'argmax', reason='order-sensitive')
