@@ -723,12 +723,29 @@ class Reshuffle(PTransform):
 
   Reshuffle is experimental. No backwards compatibility guarantees.
   """
+
+  # We use 32-bit integer as the default number of buckets.
+  _DEFAULT_NUM_BUCKETS = 1 << 32
+
+  def __init__(self, num_buckets=None):
+    """
+    :param num_buckets: If set, specifies the maximum random keys that would be
+      generated.
+    """
+    self.num_buckets = num_buckets if num_buckets else self._DEFAULT_NUM_BUCKETS
+
+    valid_buckets = isinstance(num_buckets, int) and num_buckets > 0
+    if not (num_buckets is None or valid_buckets):
+      raise ValueError(
+          'If `num_buckets` is set, it has to be an '
+          'integer greater than 0, got %s' % num_buckets)
+
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
     return (
-        pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
-        with_input_types(T).with_output_types(Tuple[int, T])
+        pcoll | 'AddRandomKeys' >>
+        Map(lambda t: (random.randint(0, self.num_buckets), t)
+            ).with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
             Tuple[int, T]).with_output_types(T))
