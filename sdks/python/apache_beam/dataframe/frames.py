@@ -1758,7 +1758,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   median = _agg_method(pd.Series, 'median')
   sem = _agg_method(pd.Series, 'sem')
   mad = _agg_method(pd.Series, 'mad')
-  #skew = _agg_method(pd.Series, 'skew')
   kurt = _agg_method(pd.Series, 'kurt')
   kurtosis = _agg_method(pd.Series, 'kurtosis')
 
