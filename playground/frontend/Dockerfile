@@ -17,7 +17,7 @@
 ###############################################################################
 
 FROM debian:11 as build
-ENV FLUTTER_VERSION=2.5.2-stable
+ARG FLUTTER_VERSION=2.5.2-stable
 
 RUN apt-get update && apt-get install -y wget xz-utils git
 RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION.tar.xz &&\
