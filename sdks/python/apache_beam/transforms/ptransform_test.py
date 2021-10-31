@@ -50,7 +50,6 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import SortLists
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.util import is_empty
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
@@ -507,12 +506,10 @@ class PTransformTest(unittest.TestCase):
           | beam.Create([(1, 1), (1, 2), (1, 3), (1, 4)])
           | WindowInto(
               window.GlobalWindows(),
-              trigger=trigger.AfterCount(5),
+              trigger=trigger.AfterCount(4),
               accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
           | beam.GroupByKey())
-      # We need five, but it only has four - Displays how this option is
-      # dangerous.
-      assert_that(pcoll, is_empty())
+      assert_that(pcoll, equal_to([(1, [1, 2, 3, 4])]))
 
   def test_group_by_key_reiteration(self):
     class MyDoFn(beam.DoFn):

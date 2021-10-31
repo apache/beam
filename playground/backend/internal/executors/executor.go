@@ -13,19 +13,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Interface for all executors (Java/Python/Go/SCIO)
+// Package executors
 package executors
 
-type executor interface {
-	// Validate validates executable file.
-	// Return result of validation (true/false) and error if it occurs
-	Validate(filePath string) (bool, error)
+import (
+	"beam.apache.org/playground/backend/internal/validators"
+	"os/exec"
+)
 
-	// Compile compiles executable file.
-	// Return error if it occurs
-	Compile(filePath string) error
+//CmdConfiguration for base cmd code execution
+type CmdConfiguration struct {
+	fileName    string
+	workingDir  string
+	commandName string
+	commandArgs []string
+}
 
-	// Run runs executable file.
-	// Return logs and error if it occurs
-	Run(filePath string) (string, error)
+// Executor struct for all executors (Java/Python/Go/SCIO)
+type Executor struct {
+	compileArgs CmdConfiguration
+	runArgs     CmdConfiguration
+	validators  []validators.Validator
+}
+
+// Validate return the function that apply all validators of executor
+func (ex *Executor) Validate() func() error {
+	return func() error {
+		for _, validator := range ex.validators {
+			err := validator.Validator(validator.Args...)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+// Compile prepares the Cmd for code compilation
+// Returns Cmd instance
+func (ex *Executor) Compile() *exec.Cmd {
+	args := append(ex.compileArgs.commandArgs, ex.compileArgs.fileName)
+	cmd := exec.Command(ex.compileArgs.commandName, args...)
+	cmd.Dir = ex.compileArgs.workingDir
+	return cmd
+}
+
+// Run prepares the Cmd for execution of the code
+// Returns Cmd instance
+func (ex *Executor) Run() *exec.Cmd {
+	args := append(ex.runArgs.commandArgs, ex.runArgs.fileName)
+	cmd := exec.Command(ex.runArgs.commandName, args...)
+	cmd.Dir = ex.runArgs.workingDir
+	return cmd
 }

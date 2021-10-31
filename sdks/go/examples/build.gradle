@@ -45,7 +45,20 @@ dependencies {
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/v2/go/examples'
+
+  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
+  goTest {
+    environment 'GOFLAGS', '-modcacherw'
+  }
+  goVet {
+    environment 'GOFLAGS', '-modcacherw'
+  }
+  gofmt {
+    environment 'GOFLAGS', '-modcacherw'
+  }
   goBuild {
+    environment 'GOFLAGS', '-modcacherw'
+
     // We always want to build linux-amd64 in addition to the user host platform
     // so we can submit this as the remote binary used within the Go container.
     //
