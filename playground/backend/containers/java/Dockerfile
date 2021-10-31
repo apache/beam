@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE
-
+#ARG BEAM_VERSION_ARG=2.33.0
 FROM golang:1.17-buster AS build
 
 # Setup Go Environment
@@ -38,7 +38,8 @@ RUN go mod download &&\
     go build -o /go/bin/server_java_backend
 
 FROM $BASE_IMAGE
-ENV BEAM_VERSION=2.33.0
+ARG BEAM_VERSION=2.33.0
+#ENV BEAM_VERSION=${BEAM_VERSION_ARG}
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
