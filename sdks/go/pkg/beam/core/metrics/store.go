@@ -155,6 +155,7 @@ type ptCounterSet struct {
 type bundleProcState int
 
 const (
+	// Bundle execution states
 	StartBundle   bundleProcState = 0
 	ProcessBundle bundleProcState = 1
 	FinishBundle  bundleProcState = 2
