@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.Serializable;
-import java.util.EnumSet;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
@@ -157,13 +156,9 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
     public ProjectSupport supportsProjects() {
       PTransform<PBegin, PCollection<Row>> readerTransform = schemaIO.buildReader();
       if (readerTransform instanceof ProjectionProducer) {
-        EnumSet<ProjectionProducer.ProjectSupport> projectSupport =
-            ((ProjectionProducer<?>) readerTransform).supportsProjectionPushdown();
-        if (projectSupport.contains(ProjectionProducer.ProjectSupport.WITH_FIELD_REORDERING)) {
+        if (((ProjectionProducer<?>) readerTransform).supportsProjectionPushdown()) {
+          // For ProjectionProducer, supportsProjectionPushdown implies field reordering support.
           return ProjectSupport.WITH_FIELD_REORDERING;
-        }
-        if (projectSupport.contains(ProjectionProducer.ProjectSupport.WITHOUT_FIELD_REORDERING)) {
-          return ProjectSupport.WITHOUT_FIELD_REORDERING;
         }
       }
       return ProjectSupport.NONE;
