@@ -23,7 +23,7 @@ import 'package:playground/modules/output/models/output_placement.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
 import 'package:provider/provider.dart';
 
-const kOutputPlacementSemantic = "Change Output Area Placement";
+const kOutputPlacementSemantic = 'Change Output Area Placement';
 
 class OutputPlacements extends StatelessWidget {
   const OutputPlacements({Key? key}) : super(key: key);
@@ -37,7 +37,7 @@ class OutputPlacements extends StatelessWidget {
           children: OutputPlacement.values
               .map(
                 (placement) => Semantics(
-                  label: "$kOutputPlacementSemantic ${placement.name}",
+              label: '$kOutputPlacementSemantic ${placement.name}',
                   child: IconButton(
                     splashRadius: kIconButtonSplashRadius,
                     icon: SvgPicture.asset(

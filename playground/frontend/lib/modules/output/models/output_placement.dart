@@ -18,9 +18,9 @@
 
 import 'package:playground/constants/assets.dart';
 
-const kBottomOutputPlacementName = "Bottom";
-const kRightOutputPlacementName = "Right";
-const kLeftOutputPlacementName = "Left";
+const kBottomOutputPlacementName = 'Bottom';
+const kRightOutputPlacementName = 'Right';
+const kLeftOutputPlacementName = 'Left';
 
 enum OutputPlacement {
   bottom,
