@@ -148,7 +148,8 @@ public class StatefulDoFnRunnerTest {
 
     runner.startBundle();
 
-    IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(WINDOW_SIZE));
+    IntervalWindow window =
+        new IntervalWindow(timestamp, timestamp.plus(Duration.millis(WINDOW_SIZE)));
 
     runner.processElement(
         WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
@@ -161,7 +162,7 @@ public class StatefulDoFnRunnerTest {
             .getCumulative();
     assertEquals(0L, droppedValues);
 
-    timerInternals.advanceInputWatermark(timestamp.plus(ALLOWED_LATENESS + 1));
+    timerInternals.advanceInputWatermark(timestamp.plus(Duration.millis(ALLOWED_LATENESS + 1)));
 
     runner.processElement(
         WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
@@ -223,7 +224,8 @@ public class StatefulDoFnRunnerTest {
 
     if (ordered) {
       // move forward in time so that the input might get flushed
-      advanceInputWatermark(timerInternals, elementTime.plus(ALLOWED_LATENESS + 1), runner);
+      advanceInputWatermark(
+          timerInternals, elementTime.plus(Duration.millis(ALLOWED_LATENESS + 1)), runner);
     }
 
     assertEquals(1, (int) stateInternals.state(windowNamespace(WINDOW_1), stateTag).read());
@@ -231,16 +233,24 @@ public class StatefulDoFnRunnerTest {
     // second element, key is hello, WINDOW_2
     runner.processElement(
         WindowedValue.of(
-            KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
+            KV.of("hello", 1),
+            elementTime.plus(Duration.millis(WINDOW_SIZE)),
+            WINDOW_2,
+            PaneInfo.NO_FIRING));
 
     runner.processElement(
         WindowedValue.of(
-            KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
+            KV.of("hello", 1),
+            elementTime.plus(Duration.millis(WINDOW_SIZE)),
+            WINDOW_2,
+            PaneInfo.NO_FIRING));
 
     if (ordered) {
       // move forward in time so that the input might get flushed
       advanceInputWatermark(
-          timerInternals, elementTime.plus(ALLOWED_LATENESS + 1 + WINDOW_SIZE), runner);
+          timerInternals,
+          elementTime.plus(Duration.millis(ALLOWED_LATENESS + 1 + WINDOW_SIZE)),
+          runner);
     }
 
     assertEquals(2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
@@ -249,7 +259,9 @@ public class StatefulDoFnRunnerTest {
     // the cleanup timer is set to window.maxTimestamp() + allowed lateness + 1
     // to ensure that state is still available when a user timer for window.maxTimestamp() fires
     advanceInputWatermark(
-        timerInternals, elementTime.plus(ALLOWED_LATENESS + 1 + WINDOW_SIZE), runner);
+        timerInternals,
+        elementTime.plus(Duration.millis(ALLOWED_LATENESS + 1 + WINDOW_SIZE)),
+        runner);
 
     assertTrue(
         stateInternals.isEmptyForTesting(
@@ -262,9 +274,9 @@ public class StatefulDoFnRunnerTest {
         timerInternals,
         WINDOW_2
             .maxTimestamp()
-            .plus(ALLOWED_LATENESS)
-            .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
-            .plus(1), // so the watermark is past the GC horizon, not on it
+            .plus(Duration.millis(ALLOWED_LATENESS))
+            .plus(Duration.millis(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS))
+            .plus(Duration.millis(1)), // so the watermark is past the GC horizon, not on it
         runner);
 
     assertTrue(
@@ -296,11 +308,16 @@ public class StatefulDoFnRunnerTest {
     runner.processElement(
         WindowedValue.of(KV.of("hello", 1), elementTime, WINDOW_1, PaneInfo.NO_FIRING));
     runner.processElement(
-        WindowedValue.of(KV.of("hello", 2), elementTime.minus(1), WINDOW_1, PaneInfo.NO_FIRING));
+        WindowedValue.of(
+            KV.of("hello", 2),
+            elementTime.minus(Duration.millis(1)),
+            WINDOW_1,
+            PaneInfo.NO_FIRING));
 
     if (ordered) {
       // move forward in time so that the input might get flushed
-      advanceInputWatermark(timerInternals, elementTime.plus(ALLOWED_LATENESS + 1), runner);
+      advanceInputWatermark(
+          timerInternals, elementTime.plus(Duration.millis(ALLOWED_LATENESS + 1)), runner);
     }
 
     assertEquals(3, (int) stateInternals.state(windowNamespace(WINDOW_1), stateTag).read());
@@ -310,7 +327,8 @@ public class StatefulDoFnRunnerTest {
           Arrays.asList(
               KV.of(
                   outputTag,
-                  WindowedValue.of(2, elementTime.minus(1), WINDOW_1, PaneInfo.NO_FIRING)),
+                  WindowedValue.of(
+                      2, elementTime.minus(Duration.millis(1)), WINDOW_1, PaneInfo.NO_FIRING)),
               KV.of(outputTag, WindowedValue.of(3, elementTime, WINDOW_1, PaneInfo.NO_FIRING))),
           outputs);
     } else {
@@ -319,25 +337,35 @@ public class StatefulDoFnRunnerTest {
               KV.of(outputTag, WindowedValue.of(1, elementTime, WINDOW_1, PaneInfo.NO_FIRING)),
               KV.of(
                   outputTag,
-                  WindowedValue.of(3, elementTime.minus(1), WINDOW_1, PaneInfo.NO_FIRING))),
+                  WindowedValue.of(
+                      3, elementTime.minus(Duration.millis(1)), WINDOW_1, PaneInfo.NO_FIRING))),
           outputs);
     }
     outputs.clear();
 
     // another window
-    elementTime = elementTime.plus(WINDOW_SIZE);
+    elementTime = elementTime.plus(Duration.millis(WINDOW_SIZE));
     runner.processElement(
         WindowedValue.of(KV.of("hello", 1), elementTime, WINDOW_2, PaneInfo.NO_FIRING));
 
     runner.processElement(
-        WindowedValue.of(KV.of("hello", 2), elementTime.minus(1), WINDOW_2, PaneInfo.NO_FIRING));
+        WindowedValue.of(
+            KV.of("hello", 2),
+            elementTime.minus(Duration.millis(1)),
+            WINDOW_2,
+            PaneInfo.NO_FIRING));
 
     runner.processElement(
-        WindowedValue.of(KV.of("hello", 3), elementTime.minus(2), WINDOW_2, PaneInfo.NO_FIRING));
+        WindowedValue.of(
+            KV.of("hello", 3),
+            elementTime.minus(Duration.millis(2)),
+            WINDOW_2,
+            PaneInfo.NO_FIRING));
 
     if (ordered) {
       // move forward in time so that the input might get flushed
-      advanceInputWatermark(timerInternals, elementTime.plus(ALLOWED_LATENESS + 1), runner);
+      advanceInputWatermark(
+          timerInternals, elementTime.plus(Duration.millis(ALLOWED_LATENESS + 1)), runner);
     }
 
     assertEquals(6, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
@@ -347,10 +375,12 @@ public class StatefulDoFnRunnerTest {
           Arrays.asList(
               KV.of(
                   outputTag,
-                  WindowedValue.of(3, elementTime.minus(2), WINDOW_2, PaneInfo.NO_FIRING)),
+                  WindowedValue.of(
+                      3, elementTime.minus(Duration.millis(2)), WINDOW_2, PaneInfo.NO_FIRING)),
               KV.of(
                   outputTag,
-                  WindowedValue.of(5, elementTime.minus(1), WINDOW_2, PaneInfo.NO_FIRING)),
+                  WindowedValue.of(
+                      5, elementTime.minus(Duration.millis(1)), WINDOW_2, PaneInfo.NO_FIRING)),
               KV.of(outputTag, WindowedValue.of(6, elementTime, WINDOW_2, PaneInfo.NO_FIRING))),
           outputs);
     } else {
@@ -359,10 +389,12 @@ public class StatefulDoFnRunnerTest {
               KV.of(outputTag, WindowedValue.of(1, elementTime, WINDOW_2, PaneInfo.NO_FIRING)),
               KV.of(
                   outputTag,
-                  WindowedValue.of(3, elementTime.minus(1), WINDOW_2, PaneInfo.NO_FIRING)),
+                  WindowedValue.of(
+                      3, elementTime.minus(Duration.millis(1)), WINDOW_2, PaneInfo.NO_FIRING)),
               KV.of(
                   outputTag,
-                  WindowedValue.of(6, elementTime.minus(2), WINDOW_2, PaneInfo.NO_FIRING))),
+                  WindowedValue.of(
+                      6, elementTime.minus(Duration.millis(2)), WINDOW_2, PaneInfo.NO_FIRING))),
           outputs);
     }
   }
