@@ -23,11 +23,6 @@ import static org.apache.beam.sdk.extensions.sbe.Schemas.UTC_TIME_SCHEMA;
 import java.time.LocalDate;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.extensions.sbe.TimeValues.TZTimeOnlyValue;
-import org.apache.beam.sdk.extensions.sbe.TimeValues.TZTimestampValue;
-import org.apache.beam.sdk.extensions.sbe.TimeValues.UTCTimeOnlyValue;
-import org.apache.beam.sdk.extensions.sbe.TimeValues.UTCTimestampValue;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
@@ -45,18 +40,6 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
  */
 @Experimental(Kind.SCHEMAS)
 public final class SbeLogicalTypes {
-  public static final Uint8 UINT_8 = new Uint8();
-  public static final Uint16 UINT_16 = new Uint16();
-  public static final Uint32 UINT_32 = new Uint32();
-  public static final Uint64 UINT_64 = new Uint64();
-
-  public static final UTCTimestamp UTC_TIMESTAMP = new UTCTimestamp();
-  public static final UTCTimeOnly UTC_TIME_ONLY = new UTCTimeOnly();
-  public static final UTCDateOnly UTC_DATE_ONLY = new UTCDateOnly();
-  public static final TZTimestamp TZ_TIMESTAMP = new TZTimestamp();
-  public static final TZTimeOnly TZ_TIME_ONLY = new TZTimeOnly();
-  public static final LocalMktDate LOCAL_MKT_DATE = new LocalMktDate();
-
   // Default argument type values
   private static final String DEFAULT_STRING_ARG = "";
 
@@ -106,105 +89,39 @@ public final class SbeLogicalTypes {
 
   // SBE time-based composite and logical types.
 
-  /** Helper type for building the time-based SBE logical types. */
-  private abstract static class SbeCompositeTimeType<T> implements LogicalType<T, Row> {
-    private final String identifier;
-    private final Schema schema;
-
-    SbeCompositeTimeType(String identifier, Schema schema) {
-      this.identifier = identifier;
-      this.schema = schema;
-    }
-
-    @Override
-    public @UnknownKeyFor @NonNull @Initialized String getIdentifier() {
-      return identifier;
-    }
-
-    @Override
-    public @Nullable @UnknownKeyFor @Initialized FieldType getArgumentType() {
-      return null;
-    }
-
-    @Override
-    public @UnknownKeyFor @NonNull @Initialized FieldType getBaseType() {
-      return FieldType.row(schema);
-    }
-  }
-
   /** Represents SBE's UTCTimestamp composite type. */
-  public static final class UTCTimestamp extends SbeCompositeTimeType<UTCTimestampValue> {
+  public static final class UTCTimestamp extends PassThroughLogicalType<Row> {
     public static final String IDENTIFIER = "UTCTimestamp";
 
     UTCTimestamp() {
-      super(IDENTIFIER, UTC_TIME_SCHEMA);
-    }
-
-    @Override
-    public @NonNull Row toBaseType(@NonNull UTCTimestampValue input) {
-      return input.asRow();
-    }
-
-    @Override
-    public @NonNull UTCTimestampValue toInputType(@NonNull Row base) {
-      return UTCTimestampValue.fromRow(base);
+      super(IDENTIFIER, FieldType.STRING, DEFAULT_STRING_ARG, FieldType.row(UTC_TIME_SCHEMA));
     }
   }
 
   /** Represents SBE's UTCTimeOnly composite type. */
-  public static final class UTCTimeOnly extends SbeCompositeTimeType<UTCTimeOnlyValue> {
+  public static final class UTCTimeOnly extends PassThroughLogicalType<Row> {
     public static final String IDENTIFIER = "UTCTimeOnly";
 
     UTCTimeOnly() {
-      super(IDENTIFIER, UTC_TIME_SCHEMA);
-    }
-
-    @Override
-    public @NonNull Row toBaseType(@NonNull UTCTimeOnlyValue input) {
-      return input.asRow();
-    }
-
-    @Override
-    public @NonNull UTCTimeOnlyValue toInputType(@NonNull Row base) {
-      return UTCTimeOnlyValue.fromRow(base);
+      super(IDENTIFIER, FieldType.STRING, DEFAULT_STRING_ARG, FieldType.row(UTC_TIME_SCHEMA));
     }
   }
 
   /** Represents SBE's TZTimestamp composite type. */
-  public static final class TZTimestamp extends SbeCompositeTimeType<TZTimestampValue> {
+  public static final class TZTimestamp extends PassThroughLogicalType<Row> {
     public static final String IDENTIFIER = "TZTimestamp";
 
     TZTimestamp() {
-      super(IDENTIFIER, TZ_TIME_SCHEMA);
-    }
-
-    @Override
-    public @NonNull Row toBaseType(@NonNull TZTimestampValue input) {
-      return input.asRow();
-    }
-
-    @Override
-    public @NonNull TZTimestampValue toInputType(@NonNull Row base) {
-      return TZTimestampValue.fromRow(base);
+      super(IDENTIFIER, FieldType.STRING, DEFAULT_STRING_ARG, FieldType.row(TZ_TIME_SCHEMA));
     }
   }
 
   /** Represents SBE's TimeOnly composite type. */
-  public static final class TZTimeOnly extends SbeCompositeTimeType<TZTimeOnlyValue> {
+  public static final class TZTimeOnly extends PassThroughLogicalType<Row> {
     public static final String IDENTIFIER = "TZTimeOnly";
 
     TZTimeOnly() {
-      super(IDENTIFIER, TZ_TIME_SCHEMA);
-    }
-
-    @Override
-    public @NonNull Row toBaseType(@NonNull TZTimeOnlyValue input) {
-      return input.asRow();
-    }
-
-    @Override
-    public @NonNull TZTimeOnlyValue toInputType(@NonNull Row base) {
-      return TZTimeOnlyValue.fromRow(base);
+      super(IDENTIFIER, FieldType.STRING, DEFAULT_STRING_ARG, FieldType.row(TZ_TIME_SCHEMA));
     }
   }
 
