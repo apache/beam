@@ -22,8 +22,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Proto',
     gradleTask: ':protoPreCommit',
-    triggerPathPatterns: [
-      '*.proto$',
-    ],
+    triggerPathPatterns: ['*.proto$',],
     )
 builder.build()
