@@ -16,14 +16,8 @@
  * limitations under the License.
  */
 ///
-//  Generated code. Do not modify.
-//  source: api/v1/api.proto
-//
-// @dart = 2.12
-// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
-
-// ignore_for_file: UNDEFINED_SHOWN_NAME
 import 'dart:core' as $core;
+
 import 'package:protobuf/protobuf.dart' as $pb;
 
 class Sdk extends $pb.ProtobufEnum {
@@ -48,16 +42,44 @@ class Sdk extends $pb.ProtobufEnum {
 }
 
 class Status extends $pb.ProtobufEnum {
-  static const Status STATUS_UNSPECIFIED = Status._(0, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_UNSPECIFIED');
-  static const Status STATUS_EXECUTING = Status._(1, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_EXECUTING');
-  static const Status STATUS_FINISHED = Status._(2, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_FINISHED');
-  static const Status STATUS_ERROR = Status._(3, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_ERROR');
+  static const Status STATUS_UNSPECIFIED = Status._(
+      0,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_UNSPECIFIED');
+  static const Status STATUS_EXECUTING = Status._(
+      1,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_EXECUTING');
+  static const Status STATUS_FINISHED = Status._(
+      2,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_FINISHED');
+  static const Status STATUS_ERROR = Status._(
+      3,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_ERROR');
+  static const Status STATUS_COMPILE_ERROR = Status._(
+      4,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_COMPILE_ERROR');
+  static const Status STATUS_RUN_TIMEOUT = Status._(
+      5,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'STATUS_RUN_TIMEOUT');
 
-  static const $core.List<Status> values = <Status> [
+  static const $core.List<Status> values = <Status>[
     STATUS_UNSPECIFIED,
     STATUS_EXECUTING,
     STATUS_FINISHED,
     STATUS_ERROR,
+    STATUS_COMPILE_ERROR,
+    STATUS_RUN_TIMEOUT,
   ];
 
   static final $core.Map<$core.int, Status> _byValue = $pb.ProtobufEnum.initByValue(values);
