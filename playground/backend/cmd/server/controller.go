@@ -124,15 +124,20 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 //GetListOfExamples returns the list of examples
 func (controller *playgroundController) GetListOfExamples(ctx context.Context, info *pb.GetListOfExamplesRequest) (*pb.GetListOfExamplesResponse, error) {
 	// TODO implement this method
-	examples := pb.Examples{
-		Example: []string{},
+	example1 := pb.Example{ExampleUuid: "001", Name: "Example1", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_DEFAULT}
+	example2 := pb.Example{ExampleUuid: "003", Name: "Example3", Description: "Test example 3", Type: pb.ExampleType_EXAMPLE_TYPE_KATA}
+
+	cat1 := pb.Categories_Category{
+		CategoryName: "Common",
+		Examples:     []*pb.Example{&example1, {ExampleUuid: "002", Name: "Example2", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_UNIT_TEST}},
 	}
-	categoryList := pb.CategoryList{
-		CategoryExamples: map[string]*pb.Examples{"": &examples},
+	cat2 := pb.Categories_Category{
+		CategoryName: "I/O",
+		Examples:     []*pb.Example{&example2},
 	}
-	response := pb.GetListOfExamplesResponse{
-		SdkCategories: map[string]*pb.CategoryList{"": &categoryList},
-	}
+	javaCats := pb.Categories{Sdk: pb.Sdk_SDK_JAVA, Categories: []*pb.Categories_Category{&cat1, &cat2}}
+	goCats := pb.Categories{Sdk: pb.Sdk_SDK_GO, Categories: []*pb.Categories_Category{&cat1, &cat2}}
+	response := pb.GetListOfExamplesResponse{SdkExamples: []*pb.Categories{&javaCats, &goCats}}
 	return &response, nil
 }
 

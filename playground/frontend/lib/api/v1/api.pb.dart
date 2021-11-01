@@ -509,101 +509,218 @@ class GetListOfExamplesRequest extends $pb.GeneratedMessage {
   void clearCategory() => clearField(2);
 }
 
-class Examples extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'Examples', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
-    ..pPS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'example')
+class Example extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'Example', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'exampleUuid')
+    ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'name')
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'description')
+    ..e<ExampleType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: ExampleType.EXAMPLE_TYPE_DEFAULT, valueOf: ExampleType.valueOf, enumValues: ExampleType.values)
     ..hasRequiredFields = false
   ;
 
-  Examples._() : super();
-  factory Examples({
-    $core.Iterable<$core.String>? example,
+  Example._() : super();
+  factory Example({
+    $core.String? exampleUuid,
+    $core.String? name,
+    $core.String? description,
+    ExampleType? type,
   }) {
     final _result = create();
-    if (example != null) {
-      _result.example.addAll(example);
+    if (exampleUuid != null) {
+      _result.exampleUuid = exampleUuid;
+    }
+    if (name != null) {
+      _result.name = name;
+    }
+    if (description != null) {
+      _result.description = description;
+    }
+    if (type != null) {
+      _result.type = type;
     }
     return _result;
   }
-  factory Examples.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory Examples.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  factory Example.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory Example.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
   'Will be removed in next major version')
-  Examples clone() => Examples()..mergeFromMessage(this);
+  Example clone() => Example()..mergeFromMessage(this);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
   'Will be removed in next major version')
-  Examples copyWith(void Function(Examples) updates) => super.copyWith((message) => updates(message as Examples)) as Examples; // ignore: deprecated_member_use
+  Example copyWith(void Function(Example) updates) => super.copyWith((message) => updates(message as Example)) as Example; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
-  static Examples create() => Examples._();
-  Examples createEmptyInstance() => create();
-  static $pb.PbList<Examples> createRepeated() => $pb.PbList<Examples>();
+  static Example create() => Example._();
+  Example createEmptyInstance() => create();
+  static $pb.PbList<Example> createRepeated() => $pb.PbList<Example>();
   @$core.pragma('dart2js:noInline')
-  static Examples getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Examples>(create);
-  static Examples? _defaultInstance;
+  static Example getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Example>(create);
+  static Example? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.List<$core.String> get example => $_getList(0);
+  $core.String get exampleUuid => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set exampleUuid($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasExampleUuid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearExampleUuid() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String v) { $_setString(1, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get description => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set description($core.String v) { $_setString(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasDescription() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearDescription() => clearField(3);
+
+  @$pb.TagNumber(4)
+  ExampleType get type => $_getN(3);
+  @$pb.TagNumber(4)
+  set type(ExampleType v) { setField(4, v); }
+  @$pb.TagNumber(4)
+  $core.bool hasType() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearType() => clearField(4);
 }
 
-class CategoryList extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'CategoryList', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
-    ..m<$core.String, Examples>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'categoryExamples', entryClassName: 'CategoryList.CategoryExamplesEntry', keyFieldType: $pb.PbFieldType.OS, valueFieldType: $pb.PbFieldType.OM, valueCreator: Examples.create, packageName: const $pb.PackageName('api.v1'))
+class Categories_Category extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'Categories.Category', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'categoryName')
+    ..pc<Example>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'examples', $pb.PbFieldType.PM, subBuilder: Example.create)
     ..hasRequiredFields = false
   ;
 
-  CategoryList._() : super();
-  factory CategoryList({
-    $core.Map<$core.String, Examples>? categoryExamples,
+  Categories_Category._() : super();
+  factory Categories_Category({
+    $core.String? categoryName,
+    $core.Iterable<Example>? examples,
   }) {
     final _result = create();
-    if (categoryExamples != null) {
-      _result.categoryExamples.addAll(categoryExamples);
+    if (categoryName != null) {
+      _result.categoryName = categoryName;
+    }
+    if (examples != null) {
+      _result.examples.addAll(examples);
     }
     return _result;
   }
-  factory CategoryList.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory CategoryList.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  factory Categories_Category.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory Categories_Category.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
   'Will be removed in next major version')
-  CategoryList clone() => CategoryList()..mergeFromMessage(this);
+  Categories_Category clone() => Categories_Category()..mergeFromMessage(this);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
   'Will be removed in next major version')
-  CategoryList copyWith(void Function(CategoryList) updates) => super.copyWith((message) => updates(message as CategoryList)) as CategoryList; // ignore: deprecated_member_use
+  Categories_Category copyWith(void Function(Categories_Category) updates) => super.copyWith((message) => updates(message as Categories_Category)) as Categories_Category; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
-  static CategoryList create() => CategoryList._();
-  CategoryList createEmptyInstance() => create();
-  static $pb.PbList<CategoryList> createRepeated() => $pb.PbList<CategoryList>();
+  static Categories_Category create() => Categories_Category._();
+  Categories_Category createEmptyInstance() => create();
+  static $pb.PbList<Categories_Category> createRepeated() => $pb.PbList<Categories_Category>();
   @$core.pragma('dart2js:noInline')
-  static CategoryList getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<CategoryList>(create);
-  static CategoryList? _defaultInstance;
+  static Categories_Category getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Categories_Category>(create);
+  static Categories_Category? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.Map<$core.String, Examples> get categoryExamples => $_getMap(0);
+  $core.String get categoryName => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set categoryName($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasCategoryName() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCategoryName() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<Example> get examples => $_getList(1);
+}
+
+class Categories extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'Categories', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..e<Sdk>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
+    ..pc<Categories_Category>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'categories', $pb.PbFieldType.PM, subBuilder: Categories_Category.create)
+    ..hasRequiredFields = false
+  ;
+
+  Categories._() : super();
+  factory Categories({
+    Sdk? sdk,
+    $core.Iterable<Categories_Category>? categories,
+  }) {
+    final _result = create();
+    if (sdk != null) {
+      _result.sdk = sdk;
+    }
+    if (categories != null) {
+      _result.categories.addAll(categories);
+    }
+    return _result;
+  }
+  factory Categories.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory Categories.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  Categories clone() => Categories()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  Categories copyWith(void Function(Categories) updates) => super.copyWith((message) => updates(message as Categories)) as Categories; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static Categories create() => Categories._();
+  Categories createEmptyInstance() => create();
+  static $pb.PbList<Categories> createRepeated() => $pb.PbList<Categories>();
+  @$core.pragma('dart2js:noInline')
+  static Categories getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Categories>(create);
+  static Categories? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  Sdk get sdk => $_getN(0);
+  @$pb.TagNumber(1)
+  set sdk(Sdk v) { setField(1, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasSdk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSdk() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<Categories_Category> get categories => $_getList(1);
 }
 
 class GetListOfExamplesResponse extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetListOfExamplesResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
-    ..m<$core.String, CategoryList>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdkCategories', entryClassName: 'GetListOfExamplesResponse.SdkCategoriesEntry', keyFieldType: $pb.PbFieldType.OS, valueFieldType: $pb.PbFieldType.OM, valueCreator: CategoryList.create, packageName: const $pb.PackageName('api.v1'))
+    ..pc<Categories>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdkExamples', $pb.PbFieldType.PM, subBuilder: Categories.create)
     ..hasRequiredFields = false
   ;
 
   GetListOfExamplesResponse._() : super();
   factory GetListOfExamplesResponse({
-    $core.Map<$core.String, CategoryList>? sdkCategories,
+    $core.Iterable<Categories>? sdkExamples,
   }) {
     final _result = create();
-    if (sdkCategories != null) {
-      _result.sdkCategories.addAll(sdkCategories);
+    if (sdkExamples != null) {
+      _result.sdkExamples.addAll(sdkExamples);
     }
     return _result;
   }
@@ -629,7 +746,7 @@ class GetListOfExamplesResponse extends $pb.GeneratedMessage {
   static GetListOfExamplesResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.Map<$core.String, CategoryList> get sdkCategories => $_getMap(0);
+  $core.List<Categories> get sdkExamples => $_getList(0);
 }
 
 class GetExampleRequest extends $pb.GeneratedMessage {

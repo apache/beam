@@ -38,6 +38,12 @@ enum Status {
   STATUS_RUN_TIMEOUT = 5;
 }
 
+enum ExampleType {
+  EXAMPLE_TYPE_DEFAULT = 0;
+  EXAMPLE_TYPE_KATA = 1;
+  EXAMPLE_TYPE_UNIT_TEST = 2;
+}
+
 // RunCodeRequest represents a code text and options of SDK which executes the code.
 message RunCodeRequest {
   string code = 1;
@@ -87,19 +93,27 @@ message GetListOfExamplesRequest{
   string category = 2;
 }
 
-// Examples represent the array of examples.
-message Examples{
-  repeated string example = 1;
+// Example represents one example with its information
+message Example{
+  string example_uuid = 1;
+  string name = 2;
+  string description = 3;
+  ExampleType type = 4;
 }
 
-// CategoryList represent the map between the category and examples corresponding to this category.
-message CategoryList{
-  map<string, Examples> category_examples = 1;
+// Categories represent the array of messages with sdk and categories at this sdk
+message Categories{
+  message Category{
+    string category_name = 1;
+    repeated Example examples = 2;
+  }
+  Sdk sdk = 1;
+  repeated Category categories = 2;
 }
 
 // ListOfExamplesResponse represent the map between sdk and categories for the sdk.
 message GetListOfExamplesResponse{
-  map<string, CategoryList> sdk_categories = 1;
+  repeated Categories sdk_examples = 1;
 }
 
 // ExampleRequest contains information of the example uuid.
