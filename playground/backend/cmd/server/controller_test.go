@@ -139,7 +139,7 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 		},
 		{
 			// Test case with calling RunCode method with correct SDK.
-			// As a result want to receive response with pipelineId and status into cache should be set as Status_STATUS_EXECUTING.
+			// As a result want to receive response with pipelineId and status into cache should be set as Status_STATUS_COMPILING.
 			name: "RunCode with correct sdk",
 			args: args{
 				ctx: context.Background(),
@@ -148,7 +148,7 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 					Sdk:  pb.Sdk_SDK_JAVA,
 				},
 			},
-			wantStatus: pb.Status_STATUS_EXECUTING,
+			wantStatus: pb.Status_STATUS_COMPILING,
 			wantErr:    false,
 		},
 	}
@@ -425,11 +425,11 @@ func Test_processCode(t *testing.T) {
 	}{
 		{
 			// Test case with calling processCode method without preparing files with code.
-			// As a result status into cache should be set as Status_STATUS_ERROR.
+			// As a result status into cache should be set as Status_STATUS_VALIDATION_ERROR.
 			name:                  "validation failed",
 			createExecFile:        false,
 			code:                  "",
-			expectedStatus:        pb.Status_STATUS_ERROR,
+			expectedStatus:        pb.Status_STATUS_VALIDATION_ERROR,
 			expectedCompileOutput: nil,
 			expectedRunOutput:     nil,
 			args: args{
