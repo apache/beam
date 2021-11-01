@@ -17,6 +17,7 @@ package environment
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -199,7 +200,7 @@ func TestApplicationEnvs_CacheEnvs(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
-		want   CacheEnvs
+		want   *CacheEnvs
 	}{
 		{
 			name: "all success",
@@ -208,7 +209,7 @@ func TestApplicationEnvs_CacheEnvs(t *testing.T) {
 				cacheEnvs:              &CacheEnvs{},
 				pipelineExecuteTimeout: 0,
 			},
-			want: CacheEnvs{},
+			want: &CacheEnvs{},
 		},
 	}
 	for _, tt := range tests {
@@ -218,7 +219,7 @@ func TestApplicationEnvs_CacheEnvs(t *testing.T) {
 				cacheEnvs:              tt.fields.cacheEnvs,
 				pipelineExecuteTimeout: tt.fields.pipelineExecuteTimeout,
 			}
-			if got := ae.CacheEnvs(); got != tt.want {
+			if got := ae.CacheEnvs(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("CacheEnvs() = %v, want %v", got, tt.want)
 			}
 		})

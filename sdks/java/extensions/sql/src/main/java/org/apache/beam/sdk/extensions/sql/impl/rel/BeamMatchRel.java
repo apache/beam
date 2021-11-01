@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtils;
 import org.apache.beam.sdk.extensions.sql.impl.cep.OrderKey;
 import org.apache.beam.sdk.extensions.sql.impl.nfa.NFA;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -54,7 +55,6 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSe
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollation;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Match;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
@@ -110,12 +110,12 @@ public class BeamMatchRel extends Match implements BeamRelNode {
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     return BeamCostModel.FACTORY.makeTinyCost(); // return constant costModel for now
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     // a simple way of getting some estimate data
     // to be examined further
     NodeStats inputEstimate = BeamSqlRelUtils.getNodeStats(input, mq);

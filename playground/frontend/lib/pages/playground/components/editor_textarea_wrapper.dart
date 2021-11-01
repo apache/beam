@@ -68,7 +68,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
     NotificationManager.showError(
       context,
       kNotificationTitle,
-      state.result?.errorMessage ?? "",
+      state.result?.errorMessage ?? '',
     );
     state.resetError();
   }

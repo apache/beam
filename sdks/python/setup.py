@@ -303,7 +303,12 @@ if __name__ == '__main__':
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
-          'docs': ['Sphinx>=1.5.2,<2.0'],
+          'docs': [
+            'Sphinx>=1.5.2,<2.0',
+            # Pinning docutils as a workaround for Sphinx issue:
+            # https://github.com/sphinx-doc/sphinx/issues/9727
+            'docutils==0.17.1'
+          ],
           'test': REQUIRED_TEST_PACKAGES,
           'gcp': GCP_REQUIREMENTS,
           'interactive': INTERACTIVE_BEAM,
@@ -321,7 +326,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
-          # When updating vesion classifiers, also update version warnings
+          # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',
           'Topic :: Software Development :: Libraries :: Python Modules',

@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.TVFSlidingWindowFn;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
@@ -57,7 +58,6 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSe
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelColumnMapping;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
@@ -349,12 +349,12 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     return BeamSqlRelUtils.getNodeStats(getInput(0), mq);
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(getInput(0), mq);
 
     final double rowSize = getRowType().getFieldCount();

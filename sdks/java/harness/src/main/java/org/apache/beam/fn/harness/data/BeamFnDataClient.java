@@ -17,15 +17,14 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.util.List;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
-import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
 /**
  * The {@link BeamFnDataClient} is able to forward inbound elements to a {@link FnDataReceiver} and
@@ -34,7 +33,7 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
  */
 public interface BeamFnDataClient {
   /**
-   * Registers the following inbound receiver for the provided instruction id and target.
+   * Registers the following inbound receiver for the provided instruction id.
    *
    * <p>The provided coder is used to decode inbound elements. The decoded elements are passed to
    * the provided receiver. Any failure during decoding or processing of the element will complete
@@ -42,20 +41,28 @@ public interface BeamFnDataClient {
    * is completed successfully.
    *
    * <p>The receiver is not required to be thread safe.
+   *
+   * <p>Receivers for successfully processed bundles must be unregistered. See {@link
+   * #unregisterReceiver} for details.
+   *
+   * <p>Any failure during {@link FnDataReceiver#accept} will mark the provided {@code
+   * instructionId} as invalid and will ignore any future data. It is expected that if a bundle
+   * fails during processing then the failure will become visible to the {@link BeamFnDataClient}
+   * during a future {@link FnDataReceiver#accept} invocation.
    */
-  default <T> InboundDataClient receive(
-      ApiServiceDescriptor apiServiceDescriptor,
-      LogicalEndpoint inputLocation,
-      Coder<T> coder,
-      FnDataReceiver<T> receiver) {
-    return receive(
-        apiServiceDescriptor, inputLocation, new DecodingFnDataReceiver<T>(coder, receiver));
-  }
+  void registerReceiver(
+      String instructionId,
+      List<ApiServiceDescriptor> apiServiceDescriptors,
+      CloseableFnDataReceiver<Elements> receiver);
 
-  InboundDataClient receive(
-      ApiServiceDescriptor apiServiceDescriptor,
-      LogicalEndpoint inputLocation,
-      FnDataReceiver<ByteString> receiver);
+  /**
+   * Receivers are only expected to be unregistered when bundle processing has completed
+   * successfully.
+   *
+   * <p>It is expected that if a bundle fails during processing then the failure will become visible
+   * to the {@link BeamFnDataClient} during a future {@link FnDataReceiver#accept} invocation.
+   */
+  void unregisterReceiver(String instructionId, List<ApiServiceDescriptor> apiServiceDescriptors);
 
   /**
    * Creates a {@link CloseableFnDataReceiver} using the provided instruction id and target.

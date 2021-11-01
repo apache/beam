@@ -17,13 +17,11 @@ package fs_tool
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 const (
@@ -48,10 +46,11 @@ type Extension struct {
 // LifeCycle is used for preparing folders and files to process code for one request.
 // For each SDK folders (Folder) and extensions (Extension) should be set correctly.
 type LifeCycle struct {
-	folderGlobs []string //folders that should be created to process code
-	Folder      Folder
-	Extension   Extension
-	pipelineId  uuid.UUID
+	folderGlobs    []string //folders that should be created to process code
+	Folder         Folder
+	Extension      Extension
+	ExecutableName func(uuid.UUID, string) (string, error)
+	pipelineId     uuid.UUID
 }
 
 // NewLifeCycle returns a corresponding LifeCycle depending on the given SDK.
@@ -114,18 +113,6 @@ func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
 func (l *LifeCycle) GetAbsoluteExecutableFilesFolderPath() string {
 	absoluteFilePath, _ := filepath.Abs(l.Folder.BaseFolder)
 	return absoluteFilePath
-}
-
-// GetExecutableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
-func (l *LifeCycle) GetExecutableName() (string, error) {
-	dirEntries, err := os.ReadDir(l.Folder.CompiledFolder)
-	if err != nil {
-		return "", err
-	}
-	if len(dirEntries) != 1 {
-		return "", errors.New("number of executable files should be equal to one")
-	}
-	return strings.Split(dirEntries[0].Name(), ".")[0], nil
 }
 
 // getFileName returns fileName by pipelineId and fileType ({pipelineId}.java for java SDK).
