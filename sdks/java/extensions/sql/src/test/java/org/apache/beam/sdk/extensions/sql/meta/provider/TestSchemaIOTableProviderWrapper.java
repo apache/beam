@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.ProjectionProducer;
@@ -128,8 +127,8 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
     }
 
     @Override
-    public EnumSet<ProjectSupport> supportsProjectionPushdown() {
-      return EnumSet.of(ProjectSupport.WITH_FIELD_REORDERING);
+    public boolean supportsProjectionPushdown() {
+      return true;
     }
 
     @Override
