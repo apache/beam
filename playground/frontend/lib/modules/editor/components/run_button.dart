@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
 
-const kRunText = "Run";
+const kRunText = 'Run';
 
 class RunButton extends StatelessWidget {
   final bool isRunning;

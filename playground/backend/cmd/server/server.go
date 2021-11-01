@@ -16,6 +16,8 @@
 package main
 
 import (
+	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/cache/local"
 	"context"
 	"log"
 	"os"
@@ -32,15 +34,26 @@ func runServer() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	envService := environment.NewEnvironment()
+	envService, err := setupEnvironment()
+	if err != nil {
+		return err
+	}
 	grpcServer := grpc.NewServer()
-	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{})
+
+	cacheService, err := setupCache(ctx, envService.ApplicationEnvs)
+	if err != nil {
+		return err
+	}
+	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{
+		env:          envService,
+		cacheService: cacheService,
+	})
 
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
 	handler := Wrap(grpcServer, getGrpcWebOptions())
 	errChan := make(chan error)
 
-	go listenHttp(ctx, errChan, envService, handler)
+	go listenHttp(ctx, errChan, envService.NetworkEnvs, handler)
 
 	for {
 		select {
@@ -53,6 +66,22 @@ func runServer() error {
 	}
 }
 
+func setupEnvironment() (*environment.Environment, error) {
+	networkEnvs, err := environment.GetNetworkEnvsFromOsEnvs()
+	if err != nil {
+		return nil, err
+	}
+	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		return nil, err
+	}
+	beamEnvs, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	if err != nil {
+		return nil, err
+	}
+	return environment.NewEnvironment(*networkEnvs, *beamEnvs, *appEnvs), nil
+}
+
 // getGrpcWebOptions returns grpcweb options needed to configure wrapper
 func getGrpcWebOptions() []grpcweb.Option {
 	return []grpcweb.Option{
@@ -63,6 +92,14 @@ func getGrpcWebOptions() []grpcweb.Option {
 		}),
 	}
 
+}
+
+// setupCache constructs required cache by application environment
+func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.Cache, error) {
+	switch appEnv.CacheEnvs().CacheType() {
+	default:
+		return local.New(ctx), nil
+	}
 }
 
 func main() {

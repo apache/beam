@@ -42,6 +42,9 @@ dependencies {
   compile "com.amazonaws:amazon-kinesis-producer:0.14.1"
   compile "commons-lang:commons-lang:2.6"
   compile library.java.vendored_guava_26_0_jre
+  compile library.java.jackson_core
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.mockito_core

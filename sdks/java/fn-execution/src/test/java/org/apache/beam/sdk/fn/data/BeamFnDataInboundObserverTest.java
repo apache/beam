@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness.data;
+package org.apache.beam.sdk.fn.data;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -30,11 +30,6 @@ import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
-import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
-import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;

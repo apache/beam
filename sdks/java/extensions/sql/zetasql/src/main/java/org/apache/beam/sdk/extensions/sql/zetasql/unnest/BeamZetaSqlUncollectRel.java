@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql.unnest;
 import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -35,7 +36,6 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptClus
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
  * {@link BeamRelNode} to implement an uncorrelated {@link ZetaSqlUnnest}, aka UNNEST.
@@ -89,7 +89,7 @@ public class BeamZetaSqlUncollectRel extends ZetaSqlUnnest implements BeamRelNod
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     // We estimate the average length of each array by a constant.
     // We might be able to get an estimate of the length by making a MetadataHandler for this
     // purpose, and get the estimate by reading the first couple of the rows in the source.
@@ -97,7 +97,7 @@ public class BeamZetaSqlUncollectRel extends ZetaSqlUnnest implements BeamRelNod
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
     return BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
   }

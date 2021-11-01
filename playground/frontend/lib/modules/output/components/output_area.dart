@@ -21,8 +21,8 @@ import 'package:playground/constants/sizes.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
-const kLogText = "Log";
-const kGraphText = "Graph";
+const kLogText = 'Log';
+const kGraphText = 'Graph';
 
 class OutputArea extends StatelessWidget {
   const OutputArea({Key? key}) : super(key: key);
@@ -37,7 +37,7 @@ class OutputArea extends StatelessWidget {
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.all(kLgSpacing),
-                child: Text(state.result?.output ?? ""),
+                child: Text(state.result?.output ?? ''),
               ),
               const Center(child: Text(kLogText)),
               const Center(child: Text(kGraphText)),

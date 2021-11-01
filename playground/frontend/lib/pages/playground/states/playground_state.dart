@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
@@ -23,12 +25,20 @@ import 'package:playground/modules/editor/repository/code_repository/run_code_re
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
+const kTitleLength = 15;
+const kTitle = 'Catalog';
+
 class PlaygroundState with ChangeNotifier {
   late SDK _sdk;
   CodeRepository? _codeRepository;
   ExampleModel? _selectedExample;
-  String _source = "";
+  String _source = '';
   RunCodeResult? _result;
+
+  String get examplesTitle {
+    final name = _selectedExample?.name ?? '';
+    return name.substring(0, min(kTitleLength, name.length));
+  }
 
   PlaygroundState({
     SDK sdk = SDK.java,
@@ -37,7 +47,7 @@ class PlaygroundState with ChangeNotifier {
   }) {
     _selectedExample = selectedExample;
     _sdk = sdk;
-    _source = _selectedExample?.sources[_sdk] ?? "";
+    _source = _selectedExample?.sources[_sdk] ?? '';
     _codeRepository = codeRepository;
   }
 
@@ -53,7 +63,7 @@ class PlaygroundState with ChangeNotifier {
 
   setExample(ExampleModel example) {
     _selectedExample = example;
-    _source = example.sources[_sdk] ?? "";
+    _source = example.sources[_sdk] ?? '';
     notifyListeners();
   }
 
@@ -66,9 +76,14 @@ class PlaygroundState with ChangeNotifier {
     _source = source;
   }
 
+  clearOutput() {
+    _result = null;
+    notifyListeners();
+  }
+
   reset() {
     _sdk = SDK.java;
-    _source = _selectedExample?.sources[_sdk] ?? "";
+    _source = _selectedExample?.sources[_sdk] ?? '';
     notifyListeners();
   }
 
