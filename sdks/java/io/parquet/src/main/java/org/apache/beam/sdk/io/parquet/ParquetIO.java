@@ -518,6 +518,7 @@ public class ParquetIO {
                   .toBuilder()
                   .setCoder(getCoder())
                   .setSplittable(isSplittable())
+                  .setConfiguration(getConfiguration())
                   .build());
     }
 
