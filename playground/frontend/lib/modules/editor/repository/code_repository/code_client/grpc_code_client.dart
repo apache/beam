@@ -17,8 +17,8 @@
  */
 
 import 'package:grpc/grpc_web.dart';
-import 'package:playground/constants/api.dart';
 import 'package:playground/api/v1/api.pbgrpc.dart' as grpc;
+import 'package:playground/constants/api.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/check_status_response.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
@@ -27,6 +27,8 @@ import 'package:playground/modules/editor/repository/code_repository/run_code_er
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
+
+const kGeneralError = 'Failed to execute code';
 
 class GrpcCodeClient implements CodeClient {
   late final GrpcWebClientChannel _channel;
@@ -77,7 +79,7 @@ class GrpcCodeClient implements CodeClient {
     } on GrpcError catch (error) {
       throw RunCodeError(error.message);
     } on Exception catch (_) {
-      throw RunCodeError("Failed to execute code");
+      throw RunCodeError(kGeneralError);
     }
   }
 

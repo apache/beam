@@ -104,7 +104,7 @@ class NotificationManager {
         backgroundColor: Theme.of(context).backgroundColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(kBorderRadius),
+          borderRadius: BorderRadius.circular(kLgBorderRadius),
         ),
         margin: EdgeInsets.only(
           bottom: screenSize.height - kNotificationTopOffset,

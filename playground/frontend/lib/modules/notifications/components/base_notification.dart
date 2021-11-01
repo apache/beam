@@ -54,8 +54,8 @@ class BaseNotification extends StatelessWidget {
         decoration: BoxDecoration(
           color: color,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(kBorderRadius),
-            bottomLeft: Radius.circular(kBorderRadius),
+            topLeft: Radius.circular(kLgBorderRadius),
+            bottomLeft: Radius.circular(kLgBorderRadius),
           ),
         ),
       ),

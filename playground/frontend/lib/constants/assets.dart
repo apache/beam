@@ -26,7 +26,7 @@ const kGithubIconAsset = 'github.svg';
 const kBeamIconAsset = 'beam.png';
 
 // notifications icons
-const kErrorNotificationIconAsset = "error_notification.svg";
-const kWarningNotificationIconAsset = "warning_notification.svg";
-const kSuccessNotificationIconAsset = "success_notification.svg";
-const kInfoNotificationIconAsset = "info_notification.svg";
+const kErrorNotificationIconAsset = 'error_notification.svg';
+const kWarningNotificationIconAsset = 'warning_notification.svg';
+const kSuccessNotificationIconAsset = 'success_notification.svg';
+const kInfoNotificationIconAsset = 'info_notification.svg';
