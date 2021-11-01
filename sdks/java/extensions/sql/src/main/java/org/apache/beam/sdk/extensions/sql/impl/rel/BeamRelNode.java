@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -27,7 +28,6 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
 @SuppressWarnings({
@@ -80,7 +80,7 @@ public interface BeamRelNode extends RelNode {
    * org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery)}
    * instead.
    */
-  NodeStats estimateNodeStats(RelMetadataQuery mq);
+  NodeStats estimateNodeStats(BeamRelMetadataQuery mq);
 
   /**
    * This method is called by {@code
@@ -91,5 +91,5 @@ public interface BeamRelNode extends RelNode {
    * will call this method instead of ComputeSelfCost if the handler is set correctly (see {@code
    * org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner#convertToBeamRel(String)})
    */
-  BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq);
+  BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq);
 }

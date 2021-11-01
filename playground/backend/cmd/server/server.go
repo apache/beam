@@ -16,6 +16,8 @@
 package main
 
 import (
+	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/cache/local"
 	"context"
 	"log"
 	"os"
@@ -37,7 +39,15 @@ func runServer() error {
 		return err
 	}
 	grpcServer := grpc.NewServer()
-	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{})
+
+	cacheService, err := setupCache(ctx, envService.ApplicationEnvs)
+	if err != nil {
+		return err
+	}
+	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{
+		env:          envService,
+		cacheService: cacheService,
+	})
 
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
 	handler := Wrap(grpcServer, getGrpcWebOptions())
@@ -61,11 +71,11 @@ func setupEnvironment() (*environment.Environment, error) {
 	if err != nil {
 		return nil, err
 	}
-	beamEnvs, err := environment.GetSdkEnvsFromOsEnvs()
+	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
 	if err != nil {
 		return nil, err
 	}
-	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	beamEnvs, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +92,14 @@ func getGrpcWebOptions() []grpcweb.Option {
 		}),
 	}
 
+}
+
+// setupCache constructs required cache by application environment
+func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.Cache, error) {
+	switch appEnv.CacheEnvs().CacheType() {
+	default:
+		return local.New(ctx), nil
+	}
 }
 
 func main() {
