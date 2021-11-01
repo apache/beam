@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
@@ -118,7 +119,9 @@ public class BeamCalcRelTest extends BaseRelTest {
 
     Assert.assertTrue(root instanceof BeamCalcRel);
 
-    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    NodeStats estimate =
+        BeamSqlRelUtils.getNodeStats(
+            root, ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
 
     Assert.assertEquals(5d, estimate.getRowCount(), 0.001);
     Assert.assertEquals(5d, estimate.getWindow(), 0.001);
@@ -133,7 +136,9 @@ public class BeamCalcRelTest extends BaseRelTest {
 
     Assert.assertTrue(root instanceof BeamCalcRel);
 
-    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    NodeStats estimate =
+        BeamSqlRelUtils.getNodeStats(
+            root, ((BeamRelMetadataQuery) root.getCluster().getMetadataQuery()));
 
     Assert.assertTrue(5d > estimate.getRowCount());
     Assert.assertTrue(5d > estimate.getWindow());
@@ -149,9 +154,11 @@ public class BeamCalcRelTest extends BaseRelTest {
     RelNode geqRoot = env.parseQuery(geqSql);
 
     NodeStats equalEstimate =
-        BeamSqlRelUtils.getNodeStats(equalRoot, equalRoot.getCluster().getMetadataQuery());
+        BeamSqlRelUtils.getNodeStats(
+            equalRoot, ((BeamRelMetadataQuery) equalRoot.getCluster().getMetadataQuery()));
     NodeStats geqEstimate =
-        BeamSqlRelUtils.getNodeStats(geqRoot, geqRoot.getCluster().getMetadataQuery());
+        BeamSqlRelUtils.getNodeStats(
+            geqRoot, ((BeamRelMetadataQuery) geqRoot.getCluster().getMetadataQuery()));
 
     Assert.assertTrue(geqEstimate.getRowCount() > equalEstimate.getRowCount());
     Assert.assertTrue(geqEstimate.getWindow() > equalEstimate.getWindow());
@@ -166,10 +173,12 @@ public class BeamCalcRelTest extends BaseRelTest {
     RelNode doubleEqualRoot = env.parseQuery(doubleEqualSql);
 
     NodeStats equalEstimate =
-        BeamSqlRelUtils.getNodeStats(equalRoot, equalRoot.getCluster().getMetadataQuery());
+        BeamSqlRelUtils.getNodeStats(
+            equalRoot, ((BeamRelMetadataQuery) equalRoot.getCluster().getMetadataQuery()));
     NodeStats doubleEqualEstimate =
         BeamSqlRelUtils.getNodeStats(
-            doubleEqualRoot, doubleEqualRoot.getCluster().getMetadataQuery());
+            doubleEqualRoot,
+            ((BeamRelMetadataQuery) doubleEqualRoot.getCluster().getMetadataQuery()));
 
     Assert.assertTrue(doubleEqualEstimate.getRowCount() < equalEstimate.getRowCount());
     Assert.assertTrue(doubleEqualEstimate.getWindow() < equalEstimate.getWindow());

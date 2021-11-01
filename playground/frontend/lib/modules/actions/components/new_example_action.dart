@@ -23,7 +23,7 @@ import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const kNewExampleButtonText = "New Example";
+const kNewExampleButtonText = 'New Example';
 
 class NewExampleAction extends StatelessWidget {
   const NewExampleAction({Key? key}) : super(key: key);
@@ -38,7 +38,7 @@ class NewExampleAction extends StatelessWidget {
           color: ThemeColors.of(context).grey1Color,
         ),
         label: kNewExampleButtonText,
-        onPressed: () => launch("/"),
+        onPressed: () => launch('/'),
       ),
     );
   }

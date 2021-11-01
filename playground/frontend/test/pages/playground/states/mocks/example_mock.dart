@@ -19,11 +19,11 @@
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
-const javaExample = "java example";
+const javaExample = 'java example';
 
-const pythonExample = "python example";
+const pythonExample = 'python example';
 
-const goExample = "go example";
+const goExample = 'go example';
 
 const sdkMap = {
   SDK.java: javaExample,
@@ -33,5 +33,6 @@ const sdkMap = {
 
 const ExampleModel exampleMock = ExampleModel(
   sdkMap,
-  "Example",
+  'Example',
+  ExampleType.example,
 );

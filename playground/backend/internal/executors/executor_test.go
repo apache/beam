@@ -69,12 +69,12 @@ func TestExecutor_Compile(t *testing.T) {
 				compileArgs: CmdConfiguration{
 					fileName:    "filePath",
 					workingDir:  "./",
-					commandName: "javac",
+					commandName: "testCommand",
 					commandArgs: []string{"-d", "bin", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar"},
 				},
 			},
 			want: &exec.Cmd{
-				Path:         "/usr/bin/javac",
+				Path:         "testCommand",
 				Args:         []string{"javac", "-d", "bin", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar", "filePath"},
 				Env:          nil,
 				Dir:          "",
@@ -119,13 +119,13 @@ func TestExecutor_Run(t *testing.T) {
 				runArgs: CmdConfiguration{
 					fileName:    "HelloWorld",
 					workingDir:  "./",
-					commandName: "java",
+					commandName: "testCommand",
 					commandArgs: []string{"-cp", "bin:/opt/apache/beam/jars/beam-sdks-java-harness.jar:" +
 						"/opt/apache/beam/jars/beam-runners-direct.jar:/opt/apache/beam/jars/slf4j-jdk14.jar"},
 				},
 			},
 			want: &exec.Cmd{
-				Path: "/usr/bin/java",
+				Path: "testCommand",
 				Args: []string{"java", "-cp", "bin:/opt/apache/beam/jars/beam-sdks-java-harness.jar:" +
 					"/opt/apache/beam/jars/beam-runners-direct.jar:/opt/apache/beam/jars/slf4j-jdk14.jar", "HelloWorld"},
 				Env:          nil,

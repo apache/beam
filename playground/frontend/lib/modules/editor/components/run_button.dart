@@ -21,7 +21,7 @@ import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 
-const kRunText = "Run";
+const kRunText = 'Run';
 
 class RunButton extends StatelessWidget {
   final bool isRunning;
