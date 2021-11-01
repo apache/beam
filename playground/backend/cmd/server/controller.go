@@ -94,6 +94,35 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 	return &compileOutput, nil
 }
 
+//GetListOfExamples returns the list of examples
+func (controller *playgroundController) GetListOfExamples(ctx context.Context, info *pb.GetListOfExamplesRequest) (*pb.GetListOfExamplesResponse, error) {
+	// TODO implement this method
+	examples := pb.Examples{
+		Example: []string{},
+	}
+	categoryList := pb.CategoryList{
+		CategoryExamples: map[string]*pb.Examples{"": &examples},
+	}
+	response := pb.GetListOfExamplesResponse{
+		SdkCategories: map[string]*pb.CategoryList{"": &categoryList},
+	}
+	return &response, nil
+}
+
+// GetExample returns the code of the specific example
+func (controller *playgroundController) GetExample(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetExampleResponse, error) {
+	// TODO implement this method
+	response := pb.GetExampleResponse{Code: "example code"}
+	return &response, nil
+}
+
+// GetExampleOutput returns the output of the compiled and run example
+func (controller *playgroundController) GetExampleOutput(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetRunOutputResponse, error) {
+	// TODO implement this method
+	response := pb.GetRunOutputResponse{Output: "Response Output"}
+	return &response, nil
+}
+
 // setupLifeCycle creates fs_tool.LifeCycle and prepares files and folders needed to code processing
 func setupLifeCycle(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string) (*fs_tool.LifeCycle, error) {
 	// create file system service
