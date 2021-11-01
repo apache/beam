@@ -19,9 +19,9 @@
 import 'package:playground/constants/assets.dart';
 
 enum OutputPlacement {
-  bottom,
-  left,
   right,
+  left,
+  bottom,
 }
 
 extension OutputPlacementToIcon on OutputPlacement {

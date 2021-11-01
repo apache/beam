@@ -18,7 +18,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/modules/shortcuts/components/shortcuts_modal.dart';
@@ -115,7 +114,7 @@ class _MoreActionsState extends State<MoreActions> {
             padding: EdgeInsets.zero,
             value: HeaderAction.beamWebsite,
             child: ListTile(
-              leading: const Image(image: AssetImage('beam.png')),
+              leading: const Image(image: AssetImage(kBeamIconAsset)),
               title: const Text(kBeamWebsiteText),
               onTap: () => launch(kBeamWebsiteLink),
             ),
