@@ -165,6 +165,11 @@ class RowCoderImpl(StreamCoderImpl):
     self.schema = schema
     self.constructor = named_tuple_from_schema(schema)
     self.encoding_positions = list(range(len(self.schema.fields)))
+    if self.schema.encoding_positions_set:
+      if not all(field.encoding_position for field in self.schema.fields):
+        raise ValueError(
+            f'''Schema with id {schema.id} has encoding_positions_set=True,
+            but not all fields have encoding_position set''')
     if any(field.encoding_position for field in self.schema.fields):
       self.encoding_positions = list(
           field.encoding_position for field in self.schema.fields)

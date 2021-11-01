@@ -31,8 +31,8 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.typehints.schemas import set_encoding_position
-from apache_beam.typehints.schemas import typing_to_runner_api
+from apache_beam.typehints.schemas import SCHEMA_REGISTRY
+from apache_beam.typehints.schemas import named_tuple_to_schema, typing_to_runner_api
 from apache_beam.utils.timestamp import Timestamp
 
 Person = typing.NamedTuple(
@@ -322,6 +322,22 @@ class RowCoderTest(unittest.TestCase):
     # Should raise an exception referencing the problem field
     self.assertRaisesRegex(
         ValueError, "type_with_no_typeinfo", lambda: RowCoder(schema_proto))
+
+
+def get_encoding_position(schema):
+  return [f.encoding_position for f in schema.fields]
+
+
+def set_encoding_position(type_, values):
+  beam_schema_id = "_beam_schema_id"
+  if hasattr(type_, beam_schema_id):
+    schema = SCHEMA_REGISTRY.get_schema_by_id(getattr(type_, beam_schema_id))
+  else:
+    schema = named_tuple_to_schema(type_)
+  val = dict(values)
+  for idx, field in enumerate(schema.fields):
+    schema.fields[idx].encoding_position = val[field.name]
+  SCHEMA_REGISTRY.add(type_, schema)
 
 
 if __name__ == "__main__":
