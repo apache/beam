@@ -19,6 +19,9 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.kinesis.AmazonKinesis;
@@ -68,13 +71,23 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading from Kinesis</h3>
  *
- * <p>Example usage:
+ * <p>Example usages:
  *
  * <pre>{@code
  * p.apply(KinesisIO.read()
  *     .withStreamName("streamName")
  *     .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *     .withAWSClientsProvider("AWS_KEY", _"AWS_SECRET", STREAM_REGION)
+ *     // using AWS default credentials provider chain (recommended)
+ *     .withAWSClientsProvider(DefaultAWSCredentialsProviderChain.getInstance(), STREAM_REGION)
+ *  .apply( ... ) // other transformations
+ * }</pre>
+ *
+ * <pre>{@code
+ * p.apply(KinesisIO.read()
+ *     .withStreamName("streamName")
+ *     .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *     // using plain AWS key and secret
+ *     .withAWSClientsProvider("AWS_KEY", "AWS_SECRET", STREAM_REGION)
  *  .apply( ... ) // other transformations
  * }</pre>
  *
@@ -90,7 +103,7 @@ import org.slf4j.LoggerFactory;
  *       </ul>
  *   <li>data used to initialize {@link AmazonKinesis} and {@link AmazonCloudWatch} clients:
  *       <ul>
- *         <li>credentials (aws key, aws secret)
+ *         <li>AWS credentials
  *         <li>region where the stream is located
  *       </ul>
  * </ul>
@@ -241,7 +254,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to Kinesis</h3>
  *
- * <p>Example usage:
+ * <p>Example usages:
  *
  * <pre>{@code
  * PCollection<byte[]> data = ...;
@@ -249,7 +262,18 @@ import org.slf4j.LoggerFactory;
  * data.apply(KinesisIO.write()
  *     .withStreamName("streamName")
  *     .withPartitionKey("partitionKey")
- *     .withAWSClientsProvider(AWS_KEY, AWS_SECRET, STREAM_REGION));
+ *     // using AWS default credentials provider chain (recommended)
+ *     .withAWSClientsProvider(DefaultAWSCredentialsProviderChain.getInstance(), STREAM_REGION));
+ * }</pre>
+ *
+ * <pre>{@code
+ * PCollection<byte[]> data = ...;
+ *
+ * data.apply(KinesisIO.write()
+ *     .withStreamName("streamName")
+ *     .withPartitionKey("partitionKey")
+ *      // using plain AWS key and secret
+ *     .withAWSClientsProvider("AWS_KEY", "AWS_SECRET", STREAM_REGION));
  * }</pre>
  *
  * <p>As a client, you need to provide at least 3 things:
@@ -260,7 +284,7 @@ import org.slf4j.LoggerFactory;
  *       partition will be used for writing
  *   <li>data used to initialize {@link AmazonKinesis} and {@link AmazonCloudWatch} clients:
  *       <ul>
- *         <li>credentials (aws key, aws secret)
+ *         <li>AWS credentials
  *         <li>region where the stream is located
  *       </ul>
  * </ul>
@@ -416,10 +440,20 @@ public final class KinesisIO {
      * Allows to specify custom {@link AWSClientsProvider}. {@link AWSClientsProvider} provides
      * {@link AmazonKinesis} and {@link AmazonCloudWatch} instances which are later used for
      * communication with Kinesis. You should use this method if {@link
-     * Read#withAWSClientsProvider(String, String, Regions)} does not suit your needs.
+     * Read#withAWSClientsProvider(AWSCredentialsProvider, Regions)} does not suit your needs.
      */
     public Read<T> withAWSClientsProvider(AWSClientsProvider awsClientsProvider) {
       return toBuilder().setAWSClientsProvider(awsClientsProvider).build();
+    }
+
+    /**
+     * Specify {@link AWSCredentialsProvider} and region to be used to read from Kinesis. If you
+     * need more sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
+     */
+    public Read<T> withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider, Regions region) {
+      return withAWSClientsProvider(awsCredentialsProvider, region, null);
     }
 
     /**
@@ -433,6 +467,19 @@ public final class KinesisIO {
     }
 
     /**
+     * Specify {@link AWSCredentialsProvider} and region to be used to read from Kinesis. If you
+     * need more sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with a kinesis service emulator.
+     */
+    public Read<T> withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider, Regions region, String serviceEndpoint) {
+      return withAWSClientsProvider(awsCredentialsProvider, region, serviceEndpoint, true);
+    }
+
+    /**
      * Specify credential details and region to be used to read from Kinesis. If you need more
      * sophisticated credential protocol, then you should look at {@link
      * Read#withAWSClientsProvider(AWSClientsProvider)}.
@@ -442,8 +489,28 @@ public final class KinesisIO {
      */
     public Read<T> withAWSClientsProvider(
         String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
+      return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint, true);
+    }
+
+    /**
+     * Specify {@link AWSCredentialsProvider} and region to be used to read from Kinesis. If you
+     * need more sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     *
+     * <p>The {@code verifyCertificate} disables or enables certificate verification. Never set it
+     * to false in production.
+     */
+    public Read<T> withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider,
+        Regions region,
+        String serviceEndpoint,
+        boolean verifyCertificate) {
       return withAWSClientsProvider(
-          new BasicKinesisProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+          new BasicKinesisProvider(
+              awsCredentialsProvider, region, serviceEndpoint, verifyCertificate));
     }
 
     /**
@@ -463,9 +530,10 @@ public final class KinesisIO {
         Regions region,
         String serviceEndpoint,
         boolean verifyCertificate) {
+      AWSCredentialsProvider awsCredentialsProvider =
+          new AWSStaticCredentialsProvider(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
       return withAWSClientsProvider(
-          new BasicKinesisProvider(
-              awsAccessKey, awsSecretKey, region, serviceEndpoint, verifyCertificate));
+          awsCredentialsProvider, region, serviceEndpoint, verifyCertificate);
     }
 
     /** Specifies to read at most a given number of records. */
@@ -698,11 +766,21 @@ public final class KinesisIO {
      * Allows to specify custom {@link AWSClientsProvider}. {@link AWSClientsProvider} creates new
      * {@link IKinesisProducer} which is later used for writing to Kinesis.
      *
-     * <p>This method should be used if {@link Write#withAWSClientsProvider(String, String,
+     * <p>This method should be used if {@link Write#withAWSClientsProvider(AWSCredentialsProvider,
      * Regions)} does not suit well.
      */
     public Write withAWSClientsProvider(AWSClientsProvider awsClientsProvider) {
       return builder().setAWSClientsProvider(awsClientsProvider).build();
+    }
+
+    /**
+     * Specify {@link AWSCredentialsProvider} and region to be used to write to Kinesis. If you need
+     * more sophisticated credential protocol, then you should look at {@link
+     * Write#withAWSClientsProvider(AWSClientsProvider)}.
+     */
+    public Write withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider, Regions region) {
+      return withAWSClientsProvider(awsCredentialsProvider, region, null);
     }
 
     /**
@@ -715,6 +793,19 @@ public final class KinesisIO {
     }
 
     /**
+     * Specify {@link AWSCredentialsProvider} and region to be used to write to Kinesis. If you need
+     * more sophisticated credential protocol, then you should look at {@link
+     * Write#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     */
+    public Write withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider, Regions region, String serviceEndpoint) {
+      return withAWSClientsProvider(awsCredentialsProvider, region, serviceEndpoint, true);
+    }
+
+    /**
      * Specify credential details and region to be used to write to Kinesis. If you need more
      * sophisticated credential protocol, then you should look at {@link
      * Write#withAWSClientsProvider(AWSClientsProvider)}.
@@ -724,8 +815,28 @@ public final class KinesisIO {
      */
     public Write withAWSClientsProvider(
         String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
+      return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint, true);
+    }
+
+    /**
+     * Specify credential details and region to be used to write to Kinesis. If you need more
+     * sophisticated credential protocol, then you should look at {@link
+     * Write#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     *
+     * <p>The {@code verifyCertificate} disables or enables certificate verification. Never set it
+     * to false in production.
+     */
+    public Write withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider,
+        Regions region,
+        String serviceEndpoint,
+        boolean verifyCertificate) {
       return withAWSClientsProvider(
-          new BasicKinesisProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+          new BasicKinesisProvider(
+              awsCredentialsProvider, region, serviceEndpoint, verifyCertificate));
     }
 
     /**
@@ -745,9 +856,10 @@ public final class KinesisIO {
         Regions region,
         String serviceEndpoint,
         boolean verifyCertificate) {
+      AWSCredentialsProvider awsCredentialsProvider =
+          new AWSStaticCredentialsProvider(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
       return withAWSClientsProvider(
-          new BasicKinesisProvider(
-              awsAccessKey, awsSecretKey, region, serviceEndpoint, verifyCertificate));
+          awsCredentialsProvider, region, serviceEndpoint, verifyCertificate);
     }
 
     /**

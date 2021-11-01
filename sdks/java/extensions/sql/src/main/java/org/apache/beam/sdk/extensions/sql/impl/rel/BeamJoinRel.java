@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.values.PCollection;
@@ -35,7 +36,6 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.CorrelationId;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Join;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.JoinRelType;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexFieldAccess;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
@@ -111,7 +111,7 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats leftEstimates = BeamSqlRelUtils.getNodeStats(this.left, mq);
     NodeStats rightEstimates = BeamSqlRelUtils.getNodeStats(this.right, mq);
     NodeStats selfEstimates = BeamSqlRelUtils.getNodeStats(this, mq);
@@ -120,7 +120,7 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     double selectivity = mq.getSelectivity(this, getCondition());
     NodeStats leftEstimates = BeamSqlRelUtils.getNodeStats(this.left, mq);
     NodeStats rightEstimates = BeamSqlRelUtils.getNodeStats(this.right, mq);

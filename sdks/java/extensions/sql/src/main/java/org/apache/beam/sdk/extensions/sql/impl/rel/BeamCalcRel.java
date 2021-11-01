@@ -649,6 +649,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     }
 
     private static Expression toCalciteRow(Expression input, Schema schema) {
+      // This function generates an instance of WrappedRow. The bulk of the function is generating
+      // an implementation for WrappedRow.field
       ParameterExpression row = Expressions.parameter(Row.class);
       ParameterExpression index = Expressions.parameter(int.class);
       BlockBuilder body = new BlockBuilder(/* optimizing= */ false);
@@ -659,11 +661,9 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
         list.append(returnValue);
 
-        body.append(
-            "if i=" + i,
-            Expressions.block(
-                Expressions.ifThen(
-                    Expressions.equal(index, Expressions.constant(i, int.class)), list.toBlock())));
+        body.add(
+            Expressions.ifThen(
+                Expressions.equal(index, Expressions.constant(i, int.class)), list.toBlock()));
       }
 
       body.add(Expressions.throw_(Expressions.new_(IndexOutOfBoundsException.class)));

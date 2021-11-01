@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
@@ -210,6 +211,9 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
                     NonCumulativeCostImpl.SOURCE,
                     RelMdNodeStats.SOURCE,
                     root.rel.getCluster().getMetadataProvider())));
+
+    root.rel.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
+
     RelMetadataQuery.THREAD_PROVIDERS.set(
         JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
     root.rel.getCluster().invalidateMetadataQuery();
