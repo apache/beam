@@ -20,11 +20,18 @@ package org.apache.beam.sdk.io.redis;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.redis.RedisIO.Write.Method;
 import org.apache.beam.sdk.testing.PAssert;
@@ -248,6 +255,62 @@ public class RedisIOTest {
 
     long count = Long.parseLong(client.get(key));
     assertEquals(-1, count);
+  }
+
+  @Test
+  public void testWriteStreams() {
+    List<String> keys = Arrays.asList("a", "b", "c", "d", "e", "f", "g", "h", "i", "j");
+    List<KV<String, Map<String, String>>> data = new ArrayList<>();
+    for (String key : keys) {
+      Map<String, String> values =
+          Stream.of(
+                  new AbstractMap.SimpleEntry<String, String>("foo", "bar"),
+                  new AbstractMap.SimpleEntry<String, String>("baz", "qux"))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+      data.add(KV.of(key, values));
+    }
+    PCollection<KV<String, Map<String, String>>> write =
+        p.apply(
+            Create.of(data)
+                .withCoder(
+                    KvCoder.of(
+                        StringUtf8Coder.of(),
+                        MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
+    write.apply(RedisIO.writeStreams().withEndpoint(REDIS_HOST, port));
+    p.run();
+
+    for (String key : keys) {
+      long count = client.xlen(key);
+      assertEquals(2, count);
+    }
+  }
+
+  @Test
+  public void testWriteStreamsWithTruncation() {
+    List<String> keys = Arrays.asList("a", "b", "c", "d", "e", "f", "g", "h", "i", "j");
+    List<KV<String, Map<String, String>>> data = new ArrayList<>();
+    for (String key : keys) {
+      Map<String, String> values =
+          Stream.of(
+                  new AbstractMap.SimpleEntry<String, String>("foo", "bar"),
+                  new AbstractMap.SimpleEntry<String, String>("baz", "qux"))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+      data.add(KV.of(key, values));
+    }
+    PCollection<KV<String, Map<String, String>>> write =
+        p.apply(
+            Create.of(data)
+                .withCoder(
+                    KvCoder.of(
+                        StringUtf8Coder.of(),
+                        MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
+    write.apply(RedisIO.writeStreams().withEndpoint(REDIS_HOST, port).withMaxLen(1L));
+    p.run();
+
+    for (String key : keys) {
+      long count = client.xlen(key);
+      assertEquals(1, count);
+    }
   }
 
   private static List<KV<String, String>> buildConstantKeyList(String key, List<String> values) {
