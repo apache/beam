@@ -439,7 +439,7 @@ class BatchLoads<DestinationT, ElementT>
                         createDisposition,
                         maxRetryJobs,
                         kmsKey))
-                .withSideInputs(loadJobIdPrefixView));
+                .withSideInputs(copyJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
   }
