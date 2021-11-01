@@ -283,9 +283,21 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
 class JavaExternalTransform(ptransform.PTransform):
   """A proxy for Java-implemented external transforms.
 
-  One builds these transforms just as one would in Java.
+  One builds these transforms just as one would in Java, e.g.::
+
+      transform = JavaExternalTransform('fully.qualified.ClassName')(
+          contrustorArg, ...).builderMethod(...)
+
+  or::
+
+      JavaExternalTransform('fully.qualified.ClassName').staticConstructor(
+          ...).builderMethod1(...).builderMethod2(...)
   """
-  def __init__(self, class_name, expansion_service=None):
+  def __init__(self, class_name, expansion_service=None, classpath=None):
+    expansion_service = expansion_service or BeamJarExpansionService(
+        ':sdks:java:expansion-service:shadowJar',
+        extra_args=['{{PORT}}', '--javaClassLookupAllowlistFile=*'],
+        classpath=classpath)
     self._payload_builder = JavaClassLookupPayloadBuilder(class_name)
     self._expansion_service = expansion_service
 
@@ -655,22 +667,28 @@ class JavaJarExpansionService(object):
   argument which will spawn a subprocess using this jar to expand the
   transform.
   """
-  def __init__(self, path_to_jar, extra_args=None):
+  def __init__(self, path_to_jar, extra_args=None, classpath=None):
     self._path_to_jar = path_to_jar
     self._extra_args = extra_args
+    self._classpath = classpath
     self._service_count = 0
+
+  def _default_args(self):
+    to_stage = ','.join([self._path_to_jar] + list(classpath or []))
+    return = ['{{PORT}}', f'--filesToStage={to_stage}']
 
   def __enter__(self):
     if self._service_count == 0:
       self._path_to_jar = subprocess_server.JavaJarServer.local_jar(
           self._path_to_jar)
       if self._extra_args is None:
-        self._extra_args = ['{{PORT}}', f'--filesToStage={self._path_to_jar}']
+        self._extra_args = self._default_args()
       # Consider memoizing these servers (with some timeout).
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,
           self._path_to_jar,
-          self._extra_args)
+          self._extra_args,
+          classpath=self._classpath)
       self._service = self._service_provider.__enter__()
     self._service_count += 1
     return self._service
@@ -688,10 +706,15 @@ class BeamJarExpansionService(JavaJarExpansionService):
   if it exists, otherwise attempts to download and cache the released artifact
   corresponding to this version of Beam from the apache maven repository.
   """
-  def __init__(self, gradle_target, extra_args=None, gradle_appendix=None):
+  def __init__(
+      self,
+      gradle_target,
+      extra_args=None,
+      gradle_appendix=None,
+      classpath=None):
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
         gradle_target, gradle_appendix)
-    super().__init__(path_to_jar, extra_args)
+    super().__init__(path_to_jar, extra_args, classpath=classpath)
 
 
 def memoize(func):

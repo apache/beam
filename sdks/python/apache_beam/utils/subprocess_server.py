@@ -158,9 +158,14 @@ class JavaJarServer(SubprocessServer):
       'local', (threading.local, ),
       dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
-  def __init__(self, stub_class, path_to_jar, java_arguments):
+  def __init__(self, stub_class, path_to_jar, java_arguments, classpath=None):
+    if classpath:
+      cp_args = ['-classpath', os.pathsep.join(classpath)]
+    else:
+      cp_args = []
     super().__init__(
-        stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
+        stub_class,
+        ['java'] + cp_args + ['-jar', path_to_jar] + list(java_arguments))
     self._existing_service = path_to_jar if _is_service_endpoint(
         path_to_jar) else None
 
