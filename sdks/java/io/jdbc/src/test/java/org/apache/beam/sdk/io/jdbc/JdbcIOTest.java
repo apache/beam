@@ -381,8 +381,8 @@ public class JdbcIOTest implements Serializable {
                 .withTable(READ_TABLE_NAME)
                 .withNumPartitions(1)
                 .withPartitionColumn("id")
-                .withLowerBound(0)
-                .withUpperBound(1000));
+                .withLowerBound(0L)
+                .withUpperBound(1000L));
     PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
     pipeline.run();
   }
@@ -398,8 +398,8 @@ public class JdbcIOTest implements Serializable {
                 .withTable(String.format("(select * from %s) as subq", READ_TABLE_NAME))
                 .withNumPartitions(10)
                 .withPartitionColumn("id")
-                .withLowerBound(0)
-                .withUpperBound(1000));
+                .withLowerBound(0L)
+                .withUpperBound(1000L));
     PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
     pipeline.run();
   }
@@ -417,8 +417,8 @@ public class JdbcIOTest implements Serializable {
                 .withTable(READ_TABLE_NAME)
                 .withNumPartitions(0)
                 .withPartitionColumn("id")
-                .withLowerBound(0)
-                .withUpperBound(1000));
+                .withLowerBound(0L)
+                .withUpperBound(1000L));
     pipeline.run();
   }
 
@@ -435,8 +435,8 @@ public class JdbcIOTest implements Serializable {
             .withTable(READ_TABLE_NAME)
             .withNumPartitions(200)
             .withPartitionColumn("id")
-            .withLowerBound(0)
-            .withUpperBound(100));
+            .withLowerBound(0L)
+            .withUpperBound(100L));
     pipeline.run();
   }
 
@@ -453,8 +453,8 @@ public class JdbcIOTest implements Serializable {
             .withTable(READ_TABLE_NAME)
             .withNumPartitions(5)
             .withPartitionColumn("id")
-            .withLowerBound(100)
-            .withUpperBound(100));
+            .withLowerBound(100L)
+            .withUpperBound(100L));
     pipeline.run();
   }
 
