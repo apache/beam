@@ -41,7 +41,7 @@ type CacheEnvs struct {
 	// cacheType is type of cache (local/redis)
 	cacheType string
 
-	// address of where the cache is running
+	// this is a string with hostname:port of the cache server for redis caches
 	address string
 
 	// keyExpirationTime is expiration time for cache keys
@@ -74,7 +74,9 @@ func NewCacheEnvs(cacheType, cacheAddress string, cacheExpirationTime time.Durat
 
 //ApplicationEnvs contains all environment variables that needed to run backend processes
 type ApplicationEnvs struct {
-	// workingDir is a root working directory of application
+	// workingDir is a root working directory of application.
+	// This directory is different from the `pwd` of the application. It is a working directory passed as
+	// a parameter where the application stores code, executables, etc.
 	workingDir string
 
 	// cacheEnvs contains environments for cache
