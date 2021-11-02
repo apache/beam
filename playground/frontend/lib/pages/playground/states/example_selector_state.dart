@@ -103,7 +103,7 @@ class ExampleSelectorState with ChangeNotifier {
   ) {
     return examples
         .where((example) =>
-            example.name!.toLowerCase().contains(name.toLowerCase()))
+            example.name.toLowerCase().contains(name.toLowerCase()))
         .toList();
   }
 }

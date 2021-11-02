@@ -16,11 +16,6 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
-import 'package:playground/modules/examples/models/outputs_model.dart';
-
-part 'example_model.g.dart';
-
 enum ExampleType {
   all,
   example,
@@ -43,32 +38,20 @@ extension ExampleTypeToString on ExampleType {
   }
 }
 
-@JsonSerializable()
 class ExampleModel {
-  @JsonKey(includeIfNull: false)
-  final ExampleType? type;
-
-  @JsonKey(includeIfNull: false)
-  final String? name;
-
-  @JsonKey(includeIfNull: false)
-  final int? id;
-
-  @JsonKey(includeIfNull: false)
-  final String? description;
-
-  @JsonKey(includeIfNull: false)
+  final ExampleType type;
+  final String name;
+  final String uuid;
+  final String description;
   String? source;
-
-  @JsonKey(includeIfNull: false)
-  OutputsModel? outputs;
+  String? outputs;
 
   ExampleModel({
+    required this.name,
+    required this.uuid,
+    required this.description,
+    required this.type,
     this.source,
-    this.name,
-    this.type,
-    this.id,
-    this.description,
     this.outputs,
   });
 
@@ -76,12 +59,7 @@ class ExampleModel {
     this.source = source;
   }
 
-  setOutputs(OutputsModel outputs) {
+  setOutputs(String outputs) {
     this.outputs = outputs;
   }
-
-  factory ExampleModel.fromJson(Map<String, dynamic> data) =>
-      _$ExampleModelFromJson(data);
-
-  Map<String, dynamic> toJson() => _$ExampleModelToJson(this);
 }

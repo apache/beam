@@ -52,14 +52,12 @@ dependencies:
   url_launcher: ^6.0.12
   expansion_widget: ^0.0.2
   grpc: ^3.0.0
-  json_annotation: ^4.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   mockito: ^5.0.16
   build_runner: ^2.1.4
-  json_serializable: ^6.0.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

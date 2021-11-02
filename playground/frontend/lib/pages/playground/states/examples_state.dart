@@ -18,43 +18,42 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/modules/examples/models/outputs_model.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
+import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
+import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 class ExampleState with ChangeNotifier {
   final ExampleRepository _exampleRepository;
-  Map<SDK, List<CategoryModel>>? categoriesBySdkMap;
-  Map<SDK, ExampleModel>? defaultExamples;
+  Map<SDK, List<CategoryModel>>? sdkCategories;
   bool isSelectorOpened = false;
 
   ExampleState(this._exampleRepository) {
     _loadCategories();
-    _loadDefaultExamples();
   }
 
   List<CategoryModel>? getCategories(SDK sdk) {
-    return categoriesBySdkMap?[sdk] ?? [];
+    return sdkCategories?[sdk] ?? [];
   }
 
-  Future<OutputsModel> getPrecompiledOutputs(int id) async {
-    OutputsModel outputs = await _exampleRepository.getPrecompiledOutputs(id);
-    return outputs;
+  Future<String> getExampleOutput(String id) async {
+    String output = await _exampleRepository.getExampleOutput(
+      GetExampleRequestWrapper(id),
+    );
+    return output;
   }
 
-  Future<String> getSource(int id) async {
-    String source = await _exampleRepository.getExampleSource(id);
+  Future<String> getExampleSource(String id) async {
+    String source = await _exampleRepository.getExampleSource(
+      GetExampleRequestWrapper(id),
+    );
     return source;
   }
 
   _loadCategories() async {
-    categoriesBySdkMap = await _exampleRepository.getListOfExamples();
-    notifyListeners();
-  }
-
-  _loadDefaultExamples() async {
-    defaultExamples = await _exampleRepository.getDefaultExamples();
+    sdkCategories = await _exampleRepository.getListOfExamples(
+      GetListOfExamplesRequestWrapper(sdk: null, category: null),
+    );
     notifyListeners();
   }
 

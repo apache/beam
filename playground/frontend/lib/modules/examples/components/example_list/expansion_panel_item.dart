@@ -36,10 +36,10 @@ class ExpansionPanelItem extends StatelessWidget {
         child: GestureDetector(
           onTap: () async {
             if (playgroundState.selectedExample != example) {
-              String source = await exampleState.getSource(example.id!);
+              String source = await exampleState.getExampleSource(example.uuid);
               example.setSource(source);
               playgroundState.setExample(example);
-              exampleState.getPrecompiledOutputs(example.id!).then((value) {
+              exampleState.getExampleOutput(example.uuid).then((value) {
                 example.setOutputs(value);
               });
             }
@@ -51,7 +51,7 @@ class ExpansionPanelItem extends StatelessWidget {
             child: Row(
               children: [
                 // Wrapped with Row for better user interaction and positioning
-                Text(example.name ?? ''),
+                Text(example.name),
               ],
             ),
           ),

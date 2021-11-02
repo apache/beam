@@ -62,7 +62,7 @@ class SDKSelector extends StatelessWidget {
             onChanged: (SDK? newSdk) {
               if (newSdk != null) {
                 setSdk(newSdk);
-                setExample(state.defaultExamples![newSdk]!);
+                setExample(state.sdkCategories![newSdk]!.first.examples.first);
               }
             },
             items: SDK.values.map<DropdownMenuItem<SDK>>((SDK value) {

@@ -100,7 +100,7 @@ class PlaygroundState with ChangeNotifier {
         _selectedExample?.outputs != null) {
       _result = RunCodeResult(
         status: RunCodeStatus.finished,
-        output: _selectedExample!.outputs?.output ?? 'anti-precompiled output',
+        output: _selectedExample!.outputs ?? 'anti-precompiled output',
       );
       notifyListeners();
     } else {

@@ -17,191 +17,52 @@
  */
 
 import 'package:playground/modules/examples/models/category_model.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/modules/examples/models/outputs_model.dart';
+import 'package:playground/modules/examples/repositories/example_client/example_client.dart';
+import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
+import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
-const javaHelloWorld = '''class HelloWorld {
-  public static void main(String[] args) {
-    System.out.println("Hello World!");
-  }
-}''';
-
-const pythonHelloWorld = 'print(‘Hello World’)';
-
-const goHelloWorld = '''package main
-
-import "fmt"
-
-// this is a comment
-
-func main() {
-  fmt.Println("Hello World")
-}''';
-
-const scioHelloWorld = ''' 
-object Hello {
-    def main(args: Array[String]) = {
-        println("Hello, world")
-    }
-}''';
-
-const getListOfExamplesResponse = {
-  'java': [
-    {
-      'name': 'WordCountCategory',
-      'examples': [
-        {
-          'name': 'MinimalWordCount',
-          'id': 1111,
-          'type': 'example',
-          'description': 'ABCCDEFG',
-        },
-        {
-          'name': 'WordCount',
-          'id': 2222,
-          'type': 'kata',
-          'description': 'ABCCDEFG',
-        },
-      ],
-    },
-    {
-      'name': 'Kafka',
-      'examples': [
-        {
-          'name': 'KafkaToPubSub',
-          'id': 3333,
-          'type': 'test',
-          'description': 'ABCCDEFG',
-        },
-      ],
-    },
-  ],
-  'python': [
-    {
-      'name': 'WordCountCategory',
-      'examples': [
-        {
-          'name': 'MinimalWordCount',
-          'id': 4444,
-          'type': 'example',
-          'description': 'ABCCDEFG',
-        },
-      ],
-    },
-  ],
-  'go': [
-    {
-      'name': 'WordCountCategory',
-      'examples': [
-        {
-          'name': 'MinimalWordCount',
-          'id': 5555,
-          'type': 'example',
-          'description': 'ABCCDEFG',
-        },
-      ],
-    },
-  ],
-};
-
-const getPrecompiledOutputsResponse = {
-  'output': 'precompiled output',
-  'graph': 'precompiled graph',
-  'log': 'precompiled log',
-};
-
-final getDefaultExamplesResponse = {
-  SDK.java: ExampleModel(
-    source: javaHelloWorld,
-    name: 'Default Java',
-    type: ExampleType.example,
-    id: 1,
-    description: 'ABCDEFG',
-  ),
-  SDK.python: ExampleModel(
-    source: pythonHelloWorld,
-    name: 'Default Python',
-    type: ExampleType.example,
-    id: 2,
-    description: 'ABCDEFG',
-  ),
-  SDK.go: ExampleModel(
-    source: goHelloWorld,
-    name: 'Default Go',
-    type: ExampleType.example,
-    id: 3,
-    description: 'ABCDEFG',
-  ),
-  SDK.scio: ExampleModel(
-    source: scioHelloWorld,
-    name: 'Default SCIO',
-    type: ExampleType.example,
-    id: 4,
-    description: 'ABCDEFG',
-  ),
-};
-
-const responseStatusCode = 200;
-
 class ExampleRepository {
-  Future<Map<SDK, List<CategoryModel>>> getListOfExamples() async {
-    await Future.delayed(const Duration(seconds: 1));
-    Map<String, List<dynamic>> responseBody = getListOfExamplesResponse;
-    switch (responseStatusCode) {
-      case 200:
-        return parseListOfExamplesResponse(responseBody);
-      default:
-        return {};
-    }
+  late final ExampleClient _client;
+
+  ExampleRepository(ExampleClient client) {
+    _client = client;
   }
 
-  Future<Map<SDK, ExampleModel>> getDefaultExamples() async {
-    await Future.delayed(const Duration(seconds: 1));
-    switch (responseStatusCode) {
-      case 200:
-        return getDefaultExamplesResponse;
-      default:
-        return {};
-    }
+  Future<Map<SDK, List<CategoryModel>>> getListOfExamples(
+    GetListOfExamplesRequestWrapper request,
+  ) async {
+    final result = await _client.getListOfExamples(request);
+    return result.categories;
   }
 
-  Future<String> getExampleSource(int id) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    switch (responseStatusCode) {
-      case 200:
-        return id.toString();
-      default:
-        return '';
-    }
+  Future<String> getExampleSource(GetExampleRequestWrapper request) async {
+    final result = await _client.getExample(request);
+    return result.code;
   }
 
-  Future<OutputsModel> getPrecompiledOutputs(int id) async {
-    await Future.delayed(const Duration(seconds: 1));
-    Map<String, dynamic> responseBody = getPrecompiledOutputsResponse;
-    switch (responseStatusCode) {
-      case 200:
-        return parsePrecompiledOutputs(responseBody);
-      default:
-        return OutputsModel('', '', '');
-    }
+  Future<String> getExampleOutput(
+    GetExampleRequestWrapper request,
+  ) async {
+    final result = await _client.getExampleOutput(request);
+    return result.output;
   }
 
-  Map<SDK, List<CategoryModel>> parseListOfExamplesResponse(Map data) {
-    Map<SDK, List<CategoryModel>> output = {};
-    for (SDK sdk in SDK.values) {
-      final sdkName = sdk.displayName.toLowerCase();
-      if (data.containsKey(sdkName)) {
-        output[sdk] = data[sdkName]
-            .map((category) => CategoryModel.fromJson(category))
-            .cast<CategoryModel>()
-            .toList();
-      }
-    }
-    return output;
-  }
-
-  OutputsModel parsePrecompiledOutputs(Map<String, dynamic> data) {
-    return OutputsModel.fromJson(data);
-  }
+// Map<SDK, List<CategoryModel>> parseListOfExamplesResponse(Map data) {
+//   Map<SDK, List<CategoryModel>> output = {};
+//   for (SDK sdk in SDK.values) {
+//     final sdkName = sdk.displayName.toLowerCase();
+//     if (data.containsKey(sdkName)) {
+//       output[sdk] = data[sdkName]
+//           .map((category) => CategoryModel.fromJson(category))
+//           .cast<CategoryModel>()
+//           .toList();
+//     }
+//   }
+//   return output;
+// }
+//
+// OutputsModel parsePrecompiledOutputs(Map<String, dynamic> data) {
+//   return OutputsModel.fromJson(data);
+// }
 }
