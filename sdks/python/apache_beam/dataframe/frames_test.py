@@ -446,10 +446,9 @@ class DeferredFrameTest(_AbstractFrameTest):
 
   def test_series_set_axis(self):
     s = pd.Series(list(range(3)), index=['X', 'Y', 'Z'])
-
-    self._run_test(lambda s: s.set_axis(['a', 'b', 'c']), s)
-    self._run_test(lambda s: s.set_axis([1, 2, 3]), s)
-    self._run_inplace_test(lambda s: s.set_axis(['I', 'II', 'III']), s)
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda s: s.set_axis(['a', 'b', 'c']), s)
+      self._run_test(lambda s: s.set_axis([1, 2, 3]), s)
 
   def test_series_drop_ignore_errors(self):
     midx = pd.MultiIndex(

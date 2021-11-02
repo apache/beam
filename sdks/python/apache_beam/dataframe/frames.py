@@ -1505,17 +1505,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
   def set_axis(self, labels, **kwargs):
-    index = pd.Index([], dtype=np.asarray(labels).dtype)
-    proxy = self._expr.proxy().copy()
-    proxy.index = index
-    with expressions.allow_non_parallel_operations(True):
-      return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-              'set_axis',
-              lambda s: s.set_axis(labels, **kwargs), [self._expr],
-              proxy=proxy,
-              requires_partition_by=partitionings.Singleton(),
-              preserves_partition_by=partitionings.Singleton()))
+    # TODO: assigning the index is generally order-sensitive, but we could
+    # support it in some rare cases, e.g. when assigning the index from one
+    # of a DataFrame's columns
+    raise NotImplementedError(
+        "Assigning an index is not yet supported. "
+        "Consider using set_index() instead.")
 
   isnull = isna = frame_base._elementwise_method('isna', base=pd.Series)
   notnull = notna = frame_base._elementwise_method('notna', base=pd.Series)
