@@ -79,7 +79,7 @@ type ApplicationEnvs struct {
 	// a parameter where the application stores code, executables, etc.
 	workingDir string
 
-	// cacheEnvs contains environments for cache
+	// cacheEnvs contains environment variables for cache
 	cacheEnvs *CacheEnvs
 
 	// pipelineExecuteTimeout is timeout for code processing
