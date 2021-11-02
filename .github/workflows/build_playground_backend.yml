@@ -1,0 +1,58 @@
+name: Build And Deploy Playground Backend Application
+
+on:
+  push:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+    paths: ['playground/backend/**']
+  workflow_dispatch:
+
+jobs:
+  build_playground_backend_docker_image:
+    name: Build Playground Backend App
+    runs-on: ubuntu-latest
+    env:
+      GO_VERSION: 1.17.0
+      BEAM_VERSION: 2.33.0
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: joschi/setup-jdk@v2
+        with:
+            java-version: '8'
+      - uses: actions/setup-go@v2
+        with:
+            go-version: '${{ env.GO_VERSION }}'
+      - name: Prepare Go lint env
+        run: "sudo ./playground/backend/env_setup.sh"
+      - name: Run Lint
+        run: "golangci-lint run internal/..."
+        working-directory: playground/backend/
+        continue-on-error: true
+      - name: Run Tests
+        run: ./gradlew playground:backend:test
+        continue-on-error: true
+      - name: install npm
+        uses: actions/setup-node@v2
+        with:
+            node-version: '14'
+      - name: install docker linter
+        run: npm install  -g dockerlint
+      - name: lint dockerfile
+        run: dockerlint Dockerfile
+        working-directory: playground/backend/containers/java
+      - name: Setup GCP account
+        run: echo ${{ secrets.GCP_ACCESS_KEY }} | base64 -d > /tmp/gcp_access.json
+      - name: Login to Docker Registry
+        run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.REGISTRY_NAME }}
+      - name: Preapre Build
+        run: ./gradlew playground:backend:containers:java:dockerPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}'
+      - name: Deploy Backend Application
+        env: 
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
+        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PROJECT_ID }}" -var="docker_registry_address=${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository"
+        working-directory: playground/terraform/applications/backend
