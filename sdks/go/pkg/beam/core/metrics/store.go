@@ -127,8 +127,10 @@ func (e Extractor) ExtractFrom(store *Store) error {
 			}
 		}
 	}
-	for l, um := range store.stateRegistry {
-		e.MsecsInt64(l, um)
+	if e.MsecsInt64 != nil {
+		for l, es := range store.stateRegistry {
+			e.MsecsInt64(l, es)
+		}
 	}
 	return nil
 }
