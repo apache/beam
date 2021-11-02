@@ -265,9 +265,7 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
     //internal usage
     private SDK i_sdk
     private Runner i_runner
-    private static final i_required = [
-      "_project"
-    ]
+    private static final i_required = ["_project"]
     private static final i_dataflowRequired = [
       "_numWorkers",
       "_tempLocation",
