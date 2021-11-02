@@ -1564,6 +1564,12 @@ public class JdbcIO {
       checkArgument(
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+      checkArgument(
+          ((getAutoSharding() == null || !getAutoSharding())
+                  && input.isBounded() == IsBounded.BOUNDED)
+              || input.isBounded() == IsBounded.UNBOUNDED,
+          "Autosharding is only supported for streaming pipelines.");
+      ;
 
       PCollection<Iterable<T>> iterables;
       if (input.isBounded() == IsBounded.UNBOUNDED
