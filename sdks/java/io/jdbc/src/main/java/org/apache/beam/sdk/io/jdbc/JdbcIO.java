@@ -66,13 +66,16 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.BackOff;
@@ -1550,19 +1553,26 @@ public class JdbcIO {
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      return input.apply(
-          ParDo.of(
-              new WriteFn<T, V>(
-                  WriteFnSpec.builder()
-                      .setRetryStrategy(getRetryStrategy())
-                      .setDataSourceProviderFn(getDataSourceProviderFn())
-                      .setPreparedStatementSetter(getPreparedStatementSetter())
-                      .setRowMapper(getRowMapper())
-                      .setStatement(getStatement())
-                      .setRetryConfiguration(getRetryConfiguration())
-                      .setReturnResults(true)
-                      .setBatchSize(1)
-                      .build())));
+      return input
+          .apply(WithKeys.<String, T>of(""))
+          .apply(
+              GroupIntoBatches.<String, T>ofSize(DEFAULT_BATCH_SIZE)
+                  .withMaxBufferingDuration(Duration.millis(200))
+                  .withShardedKey())
+          .apply(Values.create())
+          .apply(
+              ParDo.of(
+                  new WriteFn<T, V>(
+                      WriteFnSpec.builder()
+                          .setRetryStrategy(getRetryStrategy())
+                          .setDataSourceProviderFn(getDataSourceProviderFn())
+                          .setPreparedStatementSetter(getPreparedStatementSetter())
+                          .setRowMapper(getRowMapper())
+                          .setStatement(getStatement())
+                          .setRetryConfiguration(getRetryConfiguration())
+                          .setReturnResults(true)
+                          .setBatchSize(1)
+                          .build())));
     }
   }
 
@@ -1709,6 +1719,12 @@ public class JdbcIO {
             spec.getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
       }
       return input
+          .apply(WithKeys.<String, T>of(""))
+          .apply(
+              GroupIntoBatches.<String, T>ofSize(spec.getBatchSize())
+                  .withMaxBufferingDuration(Duration.millis(200))
+                  .withShardedKey())
+          .apply(Values.create())
           .apply(
               ParDo.of(
                   new WriteFn<T, Void>(
@@ -1955,7 +1971,7 @@ public class JdbcIO {
    * @param <T>
    * @param <V>
    */
-  static class WriteFn<T, V> extends DoFn<T, V> {
+  static class WriteFn<T, V> extends DoFn<Iterable<T>, V> {
 
     @AutoValue
     abstract static class WriteFnSpec<T, V> implements Serializable, HasDisplayData {
@@ -2045,7 +2061,6 @@ public class JdbcIO {
     private Connection connection;
     private PreparedStatement preparedStatement;
     private static FluentBackoff retryBackOff;
-    private final List<T> records = new ArrayList<>();
 
     public WriteFn(WriteFnSpec<T, V> spec) {
       this.spec = spec;
@@ -2085,17 +2100,12 @@ public class JdbcIO {
 
     @ProcessElement
     public void processElement(ProcessContext context) throws Exception {
-      T record = context.element();
-      records.add(record);
-      if (records.size() >= spec.getBatchSize()) {
-        executeBatch(context);
-      }
+      executeBatch(context, context.element());
     }
 
     @FinishBundle
     public void finishBundle() throws Exception {
       // We pass a null context because we only execute a final batch for WriteVoid cases.
-      executeBatch(null);
       cleanUpStatementAndConnection();
     }
 
@@ -2124,11 +2134,8 @@ public class JdbcIO {
       }
     }
 
-    private void executeBatch(ProcessContext context)
+    private void executeBatch(ProcessContext context, Iterable<T> records)
         throws SQLException, IOException, InterruptedException {
-      if (records.isEmpty()) {
-        return;
-      }
       Long startTimeNs = System.nanoTime();
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = retryBackOff.backoff();
@@ -2137,8 +2144,10 @@ public class JdbcIO {
             getConnection().prepareStatement(spec.getStatement().get())) {
           try {
             // add each record in the statement batch
+            int recordsInBatch = 0;
             for (T record : records) {
               processRecord(record, preparedStatement, context);
+              recordsInBatch += 1;
             }
             if (!spec.getReturnResults()) {
               // execute the batch
@@ -2146,7 +2155,7 @@ public class JdbcIO {
               // commit the changes
               getConnection().commit();
             }
-            RECORDS_PER_BATCH.update(records.size());
+            RECORDS_PER_BATCH.update(recordsInBatch);
             MS_PER_BATCH.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs));
             break;
           } catch (SQLException exception) {
@@ -2164,7 +2173,6 @@ public class JdbcIO {
           }
         }
       }
-      records.clear();
     }
 
     private void processRecord(T record, PreparedStatement preparedStatement, ProcessContext c) {
