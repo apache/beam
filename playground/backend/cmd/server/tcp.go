@@ -12,19 +12,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package main
 
 import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
-	"net/http"
+	"google.golang.org/grpc"
+	"net"
 )
 
-// listenHttp binds the http.Handler on the TCP network address
-func listenHttp(ctx context.Context, errChan chan error, envs environment.NetworkEnvs, handler http.Handler) {
-	logger.Infof("listening HTTP at %s\n", envs.Address())
-	if err := http.ListenAndServe(envs.Address(), handler); err != nil {
+// listenTcp binds the grpc.Server to the TCP address
+func listenTcp(ctx context.Context, errChan chan error, envs environment.NetworkEnvs, svc *grpc.Server) {
+	logger.Infof("listening TCP at %s\n", envs.Address())
+	lis, err := net.Listen("tcp", envs.Address())
+	if err != nil {
+		errChan <- err
+		return
+	}
+	if err := svc.Serve(lis); err != nil {
 		errChan <- err
 		return
 	}
