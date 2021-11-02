@@ -924,12 +924,12 @@ public class FhirIO {
    */
   public static class Import extends Write {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Import.class);
+
     private final ValueProvider<String> fhirStore;
     private final ValueProvider<String> deadLetterGcsPath;
+    private final ValueProvider<String> tempGcsPath;
     private final ContentStructure contentStructure;
-    private static final int DEFAULT_BUNDLES_PER_FILE = 10000;
-    private static final Logger LOG = LoggerFactory.getLogger(Import.class);
-    private ValueProvider<String> tempGcsPath;
 
     /*
      * Instantiates a new Import.
@@ -1021,23 +1021,23 @@ public class FhirIO {
           getImportGcsTempPath()
               .orElse(StaticValueProvider.of(input.getPipeline().getOptions().getTempLocation()));
 
-      // Write bundles in batches to GCS.
-      PCollectionTuple formattedInput =
+      // Write input json in batches to GCS.
+      PCollectionTuple writeTmpFileResults =
           input.apply(
               "Write input to GCS",
-              ParDo.of(new WriteToFilesFn(fhirStore))
+              ParDo.of(new WriteBatchToFilesFn(fhirStore))
                   .withOutputTags(Write.TEMP_FILES, TupleTagList.of(Write.FAILED_BODY)));
 
       PCollection<HealthcareIOError<String>> failedBodies =
-          formattedInput
+          writeTmpFileResults
               .get(Write.FAILED_BODY)
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
 
-      PCollection<HealthcareIOError<String>> failedImportFiles =
-          formattedInput
+      PCollection<HealthcareIOError<String>> failedFiles =
+          writeTmpFileResults
               .get(Write.TEMP_FILES)
               .apply(
-                  "Import",
+                  "Import Batches",
                   ParDo.of(new ImportFn(fhirStore, tempPath, deadLetterGcsPath, contentStructure)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
 
@@ -1049,7 +1049,7 @@ public class FhirIO {
               MapElements.into(TypeDescriptors.strings())
                   .via((String path) -> path.endsWith("/") ? path + "*" : path + "/*"))
           .apply("Wait On File Writing", Wait.on(failedBodies))
-          .apply("Wait On FHIR Importing", Wait.on(failedImportFiles))
+          .apply("Wait On FHIR Importing", Wait.on(failedFiles))
           .apply(
               "Match tempGcsPath",
               FileIO.matchAll().withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW))
@@ -1076,7 +1076,7 @@ public class FhirIO {
                   }))
           .setCoder(VoidCoder.of());
 
-      return Write.Result.in(input.getPipeline(), failedBodies, failedImportFiles);
+      return Write.Result.in(input.getPipeline(), failedBodies, failedFiles);
     }
 
     /**
@@ -1085,7 +1085,7 @@ public class FhirIO {
      * processed into NDJSON. The size of a single file is determined according to the size of a
      * batch's window (large for bounded PCollections).
      */
-    static class WriteToFilesFn extends DoFn<String, ResourceId> {
+    static class WriteBatchToFilesFn extends DoFn<String, ResourceId> {
 
       private final ValueProvider<String> tempGcsPath;
 
@@ -1100,7 +1100,7 @@ public class FhirIO {
        *
        * @param tempGcsPath the gcs path to write files to
        */
-      WriteToFilesFn(ValueProvider<String> tempGcsPath) {
+      WriteBatchToFilesFn(ValueProvider<String> tempGcsPath) {
         this.tempGcsPath = tempGcsPath;
       }
 
@@ -1206,7 +1206,7 @@ public class FhirIO {
       }
 
       @StartBundle
-      public void initBundle() {
+      public void initBatch() {
         tempDir =
             FileSystems.matchNewResource(tempGcsPath.get(), true)
                 .resolve(
@@ -1218,10 +1218,6 @@ public class FhirIO {
         deadLetterDestinations = new ArrayList<>();
       }
 
-      /**
-       * Move files to a temporary subdir (to provide common prefix) to execute import with single
-       * GCS URI.
-       */
       @ProcessElement
       public void process(ProcessContext context, BoundedWindow window) throws IOException {
         this.window = window;
@@ -1237,7 +1233,7 @@ public class FhirIO {
       }
 
       @FinishBundle
-      public void importFn(FinishBundleContext context) throws IOException {
+      public void importBatch(FinishBundleContext context) throws IOException {
         // Move files to a temporary subdir (to provide common prefix) to execute import with single
         // GCS URI and allow for retries.
         // IGNORE_MISSING_FILES ignores missing source files, we enable this as if this is a retry
