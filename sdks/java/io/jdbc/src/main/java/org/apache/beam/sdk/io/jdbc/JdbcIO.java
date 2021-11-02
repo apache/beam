@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import static java.lang.Integer.MAX_VALUE;
 import static org.apache.beam.sdk.io.jdbc.SchemaUtil.checkNullabilityForFields;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -320,8 +319,6 @@ public class JdbcIO {
    */
   public static <T> ReadWithPartitions<T> readWithPartitions() {
     return new AutoValue_JdbcIO_ReadWithPartitions.Builder<T>()
-        .setLowerBound(DEFAULT_LOWER_BOUND)
-        .setUpperBound(DEFAULT_UPPER_BOUND)
         .setNumPartitions(DEFAULT_NUM_PARTITIONS)
         .build();
   }
@@ -331,9 +328,6 @@ public class JdbcIO {
   // Default values used from fluent backoff.
   private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(1);
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
-  // Default values used for partitioning a table
-  private static final int DEFAULT_LOWER_BOUND = 0;
-  private static final int DEFAULT_UPPER_BOUND = MAX_VALUE;
   private static final int DEFAULT_NUM_PARTITIONS = 200;
 
   /**
@@ -960,13 +954,13 @@ public class JdbcIO {
 
     abstract @Nullable Coder<T> getCoder();
 
-    abstract int getNumPartitions();
+    abstract Integer getNumPartitions();
 
     abstract @Nullable String getPartitionColumn();
 
-    abstract long getLowerBound();
+    abstract @Nullable Long getLowerBound();
 
-    abstract long getUpperBound();
+    abstract @Nullable Long getUpperBound();
 
     abstract @Nullable String getTable();
 
@@ -982,13 +976,13 @@ public class JdbcIO {
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
-      abstract Builder<T> setNumPartitions(int numPartitions);
+      abstract Builder<T> setNumPartitions(Integer numPartitions);
 
       abstract Builder<T> setPartitionColumn(String partitionColumn);
 
-      abstract Builder<T> setLowerBound(long lowerBound);
+      abstract Builder<T> setLowerBound(Long lowerBound);
 
-      abstract Builder<T> setUpperBound(long upperBound);
+      abstract Builder<T> setUpperBound(Long upperBound);
 
       abstract Builder<T> setTable(String tableName);
 
@@ -1030,11 +1024,11 @@ public class JdbcIO {
       return toBuilder().setPartitionColumn(partitionColumn).build();
     }
 
-    public ReadWithPartitions<T> withLowerBound(long lowerBound) {
+    public ReadWithPartitions<T> withLowerBound(Long lowerBound) {
       return toBuilder().setLowerBound(lowerBound).build();
     }
 
-    public ReadWithPartitions<T> withUpperBound(long upperBound) {
+    public ReadWithPartitions<T> withUpperBound(Long upperBound) {
       return toBuilder().setUpperBound(upperBound).build();
     }
 
@@ -1052,6 +1046,9 @@ public class JdbcIO {
           getDataSourceProviderFn(),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
       checkNotNull(getPartitionColumn(), "withPartitionColumn() is required");
+      checkArgument(
+          getUpperBound() != null && getLowerBound() != null,
+          "Upper and lower bounds are mandatory parameters for JdbcIO.readWithPartitions");
       checkNotNull(getTable(), "withTable() is required");
       checkArgument(
           getLowerBound() < getUpperBound(),
