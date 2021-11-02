@@ -21,6 +21,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ZetaSqlScalarFunctionImpl;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.RexImpTable;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
@@ -144,7 +145,9 @@ class BeamCalcRelType extends CalcRelSplitter.RelType {
       case VARCHAR:
         return true;
       case ARRAY:
-        return supportsType(type.getComponentType());
+        return supportsType(
+            Preconditions.checkArgumentNotNull(
+                type.getComponentType(), "Encountered ARRAY type with no component type."));
       case ROW:
         return type.getFieldList().stream().allMatch((field) -> supportsType(field.getType()));
       case TIME: // BEAM-12086

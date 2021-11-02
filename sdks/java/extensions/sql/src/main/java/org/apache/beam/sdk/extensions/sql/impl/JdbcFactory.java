@@ -38,6 +38,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.Unregis
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.config.Lex;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteFactory;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Implements {@link CalciteFactory} that is used by Clacite JDBC driver to instantiate different
@@ -66,8 +67,8 @@ class JdbcFactory extends CalciteFactoryWrapper {
       AvaticaFactory avaticaFactory,
       String url,
       Properties info,
-      CalciteSchema rootSchema,
-      JavaTypeFactory typeFactory) {
+      @Nullable CalciteSchema rootSchema,
+      @Nullable JavaTypeFactory typeFactory) {
 
     Properties connectionProps = ensureDefaultProperties(info);
     CalciteSchema actualRootSchema = rootSchema;

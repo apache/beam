@@ -93,6 +93,10 @@ class BigtableFilter implements BeamSqlTableFilter {
     checkFieldIsKey(inputRefs.get(0));
     String literal = literals.get(0).getValueAs(String.class);
 
+    if (literal == null) {
+      throw new IllegalArgumentException("Expected non-null String literal");
+    }
+
     return RowFilter.newBuilder().setRowKeyRegexFilter(byteStringUtf8(literal)).build();
   }
 

@@ -31,6 +31,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSelect;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSetOperator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Helper class to extract table identifiers from the query.
@@ -46,7 +47,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  */
 public class TableNameExtractionUtils {
 
-  public static List<TableName> extractTableNamesFromNode(SqlNode node) {
+  public static List<TableName> extractTableNamesFromNode(@Nullable SqlNode node) {
     if (node instanceof SqlSelect) {
       return extractTableFromSelect((SqlSelect) node);
     }

@@ -57,6 +57,9 @@ public class SqlDdlNodes {
     CalciteSchema schema = mutable ? context.getMutableRootSchema() : context.getRootSchema();
     for (String p : path) {
       schema = schema.getSubSchema(p, true);
+      if (schema == null) {
+        throw new AssertionError(String.format("Got null sub-schema for path '%s' in %s", p, path));
+      }
     }
     return Pair.of(schema, name(id));
   }
@@ -76,7 +79,9 @@ public class SqlDdlNodes {
     if (n instanceof SqlIdentifier) {
       return ((SqlIdentifier) n).toString();
     }
-    return ((NlsString) SqlLiteral.value(n)).getValue();
+
+    NlsString literalValue = (NlsString) SqlLiteral.value(n);
+    return literalValue == null ? null : literalValue.getValue();
   }
 }
 

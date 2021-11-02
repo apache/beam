@@ -61,7 +61,8 @@ public class SqlColumnDeclaration extends SqlCall {
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     name.unparse(writer, 0, 0);
     dataType.unparse(writer, 0, 0);
-    if (dataType.getNullable() != null && !dataType.getNullable()) {
+    Boolean nullable = dataType.getNullable();
+    if (nullable != null && !nullable) {
       writer.keyword("NOT NULL");
     }
     if (comment != null) {

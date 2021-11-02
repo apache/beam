@@ -65,6 +65,9 @@ abstract class SqlDropObject extends SqlDrop implements BeamSqlParser.Executable
     CalciteSchema schema = context.getRootSchema();
     for (String p : path) {
       schema = schema.getSubSchema(p, true);
+      if (schema == null) {
+        throw new AssertionError(String.format("Got null sub-schema for path '%s' in %s", p, path));
+      }
     }
     final boolean existed;
     switch (getKind()) {

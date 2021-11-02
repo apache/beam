@@ -42,6 +42,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.TableModify;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** BeamRelNode to replace a {@code TableModify} node. */
 public class BeamIOSinkRel extends TableModify
@@ -57,8 +58,8 @@ public class BeamIOSinkRel extends TableModify
       Prepare.CatalogReader catalogReader,
       RelNode child,
       Operation operation,
-      List<String> updateColumnList,
-      List<RexNode> sourceExpressionList,
+      @Nullable List<String> updateColumnList,
+      @Nullable List<RexNode> sourceExpressionList,
       boolean flattened,
       BeamSqlTable sqlTable,
       Map<String, String> pipelineOptions) {

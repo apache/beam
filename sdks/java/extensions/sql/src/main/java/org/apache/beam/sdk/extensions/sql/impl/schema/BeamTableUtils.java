@@ -41,6 +41,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 
 /**
@@ -106,7 +107,7 @@ public final class BeamTableUtils {
    * @throws IllegalArgumentException if the value cannot be cast to that type.
    * @return The casted object in Schema.Field.Type.
    */
-  public static Object autoCastField(Schema.Field field, Object rawObj) {
+  public static Object autoCastField(Schema.Field field, @Nullable Object rawObj) {
     if (rawObj == null) {
       if (!field.getType().getNullable()) {
         throw new IllegalArgumentException(String.format("Field %s not nullable", field.getName()));

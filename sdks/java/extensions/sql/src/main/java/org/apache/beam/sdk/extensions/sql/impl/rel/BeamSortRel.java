@@ -63,6 +63,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
@@ -108,8 +109,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       RelTraitSet traits,
       RelNode child,
       RelCollation collation,
-      RexNode offset,
-      RexNode fetch) {
+      @Nullable RexNode offset,
+      @Nullable RexNode fetch) {
     super(cluster, traits, child, collation, offset, fetch);
 
     // https://issues.apache.org/jira/browse/CALCITE-4079?focusedCommentId=17165904&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-17165904

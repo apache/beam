@@ -50,6 +50,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeField;
@@ -439,7 +440,10 @@ public class BeamZetaSqlCatalog {
         // These types are supported.
         break;
       case ARRAY:
-        validateJavaUdfCalciteType(type.getComponentType(), functionName);
+        validateJavaUdfCalciteType(
+            Preconditions.checkArgumentNotNull(
+                type.getComponentType(), "Encountered ARRAY type with no component type."),
+            functionName);
         break;
       case TIME:
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE:

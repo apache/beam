@@ -60,6 +60,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ImmutableBitSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code BeamRelNode} to replace a {@code Match} node.
@@ -89,7 +90,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       boolean allRows,
       ImmutableBitSet partitionKeys,
       RelCollation orderKeys,
-      RexNode interval) {
+      @Nullable RexNode interval) {
 
     super(
         cluster,

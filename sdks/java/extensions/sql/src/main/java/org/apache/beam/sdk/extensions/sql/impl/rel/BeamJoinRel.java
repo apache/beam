@@ -25,6 +25,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Optional;
 import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
@@ -121,7 +122,11 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
-    double selectivity = mq.getSelectivity(this, getCondition());
+    double selectivity =
+        Preconditions.checkArgumentNotNull(
+            mq.getSelectivity(this, getCondition()),
+            "Attempted to estimate node stats for BeamJoinRel '%s', but selectivity is null.",
+            this);
     NodeStats leftEstimates = BeamSqlRelUtils.getNodeStats(this.left, mq);
     NodeStats rightEstimates = BeamSqlRelUtils.getNodeStats(this.right, mq);
 

@@ -37,6 +37,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Table;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.TranslatableTable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Converts table scan. */
 class TableScanConverter extends RelConverter<ResolvedTableScan> {
@@ -51,6 +52,9 @@ class TableScanConverter extends RelConverter<ResolvedTableScan> {
     List<String> tablePath = getTablePath(zetaNode.getTable());
 
     SchemaPlus defaultSchemaPlus = getConfig().getDefaultSchema();
+    if (defaultSchemaPlus == null) {
+      throw new AssertionError("Default schema is null.");
+    }
     // TODO: reject incorrect top-level schema
 
     Table calciteTable = TableResolution.resolveCalciteTable(defaultSchemaPlus, tablePath);
@@ -98,7 +102,7 @@ class TableScanConverter extends RelConverter<ResolvedTableScan> {
     return new RelOptTable.ToRelContext() {
       @Override
       public RelRoot expandView(
-          RelDataType relDataType, String s, List<String> list, List<String> list1) {
+          RelDataType relDataType, String s, List<String> list, @Nullable List<String> list1) {
         throw new UnsupportedOperationException("This RelContext does not support expandView");
       }
 

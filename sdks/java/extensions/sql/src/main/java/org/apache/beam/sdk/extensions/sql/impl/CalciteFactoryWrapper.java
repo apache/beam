@@ -33,6 +33,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.QuerySt
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.UnregisteredDriver;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteFactory;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Wrapper for {@link CalciteFactory}.
@@ -55,8 +56,8 @@ public abstract class CalciteFactoryWrapper extends CalciteFactory {
       AvaticaFactory avaticaFactory,
       String url,
       Properties info,
-      CalciteSchema rootSchema,
-      JavaTypeFactory typeFactory) {
+      @Nullable CalciteSchema rootSchema,
+      @Nullable JavaTypeFactory typeFactory) {
 
     return this.factory.newConnection(driver, avaticaFactory, url, info, rootSchema, typeFactory);
   }

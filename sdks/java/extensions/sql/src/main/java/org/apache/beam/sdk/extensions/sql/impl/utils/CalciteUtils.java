@@ -203,7 +203,11 @@ public class CalciteUtils {
   }
 
   public static FieldType toFieldType(SqlTypeNameSpec sqlTypeName) {
-    return toFieldType(SqlTypeName.get(sqlTypeName.getTypeName().getSimple()));
+    return toFieldType(
+        Preconditions.checkArgumentNotNull(
+            SqlTypeName.get(sqlTypeName.getTypeName().getSimple()),
+            "Failed to find Calcite type with name '%s'",
+            sqlTypeName.getTypeName().getSimple()));
   }
 
   public static FieldType toFieldType(SqlTypeName sqlTypeName) {
@@ -239,10 +243,19 @@ public class CalciteUtils {
     switch (calciteType.getSqlTypeName()) {
       case ARRAY:
       case MULTISET:
-        return FieldType.array(toFieldType(calciteType.getComponentType()));
+        return FieldType.array(
+            toFieldType(
+                Preconditions.checkArgumentNotNull(
+                    calciteType.getComponentType(),
+                    "Encountered MULTISET type with null component type")));
       case MAP:
         return FieldType.map(
-            toFieldType(calciteType.getKeyType()), toFieldType(calciteType.getValueType()));
+            toFieldType(
+                Preconditions.checkArgumentNotNull(
+                    calciteType.getKeyType(), "Encountered MAP type with null key type.")),
+            toFieldType(
+                Preconditions.checkArgumentNotNull(
+                    calciteType.getValueType(), "Encountered MAP type with null value type.")));
       case ROW:
         return FieldType.row(toSchema(calciteType));
 
