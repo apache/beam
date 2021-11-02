@@ -1570,6 +1570,13 @@ message StandardProtocols {
     // the entire SDK harness process, not specific to a bundle.
     HARNESS_MONITORING_INFOS = 4
         [(beam_urn) = "beam:protocol:harness_monitoring_infos:v1"];
+
+    // Indicates that this SDK can report metrics with specific set of metric
+    // identifiers and handles the InstructionRequest of type
+    // MonitoringInfosMetadataRequest to report the full payload of the metrics
+    // with inquired set of identifiers.
+    MONITORING_INFOS_METADATA = 6
+        [(beam_urn) = "beam:protocol:monitoring_infos_metadata:v1"];
   }
 }
 
