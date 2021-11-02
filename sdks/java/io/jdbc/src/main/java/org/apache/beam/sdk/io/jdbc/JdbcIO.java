@@ -50,6 +50,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -1513,106 +1515,19 @@ public class JdbcIO {
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      return input.apply(ParDo.of(new WriteWithResultsFn<>(this)));
-    }
-
-    private static class WriteWithResultsFn<T, V extends JdbcWriteResult> extends DoFn<T, V> {
-
-      private final WriteWithResults<T, V> spec;
-      private DataSource dataSource;
-      private Connection connection;
-      private PreparedStatement preparedStatement;
-      private static FluentBackoff retryBackOff;
-
-      public WriteWithResultsFn(WriteWithResults<T, V> spec) {
-        this.spec = spec;
-      }
-
-      @Setup
-      public void setup() {
-        dataSource = spec.getDataSourceProviderFn().apply(null);
-        RetryConfiguration retryConfiguration = spec.getRetryConfiguration();
-
-        retryBackOff =
-            FluentBackoff.DEFAULT
-                .withInitialBackoff(retryConfiguration.getInitialDuration())
-                .withMaxCumulativeBackoff(retryConfiguration.getMaxDuration())
-                .withMaxRetries(retryConfiguration.getMaxAttempts());
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext context) throws Exception {
-        T record = context.element();
-
-        // Only acquire the connection if there is something to write.
-        if (connection == null) {
-          connection = dataSource.getConnection();
-          connection.setAutoCommit(false);
-          preparedStatement = connection.prepareStatement(spec.getStatement().get());
-        }
-        Sleeper sleeper = Sleeper.DEFAULT;
-        BackOff backoff = retryBackOff.backoff();
-        while (true) {
-          try (PreparedStatement preparedStatement =
-              connection.prepareStatement(spec.getStatement().get())) {
-            try {
-
-              try {
-                spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-
-              // execute the statement
-              preparedStatement.execute();
-              // commit the changes
-              connection.commit();
-              context.output(spec.getRowMapper().mapRow(preparedStatement.getResultSet()));
-              return;
-            } catch (SQLException exception) {
-              if (!spec.getRetryStrategy().apply(exception)) {
-                throw exception;
-              }
-              LOG.warn("Deadlock detected, retrying", exception);
-              connection.rollback();
-              if (!BackOffUtils.next(sleeper, backoff)) {
-                // we tried the max number of times
-                throw exception;
-              }
-            }
-          }
-        }
-      }
-
-      @FinishBundle
-      public void finishBundle() throws Exception {
-        cleanUpStatementAndConnection();
-      }
-
-      @Override
-      protected void finalize() throws Throwable {
-        cleanUpStatementAndConnection();
-      }
-
-      private void cleanUpStatementAndConnection() throws Exception {
-        try {
-          if (preparedStatement != null) {
-            try {
-              preparedStatement.close();
-            } finally {
-              preparedStatement = null;
-            }
-          }
-        } finally {
-          if (connection != null) {
-            try {
-              connection.close();
-            } finally {
-              connection = null;
-            }
-          }
-        }
-      }
+      return input.apply(
+          ParDo.of(
+              new WriteFn<T, V>(
+                  WriteFnSpec.builder()
+                      .setRetryStrategy(getRetryStrategy())
+                      .setDataSourceProviderFn(getDataSourceProviderFn())
+                      .setPreparedStatementSetter(getPreparedStatementSetter())
+                      .setRowMapper(getRowMapper())
+                      .setStatement(getStatement())
+                      .setRetryConfiguration(getRetryConfiguration())
+                      .setReturnResults(true)
+                      .setBatchSize(1)
+                      .build())));
     }
   }
 
@@ -1758,7 +1673,21 @@ public class JdbcIO {
         checkArgument(
             spec.getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
       }
-      return input.apply(ParDo.of(new WriteFn<>(spec)));
+      return input
+          .apply(
+              ParDo.of(
+                  new WriteFn<T, Void>(
+                      WriteFnSpec.builder()
+                          .setRetryConfiguration(spec.getRetryConfiguration())
+                          .setRetryStrategy(spec.getRetryStrategy())
+                          .setPreparedStatementSetter(spec.getPreparedStatementSetter())
+                          .setDataSourceProviderFn(spec.getDataSourceProviderFn())
+                          .setTable(spec.getTable())
+                          .setStatement(spec.getStatement())
+                          .setBatchSize(spec.getBatchSize())
+                          .setReturnResults(false)
+                          .build())))
+          .setCoder(VoidCoder.of());
     }
 
     private StaticValueProvider<String> generateStatement(List<SchemaUtil.FieldWithIndex> fields) {
@@ -1869,145 +1798,6 @@ public class JdbcIO {
 
     private boolean hasStatementAndSetter() {
       return getStatement() != null && getPreparedStatementSetter() != null;
-    }
-
-    private static class WriteFn<T> extends DoFn<T, Void> {
-
-      private static final Distribution RECORDS_PER_BATCH =
-          Metrics.distribution(WriteFn.class, "records_per_jdbc_batch");
-      private static final Distribution MS_PER_BATCH =
-          Metrics.distribution(WriteFn.class, "milliseconds_per_batch");
-      private final WriteVoid<T> spec;
-      private DataSource dataSource;
-      private Connection connection;
-      private PreparedStatement preparedStatement;
-      private final List<T> records = new ArrayList<>();
-      private static FluentBackoff retryBackOff;
-
-      public WriteFn(WriteVoid<T> spec) {
-        this.spec = spec;
-      }
-
-      @Setup
-      public void setup() {
-        dataSource = spec.getDataSourceProviderFn().apply(null);
-        RetryConfiguration retryConfiguration = spec.getRetryConfiguration();
-
-        retryBackOff =
-            FluentBackoff.DEFAULT
-                .withInitialBackoff(retryConfiguration.getInitialDuration())
-                .withMaxCumulativeBackoff(retryConfiguration.getMaxDuration())
-                .withMaxRetries(retryConfiguration.getMaxAttempts());
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        spec.populateDisplayData(builder);
-        builder.add(
-            DisplayData.item(
-                "query", preparedStatement == null ? "null" : preparedStatement.toString()));
-        builder.add(
-            DisplayData.item("dataSource", dataSource == null ? "null" : dataSource.toString()));
-        builder.add(DisplayData.item("spec", spec == null ? "null" : spec.toString()));
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext context) throws Exception {
-        T record = context.element();
-
-        records.add(record);
-
-        if (records.size() >= spec.getBatchSize()) {
-          executeBatch();
-        }
-      }
-
-      private void processRecord(T record, PreparedStatement preparedStatement) {
-        try {
-          preparedStatement.clearParameters();
-          spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
-          preparedStatement.addBatch();
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
-
-      @FinishBundle
-      public void finishBundle() throws Exception {
-        executeBatch();
-        cleanUpStatementAndConnection();
-      }
-
-      @Override
-      protected void finalize() throws Throwable {
-        cleanUpStatementAndConnection();
-      }
-
-      private void cleanUpStatementAndConnection() throws Exception {
-        try {
-          if (preparedStatement != null) {
-            try {
-              preparedStatement.close();
-            } finally {
-              preparedStatement = null;
-            }
-          }
-        } finally {
-          if (connection != null) {
-            try {
-              connection.close();
-            } finally {
-              connection = null;
-            }
-          }
-        }
-      }
-
-      private void executeBatch() throws SQLException, IOException, InterruptedException {
-        if (records.isEmpty()) {
-          return;
-        }
-        Long startTimeNs = System.nanoTime();
-        // Only acquire the connection if there is something to write.
-        if (connection == null) {
-          connection = dataSource.getConnection();
-          connection.setAutoCommit(false);
-          preparedStatement = connection.prepareStatement(spec.getStatement().get());
-        }
-        Sleeper sleeper = Sleeper.DEFAULT;
-        BackOff backoff = retryBackOff.backoff();
-        while (true) {
-          try (PreparedStatement preparedStatement =
-              connection.prepareStatement(spec.getStatement().get())) {
-            try {
-              // add each record in the statement batch
-              for (T record : records) {
-                processRecord(record, preparedStatement);
-              }
-              // execute the batch
-              preparedStatement.executeBatch();
-              // commit the changes
-              connection.commit();
-              RECORDS_PER_BATCH.update(records.size());
-              MS_PER_BATCH.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs));
-              break;
-            } catch (SQLException exception) {
-              if (!spec.getRetryStrategy().apply(exception)) {
-                throw exception;
-              }
-              LOG.warn("Deadlock detected, retrying", exception);
-              // clean up the statement batch and the connection state
-              preparedStatement.clearBatch();
-              connection.rollback();
-              if (!BackOffUtils.next(sleeper, backoff)) {
-                // we tried the max number of times
-                throw exception;
-              }
-            }
-          }
-        }
-        records.clear();
-      }
     }
   }
 
@@ -2120,6 +1910,244 @@ public class JdbcIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       config.populateDisplayData(builder);
+    }
+  }
+
+  /**
+   * {@link DoFn} class to write results data to a JDBC sink. It supports writing rows one by one
+   * (and returning individual results) - or by batch.
+   *
+   * @param <T>
+   * @param <V>
+   */
+  static class WriteFn<T, V> extends DoFn<T, V> {
+
+    @AutoValue
+    public abstract static class WriteFnSpec<T, V> implements Serializable, HasDisplayData {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder
+            .addIfNotNull(
+                DisplayData.item(
+                    "dataSourceProviderFn",
+                    getDataSourceProviderFn() == null
+                        ? "null"
+                        : getDataSourceProviderFn().getClass().getName()))
+            .addIfNotNull(DisplayData.item("statement", getStatement()))
+            .addIfNotNull(
+                DisplayData.item(
+                    "preparedStatementSetter",
+                    getPreparedStatementSetter() == null
+                        ? "null"
+                        : getPreparedStatementSetter().getClass().getName()))
+            .addIfNotNull(
+                DisplayData.item(
+                    "retryConfiguration",
+                    getRetryConfiguration() == null
+                        ? "null"
+                        : getRetryConfiguration().getClass().getName()))
+            .addIfNotNull(DisplayData.item("table", getTable()))
+            .addIfNotNull(
+                DisplayData.item(
+                    "rowMapper",
+                    getRowMapper() == null ? "null" : getRowMapper().getClass().toString()))
+            .addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
+      }
+
+      public abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+      public abstract ValueProvider<String> getStatement();
+
+      public abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+
+      public abstract RetryStrategy getRetryStrategy();
+
+      public abstract @Nullable RetryConfiguration getRetryConfiguration();
+
+      public abstract @Nullable String getTable();
+
+      public abstract @Nullable RowMapper<V> getRowMapper();
+
+      public abstract @Nullable Long getBatchSize();
+
+      public abstract Boolean getReturnResults();
+
+      static Builder builder() {
+        return new AutoValue_JdbcIO_WriteFn_WriteFnSpec.Builder();
+      }
+
+      @AutoValue.Builder
+      abstract static class Builder<T, V> {
+        abstract Builder<T, V> setDataSourceProviderFn(SerializableFunction<Void, DataSource> fn);
+
+        abstract Builder<T, V> setStatement(ValueProvider<String> statement);
+
+        abstract Builder<T, V> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
+
+        abstract Builder<T, V> setRetryStrategy(RetryStrategy retryStrategy);
+
+        abstract Builder<T, V> setRetryConfiguration(RetryConfiguration retryConfiguration);
+
+        abstract Builder<T, V> setTable(String table);
+
+        abstract Builder<T, V> setRowMapper(RowMapper<V> rowMapper);
+
+        abstract Builder<T, V> setBatchSize(long batchSize);
+
+        abstract Builder<T, V> setReturnResults(Boolean returnResults);
+
+        abstract WriteFnSpec<T, V> build();
+      }
+    }
+
+    private static final Distribution RECORDS_PER_BATCH =
+        Metrics.distribution(WriteFn.class, "records_per_jdbc_batch");
+    private static final Distribution MS_PER_BATCH =
+        Metrics.distribution(WriteFn.class, "milliseconds_per_batch");
+
+    private final WriteFnSpec<T, V> spec;
+    private DataSource dataSource;
+    private Connection connection;
+    private PreparedStatement preparedStatement;
+    private static FluentBackoff retryBackOff;
+    private final List<T> records = new ArrayList<>();
+
+    public WriteFn(WriteFnSpec<T, V> spec) {
+      this.spec = spec;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      spec.populateDisplayData(builder);
+      builder.add(
+          DisplayData.item(
+              "query", preparedStatement == null ? "null" : preparedStatement.toString()));
+      builder.add(
+          DisplayData.item("dataSource", dataSource == null ? "null" : dataSource.toString()));
+      builder.add(DisplayData.item("spec", spec == null ? "null" : spec.toString()));
+    }
+
+    @Setup
+    public void setup() {
+      dataSource = spec.getDataSourceProviderFn().apply(null);
+      RetryConfiguration retryConfiguration = spec.getRetryConfiguration();
+
+      retryBackOff =
+          FluentBackoff.DEFAULT
+              .withInitialBackoff(retryConfiguration.getInitialDuration())
+              .withMaxCumulativeBackoff(retryConfiguration.getMaxDuration())
+              .withMaxRetries(retryConfiguration.getMaxAttempts());
+    }
+
+    private Connection getConnection() throws SQLException {
+      if (connection == null) {
+        connection = dataSource.getConnection();
+        connection.setAutoCommit(false);
+        preparedStatement = connection.prepareStatement(spec.getStatement().get());
+      }
+      return connection;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      T record = context.element();
+      records.add(record);
+      if (records.size() >= spec.getBatchSize()) {
+        executeBatch(context);
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle() throws Exception {
+      // We pass a null context because we only execute a final batch for WriteVoid cases.
+      executeBatch(null);
+      cleanUpStatementAndConnection();
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+      cleanUpStatementAndConnection();
+    }
+
+    private void cleanUpStatementAndConnection() throws Exception {
+      try {
+        if (preparedStatement != null) {
+          try {
+            preparedStatement.close();
+          } finally {
+            preparedStatement = null;
+          }
+        }
+      } finally {
+        if (connection != null) {
+          try {
+            connection.close();
+          } finally {
+            connection = null;
+          }
+        }
+      }
+    }
+
+    private void executeBatch(ProcessContext context)
+        throws SQLException, IOException, InterruptedException {
+      if (records.isEmpty()) {
+        return;
+      }
+      Long startTimeNs = System.nanoTime();
+      Sleeper sleeper = Sleeper.DEFAULT;
+      BackOff backoff = retryBackOff.backoff();
+      while (true) {
+        try (PreparedStatement preparedStatement =
+            getConnection().prepareStatement(spec.getStatement().get())) {
+          try {
+            // add each record in the statement batch
+            for (T record : records) {
+              processRecord(record, preparedStatement, context);
+            }
+            if (!spec.getReturnResults()) {
+              // execute the batch
+              preparedStatement.executeBatch();
+              // commit the changes
+              getConnection().commit();
+            }
+            RECORDS_PER_BATCH.update(records.size());
+            MS_PER_BATCH.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs));
+            break;
+          } catch (SQLException exception) {
+            if (!spec.getRetryStrategy().apply(exception)) {
+              throw exception;
+            }
+            LOG.warn("Deadlock detected, retrying", exception);
+            // clean up the statement batch and the connection state
+            preparedStatement.clearBatch();
+            connection.rollback();
+            if (!BackOffUtils.next(sleeper, backoff)) {
+              // we tried the max number of times
+              throw exception;
+            }
+          }
+        }
+      }
+      records.clear();
+    }
+
+    private void processRecord(T record, PreparedStatement preparedStatement, ProcessContext c) {
+      try {
+        preparedStatement.clearParameters();
+        spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
+        if (spec.getReturnResults()) {
+          // execute the statement
+          preparedStatement.execute();
+          // commit the changes
+          getConnection().commit();
+          c.output(spec.getRowMapper().mapRow(preparedStatement.getResultSet()));
+        } else {
+          preparedStatement.addBatch();
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }
