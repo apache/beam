@@ -225,7 +225,7 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class FhirIO {
 
@@ -305,9 +305,10 @@ public class FhirIO {
   /**
    * Export resources to GCS. Intended for use on non-empty FHIR stores
    *
-   * @param fhirStore the fhir store, in the format: projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param fhirStore the fhir store, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
    * @param exportGcsUriPrefix the destination GCS dir, in the format:
-   * gs://YOUR_BUCKET_NAME/path/to/a/dir
+   *     gs://YOUR_BUCKET_NAME/path/to/a/dir
    * @return the export
    * @see Export
    */
@@ -319,9 +320,10 @@ public class FhirIO {
   /**
    * Export resources to GCS. Intended for use on non-empty FHIR stores
    *
-   * @param fhirStore the fhir store, in the format: projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param fhirStore the fhir store, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
    * @param exportGcsUriPrefix the destination GCS dir, in the format:
-   * gs://YOUR_BUCKET_NAME/path/to/a/dir
+   *     gs://YOUR_BUCKET_NAME/path/to/a/dir
    * @return the export
    * @see Export
    */
@@ -333,9 +335,11 @@ public class FhirIO {
   /**
    * Deidentify FHIR resources. Intended for use on non-empty FHIR stores
    *
-   * @param sourceFhirStore the source fhir store, in the format: projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param sourceFhirStore the source fhir store, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
    * @param destinationFhirStore the destination fhir store to write de-identified resources, in the
-   * format: projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   *     format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
    * @param deidConfig the DeidentifyConfig
    * @return the deidentify
    * @see Deidentify
@@ -351,9 +355,11 @@ public class FhirIO {
   /**
    * Deidentify FHIR resources. Intended for use on non-empty FHIR stores
    *
-   * @param sourceFhirStore the source fhir store, in the format: projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param sourceFhirStore the source fhir store, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
    * @param destinationFhirStore the destination fhir store to write de-identified resources, in the
-   * format: projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   *     format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
    * @param deidConfig the DeidentifyConfig
    * @return the deidentify
    * @see Deidentify
@@ -396,30 +402,21 @@ public class FhirIO {
     }
   }
 
-  /**
-   * The type Read.
-   */
+  /** The type Read. */
   public static class Read extends PTransform<PCollection<String>, FhirIO.Read.Result> {
 
     private static final Logger LOG = LoggerFactory.getLogger(Read.class);
 
-    /**
-     * Instantiates a new Read.
-     */
-    public Read() {
-    }
+    /** Instantiates a new Read. */
+    public Read() {}
 
-    /**
-     * The type Result.
-     */
+    /** The type Result. */
     public static class Result implements POutput, PInput {
 
       private PCollection<String> resources;
 
       private PCollection<HealthcareIOError<String>> failedReads;
-      /**
-       * The Pct.
-       */
+      /** The Pct. */
       PCollectionTuple pct;
 
       /**
@@ -476,21 +473,14 @@ public class FhirIO {
 
       @Override
       public void finishSpecifyingOutput(
-          String transformName, PInput input, PTransform<?, ?> transform) {
-      }
+          String transformName, PInput input, PTransform<?, ?> transform) {}
     }
 
-    /**
-     * The tag for the main output of Fhir Messages.
-     */
-    public static final TupleTag<String> OUT = new TupleTag<String>() {
-    };
-    /**
-     * The tag for the deadletter output of Fhir Messages.
-     */
+    /** The tag for the main output of Fhir Messages. */
+    public static final TupleTag<String> OUT = new TupleTag<String>() {};
+    /** The tag for the deadletter output of Fhir Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
-        new TupleTag<HealthcareIOError<String>>() {
-        };
+        new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
     public FhirIO.Read.Result expand(PCollection<String> input) {
@@ -518,11 +508,8 @@ public class FhirIO {
     static class FetchResourceJsonString
         extends PTransform<PCollection<String>, FhirIO.Read.Result> {
 
-      /**
-       * Instantiates a new Fetch Fhir message DoFn.
-       */
-      public FetchResourceJsonString() {
-      }
+      /** Instantiates a new Fetch Fhir message DoFn. */
+      public FetchResourceJsonString() {}
 
       @Override
       public FhirIO.Read.Result expand(PCollection<String> resourceIds) {
@@ -532,9 +519,7 @@ public class FhirIO {
                     .withOutputTags(FhirIO.Read.OUT, TupleTagList.of(FhirIO.Read.DEAD_LETTER))));
       }
 
-      /**
-       * DoFn for fetching messages from the Fhir store with error handling.
-       */
+      /** DoFn for fetching messages from the Fhir store with error handling. */
       static class ReadResourceFn extends DoFn<String, String> {
 
         private static final Logger LOG = LoggerFactory.getLogger(ReadResourceFn.class);
@@ -550,11 +535,8 @@ public class FhirIO {
         private HealthcareApiClient client;
         private ObjectMapper mapper;
 
-        /**
-         * Instantiates a new Hl 7 v 2 message get fn.
-         */
-        ReadResourceFn() {
-        }
+        /** Instantiates a new Hl 7 v 2 message get fn. */
+        ReadResourceFn() {}
 
         /**
          * Instantiate healthcare client.
@@ -605,38 +587,22 @@ public class FhirIO {
     }
   }
 
-  /**
-   * The type Write.
-   */
+  /** The type Write. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<String>, Write.Result> {
 
-    /**
-     * The tag for successful writes to FHIR store.
-     */
-    public static final TupleTag<String> SUCCESSFUL_BODY = new TupleTag<String>() {
-    };
-    /**
-     * The tag for the failed writes to FHIR store.
-     */
+    /** The tag for successful writes to FHIR store. */
+    public static final TupleTag<String> SUCCESSFUL_BODY = new TupleTag<String>() {};
+    /** The tag for the failed writes to FHIR store. */
     public static final TupleTag<HealthcareIOError<String>> FAILED_BODY =
-        new TupleTag<HealthcareIOError<String>>() {
-        };
-    /**
-     * The tag for the files that failed to FHIR store.
-     */
+        new TupleTag<HealthcareIOError<String>>() {};
+    /** The tag for the files that failed to FHIR store. */
     public static final TupleTag<HealthcareIOError<String>> FAILED_FILES =
-        new TupleTag<HealthcareIOError<String>>() {
-        };
-    /**
-     * The tag for temp files for import to FHIR store.
-     */
-    public static final TupleTag<ResourceId> TEMP_FILES = new TupleTag<ResourceId>() {
-    };
+        new TupleTag<HealthcareIOError<String>>() {};
+    /** The tag for temp files for import to FHIR store. */
+    public static final TupleTag<ResourceId> TEMP_FILES = new TupleTag<ResourceId>() {};
 
-    /**
-     * The enum Write method.
-     */
+    /** The enum Write method. */
     public enum WriteMethod {
       /**
        * Execute Bundle Method executes a batch of requests as a single transaction @see <a
@@ -645,14 +611,13 @@ public class FhirIO {
       EXECUTE_BUNDLE,
       /**
        * Import Method bulk imports resources from GCS. This is ideal for initial loads to empty
-       * FHIR stores. <a href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores/import></a>.
+       * FHIR stores. <a
+       * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores/import></a>.
        */
       IMPORT
     }
 
-    /**
-     * The type Result.
-     */
+    /** The type Result. */
     public static class Result implements POutput {
 
       private final Pipeline pipeline;
@@ -729,8 +694,7 @@ public class FhirIO {
 
       @Override
       public void finishSpecifyingOutput(
-          String transformName, PInput input, PTransform<?, ?> transform) {
-      }
+          String transformName, PInput input, PTransform<?, ?> transform) {}
 
       private Result(
           Pipeline pipeline,
@@ -788,9 +752,7 @@ public class FhirIO {
      */
     abstract Optional<ValueProvider<String>> getImportGcsDeadLetterPath();
 
-    /**
-     * The type Builder.
-     */
+    /** The type Builder. */
     @AutoValue.Builder
     abstract static class Builder {
 
@@ -843,7 +805,8 @@ public class FhirIO {
     }
 
     /**
-     * Create Method creates a single FHIR resource. @see <a href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores.fhir/create></a>
+     * Create Method creates a single FHIR resource. @see <a
+     * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores.fhir/create></a>
      *
      * @param fhirStore the hl 7 v 2 store
      * @param gcsTempPath the gcs temp path
@@ -1059,10 +1022,11 @@ public class FhirIO {
               .orElse(StaticValueProvider.of(input.getPipeline().getOptions().getTempLocation()));
 
       // Write bundles in batches to GCS.
-      int numShards = 100;
       PCollectionTuple formattedInput =
-          input.apply("Convert input to NDJSON", ParDo.of(new ConvertToNdjsonFn())
-              .withOutputTags(Write.SUCCESSFUL_BODY, TupleTagList.of(FAILED_BODY)));
+          input.apply(
+              "Write input to GCS",
+              ParDo.of(new WriteToFilesFn(fhirStore))
+                  .withOutputTags(Write.TEMP_FILES, TupleTagList.of(Write.FAILED_BODY)));
 
       PCollection<HealthcareIOError<String>> failedBodies =
           formattedInput
@@ -1071,10 +1035,7 @@ public class FhirIO {
 
       PCollection<HealthcareIOError<String>> failedImportFiles =
           formattedInput
-              .get(Write.SUCCESSFUL_BODY)
-              .apply(
-                  "Write batches to GCS",
-                  ParDo.of(new WriteBatchToFileFn(tempPath)))
+              .get(Write.TEMP_FILES)
               .apply(
                   "Import",
                   ParDo.of(new ImportFn(fhirStore, tempPath, deadLetterGcsPath, contentStructure)))
@@ -1118,87 +1079,74 @@ public class FhirIO {
       return Write.Result.in(input.getPipeline(), failedBodies, failedImportFiles);
     }
 
-    static class ConvertToNdjsonFn extends DoFn<String, String> {
+    /**
+     * WriteToFilesFn writes the input JSON to files in the provided temporary GCS location.
+     * Multiple inputs are written to the same file, and therefore the input JSON is additionally
+     * processed into NDJSON. The size of a single file is determined according to the size of a
+     * batch's window (large for bounded PCollections).
+     */
+    static class WriteToFilesFn extends DoFn<String, ResourceId> {
+
+      private final ValueProvider<String> tempGcsPath;
 
       private ObjectMapper mapper;
-      private static final Logger LOG = LoggerFactory.getLogger(ConvertToNdjsonFn.class);
 
-      @StartBundle
-      public void init() throws IOException {
-        if (mapper == null) {
-          this.mapper = new ObjectMapper();
-        }
-      }
-
-      @ProcessElement
-      public void convert(ProcessContext context) throws IOException {
-        String prettyJSON = context.element();
-        try {
-          // This will error if not valid JSON an convert Pretty JSON to raw JSON.
-          Object data = this.mapper.readValue(prettyJSON, Object.class);
-          String ndjson = this.mapper.writeValueAsString(data) + "\n";
-          context.output(ndjson);
-        } catch (JsonProcessingException e) {
-          String resource =
-              String.format(
-                  "Failed to parse payload: %s as json at: %s : %s."
-                      + "Dropping message from batch import.",
-                  prettyJSON, e.getLocation().getCharOffset(), e.getMessage());
-          LOG.warn(resource);
-          context.output(
-              Write.FAILED_BODY, HealthcareIOError.of(prettyJSON, new IOException(resource)));
-        }
-      }
-    }
-
-    /**
-     * The Write bundles to new line delimited json files.
-     */
-    static class WriteBatchToFileFn extends DoFn<String, ResourceId> {
-
-      private final ValueProvider<String> gcsPath;
       private ResourceId resourceId;
       private WritableByteChannel ndJsonChannel;
       private BoundedWindow window;
 
-      WriteBatchToFileFn(ValueProvider<String> gcsPath) {
-        this.gcsPath = gcsPath;
-      }
-
       /**
        * Writes batches of NDJSON to the gcs path.
        *
-       * @param gcsPath the gcs path to write files to
+       * @param tempGcsPath the gcs path to write files to
        */
-      WriteBatchToFileFn(String gcsPath) {
-        this.gcsPath = StaticValueProvider.of(gcsPath);
+      WriteToFilesFn(ValueProvider<String> tempGcsPath) {
+        this.tempGcsPath = tempGcsPath;
+      }
+
+      @Setup
+      public void init() throws IOException {
+        this.mapper = new ObjectMapper();
       }
 
       /**
-       * Init batch.
+       * Init the NDJSON file for the current batch.
        *
        * @throws IOException the io exception
        */
       @StartBundle
       public void initFile() throws IOException {
-        // Write each bundle to newline delimited JSON file.
-        String filename = String.format("fhirBatch-%s.ndjson", UUID.randomUUID().toString());
-        ResourceId tempDir = FileSystems.matchNewResource(this.gcsPath.get(), true);
+        String filename = String.format("fhirImportBatch-%s.ndjson", UUID.randomUUID());
+        ResourceId tempDir = FileSystems.matchNewResource(this.tempGcsPath.get(), true);
         this.resourceId = tempDir.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
         this.ndJsonChannel = FileSystems.create(resourceId, "application/ld+json");
       }
 
       /**
-       * Add to batch.
+       * Add the input JSON to the batch, converting to NDJSON in the process.
        *
        * @param context the context
        * @throws IOException the io exception
        */
       @ProcessElement
       public void addToFile(ProcessContext context, BoundedWindow window) throws IOException {
-        String ndjson = context.element();
         this.window = window;
-        this.ndJsonChannel.write(ByteBuffer.wrap(ndjson.getBytes(StandardCharsets.UTF_8)));
+        String httpBody = context.element();
+        try {
+          // This will error if not valid JSON an convert Pretty JSON to raw JSON.
+          Object data = this.mapper.readValue(httpBody, Object.class);
+          String ndJson = this.mapper.writeValueAsString(data) + "\n";
+          this.ndJsonChannel.write(ByteBuffer.wrap(ndJson.getBytes(StandardCharsets.UTF_8)));
+        } catch (JsonProcessingException e) {
+          String resource =
+              String.format(
+                  "Failed to parse payload: %s as json at: %s : %s."
+                      + "Dropping message from batch import.",
+                  httpBody, e.getLocation().getCharOffset(), e.getMessage());
+          LOG.warn(resource);
+          context.output(
+              Write.FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
+        }
       }
 
       /**
@@ -1209,30 +1157,33 @@ public class FhirIO {
        */
       @FinishBundle
       public void closeFile(FinishBundleContext context) throws IOException {
-        // Write the file with all elements in this bundle to GCS.
+        // Write the file with all elements in this batch to GCS.
         ndJsonChannel.close();
         context.output(resourceId, window.maxTimestamp(), window);
       }
     }
 
-    /**
-     * Import batches of new line delimited json files to FHIR Store.
-     */
-    static class ImportFn
-        // extends DoFn<Iterable<ResourceId>, HealthcareIOError<String>> {
-        extends DoFn<ResourceId, HealthcareIOError<String>> {
+    /** Import batches of new line delimited json files to FHIR Store. */
+    static class ImportFn extends DoFn<ResourceId, HealthcareIOError<String>> {
 
       private static final Counter IMPORT_ERRORS =
           Metrics.counter(ImportFn.class, BASE_METRIC_PREFIX + "resources_imported_failure_count");
       private static final Counter IMPORT_SUCCESS =
           Metrics.counter(ImportFn.class, BASE_METRIC_PREFIX + "resources_imported_success_count");
       private static final Logger LOG = LoggerFactory.getLogger(ImportFn.class);
+
+      private final ValueProvider<String> fhirStore;
       private final ValueProvider<String> tempGcsPath;
       private final ValueProvider<String> deadLetterGcsPath;
-      private ResourceId tempDir;
       private final ContentStructure contentStructure;
+
+      private ResourceId tempDir;
       private HealthcareApiClient client;
-      private final ValueProvider<String> fhirStore;
+
+      private BoundedWindow window;
+      private List<ResourceId> files;
+      private List<ResourceId> tempDestinations;
+      private List<ResourceId> deadLetterDestinations;
 
       ImportFn(
           ValueProvider<String> fhirStore,
@@ -1251,12 +1202,20 @@ public class FhirIO {
 
       @Setup
       public void init() throws IOException {
+        client = new HttpHealthcareApiClient();
+      }
+
+      @StartBundle
+      public void initBundle() {
         tempDir =
             FileSystems.matchNewResource(tempGcsPath.get(), true)
                 .resolve(
-                    String.format("tmp-%s", UUID.randomUUID().toString()),
+                    String.format("tmp-%s", UUID.randomUUID()),
                     StandardResolveOptions.RESOLVE_DIRECTORY);
-        client = new HttpHealthcareApiClient();
+
+        files = new ArrayList<>();
+        tempDestinations = new ArrayList<>();
+        deadLetterDestinations = new ArrayList<>();
       }
 
       /**
@@ -1264,28 +1223,32 @@ public class FhirIO {
        * GCS URI.
        */
       @ProcessElement
-      public void importFn(
-          Iterable<ResourceId> files,
-          OutputReceiver<HealthcareIOError<String>> output)
-          throws IOException {
-        List<ResourceId> tempDestinations = new ArrayList<>();
-        List<ResourceId> deadLetterDestinations = new ArrayList<>();
-        assert files != null;
-        for (ResourceId file : files) {
-          tempDestinations.add(
-              tempDir.resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
-          deadLetterDestinations.add(
-              FileSystems.matchNewResource(deadLetterGcsPath.get(), true)
-                  .resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
-        }
-        // TODO - wtf is a missing file?
-        // Ignore missing files since this might be a retry, which means files
-        // should have been copied over.
-        FileSystems.copy(
+      public void process(ProcessContext context, BoundedWindow window) throws IOException {
+        this.window = window;
+
+        ResourceId file = context.element();
+        assert file != null;
+        files.add(file);
+        tempDestinations.add(
+            tempDir.resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
+        deadLetterDestinations.add(
+            FileSystems.matchNewResource(deadLetterGcsPath.get(), true)
+                .resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
+      }
+
+      @FinishBundle
+      public void importFn(FinishBundleContext context) throws IOException {
+        // Move files to a temporary subdir (to provide common prefix) to execute import with single
+        // GCS URI and allow for retries.
+        // IGNORE_MISSING_FILES ignores missing source files, we enable this as if this is a retry
+        // files
+        // should have already been moved over.
+        FileSystems.rename(
             ImmutableList.copyOf(files),
             tempDestinations,
             StandardMoveOptions.IGNORE_MISSING_FILES);
-        // Check whether any temporary files are not present.
+        // Even in a retry we need to check that all temporary files are present in the temporary
+        // destination.
         boolean hasMissingFile =
             FileSystems.matchResources(tempDestinations).stream()
                 .anyMatch((MatchResult r) -> r.status() != Status.OK);
@@ -1293,6 +1256,7 @@ public class FhirIO {
           throw new IllegalStateException("Not all temporary files are present for importing.");
         }
         ResourceId importUri = tempDir.resolve("*", StandardResolveOptions.RESOLVE_FILE);
+
         try {
           // Blocking fhirStores.import request.
           assert contentStructure != null;
@@ -1310,25 +1274,17 @@ public class FhirIO {
           LOG.warn(
               String.format(
                   "Failed to import %s with error: %s. Moving to deadletter path %s",
-                  importUri.toString(), e.getMessage(), deadLetterResourceId.toString()));
+                  importUri, e.getMessage(), deadLetterResourceId.toString()));
           FileSystems.rename(tempDestinations, deadLetterDestinations);
-          output.output(HealthcareIOError.of(importUri.toString(), e));
-        } finally {
-          // If we've reached this point files have either been successfully import to FHIR store
-          // or moved to Dead Letter Queue.
-          // Clean up original files for this batch on GCS.
-          FileSystems.delete(ImmutableList.copyOf(batch));
+          context.output(
+              HealthcareIOError.of(importUri.toString(), e), window.maxTimestamp(), window);
         }
       }
     }
 
-    /**
-     * The enum Content structure.
-     */
+    /** The enum Content structure. */
     public enum ContentStructure {
-      /**
-       * If the content structure is not specified, the default value BUNDLE will be used.
-       */
+      /** If the content structure is not specified, the default value BUNDLE will be used. */
       CONTENT_STRUCTURE_UNSPECIFIED,
       /**
        * The source file contains one or more lines of newline-delimited JSON (ndjson). Each line is
@@ -1341,20 +1297,14 @@ public class FhirIO {
        * a single resource.
        */
       RESOURCE,
-      /**
-       * The entire file is one JSON bundle. The JSON can span multiple lines.
-       */
+      /** The entire file is one JSON bundle. The JSON can span multiple lines. */
       BUNDLE_PRETTY,
-      /**
-       * The entire file is one JSON resource. The JSON can span multiple lines.
-       */
+      /** The entire file is one JSON resource. The JSON can span multiple lines. */
       RESOURCE_PRETTY
     }
   }
 
-  /**
-   * The type Execute bundles.
-   */
+  /** The type Execute bundles. */
   public static class ExecuteBundles extends PTransform<PCollection<String>, Write.Result> {
 
     private final ValueProvider<String> fhirStore;
@@ -1388,9 +1338,7 @@ public class FhirIO {
       return Write.Result.in(input.getPipeline(), bodies);
     }
 
-    /**
-     * The type Write Fhir fn.
-     */
+    /** The type Write Fhir fn. */
     static class ExecuteBundlesFn extends DoFn<String, String> {
 
       private static final Counter EXECUTE_BUNDLE_ERRORS =
@@ -1405,9 +1353,7 @@ public class FhirIO {
 
       private transient HealthcareApiClient client;
       private final ObjectMapper mapper = new ObjectMapper();
-      /**
-       * The Fhir store.
-       */
+      /** The Fhir store. */
       private final ValueProvider<String> fhirStore;
 
       /**
@@ -1448,9 +1394,7 @@ public class FhirIO {
     }
   }
 
-  /**
-   * Export FHIR resources from a FHIR store to new line delimited json files on GCS.
-   */
+  /** Export FHIR resources from a FHIR store to new line delimited json files on GCS. */
   public static class Export extends PTransform<PBegin, PCollection<String>> {
 
     private final ValueProvider<String> fhirStore;
@@ -1473,9 +1417,7 @@ public class FhirIO {
           .apply("ReadResourcesFromFiles", TextIO.readFiles());
     }
 
-    /**
-     * A function that schedules an export operation and monitors the status.
-     */
+    /** A function that schedules an export operation and monitors the status. */
     public static class ExportResourcesToGcsFn extends DoFn<String, String> {
 
       private static final Counter EXPORT_ERRORS =
@@ -1515,9 +1457,7 @@ public class FhirIO {
     }
   }
 
-  /**
-   * Deidentify FHIR resources from a FHIR store to a destination FHIR store.
-   */
+  /** Deidentify FHIR resources from a FHIR store to a destination FHIR store. */
   public static class Deidentify extends PTransform<PBegin, PCollection<String>> {
 
     private final ValueProvider<String> sourceFhirStore;
@@ -1543,9 +1483,7 @@ public class FhirIO {
               ParDo.of(new DeidentifyFn(destinationFhirStore, deidConfig)));
     }
 
-    /**
-     * A function that schedules a deidentify operation and monitors the status.
-     */
+    /** A function that schedules a deidentify operation and monitors the status. */
     public static class DeidentifyFn extends DoFn<String, String> {
 
       private static final Counter DEIDENTIFY_ERRORS =
@@ -1589,9 +1527,7 @@ public class FhirIO {
     }
   }
 
-  /**
-   * The type Search.
-   */
+  /** The type Search. */
   public static class Search<T>
       extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
 
@@ -1686,22 +1622,15 @@ public class FhirIO {
 
       @Override
       public void finishSpecifyingOutput(
-          String transformName, PInput input, PTransform<?, ?> transform) {
-      }
+          String transformName, PInput input, PTransform<?, ?> transform) {}
     }
 
-    /**
-     * The tag for the main output of Fhir Messages.
-     */
+    /** The tag for the main output of Fhir Messages. */
     public static final TupleTag<KV<String, JsonArray>> OUT =
-        new TupleTag<KV<String, JsonArray>>() {
-        };
-    /**
-     * The tag for the deadletter output of Fhir Messages.
-     */
+        new TupleTag<KV<String, JsonArray>>() {};
+    /** The tag for the deadletter output of Fhir Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
-        new TupleTag<HealthcareIOError<String>>() {
-        };
+        new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
     public FhirIO.Search.Result expand(PCollection<FhirSearchParameter<T>> input) {
@@ -1744,9 +1673,7 @@ public class FhirIO {
                         FhirIO.Search.OUT, TupleTagList.of(FhirIO.Search.DEAD_LETTER))));
       }
 
-      /**
-       * DoFn for searching messages from the Fhir store with error handling.
-       */
+      /** DoFn for searching messages from the Fhir store with error handling. */
       class SearchResourcesFn extends DoFn<FhirSearchParameter<T>, KV<String, JsonArray>> {
 
         private final Counter searchResourceErrors =
@@ -1763,9 +1690,7 @@ public class FhirIO {
         private HealthcareApiClient client;
         private final ValueProvider<String> fhirStore;
 
-        /**
-         * Instantiates a new Fhir resources search fn.
-         */
+        /** Instantiates a new Fhir resources search fn. */
         SearchResourcesFn(ValueProvider<String> fhirStore) {
           this.fhirStore = fhirStore;
         }
