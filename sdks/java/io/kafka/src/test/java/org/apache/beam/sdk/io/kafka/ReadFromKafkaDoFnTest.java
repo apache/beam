@@ -244,7 +244,12 @@ public class ReadFromKafkaDoFnTest {
     OffsetRange result =
         dofnInstance.initialRestriction(
             KafkaSourceDescriptor.of(
-                topicPartition, expectedStartOffset, Instant.now(), ImmutableList.of()));
+                topicPartition,
+                expectedStartOffset,
+                Instant.now(),
+                null,
+                null,
+                ImmutableList.of()));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
   }
 
@@ -255,7 +260,8 @@ public class ReadFromKafkaDoFnTest {
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(
-            KafkaSourceDescriptor.of(topicPartition, null, Instant.now(), ImmutableList.of()));
+            KafkaSourceDescriptor.of(
+                topicPartition, null, Instant.now(), null, null, ImmutableList.of()));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
   }
 
@@ -265,7 +271,7 @@ public class ReadFromKafkaDoFnTest {
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(
-            KafkaSourceDescriptor.of(topicPartition, null, null, ImmutableList.of()));
+            KafkaSourceDescriptor.of(topicPartition, null, null, null, null, ImmutableList.of()));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
   }
 
@@ -276,7 +282,8 @@ public class ReadFromKafkaDoFnTest {
     long startOffset = 5L;
     OffsetRangeTracker tracker =
         new OffsetRangeTracker(new OffsetRange(startOffset, startOffset + 3));
-    KafkaSourceDescriptor descriptor = KafkaSourceDescriptor.of(topicPartition, null, null, null);
+    KafkaSourceDescriptor descriptor =
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
     ProcessContinuation result =
         dofnInstance.processElement(descriptor, tracker, null, (OutputReceiver) receiver);
     assertEquals(ProcessContinuation.stop(), result);
@@ -291,7 +298,7 @@ public class ReadFromKafkaDoFnTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =
         dofnInstance.processElement(
-            KafkaSourceDescriptor.of(topicPartition, null, null, null),
+            KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
             tracker,
             null,
             (OutputReceiver) receiver);
@@ -307,7 +314,7 @@ public class ReadFromKafkaDoFnTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =
         dofnInstance.processElement(
-            KafkaSourceDescriptor.of(topicPartition, null, null, null),
+            KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
             tracker,
             null,
             (OutputReceiver) receiver);
@@ -334,7 +341,7 @@ public class ReadFromKafkaDoFnTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =
         instance.processElement(
-            KafkaSourceDescriptor.of(topicPartition, null, null, null),
+            KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
             tracker,
             null,
             (OutputReceiver) receiver);

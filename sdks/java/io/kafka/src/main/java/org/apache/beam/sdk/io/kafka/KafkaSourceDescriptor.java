@@ -50,6 +50,14 @@ public abstract class KafkaSourceDescriptor implements Serializable {
   @Nullable
   abstract Instant getStartReadTime();
 
+  @SchemaFieldName("stop_read_offset")
+  @Nullable
+  abstract Long getStopReadOffset();
+
+  @SchemaFieldName("stop_read_time")
+  @Nullable
+  abstract Instant getStopReadTime();
+
   @SchemaFieldName("bootstrap_servers")
   @Nullable
   abstract List<String> getBootStrapServers();
@@ -68,12 +76,16 @@ public abstract class KafkaSourceDescriptor implements Serializable {
       TopicPartition topicPartition,
       Long startReadOffset,
       Instant startReadTime,
+      Long stopReadOffset,
+      Instant stopReadTime,
       List<String> bootstrapServers) {
     return new AutoValue_KafkaSourceDescriptor(
         topicPartition.topic(),
         topicPartition.partition(),
         startReadOffset,
         startReadTime,
+        stopReadOffset,
+        stopReadTime,
         bootstrapServers);
   }
 
@@ -85,8 +97,16 @@ public abstract class KafkaSourceDescriptor implements Serializable {
       Integer partition,
       Long start_read_offset,
       Instant start_read_time,
+      Long stop_read_offset,
+      Instant stop_read_time,
       List<String> bootstrap_servers) {
     return new AutoValue_KafkaSourceDescriptor(
-        topic, partition, start_read_offset, start_read_time, bootstrap_servers);
+        topic,
+        partition,
+        start_read_offset,
+        start_read_time,
+        stop_read_offset,
+        stop_read_time,
+        bootstrap_servers);
   }
 }
