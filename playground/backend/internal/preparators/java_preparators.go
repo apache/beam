@@ -16,10 +16,10 @@
 package preparators
 
 import (
+	"beam.apache.org/playground/backend/internal/logger"
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -28,7 +28,7 @@ import (
 const (
 	classWithPublicModifierPattern    = "public class "
 	classWithoutPublicModifierPattern = "class "
-	packagePattern                    = `package ([\w]+\.)+[\w]+;`
+	packagePattern                    = `^package ([\w]+\.)+[\w]+;`
 	emptyStringPattern                = ""
 	newLinePattern                    = "\n"
 	pathSeparatorPattern              = os.PathSeparator
@@ -56,14 +56,14 @@ func replace(args ...interface{}) error {
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		log.Printf("Preparation: Error during open file: %s, err: %s\n", filePath, err.Error())
+		logger.Errorf("Preparation: Error during open file: %s, err: %s\n", filePath, err.Error())
 		return err
 	}
 	defer file.Close()
 
 	tmp, err := createTempFile(filePath)
 	if err != nil {
-		log.Printf("Preparation: Error during create new temporary file, err: %s\n", err.Error())
+		logger.Errorf("Preparation: Error during create new temporary file, err: %s\n", err.Error())
 		return err
 	}
 	defer tmp.Close()
@@ -71,13 +71,13 @@ func replace(args ...interface{}) error {
 	// uses to indicate when need to add new line to tmp file
 	err = writeWithReplace(file, tmp, pattern, newPattern)
 	if err != nil {
-		log.Printf("Preparation: Error during write data to tmp file, err: %s\n", err.Error())
+		logger.Errorf("Preparation: Error during write data to tmp file, err: %s\n", err.Error())
 		return err
 	}
 
 	// replace original file with temporary file with renaming
 	if err = os.Rename(tmp.Name(), filePath); err != nil {
-		log.Printf("Preparation: Error during rename temporary file, err: %s\n", err.Error())
+		logger.Errorf("Preparation: Error during rename temporary file, err: %s\n", err.Error())
 		return err
 	}
 	return nil
@@ -93,7 +93,7 @@ func writeWithReplace(from *os.File, to *os.File, pattern, newPattern string) er
 		line := scanner.Text()
 		err := replaceAndWriteLine(newLine, to, line, reg, newPattern)
 		if err != nil {
-			log.Printf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", line, err.Error())
+			logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", line, err.Error())
 			return err
 		}
 		newLine = true
@@ -105,7 +105,7 @@ func writeWithReplace(from *os.File, to *os.File, pattern, newPattern string) er
 func replaceAndWriteLine(newLine bool, to *os.File, line string, reg *regexp.Regexp, newPattern string) error {
 	err := addNewLine(newLine, to)
 	if err != nil {
-		log.Printf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", newLinePattern, err.Error())
+		logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", newLinePattern, err.Error())
 		return err
 	}
 	matches := reg.FindAllString(line, -1)
@@ -113,7 +113,7 @@ func replaceAndWriteLine(newLine bool, to *os.File, line string, reg *regexp.Reg
 		line = strings.ReplaceAll(line, str, newPattern)
 	}
 	if _, err = io.WriteString(to, line); err != nil {
-		log.Printf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", line, err.Error())
+		logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", line, err.Error())
 		return err
 	}
 	return nil
