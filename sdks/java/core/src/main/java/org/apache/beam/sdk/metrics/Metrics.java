@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
+import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * The <code>Metrics</code> is a utility class for producing various kinds of metrics for reporting
@@ -81,6 +84,48 @@ public class Metrics {
   }
 
   /**
+   * Create a metric that records various statistics about the distribution of reported values.
+   *
+   * @param namespace namespace for the distribution
+   * @param name name of the distribution
+   * @param percentiles Set of percentiles to be computed in the distribution. If the user wishes to
+   *     compute the 90th and 99th percentile, the set of percentiles would be [90.0D, 99.0D].
+   */
+  public static Distribution distribution(
+      Class<?> namespace, String name, Set<Double> percentiles) {
+    validatePercentiles(percentiles);
+    return new DelegatingDistribution(MetricName.named(namespace, name), percentiles);
+  }
+
+  /**
+   * Create a metric that records various statistics about the distribution of reported values.
+   *
+   * @param namespace namespace for the distribution
+   * @param name name of the distribution
+   * @param percentiles Set of percentiles to be computed in the distribution. If the user wishes to
+   *     compute the 90th and 99th percentile, the set of percentiles would be [90.0D, 99.0D].
+   */
+  public static Distribution distribution(String namespace, String name, Set<Double> percentiles) {
+    validatePercentiles(percentiles);
+    return new DelegatingDistribution(MetricName.named(namespace, name), percentiles);
+  }
+
+  private static void validatePercentiles(Set<Double> percentiles) {
+    Preconditions.checkArgument(
+        percentiles != null && !percentiles.isEmpty(),
+        "Percentiles cannot be null or an empty set.");
+    final ImmutableSet<Double> invalidPercentiles =
+        percentiles.stream()
+            .filter(perc -> perc < 0.0 || perc > 100.0)
+            .collect(ImmutableSet.toImmutableSet());
+    Preconditions.checkArgument(
+        invalidPercentiles.isEmpty(),
+        "User supplied percentiles should be between "
+            + "0.0 and 100.0. Following invalid percentiles were supplied: "
+            + invalidPercentiles);
+  }
+
+  /**
    * Create a metric that can have its new value set, and is aggregated by taking the last reported
    * value.
    */
@@ -101,24 +146,23 @@ public class Metrics {
    */
   private static class DelegatingDistribution implements Metric, Distribution, Serializable {
     private final MetricName name;
+    private final Set<Double> percentiles;
 
     private DelegatingDistribution(MetricName name) {
       this.name = name;
+      this.percentiles = ImmutableSet.of();
+    }
+
+    private DelegatingDistribution(MetricName name, Set<Double> percentiles) {
+      this.name = name;
+      this.percentiles = percentiles;
     }
 
     @Override
     public void update(long value) {
       MetricsContainer container = MetricsEnvironment.getCurrentContainer();
       if (container != null) {
-        container.getDistribution(name).update(value);
-      }
-    }
-
-    @Override
-    public void update(long sum, long count, long min, long max) {
-      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
-      if (container != null) {
-        container.getDistribution(name).update(sum, count, min, max);
+        container.getDistribution(name, percentiles).update(value);
       }
     }
 

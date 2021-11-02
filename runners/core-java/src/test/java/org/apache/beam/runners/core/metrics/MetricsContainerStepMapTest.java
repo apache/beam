@@ -40,6 +40,9 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -57,15 +60,19 @@ public class MetricsContainerStepMapTest {
   private static final String STEP1 = "myStep1";
   private static final String STEP2 = "myStep2";
   private static final String COUNTER_NAME = "myCounter";
-  private static final String DISTRIBUTION_NAME = "myDistribution";
+  private static final String DISTRIBUTION_NAME1 = "myDistribution1";
+  private static final String DISTRIBUTION_NAME2 = "myDistribution2";
   private static final String GAUGE_NAME = "myGauge";
 
   private static final long VALUE = 100;
 
   private static final Counter counter =
       Metrics.counter(MetricsContainerStepMapTest.class, COUNTER_NAME);
-  private static final Distribution distribution =
-      Metrics.distribution(MetricsContainerStepMapTest.class, DISTRIBUTION_NAME);
+  private static final Distribution distribution1 =
+      Metrics.distribution(MetricsContainerStepMapTest.class, DISTRIBUTION_NAME1);
+  private static final Distribution distribution2 =
+      Metrics.distribution(
+          MetricsContainerStepMapTest.class, DISTRIBUTION_NAME2, ImmutableSet.of(90.0D, 99.0D));
   private static final Gauge gauge = Metrics.gauge(MetricsContainerStepMapTest.class, GAUGE_NAME);
 
   private static final MetricsContainerImpl metricsContainer;
@@ -74,8 +81,12 @@ public class MetricsContainerStepMapTest {
     metricsContainer = new MetricsContainerImpl(null);
     try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
       counter.inc(VALUE);
-      distribution.update(VALUE);
-      distribution.update(VALUE * 2);
+      distribution1.update(VALUE);
+      distribution1.update(VALUE * 2);
+      distribution1.update(VALUE * 3);
+      distribution2.update(VALUE);
+      distribution2.update(VALUE * 2);
+      distribution2.update(VALUE * 3);
       gauge.set(VALUE);
     } catch (IOException e) {
       LOG.error(e.getMessage(), e);
@@ -92,20 +103,28 @@ public class MetricsContainerStepMapTest {
     attemptedMetrics.update(STEP2, metricsContainer);
 
     MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
-
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
 
     assertIterableSize(step1res.getCounters(), 1);
-    assertIterableSize(step1res.getDistributions(), 1);
+    assertIterableSize(step1res.getDistributions(), 2);
     assertIterableSize(step1res.getGauges(), 1);
 
+    ImmutableMap<Double, Double> percentiles1 = ImmutableMap.of();
+    ImmutableMap<Double, Double> percentiles2 =
+        ImmutableMap.<Double, Double>builder().put(90.0D, 300.0D).put(99.0D, 300.0D).build();
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE, false);
     assertDistribution(
-        DISTRIBUTION_NAME,
+        DISTRIBUTION_NAME1,
         step1res,
         STEP1,
-        DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
+        DistributionResult.create(VALUE * 6, 3, VALUE, VALUE * 3, percentiles1),
+        false);
+    assertDistribution(
+        DISTRIBUTION_NAME2,
+        step1res,
+        STEP1,
+        DistributionResult.create(VALUE * 6, 3, VALUE, VALUE * 3, percentiles2),
         false);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
 
@@ -113,22 +132,28 @@ public class MetricsContainerStepMapTest {
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
 
     assertIterableSize(step2res.getCounters(), 1);
-    assertIterableSize(step2res.getDistributions(), 1);
+    assertIterableSize(step2res.getDistributions(), 2);
     assertIterableSize(step2res.getGauges(), 1);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 2, false);
     assertDistribution(
-        DISTRIBUTION_NAME,
+        DISTRIBUTION_NAME1,
         step2res,
         STEP2,
-        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
+        DistributionResult.create(VALUE * 12, 6, VALUE, VALUE * 3, percentiles1),
+        false);
+    assertDistribution(
+        DISTRIBUTION_NAME2,
+        step2res,
+        STEP2,
+        DistributionResult.create(VALUE * 12, 6, VALUE, VALUE * 3, percentiles2),
         false);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
 
     MetricQueryResults allres = metricResults.allMetrics();
 
     assertIterableSize(allres.getCounters(), 2);
-    assertIterableSize(allres.getDistributions(), 2);
+    assertIterableSize(allres.getDistributions(), 4);
     assertIterableSize(allres.getGauges(), 2);
   }
 
@@ -160,7 +185,7 @@ public class MetricsContainerStepMapTest {
     thrown.expectMessage("This runner does not currently support committed metrics results.");
 
     assertDistribution(
-        DISTRIBUTION_NAME, step1res, STEP1, DistributionResult.IDENTITY_ELEMENT, true);
+        DISTRIBUTION_NAME1, step1res, STEP1, DistributionResult.IDENTITY_ELEMENT, true);
   }
 
   @Test
@@ -184,8 +209,7 @@ public class MetricsContainerStepMapTest {
     CounterCell c1 = testObject.getUnboundContainer().getCounter(MetricName.named("ns", "name1"));
     c1.inc(5);
 
-    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
-    assertThat(testObject.getMonitoringInfos(), containsInAnyOrder(expected.toArray()));
+    assertThat(testObject.getMonitoringInfos(), containsInAnyOrder(ImmutableList.of().toArray()));
   }
 
   @Test
@@ -205,7 +229,7 @@ public class MetricsContainerStepMapTest {
     MetricsContainerStepMap testObject = new MetricsContainerStepMap();
     testObject.updateAll(baseMetricContainerRegistry);
 
-    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+    List<MonitoringInfo> expected = new ArrayList<>();
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder
@@ -218,7 +242,7 @@ public class MetricsContainerStepMapTest {
 
     expected.add(MonitoringInfoTestUtil.testElementCountMonitoringInfo(14));
 
-    ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
+    ArrayList<MonitoringInfo> actual = new ArrayList<>();
 
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
       actual.add(mi);
@@ -246,56 +270,83 @@ public class MetricsContainerStepMapTest {
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
 
     assertIterableSize(step1res.getCounters(), 1);
-    assertIterableSize(step1res.getDistributions(), 1);
+    assertIterableSize(step1res.getDistributions(), 2);
     assertIterableSize(step1res.getGauges(), 1);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE * 2, false);
+    ImmutableMap<Double, Double> percentiles1 = ImmutableMap.of();
+    ImmutableMap<Double, Double> percentiles2 =
+        ImmutableMap.<Double, Double>builder().put(90.0D, 300.0D).put(99.0D, 300.0D).build();
     assertDistribution(
-        DISTRIBUTION_NAME,
+        DISTRIBUTION_NAME1,
         step1res,
         STEP1,
-        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
+        DistributionResult.create(VALUE * 12, 6, VALUE, VALUE * 3, percentiles1),
+        false);
+    assertDistribution(
+        DISTRIBUTION_NAME2,
+        step1res,
+        STEP1,
+        DistributionResult.create(VALUE * 12, 6, VALUE, VALUE * 3, percentiles2),
         false);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE, true);
     assertDistribution(
-        DISTRIBUTION_NAME,
+        DISTRIBUTION_NAME1,
         step1res,
         STEP1,
-        DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
+        DistributionResult.create(VALUE * 6, 3, VALUE, VALUE * 3, percentiles1),
         true);
+    assertDistribution(
+        DISTRIBUTION_NAME2,
+        step1res,
+        STEP1,
+        DistributionResult.create(VALUE * 12, 6, VALUE, VALUE * 3, percentiles2),
+        false);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), true);
 
     MetricQueryResults step2res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
 
     assertIterableSize(step2res.getCounters(), 1);
-    assertIterableSize(step2res.getDistributions(), 1);
+    assertIterableSize(step2res.getDistributions(), 2);
     assertIterableSize(step2res.getGauges(), 1);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 3, false);
     assertDistribution(
-        DISTRIBUTION_NAME,
+        DISTRIBUTION_NAME1,
         step2res,
         STEP2,
-        DistributionResult.create(VALUE * 9, 6, VALUE, VALUE * 2),
+        DistributionResult.create(VALUE * 18, 9, VALUE, VALUE * 3, percentiles1),
+        false);
+    assertDistribution(
+        DISTRIBUTION_NAME2,
+        step2res,
+        STEP2,
+        DistributionResult.create(VALUE * 18, 9, VALUE, VALUE * 3, percentiles2),
         false);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 2, true);
     assertDistribution(
-        DISTRIBUTION_NAME,
+        DISTRIBUTION_NAME1,
         step2res,
         STEP2,
-        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
+        DistributionResult.create(VALUE * 12, 6, VALUE, VALUE * 3, percentiles1),
+        true);
+    assertDistribution(
+        DISTRIBUTION_NAME2,
+        step2res,
+        STEP2,
+        DistributionResult.create(VALUE * 12, 6, VALUE, VALUE * 3, percentiles2),
         true);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), true);
 
     MetricQueryResults allres = metricResults.queryMetrics(MetricsFilter.builder().build());
 
     assertIterableSize(allres.getCounters(), 2);
-    assertIterableSize(allres.getDistributions(), 2);
+    assertIterableSize(allres.getDistributions(), 4);
     assertIterableSize(allres.getGauges(), 2);
   }
 
@@ -337,21 +388,37 @@ public class MetricsContainerStepMapTest {
 
     MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
     MetricQueryResults allres = metricResults.allMetrics();
+
+    ImmutableMap<Double, Double> percentiles1 = ImmutableMap.of();
+    ImmutableMap<Double, Double> percentiles2 =
+        ImmutableMap.<Double, Double>builder().put(90.0D, 300.0D).put(99.0D, 300.0D).build();
     assertCounter(COUNTER_NAME, allres, STEP1, VALUE, false);
     assertDistribution(
-        DISTRIBUTION_NAME,
+        DISTRIBUTION_NAME1,
         allres,
         STEP1,
-        DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
+        DistributionResult.create(VALUE * 6, 3, VALUE, VALUE * 3, percentiles1),
+        false);
+    assertDistribution(
+        DISTRIBUTION_NAME2,
+        allres,
+        STEP1,
+        DistributionResult.create(VALUE * 6, 3, VALUE, VALUE * 3, percentiles2),
         false);
     assertGauge(GAUGE_NAME, allres, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
 
     assertCounter(COUNTER_NAME, allres, STEP2, VALUE * 2, false);
     assertDistribution(
-        DISTRIBUTION_NAME,
+        DISTRIBUTION_NAME1,
         allres,
         STEP2,
-        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
+        DistributionResult.create(VALUE * 12, 6, VALUE, VALUE * 3, percentiles1),
+        false);
+    assertDistribution(
+        DISTRIBUTION_NAME2,
+        allres,
+        STEP2,
+        DistributionResult.create(VALUE * 12, 6, VALUE, VALUE * 3, percentiles2),
         false);
     assertGauge(GAUGE_NAME, allres, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
 
@@ -362,13 +429,13 @@ public class MetricsContainerStepMapTest {
     // Check that the metrics container for STEP1 is reset
     assertCounter(COUNTER_NAME, allres, STEP1, 0L, false);
     assertDistribution(
-        DISTRIBUTION_NAME, allres, STEP1, DistributionResult.IDENTITY_ELEMENT, false);
+        DISTRIBUTION_NAME1, allres, STEP1, DistributionResult.IDENTITY_ELEMENT, false);
     assertGauge(GAUGE_NAME, allres, STEP1, GaugeResult.empty(), false);
 
     // Check that the metrics container for STEP2 is reset
     assertCounter(COUNTER_NAME, allres, STEP2, 0L, false);
     assertDistribution(
-        DISTRIBUTION_NAME, allres, STEP2, DistributionResult.IDENTITY_ELEMENT, false);
+        DISTRIBUTION_NAME1, allres, STEP2, DistributionResult.IDENTITY_ELEMENT, false);
     assertGauge(GAUGE_NAME, allres, STEP2, GaugeResult.empty(), false);
   }
 

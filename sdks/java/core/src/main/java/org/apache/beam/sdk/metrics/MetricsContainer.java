@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -41,6 +42,17 @@ public interface MetricsContainer extends Serializable {
    * metricName} in this container.
    */
   Distribution getDistribution(MetricName metricName);
+
+  /**
+   * Return the {@link Distribution} that should be used for implementing the given {@code
+   * metricName} in this container.
+   */
+  default Distribution getDistribution(MetricName metricName, Set<Double> percentiles) {
+    if (percentiles.isEmpty()) {
+      return getDistribution(metricName);
+    }
+    throw new RuntimeException("Distribution metric with custom percentiles is not supported yet.");
+  }
 
   /**
    * Return the {@link Gauge} that should be used for implementing the given {@code metricName} in

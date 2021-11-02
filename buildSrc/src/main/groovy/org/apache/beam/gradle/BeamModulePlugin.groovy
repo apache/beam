@@ -546,6 +546,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_io                                  : "commons-io:commons-io:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
+        datasketches                                : "org.apache.datasketches:datasketches-java:3.0.0",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.6",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version

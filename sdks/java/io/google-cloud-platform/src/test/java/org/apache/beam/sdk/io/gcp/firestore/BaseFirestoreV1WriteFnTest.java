@@ -907,11 +907,6 @@ public abstract class BaseFirestoreV1WriteFnTest<
     }
 
     @Override
-    public void update(long sum, long count, long min, long max) {
-      throw new IllegalStateException("not implemented");
-    }
-
-    @Override
     public MetricName getName() {
       return name;
     }

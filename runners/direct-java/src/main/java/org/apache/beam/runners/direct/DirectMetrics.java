@@ -177,12 +177,12 @@ class DirectMetrics extends MetricResults {
       new MetricAggregation<DistributionData, DistributionResult>() {
         @Override
         public DistributionData zero() {
-          return DistributionData.EMPTY;
+          return DistributionData.empty();
         }
 
         @Override
         public DistributionData combine(Iterable<DistributionData> updates) {
-          DistributionData result = DistributionData.EMPTY;
+          DistributionData result = DistributionData.empty();
           for (DistributionData update : updates) {
             result = result.combine(update);
           }

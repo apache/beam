@@ -15,32 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.jet.metrics;
+package org.apache.beam.runners.core.metrics;
 
-import org.apache.beam.runners.core.metrics.DistributionData;
-import org.apache.beam.sdk.metrics.Distribution;
+import com.google.auto.value.AutoValue;
+import java.io.Serializable;
+import java.util.Set;
 import org.apache.beam.sdk.metrics.MetricName;
 
-/** Implementation of {@link Distribution}. */
-public class DistributionImpl extends AbstractMetric<DistributionData> implements Distribution {
+/**
+ * Value class to represent Metric name and percentiles together. {@link MetricsContainerImpl} uses
+ * a map of this key and the Distribution Metric.
+ */
+@AutoValue
+public abstract class DistributionMetricKey implements Serializable {
+  public abstract MetricName getMetricName();
 
-  private DistributionData distributionData = DistributionData.empty();
+  public abstract Set<Double> getPercentiles();
 
-  public DistributionImpl(MetricName name) {
-    super(name);
-  }
-
-  @Override
-  DistributionData getValue() {
-    return distributionData;
-  }
-
-  @Override
-  public void update(long value) {
-    distributionData.update(value);
-  }
-
-  private void update(DistributionData update) {
-    distributionData = distributionData.combine(update);
+  public static DistributionMetricKey create(MetricName metricName, Set<Double> percentiles) {
+    return new AutoValue_DistributionMetricKey(metricName, percentiles);
   }
 }

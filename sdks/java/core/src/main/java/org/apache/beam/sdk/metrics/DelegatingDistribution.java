@@ -49,17 +49,6 @@ public class DelegatingDistribution implements Metric, Distribution, Serializabl
   }
 
   @Override
-  public void update(long sum, long count, long min, long max) {
-    MetricsContainer container =
-        this.processWideContainer
-            ? MetricsEnvironment.getProcessWideContainer()
-            : MetricsEnvironment.getCurrentContainer();
-    if (container != null) {
-      container.getDistribution(name).update(sum, count, min, max);
-    }
-  }
-
-  @Override
   public MetricName getName() {
     return name;
   }

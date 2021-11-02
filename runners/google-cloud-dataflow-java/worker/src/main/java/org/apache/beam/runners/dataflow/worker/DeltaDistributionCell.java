@@ -32,7 +32,7 @@ import org.apache.beam.sdk.metrics.MetricName;
  */
 public class DeltaDistributionCell implements Distribution, MetricCell<DistributionData> {
   private final AtomicReference<DistributionData> value =
-      new AtomicReference<>(DistributionData.EMPTY);
+      new AtomicReference<>(DistributionData.empty());
   private final MetricName name;
 
   public DeltaDistributionCell(MetricName name) {
@@ -54,12 +54,7 @@ public class DeltaDistributionCell implements Distribution, MetricCell<Distribut
 
   @Override
   public void reset() {
-    value.set(DistributionData.EMPTY);
-  }
-
-  @Override
-  public void update(long sum, long count, long min, long max) {
-    update(DistributionData.create(sum, count, min, max));
+    value.get().reset();
   }
 
   @Override
@@ -74,7 +69,7 @@ public class DeltaDistributionCell implements Distribution, MetricCell<Distribut
   }
 
   public DistributionData getAndReset() {
-    return value.getAndUpdate(unused -> DistributionData.EMPTY);
+    return value.getAndUpdate(DistributionData::reset);
   }
 
   @Override

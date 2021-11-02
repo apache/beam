@@ -43,6 +43,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -56,7 +58,6 @@ import org.mockito.Mockito;
 
 /** Tests for {@link Metrics}. */
 public class MetricsTest implements Serializable {
-
   private static final String NS = "test";
   private static final String NAME = "name";
   private static final MetricName METRIC_NAME = MetricName.named(NS, NAME);
@@ -103,7 +104,11 @@ public class MetricsTest implements Serializable {
                     @SuppressWarnings("unused")
                     @ProcessElement
                     public void processElement(ProcessContext c) {
-                      Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                      Distribution values =
+                          Metrics.distribution(
+                              MetricsTest.class,
+                              "input",
+                              ImmutableSet.of(25.0D, 90.0D, 95.0D, 99.0D));
                       count.inc();
                       values.update(c.element());
 
@@ -123,7 +128,11 @@ public class MetricsTest implements Serializable {
                         @SuppressWarnings("unused")
                         @ProcessElement
                         public void processElement(ProcessContext c) {
-                          Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                          Distribution values =
+                              Metrics.distribution(
+                                  MetricsTest.class,
+                                  "input",
+                                  ImmutableSet.of(25.0D, 90.0D, 95.0D, 99.0D));
                           Gauge gauge = Metrics.gauge(MetricsTest.class, "my-gauge");
                           Integer element = c.element();
                           count.inc();
@@ -181,6 +190,30 @@ public class MetricsTest implements Serializable {
     }
 
     @Test
+    public void testDistributionWithEmptyPercentiles() {
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("Percentiles cannot be null or an empty set");
+      Metrics.distribution(NS, NAME, ImmutableSet.of());
+    }
+
+    @Test
+    public void testDistributionWithNullPercentiles() {
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("Percentiles cannot be null or an empty set");
+      Metrics.distribution(NS, NAME, null);
+    }
+
+    @Test
+    public void testDistributionWithInvalidPercentiles() {
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage(
+          "User supplied percentiles should be between 0.0 and 100.0. "
+              + "Following invalid percentiles were supplied: "
+              + ImmutableSet.of(-1.0D, 100.1D));
+      Metrics.distribution(NS, NAME, ImmutableSet.of(-1.0D, 0.0, 1.0, 100.0, 100.1D));
+    }
+
+    @Test
     public void testDistributionWithEmptyNamespace() {
       thrown.expect(IllegalArgumentException.class);
       Metrics.distribution("", NAME);
@@ -190,6 +223,8 @@ public class MetricsTest implements Serializable {
     public void testDistributionToCell() {
       MetricsContainer mockContainer = Mockito.mock(MetricsContainer.class);
       Distribution mockDistribution = Mockito.mock(Distribution.class);
+      when(mockContainer.getDistribution(METRIC_NAME, ImmutableSet.of()))
+          .thenReturn(mockDistribution);
       when(mockContainer.getDistribution(METRIC_NAME)).thenReturn(mockDistribution);
 
       Distribution distribution = Metrics.distribution(NS, NAME);
@@ -416,6 +451,13 @@ public class MetricsTest implements Serializable {
   }
 
   private static void assertDistributionMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    ImmutableMap<Double, Double> percentiles =
+        ImmutableMap.<Double, Double>builder()
+            .put(25.0D, 5.0D)
+            .put(90.0D, 13.0D)
+            .put(95.0D, 13.0D)
+            .put(99.0D, 13.0D)
+            .build();
     assertThat(
         metrics.getDistributions(),
         anyOf(
@@ -425,14 +467,14 @@ public class MetricsTest implements Serializable {
                     NAMESPACE,
                     "input",
                     "MyStep1",
-                    DistributionResult.create(26L, 3L, 5L, 13L),
+                    DistributionResult.create(26L, 3L, 5L, 13L, percentiles),
                     isCommitted)),
             hasItem(
                 metricsResult(
                     NAMESPACE,
                     "input",
                     "MyStep1-ParMultiDo-Anonymous-",
-                    DistributionResult.create(26L, 3L, 5L, 13L),
+                    DistributionResult.create(26L, 3L, 5L, 13L, percentiles),
                     isCommitted))));
 
     assertThat(
@@ -442,7 +484,7 @@ public class MetricsTest implements Serializable {
                 NAMESPACE,
                 "input",
                 "MyStep2",
-                DistributionResult.create(52L, 6L, 5L, 13L),
+                DistributionResult.create(52L, 6L, 5L, 13L, percentiles),
                 isCommitted)));
     assertThat(
         metrics.getDistributions(),

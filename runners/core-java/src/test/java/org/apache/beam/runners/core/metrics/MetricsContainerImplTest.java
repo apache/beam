@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -34,8 +35,12 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -113,48 +118,54 @@ public class MetricsContainerImplTest {
   @Test
   public void testDistributionDeltas() {
     MetricsContainerImpl container = new MetricsContainerImpl("step1");
-    DistributionCell c1 = container.getDistribution(MetricName.named("ns", "name1"));
+    DistributionCell c1 =
+        container.getDistribution(MetricName.named("ns", "name1"), ImmutableSet.of(95.0D, 99.0D));
     DistributionCell c2 = container.getDistribution(MetricName.named("ns", "name2"));
 
     assertThat(
         "Initial update includes initial zero-values",
         container.getUpdates().distributionUpdates(),
         containsInAnyOrder(
-            metricUpdate("name1", DistributionData.EMPTY),
-            metricUpdate("name2", DistributionData.EMPTY)));
+            metricUpdate("name1", DistributionData.empty()),
+            metricUpdate("name2", DistributionData.empty())));
+
+    c1.update(5L);
+    c2.update(4L);
+    ImmutableMap<Double, Double> percentile1 =
+        ImmutableMap.<Double, Double>builder().put(95.0D, 5.0D).put(99.0D, 5.0D).build();
+    ImmutableMap<Double, Double> percentile2 = ImmutableMap.of();
+
+    ImmutableList<DistributionResult> distributionResultsPreCommit =
+        ImmutableList.copyOf(container.getUpdates().distributionUpdates()).stream()
+            .map(update -> update.getUpdate().extractResult())
+            .collect(ImmutableList.toImmutableList());
+
+    assertThat(
+        "Updates stay the same without commit",
+        distributionResultsPreCommit,
+        containsInAnyOrder(
+            DistributionResult.create(5, 1, 5, 5, percentile1),
+            DistributionResult.create(4, 1, 4, 4, percentile2)));
 
     container.commitUpdates();
     assertThat(
         "No updates after commit", container.getUpdates().distributionUpdates(), emptyIterable());
 
-    c1.update(5L);
-    c2.update(4L);
-
-    assertThat(
-        container.getUpdates().distributionUpdates(),
-        containsInAnyOrder(
-            metricUpdate("name1", DistributionData.create(5, 1, 5, 5)),
-            metricUpdate("name2", DistributionData.create(4, 1, 4, 4))));
-    assertThat(
-        "Updates stay the same without commit",
-        container.getUpdates().distributionUpdates(),
-        containsInAnyOrder(
-            metricUpdate("name1", DistributionData.create(5, 1, 5, 5)),
-            metricUpdate("name2", DistributionData.create(4, 1, 4, 4))));
-
-    container.commitUpdates();
-    assertThat(
-        "No updatess after commit", container.getUpdates().distributionUpdates(), emptyIterable());
-
     c1.update(8L);
     c1.update(4L);
+    percentile1 = ImmutableMap.<Double, Double>builder().put(95.0D, 8.0D).put(99.0D, 8.0D).build();
+    ImmutableList<DistributionResult> distributionResultsPostCommit =
+        ImmutableList.copyOf(container.getUpdates().distributionUpdates()).stream()
+            .map(update -> update.getUpdate().extractResult())
+            .collect(ImmutableList.toImmutableList());
+
     assertThat(
-        container.getUpdates().distributionUpdates(),
-        contains(metricUpdate("name1", DistributionData.create(17, 3, 4, 8))));
+        distributionResultsPostCommit,
+        contains(DistributionResult.create(17, 3, 4, 8, percentile1)));
     container.commitUpdates();
 
     DistributionCell dne = container.tryGetDistribution(MetricName.named("ns", "dne"));
-    assertEquals(dne, null);
+    assertNull(dne);
   }
 
   @Test

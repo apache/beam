@@ -28,6 +28,7 @@ import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -94,7 +95,8 @@ public class SamzaMetricsContainer {
     final GaugeUpdater updateGauge = new GaugeUpdater();
     results.getGauges().forEach(updateGauge);
 
-    // TODO(BEAM-12614): add distribution metrics to Samza
+    final DistributionUpdater updateDistribution = new DistributionUpdater();
+    results.getDistributions().forEach(updateDistribution);
   }
 
   private class CounterUpdater implements Consumer<MetricResult<Long>> {
@@ -120,6 +122,49 @@ public class SamzaMetricsContainer {
         gauge = metricsRegistry.newGauge(BEAM_METRICS_GROUP, metricName, 0L);
       }
       gauge.set(metricResult.getAttempted().getValue());
+    }
+  }
+
+  private class DistributionUpdater implements Consumer<MetricResult<DistributionResult>> {
+    @Override
+    public void accept(MetricResult<DistributionResult> metricResult) {
+      final String metricName = getMetricName(metricResult);
+      final DistributionResult distributionResult = metricResult.getAttempted();
+      setLongGauge(metricName + "Sum", distributionResult.getSum());
+      setLongGauge(metricName + "Count", distributionResult.getCount());
+      setLongGauge(metricName + "Max", distributionResult.getMax());
+      setLongGauge(metricName + "Min", distributionResult.getMin());
+      distributionResult
+          .getPercentiles()
+          .forEach(
+              (percentile, percentileValue) -> {
+                final String percentileMetricName = metricName + getPercentileSuffix(percentile);
+                @SuppressWarnings("unchecked")
+                Gauge<Double> gauge = (Gauge<Double>) getSamzaMetricFor(percentileMetricName);
+                if (gauge == null) {
+                  gauge = metricsRegistry.newGauge(BEAM_METRICS_GROUP, percentileMetricName, 0.0D);
+                }
+                gauge.set(percentileValue);
+              });
+    }
+
+    private void setLongGauge(String metricName, Long value) {
+      @SuppressWarnings("unchecked")
+      Gauge<Long> gauge = (Gauge<Long>) getSamzaMetricFor(metricName);
+      if (gauge == null) {
+        gauge = metricsRegistry.newGauge(BEAM_METRICS_GROUP, metricName, 0L);
+      }
+      gauge.set(value);
+    }
+
+    private String getPercentileSuffix(Double value) {
+      String strValue;
+      if (value == value.intValue()) {
+        strValue = String.valueOf(value.intValue());
+      } else {
+        strValue = String.valueOf(value).replace(".", "_");
+      }
+      return "P" + strValue;
     }
   }
 
