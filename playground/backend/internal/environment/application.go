@@ -22,18 +22,24 @@ import (
 
 // NetworkEnvs contains all environment variables that need to run server.
 type NetworkEnvs struct {
-	ip   string
-	port int
+	ip       string
+	port     int
+	protocol string
 }
 
 // NewNetworkEnvs constructor for NetworkEnvs
-func NewNetworkEnvs(ip string, port int) *NetworkEnvs {
-	return &NetworkEnvs{ip: ip, port: port}
+func NewNetworkEnvs(ip string, port int, protocol string) *NetworkEnvs {
+	return &NetworkEnvs{ip: ip, port: port, protocol: protocol}
 }
 
 // Address returns concatenated ip and port through ':'
 func (serverEnvs NetworkEnvs) Address() string {
 	return fmt.Sprintf("%s:%d", serverEnvs.ip, serverEnvs.port)
+}
+
+// Protocol returns the protocol over which the server will listen
+func (serverEnvs *NetworkEnvs) Protocol() string {
+	return serverEnvs.protocol
 }
 
 //CacheEnvs contains all environment variables that needed to use cache
