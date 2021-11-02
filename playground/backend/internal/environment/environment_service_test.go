@@ -77,7 +77,7 @@ func TestNewEnvironment(t *testing.T) {
 		want *Environment
 	}{
 		{name: "create env service with default envs", want: &Environment{
-			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort),
+			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig),
 			ApplicationEnvs: *NewApplicationEnvs("/app", &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 		}},
@@ -85,7 +85,7 @@ func TestNewEnvironment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewEnvironment(
-				*NewNetworkEnvs(defaultIp, defaultPort),
+				*NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 				*NewBeamEnvs(defaultSdk, executorConfig),
 				*NewApplicationEnvs("/app", &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
@@ -155,11 +155,11 @@ func Test_getNetworkEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name: "default values",
-			want: NewNetworkEnvs(defaultIp, defaultPort),
+			want: NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 		},
 		{
 			name:      "values from os envs",
-			want:      NewNetworkEnvs("12.12.12.21", 1234),
+			want:      NewNetworkEnvs("12.12.12.21", 1234, defaultProtocol),
 			envsToSet: map[string]string{serverIpKey: "12.12.12.21", serverPortKey: "1234"},
 		},
 		{
