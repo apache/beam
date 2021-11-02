@@ -19,6 +19,8 @@
 description = "Apache Beam :: Playground :: Frontend"
 
 task("analyze") {
+  // TODO: create a frontend:precommit that bundles pubGet and analyze
+  dependsOn("pubGet")
   group = "verification"
   description = "Analyze dart code"
   doLast {
@@ -63,6 +65,8 @@ task("run") {
 }
 
 task("test") {
+  // TODO: create a frontend:precommit that bundles pubGet and analyze
+  dependsOn("pubGet")
   group = "verification"
   description = "flutter test"
   doLast {
