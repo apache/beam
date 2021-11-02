@@ -16,17 +16,14 @@
 package main
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
-	"context"
-	"log"
-	"os"
-
-	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/logger"
+	"context"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/grpclog"
 )
 
 // runServer is starting http server wrapped on grpc
@@ -49,8 +46,6 @@ func runServer() error {
 		cacheService: cacheService,
 	})
 
-	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
-
 	errChan := make(chan error)
 
 	switch envService.NetworkEnvs.Protocol() {
@@ -66,7 +61,7 @@ func runServer() error {
 		case err := <-errChan:
 			return err
 		case <-ctx.Done():
-			log.Println("interrupt signal received; stopping...")
+			logger.Info("interrupt signal received; stopping...")
 			return nil
 		}
 	}
