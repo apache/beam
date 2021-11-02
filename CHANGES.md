@@ -83,6 +83,8 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* The Go SDK now properly maps main input windows to side input windows by
+  default ([BEAM-11087](https://issues.apache.org/jira/browse/BEAM-11087)).
 
 ## Known Issues
 
