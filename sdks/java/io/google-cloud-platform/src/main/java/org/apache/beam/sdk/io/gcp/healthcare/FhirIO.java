@@ -1025,7 +1025,7 @@ public class FhirIO {
       PCollectionTuple writeTmpFileResults =
           input.apply(
               "Write input to GCS",
-              ParDo.of(new WriteBatchToFilesFn(fhirStore))
+              ParDo.of(new WriteBatchToFilesFn(tempGcsPath))
                   .withOutputTags(Write.TEMP_FILES, TupleTagList.of(Write.FAILED_BODY)));
 
       PCollection<HealthcareIOError<String>> failedBodies =
@@ -1237,8 +1237,7 @@ public class FhirIO {
         // Move files to a temporary subdir (to provide common prefix) to execute import with single
         // GCS URI and allow for retries.
         // IGNORE_MISSING_FILES ignores missing source files, we enable this as if this is a retry
-        // files
-        // should have already been moved over.
+        // files should have already been moved over.
         FileSystems.rename(
             ImmutableList.copyOf(files),
             tempDestinations,
