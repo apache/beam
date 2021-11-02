@@ -47,6 +47,7 @@ import org.apache.samza.system.IncomingMessageEnvelope;
 import org.apache.samza.system.MessageType;
 import org.apache.samza.system.SystemConsumer;
 import org.apache.samza.system.SystemStreamPartition;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -177,7 +178,7 @@ public class UnboundedSourceSystemTest {
   @Test
   public void testAdvanceWatermark() throws IOException, InterruptedException {
     final Instant now = Instant.now();
-    final Instant nowPlusOne = now.plus(1L);
+    final Instant nowPlusOne = now.plus(Duration.millis(1L));
     final TestUnboundedSource<String> source =
         TestUnboundedSource.<String>createBuilder()
             .setTimestamp(now)
@@ -205,8 +206,8 @@ public class UnboundedSourceSystemTest {
   @Ignore("https://issues.apache.org/jira/browse/BEAM-10521")
   public void testMultipleAdvanceWatermark() throws IOException, InterruptedException {
     final Instant now = Instant.now();
-    final Instant nowPlusOne = now.plus(1L);
-    final Instant nowPlusTwo = now.plus(2L);
+    final Instant nowPlusOne = now.plus(Duration.millis(1L));
+    final Instant nowPlusTwo = now.plus(Duration.millis(2L));
     final TestUnboundedSource<String> source =
         TestUnboundedSource.<String>createBuilder()
             .setTimestamp(now)
@@ -286,7 +287,7 @@ public class UnboundedSourceSystemTest {
   public void testTimeout() throws Exception {
     final CountDownLatch advanceLatch = new CountDownLatch(1);
     final Instant now = Instant.now();
-    final Instant nowPlusOne = now.plus(1);
+    final Instant nowPlusOne = now.plus(Duration.millis(1));
 
     final TestUnboundedSource<String> source =
         TestUnboundedSource.<String>createBuilder()
