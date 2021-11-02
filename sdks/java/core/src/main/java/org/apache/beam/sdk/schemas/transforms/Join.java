@@ -63,30 +63,32 @@ public class Join {
 
   /** Predicate object to specify fields to compare when doing an equi-join. */
   public static class FieldsEqual {
-    public static Impl left(String... fieldNames) {
-      return new Impl(
+    public static FieldsEqual.Impl left(String... fieldNames) {
+      return new FieldsEqual.Impl(
           FieldAccessDescriptor.withFieldNames(fieldNames), FieldAccessDescriptor.create());
     }
 
-    public static Impl left(Integer... fieldIds) {
-      return new Impl(FieldAccessDescriptor.withFieldIds(fieldIds), FieldAccessDescriptor.create());
+    public static FieldsEqual.Impl left(Integer... fieldIds) {
+      return new FieldsEqual.Impl(
+          FieldAccessDescriptor.withFieldIds(fieldIds), FieldAccessDescriptor.create());
     }
 
-    public static Impl left(FieldAccessDescriptor fieldAccessDescriptor) {
-      return new Impl(fieldAccessDescriptor, FieldAccessDescriptor.create());
+    public static FieldsEqual.Impl left(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new FieldsEqual.Impl(fieldAccessDescriptor, FieldAccessDescriptor.create());
     }
 
-    public Impl right(String... fieldNames) {
-      return new Impl(
+    public FieldsEqual.Impl right(String... fieldNames) {
+      return new FieldsEqual.Impl(
           FieldAccessDescriptor.create(), FieldAccessDescriptor.withFieldNames(fieldNames));
     }
 
-    public Impl right(Integer... fieldIds) {
-      return new Impl(FieldAccessDescriptor.create(), FieldAccessDescriptor.withFieldIds(fieldIds));
+    public FieldsEqual.Impl right(Integer... fieldIds) {
+      return new FieldsEqual.Impl(
+          FieldAccessDescriptor.create(), FieldAccessDescriptor.withFieldIds(fieldIds));
     }
 
-    public Impl right(FieldAccessDescriptor fieldAccessDescriptor) {
-      return new Impl(FieldAccessDescriptor.create(), fieldAccessDescriptor);
+    public FieldsEqual.Impl right(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new FieldsEqual.Impl(FieldAccessDescriptor.create(), fieldAccessDescriptor);
     }
 
     /** Implementation class for FieldsEqual. */
@@ -99,32 +101,32 @@ public class Join {
         this.rhs = rhs;
       }
 
-      public Impl left(String... fieldNames) {
-        return new Impl(FieldAccessDescriptor.withFieldNames(fieldNames), rhs);
+      public FieldsEqual.Impl left(String... fieldNames) {
+        return new FieldsEqual.Impl(FieldAccessDescriptor.withFieldNames(fieldNames), rhs);
       }
 
-      public Impl left(Integer... fieldIds) {
-        return new Impl(FieldAccessDescriptor.withFieldIds(fieldIds), rhs);
+      public FieldsEqual.Impl left(Integer... fieldIds) {
+        return new FieldsEqual.Impl(FieldAccessDescriptor.withFieldIds(fieldIds), rhs);
       }
 
-      public Impl left(FieldAccessDescriptor fieldAccessDescriptor) {
-        return new Impl(fieldAccessDescriptor, rhs);
+      public FieldsEqual.Impl left(FieldAccessDescriptor fieldAccessDescriptor) {
+        return new FieldsEqual.Impl(fieldAccessDescriptor, rhs);
       }
 
-      public Impl right(String... fieldNames) {
-        return new Impl(lhs, FieldAccessDescriptor.withFieldNames(fieldNames));
+      public FieldsEqual.Impl right(String... fieldNames) {
+        return new FieldsEqual.Impl(lhs, FieldAccessDescriptor.withFieldNames(fieldNames));
       }
 
-      public Impl right(Integer... fieldIds) {
-        return new Impl(lhs, FieldAccessDescriptor.withFieldIds(fieldIds));
+      public FieldsEqual.Impl right(Integer... fieldIds) {
+        return new FieldsEqual.Impl(lhs, FieldAccessDescriptor.withFieldIds(fieldIds));
       }
 
-      public Impl right(FieldAccessDescriptor fieldAccessDescriptor) {
-        return new Impl(lhs, fieldAccessDescriptor);
+      public FieldsEqual.Impl right(FieldAccessDescriptor fieldAccessDescriptor) {
+        return new FieldsEqual.Impl(lhs, fieldAccessDescriptor);
       }
 
       private Impl resolve(Schema lhsSchema, Schema rhsSchema) {
-        return new Impl(lhs.resolve(lhsSchema), rhs.resolve(rhsSchema));
+        return new FieldsEqual.Impl(lhs.resolve(lhsSchema), rhs.resolve(rhsSchema));
       }
     }
   }
@@ -188,30 +190,30 @@ public class Join {
      * Perform a natural join between the PCollections. The fields are expected to exist in both
      * PCollections
      */
-    public Impl<LhsT, RhsT> using(String... fieldNames) {
-      return new Impl<>(joinType, rhs, FieldsEqual.left(fieldNames).right(fieldNames));
+    public Join.Impl<LhsT, RhsT> using(String... fieldNames) {
+      return new Join.Impl<>(joinType, rhs, FieldsEqual.left(fieldNames).right(fieldNames));
     }
 
     /**
      * Perform a natural join between the PCollections. The fields are expected to exist in both
      * PCollections
      */
-    public Impl<LhsT, RhsT> using(Integer... fieldIds) {
-      return new Impl<>(joinType, rhs, FieldsEqual.left(fieldIds).right(fieldIds));
+    public Join.Impl<LhsT, RhsT> using(Integer... fieldIds) {
+      return new Join.Impl<>(joinType, rhs, FieldsEqual.left(fieldIds).right(fieldIds));
     }
 
     /**
      * Perform a natural join between the PCollections. The fields are expected to exist in both
      * PCollections
      */
-    public Impl<LhsT, RhsT> using(FieldAccessDescriptor fieldAccessDescriptor) {
-      return new Impl<>(
+    public Join.Impl<LhsT, RhsT> using(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new Join.Impl<>(
           joinType, rhs, FieldsEqual.left(fieldAccessDescriptor).right(fieldAccessDescriptor));
     }
 
     /** Join the PCollections using the provided predicate. */
-    public Impl<LhsT, RhsT> on(FieldsEqual.Impl predicate) {
-      return new Impl<>(joinType, rhs, predicate);
+    public Join.Impl<LhsT, RhsT> on(FieldsEqual.Impl predicate) {
+      return new Join.Impl<>(joinType, rhs, predicate);
     }
 
     @Override

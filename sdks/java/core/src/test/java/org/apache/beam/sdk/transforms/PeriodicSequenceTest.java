@@ -63,7 +63,7 @@ public class PeriodicSequenceTest {
     long duration = 500;
     Duration interval = Duration.millis(250);
     long intervalMillis = interval.getMillis();
-    Instant stopTime = startTime.plus(duration);
+    Instant stopTime = startTime.plus(Duration.millis(duration));
 
     PCollection<KV<Instant, Instant>> result =
         p.apply(
@@ -75,7 +75,7 @@ public class PeriodicSequenceTest {
     ArrayList<KV<Instant, Instant>> expectedResults =
         new ArrayList<>((int) (duration / intervalMillis + 1));
     for (long i = 0; i <= duration; i += intervalMillis) {
-      Instant el = startTime.plus(i);
+      Instant el = startTime.plus(Duration.millis(i));
       expectedResults.add(KV.of(el, el));
     }
 

@@ -60,7 +60,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 
 	compileBuilder := setupCompileBuilder(lc, info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
 
-	setToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)
+	setToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING)
 	if err := controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
 		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
@@ -235,15 +235,12 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 		return
 	case ok := <-doneChannel:
 		if !ok {
-			// error during validation
 			err := <-errorChannel
-			// TODO move to processError when status for validation error will be added
-			logger.Errorf("%s: Validate: %s\n", pipelineId, err.Error())
-			setToCache(ctxWithTimeout, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
+			processError(ctx, err, nil, pipelineId, cacheService, pb.Status_STATUS_VALIDATION_ERROR)
 			return
 		}
+		processSuccess(ctx, nil, pipelineId, cacheService, pb.Status_STATUS_COMPILING)
 	}
-	logger.Infof("%s: Validate() finish\n", pipelineId)
 
 	// compile
 	logger.Infof("%s: Compile() ...\n", pipelineId)
@@ -266,7 +263,6 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	case ok := <-doneChannel:
 		data := <-dataChannel
 		if !ok {
-			// error during compilation
 			err := <-errorChannel
 			processError(ctxWithTimeout, err, data.([]byte), pipelineId, cacheService, pb.Status_STATUS_COMPILE_ERROR)
 			return
@@ -305,7 +301,6 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	case ok := <-doneChannel:
 		data := <-dataChannel
 		if !ok {
-			// error during run code
 			err := <-errorChannel
 			processError(ctxWithTimeout, err.(error), data.([]byte), pipelineId, cacheService, pb.Status_STATUS_ERROR)
 			return
@@ -335,14 +330,11 @@ func cleanUp(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
 // processError processes error received during processing code via setting a corresponding status and output to cache
 func processError(ctx context.Context, err error, data []byte, pipelineId uuid.UUID, cacheService cache.Cache, status pb.Status) {
 	switch status {
-	case pb.Status_STATUS_ERROR:
-		logger.Errorf("%s: Run: err: %s, output: %s\n", pipelineId, err.Error(), data)
+	case pb.Status_STATUS_VALIDATION_ERROR:
+		logger.Errorf("%s: Validate: %s\n", pipelineId, err.Error())
 
-		// set to cache pipelineId: cache.SubKey_RunOutput: err.Error()
-		setToCache(ctx, cacheService, pipelineId, cache.RunOutput, "error: "+err.Error()+", output: "+string(data))
-
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
+		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_VALIDATION_ERROR
+		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATION_ERROR)
 	case pb.Status_STATUS_COMPILE_ERROR:
 		logger.Errorf("%s: Compile: err: %s, output: %s\n", pipelineId, err.Error(), data)
 
@@ -351,12 +343,25 @@ func processError(ctx context.Context, err error, data []byte, pipelineId uuid.U
 
 		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILE_ERROR)
+	case pb.Status_STATUS_ERROR:
+		logger.Errorf("%s: Run: err: %s, output: %s\n", pipelineId, err.Error(), data)
+
+		// set to cache pipelineId: cache.SubKey_RunOutput: err.Error()
+		setToCache(ctx, cacheService, pipelineId, cache.RunOutput, "error: "+err.Error()+", output: "+string(data))
+
+		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
+		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
 	}
 }
 
 // processSuccess processes case after successful code processing via setting a corresponding status and output to cache
 func processSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, cacheService cache.Cache, status pb.Status) {
 	switch status {
+	case pb.Status_STATUS_COMPILING:
+		logger.Infof("%s: Validate() finish\n", pipelineId)
+
+		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_EXECUTING
+		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILING)
 	case pb.Status_STATUS_EXECUTING:
 		logger.Infof("%s: Compile() finish\n", pipelineId)
 

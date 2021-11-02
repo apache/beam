@@ -88,7 +88,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   @Nullable
   @Override
   public State waitUntilFinish(Duration duration) {
-    if (duration.compareTo(Duration.millis(1)) < 1) {
+    if (duration.compareTo(Duration.millis(1)) <= 0) {
       // Equivalent to infinite timeout.
       return waitUntilFinish();
     } else {

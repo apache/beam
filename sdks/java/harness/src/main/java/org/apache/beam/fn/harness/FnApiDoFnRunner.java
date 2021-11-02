@@ -39,7 +39,6 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient.TimerHandler;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
@@ -67,6 +66,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
@@ -187,6 +187,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context.getSplitListener(),
               context.getBundleFinalizer());
 
+      for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> entry :
+          runner.timerFamilyInfos.entrySet()) {
+        String localName = entry.getKey();
+        TimeDomain timeDomain = entry.getValue().getKey();
+        Coder<Timer<Object>> coder = entry.getValue().getValue();
+        context.addIncomingTimerEndpoint(
+            localName, coder, timer -> runner.processTimer(localName, timeDomain, timer));
+      }
       return runner;
     }
   }
@@ -220,7 +228,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private final String mainInputId;
   private final FnApiStateAccessor<?> stateAccessor;
-  private Map<String, BeamFnTimerClient.TimerHandler<?>> timerHandlers;
+  private Map<String, CloseableFnDataReceiver<Timer<Object>>> outboundTimerReceivers;
   private FnApiTimerBundleTracker timerBundleTracker;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
@@ -550,7 +558,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   }
 
                   @Override
-                  public SplitResult trySplit(double fractionOfRemainder) {
+                  public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
                     return trySplitForWindowObservingTruncateRestriction(
                         fractionOfRemainder, splitDelegate);
                   }
@@ -590,7 +598,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   }
 
                   @Override
-                  public SplitResult trySplit(double fractionOfRemainder) {
+                  public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
                     return splitDelegate.trySplit(fractionOfRemainder);
                   }
 
@@ -725,7 +733,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void startBundle() {
     // Register as a consumer for each timer.
-    timerHandlers = new HashMap<>();
+    outboundTimerReceivers = new HashMap<>();
     timerBundleTracker =
         new FnApiTimerBundleTracker(
             keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
@@ -734,12 +742,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       String localName = timerFamilyInfo.getKey();
       TimeDomain timeDomain = timerFamilyInfo.getValue().getKey();
       Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
-      timerHandlers.put(
+      outboundTimerReceivers.put(
           localName,
-          beamFnTimerClient.register(
+          beamFnTimerClient.<Object>register(
               LogicalEndpoint.timer(processBundleInstructionId.get(), pTransformId, localName),
-              timerCoder,
-              (FnDataReceiver<Timer<Object>>) timer -> processTimer(localName, timeDomain, timer)));
+              timerCoder));
     }
 
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
@@ -1092,7 +1099,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private abstract class SplittableFnDataReceiver
       implements HandlesSplits, FnDataReceiver<WindowedValue> {
     @Override
-    public SplitResult trySplit(double fractionOfRemainder) {
+    public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
       return trySplitForElementAndRestriction(fractionOfRemainder, Duration.ZERO);
     }
 
@@ -1711,12 +1718,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void finishBundle() throws Exception {
-    timerBundleTracker.outputTimers(timerFamilyOrId -> timerHandlers.get(timerFamilyOrId));
-    for (TimerHandler timerHandler : timerHandlers.values()) {
-      timerHandler.awaitCompletion();
-    }
-    for (TimerHandler timerHandler : timerHandlers.values()) {
-      timerHandler.close();
+    timerBundleTracker.outputTimers(timerFamilyOrId -> outboundTimerReceivers.get(timerFamilyOrId));
+    for (CloseableFnDataReceiver<?> outboundTimerReceiver : outboundTimerReceivers.values()) {
+      outboundTimerReceiver.close();
     }
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
@@ -1829,7 +1833,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         target =
             millisSinceStart == 0
                 ? fireTimestamp
-                : fireTimestamp.plus(period).minus(millisSinceStart);
+                : fireTimestamp.plus(period).minus(Duration.millis(millisSinceStart));
       }
       target = minTargetAndGcTime(target);
       timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(target));
@@ -1995,7 +1999,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final StartBundleArgumentProvider.Context context =
+        new StartBundleArgumentProvider.Context();
 
     @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
@@ -2046,7 +2051,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final FinishBundleArgumentProvider.Context context =
+        new FinishBundleArgumentProvider.Context();
 
     @Override
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
@@ -2540,7 +2546,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final OnTimerContext.Context context = new OnTimerContext.Context();
 
     @Override
     public BoundedWindow window() {
