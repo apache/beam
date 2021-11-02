@@ -539,9 +539,9 @@ class BeamModulePlugin implements Plugin<Project> {
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
         gax_httpjson                                : "com.google.api:gax-httpjson", // google_cloud_platform_libraries_bom sets version
-        google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version", // for the libraries using $google_clients_version below.
-        google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
-        google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
+        google_api_client                           : "com.google.api-client:google-api-client:1.32.2", // for the libraries using $google_clients_version below.
+        google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:1.32.2",
+        google_api_client_java6                     : "com.google.api-client:google-api-client-java6:1.32.2",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20210813-$google_clients_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20210813-$google_clients_version",
