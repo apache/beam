@@ -513,6 +513,9 @@ public class JdbcIOTest implements Serializable {
                       }));
       resultSetCollection.setCoder(JdbcTestHelper.TEST_DTO_CODER);
 
+      PAssert.thatSingleton(resultSetCollection.apply(Count.globally()))
+          .isEqualTo((long) EXPECTED_ROW_COUNT);
+
       List<JdbcTestHelper.TestDto> expectedResult = new ArrayList<>();
       for (int i = 0; i < EXPECTED_ROW_COUNT; i++) {
         expectedResult.add(new JdbcTestHelper.TestDto(JdbcTestHelper.TestDto.EMPTY_RESULT));

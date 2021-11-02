@@ -78,6 +78,7 @@ import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -85,6 +86,7 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
@@ -99,6 +101,7 @@ import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1433,6 +1436,8 @@ public class JdbcIO {
   @AutoValue
   public abstract static class WriteWithResults<T, V extends JdbcWriteResult>
       extends PTransform<PCollection<T>, PCollection<V>> {
+    abstract @Nullable Boolean getAutoSharding();
+
     abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
     abstract @Nullable ValueProvider<String> getStatement();
@@ -1453,6 +1458,8 @@ public class JdbcIO {
     abstract static class Builder<T, V extends JdbcWriteResult> {
       abstract Builder<T, V> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
+      abstract Builder<T, V> setAutoSharding(Boolean autoSharding);
 
       abstract Builder<T, V> setStatement(ValueProvider<String> statement);
 
@@ -1488,6 +1495,11 @@ public class JdbcIO {
 
     public WriteWithResults<T, V> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
       return toBuilder().setPreparedStatementSetter(setter).build();
+    }
+
+    /** If true, enables using a dynamically determined number of shards to write. */
+    public WriteWithResults<T, V> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
     }
 
     /**
@@ -1553,26 +1565,54 @@ public class JdbcIO {
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      return input
-          .apply(WithKeys.<String, T>of(""))
-          .apply(
-              GroupIntoBatches.<String, T>ofSize(DEFAULT_BATCH_SIZE)
-                  .withMaxBufferingDuration(Duration.millis(200))
-                  .withShardedKey())
-          .apply(Values.create())
-          .apply(
-              ParDo.of(
-                  new WriteFn<T, V>(
-                      WriteFnSpec.builder()
-                          .setRetryStrategy(getRetryStrategy())
-                          .setDataSourceProviderFn(getDataSourceProviderFn())
-                          .setPreparedStatementSetter(getPreparedStatementSetter())
-                          .setRowMapper(getRowMapper())
-                          .setStatement(getStatement())
-                          .setRetryConfiguration(getRetryConfiguration())
-                          .setReturnResults(true)
-                          .setBatchSize(1)
-                          .build())));
+      PCollection<Iterable<T>> iterables;
+      if (input.isBounded() == IsBounded.UNBOUNDED
+          && getAutoSharding() != null
+          && getAutoSharding()) {
+        iterables =
+            input
+                .apply(WithKeys.<String, T>of(""))
+                .apply(
+                    GroupIntoBatches.<String, T>ofSize(DEFAULT_BATCH_SIZE)
+                        .withMaxBufferingDuration(Duration.millis(200))
+                        .withShardedKey())
+                .apply(Values.create());
+      } else {
+        iterables =
+            input.apply(
+                ParDo.of(
+                    new DoFn<T, Iterable<T>>() {
+                      List<T> outputList;
+
+                      @ProcessElement
+                      public void process(ProcessContext c) {
+                        if (outputList == null) {
+                          outputList = new ArrayList<>();
+                        }
+                        outputList.add(c.element());
+                      }
+
+                      @FinishBundle
+                      public void finish(FinishBundleContext c) {
+                        System.out.println("List size is " + outputList.size());
+                        c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
+                        outputList = null;
+                      }
+                    }));
+      }
+      return iterables.apply(
+          ParDo.of(
+              new WriteFn<T, V>(
+                  WriteFnSpec.builder()
+                      .setRetryStrategy(getRetryStrategy())
+                      .setDataSourceProviderFn(getDataSourceProviderFn())
+                      .setPreparedStatementSetter(getPreparedStatementSetter())
+                      .setRowMapper(getRowMapper())
+                      .setStatement(getStatement())
+                      .setRetryConfiguration(getRetryConfiguration())
+                      .setReturnResults(true)
+                      .setBatchSize(1)
+                      .build())));
     }
   }
 
@@ -1582,6 +1622,8 @@ public class JdbcIO {
    */
   @AutoValue
   public abstract static class WriteVoid<T> extends PTransform<PCollection<T>, PCollection<Void>> {
+
+    abstract @Nullable Boolean getAutoSharding();
 
     abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
@@ -1601,6 +1643,8 @@ public class JdbcIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
+      abstract Builder<T> setAutoSharding(Boolean autoSharding);
+
       abstract Builder<T> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
@@ -1617,6 +1661,11 @@ public class JdbcIO {
       abstract Builder<T> setTable(String table);
 
       abstract WriteVoid<T> build();
+    }
+
+    /** If true, enables using a dynamically determined number of shards to write. */
+    public WriteVoid<T> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
     }
 
     public WriteVoid<T> withDataSourceConfiguration(DataSourceConfiguration config) {
@@ -1718,13 +1767,41 @@ public class JdbcIO {
         checkArgument(
             spec.getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
       }
-      return input
-          .apply(WithKeys.<String, T>of(""))
-          .apply(
-              GroupIntoBatches.<String, T>ofSize(spec.getBatchSize())
-                  .withMaxBufferingDuration(Duration.millis(200))
-                  .withShardedKey())
-          .apply(Values.create())
+      PCollection<Iterable<T>> iterables;
+      if (input.isBounded() == IsBounded.UNBOUNDED
+          && getAutoSharding() != null
+          && getAutoSharding()) {
+        iterables =
+            input
+                .apply(WithKeys.<String, T>of(""))
+                .apply(
+                    GroupIntoBatches.<String, T>ofSize(DEFAULT_BATCH_SIZE)
+                        .withMaxBufferingDuration(Duration.millis(200))
+                        .withShardedKey())
+                .apply(Values.create());
+      } else {
+        iterables =
+            input.apply(
+                ParDo.of(
+                    new DoFn<T, Iterable<T>>() {
+                      List<T> outputList;
+
+                      @ProcessElement
+                      public void process(ProcessContext c) {
+                        if (outputList == null) {
+                          outputList = new ArrayList<>();
+                        }
+                        outputList.add(c.element());
+                      }
+
+                      @FinishBundle
+                      public void finish(FinishBundleContext c) {
+                        c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
+                        outputList = null;
+                      }
+                    }));
+      }
+      return iterables
           .apply(
               ParDo.of(
                   new WriteFn<T, Void>(
