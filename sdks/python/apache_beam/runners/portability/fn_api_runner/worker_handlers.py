@@ -966,6 +966,9 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
         self._overlay[self._key] = list(self._underlying[self._key])
       self._overlay[self._key].append(item)
 
+    def extend(self, other: Buffer) -> None:
+      raise NotImplementedError()
+
   StateType = Union[CopyOnWriteState, DefaultDict[bytes, Buffer]]
 
   def __init__(self):
