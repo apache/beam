@@ -323,6 +323,38 @@ class RowCoderTest(unittest.TestCase):
     self.assertRaisesRegex(
         ValueError, "type_with_no_typeinfo", lambda: RowCoder(schema_proto))
 
+  def test_yaml(self):
+    schema1 = schema_pb2.Schema(
+        id="30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9",
+        fields=[
+            schema_pb2.Field(
+                name="str",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+                encoding_position=2),
+            schema_pb2.Field(
+                name="f_bool",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN),
+                encoding_position=3),
+            schema_pb2.Field(
+                name="i32",
+                type=schema_pb2.FieldType(
+                    atomic_type=schema_pb2.INT32, nullable=True),
+                encoding_position=1)
+        ],
+        encoding_positions_set=True)
+
+    coder = RowCoder(schema1)
+    c = coder.schema.SerializeToString()
+    print("payload = %s" % c)
+    test = typing.NamedTuple(
+        "test", [
+            ("i32", np.int32),
+            ("str", str),
+            ("f_bool", bool),
+        ])
+    example = coder.encode(test(21, "str2", False))
+    print("example = %s" % example)
+
 
 def get_encoding_position(schema):
   return [f.encoding_position for f in schema.fields]

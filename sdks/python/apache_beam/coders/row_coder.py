@@ -164,7 +164,7 @@ class RowCoderImpl(StreamCoderImpl):
   def __init__(self, schema, components):
     self.schema = schema
     self.constructor = named_tuple_from_schema(schema)
-    self.encoding_positions = list(range(len(self.schema.fields)))
+    self.encoding_positions = list(range(1, len(self.schema.fields) + 1))
     if self.schema.encoding_positions_set:
       if not all(field.encoding_position for field in self.schema.fields):
         raise ValueError(
@@ -192,8 +192,11 @@ class RowCoderImpl(StreamCoderImpl):
         for i, is_null in enumerate(nulls):
           words[i // 8] |= is_null << (i % 8)
 
+    attrs = self._enc_pos_idx(attrs)
+    fields = self._enc_pos_idx(self.schema.fields)
     self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
-    for c, field, attr in zip(self.components, self.schema.fields, attrs):
+
+    for c, field, attr in zip(self.components, fields, attrs):
       if attr is None:
         if not field.type.nullable:
           raise ValueError(
@@ -232,6 +235,10 @@ class RowCoderImpl(StreamCoderImpl):
         is_null in zip(self.components, nulls) if not is_null
     ] if self.has_nullable_fields else self.components
     return TupleCoder(components).get_impl()
+
+  def _enc_pos_idx(self, l):
+    return list(
+        l[self.encoding_positions.index(i)] for i in self.encoding_positions)
 
 
 class LogicalTypeCoder(FastCoder):

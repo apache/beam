@@ -423,7 +423,7 @@ examples:
 #      schema_pb2.Field(
 #        name="f_bool",
 #        type=schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN),
-#        encoding_position=0),
+#        encoding_position=3),
 #      schema_pb2.Field(
 #        name="i32",
 #        type=schema_pb2.FieldType(
