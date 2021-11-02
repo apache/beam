@@ -44,6 +44,7 @@ from apache_beam.pvalue import AsSideInput
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
+from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Flatten
@@ -159,6 +160,8 @@ class CoGroupByKey(PTransform):
       return pcolls, pcolls
 
   def expand(self, pcolls):
+    if not pcolls:
+      pcolls = (self.pipeline | Create([]), )
     if isinstance(pcolls, dict):
       if all(isinstance(tag, str) and len(tag) < 10 for tag in pcolls.keys()):
         # Small, string tags. Pass them as data.
