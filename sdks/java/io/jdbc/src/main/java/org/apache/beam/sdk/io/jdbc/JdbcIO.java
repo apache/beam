@@ -1923,7 +1923,7 @@ public class JdbcIO {
   static class WriteFn<T, V> extends DoFn<T, V> {
 
     @AutoValue
-    public abstract static class WriteFnSpec<T, V> implements Serializable, HasDisplayData {
+    abstract static class WriteFnSpec<T, V> implements Serializable, HasDisplayData {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder
@@ -1954,23 +1954,23 @@ public class JdbcIO {
             .addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
       }
 
-      public abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+      abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-      public abstract ValueProvider<String> getStatement();
+      abstract ValueProvider<String> getStatement();
 
-      public abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+      abstract PreparedStatementSetter<T> getPreparedStatementSetter();
 
-      public abstract RetryStrategy getRetryStrategy();
+      abstract RetryStrategy getRetryStrategy();
 
-      public abstract @Nullable RetryConfiguration getRetryConfiguration();
+      abstract @Nullable RetryConfiguration getRetryConfiguration();
 
-      public abstract @Nullable String getTable();
+      abstract @Nullable String getTable();
 
-      public abstract @Nullable RowMapper<V> getRowMapper();
+      abstract @Nullable RowMapper<V> getRowMapper();
 
-      public abstract @Nullable Long getBatchSize();
+      abstract @Nullable Long getBatchSize();
 
-      public abstract Boolean getReturnResults();
+      abstract Boolean getReturnResults();
 
       static Builder builder() {
         return new AutoValue_JdbcIO_WriteFn_WriteFnSpec.Builder();
