@@ -20,6 +20,7 @@ darwin_install_pip3_packages() {
     pip3 install setuptools grpcio-tools virtualenv
     echo "Installing mypy-protobuf"
     pip3 install --user mypy-protobuf
+    echo "no-op"
 }
 
 install_go_packages(){
