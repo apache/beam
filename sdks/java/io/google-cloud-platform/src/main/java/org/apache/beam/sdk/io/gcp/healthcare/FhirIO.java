@@ -1282,7 +1282,7 @@ public class FhirIO {
           Operation operation =
               client.importFhirResource(
                   fhirStore.get(), importUri.toString(), contentStructure.name());
-          operation = client.pollOperation(operation, 500L);
+          operation = client.pollOperation(operation, 15000L);
           incrementLroCounters(
               operation,
               IMPORT_OPERATION_SUCCESS,
@@ -1477,7 +1477,7 @@ public class FhirIO {
         String fhirStore = context.element();
         String gcsPrefix = this.exportGcsUriPrefix.get();
         Operation operation = client.exportFhirResourceToGcs(fhirStore, gcsPrefix);
-        operation = client.pollOperation(operation, 1000L);
+        operation = client.pollOperation(operation, 15000L);
         if (operation.getError() != null) {
           throw new RuntimeException(
               String.format("Export operation (%s) failed.", operation.getName()));
@@ -1559,7 +1559,7 @@ public class FhirIO {
         DeidentifyConfig deidConfig = gson.fromJson(this.deidConfigJson, DeidentifyConfig.class);
         Operation operation =
             client.deidentifyFhirStore(sourceFhirStore, destinationFhirStore, deidConfig);
-        operation = client.pollOperation(operation, 1000L);
+        operation = client.pollOperation(operation, 15000L);
         if (operation.getError() != null) {
           throw new IOException(
               String.format("DeidentifyFhirStore operation (%s) failed.", operation.getName()));
