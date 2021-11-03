@@ -437,7 +437,7 @@ func Test_processCode(t *testing.T) {
 			},
 		},
 		{
-			// Test case with calling processCode method without preparing files with code.
+			// Test case with calling processCode method without creating files with code.
 			// As a result status into cache should be set as Status_STATUS_VALIDATION_ERROR.
 			name:                  "validation failed",
 			createExecFile:        false,

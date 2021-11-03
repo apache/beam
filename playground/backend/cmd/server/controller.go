@@ -273,6 +273,24 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 			processError(ctx, err, nil, pipelineId, cacheService, pb.Status_STATUS_VALIDATION_ERROR)
 			return
 		}
+		processSuccess(ctx, nil, pipelineId, cacheService, pb.Status_STATUS_PREPARING)
+	}
+
+	// prepare
+	logger.Info("%s: Prepare() ...\n", pipelineId)
+	prepareFunc := exec.Prepare()
+	go prepareFunc(doneChannel, errorChannel)
+
+	select {
+	case <-ctxWithTimeout.Done():
+		finishByContext(ctxWithTimeout, pipelineId, cacheService)
+		return
+	case ok := <-doneChannel:
+		if !ok {
+			err := <-errorChannel
+			processError(ctx, err, nil, pipelineId, cacheService, pb.Status_STATUS_PREPARATION_ERROR)
+			return
+		}
 		processSuccess(ctx, nil, pipelineId, cacheService, pb.Status_STATUS_COMPILING)
 	}
 
@@ -365,25 +383,24 @@ func cleanUp(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
 func processError(ctx context.Context, err error, data []byte, pipelineId uuid.UUID, cacheService cache.Cache, status pb.Status) {
 	switch status {
 	case pb.Status_STATUS_VALIDATION_ERROR:
-		logger.Errorf("%s: Validate: %s\n", pipelineId, err.Error())
+		logger.Errorf("%s: Validate(): %s\n", pipelineId, err.Error())
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_VALIDATION_ERROR
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATION_ERROR)
-	case pb.Status_STATUS_COMPILE_ERROR:
-		logger.Errorf("%s: Compile: err: %s, output: %s\n", pipelineId, err.Error(), data)
+	case pb.Status_STATUS_PREPARATION_ERROR:
+		logger.Errorf("%s: Prepare(): %s\n", pipelineId, err.Error())
 
-		// set to cache pipelineId: cache.SubKey_CompileOutput: err.Error()
+		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_PREPARATION_ERROR)
+	case pb.Status_STATUS_COMPILE_ERROR:
+		logger.Errorf("%s: Compile(): err: %s, output: %s\n", pipelineId, err.Error(), data)
+
 		setToCache(ctx, cacheService, pipelineId, cache.CompileOutput, "error: "+err.Error()+", output: "+string(data))
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILE_ERROR)
 	case pb.Status_STATUS_ERROR:
-		logger.Errorf("%s: Run: err: %s, output: %s\n", pipelineId, err.Error(), data)
+		logger.Errorf("%s: Run(): err: %s, output: %s\n", pipelineId, err.Error(), data)
 
-		// set to cache pipelineId: cache.SubKey_RunOutput: err.Error()
 		setToCache(ctx, cacheService, pipelineId, cache.RunOutput, "error: "+err.Error()+", output: "+string(data))
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
 	}
 }
@@ -391,26 +408,25 @@ func processError(ctx context.Context, err error, data []byte, pipelineId uuid.U
 // processSuccess processes case after successful code processing via setting a corresponding status and output to cache
 func processSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, cacheService cache.Cache, status pb.Status) {
 	switch status {
-	case pb.Status_STATUS_COMPILING:
+	case pb.Status_STATUS_PREPARING:
 		logger.Infof("%s: Validate() finish\n", pipelineId)
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_EXECUTING
+		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_PREPARING)
+	case pb.Status_STATUS_COMPILING:
+		logger.Infof("%s: Prepare() finish\n", pipelineId)
+
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILING)
 	case pb.Status_STATUS_EXECUTING:
 		logger.Infof("%s: Compile() finish\n", pipelineId)
 
-		// set to cache pipelineId: cache.SubKey_CompileOutput: output
 		setToCache(ctx, cacheService, pipelineId, cache.CompileOutput, string(output))
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_EXECUTING
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)
 	case pb.Status_STATUS_FINISHED:
 		logger.Infof("%s: Run() finish\n", pipelineId)
 
-		// set to cache pipelineId: cache.SubKey_RunOutput: output
 		setToCache(ctx, cacheService, pipelineId, cache.RunOutput, string(output))
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_FINISHED
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_FINISHED)
 	}
 }
