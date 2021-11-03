@@ -136,18 +136,6 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 func extractKey(mi *pipepb.MonitoringInfo) (metrics.StepKey, error) {
 	labels := newLabels(mi.GetLabels())
 	stepName := labels.Transform()
-	// urn := mi.GetUrn()
-	// switch urn {
-	// case UrnToString(UrnStartBundle):
-	// 	stepName += "/START"
-	// case UrnToString(UrnProcessBundle):
-	// 	stepName += "/PROCESS"
-	// case UrnToString(UrnFinishBundle):
-	// 	stepName += "/FINISH"
-	// case UrnToString(UrnTransformTotalTime):
-	// 	stepName += "/TOTAL"
-	// 	// TODO: add cases for PCollection metrics
-	// }
 
 	if stepName == "" {
 		return metrics.StepKey{}, fmt.Errorf("Failed to deduce Step from MonitoringInfo: %v", mi)

@@ -101,8 +101,8 @@ func TestWordCount(t *testing.T) {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
 
-		qr := pr.Metrics().Query(func(q metrics.SingleResult) bool {
-			return q.Name() == "smallWords"
+		qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
+			return sr.Name() == "smallWords"
 		})
 		counter := metrics.CounterResult{}
 		if len(qr.Counters()) != 0 {
