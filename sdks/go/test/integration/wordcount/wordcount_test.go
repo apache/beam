@@ -97,12 +97,13 @@ func TestWordCount(t *testing.T) {
 		lines := beam.CreateList(s, test.lines)
 		WordCountFromPCol(s, lines, test.hash, test.words)
 		pr, err := ptest.RunWithMetrics(p)
+		t.Error(pr.Metrics().AllMetrics().Msecs())
 		if err != nil {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
 
-		qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
-			return sr.Name() == "smallWords"
+		qr := pr.Metrics().Query(func(q metrics.SingleResult) bool {
+			return q.Name() == "smallWords"
 		})
 		counter := metrics.CounterResult{}
 		if len(qr.Counters()) != 0 {

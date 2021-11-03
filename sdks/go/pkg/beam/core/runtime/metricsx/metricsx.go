@@ -78,17 +78,50 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 				continue
 			}
 			gauges[key] = value
-		case
-			UrnToString(UrnStartBundle),
-			UrnToString(UrnProcessBundle),
-			UrnToString(UrnFinishBundle),
-			UrnToString(UrnTransformTotalTime):
+		case UrnToString(UrnStartBundle):
 			value, err := extractMsecValue(r)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			msecs[key] = value
+			if v, ok := msecs[key]; ok {
+				v.Time[0] = value
+			} else {
+				msecs[key] = metrics.MsecValue{[4]time.Duration{value, 0, 0, 0}}
+			}
+		case UrnToString(UrnProcessBundle):
+			value, err := extractMsecValue(r)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			if v, ok := msecs[key]; ok {
+				v.Time[1] = value
+			} else {
+				msecs[key] = metrics.MsecValue{[4]time.Duration{0, value, 0, 0}}
+			}
+		case UrnToString(UrnFinishBundle):
+			value, err := extractMsecValue(r)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			if v, ok := msecs[key]; ok {
+				v.Time[2] = value
+			} else {
+				msecs[key] = metrics.MsecValue{[4]time.Duration{0, 0, value, 0}}
+			}
+		case UrnToString(UrnTransformTotalTime):
+			value, err := extractMsecValue(r)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			if v, ok := msecs[key]; ok {
+				v.Time[3] = value
+			} else {
+				msecs[key] = metrics.MsecValue{[4]time.Duration{0, 0, 0, value}}
+			}
 		default:
 			log.Println("unknown metric type")
 		}
@@ -126,12 +159,12 @@ func extractCounterValue(reader *bytes.Reader) (int64, error) {
 	return value, nil
 }
 
-func extractMsecValue(reader *bytes.Reader) (metrics.MsecValue, error) {
+func extractMsecValue(reader *bytes.Reader) (time.Duration, error) {
 	value, err := coder.DecodeVarInt(reader)
 	if err != nil {
-		return metrics.MsecValue{}, err
+		return time.Millisecond, err
 	}
-	return metrics.MsecValue{Time: value}, nil
+	return time.Duration(value) * time.Millisecond, nil
 }
 
 func extractDistributionValue(reader *bytes.Reader) (metrics.DistributionValue, error) {

@@ -481,7 +481,7 @@ func (m *executionState) kind() kind {
 
 // MsecValue is the value of a single msec metric
 type MsecValue struct {
-	Time int64
+	Time [4]time.Duration
 }
 
 // Results represents all metrics gathered during the job's execution.
@@ -513,6 +513,7 @@ func (mr Results) AllMetrics() QueryResults {
 type SingleResult interface {
 	Name() string
 	Namespace() string
+	Transform() string
 }
 
 // Query allows metrics querying with filter. The filter takes the form of predicate function. Example:
@@ -523,6 +524,7 @@ func (mr Results) Query(f func(SingleResult) bool) QueryResults {
 	counters := []CounterResult{}
 	distributions := []DistributionResult{}
 	gauges := []GaugeResult{}
+	msecs := []MsecResult{}
 
 	for _, counter := range mr.counters {
 		if f(counter) {
@@ -539,7 +541,12 @@ func (mr Results) Query(f func(SingleResult) bool) QueryResults {
 			gauges = append(gauges, gauge)
 		}
 	}
-	return QueryResults{counters: counters, distributions: distributions, gauges: gauges}
+	for _, msec := range mr.msecs {
+		if f(msec) {
+			msecs = append(msecs, msec)
+		}
+	}
+	return QueryResults{counters: counters, distributions: distributions, gauges: gauges, msecs: msecs}
 }
 
 // QueryResults is the result of a query. Allows accessing all of the
@@ -605,6 +612,9 @@ func (r CounterResult) Namespace() string {
 	return r.Key.Namespace
 }
 
+// Transform returns the Transform step for this Metric.
+func (r CounterResult) Transform() string { return r.Key.Step }
+
 // MergeCounters combines counter metrics that share a common key.
 func MergeCounters(
 	attempted map[StepKey]int64,
@@ -656,6 +666,9 @@ func (r DistributionResult) Name() string {
 func (r DistributionResult) Namespace() string {
 	return r.Key.Namespace
 }
+
+// Transform returns the Transform step for this Metric.
+func (r DistributionResult) Transform() string { return r.Key.Step }
 
 // MergeDistributions combines distribution metrics that share a common key.
 func MergeDistributions(
@@ -709,6 +722,9 @@ func (r GaugeResult) Namespace() string {
 	return r.Key.Namespace
 }
 
+// Transform returns the Transform step for this Metric.
+func (r GaugeResult) Transform() string { return r.Key.Step }
+
 // StepKey uniquely identifies a metric within a pipeline graph.
 type StepKey struct {
 	Step, Name, Namespace string
@@ -753,6 +769,19 @@ func (r MsecResult) Result() MsecValue {
 	}
 	return r.Attempted
 }
+
+// Name returns the Name of this Gauge.
+func (r MsecResult) Name() string {
+	return r.Key.Name
+}
+
+// Namespace returns the Namespace of this Gauge.
+func (r MsecResult) Namespace() string {
+	return r.Key.Namespace
+}
+
+// Transform returns the Transform step for this Metric.
+func (r MsecResult) Transform() string { return r.Key.Step }
 
 // MergeMsecs combines counter metrics that share a common key.
 func MergeMsecs(
@@ -843,13 +872,16 @@ func ResultsExtractor(ctx context.Context) Results {
 			committed[key] = GaugeValue{opt.(*gauge).v, opt.(*gauge).t}
 			r.gauges = append(r.gauges, MergeGauges(attempted, committed)...)
 		case *executionState:
-			for _, v := range opt.(*executionState).state {
-				attempted := make(map[StepKey]MsecValue)
-				committed := make(map[StepKey]MsecValue)
-				attempted[key] = MsecValue{}
-				committed[key] = MsecValue{int64(v.TotalTime)}
-				r.msecs = append(r.msecs, MergeMsecs(attempted, committed)...)
+			attempted := make(map[StepKey]MsecValue)
+			committed := make(map[StepKey]MsecValue)
+			attempted[key] = MsecValue{}
+			committed[key] = MsecValue{[4]time.Duration{0, 0, 0, 0}}
+			for i, v := range opt.(*executionState).state {
+				if t, ok := committed[key]; ok {
+					t.Time[i] = v.TotalTime
+				}
 			}
+			r.msecs = append(r.msecs, MergeMsecs(attempted, committed)...)
 		}
 	}
 	return r
