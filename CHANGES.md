@@ -60,6 +60,9 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* We changed the data type for ranges in `JdbcIO.readWithPartitions` from `int` to `long`. This is a relatively minor
+    breaking change, which we're implementing to improve the usability of the transform without increasing cruft.
+    This transform is relatively new, so we may implement other breaking changes in the future to improve its usability.
 
 ## New Features / Improvements
 
