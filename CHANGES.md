@@ -69,11 +69,13 @@
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Add custom delimiters to Python TextIO reads ([BEAM-12730](https://issues.apache.org/jira/browse/BEAM-12730)).
 * Splittable reading is enabled by default while reading data with ParquetIO ([BEAM-12070](https://issues.apache.org/jira/browse/BEAM-12070)).
+* DoFn Execution Time metrics added to Go ([BEAM-13001](https://issues.apache.org/jira/browse/BEAM-13001)).
 
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * A new URN convention was adopted for cross-language transforms and existing URNs were updated. This may break advanced use-cases, for example, if a custom expansion service is used to connect diffrent Beam Java and Python versions. ([BEAM-12047](https://issues.apache.org/jira/browse/BEAM-12047)).
+* The upgrade to Calcite 1.28.0 introduces a breaking change in the SUBSTRING function in SqlTransform, when used with the Calcite dialect ([BEAM-13099](https://issues.apache.org/jira/browse/BEAM-13099), [CALCITE-4427](https://issues.apache.org/jira/browse/CALCITE-4427)).
 
 ## Deprecations
 
@@ -83,6 +85,8 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* The Go SDK now properly maps main input windows to side input windows by
+  default ([BEAM-11087](https://issues.apache.org/jira/browse/BEAM-11087)).
 
 ## Known Issues
 
