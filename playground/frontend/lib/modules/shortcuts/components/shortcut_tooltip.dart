@@ -17,33 +17,24 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/shortcuts/models/shortcut.dart';
 import 'package:playground/modules/shortcuts/utils/shortcuts_display_name.dart';
 
-class ShortcutRow extends StatelessWidget {
+class ShortcutTooltip extends StatelessWidget {
   final Shortcut shortcut;
+  final Widget child;
 
-  const ShortcutRow({Key? key, required this.shortcut}) : super(key: key);
+  const ShortcutTooltip({
+    Key? key,
+    required this.shortcut,
+    required this.child,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor;
-    // wrap with row to shrink container to child size
-    return Row(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: primaryColor),
-            borderRadius: BorderRadius.circular(kSmBorderRadius),
-          ),
-          padding: const EdgeInsets.all(kMdSpacing),
-          child: Text(
-            getShortcutDisplayName(shortcut),
-            style: TextStyle(color: primaryColor),
-          ),
-        ),
-      ],
+    return Tooltip(
+      message: getShortcutDisplayName(shortcut),
+      child: child,
     );
   }
 }
