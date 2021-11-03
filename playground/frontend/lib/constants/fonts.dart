@@ -16,9 +16,17 @@
  * limitations under the License.
  */
 
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-const FontWeight kLightWeight = FontWeight.w300;
-const FontWeight kNormalWeight = FontWeight.normal;
-const FontWeight kMediumWeight = FontWeight.w600;
-const FontWeight kBoldWeight = FontWeight.bold;
+TextStyle getTitleFontStyle({TextStyle? textStyle}) {
+  return GoogleFonts.roboto(textStyle: textStyle);
+}
+
+TextStyle getCodeFontStyle({TextStyle? textStyle}) {
+  return GoogleFonts.sourceCodePro(textStyle: textStyle);
+}
+
+TextTheme getBaseFontTheme(TextTheme theme) {
+  return GoogleFonts.sourceSansProTextTheme(theme);
+}
