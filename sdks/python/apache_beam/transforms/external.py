@@ -657,7 +657,7 @@ class JavaJarExpansionService(object):
   """
   def __init__(self, path_to_jar, extra_args=None):
     if extra_args is None:
-      extra_args = ['{{PORT}}', f'--filesToStage={path_to_jar}']
+      extra_args = ['{{PORT}}']
     self._path_to_jar = path_to_jar
     self._extra_args = extra_args
     self._service_count = 0
@@ -670,7 +670,8 @@ class JavaJarExpansionService(object):
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,
           self._path_to_jar,
-          self._extra_args)
+          self._extra_args + [f'--filesToStage={self._path_to_jar}'],
+      )
       self._service = self._service_provider.__enter__()
     self._service_count += 1
     return self._service
