@@ -17,6 +17,7 @@
 package executors
 
 import (
+	"beam.apache.org/playground/backend/internal/preparators"
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os/exec"
@@ -35,13 +36,30 @@ type Executor struct {
 	compileArgs CmdConfiguration
 	runArgs     CmdConfiguration
 	validators  []validators.Validator
+	preparators []preparators.Preparator
 }
 
-// Validate return the function that apply all validators of executor
+// Validate returns the function that applies all validators of executor
 func (ex *Executor) Validate() func(chan bool, chan error) {
 	return func(doneCh chan bool, errCh chan error) {
 		for _, validator := range ex.validators {
 			err := validator.Validator(validator.Args...)
+			if err != nil {
+				errCh <- err
+				doneCh <- false
+				return
+			}
+		}
+		doneCh <- true
+		return
+	}
+}
+
+// Prepare returns the function that applies all preparations of executor
+func (ex *Executor) Prepare() func(chan bool, chan error) {
+	return func(doneCh chan bool, errCh chan error) {
+		for _, preparator := range ex.preparators {
+			err := preparator.Prepare(preparator.Args...)
 			if err != nil {
 				errCh <- err
 				doneCh <- false

@@ -2006,7 +2006,8 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
             3,
-            "kms_key");
+            "kms_key",
+            null);
 
     DoFnTester<Iterable<KV<TableDestination, WriteTables.Result>>, Void> tester =
         DoFnTester.of(writeRename);

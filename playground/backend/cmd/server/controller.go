@@ -121,6 +121,40 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 	return &pipelineResult, nil
 }
 
+//GetListOfExamples returns the list of examples
+func (controller *playgroundController) GetListOfExamples(ctx context.Context, info *pb.GetListOfExamplesRequest) (*pb.GetListOfExamplesResponse, error) {
+	// TODO implement this method
+	example1 := pb.Example{ExampleUuid: "001", Name: "Example1", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_DEFAULT}
+	example2 := pb.Example{ExampleUuid: "003", Name: "Example3", Description: "Test example 3", Type: pb.ExampleType_EXAMPLE_TYPE_KATA}
+
+	cat1 := pb.Categories_Category{
+		CategoryName: "Common",
+		Examples:     []*pb.Example{&example1, {ExampleUuid: "002", Name: "Example2", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_UNIT_TEST}},
+	}
+	cat2 := pb.Categories_Category{
+		CategoryName: "I/O",
+		Examples:     []*pb.Example{&example2},
+	}
+	javaCats := pb.Categories{Sdk: pb.Sdk_SDK_JAVA, Categories: []*pb.Categories_Category{&cat1, &cat2}}
+	goCats := pb.Categories{Sdk: pb.Sdk_SDK_GO, Categories: []*pb.Categories_Category{&cat1, &cat2}}
+	response := pb.GetListOfExamplesResponse{SdkExamples: []*pb.Categories{&javaCats, &goCats}}
+	return &response, nil
+}
+
+// GetExample returns the code of the specific example
+func (controller *playgroundController) GetExample(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetExampleResponse, error) {
+	// TODO implement this method
+	response := pb.GetExampleResponse{Code: "example code"}
+	return &response, nil
+}
+
+// GetExampleOutput returns the output of the compiled and run example
+func (controller *playgroundController) GetExampleOutput(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetRunOutputResponse, error) {
+	// TODO implement this method
+	response := pb.GetRunOutputResponse{Output: "Response Output"}
+	return &response, nil
+}
+
 // setupLifeCycle creates fs_tool.LifeCycle and prepares files and folders needed to code processing
 func setupLifeCycle(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string) (*fs_tool.LifeCycle, error) {
 	// create file system service
