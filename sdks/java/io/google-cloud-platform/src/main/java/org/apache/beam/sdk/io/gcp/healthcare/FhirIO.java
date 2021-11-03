@@ -1320,11 +1320,7 @@ public class FhirIO {
        * The source file contains one or more lines of newline-delimited JSON (ndjson). Each line is
        * a single resource.
        */
-      RESOURCE,
-      /** The entire file is one JSON bundle. The JSON can span multiple lines. */
-      BUNDLE_PRETTY,
-      /** The entire file is one JSON resource. The JSON can span multiple lines. */
-      RESOURCE_PRETTY
+      RESOURCE
     }
   }
 
