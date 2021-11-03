@@ -85,6 +85,22 @@ elif [ "$kernelname" = "Darwin" ]; then
         echo "Installing openjdk@8"
         brew install openjdk@8
     fi
+    for ver in 3.7 3.8 3.9; do
+      if brew ls --versions python@$ver > /dev/null; then
+          echo "python@$ver already installed. Skipping"
+          brew info python@$ver
+      else
+          echo "Installing python@$ver"
+          brew install python@$ver
+      fi
+      if [ ! $(type -P python$ver) > /dev/null 2>&1 ]; then
+        # For some python packages, brew does not add symlinks...
+        # TODO: use pyenv.
+        ln -s /usr/local/opt/python@$ver/bin/python3 /usr/local/bin/python$ver
+      fi
+    done
+
+    ls -l /usr/local/bin/python*
 
     type -P python3 > /dev/null 2>&1
     python3Exists=$?
