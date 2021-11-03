@@ -183,7 +183,6 @@ public class BigQueryIOPushDownIT {
     Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
     IOITMetrics readMetrics =
         new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
-    readMetrics.publish(metricsBigQueryDataset, metricsBigQueryTable + postfix);
     readMetrics.publishToInflux(settings.copyWithMeasurement(settings.measurement + postfix));
   }
 

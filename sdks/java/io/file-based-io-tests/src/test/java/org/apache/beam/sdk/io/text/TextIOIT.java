@@ -168,7 +168,6 @@ public class TextIOIT {
 
     final IOITMetrics metrics =
         new IOITMetrics(metricSuppliers, result, FILEIOIT_NAMESPACE, uuid, timestamp.toString());
-    metrics.publish(bigQueryDataset, bigQueryTable);
     metrics.publishToInflux(settings);
   }
 
