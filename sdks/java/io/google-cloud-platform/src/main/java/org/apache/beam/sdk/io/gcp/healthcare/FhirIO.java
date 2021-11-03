@@ -119,7 +119,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Import This is best for use cases where you are populating an empty FHIR store with no other
  * clients. It is faster than the execute bundles method but does not respect referential integrity
- * and the resources are not written transactionally (e.g. a historicaly backfill on a new FHIR
+ * and the resources are not written transactionally (e.g. a historical backfill on a new FHIR
  * store) This requires each resource to contain a client provided ID. It is important that when
  * using import you give the appropriate permissions to the Google Cloud Healthcare Service Agent.
  *
@@ -253,7 +253,7 @@ public class FhirIO {
    * @see Search
    */
   public static Search<String> searchResources(String fhirStore) {
-    return new Search<String>(fhirStore);
+    return new Search<>(fhirStore);
   }
 
   /**
@@ -262,7 +262,7 @@ public class FhirIO {
    * @return the search
    * @see Search
    */
-  public static Search<? extends Object> searchResourcesWithGenericParameters(String fhirStore) {
+  public static Search<?> searchResourcesWithGenericParameters(String fhirStore) {
     return new Search<>(fhirStore);
   }
 
@@ -424,8 +424,6 @@ public class FhirIO {
 
   /** The type Read. */
   public static class Read extends PTransform<PCollection<String>, FhirIO.Read.Result> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(Read.class);
 
     /** Instantiates a new Read. */
     public Read() {}
@@ -1289,6 +1287,7 @@ public class FhirIO {
               IMPORT_OPERATION_ERRORS,
               RESOURCES_IMPORTED_SUCCESS,
               RESOURCES_IMPORTED_ERRORS);
+
           // Clean up temp files on GCS as they we successfully imported to FHIR store and no longer
           // needed.
           FileSystems.delete(tempDestinations);
@@ -1299,6 +1298,8 @@ public class FhirIO {
               String.format(
                   "Failed to import %s with error: %s. Moving to deadletter path %s",
                   importUri, e.getMessage(), deadLetterResourceId.toString()));
+          IMPORT_OPERATION_ERRORS.inc();
+
           FileSystems.rename(tempDestinations, deadLetterDestinations);
           context.output(
               HealthcareIOError.of(importUri.toString(), e), window.maxTimestamp(), window);
@@ -1469,21 +1470,21 @@ public class FhirIO {
 
       @ProcessElement
       public void exportResourcesToGcs(ProcessContext context)
-          throws IOException, InterruptedException, HealthcareHttpException {
+          throws IOException, InterruptedException {
         String fhirStore = context.element();
         String gcsPrefix = this.exportGcsUriPrefix.get();
         Operation operation = client.exportFhirResourceToGcs(fhirStore, gcsPrefix);
         operation = client.pollOperation(operation, 15000L);
-        if (operation.getError() != null) {
-          throw new RuntimeException(
-              String.format("Export operation (%s) failed.", operation.getName()));
-        }
         incrementLroCounters(
             operation,
             EXPORT_OPERATION_SUCCESS,
             EXPORT_OPERATION_ERRORS,
             RESOURCES_EXPORTED_SUCCESS,
             RESOURCES_EXPORTED_ERRORS);
+        if (operation.getError() != null) {
+          throw new RuntimeException(
+              String.format("Export operation (%s) failed.", operation.getName()));
+        }
         context.output(String.format("%s/*", gcsPrefix.replaceAll("/+$", "")));
       }
     }
@@ -1548,24 +1549,23 @@ public class FhirIO {
       }
 
       @ProcessElement
-      public void deidentify(ProcessContext context)
-          throws IOException, InterruptedException, HealthcareHttpException {
+      public void deidentify(ProcessContext context) throws IOException, InterruptedException {
         String sourceFhirStore = context.element();
         String destinationFhirStore = this.destinationFhirStore.get();
         DeidentifyConfig deidConfig = gson.fromJson(this.deidConfigJson, DeidentifyConfig.class);
         Operation operation =
             client.deidentifyFhirStore(sourceFhirStore, destinationFhirStore, deidConfig);
         operation = client.pollOperation(operation, 15000L);
-        if (operation.getError() != null) {
-          throw new IOException(
-              String.format("DeidentifyFhirStore operation (%s) failed.", operation.getName()));
-        }
         incrementLroCounters(
             operation,
             DEIDENTIFY_OPERATION_SUCCESS,
             DEIDENTIFY_OPERATION_ERRORS,
             RESOURCES_DEIDENTIFIED_SUCCESS,
             RESOURCES_DEIDENTIFIED_ERRORS);
+        if (operation.getError() != null) {
+          throw new IOException(
+              String.format("DeidentifyFhirStore operation (%s) failed.", operation.getName()));
+        }
         context.output(destinationFhirStore);
       }
     }
@@ -1574,8 +1574,6 @@ public class FhirIO {
   /** The type Search. */
   public static class Search<T>
       extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(Search.class);
 
     private final ValueProvider<String> fhirStore;
 
@@ -1589,10 +1587,10 @@ public class FhirIO {
 
     public static class Result implements POutput, PInput {
 
-      private PCollection<KV<String, JsonArray>> keyedResources;
-      private PCollection<JsonArray> resources;
+      private final PCollection<KV<String, JsonArray>> keyedResources;
+      private final PCollection<JsonArray> resources;
 
-      private PCollection<HealthcareIOError<String>> failedSearches;
+      private final PCollection<HealthcareIOError<String>> failedSearches;
       PCollectionTuple pct;
 
       /**
@@ -1620,8 +1618,7 @@ public class FhirIO {
             this.keyedResources
                 .apply(
                     "Extract Values",
-                    MapElements.into(TypeDescriptor.of(JsonArray.class))
-                        .via((KV<String, JsonArray> in) -> in.getValue()))
+                    MapElements.into(TypeDescriptor.of(JsonArray.class)).via(KV::getValue))
                 .setCoder(JsonArrayCoder.of());
         this.failedSearches =
             pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
