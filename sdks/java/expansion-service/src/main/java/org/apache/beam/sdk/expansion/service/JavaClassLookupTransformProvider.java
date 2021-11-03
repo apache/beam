@@ -101,13 +101,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
 
     String className = payload.getClassName();
     try {
-      AllowedClass allowlistClass = this.allowList.getAllowedClass(className);
-      if (allowlistClass == null) {
-        throw new UnsupportedOperationException(
-            "The provided allow list does not enable expanding a transform class by the name "
-                + className
-                + ".");
-      }
+      AllowedClass allowlistClass = allowList.getAllowedClass(className);
       Class<PTransform<InputT, OutputT>> transformClass =
           (Class<PTransform<InputT, OutputT>>)
               ReflectHelpers.findClassLoader().loadClass(className);
@@ -505,6 +499,12 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
           allowlistClass = cls;
         }
       }
+      if (allowlistClass == null) {
+        throw new UnsupportedOperationException(
+                "The provided allow list does not enable expanding a transform class by the name "
+                        + className
+                        + ".");
+      }
       return allowlistClass;
     }
 
@@ -561,6 +561,10 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       }
       if (allowedConstructorMethods == null) {
         allowedConstructorMethods = new ArrayList<>();
+      }
+      if (allowedBuilderMethods.equals(WILDCARD) && !className.equals("*")) {
+        // If we allow getClass().forName(), we allow essentially anything.
+        throw new IllegalArgumentException("Wildcard builder not allowed for non-wildcard class.");
       }
       return new AutoValue_JavaClassLookupTransformProvider_AllowedClass(
           className, allowedBuilderMethods, allowedConstructorMethods);
