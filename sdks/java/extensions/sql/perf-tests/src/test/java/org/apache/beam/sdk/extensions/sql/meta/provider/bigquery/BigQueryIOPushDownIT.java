@@ -91,12 +91,6 @@ public class BigQueryIOPushDownIT {
   private static SQLBigQueryPerfTestOptions options;
 
   @SuppressWarnings("initialization.static.fields.uninitialized")
-  private static String metricsBigQueryDataset;
-
-  @SuppressWarnings("initialization.static.fields.uninitialized")
-  private static String metricsBigQueryTable;
-
-  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static InfluxDBSettings settings;
 
   private Pipeline pipeline = Pipeline.create(options);
@@ -107,8 +101,6 @@ public class BigQueryIOPushDownIT {
   @BeforeClass
   public static void setUp() {
     options = IOITHelper.readIOTestPipelineOptions(SQLBigQueryPerfTestOptions.class);
-    metricsBigQueryDataset = options.getMetricsBigQueryDataset();
-    metricsBigQueryTable = options.getMetricsBigQueryTable();
     settings =
         InfluxDBSettings.builder()
             .withHost(options.getInfluxHost())

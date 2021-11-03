@@ -83,8 +83,6 @@ public class TextIOIT {
   private static String expectedHash;
   private static Compression compressionType;
   private static Integer numShards;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static boolean gatherGcsPerformanceMetrics;
   private static InfluxDBSettings settings;
   private static final String FILEIOIT_NAMESPACE = TextIOIT.class.getName();
@@ -100,8 +98,6 @@ public class TextIOIT {
     compressionType = Compression.valueOf(options.getCompressionType());
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     numShards = options.getNumberOfShards();
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     gatherGcsPerformanceMetrics = options.getReportGcsPerformanceMetrics();
     settings =
         InfluxDBSettings.builder()
