@@ -18,7 +18,7 @@
 
 import 'package:grpc/grpc_web.dart';
 import 'package:playground/constants/api.dart';
-import 'package:playground/generated/playground.pbgrpc.dart' as grpc;
+import 'package:playground/api/v1/api.pbgrpc.dart' as grpc;
 import 'package:playground/modules/editor/repository/code_repository/code_client/check_status_response.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
@@ -101,8 +101,13 @@ class GrpcCodeClient implements CodeClient {
   RunCodeStatus _toClientStatus(grpc.Status status) {
     switch (status) {
       case grpc.Status.STATUS_ERROR:
+      case grpc.Status.STATUS_COMPILE_ERROR:
+      case grpc.Status.STATUS_RUN_TIMEOUT:
+      case grpc.Status.STATUS_VALIDATION_ERROR:
         return RunCodeStatus.error;
       case grpc.Status.STATUS_EXECUTING:
+      case grpc.Status.STATUS_VALIDATING:
+      case grpc.Status.STATUS_COMPILING:
         return RunCodeStatus.executing;
       case grpc.Status.STATUS_FINISHED:
         return RunCodeStatus.finished;

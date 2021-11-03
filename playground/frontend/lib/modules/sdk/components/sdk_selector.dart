@@ -23,6 +23,8 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 
 typedef SetSdk = void Function(SDK sdk);
 
+const kSdkSelectorLabel = 'Select SDK Dropdown';
+
 class SDKSelector extends StatelessWidget {
   final SDK sdk;
   final SetSdk setSdk;
@@ -32,34 +34,38 @@ class SDKSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: kZeroSpacing,
-        horizontal: kLgSpacing,
-      ),
-      decoration: BoxDecoration(
-        color: ThemeColors.of(context).greyColor,
-        borderRadius: BorderRadius.circular(kBorderRadius),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<SDK>(
-          value: sdk,
-          icon: const Icon(Icons.keyboard_arrow_down),
-          iconSize: kIconSizeMd,
-          elevation: kElevation,
-          borderRadius: BorderRadius.circular(kBorderRadius),
-          alignment: Alignment.bottomCenter,
-          onChanged: (SDK? newSdk) {
-            if (newSdk != null) {
-              setSdk(newSdk);
-            }
-          },
-          items: SDK.values.map<DropdownMenuItem<SDK>>((SDK value) {
-            return DropdownMenuItem<SDK>(
-              value: value,
-              child: Text(value.displayName),
-            );
-          }).toList(),
+    return Semantics(
+      container: true,
+      label: kSdkSelectorLabel,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          vertical: kZeroSpacing,
+          horizontal: kXlSpacing,
+        ),
+        decoration: BoxDecoration(
+          color: ThemeColors.of(context).greyColor,
+          borderRadius: BorderRadius.circular(kLgBorderRadius),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<SDK>(
+            value: sdk,
+            icon: const Icon(Icons.keyboard_arrow_down),
+            iconSize: kIconSizeMd,
+            elevation: kElevation,
+            borderRadius: BorderRadius.circular(kLgBorderRadius),
+            alignment: Alignment.bottomCenter,
+            onChanged: (SDK? newSdk) {
+              if (newSdk != null) {
+                setSdk(newSdk);
+              }
+            },
+            items: SDK.values.map<DropdownMenuItem<SDK>>((SDK value) {
+              return DropdownMenuItem<SDK>(
+                value: value,
+                child: Text(value.displayName),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );

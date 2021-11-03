@@ -1475,7 +1475,7 @@ public class DoFnSignaturesTest {
   private static class RequiresTimeSortedInput extends DoFn<KV<String, String>, String>
       implements FeatureTest {
     @ProcessElement
-    @RequiresTimeSortedInput
+    @DoFn.RequiresTimeSortedInput
     public void process(@Element KV<String, String> input) {}
 
     @Override

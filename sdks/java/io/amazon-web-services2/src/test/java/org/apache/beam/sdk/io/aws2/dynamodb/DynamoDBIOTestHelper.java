@@ -209,15 +209,6 @@ class DynamoDBIOTestHelper implements Serializable {
       ipAddress = InetAddress.getByName(address).getHostAddress();
     } catch (UnknownHostException ignored) {
     }
-    ipAddress = ipAddress + ".nip.io";
-    while (true) {
-      try {
-        //noinspection ResultOfMethodCallIgnored
-        InetAddress.getAllByName(ipAddress);
-        break;
-      } catch (UnknownHostException ignored) {
-      }
-    }
     return "http://" + ipAddress + ":" + dynamoContainer.getFirstMappedPort();
   }
 }

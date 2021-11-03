@@ -92,6 +92,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "SameNameButDifferent"
 })
 public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
