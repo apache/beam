@@ -166,10 +166,6 @@ cdef class ListCoderImpl(SequenceCoderImpl):
   pass
 
 
-cdef class ListCoderImpl(SequenceCoderImpl):
-  pass
-
-
 cdef object IntervalWindow
 
 cdef class IntervalWindowCoderImpl(StreamCoderImpl):
