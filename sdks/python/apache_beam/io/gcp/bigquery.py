@@ -1780,7 +1780,7 @@ class _StreamToBigQuery(PTransform):
       schema_side_inputs,
       schema,
       batch_size,
-      batch_duration,
+      triggering_frequency,
       create_disposition,
       write_disposition,
       kms_key,
@@ -1794,7 +1794,7 @@ class _StreamToBigQuery(PTransform):
     self.schema_side_inputs = schema_side_inputs
     self.schema = schema
     self.batch_size = batch_size
-    self.batch_duration = batch_duration
+    self.triggering_frequency = triggering_frequency
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.kms_key = kms_key
@@ -1867,7 +1867,8 @@ class _StreamToBigQuery(PTransform):
           tagged_data
           | 'WithAutoSharding' >> beam.GroupIntoBatches.WithShardedKey(
               (self.batch_size or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS),
-              self.batch_duration or DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC)
+              self.triggering_frequency or
+              DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC)
           | 'DropShard' >> beam.Map(lambda kv: (kv[0].key, kv[1])))
 
     return (
@@ -1904,7 +1905,6 @@ class WriteToBigQuery(PTransform):
       write_disposition=BigQueryDisposition.WRITE_APPEND,
       kms_key=None,
       batch_size=None,
-      batch_duration=None,
       max_file_size=None,
       max_files_per_bundle=None,
       test_client=None,
@@ -1974,9 +1974,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         tables.
       batch_size (int): Number of rows to be written to BQ per streaming API
         insert. The default is 500.
-      batch_duration (float): time in seconds to wait before flushing a
-        batch to the streaming API. The default is 0.2. Only works when
-        with_auto_sharding is enabled.
       test_client: Override the default bigquery client used for testing.
       max_file_size (int): The maximum size for a file to be written and then
         loaded into BigQuery. The default value is 4TB, which is 80% of the
@@ -2022,14 +2019,21 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         passed to the table callable (if one is provided).
       schema_side_inputs: A tuple with ``AsSideInput`` PCollections to be
         passed to the schema callable (if one is provided).
-      triggering_frequency (int): Every triggering_frequency duration, a
-        BigQuery load job will be triggered for all the data written since
-        the last load job. BigQuery has limits on how many load jobs can be
+      triggering_frequency (float):
+        When method is FILE_LOADS:
+        Value will be converted to int. Every triggering_frequency seconds, a
+        BigQuery load job will be triggered for all the data written since the
+        last load job. BigQuery has limits on how many load jobs can be
         triggered per day, so be careful not to set this duration too low, or
         you may exceed daily quota. Often this is set to 5 or 10 minutes to
-        ensure that the project stays well under the BigQuery quota.
-        See https://cloud.google.com/bigquery/quota-policy for more information
+        ensure that the project stays well under the BigQuery quota. See
+        https://cloud.google.com/bigquery/quota-policy for more information
         about BigQuery quotas.
+
+        When method is STREAMING_INSERTS and with_auto_sharding=True:
+        A streaming inserts batch will be submitted at least every
+        triggering_frequency seconds when data is waiting. The batch can be
+        sent earlier if it reaches the maximum batch size set by batch_size.
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
       temp_file_format: The format to use for file loads into BigQuery. The
@@ -2064,10 +2068,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     else:
       self.schema = bigquery_tools.get_dict_table_schema(schema)
     self.batch_size = batch_size
-    if batch_duration is not None and not with_auto_sharding:
-      raise ValueError(
-          'batch_duration can only bet set when with_auto_sharding=True')
-    self.batch_duration = batch_duration
     self.kms_key = kms_key
     self.test_client = test_client
 
@@ -2128,10 +2128,10 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
             'Schema auto-detection is not supported for streaming '
             'inserts into BigQuery. Only for File Loads.')
 
-      if self.triggering_frequency:
+      if self.triggering_frequency and not self.with_auto_sharding:
         raise ValueError(
-            'triggering_frequency can only be used with '
-            'FILE_LOADS method of writing to BigQuery.')
+            'triggering_frequency with STREAMING_INSERTS can only be used with '
+            'with_auto_sharding=True.')
 
       outputs = pcoll | _StreamToBigQuery(
           table_reference=self.table_reference,
@@ -2139,7 +2139,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           schema_side_inputs=self.schema_side_inputs,
           schema=self.schema,
           batch_size=self.batch_size,
-          batch_duration=self.batch_duration,
+          triggering_frequency=self.triggering_frequency,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
           kms_key=self.kms_key,
@@ -2169,7 +2169,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           schema=self.schema,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
-          triggering_frequency=self.triggering_frequency,
+          triggering_frequency=int(self.triggering_frequency),
           with_auto_sharding=self.with_auto_sharding,
           temp_file_format=self._temp_file_format,
           max_file_size=self.max_file_size,
@@ -2219,7 +2219,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         'write_disposition': self.write_disposition,
         'kms_key': self.kms_key,
         'batch_size': self.batch_size,
-        'batch_duration': self.batch_duration,
         'max_file_size': self.max_file_size,
         'max_files_per_bundle': self.max_files_per_bundle,
         'custom_gcs_temp_location': self.custom_gcs_temp_location,
