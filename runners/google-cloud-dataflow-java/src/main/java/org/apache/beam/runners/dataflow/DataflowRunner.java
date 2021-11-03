@@ -1741,31 +1741,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // ================================================================================
 
   /**
-   * A PTranform override factory which maps Create.Values PTransforms for streaming pipelines into
-   * a Dataflow specific variant.
-   */
-  @SuppressWarnings("unused")
-  private static class StreamingFnApiCreateOverrideFactory<T>
-      implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
-
-    @Override
-    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<T>, Create.Values<T>> transform) {
-      Create.Values<T> original = transform.getTransform();
-      PCollection<T> output =
-          (PCollection) Iterables.getOnlyElement(transform.getOutputs().values());
-      return PTransformReplacement.of(
-          transform.getPipeline().begin(), new StreamingFnApiCreate<>(original, output));
-    }
-
-    @Override
-    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
-      return ReplacementOutputs.singleton(outputs, newOutput);
-    }
-  }
-
-  /**
    * Specialized implementation for {@link org.apache.beam.sdk.transforms.Create.Values
    * Create.Values} for the Dataflow runner in streaming mode over the Fn API.
    */

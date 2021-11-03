@@ -800,7 +800,6 @@ public class RemoteExecutionTest implements Serializable {
             stateDelegator);
 
     Map<String, Coder> remoteOutputCoders = descriptor.getRemoteOutputCoders();
-    @SuppressWarnings("ModifiedButNotUsed")
     Map<String, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
     Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
     for (Entry<String, Coder> remoteOutputCoder : remoteOutputCoders.entrySet()) {
