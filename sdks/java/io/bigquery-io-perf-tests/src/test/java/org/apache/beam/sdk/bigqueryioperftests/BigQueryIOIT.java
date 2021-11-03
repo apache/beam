@@ -205,7 +205,6 @@ public class BigQueryIOIT {
     final NamedTestResult metricResult =
         getMetricSupplier(writeTimeMetricName).apply(new MetricsReader(pipelineResult, NAMESPACE));
     final List<NamedTestResult> listResults = Collections.singletonList(metricResult);
-    IOITMetrics.publish(metricsBigQueryDataset, metricsBigQueryTable, listResults);
     IOITMetrics.publishToInflux(TEST_ID, TEST_TIMESTAMP, listResults, settings);
   }
 
