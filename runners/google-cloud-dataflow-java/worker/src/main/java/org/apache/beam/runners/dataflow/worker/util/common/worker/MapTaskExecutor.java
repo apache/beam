@@ -70,8 +70,6 @@ public class MapTaskExecutor implements WorkExecutor {
     // starting the progress reporter thread, therefore ensuring thread safety through implicit
     // serialization of events.
     // Current thread that execute() is running on; null when not running.
-    synchronized (this) {
-    }
 
     try (Closeable stateCloser = executionStateTracker.activate()) {
       try {
@@ -112,9 +110,6 @@ public class MapTaskExecutor implements WorkExecutor {
           }
         }
         throw exn;
-      }
-    } finally {
-      synchronized (this) {
       }
     }
 
