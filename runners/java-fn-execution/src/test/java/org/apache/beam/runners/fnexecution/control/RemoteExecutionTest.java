@@ -153,8 +153,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Tests the execution of a pipeline from specification time to executing a single fused stage,
@@ -170,7 +168,6 @@ public class RemoteExecutionTest implements Serializable {
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
 
   private static final String WORKER_ID = "remote_test";
-  private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutionTest.class);
 
   private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
   private transient GrpcFnServer<GrpcDataService> dataServer;
@@ -1030,22 +1027,11 @@ public class RemoteExecutionTest implements Serializable {
         };
 
     ExecutorService executor = Executors.newSingleThreadExecutor();
-    Future<Object> future;
 
     try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, StateRequestHandler.unsupported(), progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
-
-      future =
-          executor.submit(
-              () -> {
-                checkState(
-                    MetricsDoFn.AFTER_PROCESS.get(metricsDoFn.uuid).await(60, TimeUnit.SECONDS),
-                    "Runner waited too long for DoFn to get to AFTER_PROCESS.");
-                bundle.requestProgress();
-                return (Void) null;
-              });
     }
     executor.shutdown();
   }
@@ -1071,10 +1057,12 @@ public class RemoteExecutionTest implements Serializable {
             ParDo.of(
                 new DoFn<KV<String, String>, KV<String, String>>() {
 
+                  @SuppressWarnings("unused")
                   @StateId(stateId)
                   private final StateSpec<BagState<String>> bufferState =
                       StateSpecs.bag(StringUtf8Coder.of());
 
+                  @SuppressWarnings("unused")
                   @StateId(stateId2)
                   private final StateSpec<BagState<String>> bufferState2 =
                       StateSpecs.bag(StringUtf8Coder.of());
@@ -1085,7 +1073,6 @@ public class RemoteExecutionTest implements Serializable {
                       @StateId(stateId) BagState<String> state,
                       @StateId(stateId2) BagState<String> state2,
                       OutputReceiver<KV<String, String>> r) {
-                    ReadableState<Boolean> isEmpty = state.isEmpty();
                     for (String value : state.read()) {
                       r.output(KV.of(element.getKey(), value));
                     }
@@ -1232,10 +1219,12 @@ public class RemoteExecutionTest implements Serializable {
             ParDo.of(
                 new DoFn<KV<String, String>, KV<String, String>>() {
 
+                  @SuppressWarnings("unused")
                   @StateId(stateId)
                   private final StateSpec<BagState<String>> bufferState =
                       StateSpecs.bag(StringUtf8Coder.of());
 
+                  @SuppressWarnings("unused")
                   @StateId(stateId2)
                   private final StateSpec<BagState<String>> bufferState2 =
                       StateSpecs.bag(StringUtf8Coder.of());
@@ -1480,9 +1469,11 @@ public class RemoteExecutionTest implements Serializable {
             "timer",
             ParDo.of(
                 new DoFn<KV<String, String>, KV<String, String>>() {
+                  @SuppressWarnings("unused")
                   @TimerId("event")
                   private final TimerSpec eventTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
+                  @SuppressWarnings("unused")
                   @TimerId("processing")
                   private final TimerSpec processingTimerSpec =
                       TimerSpecs.timer(TimeDomain.PROCESSING_TIME);

@@ -38,13 +38,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** This {@link PTransform} manages loads into BigQuery using the Storage API. */
 public class StorageApiLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
-  private static final Logger LOG = LoggerFactory.getLogger(StorageApiLoads.class);
   static final int MAX_BATCH_SIZE_BYTES = 2 * 1024 * 1024;
 
   private final Coder<DestinationT> destinationCoder;

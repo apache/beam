@@ -799,6 +799,7 @@ public class StreamingDataflowWorkerTest {
           makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
+    @SuppressWarnings("unused")
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
     worker.stop();
 
@@ -835,6 +836,7 @@ public class StreamingDataflowWorkerTest {
           makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
+    @SuppressWarnings("unused")
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
     worker.stop();
 
@@ -2771,6 +2773,7 @@ public class StreamingDataflowWorkerTest {
 
     static boolean thrown = false;
 
+    @SuppressWarnings("unused")
     @StateId("int")
     private final StateSpec<ValueState<Integer>> counter = StateSpecs.value(VarIntCoder.of());
 

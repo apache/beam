@@ -259,9 +259,11 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       startIndex = s;
     }
 
+    @SuppressWarnings("unused")
     @StateId("counter")
     private final StateSpec<ValueState<Integer>> counterState = StateSpecs.value(VarIntCoder.of());
 
+    @SuppressWarnings("unused")
     @StateId("skipped_rows")
     private final StateSpec<ValueState<Integer>> skippedRowsState =
         StateSpecs.value(VarIntCoder.of());

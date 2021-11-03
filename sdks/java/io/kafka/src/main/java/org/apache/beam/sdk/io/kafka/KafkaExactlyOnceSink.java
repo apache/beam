@@ -213,6 +213,7 @@ class KafkaExactlyOnceSink<K, V>
 
     private static final String NEXT_ID = "nextId";
 
+    @SuppressWarnings("unused")
     @StateId(NEXT_ID)
     private final StateSpec<ValueState<Long>> nextIdSpec = StateSpecs.value();
 
@@ -240,12 +241,15 @@ class KafkaExactlyOnceSink<K, V>
     private static final int MAX_RECORDS_PER_TXN = 1000;
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
+    @SuppressWarnings("unused")
     @StateId(NEXT_ID)
     private final StateSpec<ValueState<Long>> sequenceIdSpec = StateSpecs.value();
 
+    @SuppressWarnings("unused")
     @StateId(MIN_BUFFERED_ID)
     private final StateSpec<ValueState<Long>> minBufferedIdSpec = StateSpecs.value();
 
+    @SuppressWarnings("unused")
     @StateId(OUT_OF_ORDER_BUFFER)
     private final StateSpec<BagState<KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>
         outOfOrderBufferSpec;
@@ -253,6 +257,7 @@ class KafkaExactlyOnceSink<K, V>
     // started with same groupId used for storing state on Kafka side, including the case where
     // a job is restarted with same groupId, but the metadata from previous run was not cleared.
     // Better to be safe and error out with a clear message.
+    @SuppressWarnings("unused")
     @StateId(WRITER_ID)
     private final StateSpec<ValueState<String>> writerIdSpec = StateSpecs.value();
 

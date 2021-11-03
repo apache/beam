@@ -137,7 +137,7 @@ public class DataTokenizationTest {
   @Test
   public void testJsonToRow() throws IOException {
     PCollection<Row> rows = fileSystemIORead(JSON_FILE_PATH, FORMAT.JSON);
-    SchemasUtils testSchemaUtils = new SchemasUtils(SCHEMA_FILE_PATH, StandardCharsets.UTF_8);
+    new SchemasUtils(SCHEMA_FILE_PATH, StandardCharsets.UTF_8);
 
     PAssert.that(rows)
         .satisfies(

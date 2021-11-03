@@ -168,6 +168,7 @@ public class ParDoLifecycleTest implements Serializable {
       extends CallSequenceEnforcingFn<KV<K, V>> {
     private static final String STATE_ID = "foo";
 
+    @SuppressWarnings("unused")
     @StateId(STATE_ID)
     private final StateSpec<ValueState<String>> valueSpec = StateSpecs.value();
   }
@@ -469,6 +470,7 @@ public class ParDoLifecycleTest implements Serializable {
   private static class ExceptionThrowingStatefulFn<K, V> extends ExceptionThrowingFn<KV<K, V>> {
     private static final String STATE_ID = "foo";
 
+    @SuppressWarnings("unused")
     @StateId(STATE_ID)
     private final StateSpec<ValueState<String>> valueSpec = StateSpecs.value();
 

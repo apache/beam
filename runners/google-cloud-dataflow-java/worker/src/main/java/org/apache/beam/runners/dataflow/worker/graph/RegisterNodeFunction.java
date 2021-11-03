@@ -146,6 +146,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
         null, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
   }
 
+  @SuppressWarnings("unused")
   private RegisterNodeFunction(
       RunnerApi.@Nullable Pipeline pipeline,
       IdGenerator idGenerator,

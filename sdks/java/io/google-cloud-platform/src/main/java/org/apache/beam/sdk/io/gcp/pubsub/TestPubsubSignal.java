@@ -82,10 +82,6 @@ public class TestPubsubSignal implements TestRule {
   private static final String RESULT_SUCCESS_MESSAGE = "SUCCESS";
   private static final String START_TOPIC_NAME = "start";
   private static final String START_SIGNAL_MESSAGE = "START SIGNAL";
-  private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 60;
-
-  private static final String NO_ID_ATTRIBUTE = null;
-  private static final String NO_TIMESTAMP_ATTRIBUTE = null;
 
   private final TestPubsubOptions pipelineOptions;
   private final String pubsubEndpoint;
@@ -404,12 +400,12 @@ public class TestPubsubSignal implements TestRule {
    * "FAILURE".
    */
   static class StatefulPredicateCheck<T> extends DoFn<KV<String, ? extends T>, String> {
-    private final SerializableFunction<T, String> formatter;
     private SerializableFunction<Set<T>, Boolean> successPredicate;
     // keep all events seen so far in the state cell
 
     private static final String SEEN_EVENTS = "seenEvents";
 
+    @SuppressWarnings("unused")
     @StateId(SEEN_EVENTS)
     private final StateSpec<BagState<T>> seenEvents;
 
@@ -418,7 +414,6 @@ public class TestPubsubSignal implements TestRule {
         SerializableFunction<T, String> formatter,
         SerializableFunction<Set<T>, Boolean> successPredicate) {
       this.seenEvents = StateSpecs.bag(coder);
-      this.formatter = formatter;
       this.successPredicate = successPredicate;
     }
 

@@ -23,6 +23,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 
 @Experimental(Kind.SCHEMAS)
 public class StateKeySpec {
+  @SuppressWarnings("unused")
   private final FieldAccessDescriptor keyDescriptor;
 
   private StateKeySpec(FieldAccessDescriptor keyDescriptor) {

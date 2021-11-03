@@ -44,8 +44,6 @@ import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RuleSets;
@@ -129,9 +127,8 @@ public class BigQueryIOPushDownIT {
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ.toString()));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output =
-        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -158,9 +155,8 @@ public class BigQueryIOPushDownIT {
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ.toString()));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output =
-        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -172,9 +168,8 @@ public class BigQueryIOPushDownIT {
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DEFAULT.toString()));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output =
-        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();

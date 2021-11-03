@@ -23,6 +23,7 @@ import java.io.Serializable;
  * The {@code Quantifier} class is intended for storing the information of the quantifier for a
  * pattern variable.
  */
+@SuppressWarnings("unused")
 public class Quantifier implements Serializable {
 
   public static final Quantifier NONE = new Quantifier("", -1, -1, false);

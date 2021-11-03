@@ -146,6 +146,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     private final AtomicLong totalMillisInState = new AtomicLong();
 
     // The worker that created this state.  Used to report lulls back to the worker.
+    @SuppressWarnings("unused")
     private final StreamingDataflowWorker worker;
 
     public StreamingModeExecutionState(

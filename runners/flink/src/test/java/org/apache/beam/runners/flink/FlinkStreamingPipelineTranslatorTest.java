@@ -216,6 +216,7 @@ public class FlinkStreamingPipelineTranslatorTest {
 
   private static class StatefulNoopDoFn<KeyT, ValueT> extends DoFn<KV<KeyT, ValueT>, Void> {
 
+    @SuppressWarnings("unused")
     @TimerId("my-timer")
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

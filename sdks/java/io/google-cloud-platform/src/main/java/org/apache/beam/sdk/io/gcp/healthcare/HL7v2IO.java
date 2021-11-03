@@ -746,8 +746,7 @@ public class HL7v2IO {
       private Counter failedMessageWrites =
           Metrics.counter(WriteHL7v2Fn.class, "failed-hl7v2-message-writes");
       private final ValueProvider<String> hl7v2Store;
-      private final Counter successfulHL7v2MessageWrites =
-          Metrics.counter(WriteHL7v2.class, "successful-hl7v2-message-writes");
+
       private final Write.WriteMethod writeMethod;
 
       private static final Logger LOG = LoggerFactory.getLogger(WriteHL7v2.WriteHL7v2Fn.class);

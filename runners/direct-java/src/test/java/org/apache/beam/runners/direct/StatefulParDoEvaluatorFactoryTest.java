@@ -153,6 +153,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .apply(
                 new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
                     new DoFn<KV<String, Integer>, Integer>() {
+                      @SuppressWarnings("unused")
                       @StateId(stateId)
                       private final StateSpec<ValueState<String>> spec =
                           StateSpecs.value(StringUtf8Coder.of());

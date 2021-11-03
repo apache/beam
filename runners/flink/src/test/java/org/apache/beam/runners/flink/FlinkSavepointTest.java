@@ -310,10 +310,12 @@ public class FlinkSavepointTest implements Serializable {
                   "TimerStage",
                   ParDo.of(
                       new DoFn<KV<String, Void>, KV<String, Long>>() {
+                        @SuppressWarnings("unused")
                         @StateId("nextInteger")
                         private final StateSpec<ValueState<Long>> valueStateSpec =
                             StateSpecs.value();
 
+                        @SuppressWarnings("unused")
                         @TimerId("timer")
                         private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -357,9 +359,11 @@ public class FlinkSavepointTest implements Serializable {
           ParDo.of(
               new DoFn<KV<String, Long>, String>() {
 
+                @SuppressWarnings("unused")
                 @StateId("valueState")
                 private final StateSpec<ValueState<Integer>> valueStateSpec = StateSpecs.value();
 
+                @SuppressWarnings("unused")
                 @StateId("bagState")
                 private final StateSpec<BagState<Integer>> bagStateSpec = StateSpecs.bag();
 
@@ -379,9 +383,11 @@ public class FlinkSavepointTest implements Serializable {
           ParDo.of(
               new DoFn<KV<String, Long>, String>() {
 
+                @SuppressWarnings("unused")
                 @StateId("valueState")
                 private final StateSpec<ValueState<Integer>> valueStateSpec = StateSpecs.value();
 
+                @SuppressWarnings("unused")
                 @StateId("bagState")
                 private final StateSpec<BagState<Integer>> bagStateSpec = StateSpecs.bag();
 

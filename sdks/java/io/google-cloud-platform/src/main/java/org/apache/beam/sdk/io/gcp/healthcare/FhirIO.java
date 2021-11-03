@@ -415,7 +415,6 @@ public class FhirIO {
 
   /** The type Read. */
   public static class Read extends PTransform<PCollection<String>, FhirIO.Read.Result> {
-    private static final Logger LOG = LoggerFactory.getLogger(Read.class);
 
     /** Instantiates a new Read. */
     public Read() {}
@@ -1097,24 +1096,17 @@ public class FhirIO {
     /** The Write bundles to new line delimited json files. */
     static class WriteBundlesToFilesFn extends DoFn<String, ResourceId> {
 
-      private final ValueProvider<String> fhirStore;
       private final ValueProvider<String> tempGcsPath;
-      private final ValueProvider<String> deadLetterGcsPath;
       private ObjectMapper mapper;
       private ResourceId resourceId;
       private WritableByteChannel ndJsonChannel;
       private BoundedWindow window;
 
-      private transient HealthcareApiClient client;
-      private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFilesFn.class);
-
       WriteBundlesToFilesFn(
           ValueProvider<String> fhirStore,
           ValueProvider<String> tempGcsPath,
           ValueProvider<String> deadLetterGcsPath) {
-        this.fhirStore = fhirStore;
         this.tempGcsPath = tempGcsPath;
-        this.deadLetterGcsPath = deadLetterGcsPath;
       }
 
       /**
@@ -1125,9 +1117,7 @@ public class FhirIO {
        * @param deadLetterGcsPath the dead letter gcs path
        */
       WriteBundlesToFilesFn(String fhirStore, String tempGcsPath, String deadLetterGcsPath) {
-        this.fhirStore = StaticValueProvider.of(fhirStore);
         this.tempGcsPath = StaticValueProvider.of(tempGcsPath);
-        this.deadLetterGcsPath = StaticValueProvider.of(deadLetterGcsPath);
       }
 
       /**
@@ -1136,9 +1126,7 @@ public class FhirIO {
        * @throws IOException the io exception
        */
       @Setup
-      public void initClient() throws IOException {
-        this.client = new HttpHealthcareApiClient();
-      }
+      public void initClient() throws IOException {}
 
       /**
        * Init batch.
@@ -1547,7 +1535,6 @@ public class FhirIO {
   /** The type Search. */
   public static class Search<T>
       extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
-    private static final Logger LOG = LoggerFactory.getLogger(Search.class);
 
     private final ValueProvider<String> fhirStore;
 

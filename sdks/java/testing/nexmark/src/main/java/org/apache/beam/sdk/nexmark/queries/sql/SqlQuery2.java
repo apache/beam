@@ -51,18 +51,18 @@ public class SqlQuery2 extends NexmarkQueryTransform<AuctionPrice> {
   private final long skipFactor;
   private final Class<? extends QueryPlanner> plannerClass;
 
-  private SqlQuery2(String name, long skipFactor, Class<? extends QueryPlanner> plannerClass) {
+  private SqlQuery2(long skipFactor, Class<? extends QueryPlanner> plannerClass) {
     super("SqlQuery2");
     this.plannerClass = plannerClass;
     this.skipFactor = skipFactor;
   }
 
   public static SqlQuery2 calciteSqlQuery2(long skipFactor) {
-    return new SqlQuery2("SqlQuery2", skipFactor, CalciteQueryPlanner.class);
+    return new SqlQuery2(skipFactor, CalciteQueryPlanner.class);
   }
 
   public static SqlQuery2 zetaSqlQuery2(long skipFactor) {
-    return new SqlQuery2("ZetaSqlQuery2", skipFactor, ZetaSQLQueryPlanner.class);
+    return new SqlQuery2(skipFactor, ZetaSQLQueryPlanner.class);
   }
 
   @Override

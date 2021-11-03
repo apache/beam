@@ -438,10 +438,12 @@ public class TestStreamTest implements Serializable {
             .apply(
                 ParDo.of(
                     new DoFn<KV<String, String>, String>() {
+                      @SuppressWarnings("unused")
                       @StateId("seen")
                       private final StateSpec<ValueState<String>> seenSpec =
                           StateSpecs.value(StringUtf8Coder.of());
 
+                      @SuppressWarnings("unused")
                       @TimerId("emit")
                       private final TimerSpec emitSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

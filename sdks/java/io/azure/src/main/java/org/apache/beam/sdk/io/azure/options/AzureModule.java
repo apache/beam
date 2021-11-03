@@ -60,7 +60,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @AutoService(Module.class)
 public class AzureModule extends SimpleModule {
 
-  private static final String TYPE_PROPERTY = "@type";
   private static final String AZURE_CLIENT_ID = "azureClientId";
   private static final String AZURE_TENANT_ID = "azureTenantId";
   private static final String AZURE_CLIENT_SECRET = "azureClientSecret";
@@ -156,6 +155,7 @@ public class AzureModule extends SimpleModule {
   private static class TokenCredentialSerializer extends JsonSerializer<TokenCredential> {
     // These providers are singletons, so don't require any serialization, other than type.
     // add any singleton credentials...
+    @SuppressWarnings("unused")
     private static final ImmutableSet<Object> SINGLETON_CREDENTIAL_PROVIDERS = ImmutableSet.of();
 
     @Override

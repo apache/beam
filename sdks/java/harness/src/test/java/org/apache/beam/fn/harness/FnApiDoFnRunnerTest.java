@@ -92,7 +92,6 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -189,16 +188,17 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     private static class TestStatefulDoFn extends DoFn<KV<String, String>, String> {
-      private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
-      private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
 
+      @SuppressWarnings("unused")
       @StateId("value")
       private final StateSpec<ValueState<String>> valueStateSpec =
           StateSpecs.value(StringUtf8Coder.of());
 
+      @SuppressWarnings("unused")
       @StateId("bag")
       private final StateSpec<BagState<String>> bagStateSpec = StateSpecs.bag(StringUtf8Coder.of());
 
+      @SuppressWarnings("unused")
       @StateId("combine")
       private final StateSpec<CombiningState<String, String, String>> combiningStateSpec =
           StateSpecs.combining(StringUtf8Coder.of(), new ConcatCombineFn());
@@ -786,8 +786,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
       Iterables.getOnlyElement(context.getTearDownFunctions()).run();
       assertThat(mainOutputValues, empty());
 
-      MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
-
       List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
       SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
       builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
@@ -1106,18 +1104,23 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {
+      @SuppressWarnings("unused")
       @StateId("bag")
       private final StateSpec<BagState<String>> bagStateSpec = StateSpecs.bag(StringUtf8Coder.of());
 
+      @SuppressWarnings("unused")
       @TimerId("event")
       private final TimerSpec eventTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
+      @SuppressWarnings("unused")
       @TimerId("processing")
       private final TimerSpec processingTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
+      @SuppressWarnings("unused")
       @TimerFamily("event-family")
       private final TimerSpec eventTimerFamilySpec = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
+      @SuppressWarnings("unused")
       @TimerFamily("processing-family")
       private final TimerSpec processingTimerFamilySpec =
           TimerSpecs.timerMap(TimeDomain.PROCESSING_TIME);
@@ -2512,7 +2515,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         throws Exception {
       Pipeline p = Pipeline.create();
       PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
+      valuePCollection.apply(View.asSingleton());
       valuePCollection
           .apply(Window.into(SlidingWindows.of(Duration.standardSeconds(1))))
           .apply(TEST_TRANSFORM_ID, ParDo.of(new NonWindowObservingTestSplittableDoFn()));

@@ -664,6 +664,7 @@ public class ParDoSchemaTest implements Serializable {
     DoFn<KV<String, Row>, Row> fn =
         new DoFn<KV<String, Row>, Row>() {
 
+          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<BagState<Row>> bufferState = StateSpecs.rowBag(type);
 
@@ -727,6 +728,7 @@ public class ParDoSchemaTest implements Serializable {
         new DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues>() {
 
           // This should infer the schema.
+          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<BagState<TestStateSchemaValue>> bufferState = StateSpecs.bag();
 
@@ -777,6 +779,7 @@ public class ParDoSchemaTest implements Serializable {
         new DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues>() {
 
           // This should infer the schema.
+          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<SetState<TestStateSchemaValue>> bufferState = StateSpecs.set();
 
@@ -841,10 +844,12 @@ public class ParDoSchemaTest implements Serializable {
     DoFn<KV<String, TestStateSchemaMapEntry>, TestStateSchemaMapEntry> fn =
         new DoFn<KV<String, TestStateSchemaMapEntry>, TestStateSchemaMapEntry>() {
 
+          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<MapState<TestStateSchemaValue, TestStateSchemaValue2>> mapState =
               StateSpecs.map();
 
+          @SuppressWarnings("unused")
           @StateId(countStateId)
           private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
               StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());

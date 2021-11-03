@@ -116,7 +116,6 @@ public class IsmReaderTest {
       cache;
   private DataflowExecutionContext executionContext;
   private DataflowOperationContext operationContext;
-  private SideInputReadCounter sideInputReadCounter;
   private Closeable stateCloseable;
 
   @Before
@@ -139,7 +138,7 @@ public class IsmReaderTest {
     operationContext =
         executionContext.createOperationContext(NameContextsForTests.nameContextForTest());
     stateCloseable = executionContext.getExecutionStateTracker().enterState(state);
-    sideInputReadCounter = new DataflowSideInputReadCounter(executionContext, operationContext, 1);
+    new DataflowSideInputReadCounter(executionContext, operationContext, 1);
   }
 
   @After

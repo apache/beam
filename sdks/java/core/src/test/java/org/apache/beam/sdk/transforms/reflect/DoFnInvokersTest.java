@@ -264,6 +264,7 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.state(stateId, false)).thenReturn(mockState);
 
     class MockFn extends DoFn<String, String> {
+      @SuppressWarnings("unused")
       @StateId(stateId)
       private final StateSpec<ValueState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
 
@@ -285,6 +286,7 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.timer(TimerDeclaration.PREFIX + timerId)).thenReturn(mockTimer);
 
     class MockFn extends DoFn<String, String> {
+      @SuppressWarnings("unused")
       @TimerId(timerId)
       private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -1081,6 +1083,7 @@ public class DoFnInvokersTest {
     @ProcessElement
     public void processThis(ProcessContext c) {}
 
+    @SuppressWarnings("unused")
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -1315,6 +1318,7 @@ public class DoFnInvokersTest {
 
       public String status = "not yet";
 
+      @SuppressWarnings("unused")
       @TimerId(timerId)
       private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -1344,6 +1348,7 @@ public class DoFnInvokersTest {
 
       public IntervalWindow window = null;
 
+      @SuppressWarnings("unused")
       @TimerId(timerId)
       private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 

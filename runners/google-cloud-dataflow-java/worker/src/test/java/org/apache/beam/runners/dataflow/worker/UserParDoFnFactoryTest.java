@@ -143,6 +143,7 @@ public class UserParDoFnFactoryTest {
 
     public static final String STATE_ID = "state-id";
 
+    @SuppressWarnings("unused")
     @StateId(STATE_ID)
     private final StateSpec<ValueState<String>> spec = StateSpecs.value(StringUtf8Coder.of());
 

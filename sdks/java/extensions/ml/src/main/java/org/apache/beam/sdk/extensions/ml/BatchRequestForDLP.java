@@ -47,9 +47,11 @@ class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable
 
   private final Integer batchSizeBytes;
 
+  @SuppressWarnings("unused")
   @StateId("elementsBag")
   private final StateSpec<BagState<KV<String, Table.Row>>> elementsBag = StateSpecs.bag();
 
+  @SuppressWarnings("unused")
   @TimerId("eventTimer")
   private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

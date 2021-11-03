@@ -165,17 +165,21 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
     private static final String AUCTIONS = "auctions";
     private static final String PERSON = "person";
 
+    @SuppressWarnings("unused")
     @StateId(PERSON)
     private static final StateSpec<ValueState<Person>> personSpec = StateSpecs.value(Person.CODER);
 
     private static final String STATE_EXPIRING = "stateExpiring";
 
+    @SuppressWarnings("unused")
     @StateId(AUCTIONS)
     private final StateSpec<BagState<Auction>> auctionsSpec = StateSpecs.bag(Auction.CODER);
 
+    @SuppressWarnings("unused")
     @TimerId(STATE_EXPIRING)
     private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
+    @SuppressWarnings("unused")
     // Used to refer the metrics namespace
     private final String name;
 

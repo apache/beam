@@ -319,15 +319,12 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
-    private final Coder<InputT> inputCoder;
     List<WindowedValue<InputT>> inputElems;
     List<TimerData> firedTimers;
     private boolean started = false;
     private boolean finished = false;
 
-    TestDoFnRunner(Coder<InputT> inputCoder) {
-      this.inputCoder = inputCoder;
-    }
+    TestDoFnRunner(Coder<InputT> inputCoder) {}
 
     @Override
     public DoFn<InputT, OutputT> getFn() {

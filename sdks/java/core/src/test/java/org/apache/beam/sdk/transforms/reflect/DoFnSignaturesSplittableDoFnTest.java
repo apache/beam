@@ -761,6 +761,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     thrown.expectMessage(
         "Has watermark estimator type SomeDefaultWatermarkEstimator, but the DoFn's watermark estimator type must be one of [WatermarkEstimator, ManualWatermarkEstimator] types.");
+    @SuppressWarnings("unused")
     DoFnSignature signature = DoFnSignatures.getSignature(Fn.class);
   }
 

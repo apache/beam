@@ -198,6 +198,7 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     return makeRunner(outputTag, outputManager, windowingStrategy, fn);
   }
 
+  @SuppressWarnings("unused")
   private <InputT, OutputT>
       DoFnRunner<KeyedWorkItem<String, InputT>, KV<String, OutputT>> makeRunner(
           TupleTag<KV<String, OutputT>> outputTag,

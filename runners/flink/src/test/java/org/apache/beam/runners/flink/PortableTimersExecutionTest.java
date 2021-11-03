@@ -149,9 +149,11 @@ public class PortableTimersExecutionTest implements Serializable {
     DoFn<KV<String, Integer>, KV<String, Integer>> testFn =
         new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
+          @SuppressWarnings("unused")
           @TimerId(timerId)
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
+          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<ValueState<String>> stateSpec =
               StateSpecs.value(StringUtf8Coder.of());

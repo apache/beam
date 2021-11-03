@@ -129,9 +129,6 @@ public class Select {
   }
 
   private static class SelectDoFn<T> extends DoFn<T, Row> {
-    private final FieldAccessDescriptor fieldAccessDescriptor;
-    private final Schema inputSchema;
-    private final Schema outputSchema;
     RowSelector rowSelector;
 
     // TODO: This should be the same as resolved so that Beam knows which fields
@@ -142,9 +139,6 @@ public class Select {
 
     public SelectDoFn(
         FieldAccessDescriptor fieldAccessDescriptor, Schema inputSchema, Schema outputSchema) {
-      this.fieldAccessDescriptor = fieldAccessDescriptor;
-      this.inputSchema = inputSchema;
-      this.outputSchema = outputSchema;
       this.rowSelector = new RowSelectorContainer(inputSchema, fieldAccessDescriptor, true);
     }
 

@@ -376,6 +376,7 @@ public class WindmillStateCacheTest {
         cache.forComputation("comp1").forKey(computationKey("comp1", "key1", SHARDING_KEY), 0L, 0L);
     WindmillStateCache.ForKeyAndFamily family1 = keyCache.forFamily("family1");
     WindmillStateCache.ForKeyAndFamily family2 = keyCache.forFamily("family2");
+    @SuppressWarnings("unused")
     WindmillStateCache.ForKeyAndFamily family3 = keyCache.forFamily("family3");
 
     TestState state1 = new TestState("g1");

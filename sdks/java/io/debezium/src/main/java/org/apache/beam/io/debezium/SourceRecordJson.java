@@ -61,7 +61,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @SuppressWarnings({"nullness"})
 public class SourceRecordJson {
-  private final @Nullable SourceRecord sourceRecord;
   private final @Nullable Struct value;
   private final @Nullable Event event;
 
@@ -75,7 +74,6 @@ public class SourceRecordJson {
       throw new IllegalArgumentException();
     }
 
-    this.sourceRecord = sourceRecord;
     this.value = (Struct) sourceRecord.value();
 
     if (this.value == null) {
@@ -190,6 +188,7 @@ public class SourceRecordJson {
   }
 
   /** Depicts a SourceRecord as an Event in order for it to be mapped as JSON. */
+  @SuppressWarnings("unused")
   static class Event implements Serializable {
     private final SourceRecordJson.Event.Metadata metadata;
     private final SourceRecordJson.Event.Before before;
@@ -222,6 +221,7 @@ public class SourceRecordJson {
     }
 
     /** Depicts the metadata within a SourceRecord. It has valuable fields. */
+    @SuppressWarnings("unused")
     static class Metadata implements Serializable {
       private final @Nullable String connector;
       private final @Nullable String version;

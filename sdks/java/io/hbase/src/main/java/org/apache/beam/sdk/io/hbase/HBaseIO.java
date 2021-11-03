@@ -716,7 +716,6 @@ public class HBaseIO {
       HBaseWriterFn(Write write) {
         checkNotNull(write.tableId, "tableId");
         checkNotNull(write.configuration, "configuration");
-        this.write = write;
       }
 
       @Setup
@@ -760,7 +759,6 @@ public class HBaseIO {
         builder.delegate(Write.this);
       }
 
-      private final Write write;
       private long recordsWritten;
 
       private transient Connection connection;

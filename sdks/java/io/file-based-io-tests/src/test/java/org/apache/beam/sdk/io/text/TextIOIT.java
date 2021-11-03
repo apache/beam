@@ -52,8 +52,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Integration tests for {@link org.apache.beam.sdk.io.TextIO}.
@@ -78,7 +76,6 @@ import org.slf4j.LoggerFactory;
  */
 @RunWith(JUnit4.class)
 public class TextIOIT {
-  private static final Logger LOG = LoggerFactory.getLogger(TextIOIT.class);
 
   private static String filenamePrefix;
   private static Integer numberOfTextLines;

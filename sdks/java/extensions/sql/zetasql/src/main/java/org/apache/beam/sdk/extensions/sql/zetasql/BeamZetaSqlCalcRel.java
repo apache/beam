@@ -172,6 +172,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final boolean verifyRowValues;
     private final List<Integer> referencedColumns;
 
+    @SuppressWarnings("unused")
     @FieldAccess("row")
     private final FieldAccessDescriptor fieldAccess;
 

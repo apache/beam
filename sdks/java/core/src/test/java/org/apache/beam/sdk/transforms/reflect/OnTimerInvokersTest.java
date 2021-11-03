@@ -65,6 +65,7 @@ public class OnTimerInvokersTest {
 
       public String status = "not yet";
 
+      @SuppressWarnings("unused")
       @TimerId(timerId)
       private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -96,6 +97,7 @@ public class OnTimerInvokersTest {
 
     public BoundedWindow window = null;
 
+    @SuppressWarnings("unused")
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -111,6 +113,7 @@ public class OnTimerInvokersTest {
   static class StableNameTestDoFn extends DoFn<Void, Void> {
     private static final String TIMER_ID = "timer-id.with specialChars{}";
 
+    @SuppressWarnings("unused")
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 

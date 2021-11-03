@@ -116,7 +116,6 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     inputEstimate = computeWindowingCostEffect(inputEstimate);
 
-    NodeStats estimate;
     // groupCount shows how many columns do we have in group by. One of them might be the windowing.
     int groupCount = groupSet.cardinality() - (windowFn == null ? 0 : 1);
     // This is similar to what Calcite does.If groupCount is zero then then we have only one value

@@ -480,6 +480,7 @@ public class SideInputContainerTest {
             invocation -> {
               Object callback = invocation.getArguments()[3];
               final Runnable callbackRunnable = (Runnable) callback;
+              @SuppressWarnings("unused")
               ListenableFuture<?> result =
                   MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
                       .submit(

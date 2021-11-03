@@ -782,7 +782,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setExperiments(Arrays.asList("upload_graph"));
     Pipeline p = buildDataflowPipeline(options);
-    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+    p.run();
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
@@ -958,8 +958,7 @@ public class DataflowRunnerTest implements Serializable {
                     StandardOpenOption.DELETE_ON_CLOSE));
 
     Pipeline p = buildDataflowPipeline(options);
-
-    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+    p.run();
   }
 
   @Test
@@ -1517,6 +1516,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+                  @SuppressWarnings("unused")
                   @StateId("fizzle")
                   private final StateSpec<MapState<Void, Void>> voidState = StateSpecs.map();
 
@@ -1554,6 +1554,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+                  @SuppressWarnings("unused")
                   @StateId("fizzle")
                   private final StateSpec<SetState<Void>> voidState = StateSpecs.set();
 
@@ -1788,6 +1789,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+                  @SuppressWarnings("unused")
                   @StateId("fizzle")
                   private final StateSpec<ValueState<Void>> voidState = StateSpecs.value();
 

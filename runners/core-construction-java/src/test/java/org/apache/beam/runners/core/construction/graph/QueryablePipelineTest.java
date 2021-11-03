@@ -439,7 +439,6 @@ public class QueryablePipelineTest {
             .putEnvironments("extra-env", RunnerApi.Environment.getDefaultInstance())
             .putPcollections("extra-pc", RunnerApi.PCollection.getDefaultInstance())
             .build();
-    Collection<String> primitiveComponents =
-        QueryablePipeline.getPrimitiveTransformIds(augmentedComponents);
+    QueryablePipeline.getPrimitiveTransformIds(augmentedComponents);
   }
 }

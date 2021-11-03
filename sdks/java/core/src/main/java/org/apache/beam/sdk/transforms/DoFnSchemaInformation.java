@@ -97,7 +97,6 @@ public abstract class DoFnSchemaInformation implements Serializable {
                     inputCoder.getToRowFunction(),
                     parameterCoder.getFromRowFunction(),
                     selectDescriptor,
-                    selectOutputSchema,
                     unbox))
             .build();
 
@@ -146,11 +145,8 @@ public abstract class DoFnSchemaInformation implements Serializable {
 
   private static class ConversionFunction<InputT, OutputT>
       implements SerializableFunction<InputT, OutputT> {
-    private final Schema inputSchema;
     private final SerializableFunction<InputT, Row> toRowFunction;
     private final SerializableFunction<Row, OutputT> fromRowFunction;
-    private final FieldAccessDescriptor selectDescriptor;
-    private final Schema selectOutputSchema;
     private final boolean unbox;
     private final RowSelector rowSelector;
 
@@ -159,13 +155,9 @@ public abstract class DoFnSchemaInformation implements Serializable {
         SerializableFunction<InputT, Row> toRowFunction,
         SerializableFunction<Row, OutputT> fromRowFunction,
         FieldAccessDescriptor selectDescriptor,
-        Schema selectOutputSchema,
         boolean unbox) {
-      this.inputSchema = inputSchema;
       this.toRowFunction = toRowFunction;
       this.fromRowFunction = fromRowFunction;
-      this.selectDescriptor = selectDescriptor;
-      this.selectOutputSchema = selectOutputSchema;
       this.unbox = unbox;
       this.rowSelector = new RowSelectorContainer(inputSchema, selectDescriptor, true);
     }
@@ -175,10 +167,9 @@ public abstract class DoFnSchemaInformation implements Serializable {
         SerializableFunction<InputT, Row> toRowFunction,
         SerializableFunction<Row, OutputT> fromRowFunction,
         FieldAccessDescriptor selectDescriptor,
-        Schema selectOutputSchema,
         boolean unbox) {
       return new ConversionFunction<>(
-          inputSchema, toRowFunction, fromRowFunction, selectDescriptor, selectOutputSchema, unbox);
+          inputSchema, toRowFunction, fromRowFunction, selectDescriptor, unbox);
     }
 
     @Override
@@ -198,10 +189,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
    */
   private static class UnboxingConversionFunction<InputT, OutputT>
       implements SerializableFunction<InputT, OutputT> {
-    private final Schema inputSchema;
     private final SerializableFunction<InputT, Row> toRowFunction;
-    private final FieldAccessDescriptor selectDescriptor;
-    private final Schema selectOutputSchema;
     private final FieldType primitiveType;
     private final TypeDescriptor<?> primitiveOutputType;
     private transient SerializableFunction<InputT, OutputT> conversionFunction;
@@ -213,10 +201,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
         FieldAccessDescriptor selectDescriptor,
         Schema selectOutputSchema,
         TypeDescriptor<?> primitiveOutputType) {
-      this.inputSchema = inputSchema;
       this.toRowFunction = toRowFunction;
-      this.selectDescriptor = selectDescriptor;
-      this.selectOutputSchema = selectOutputSchema;
       this.primitiveType = selectOutputSchema.getField(0).getType();
       this.primitiveOutputType = primitiveOutputType;
       this.rowSelector = new RowSelectorContainer(inputSchema, selectDescriptor, true);

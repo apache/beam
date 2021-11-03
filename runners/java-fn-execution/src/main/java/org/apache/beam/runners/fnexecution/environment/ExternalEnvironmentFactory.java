@@ -68,7 +68,10 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
+
+  @SuppressWarnings("unused")
   private final IdGenerator idGenerator;
+
   private final ControlClientPool.Source clientSource;
 
   private ExternalEnvironmentFactory(

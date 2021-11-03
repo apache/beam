@@ -93,7 +93,7 @@ public class JoinExamples {
                   public void processElement(ProcessContext c) {
                     KV<String, CoGbkResult> e = c.element();
                     String countryCode = e.getKey();
-                    String countryName = "none";
+                    String countryName;
                     countryName = e.getValue().getOnly(countryInfoTag);
                     for (String eventInfo : c.element().getValue().getAll(eventInfoTag)) {
                       // Generate a string that combines information from both collection values

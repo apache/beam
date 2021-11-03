@@ -451,6 +451,7 @@ public class GrpcWindmillServerTest {
         .build();
   }
 
+  @SuppressWarnings("unused")
   private KeyedGetDataResponse makeGetDataResponse(String key, String tag) {
     return KeyedGetDataResponse.newBuilder()
         .setKey(ByteString.copyFromUtf8("key"))

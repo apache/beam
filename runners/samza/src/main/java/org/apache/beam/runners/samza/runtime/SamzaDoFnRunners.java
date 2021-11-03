@@ -239,7 +239,6 @@ public class SamzaDoFnRunners {
     private final WindowingStrategy windowingStrategy;
     private final DoFnRunners.OutputManager outputManager;
     private final StageBundleFactory stageBundleFactory;
-    private final TupleTag<FnOutT> mainOutputTag;
     private final Map<String, TupleTag<?>> idToTupleTagMap;
     private final LinkedBlockingQueue<KV<String, FnOutT>> outputQueue = new LinkedBlockingQueue<>();
     private final BagState<WindowedValue<InT>> bundledEventsBag;
@@ -247,6 +246,7 @@ public class SamzaDoFnRunners {
     private FnDataReceiver<WindowedValue<?>> inputReceiver;
     private StateRequestHandler stateRequestHandler;
 
+    @SuppressWarnings("unused")
     private SdkHarnessDoFnRunner(
         SamzaTimerInternalsFactory<?> timerInternalsFactory,
         WindowingStrategy windowingStrategy,
@@ -260,7 +260,6 @@ public class SamzaDoFnRunners {
       this.windowingStrategy = windowingStrategy;
       this.outputManager = outputManager;
       this.stageBundleFactory = stageBundleFactory;
-      this.mainOutputTag = mainOutputTag;
       this.idToTupleTagMap = idToTupleTagMap;
       this.bundledEventsBag = bundledEventsBag;
       this.stateRequestHandler = stateRequestHandler;

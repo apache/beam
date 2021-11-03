@@ -69,6 +69,7 @@ public class WorkerStatusClientTest {
 
   @Test
   public void testGetWorkerStatusRequestSent() {
+    @SuppressWarnings("unused")
     CompletableFuture<WorkerStatusResponse> workerStatus = client.getWorkerStatus();
     verify(mockObserver).onNext(any(WorkerStatusRequest.class));
   }

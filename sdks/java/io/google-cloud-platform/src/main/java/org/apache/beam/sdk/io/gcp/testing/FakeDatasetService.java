@@ -175,7 +175,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   public List<TableRow> getAllRows(String projectId, String datasetId, String tableId)
       throws InterruptedException, IOException {
     synchronized (tables) {
-      TableContainer tableContainer = getTableContainer(projectId, datasetId, tableId);
+      getTableContainer(projectId, datasetId, tableId);
       return getTableContainer(projectId, datasetId, tableId).getRows();
     }
   }

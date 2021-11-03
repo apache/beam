@@ -40,9 +40,6 @@ public class MapTaskExecutor implements WorkExecutor {
 
   private final ExecutionStateTracker executionStateTracker;
 
-  // Current thread that execute() is running on; null when not running.
-  private @Nullable Thread currentExecutorThread = null;
-
   private final CounterSet counters;
 
   /**
@@ -72,8 +69,8 @@ public class MapTaskExecutor implements WorkExecutor {
     // Save the current thread that is executing so that abort() can interrupt it, we save it before
     // starting the progress reporter thread, therefore ensuring thread safety through implicit
     // serialization of events.
+    // Current thread that execute() is running on; null when not running.
     synchronized (this) {
-      this.currentExecutorThread = Thread.currentThread();
     }
 
     try (Closeable stateCloser = executionStateTracker.activate()) {
@@ -118,7 +115,6 @@ public class MapTaskExecutor implements WorkExecutor {
       }
     } finally {
       synchronized (this) {
-        this.currentExecutorThread = null;
       }
     }
 

@@ -57,7 +57,10 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
 
   private final ProcessManager processManager;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
+
+  @SuppressWarnings("unused")
   private final IdGenerator idGenerator;
+
   private final ControlClientPool.Source clientSource;
   private final PipelineOptions pipelineOptions;
 

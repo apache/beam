@@ -67,7 +67,10 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   private final DockerCommand docker;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
+
+  @SuppressWarnings("unused")
   private final IdGenerator idGenerator;
+
   private final ControlClientPool.Source clientSource;
   private final PipelineOptions pipelineOptions;
 

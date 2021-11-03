@@ -207,6 +207,7 @@ public class BoundedSourceP<T> extends AbstractProcessor implements Traverser {
     @Nonnull
     @Override
     public Collection<? extends Processor> get(int count) {
+      @SuppressWarnings("unused")
       int indexBase = context.memberIndex() * context.localParallelism();
       List<Processor> res = new ArrayList<>(count);
       for (int i = 0; i < count; i++, indexBase++) {

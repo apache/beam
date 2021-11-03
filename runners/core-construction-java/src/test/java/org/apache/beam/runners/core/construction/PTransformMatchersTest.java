@@ -192,6 +192,7 @@ public class PTransformMatchersTest implements Serializable {
       new DoFn<KV<String, Integer>, Integer>() {
         private final String stateId = "mystate";
 
+        @SuppressWarnings("unused")
         @StateId(stateId)
         private final StateSpec<ValueState<Integer>> intState = StateSpecs.value(VarIntCoder.of());
 
@@ -206,6 +207,7 @@ public class PTransformMatchersTest implements Serializable {
       new DoFn<KV<String, Integer>, Integer>() {
         private final String timerId = "myTimer";
 
+        @SuppressWarnings("unused")
         @TimerId(timerId)
         private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

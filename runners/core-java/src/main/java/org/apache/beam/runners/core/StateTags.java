@@ -47,6 +47,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class StateTags {
 
+  @SuppressWarnings("unused")
   private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
 
   public static final Equivalence<StateTag> ID_EQUIVALENCE =

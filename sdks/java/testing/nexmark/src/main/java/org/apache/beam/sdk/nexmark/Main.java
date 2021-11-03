@@ -149,7 +149,7 @@ public class Main {
         appendPerf(options.getPerfFilename(), configuration, perf);
         actual.put(configuration, perf);
         // Summarize what we've run so far.
-        saveSummary(null, configurations, actual, baseline, start, options);
+        saveSummary(null, configurations, actual, baseline, start);
       }
 
       final ImmutableMap<String, String> schema =
@@ -176,7 +176,7 @@ public class Main {
     } finally {
       if (options.getMonitorJobs()) {
         // Report overall performance.
-        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start, options);
+        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start);
         saveJavascript(options.getJavascriptFilename(), configurations, actual, baseline, start);
       }
 
@@ -329,8 +329,7 @@ public class Main {
       Iterable<NexmarkConfiguration> configurations,
       Map<NexmarkConfiguration, NexmarkPerf> actual,
       @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline,
-      Instant start,
-      NexmarkOptions options) {
+      Instant start) {
 
     List<String> lines = new ArrayList<>();
 

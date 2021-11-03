@@ -167,7 +167,6 @@ public class CombineTranslationTest {
           new TestCombineFnWithContext() {
             @Override
             public Integer extractOutput(int[] accumulator, Context c) {
-              Iterable<String> sideInput = c.sideInput(sideInputs);
               return accumulator[0];
             }
           };
@@ -188,9 +187,8 @@ public class CombineTranslationTest {
 
       SdkComponents sdkComponents = SdkComponents.create();
       sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
-      CombinePayload payload =
-          CombineTranslation.CombineGloballyPayloadTranslator.payloadForCombineGlobally(
-              (AppliedPTransform) combine.get(), sdkComponents);
+      CombineTranslation.CombineGloballyPayloadTranslator.payloadForCombineGlobally(
+          (AppliedPTransform) combine.get(), sdkComponents);
     }
   }
 

@@ -476,7 +476,7 @@ class WindmillStateReader {
       throw new RuntimeException("Windmill unexpectedly returned null for request " + request);
     }
 
-    consumeResponse(request, response, toFetch);
+    consumeResponse(response, toFetch);
   }
 
   public long getBytesRead() {
@@ -574,10 +574,7 @@ class WindmillStateReader {
     return keyedDataBuilder.build();
   }
 
-  private void consumeResponse(
-      Windmill.KeyedGetDataRequest request,
-      Windmill.KeyedGetDataResponse response,
-      Set<StateTag<?>> toFetch) {
+  private void consumeResponse(Windmill.KeyedGetDataResponse response, Set<StateTag<?>> toFetch) {
     bytesRead += response.getSerializedSize();
 
     if (response.getFailed()) {

@@ -196,14 +196,13 @@ public class SpannerIOReadTest implements Serializable {
 
     SpannerConfig spannerConfig = getSpannerConfig();
 
-    PCollection<Struct> one =
-        pipeline.apply(
-            "read q",
-            SpannerIO.read()
-                .withSpannerConfig(spannerConfig)
-                .withQuery("SELECT * FROM users")
-                .withQueryName("queryName")
-                .withTimestampBound(timestampBound));
+    pipeline.apply(
+        "read q",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery("SELECT * FROM users")
+            .withQueryName("queryName")
+            .withTimestampBound(timestampBound));
 
     FakeBatchTransactionId id = new FakeBatchTransactionId("runQueryTest");
     when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
@@ -242,14 +241,13 @@ public class SpannerIOReadTest implements Serializable {
 
     SpannerConfig spannerConfig = getSpannerConfig();
 
-    PCollection<Struct> one =
-        pipeline.apply(
-            "read q",
-            SpannerIO.read()
-                .withSpannerConfig(spannerConfig)
-                .withTable("users")
-                .withColumns("id", "name")
-                .withTimestampBound(timestampBound));
+    pipeline.apply(
+        "read q",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withTable("users")
+            .withColumns("id", "name")
+            .withTimestampBound(timestampBound));
 
     FakeBatchTransactionId id = new FakeBatchTransactionId("runReadTest");
     when(mockBatchTx.getBatchTransactionId()).thenReturn(id);

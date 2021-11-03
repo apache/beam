@@ -193,6 +193,7 @@ public class StatefulTeamScore extends LeaderBoard {
      * this case the {@link VarIntCoder}. If the coder is not provided as in {@code
      * StateSpecs.value()}, Beam's coder inference will try to provide a coder automatically.
      */
+    @SuppressWarnings("unused")
     @StateId(TOTAL_SCORE)
     private final StateSpec<ValueState<Integer>> totalScoreSpec =
         StateSpecs.value(VarIntCoder.of());

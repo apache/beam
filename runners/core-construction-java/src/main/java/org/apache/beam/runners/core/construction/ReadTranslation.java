@@ -79,6 +79,7 @@ public class ReadTranslation {
     }
   }
 
+  @SuppressWarnings("unused")
   private static FunctionSpec toProto(BoundedSource<?> source, SdkComponents components) {
     return FunctionSpec.newBuilder()
         .setUrn(JAVA_SERIALIZED_BOUNDED_SOURCE)
@@ -117,6 +118,7 @@ public class ReadTranslation {
             .getPayload());
   }
 
+  @SuppressWarnings("unused")
   private static FunctionSpec toProto(UnboundedSource<?, ?> source, SdkComponents components) {
     return FunctionSpec.newBuilder()
         .setUrn(JAVA_SERIALIZED_UNBOUNDED_SOURCE)

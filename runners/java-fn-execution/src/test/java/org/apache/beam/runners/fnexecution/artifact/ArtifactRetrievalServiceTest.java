@@ -28,7 +28,6 @@ import java.util.Map;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessChannelBuilder;
@@ -47,9 +46,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ArtifactRetrievalServiceTest {
   private static final int TEST_BUFFER_SIZE = 1 << 10;
-  private GrpcFnServer<ArtifactRetrievalService> retrievalServer;
   private ArtifactRetrievalService retrievalService;
-  private ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub retrievalStub;
   private ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalBlockingStub;
   private Path stagingDir;
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -66,13 +63,15 @@ public class ArtifactRetrievalServiceTest {
             .start());
     ManagedChannel channel =
         grpcCleanup.register(InProcessChannelBuilder.forName("server").build());
-    retrievalStub = ArtifactRetrievalServiceGrpc.newStub(channel);
+    @SuppressWarnings("unused")
+    ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub retrievalStub =
+        ArtifactRetrievalServiceGrpc.newStub(channel);
     retrievalBlockingStub = ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
 
     stagingDir = tempFolder.newFolder("staging").toPath();
   }
 
-  private void stageFiles(Path dir, Map<String, String> files) throws IOException {
+  private void stageFiles(Map<String, String> files) throws IOException {
     for (Map.Entry<String, String> entry : files.entrySet()) {
       Files.write(
           Paths.get(stagingDir.toString(), entry.getKey()),
@@ -122,7 +121,7 @@ public class ArtifactRetrievalServiceTest {
     Map<String, String> artifacts =
         ImmutableMap.of(
             "a.txt", "a", "b.txt", "bbb", "c.txt", Strings.repeat("cxy", TEST_BUFFER_SIZE * 3 / 4));
-    stageFiles(stagingDir, artifacts);
+    stageFiles(artifacts);
     for (Map.Entry<String, String> artifact : artifacts.entrySet()) {
       assertEquals(
           artifact.getValue(),

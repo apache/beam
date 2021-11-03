@@ -289,9 +289,11 @@ public final class Deduplicate {
     private static final String EXPIRY_TIMER = "expiryTimer";
     private static final String SEEN_STATE = "seen";
 
+    @SuppressWarnings("unused")
     @TimerId(EXPIRY_TIMER)
     private final TimerSpec expiryTimerSpec;
 
+    @SuppressWarnings("unused")
     @StateId(SEEN_STATE)
     private final StateSpec<ValueState<Boolean>> seenState = StateSpecs.value(BooleanCoder.of());
 

@@ -276,6 +276,7 @@ public class DataflowPipelineTranslator {
      * purposely wrapped inside of a {@link Supplier} to prevent the incorrect usage of the {@link
      * AtomicLong} that is contained.
      */
+    @SuppressWarnings("unused")
     private final Supplier<Long> idGenerator =
         new Supplier<Long>() {
           private final AtomicLong generator = new AtomicLong(1L);
@@ -555,8 +556,8 @@ public class DataflowPipelineTranslator {
 
       StepTranslator stepContext = new StepTranslator(this, step);
       stepContext.addInput(PropertyNames.USER_NAME, getFullName(transform));
-      stepContext.addDisplayData(step, stepName, transform);
-      stepContext.addResourceHints(step, stepName, transform.getResourceHints());
+      stepContext.addDisplayData(transform);
+      stepContext.addResourceHints(transform.getResourceHints());
       LOG.info("Adding {} as step {}", getCurrentTransform(transform).getFullName(), stepName);
       return stepContext;
     }
@@ -643,7 +644,7 @@ public class DataflowPipelineTranslator {
 
     @Override
     public void addEncodingInput(Coder<?> coder) {
-      CloudObject encoding = translateCoder(coder, translator);
+      CloudObject encoding = translateCoder(coder);
       addObject(getProperties(), PropertyNames.ENCODING, encoding);
     }
 
@@ -756,7 +757,7 @@ public class DataflowPipelineTranslator {
       if (valueCoder != null) {
         // Verify that encoding can be decoded, in order to catch serialization
         // failures as early as possible.
-        CloudObject encoding = translateCoder(valueCoder, translator);
+        CloudObject encoding = translateCoder(valueCoder);
         addObject(outputInfo, PropertyNames.ENCODING, encoding);
         translator.outputCoders.put(value, valueCoder);
       }
@@ -764,13 +765,13 @@ public class DataflowPipelineTranslator {
       outputInfoList.add(outputInfo);
     }
 
-    private void addDisplayData(Step step, String stepName, HasDisplayData hasDisplayData) {
+    private void addDisplayData(HasDisplayData hasDisplayData) {
       DisplayData displayData = DisplayData.from(hasDisplayData);
       List<Map<String, Object>> list = MAPPER.convertValue(displayData, List.class);
       addList(getProperties(), PropertyNames.DISPLAY_DATA, list);
     }
 
-    private void addResourceHints(Step step, String stepName, ResourceHints hints) {
+    private void addResourceHints(ResourceHints hints) {
       Map<String, Object> urlEncodedHints = new HashMap<>();
       for (Entry<String, ResourceHint> entry : hints.hints().entrySet()) {
         try {
@@ -994,11 +995,9 @@ public class DataflowPipelineTranslator {
                 transform.getSideInputs().values(),
                 context);
             translateOutputs(context.getOutputs(transform), stepContext);
-            String ptransformId =
-                context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
+            context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
             translateFn(
                 stepContext,
-                ptransformId,
                 transform.getFn(),
                 context.getInput(transform).getWindowingStrategy(),
                 transform.getSideInputs().values(),
@@ -1041,11 +1040,9 @@ public class DataflowPipelineTranslator {
                 context);
             stepContext.addOutput(
                 transform.getMainOutputTag().getId(), context.getOutput(transform));
-            String ptransformId =
-                context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
+            context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
             translateFn(
                 stepContext,
-                ptransformId,
                 transform.getFn(),
                 context.getInput(transform).getWindowingStrategy(),
                 transform.getSideInputs().values(),
@@ -1180,11 +1177,9 @@ public class DataflowPipelineTranslator {
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
             translateOutputs(context.getOutputs(transform), stepContext);
-            String ptransformId =
-                context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
+            context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
             translateFn(
                 stepContext,
-                ptransformId,
                 transform.getFn(),
                 transform.getInputWindowingStrategy(),
                 transform.getSideInputs(),
@@ -1200,8 +1195,7 @@ public class DataflowPipelineTranslator {
                 translateCoder(
                     KvCoder.of(
                         transform.getRestrictionCoder(),
-                        transform.getWatermarkEstimatorStateCoder()),
-                    context));
+                        transform.getWatermarkEstimatorStateCoder())));
           }
         });
   }
@@ -1233,7 +1227,6 @@ public class DataflowPipelineTranslator {
 
   private static void translateFn(
       StepTranslationContext stepContext,
-      String ptransformId,
       DoFn fn,
       WindowingStrategy windowingStrategy,
       Iterable<PCollectionView<?>> sideInputs,
@@ -1284,7 +1277,7 @@ public class DataflowPipelineTranslator {
     }
   }
 
-  private static CloudObject translateCoder(Coder<?> coder, TranslationContext context) {
+  private static CloudObject translateCoder(Coder<?> coder) {
     return CloudObjects.asCloudObject(coder, null);
   }
 }

@@ -130,10 +130,12 @@ public class PortableStateExecutionTest implements Serializable {
                 "statefulDoFn",
                 ParDo.of(
                     new DoFn<KV<String, Integer>, KV<String, String>>() {
+                      @SuppressWarnings("unused")
                       @StateId("valueState")
                       private final StateSpec<ValueState<Integer>> valueStateSpec =
                           StateSpecs.value(VarIntCoder.of());
 
+                      @SuppressWarnings("unused")
                       @StateId("valueState2")
                       private final StateSpec<ValueState<Integer>> valueStateSpec2 =
                           StateSpecs.value(VarIntCoder.of());

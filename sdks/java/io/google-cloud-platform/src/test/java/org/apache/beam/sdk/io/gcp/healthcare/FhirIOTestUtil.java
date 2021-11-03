@@ -44,7 +44,6 @@ class FhirIOTestUtil {
   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
   private static Stream<String> readPrettyBundles(String version) {
-    ClassLoader classLoader = FhirIOTestUtil.class.getClassLoader();
     Path resourceDir = Paths.get("build", "resources", "test", version);
     String absolutePath = resourceDir.toFile().getAbsolutePath();
     File dir = new File(absolutePath);

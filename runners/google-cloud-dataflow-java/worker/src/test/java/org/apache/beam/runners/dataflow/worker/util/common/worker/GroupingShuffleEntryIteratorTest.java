@@ -146,6 +146,7 @@ public class GroupingShuffleEntryIteratorTest {
     options
         .as(DataflowPipelineDebugOptions.class)
         .setExperiments(Lists.newArrayList(Experiment.IntertransformIO.getName()));
+    @SuppressWarnings("unused")
     BatchModeExecutionContext spyExecutionContext =
         Mockito.spy(BatchModeExecutionContext.forTesting(options, "STAGE"));
 

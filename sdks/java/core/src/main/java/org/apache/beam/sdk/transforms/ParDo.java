@@ -430,7 +430,7 @@ public class ParDo {
     }
   }
 
-  private static void validateStateApplicableForInput(DoFn<?, ?> fn, PCollection<?> input) {
+  private static void validateStateApplicableForInput(PCollection<?> input) {
     Coder<?> inputCoder = input.getCoder();
     checkArgument(
         inputCoder instanceof KvCoder,
@@ -939,7 +939,7 @@ public class ParDo {
 
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       if (signature.usesState() || signature.usesTimers()) {
-        validateStateApplicableForInput(fn, input);
+        validateStateApplicableForInput(input);
       }
 
       validateSideInputTypes(sideInputs, fn);

@@ -20,12 +20,9 @@ package org.apache.beam.runners.spark;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
 
-import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RegexMatcher;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -40,17 +37,11 @@ public class GlobalWatermarkHolderTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Rule public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
-
-  // only needed in-order to get context from the SparkContextFactory.
-  private static final SparkPipelineOptions options =
-      PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
-
   private static final String INSTANT_PATTERN =
       "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}Z";
 
   @Test
   public void testLowHighWatermarksAdvance() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
 
     Instant instant = new Instant(0);
     // low == high.
@@ -96,8 +87,6 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testSynchronizedTimeMonotonic() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-
     Instant instant = new Instant(0);
     GlobalWatermarkHolder.add(
         1,
@@ -118,8 +107,6 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testMultiSource() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-
     Instant instant = new Instant(0);
     GlobalWatermarkHolder.add(
         1,

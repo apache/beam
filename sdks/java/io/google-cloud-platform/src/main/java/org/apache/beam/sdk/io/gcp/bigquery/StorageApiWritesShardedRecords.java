@@ -251,10 +251,12 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     private @Nullable DatasetService datasetServiceInternal = null;
 
     // Stores the current stream for this key.
+    @SuppressWarnings("unused")
     @StateId("streamName")
     private final StateSpec<ValueState<String>> streamNameSpec = StateSpecs.value();
 
     // Stores the current stream offset.
+    @SuppressWarnings("unused")
     @StateId("streamOffset")
     private final StateSpec<ValueState<Long>> streamOffsetSpec = StateSpecs.value();
 

@@ -94,10 +94,12 @@ public class SamzaStoreStateInternalsTest implements Serializable {
     DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
         new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
 
+          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<MapState<String, Integer>> mapState =
               StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
 
+          @SuppressWarnings("unused")
           @StateId(countStateId)
           private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
               StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -149,9 +151,11 @@ public class SamzaStoreStateInternalsTest implements Serializable {
     DoFn<KV<String, Integer>, Set<Integer>> fn =
         new DoFn<KV<String, Integer>, Set<Integer>>() {
 
+          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<SetState<Integer>> setState = StateSpecs.set(VarIntCoder.of());
 
+          @SuppressWarnings("unused")
           @StateId(countStateId)
           private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
               StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -257,6 +261,7 @@ public class SamzaStoreStateInternalsTest implements Serializable {
     DoFn<KV<String, Integer>, Set<Integer>> fn =
         new DoFn<KV<String, Integer>, Set<Integer>>() {
 
+          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<SetState<Integer>> setState = StateSpecs.set(VarIntCoder.of());
 

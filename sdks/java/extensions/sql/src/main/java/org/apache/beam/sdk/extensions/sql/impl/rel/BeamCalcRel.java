@@ -205,6 +205,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     private final boolean verifyRowValues;
     private final List<String> jarPaths;
 
+    @SuppressWarnings("unused")
     @FieldAccess("row")
     private final FieldAccessDescriptor fieldAccess;
 

@@ -285,10 +285,12 @@ public class KafkaTableProviderIT {
       this.expected = expected;
     }
 
+    @SuppressWarnings("unused")
     @StateId("seenValues")
     private final StateSpec<BagState<Row>> seenRows =
         StateSpecs.bag(RowCoder.of(TEST_TABLE_SCHEMA));
 
+    @SuppressWarnings("unused")
     @StateId("count")
     private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
 

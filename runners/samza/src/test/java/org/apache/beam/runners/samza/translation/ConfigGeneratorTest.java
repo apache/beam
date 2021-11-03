@@ -222,6 +222,7 @@ public class ConfigGeneratorTest {
                 new DoFn<KV<String, String>, Void>() {
                   private static final String testState = "testState";
 
+                  @SuppressWarnings("unused")
                   @StateId(testState)
                   private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
 
@@ -264,6 +265,7 @@ public class ConfigGeneratorTest {
                 new DoFn<KV<String, String>, KV<String, String>>() {
                   private static final String testState = "testState";
 
+                  @SuppressWarnings("unused")
                   @StateId(testState)
                   private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
 
@@ -278,6 +280,7 @@ public class ConfigGeneratorTest {
                 new DoFn<KV<String, String>, Void>() {
                   private static final String testState = "testState";
 
+                  @SuppressWarnings("unused")
                   @StateId(testState)
                   private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
 

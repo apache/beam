@@ -89,10 +89,12 @@ public class ProcessBundleDescriptorsTest implements Serializable {
             ParDo.of(
                 new DoFn<KV<Void, String>, KV<Void, String>>() {
 
+                  @SuppressWarnings("unused")
                   @StateId("stateId")
                   private final StateSpec<BagState<String>> bufferState =
                       StateSpecs.bag(StringUtf8Coder.of());
 
+                  @SuppressWarnings("unused")
                   @TimerId("timerId")
                   private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

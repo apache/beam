@@ -65,7 +65,7 @@ public class BeamAggregationRule extends RelOptRule {
       return;
     }
 
-    RelNode x = updateWindow(call, aggregate, project);
+    RelNode x = updateWindow(aggregate, project);
     if (x == null) {
       // Non-windowed case should be handled by the BeamBasicAggregationRule
       return;
@@ -73,7 +73,7 @@ public class BeamAggregationRule extends RelOptRule {
     call.transformTo(x);
   }
 
-  private static RelNode updateWindow(RelOptRuleCall call, Aggregate aggregate, Project project) {
+  private static RelNode updateWindow(Aggregate aggregate, Project project) {
     ImmutableBitSet groupByFields = aggregate.getGroupSet();
     ArrayList<RexNode> projects = new ArrayList(project.getProjects());
 

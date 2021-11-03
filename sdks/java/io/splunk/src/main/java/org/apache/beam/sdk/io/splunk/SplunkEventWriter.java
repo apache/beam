@@ -73,12 +73,15 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
   private static final String COUNT_STATE_NAME = "count";
   private static final String TIME_ID_NAME = "expiry";
 
+  @SuppressWarnings("unused")
   @StateId(BUFFER_STATE_NAME)
   private final StateSpec<BagState<SplunkEvent>> buffer = StateSpecs.bag();
 
+  @SuppressWarnings("unused")
   @StateId(COUNT_STATE_NAME)
   private final StateSpec<ValueState<Long>> count = StateSpecs.value();
 
+  @SuppressWarnings("unused")
   @TimerId(TIME_ID_NAME)
   private final TimerSpec expirySpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 

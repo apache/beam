@@ -83,9 +83,11 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
     this.topics = topics;
   }
 
+  @SuppressWarnings("unused")
   @TimerId(TIMER_ID)
   private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
+  @SuppressWarnings("unused")
   @StateId(STATE_ID)
   private final StateSpec<BagState<TopicPartition>> bagStateSpec =
       StateSpecs.bag(new TopicPartitionCoder());

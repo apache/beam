@@ -1123,7 +1123,6 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:TimeUnitConversionChecker:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UnusedVariable:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnusedNestedClass:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
       }

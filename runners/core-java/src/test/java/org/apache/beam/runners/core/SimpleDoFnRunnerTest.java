@@ -391,6 +391,7 @@ public class SimpleDoFnRunnerTest {
 
     static final String TIMER_ID = "throwingTimerId";
 
+    @SuppressWarnings("unused")
     @TimerId(TIMER_ID)
     private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -430,6 +431,7 @@ public class SimpleDoFnRunnerTest {
       this.onTimerInvocations = new ArrayList<>();
     }
 
+    @SuppressWarnings("unused")
     @TimerId(TIMER_ID)
     private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
