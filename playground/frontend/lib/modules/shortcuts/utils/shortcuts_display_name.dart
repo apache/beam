@@ -15,19 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
+import 'package:flutter/services.dart';
+import 'package:playground/modules/shortcuts/models/shortcut.dart';
 
-/** SerializableRexInputRef. */
-public class SerializableRexInputRef extends SerializableRexNode {
-  private int index;
+const kMetaKeyName = 'CMD/CTRL';
+const kShortcutKeyJoinSymbol = ' + ';
 
-  public SerializableRexInputRef(RexInputRef rexInputRef) {
-    index = rexInputRef.getIndex();
+String getShortcutDisplayName(Shortcut shortcut) {
+  return shortcut.shortcuts.keys
+      .map((e) => getKeyDisplayName(e))
+      .join(kShortcutKeyJoinSymbol);
+}
+
+String getKeyDisplayName(LogicalKeyboardKey e) {
+  if (e.keyId == LogicalKeyboardKey.meta.keyId) {
+    return kMetaKeyName;
   }
-
-  public int getIndex() {
-    return index;
-  }
+  return e.keyLabel;
 }

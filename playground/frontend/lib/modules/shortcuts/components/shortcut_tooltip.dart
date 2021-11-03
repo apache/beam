@@ -15,19 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
+import 'package:flutter/material.dart';
+import 'package:playground/modules/shortcuts/models/shortcut.dart';
+import 'package:playground/modules/shortcuts/utils/shortcuts_display_name.dart';
 
-/** SerializableRexInputRef. */
-public class SerializableRexInputRef extends SerializableRexNode {
-  private int index;
+class ShortcutTooltip extends StatelessWidget {
+  final Shortcut shortcut;
+  final Widget child;
 
-  public SerializableRexInputRef(RexInputRef rexInputRef) {
-    index = rexInputRef.getIndex();
-  }
+  const ShortcutTooltip({
+    Key? key,
+    required this.shortcut,
+    required this.child,
+  }) : super(key: key);
 
-  public int getIndex() {
-    return index;
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: getShortcutDisplayName(shortcut),
+      child: child,
+    );
   }
 }

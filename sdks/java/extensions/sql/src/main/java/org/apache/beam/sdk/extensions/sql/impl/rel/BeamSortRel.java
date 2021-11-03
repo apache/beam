@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -51,18 +51,19 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollation;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollationImpl;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelFieldCollation;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Sort;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollationImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelFieldCollation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Sort;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
@@ -108,8 +109,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       RelTraitSet traits,
       RelNode child,
       RelCollation collation,
-      RexNode offset,
-      RexNode fetch) {
+      @Nullable RexNode offset,
+      @Nullable RexNode fetch) {
     super(cluster, traits, child, collation, offset, fetch);
 
     // https://issues.apache.org/jira/browse/CALCITE-4079?focusedCommentId=17165904&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-17165904

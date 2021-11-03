@@ -29,15 +29,15 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableBiMap;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.ByteString;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlTypeNameSpec;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlTypeNameSpec;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
@@ -203,7 +203,11 @@ public class CalciteUtils {
   }
 
   public static FieldType toFieldType(SqlTypeNameSpec sqlTypeName) {
-    return toFieldType(SqlTypeName.get(sqlTypeName.getTypeName().getSimple()));
+    return toFieldType(
+        Preconditions.checkArgumentNotNull(
+            SqlTypeName.get(sqlTypeName.getTypeName().getSimple()),
+            "Failed to find Calcite type with name '%s'",
+            sqlTypeName.getTypeName().getSimple()));
   }
 
   public static FieldType toFieldType(SqlTypeName sqlTypeName) {
@@ -239,10 +243,19 @@ public class CalciteUtils {
     switch (calciteType.getSqlTypeName()) {
       case ARRAY:
       case MULTISET:
-        return FieldType.array(toFieldType(calciteType.getComponentType()));
+        return FieldType.array(
+            toFieldType(
+                Preconditions.checkArgumentNotNull(
+                    calciteType.getComponentType(),
+                    "Encountered MULTISET type with null component type")));
       case MAP:
         return FieldType.map(
-            toFieldType(calciteType.getKeyType()), toFieldType(calciteType.getValueType()));
+            toFieldType(
+                Preconditions.checkArgumentNotNull(
+                    calciteType.getKeyType(), "Encountered MAP type with null key type.")),
+            toFieldType(
+                Preconditions.checkArgumentNotNull(
+                    calciteType.getValueType(), "Encountered MAP type with null value type.")));
       case ROW:
         return FieldType.row(toSchema(calciteType));
 
