@@ -218,7 +218,7 @@ public class WindowEvaluatorFactoryTest {
                 valueInGlobalWindow.getTimestamp(),
                 new IntervalWindow(
                     valueInGlobalWindow.getTimestamp(),
-                    valueInGlobalWindow.getTimestamp().plus(1L)),
+                    valueInGlobalWindow.getTimestamp().plus(Duration.millis(1L))),
                 valueInGlobalWindow.getPane()),
 
             // Value in interval window mapped to the same window
@@ -234,7 +234,7 @@ public class WindowEvaluatorFactoryTest {
                 valueInGlobalAndTwoIntervalWindows.getTimestamp(),
                 new IntervalWindow(
                     valueInGlobalAndTwoIntervalWindows.getTimestamp(),
-                    valueInGlobalAndTwoIntervalWindows.getTimestamp().plus(1L)),
+                    valueInGlobalAndTwoIntervalWindows.getTimestamp().plus(Duration.millis(1L))),
                 valueInGlobalAndTwoIntervalWindows.getPane()),
             isSingleWindowedValue(
                 valueInGlobalAndTwoIntervalWindows.getValue(),
@@ -281,7 +281,8 @@ public class WindowEvaluatorFactoryTest {
     @Override
     public Collection<BoundedWindow> assignWindows(AssignContext c) throws Exception {
       if (c.window().equals(GlobalWindow.INSTANCE)) {
-        return Collections.singleton(new IntervalWindow(c.timestamp(), c.timestamp().plus(1L)));
+        return Collections.singleton(
+            new IntervalWindow(c.timestamp(), c.timestamp().plus(Duration.millis(1L))));
       }
       return Collections.singleton(c.window());
     }

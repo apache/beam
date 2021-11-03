@@ -40,6 +40,8 @@ public class GrpcContextHeaderAccessorProvider {
       Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
   private static final Context.Key<String> SDK_WORKER_CONTEXT_KEY = Context.key("worker_id");
   private static final GrpcHeaderAccessor HEADER_ACCESSOR = new GrpcHeaderAccessor();
+
+  @SuppressWarnings("UnnecessaryAnonymousClass")
   private static final ServerInterceptor INTERCEPTOR =
       new ServerInterceptor() {
         @Override

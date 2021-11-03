@@ -18,6 +18,10 @@
 
 import 'package:playground/constants/assets.dart';
 
+const kBottomOutputPlacementName = 'Bottom';
+const kRightOutputPlacementName = 'Right';
+const kLeftOutputPlacementName = 'Left';
+
 enum OutputPlacement {
   right,
   left,
@@ -33,6 +37,19 @@ extension OutputPlacementToIcon on OutputPlacement {
         return kOutputRightIconAsset;
       case OutputPlacement.left:
         return kOutputLeftIconAsset;
+    }
+  }
+}
+
+extension OutputPlacementName on OutputPlacement {
+  String get name {
+    switch (this) {
+      case OutputPlacement.bottom:
+        return kBottomOutputPlacementName;
+      case OutputPlacement.right:
+        return kRightOutputPlacementName;
+      case OutputPlacement.left:
+        return kLeftOutputPlacementName;
     }
   }
 }

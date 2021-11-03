@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import static java.lang.Integer.MAX_VALUE;
 import static org.apache.beam.sdk.io.jdbc.SchemaUtil.checkNullabilityForFields;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -320,8 +319,6 @@ public class JdbcIO {
    */
   public static <T> ReadWithPartitions<T> readWithPartitions() {
     return new AutoValue_JdbcIO_ReadWithPartitions.Builder<T>()
-        .setLowerBound(DEFAULT_LOWER_BOUND)
-        .setUpperBound(DEFAULT_UPPER_BOUND)
         .setNumPartitions(DEFAULT_NUM_PARTITIONS)
         .build();
   }
@@ -331,9 +328,6 @@ public class JdbcIO {
   // Default values used from fluent backoff.
   private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(1);
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
-  // Default values used for partitioning a table
-  private static final int DEFAULT_LOWER_BOUND = 0;
-  private static final int DEFAULT_UPPER_BOUND = MAX_VALUE;
   private static final int DEFAULT_NUM_PARTITIONS = 200;
 
   /**
@@ -960,13 +954,13 @@ public class JdbcIO {
 
     abstract @Nullable Coder<T> getCoder();
 
-    abstract int getNumPartitions();
+    abstract Integer getNumPartitions();
 
     abstract @Nullable String getPartitionColumn();
 
-    abstract int getLowerBound();
+    abstract @Nullable Long getLowerBound();
 
-    abstract int getUpperBound();
+    abstract @Nullable Long getUpperBound();
 
     abstract @Nullable String getTable();
 
@@ -982,13 +976,13 @@ public class JdbcIO {
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
-      abstract Builder<T> setNumPartitions(int numPartitions);
+      abstract Builder<T> setNumPartitions(Integer numPartitions);
 
       abstract Builder<T> setPartitionColumn(String partitionColumn);
 
-      abstract Builder<T> setLowerBound(int lowerBound);
+      abstract Builder<T> setLowerBound(Long lowerBound);
 
-      abstract Builder<T> setUpperBound(int upperBound);
+      abstract Builder<T> setUpperBound(Long upperBound);
 
       abstract Builder<T> setTable(String tableName);
 
@@ -1030,11 +1024,11 @@ public class JdbcIO {
       return toBuilder().setPartitionColumn(partitionColumn).build();
     }
 
-    public ReadWithPartitions<T> withLowerBound(int lowerBound) {
+    public ReadWithPartitions<T> withLowerBound(Long lowerBound) {
       return toBuilder().setLowerBound(lowerBound).build();
     }
 
-    public ReadWithPartitions<T> withUpperBound(int upperBound) {
+    public ReadWithPartitions<T> withUpperBound(Long upperBound) {
       return toBuilder().setUpperBound(upperBound).build();
     }
 
@@ -1052,6 +1046,9 @@ public class JdbcIO {
           getDataSourceProviderFn(),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
       checkNotNull(getPartitionColumn(), "withPartitionColumn() is required");
+      checkArgument(
+          getUpperBound() != null && getLowerBound() != null,
+          "Upper and lower bounds are mandatory parameters for JdbcIO.readWithPartitions");
       checkNotNull(getTable(), "withTable() is required");
       checkArgument(
           getLowerBound() < getUpperBound(),
@@ -1060,26 +1057,20 @@ public class JdbcIO {
           getUpperBound() - getLowerBound() >= getNumPartitions(),
           "The specified number of partitions is more than the difference between upper bound and lower bound");
 
-      if (getUpperBound() == MAX_VALUE || getLowerBound() == 0) {
-        refineBounds(input);
-      }
-
-      int stride = (getUpperBound() - getLowerBound()) / getNumPartitions();
-      PCollection<List<Integer>> params =
+      PCollection<KV<Integer, KV<Long, Long>>> params =
           input.apply(
               Create.of(
                   Collections.singletonList(
-                      Arrays.asList(getLowerBound(), getUpperBound(), getNumPartitions()))));
-      PCollection<KV<String, Iterable<Integer>>> ranges =
+                      KV.of(getNumPartitions(), KV.of(getLowerBound(), getUpperBound())))));
+      PCollection<KV<String, Iterable<Long>>> ranges =
           params
               .apply("Partitioning", ParDo.of(new PartitioningFn()))
               .apply("Group partitions", GroupByKey.create());
 
       return ranges.apply(
           "Read ranges",
-          JdbcIO.<KV<String, Iterable<Integer>>, T>readAll()
+          JdbcIO.<KV<String, Iterable<Long>>, T>readAll()
               .withDataSourceProviderFn(getDataSourceProviderFn())
-              .withFetchSize(stride)
               .withQuery(
                   String.format(
                       "select * from %1$s where %2$s >= ? and %2$s < ?",
@@ -1087,24 +1078,13 @@ public class JdbcIO {
               .withCoder(getCoder())
               .withRowMapper(getRowMapper())
               .withParameterSetter(
-                  (PreparedStatementSetter<KV<String, Iterable<Integer>>>)
+                  (PreparedStatementSetter<KV<String, Iterable<Long>>>)
                       (element, preparedStatement) -> {
                         String[] range = element.getKey().split(",", -1);
-                        preparedStatement.setInt(1, Integer.parseInt(range[0]));
-                        preparedStatement.setInt(2, Integer.parseInt(range[1]));
+                        preparedStatement.setLong(1, Long.parseLong(range[0]));
+                        preparedStatement.setLong(2, Long.parseLong(range[1]));
                       })
               .withOutputParallelization(false));
-    }
-
-    private void refineBounds(PBegin input) {
-      Integer[] bounds =
-          JdbcUtil.getBounds(input, getTable(), getDataSourceProviderFn(), getPartitionColumn());
-      if (getLowerBound() == 0) {
-        withLowerBound(bounds[0]);
-      }
-      if (getUpperBound() == MAX_VALUE) {
-        withUpperBound(bounds[1]);
-      }
     }
 
     @Override

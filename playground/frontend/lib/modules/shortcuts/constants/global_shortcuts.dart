@@ -44,59 +44,67 @@ class NewExampleIntent extends Intent {
   const NewExampleIntent();
 }
 
+final kRunShortcut = Shortcut(
+  shortcuts: LogicalKeySet(
+    LogicalKeyboardKey.meta,
+    LogicalKeyboardKey.enter,
+  ),
+  actionIntent: const RunIntent(),
+  name: kRunText,
+  createAction: (BuildContext context) => CallbackAction(
+    onInvoke: (_) => Provider.of<PlaygroundState>(
+      context,
+      listen: false,
+    ).runCode(),
+  ),
+);
+
+final kResetShortcut = Shortcut(
+  shortcuts: LogicalKeySet(
+    LogicalKeyboardKey.meta,
+    LogicalKeyboardKey.shift,
+    LogicalKeyboardKey.keyE,
+  ),
+  actionIntent: const ResetIntent(),
+  name: kResetText,
+  createAction: (BuildContext context) => CallbackAction(
+    onInvoke: (_) => Provider.of<PlaygroundState>(
+      context,
+      listen: false,
+    ).reset(),
+  ),
+);
+
+final kClearOutputShortcut = Shortcut(
+  shortcuts: LogicalKeySet(
+    LogicalKeyboardKey.meta,
+    LogicalKeyboardKey.keyB,
+  ),
+  actionIntent: const ClearOutputIntent(),
+  name: kClearOutputText,
+  createAction: (BuildContext context) => CallbackAction(
+    onInvoke: (_) => Provider.of<PlaygroundState>(
+      context,
+      listen: false,
+    ).clearOutput(),
+  ),
+);
+
+final kNewExampleShortcut = Shortcut(
+  shortcuts: LogicalKeySet(
+    LogicalKeyboardKey.meta,
+    LogicalKeyboardKey.keyM,
+  ),
+  actionIntent: const NewExampleIntent(),
+  name: kNewExampleText,
+  createAction: (_) => CallbackAction(
+    onInvoke: (_) => launch('/'),
+  ),
+);
+
 final List<Shortcut> globalShortcuts = [
-  Shortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.enter,
-    ),
-    actionIntent: const RunIntent(),
-    name: kRunText,
-    createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => Provider.of<PlaygroundState>(
-        context,
-        listen: false,
-      ).runCode(),
-    ),
-  ),
-  Shortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.shift,
-      LogicalKeyboardKey.keyE,
-    ),
-    actionIntent: const ResetIntent(),
-    name: kResetText,
-    createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => Provider.of<PlaygroundState>(
-        context,
-        listen: false,
-      ).reset(),
-    ),
-  ),
-  Shortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.keyB,
-    ),
-    actionIntent: const ClearOutputIntent(),
-    name: kClearOutputText,
-    createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => Provider.of<PlaygroundState>(
-        context,
-        listen: false,
-      ).clearOutput(),
-    ),
-  ),
-  Shortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.keyM,
-    ),
-    actionIntent: const NewExampleIntent(),
-    name: kNewExampleText,
-    createAction: (_) => CallbackAction(
-      onInvoke: (_) => launch('/'),
-    ),
-  ),
+  kRunShortcut,
+  kResetShortcut,
+  kClearOutputShortcut,
+  kNewExampleShortcut,
 ];

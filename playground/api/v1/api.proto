@@ -31,11 +31,20 @@ enum Sdk {
 
 enum Status {
   STATUS_UNSPECIFIED = 0;
-  STATUS_EXECUTING = 1;
-  STATUS_FINISHED = 2;
-  STATUS_ERROR = 3;
+  STATUS_VALIDATING = 1;
+  STATUS_VALIDATION_ERROR = 2;
+  STATUS_COMPILING = 3;
   STATUS_COMPILE_ERROR = 4;
-  STATUS_RUN_TIMEOUT = 5;
+  STATUS_EXECUTING = 5;
+  STATUS_FINISHED = 6;
+  STATUS_ERROR = 7;
+  STATUS_RUN_TIMEOUT = 8;
+}
+
+enum ExampleType {
+  EXAMPLE_TYPE_DEFAULT = 0;
+  EXAMPLE_TYPE_KATA = 1;
+  EXAMPLE_TYPE_UNIT_TEST = 2;
 }
 
 // RunCodeRequest represents a code text and options of SDK which executes the code.
@@ -81,6 +90,45 @@ message GetRunOutputResponse {
   Status compilation_status = 2;
 }
 
+// ListOfExamplesRequest contains information of the needed examples sdk and categories.
+message GetListOfExamplesRequest{
+  Sdk sdk = 1;
+  string category = 2;
+}
+
+// Example represents one example with its information
+message Example{
+  string example_uuid = 1;
+  string name = 2;
+  string description = 3;
+  ExampleType type = 4;
+}
+
+// Categories represent the array of messages with sdk and categories at this sdk
+message Categories{
+  message Category{
+    string category_name = 1;
+    repeated Example examples = 2;
+  }
+  Sdk sdk = 1;
+  repeated Category categories = 2;
+}
+
+// ListOfExamplesResponse represent the map between sdk and categories for the sdk.
+message GetListOfExamplesResponse{
+  repeated Categories sdk_examples = 1;
+}
+
+// ExampleRequest contains information of the example uuid.
+message GetExampleRequest{
+  string example_uuid = 1;
+}
+
+// ExampleResponse represents the source code of the example.
+message GetExampleResponse{
+  string code = 1;
+}
+
 service PlaygroundService {
 
   // Submit the job for an execution and get the pipeline uuid.
@@ -94,4 +142,13 @@ service PlaygroundService {
 
   // Get the result of pipeline compilation.
   rpc GetCompileOutput(GetCompileOutputRequest) returns (GetCompileOutputResponse);
+
+  // Get the list of precompiled examples.
+  rpc GetListOfExamples(GetListOfExamplesRequest) returns (GetListOfExamplesResponse);
+
+  // Get the code of an example.
+  rpc GetExample(GetExampleRequest) returns (GetExampleResponse);
+
+  // Get the precompiled details of an example.
+  rpc GetExampleOutput(GetExampleRequest) returns (GetRunOutputResponse);
 }

@@ -127,8 +127,10 @@ func (e Extractor) ExtractFrom(store *Store) error {
 			}
 		}
 	}
-	for l, um := range store.stateRegistry {
-		e.MsecsInt64(l, um)
+	if e.MsecsInt64 != nil {
+		for l, es := range store.stateRegistry {
+			e.MsecsInt64(l, es)
+		}
 	}
 	return nil
 }
@@ -155,10 +157,14 @@ type ptCounterSet struct {
 type bundleProcState int
 
 const (
-	StartBundle   bundleProcState = 0
+	// StartBundle indicates starting state of a bundle
+	StartBundle bundleProcState = 0
+	// ProcessBundle indicates processing state of a bundle
 	ProcessBundle bundleProcState = 1
-	FinishBundle  bundleProcState = 2
-	TotalBundle   bundleProcState = 3
+	// FinishBundle indicates finishing state of a bundle
+	FinishBundle bundleProcState = 2
+	// TotalBundle (not a state) used for aggregating above states of a bundle
+	TotalBundle bundleProcState = 3
 )
 
 // ExecutionState stores the information about a bundle in a particular state.

@@ -24,6 +24,8 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 
 typedef SetSdk = void Function(SDK sdk);
 
+const kSdkSelectorLabel = 'Select SDK Dropdown';
+
 const double kWidth = 150;
 const double kHeight = 172;
 
@@ -36,29 +38,33 @@ class SDKSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppDropdownButton(
-      buttonText: Text(
-        'SDK: ${sdk.displayName}',
+    return Semantics(
+      container: true,
+      label: kSdkSelectorLabel,
+      child: AppDropdownButton(
+        buttonText: Text(
+          'SDK: ${sdk.displayName}',
+        ),
+        createDropdown: (close) => Column(
+          children: [
+            const SizedBox(height: kMdSpacing),
+            ...SDK.values.map((SDK value) {
+              return SizedBox(
+                width: double.infinity,
+                child: SdkSelectorRow(
+                  sdk: value,
+                  onSelect: () {
+                    close();
+                    setSdk(value);
+                  },
+                ),
+              );
+            }).toList()
+          ],
+        ),
+        width: kWidth,
+        height: kHeight,
       ),
-      createDropdown: (close) => Column(
-        children: [
-          const SizedBox(height: kMdSpacing),
-          ...SDK.values.map((SDK value) {
-            return SizedBox(
-              width: double.infinity,
-              child: SdkSelectorRow(
-                sdk: value,
-                onSelect: () {
-                  close();
-                  setSdk(value);
-                },
-              ),
-            );
-          }).toList()
-        ],
-      ),
-      width: kWidth,
-      height: kHeight,
     );
   }
 }
