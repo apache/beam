@@ -24,3 +24,6 @@ const kOutputLeftIconAsset = 'output_left.svg';
 const kShortcutsIconAsset = 'shortcuts.svg';
 const kGithubIconAsset = 'github.svg';
 const kBeamIconAsset = 'beam.png';
+const kBeamLgIconAsset = 'beam_lg.png';
+const kThumbUpIconAsset = 'thumb_up.svg';
+const kThumbDownIconAsset = 'thumb_down.svg';

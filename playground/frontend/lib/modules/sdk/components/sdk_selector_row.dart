@@ -17,32 +17,39 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/output/components/output_result.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
-import 'package:provider/provider.dart';
+import 'package:playground/constants/font_weight.dart';
+import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-const kLogText = 'Log';
-const kGraphText = 'Graph';
+class SdkSelectorRow extends StatelessWidget {
+  final SDK sdk;
+  final VoidCallback onSelect;
 
-class OutputArea extends StatelessWidget {
-  const OutputArea({Key? key}) : super(key: key);
+  const SdkSelectorRow({
+    Key? key,
+    required this.sdk,
+    required this.onSelect,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).backgroundColor,
-      child: Consumer<PlaygroundState>(
-        builder: (context, state, child) {
-          return TabBarView(
-            physics: const NeverScrollableScrollPhysics(),
-            children: <Widget>[
-              OutputResult(text: state.result?.output ?? ''),
-              const Center(child: Text(kLogText)),
-              const Center(child: Text(kGraphText)),
-            ],
-          );
-        },
+    return TextButton(
+      style: ButtonStyle(
+        textStyle: MaterialStateProperty.all<TextStyle>(
+          const TextStyle(fontWeight: kNormalWeight),
+        ),
+        alignment: Alignment.centerLeft,
+        shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+          const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
+          ),
+        ),
       ),
+      child: Padding(
+        padding: const EdgeInsets.all(kLgSpacing),
+        child: Text(sdk.displayName),
+      ),
+      onPressed: onSelect,
     );
   }
 }

@@ -17,13 +17,17 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
+import 'package:playground/components/dropdown_button/dropdown_button.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/sdk/components/sdk_selector_row.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 typedef SetSdk = void Function(SDK sdk);
 
 const kSdkSelectorLabel = 'Select SDK Dropdown';
+
+const double kWidth = 150;
+const double kHeight = 172;
 
 class SDKSelector extends StatelessWidget {
   final SDK sdk;
@@ -37,36 +41,29 @@ class SDKSelector extends StatelessWidget {
     return Semantics(
       container: true,
       label: kSdkSelectorLabel,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          vertical: kZeroSpacing,
-          horizontal: kXlSpacing,
+      child: AppDropdownButton(
+        buttonText: Text(
+          'SDK: ${sdk.displayName}',
         ),
-        decoration: BoxDecoration(
-          color: ThemeColors.of(context).greyColor,
-          borderRadius: BorderRadius.circular(kLgBorderRadius),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<SDK>(
-            value: sdk,
-            icon: const Icon(Icons.keyboard_arrow_down),
-            iconSize: kIconSizeMd,
-            elevation: kElevation,
-            borderRadius: BorderRadius.circular(kLgBorderRadius),
-            alignment: Alignment.bottomCenter,
-            onChanged: (SDK? newSdk) {
-              if (newSdk != null) {
-                setSdk(newSdk);
-              }
-            },
-            items: SDK.values.map<DropdownMenuItem<SDK>>((SDK value) {
-              return DropdownMenuItem<SDK>(
-                value: value,
-                child: Text(value.displayName),
+        createDropdown: (close) => Column(
+          children: [
+            const SizedBox(height: kMdSpacing),
+            ...SDK.values.map((SDK value) {
+              return SizedBox(
+                width: double.infinity,
+                child: SdkSelectorRow(
+                  sdk: value,
+                  onSelect: () {
+                    close();
+                    setSdk(value);
+                  },
+                ),
               );
-            }).toList(),
-          ),
+            }).toList()
+          ],
         ),
+        width: kWidth,
+        height: kHeight,
       ),
     );
   }

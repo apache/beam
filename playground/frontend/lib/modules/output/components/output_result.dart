@@ -16,9 +16,22 @@
  * limitations under the License.
  */
 
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:playground/constants/fonts.dart';
+import 'package:playground/constants/sizes.dart';
 
-const FontWeight kLightWeight = FontWeight.w300;
-const FontWeight kNormalWeight = FontWeight.normal;
-const FontWeight kMediumWeight = FontWeight.w600;
-const FontWeight kBoldWeight = FontWeight.bold;
+class OutputResult extends StatelessWidget {
+  final String text;
+
+  const OutputResult({Key? key, required this.text}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(kXlSpacing),
+        child: SelectableText(text, style: getCodeFontStyle()),
+      ),
+    );
+  }
+}
