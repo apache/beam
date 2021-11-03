@@ -394,7 +394,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         for (DestinationState state : destinations.values()) {
           context.output(
               KV.of(state.tableUrn, state.streamName),
-              BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1),
+              BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)),
               GlobalWindow.INSTANCE);
         }
       }
