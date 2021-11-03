@@ -377,23 +377,43 @@ public class FhirIO {
    * "success": "1", "failure": "1" }
    *
    * @param operation LRO operation object.
-   * @param successCounter the success counter for this operation.
-   * @param failureCounter the failure counter for this operation.
+   * @param operationSuccessCounter the success counter for the operation.
+   * @param operationFailureCounter the failure counter for the operation.
+   * @param resourceSuccessCounter the success counter for individual resources in the operation.
+   * @param resourceFailureCounter the failure counter for individual resources in the operation.
    */
   private static void incrementLroCounters(
-      Operation operation, Counter successCounter, Counter failureCounter) {
+      Operation operation,
+      Counter operationSuccessCounter,
+      Counter operationFailureCounter,
+      Counter resourceSuccessCounter,
+      Counter resourceFailureCounter) {
+    // Update operation counters.
+    com.google.api.services.healthcare.v1.model.Status error = operation.getError();
+    if (error == null) {
+      operationSuccessCounter.inc();
+      LOG.debug(String.format("Operation %s finished successfully.", operation.getName()));
+    } else {
+      operationFailureCounter.inc();
+      LOG.error(
+          String.format(
+              "Operation %s failed with error code: %d and message: %s.",
+              operation.getName(), error.getCode(), error.getMessage()));
+    }
+
+    // Update resource counters.
     Map<String, Object> opMetadata = operation.getMetadata();
     if (opMetadata.containsKey(LRO_COUNTER_KEY)) {
       try {
         Map<String, String> counters = (Map<String, String>) opMetadata.get(LRO_COUNTER_KEY);
         if (counters.containsKey(LRO_SUCCESS_KEY)) {
-          successCounter.inc(Long.parseLong(counters.get(LRO_SUCCESS_KEY)));
+          resourceSuccessCounter.inc(Long.parseLong(counters.get(LRO_SUCCESS_KEY)));
         }
         if (counters.containsKey(LRO_FAILURE_KEY)) {
           Long numFailures = Long.parseLong(counters.get(LRO_FAILURE_KEY));
-          failureCounter.inc(numFailures);
+          resourceFailureCounter.inc(numFailures);
           if (numFailures > 0) {
-            LOG.error("LRO: " + operation.getName() + " had " + numFailures + " errors.");
+            LOG.error("Operation " + operation.getName() + " had " + numFailures + " failures.");
           }
         }
       } catch (Exception e) {
@@ -1166,10 +1186,14 @@ public class FhirIO {
     /** Import batches of new line delimited json files to FHIR Store. */
     static class ImportFn extends DoFn<ResourceId, HealthcareIOError<String>> {
 
-      private static final Counter IMPORT_ERRORS =
-          Metrics.counter(ImportFn.class, BASE_METRIC_PREFIX + "resources_imported_failure_count");
-      private static final Counter IMPORT_SUCCESS =
+      private static final Counter IMPORT_OPERATION_SUCCESS =
+          Metrics.counter(ImportFn.class, BASE_METRIC_PREFIX + "import_operation_success_count");
+      private static final Counter IMPORT_OPERATION_ERRORS =
+          Metrics.counter(ImportFn.class, BASE_METRIC_PREFIX + "import_operation_failure_count");
+      private static final Counter RESOURCES_IMPORTED_SUCCESS =
           Metrics.counter(ImportFn.class, BASE_METRIC_PREFIX + "resources_imported_success_count");
+      private static final Counter RESOURCES_IMPORTED_ERRORS =
+          Metrics.counter(ImportFn.class, BASE_METRIC_PREFIX + "resources_imported_failure_count");
       private static final Logger LOG = LoggerFactory.getLogger(ImportFn.class);
 
       private final ValueProvider<String> fhirStore;
@@ -1259,7 +1283,12 @@ public class FhirIO {
               client.importFhirResource(
                   fhirStore.get(), importUri.toString(), contentStructure.name());
           operation = client.pollOperation(operation, 500L);
-          incrementLroCounters(operation, IMPORT_SUCCESS, IMPORT_ERRORS);
+          incrementLroCounters(
+              operation,
+              IMPORT_OPERATION_SUCCESS,
+              IMPORT_OPERATION_ERRORS,
+              RESOURCES_IMPORTED_SUCCESS,
+              RESOURCES_IMPORTED_ERRORS);
           // Clean up temp files on GCS as they we successfully imported to FHIR store and no longer
           // needed.
           FileSystems.delete(tempDestinations);
@@ -1415,14 +1444,21 @@ public class FhirIO {
     /** A function that schedules an export operation and monitors the status. */
     public static class ExportResourcesToGcsFn extends DoFn<String, String> {
 
-      private static final Counter EXPORT_ERRORS =
+      private static final Counter EXPORT_OPERATION_SUCCESS =
           Metrics.counter(
-              ExportResourcesToGcsFn.class,
-              BASE_METRIC_PREFIX + "resources_exported_failure_count");
-      private static final Counter EXPORT_SUCCESS =
+              ExportResourcesToGcsFn.class, BASE_METRIC_PREFIX + "export_operation_success_count");
+      private static final Counter EXPORT_OPERATION_ERRORS =
+          Metrics.counter(
+              ExportResourcesToGcsFn.class, BASE_METRIC_PREFIX + "export_operation_failure_count");
+      private static final Counter RESOURCES_EXPORTED_SUCCESS =
           Metrics.counter(
               ExportResourcesToGcsFn.class,
               BASE_METRIC_PREFIX + "resources_exported_success_count");
+      private static final Counter RESOURCES_EXPORTED_ERRORS =
+          Metrics.counter(
+              ExportResourcesToGcsFn.class,
+              BASE_METRIC_PREFIX + "resources_exported_failure_count");
+
       private HealthcareApiClient client;
       private final ValueProvider<String> exportGcsUriPrefix;
 
@@ -1446,7 +1482,12 @@ public class FhirIO {
           throw new RuntimeException(
               String.format("Export operation (%s) failed.", operation.getName()));
         }
-        incrementLroCounters(operation, EXPORT_SUCCESS, EXPORT_ERRORS);
+        incrementLroCounters(
+            operation,
+            EXPORT_OPERATION_SUCCESS,
+            EXPORT_OPERATION_ERRORS,
+            RESOURCES_EXPORTED_SUCCESS,
+            RESOURCES_EXPORTED_ERRORS);
         context.output(String.format("%s/*", gcsPrefix.replaceAll("/+$", "")));
       }
     }
@@ -1481,12 +1522,19 @@ public class FhirIO {
     /** A function that schedules a deidentify operation and monitors the status. */
     public static class DeidentifyFn extends DoFn<String, String> {
 
-      private static final Counter DEIDENTIFY_ERRORS =
+      private static final Counter DEIDENTIFY_OPERATION_SUCCESS =
           Metrics.counter(
-              DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_failure_count");
-      private static final Counter DEIDENTIFY_SUCCESS =
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "deidentify_operation_success_count");
+      private static final Counter DEIDENTIFY_OPERATION_ERRORS =
+          Metrics.counter(
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "deidentify_operation_failure_count");
+      private static final Counter RESOURCES_DEIDENTIFIED_SUCCESS =
           Metrics.counter(
               DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_success_count");
+      private static final Counter RESOURCES_DEIDENTIFIED_ERRORS =
+          Metrics.counter(
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_failure_count");
+
       private HealthcareApiClient client;
       private final ValueProvider<String> destinationFhirStore;
       private static final Gson gson = new Gson();
@@ -1516,7 +1564,12 @@ public class FhirIO {
           throw new IOException(
               String.format("DeidentifyFhirStore operation (%s) failed.", operation.getName()));
         }
-        incrementLroCounters(operation, DEIDENTIFY_SUCCESS, DEIDENTIFY_ERRORS);
+        incrementLroCounters(
+            operation,
+            DEIDENTIFY_OPERATION_SUCCESS,
+            DEIDENTIFY_OPERATION_ERRORS,
+            RESOURCES_DEIDENTIFIED_SUCCESS,
+            RESOURCES_DEIDENTIFIED_ERRORS);
         context.output(destinationFhirStore);
       }
     }
