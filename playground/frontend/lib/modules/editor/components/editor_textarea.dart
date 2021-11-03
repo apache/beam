@@ -29,6 +29,8 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 
+const kCodeAreaSemantics = 'Code textarea';
+
 class EditorTextArea extends StatefulWidget {
   final SDK sdk;
   final ExampleModel? example;
@@ -74,10 +76,19 @@ class _EditorTextAreaState extends State<EditorTextArea> {
 
   @override
   Widget build(BuildContext context) {
-    return CodeField(
-      controller: _codeController!,
-      textStyle: const TextStyle(fontFamily: 'SourceCode'),
-      expands: true,
+    return Semantics(
+      container: true,
+      textField: true,
+      multiline: true,
+      enabled: true,
+      readOnly: false,
+      label: kCodeAreaSemantics,
+      child: CodeField(
+        enabled: true,
+        controller: _codeController!,
+        textStyle: const TextStyle(fontFamily: 'SourceCode'),
+        expands: true,
+      ),
     );
   }
 
