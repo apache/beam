@@ -97,7 +97,6 @@ func TestWordCount(t *testing.T) {
 		lines := beam.CreateList(s, test.lines)
 		WordCountFromPCol(s, lines, test.hash, test.words)
 		pr, err := ptest.RunWithMetrics(p)
-		t.Error(pr.Metrics().AllMetrics().Msecs())
 		if err != nil {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
