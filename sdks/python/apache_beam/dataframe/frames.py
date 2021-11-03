@@ -1441,59 +1441,55 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     # See the online, numerically stable formulae at
     # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
+    # kurtosis here calculated as sample kurtosis
+    # https://en.wikipedia.org/wiki/Kurtosis#Sample_kurtosis
     def compute_moments(x):
       n = len(x)
       if n == 0:
-        m, s, third_moment, fourth_moment = 0, 0, 0, 0
+        m2, sum, m3, m4 = 0, 0, 0, 0
       else:
-        m = x.std(ddof=0)**2 * n
-        s = x.sum()
-        third_moment = (((x - x.mean())**3).sum())
-        fourth_moment = (((x - x.mean())**4).sum())
-      return pd.DataFrame(
-          dict(
-              m=[m],
-              s=[s],
-              n=[n],
-              third_moment=[third_moment],
-              fourth_moment=[fourth_moment]))
+        m2 = x.std(ddof=0)**2 * n
+        sum = x.sum()
+        m3 = (((x - x.mean())**3).sum())
+        m4 = (((x - x.mean())**4).sum())
+      return pd.DataFrame(dict(m2=[m2], sum=[sum], n=[n], m3=[m3], m4=[m4]))
 
     def combine_moments(data):
-      m = s = n = third_moment = fourth_moment = 0.0
+      m2 = sum = n = m3 = m4 = 0.0
       for datum in data.itertuples():
         if datum.n == 0:
           continue
         elif n == 0:
-          m, s, n, third_moment, fourth_moment = datum.m, datum.s, datum.n, datum.third_moment, datum.fourth_moment
+          m2, sum, n, m3, m4 = datum.m2, datum.sum, datum.n, datum.m3, datum.m4
         else:
-          mean_b = s / n
-          mean_a = datum.s / datum.n
+          n_a, n_b = datum.n, n
+          m2_a, m2_b = datum.m2, m2
+          m3_a, m3_b = datum.m3, m3
+          mean_a, mean_b = datum.sum / n_a, sum / n_b
           delta = mean_b - mean_a
-          n_a = datum.n
-          n_b = n
           combined_n = n + datum.n
-          fourth_moment += datum.fourth_moment + (
-              (delta**4) * (n_a * n_b) *
-              (n_a**2 -
-               (n_a * n_b) + n_b**2) / combined_n**3) + ((6 * delta**2) * (
-                   (n_a**2 * m) + (n_b**2 * datum.m)) / combined_n**2) + (
-                       (4 * delta) * ((n_a * third_moment) -
-                                      (n_b * datum.third_moment)) / combined_n)
-          third_moment += datum.third_moment + (
+          m4 += datum.m4 + ((delta**4) * (n_a * n_b) *
+                            (n_a**2 - (n_a * n_b) + n_b**2) / combined_n**3) + (
+                                (6 * delta**2) *
+                                ((n_a**2 * m2_b) +
+                                 (n_b**2 * m2_a)) / combined_n**2) + (
+                                     (4 * delta) * ((n_a * m3_b) -
+                                                    (n_b * m3_a)) / combined_n)
+          m3 += datum.m3 + (
               (delta**3 * ((n_a * n_b) * (n_a - n_b)) / ((combined_n)**2)) +
-              ((3 * delta) * ((n_a * m) - (n_b * datum.m)) / (combined_n)))
-          m += datum.m + delta**2 * n * datum.n / (n + datum.n)
-          s += datum.s
+              ((3 * delta) * ((n_a * m2_b) - (n_b * m2_a)) / (combined_n)))
+          m2 += datum.m2 + delta**2 * n_b * n_a / combined_n
+          sum += datum.sum
           n += datum.n
 
       if n < 4:
         return float('nan')
-      elif m == 0:
+      elif m2 == 0:
         return float(0)
       else:
         return (((combined_n + 1) * (combined_n) * (combined_n - 1)) /
                 ((combined_n - 2) *
-                 (combined_n - 3))) * (fourth_moment / (np.floor(m)**2)) - (
+                 (combined_n - 3))) * (m4 / (np.floor(m2)**2)) - (
                      (3 * (combined_n - 1)**2) / ((combined_n - 2) *
                                                   (combined_n - 3)))
 
@@ -1702,7 +1698,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             "single node.")
 
       # We have specialized distributed implementations for these
-      if base_func in ('quantile', 'std', 'var', 'nunique', 'corr', 'cov'):
+      if base_func in ('quantile',
+                       'std',
+                       'var',
+                       'nunique',
+                       'corr',
+                       'cov',
+                       'kurtosis'):
         result = getattr(self, base_func)(*args, **kwargs)
         if isinstance(func, list):
           with expressions.allow_non_parallel_operations(True):
@@ -3401,7 +3403,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   mad = _agg_method(pd.DataFrame, 'mad')
   skew = _agg_method(pd.DataFrame, 'skew')
   kurt = _agg_method(pd.DataFrame, 'kurt')
-  kurtosis = _agg_method(pd.DataFrame, 'kurtosis')
+
 
   take = frame_base.wont_implement_method(pd.DataFrame, 'take',
                                           reason='deprecated')

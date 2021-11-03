@@ -185,7 +185,7 @@ class _AbstractFrameTest(unittest.TestCase):
         if np.isnan(expected):
           cmp = np.isnan
         else:
-          cmp = lambda x: np.isclose(expected, x)
+          cmp = lambda x: np.isclose(expected, x, rtol=1e-2, atol=1e-2)
       else:
         cmp = expected.__eq__
       self.assertTrue(
