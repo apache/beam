@@ -317,6 +317,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         # When updating vesion classifiers, also update version warnings
         # above and in apache_beam/__init__.py.
         'Topic :: Software Development :: Libraries',
