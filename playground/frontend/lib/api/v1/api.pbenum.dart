@@ -55,8 +55,9 @@ class Status extends $pb.ProtobufEnum {
   static const Status STATUS_COMPILE_ERROR = Status._(4, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_COMPILE_ERROR');
   static const Status STATUS_EXECUTING = Status._(5, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_EXECUTING');
   static const Status STATUS_FINISHED = Status._(6, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_FINISHED');
-  static const Status STATUS_ERROR = Status._(7, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_ERROR');
-  static const Status STATUS_RUN_TIMEOUT = Status._(8, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_RUN_TIMEOUT');
+  static const Status STATUS_RUN_ERROR = Status._(7, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_RUN_ERROR');
+  static const Status STATUS_ERROR = Status._(8, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_ERROR');
+  static const Status STATUS_RUN_TIMEOUT = Status._(9, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_RUN_TIMEOUT');
 
   static const $core.List<Status> values = <Status> [
     STATUS_UNSPECIFIED,
@@ -66,6 +67,7 @@ class Status extends $pb.ProtobufEnum {
     STATUS_COMPILE_ERROR,
     STATUS_EXECUTING,
     STATUS_FINISHED,
+    STATUS_RUN_ERROR,
     STATUS_ERROR,
     STATUS_RUN_TIMEOUT,
   ];
