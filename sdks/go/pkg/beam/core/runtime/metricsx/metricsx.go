@@ -86,8 +86,9 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 			}
 			if v, ok := msecs[key]; ok {
 				v.Time[0] = value
+				msecs[key] = v
 			} else {
-				msecs[key] = metrics.MsecValue{[4]time.Duration{value, 0, 0, 0}}
+				msecs[key] = metrics.MsecValue{Time: [4]time.Duration{value, 0, 0, 0}}
 			}
 		case UrnToString(UrnProcessBundle):
 			value, err := extractMsecValue(r)
@@ -97,8 +98,9 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 			}
 			if v, ok := msecs[key]; ok {
 				v.Time[1] = value
+				msecs[key] = v
 			} else {
-				msecs[key] = metrics.MsecValue{[4]time.Duration{0, value, 0, 0}}
+				msecs[key] = metrics.MsecValue{Time: [4]time.Duration{0, value, 0, 0}}
 			}
 		case UrnToString(UrnFinishBundle):
 			value, err := extractMsecValue(r)
@@ -108,8 +110,9 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 			}
 			if v, ok := msecs[key]; ok {
 				v.Time[2] = value
+				msecs[key] = v
 			} else {
-				msecs[key] = metrics.MsecValue{[4]time.Duration{0, 0, value, 0}}
+				msecs[key] = metrics.MsecValue{Time: [4]time.Duration{0, 0, value, 0}}
 			}
 		case UrnToString(UrnTransformTotalTime):
 			value, err := extractMsecValue(r)
@@ -119,8 +122,9 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 			}
 			if v, ok := msecs[key]; ok {
 				v.Time[3] = value
+				msecs[key] = v
 			} else {
-				msecs[key] = metrics.MsecValue{[4]time.Duration{0, 0, 0, value}}
+				msecs[key] = metrics.MsecValue{Time: [4]time.Duration{0, 0, 0, value}}
 			}
 		default:
 			log.Println("unknown metric type")
@@ -132,18 +136,18 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 func extractKey(mi *pipepb.MonitoringInfo) (metrics.StepKey, error) {
 	labels := newLabels(mi.GetLabels())
 	stepName := labels.Transform()
-	urn := mi.GetUrn()
-	switch urn {
-	case UrnToString(UrnStartBundle):
-		stepName += "/START"
-	case UrnToString(UrnProcessBundle):
-		stepName += "/PROCESS"
-	case UrnToString(UrnFinishBundle):
-		stepName += "/FINISH"
-	case UrnToString(UrnTransformTotalTime):
-		stepName += "/TOTAL"
-		// TODO: add cases for PCollection metrics
-	}
+	// urn := mi.GetUrn()
+	// switch urn {
+	// case UrnToString(UrnStartBundle):
+	// 	stepName += "/START"
+	// case UrnToString(UrnProcessBundle):
+	// 	stepName += "/PROCESS"
+	// case UrnToString(UrnFinishBundle):
+	// 	stepName += "/FINISH"
+	// case UrnToString(UrnTransformTotalTime):
+	// 	stepName += "/TOTAL"
+	// 	// TODO: add cases for PCollection metrics
+	// }
 
 	if stepName == "" {
 		return metrics.StepKey{}, fmt.Errorf("Failed to deduce Step from MonitoringInfo: %v", mi)
