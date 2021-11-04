@@ -302,13 +302,9 @@ class JavaExternalTransform(ptransform.PTransform):
   """
   def __init__(self, class_name, expansion_service=None, classpath=None):
     assert not (expansion_service and classpath), (expansion_service, classpath)
-    expansion_service = expansion_service or BeamJarExpansionService(
-        ':sdks:java:expansion-service:shadowJar',
-        extra_args=['{{PORT}}', '--javaClassLookupAllowlistFile=*'],
-        classpath=classpath)
     self._payload_builder = JavaClassLookupPayloadBuilder(class_name)
+    self._classpath = classpath
     self._expansion_service = expansion_service
-
     # Beam explicitly looks for following attributes. Hence adding
     # 'None' values here to prevent '__getattr__' from being called.
     self.inputs = None
@@ -322,7 +318,11 @@ class JavaExternalTransform(ptransform.PTransform):
     # Don't try to emulate special methods.
     if name.startswith('__') and name.endswith('__'):
       return super().__getattr__(name)
+    else:
+      return self[name]
 
+  def __getitem__(self, name):
+    # Use directly for keywords or attribute conflicts.
     def construct(*args, **kwargs):
       if self._payload_builder._has_constructor():
         builder_method = self._payload_builder.add_builder_method
@@ -334,6 +334,11 @@ class JavaExternalTransform(ptransform.PTransform):
     return construct
 
   def expand(self, pcolls):
+    if self._expansion_service is None:
+      self._expansion_service = BeamJarExpansionService(
+          ':sdks:java:expansion-service:shadowJar',
+          extra_args=['{{PORT}}', '--javaClassLookupAllowlistFile=*'],
+          classpath=self._classpath)
     return pcolls | ExternalTransform(
         common_urns.java_class_lookup.urn,
         self._payload_builder,
