@@ -138,3 +138,6 @@ def infer_pyarrow_schema(data):
       (key, pa.array(value).type) for key, value in column_data.items()
   ])
   return pa.schema(list(column_types.items()))
+
+
+# test this change
