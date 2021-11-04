@@ -31,7 +31,7 @@ class OutputHeader extends StatelessWidget {
       height: 50,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: kLgSpacing,
+          horizontal: kXlSpacing,
           vertical: kZeroSpacing,
         ),
         child: Row(

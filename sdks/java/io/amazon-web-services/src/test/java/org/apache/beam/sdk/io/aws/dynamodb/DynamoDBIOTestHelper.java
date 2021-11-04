@@ -46,7 +46,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /** A utility to generate test table and data for {@link DynamoDBIOTest}. */
 class DynamoDBIOTestHelper implements Serializable {
-  private static final String LOCALSTACK_VERSION = "0.11.4";
+  private static final String LOCALSTACK_VERSION = "0.12.18";
 
   @Rule
   private static final LocalStackContainer localStackContainer =

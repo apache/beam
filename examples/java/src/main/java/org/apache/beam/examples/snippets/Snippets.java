@@ -797,16 +797,16 @@ public class Snippets {
                           new TableRow().set("user", "desktop").set("score", 4), new Instant()),
                       TimestampedValue.of(
                           new TableRow().set("user", "mobile").set("score", -3).set("gap", 5),
-                          new Instant().plus(2000)),
+                          new Instant().plus(Duration.millis(2000))),
                       TimestampedValue.of(
                           new TableRow().set("user", "mobile").set("score", 2).set("gap", 5),
-                          new Instant().plus(9000)),
+                          new Instant().plus(Duration.millis(9000))),
                       TimestampedValue.of(
                           new TableRow().set("user", "mobile").set("score", 7).set("gap", 5),
-                          new Instant().plus(12000)),
+                          new Instant().plus(Duration.millis(12000))),
                       TimestampedValue.of(
                           new TableRow().set("user", "desktop").set("score", 10),
-                          new Instant().plus(12000))));
+                          new Instant().plus(Duration.millis(12000)))));
       // [END CustomSessionWindow5]
 
       // [START CustomSessionWindow6]

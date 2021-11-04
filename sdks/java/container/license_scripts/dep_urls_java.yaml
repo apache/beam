@@ -41,7 +41,7 @@ jaxen:
   '1.1.6':
     type: "3-Clause BSD"
 libraries-bom:
-  '22.0.0':
+  '24.0.0':
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-opensource-java/master/LICENSE"
     type: "Apache License 2.0"
 paranamer:
@@ -53,7 +53,7 @@ xz:
   '1.5':
     license: "https://git.tukaani.org/?p=xz-java.git;a=blob;f=COPYING;h=c1d404dc7a6f06a0437bf1055fedaa4a4c89d728;hb=9f1f97a26f090ffec6568c004a38c6534aa82b94"
 jackson-bom:
-  '2.12.4':
+  '2.13.0':
     license: "https://raw.githubusercontent.com/FasterXML/jackson-bom/master/LICENSE"
     type: "Apache License 2.0"
 junit-dep:

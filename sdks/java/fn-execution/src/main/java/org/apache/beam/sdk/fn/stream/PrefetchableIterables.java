@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
-import static org.apache.beam.sdk.fn.stream.PrefetchableIterators.emptyIterator;
-
 import java.util.NoSuchElementException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 
@@ -29,12 +27,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 public class PrefetchableIterables {
 
   private static final PrefetchableIterable<Object> EMPTY_ITERABLE =
-      new PrefetchableIterable<Object>() {
-        @Override
-        public PrefetchableIterator<Object> iterator() {
-          return emptyIterator();
-        }
-      };
+      PrefetchableIterators::emptyIterator;
 
   /** Returns an empty {@link PrefetchableIterable}. */
   public static <T> PrefetchableIterable<T> emptyIterable() {

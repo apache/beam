@@ -22,13 +22,14 @@ import (
 
 // NetworkEnvs contains all environment variables that need to run server.
 type NetworkEnvs struct {
-	ip   string
-	port int
+	ip       string
+	port     int
+	protocol string
 }
 
 // NewNetworkEnvs constructor for NetworkEnvs
-func NewNetworkEnvs(ip string, port int) *NetworkEnvs {
-	return &NetworkEnvs{ip: ip, port: port}
+func NewNetworkEnvs(ip string, port int, protocol string) *NetworkEnvs {
+	return &NetworkEnvs{ip: ip, port: port, protocol: protocol}
 }
 
 // Address returns concatenated ip and port through ':'
@@ -36,10 +37,20 @@ func (serverEnvs NetworkEnvs) Address() string {
 	return fmt.Sprintf("%s:%d", serverEnvs.ip, serverEnvs.port)
 }
 
+// Protocol returns the protocol over which the server will listen
+func (serverEnvs *NetworkEnvs) Protocol() string {
+	return serverEnvs.protocol
+}
+
 //CacheEnvs contains all environment variables that needed to use cache
 type CacheEnvs struct {
-	cacheType         string
-	address           string
+	// cacheType is type of cache (local/redis)
+	cacheType string
+
+	// this is a string with hostname:port of the cache server for redis caches
+	address string
+
+	// keyExpirationTime is expiration time for cache keys
 	keyExpirationTime time.Duration
 }
 
@@ -53,7 +64,7 @@ func (ce *CacheEnvs) Address() string {
 	return ce.address
 }
 
-// KeyExpirationTime returns cacheExpirationTime
+// KeyExpirationTime returns expiration time for cache keys
 func (ce *CacheEnvs) KeyExpirationTime() time.Duration {
 	return ce.keyExpirationTime
 }
@@ -69,8 +80,15 @@ func NewCacheEnvs(cacheType, cacheAddress string, cacheExpirationTime time.Durat
 
 //ApplicationEnvs contains all environment variables that needed to run backend processes
 type ApplicationEnvs struct {
-	workingDir             string
-	cacheEnvs              *CacheEnvs
+	// workingDir is a root working directory of application.
+	// This directory is different from the `pwd` of the application. It is a working directory passed as
+	// a parameter where the application stores code, executables, etc.
+	workingDir string
+
+	// cacheEnvs contains environment variables for cache
+	cacheEnvs *CacheEnvs
+
+	// pipelineExecuteTimeout is timeout for code processing
 	pipelineExecuteTimeout time.Duration
 }
 
@@ -83,16 +101,17 @@ func NewApplicationEnvs(workingDir string, cacheEnvs *CacheEnvs, pipelineExecute
 	}
 }
 
-// WorkingDir returns workingDir
+// WorkingDir returns root working directory of application
 func (ae *ApplicationEnvs) WorkingDir() string {
 	return ae.workingDir
 }
 
+// CacheEnvs returns cache environments
 func (ae *ApplicationEnvs) CacheEnvs() *CacheEnvs {
 	return ae.cacheEnvs
 }
 
-// PipelineExecuteTimeout returns pipelineExecuteTimeout
+// PipelineExecuteTimeout returns timeout for code processing
 func (ae *ApplicationEnvs) PipelineExecuteTimeout() time.Duration {
 	return ae.pipelineExecuteTimeout
 }

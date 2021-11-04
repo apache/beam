@@ -60,7 +60,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 
 	compileBuilder := setupCompileBuilder(lc, info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
 
-	setToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)
+	setToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING)
 	if err := controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
 		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
@@ -119,6 +119,40 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 	pipelineResult := pb.GetCompileOutputResponse{Output: compileOutput}
 
 	return &pipelineResult, nil
+}
+
+//GetListOfExamples returns the list of examples
+func (controller *playgroundController) GetListOfExamples(ctx context.Context, info *pb.GetListOfExamplesRequest) (*pb.GetListOfExamplesResponse, error) {
+	// TODO implement this method
+	example1 := pb.Example{ExampleUuid: "001", Name: "Example1", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_DEFAULT}
+	example2 := pb.Example{ExampleUuid: "003", Name: "Example3", Description: "Test example 3", Type: pb.ExampleType_EXAMPLE_TYPE_KATA}
+
+	cat1 := pb.Categories_Category{
+		CategoryName: "Common",
+		Examples:     []*pb.Example{&example1, {ExampleUuid: "002", Name: "Example2", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_UNIT_TEST}},
+	}
+	cat2 := pb.Categories_Category{
+		CategoryName: "I/O",
+		Examples:     []*pb.Example{&example2},
+	}
+	javaCats := pb.Categories{Sdk: pb.Sdk_SDK_JAVA, Categories: []*pb.Categories_Category{&cat1, &cat2}}
+	goCats := pb.Categories{Sdk: pb.Sdk_SDK_GO, Categories: []*pb.Categories_Category{&cat1, &cat2}}
+	response := pb.GetListOfExamplesResponse{SdkExamples: []*pb.Categories{&javaCats, &goCats}}
+	return &response, nil
+}
+
+// GetExample returns the code of the specific example
+func (controller *playgroundController) GetExample(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetExampleResponse, error) {
+	// TODO implement this method
+	response := pb.GetExampleResponse{Code: "example code"}
+	return &response, nil
+}
+
+// GetExampleOutput returns the output of the compiled and run example
+func (controller *playgroundController) GetExampleOutput(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetRunOutputResponse, error) {
+	// TODO implement this method
+	response := pb.GetRunOutputResponse{Output: "Response Output"}
+	return &response, nil
 }
 
 // setupLifeCycle creates fs_tool.LifeCycle and prepares files and folders needed to code processing
@@ -219,13 +253,11 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	logger.Infof("%s: Validate() ...\n", pipelineId)
 	validateFunc := exec.Validate()
 	if err := validateFunc(); err != nil {
-		// error during validation
-		// TODO move to processError when status for validation error will be added
-		logger.Errorf("%s: Validate: %s\n", pipelineId, err.Error())
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
+		processError(ctx, err, nil, pipelineId, cacheService, pb.Status_STATUS_VALIDATION_ERROR)
 		return
+	} else {
+		processSuccess(ctx, nil, pipelineId, cacheService, pb.Status_STATUS_COMPILING)
 	}
-	logger.Infof("%s: Validate() finish\n", pipelineId)
 
 	// compile
 	logger.Infof("%s: Compile() ...\n", pipelineId)
@@ -250,7 +282,6 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	logger.Infof("%s: Run() ...\n", pipelineId)
 	runCmd := exec.Run()
 	if data, err := runCmd.CombinedOutput(); err != nil {
-		// error during run code
 		processError(ctx, err, data, pipelineId, cacheService, pb.Status_STATUS_ERROR)
 		return
 	} else {
@@ -271,14 +302,11 @@ func cleanUp(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
 // processError processes error received during processing code via setting a corresponding status and output to cache
 func processError(ctx context.Context, err error, data []byte, pipelineId uuid.UUID, cacheService cache.Cache, status pb.Status) {
 	switch status {
-	case pb.Status_STATUS_ERROR:
-		logger.Errorf("%s: Run: err: %s, output: %s\n", pipelineId, err.Error(), data)
+	case pb.Status_STATUS_VALIDATION_ERROR:
+		logger.Errorf("%s: Validate: %s\n", pipelineId, err.Error())
 
-		// set to cache pipelineId: cache.SubKey_RunOutput: err.Error()
-		setToCache(ctx, cacheService, pipelineId, cache.RunOutput, "error: "+err.Error()+", output: "+string(data))
-
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
+		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_VALIDATION_ERROR
+		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATION_ERROR)
 	case pb.Status_STATUS_COMPILE_ERROR:
 		logger.Errorf("%s: Compile: err: %s, output: %s\n", pipelineId, err.Error(), data)
 
@@ -287,12 +315,25 @@ func processError(ctx context.Context, err error, data []byte, pipelineId uuid.U
 
 		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILE_ERROR)
+	case pb.Status_STATUS_ERROR:
+		logger.Errorf("%s: Run: err: %s, output: %s\n", pipelineId, err.Error(), data)
+
+		// set to cache pipelineId: cache.SubKey_RunOutput: err.Error()
+		setToCache(ctx, cacheService, pipelineId, cache.RunOutput, "error: "+err.Error()+", output: "+string(data))
+
+		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
+		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
 	}
 }
 
 // processSuccess processes case after successful code processing via setting a corresponding status and output to cache
 func processSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, cacheService cache.Cache, status pb.Status) {
 	switch status {
+	case pb.Status_STATUS_COMPILING:
+		logger.Infof("%s: Validate() finish\n", pipelineId)
+
+		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_EXECUTING
+		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILING)
 	case pb.Status_STATUS_EXECUTING:
 		logger.Infof("%s: Compile() finish\n", pipelineId)
 

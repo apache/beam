@@ -32,15 +32,12 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.api.core.ApiFutures;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
-import com.google.cloud.pubsublite.internal.testing.FakeApiService;
-import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
@@ -82,16 +79,13 @@ public class PerSubscriptionPartitionSdfTest {
   SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress> trackerFactory;
 
   @Mock SubscriptionPartitionProcessorFactory processorFactory;
-  @Mock SerializableFunction<SubscriptionPartition, Committer> committerFactory;
+  @Mock SerializableFunction<SubscriptionPartition, BlockingCommitter> committerFactory;
 
   @Mock InitialOffsetReader initialOffsetReader;
   @Spy TrackerWithProgress tracker;
   @Mock OutputReceiver<SequencedMessage> output;
   @Mock SubscriptionPartitionProcessor processor;
-
-  abstract static class FakeCommitter extends FakeApiService implements Committer {}
-
-  @Spy FakeCommitter committer;
+  @Mock BlockingCommitter committer;
 
   PerSubscriptionPartitionSdf sdf;
 
@@ -157,7 +151,6 @@ public class PerSubscriptionPartitionSdfTest {
               return processor;
             });
     doReturn(Optional.of(example(Offset.class))).when(processor).lastClaimed();
-    when(committer.commitOffset(any())).thenReturn(ApiFutures.immediateFuture(null));
     assertEquals(ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output));
     verify(processorFactory).newProcessor(eq(PARTITION), any(), eq(output));
     InOrder order = inOrder(processor);
@@ -166,11 +159,8 @@ public class PerSubscriptionPartitionSdfTest {
     order.verify(processor).lastClaimed();
     order.verify(processor).close();
     InOrder order2 = inOrder(committerFactory, committer);
-    order2.verify(committer).startAsync();
-    order2.verify(committer).awaitRunning();
+    order2.verify(committerFactory).apply(PARTITION);
     order2.verify(committer).commitOffset(Offset.of(example(Offset.class).value() + 1));
-    order2.verify(committer).stopAsync();
-    order2.verify(committer).awaitTerminated();
   }
 
   private static final class NoopManagedBacklogReaderFactory
