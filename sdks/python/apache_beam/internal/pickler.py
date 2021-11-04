@@ -36,7 +36,6 @@ USE_DILL = 2
 DEFAULT_PICKLE_LIB = USE_DILL
 
 desired_pickle_lib = None
-set_pickle_lib(DEFAULT_PICKLE_LIB)
 
 
 def dumps(o, enable_trace=True, use_zlib=False):
@@ -77,3 +76,6 @@ def set_pickle_lib(pickle_lib):
   elif desired_pickle_lib == USE_DILL:
     desired_pickle_lib = dill_pickler
     dill_pickler.override_pickler_hooks(True)
+
+if not desired_pickle_lib:
+  set_pickle_lib(DEFAULT_PICKLE_LIB)
