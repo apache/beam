@@ -36,7 +36,7 @@ import "github.com/apache/beam/sdks/v2/go/pkg/beam"
 The next run of `go mod tidy` will fetch the latest stable version.
 Alternatively executing `go get github.com/apache/beam/sdks/v2/go/pkg/beam` will download it to the local module cache immeadiately, and add it to your `go.mod` file.
 
-Existing users of the experimental Go SDK need to update to new `v2` import paths to start using the latest versions of the SDK. 
+Existing users of the experimental Go SDK need to update to new `v2` import paths to start using the latest versions of the SDK.
 This is can be done by adding `v2` to the import paths, changing `github.com/apache/beam/sdks/go/`... to `github.com/apache/beam/sdks/v2/go/`... where applicable, and then running `go mod tidy`.
 
 Further documentation on using the SDK is available in the [Beam Programming Guide](https://beam.apache.org/documentation/programming-guide/), and in the package Go Doc at https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam.
@@ -88,10 +88,10 @@ This makes it so users, SDK Devs, and the testing infrastructure can all rely on
 
 Versioned SDK worker containers are now built and [published](https://hub.docker.com/r/apache/beam_go_sdk/tags?page=1&ordering=last_updated), with the SDK using matched tagged versions.
 For released versions, user jobs no longer need to specify a container to use, except when using custom containers.
-  
+
 ## Compatibility
 
-The Go SDK will largely follow suite with the Go notion of compatibility. 
+The Go SDK will largely follow suite with the Go notion of compatibility.
 Some concessions are made to keep all SDKs together on the same release cycle.
 
 ### Language Compatibility
@@ -112,7 +112,7 @@ This is to be inline with Go's notion of the [`import compatibility rule`](https
 Exceptions to this policy are around newer, experimental, or in development features.
 These are subject to change.
 Such features will have a doc comment noting the experimental status, or be mentioned the change notes for a release.
-For example, using `beam.WindowInto` with Triggers is currently experimental and may have the api changed in a future release. 
+For example, using `beam.WindowInto` with Triggers is currently experimental and may have the api changed in a future release.
 
 Primary user packages include:
 * The main beam package `github.com/apache/beam/sdks/v2/go/pkg/beam`
@@ -128,7 +128,7 @@ DO NOT SUBMIT: include Known Issues w/ 2.33.0, and known features making 2.34.0 
 * Batteries not included.
     * Current native transforms are undertested.
     * IOs may not be written to scale.
-    * Need something? 
+    * Need something?
       * File a ticket in the [Beam JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go) and,
       * Email the dev@beam.apache.org list!
 * Non-Global Window Side Inputs don't match (fixed in 2.35.0)
