@@ -50,6 +50,7 @@ type cacheKey struct {
 // currently invalid cached object will be evicted.
 type SideInputCache struct {
 	capacity    int
+	enabled     bool
 	mu          sync.Mutex
 	cache       map[cacheKey]exec.ReStream
 	idsToTokens map[string]token
@@ -66,16 +67,21 @@ type CacheMetrics struct {
 // SideInputCache. Should only be called once. Returns an error for
 // non-positive capacities.
 func (c *SideInputCache) Init(cap int) error {
-	if cap <= 0 {
+	if cap < 0 {
 		return errors.Errorf("capacity must be a positive integer, got %v", cap)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if cap == 0 {
+		c.enabled = false
+		return nil
+	}
 	c.cache = make(map[cacheKey]exec.ReStream, cap)
 	c.idsToTokens = make(map[string]token)
 	c.validTokens = make(map[token]int8)
 	c.capacity = cap
 	c.metrics = CacheMetrics{}
+	c.enabled = true
 	return nil
 }
 
@@ -86,6 +92,9 @@ func (c *SideInputCache) Init(cap int) error {
 func (c *SideInputCache) SetValidTokens(cacheTokens ...*fnpb.ProcessBundleRequest_CacheToken) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if !c.enabled {
+		return
+	}
 	for _, tok := range cacheTokens {
 		// User State caching is currently not supported, so these tokens are ignored
 		if tok.GetUserState() != nil {
@@ -118,6 +127,9 @@ func (c *SideInputCache) setValidToken(transformID, sideInputID string, tok toke
 func (c *SideInputCache) CompleteBundle(cacheTokens ...*fnpb.ProcessBundleRequest_CacheToken) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if !c.enabled {
+		return
+	}
 	for _, tok := range cacheTokens {
 		// User State caching is currently not supported, so these tokens are ignored
 		if tok.GetUserState() != nil {
@@ -161,6 +173,9 @@ func (c *SideInputCache) makeCacheKey(tok token, w, key []byte) cacheKey {
 func (c *SideInputCache) QueryCache(ctx context.Context, transformID, sideInputID string, win, key []byte) exec.ReStream {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if !c.enabled {
+		return nil
+	}
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
 	if !ok {
 		return nil
@@ -194,6 +209,9 @@ func materializeReStream(input exec.ReStream) (exec.ReStream, error) {
 func (c *SideInputCache) SetCache(ctx context.Context, transformID, sideInputID string, win, key []byte, input exec.ReStream) exec.ReStream {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if !c.enabled {
+		return input
+	}
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
 	if !ok {
 		return input
