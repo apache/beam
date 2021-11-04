@@ -46,7 +46,7 @@ processResources {
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
     'dataflow.legacy_container_version' : 'beam-2.34.0',
-    'dataflow.fnapi_container_version' : 'beam-2.34.0',
+    'dataflow.fnapi_container_version' : '2.34.0',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
