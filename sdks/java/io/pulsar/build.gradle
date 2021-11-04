@@ -1,8 +1,6 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.pulsar')
 
-version '2.32.0-SNAPSHOT'
-
 def pulsarVersion = '2.8.0'
 
 dependencies {
