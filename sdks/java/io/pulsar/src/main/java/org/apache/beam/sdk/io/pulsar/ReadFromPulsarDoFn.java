@@ -2,10 +2,8 @@ package org.apache.beam.sdk.io.pulsar;
 
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.splittabledofn.*;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.util.MessageIdUtils;
@@ -23,22 +21,15 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, Message> {
     private PulsarClient client;
     private String topic;
     private List<String> topics;
-    //private PulsarAdmin admin;
-
     private String clientUrl;
-    //private String adminUrl;
 
+    private final SerializableFunction<Message, Instant> extractOutputTimestampFn;
 
-    public void setServiceUrl(String clientUrl) {
-       this.clientUrl = clientUrl;
-    }
+    public ReadFromPulsarDoFn(PulsarIO.Read transform) {
+        this.extractOutputTimestampFn = transform.getExtractOutputTimestampFn();
+        this.clientUrl = transform.getClientUrl();
+        this.topic = transform.getTopic();
 
-    public void setTopic(String topic) {
-        this.topic = topic;
-    }
-
-    public void setTopics(List<String> topics) {
-        this.topics = topics;
     }
 
     // Open connection to Pulsar clients
@@ -50,30 +41,12 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, Message> {
         this.client = PulsarClient.builder()
                 .serviceUrl(clientUrl)
                 .build();
-        /*
-        //TODO fix auth for admin connection
-        boolean tlsAllowInsecureConnection = false;
-        String tlsTrustCertsFilePath = null;
-        this.admin = PulsarAdmin.builder()
-                // .authentication(authPluginClassName,authParams)
-                .serviceHttpUrl(adminUrl)
-                .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
-                .allowTlsInsecureConnection(tlsAllowInsecureConnection)
-                .build();
-
-         */
     }
-
-    private void closePulsarClients() throws PulsarClientException {
-        //this.admin.close();
-        this.client.close();
-    }
-
 
     // Close connection to Pulsar clients
     @Teardown
-    public void teardown() throws Exception {
-        this.closePulsarClients();
+    public void teardown() throws PulsarClientException {
+        this.client.close();
     }
 
     @GetInitialRestriction
@@ -115,8 +88,6 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, Message> {
 
         long startTimestamp = tracker.currentRestriction().getFrom();
         String topicPartition = pulsarSourceDescriptor.getTopic();
-        //long expectedOffset = startOffset;
-
         //List<String> topicPartitions = client.getPartitionsForTopic(pulsarRecord.getTopic()).join();
         //for(String topicPartition:topicPartitions) {
             try(Reader<byte[]> reader = newReader(client, topicPartition)) {
@@ -124,30 +95,31 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, Message> {
                 while (true) {
                     Message<byte[]> message = reader.readNext();
                     MessageId messageId = message.getMessageId();
-                    long currentOffset = MessageIdUtils.getOffset(messageId);
+                    long currentTimestampOffset = message.getPublishTime();
                     // if tracker.tryclaim() return true, sdf must execute work otherwise
                     // doFn must exit processElement() without doing any work associated
                     // or claiming more work
-                    if (!tracker.tryClaim(currentOffset)) {
+                    if (!tracker.tryClaim(currentTimestampOffset)) {
                         return ProcessContinuation.stop();
                     }
 
-
-                    //expectedOffset = currentOffset + 1;
-                    Instant outputTimestamp;
-
-                    outputTimestamp = Instant.now();
-                    ((ManualWatermarkEstimator) watermarkEstimator)
-                            .setWatermark(ensureTimestampWithinBounds(
-                                    //PulsarTimestamp.getWatermark(context)));
-                                    outputTimestamp));
-                    //((ManualWatermarkEstimator) watermarkEstimator).setWatermark(ensureTime);
-
+                    Instant outputTimestamp = extractOutputTimestampFn.apply(message);
                     output.outputWithTimestamp(message, outputTimestamp);
 
                 }
             }
         //}
+    }
+
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+        return currentElementTimestamp;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimator<Instant> newWatermarkEstimator(
+            @WatermarkEstimatorState Instant watermarkEstimatorState) {
+        return new WatermarkEstimators.MonotonicallyIncreasing(ensureTimestampWithinBounds(watermarkEstimatorState));
     }
 
     @NewTracker
@@ -201,14 +173,6 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, Message> {
         }
     }
 
-    public static class PulsarWatermarkState {
-        public PulsarWatermarkState(PulsarSourceDescriptor element, OffsetRange restriction) {
-
-        }
-    }
-
-    public static class PulsarWatermarkEstimator {
-    }
 
     private static Instant ensureTimestampWithinBounds(Instant timestamp) {
         if(timestamp.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {

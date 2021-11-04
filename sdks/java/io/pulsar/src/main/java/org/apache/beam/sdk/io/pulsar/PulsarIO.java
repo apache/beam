@@ -1,19 +1,20 @@
 package org.apache.beam.sdk.io.pulsar;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.pulsar.client.api.Message;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
+
+import java.util.List;
 
 public class PulsarIO {
 
+    /** Static class, prevent instantiation. */
     private PulsarIO() {}
 
     public static Read read() {
@@ -28,6 +29,7 @@ public class PulsarIO {
         abstract @Nullable String getClientUrl();
         abstract String getTopic();
         abstract long getStartTimestamp();
+        abstract @Nullable SerializableFunction<Message, Instant> getExtractOutputTimestampFn();
         abstract Builder builder();
 
         @AutoValue.Builder
@@ -35,10 +37,11 @@ public class PulsarIO {
             abstract Builder setClientUrl(String url);
             abstract Builder setTopic(String topic);
             abstract Builder setStartTimestamp(Long timestamp);
+            abstract Builder setExtractOutputTimestampFn(SerializableFunction<Message, Instant> fn);
             abstract Read build();
         }
 
-        public Read withUrl(String url) {
+        public Read withClientUrl(String url) {
             return builder().setClientUrl(url).build();
         }
 
@@ -50,15 +53,41 @@ public class PulsarIO {
             return builder().setStartTimestamp(timestamp).build();
         }
 
+        public Read withExtractOutputTimestampFn(SerializableFunction<Message, Instant> fn) {
+            return builder().setExtractOutputTimestampFn(fn).build();
+        }
+
+        public Read withPublishTime() {
+            return withExtractOutputTimestampFn(ExtractOutputTimestampFn.usePublishTime());
+        }
+
+        public Read withProcessingTime() {
+            return withExtractOutputTimestampFn(ExtractOutputTimestampFn.useProcessingTime());
+        }
+
+
+
         @Override
         public PCollection<Message> expand(PBegin input) {
             return input
                     .apply(
                             Create.of(
-                                    PulsarSourceDescriptor.of(getTopic(), getStartTimestamp())))
+                                    PulsarSourceDescriptor.of(getTopic(), getStartTimestamp(), getClientUrl())))
                     .apply(
                             ParDo.of(
-                                    new ReadFromPulsarDoFn()));
+                                    new ReadFromPulsarDoFn(this)));
         }
     }
+
+
+    static class ExtractOutputTimestampFn {
+        public static SerializableFunction<Message, Instant> useProcessingTime() {
+            return record -> Instant.now();
+        }
+
+        public static SerializableFunction<Message, Instant> usePublishTime() {
+            return record -> new Instant(record.getPublishTime());
+        }
+    }
+
 }
