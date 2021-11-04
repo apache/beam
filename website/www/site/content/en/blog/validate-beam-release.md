@@ -106,3 +106,17 @@ pip install --pre apache-beam
 With that, the Beam version in your environment will be the latest release
 candidate, and you can go ahead and run your tests to verify that everything
 works well.
+
+### Configuring a Go build to validate a Beam release candidate
+
+For Go SDK releases, you can fetch the Go SDK RC using [`go get`](https://golang.org/ref/mod#go-get),
+by requesting the specific pre-release version.
+
+For example, to request the first release candidate for 2.34.0:
+
+```
+go get -d github.com/apache/beam/sdks/v2@v2.34.0-RC1
+```
+
+With that, the Beam version in your `go.mod` will be the specified release candidate.
+You can go ahead and run your tests to verify that everything works well.
