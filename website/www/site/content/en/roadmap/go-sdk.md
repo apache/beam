@@ -17,7 +17,7 @@ limitations under the License.
 
 # Go SDK Roadmap
 
-The Go SDK is [fully released as of v2.34.0](/blog/go-sdk-release/).
+The Go SDK is [fully released as of v2.33.0](/blog/go-sdk-release/).
 
 The Go SDK the first SDK purely on the [Beam Portability Framework](/roadmap/portability/)
 and can execute pipelines on portable runners, like Flink, Spark, Samza, and Google Cloud Dataflow.

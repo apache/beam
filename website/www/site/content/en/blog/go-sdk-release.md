@@ -1,6 +1,6 @@
 ---
-title:  "Go SDK Exits Experimental in Apache Beam 2.34.0"
-date:   2021-11-05 00:00:01 -0800
+title:  "Go SDK Exits Experimental in Apache Beam 2.33.0"
+date:   2021-11-04 00:00:01 -0800
 categories:
   - blog
 authors:
@@ -20,7 +20,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Apache Beam’s latest release, version [2.34.0](/get-started/downloads/), is the first official release of the long experimental Go SDK.
+Apache Beam’s latest release, version [2.33.0](/get-started/downloads/), is the first official release of the long experimental Go SDK.
 Built with the [Go Programming Language](https://golang.org/), the Go SDK joins the Java and Python SDKs as the third implementation of the Beam programming model.
 
 <!--more-->
@@ -73,17 +73,20 @@ custom user use, supporting following features:
 * Metrics
   * PCollection metrics (ElementCount, Size Estimates)
   * Custom User Metrics
+  * Post job user metrics querying (coming in 2.34.0)
   * DoFn profiling metrics (coming in 2.35.0)
 * Provided Built Transforms
   * Sum, Count, Min, Max, Top, Filter
   * Scalable TextIO Reading
 
 Upcoming features support roadmap, and known issues are discussed below.
+In particular, we plan to support a much richer set of IO connectors via Beam's cross-language capabilities.
 
 ## Releases
 
 With this release, the Go SDK now uses [Go Modules](https://golang.org/ref/mod) for dependency management.
 This makes it so users, SDK Devs, and the testing infrastructure can all rely on the same versions of dependencies, making builds reproducible.
+This also makes [validating Go SDK Release Candidates simple](/blog/validate-beam-release/#configuring-a-go-build-to-validate-a-beam-release-candidate).
 
 Versioned SDK worker containers are now built and [published](https://hub.docker.com/r/apache/beam_go_sdk/tags?page=1&ordering=last_updated), with the SDK using matched tagged versions.
 For released versions, user jobs no longer need to specify a container to use, except when using custom containers.
@@ -122,19 +125,29 @@ They are at risk of changing, though at this point, large breaking changes are u
 
 ### Known Issues
 
-DO NOT SUBMIT: include Known Issues w/ 2.33.0, and known features making 2.34.0 and 2.35.0  (side inputs, metrics queyrying, IOs, Direct Runner, Triggers, Test Stream,  Cross Language Transforms caveats)
-
-* Batteries not included.
-    * Current native transforms are undertested.
-    * IOs may not be written to scale.
-    * Need something?
-      * File a ticket in the [Beam JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go) and,
-      * Email the dev@beam.apache.org list!
-* Non-Global Window Side Inputs don't match (fixed in 2.35.0)
-* Side Inputs accumulate memory over large element count bundles (fixed in 2.35.0)
-* Go Direct Runner is incomplete and is not portable.
-* Trigger API is under iteration and subject to change.
+#### Batteries not included.
+* Current native transforms are undertested.
+* IOs may not be written to scale.
+* Go Direct Runner is incomplete and is not portable, prefer using the Python Portable runner, or Flink.
+  * Doesn't support side input windowing. [BEAM-13075](https://issues.apache.org/jira/browse/BEAM-13075)
+  * Doesn't serialize data, making it unlikely to catch coder issues [BEAM-6372](https://issues.apache.org/jira/browse/BEAM-6372)
+  * Can use other general improvements, and become portable [BEAM-11076](https://issues.apache.org/jira/browse/BEAM-11076)
+* Current Trigger API is under iteration and subject to change [BEAM-3304](https://issues.apache.org/jira/browse/BEAM-3304).
+  * API has a possible breaking change between 2.33.0 and 2.34.0, and may change again.
 * Support of the SDK on services, like Google Cloud Dataflow, remains at the service owner's discretion.
+* Need something?
+  * File a ticket in the [Beam JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go) and,
+  * Email the dev@beam.apache.org list!
+
+#### Fixed in 2.34.0
+  * `top.SmallestPerKey` was broken [BEAM-12946](https://issues.apache.org/jira/browse/BEAM-12946)
+  * `beam.TryCrossLanguage` API didn't match non-Try version [BEAM-9918](https://issues.apache.org/jira/browse/BEAM-9918)
+    * This is a breaking change if one was calling `beam.TryCrossLanguage`
+
+#### Fixed in 2.35.0
+  * Non-Global Window Side Inputs don't match (correctness bug) [BEAM-11087](https://issues.apache.org/jira/browse/BEAM-11087)
+    * Until 2.35.0 it's not recommended to use SideInputs that are not using the Global Window.
+  * Side Inputs using DoFns accumulate memory over bundles, causing OOMs [BEAM-13130](https://issues.apache.org/jira/browse/BEAM-13130)
 
 ## Roadmap
 
@@ -145,7 +158,6 @@ In the nearer term this comes in the form of improvements to Side Inputs, and pr
 
 ## Conclusion
 
-I hope you find the SDK useful, and it's still early days.
+We hope you find the SDK useful, and it's still early days.
 If you make something using it, consider [sharing it with us](/community/contact-us/).
-
 And remember, [contributions](/contribute/) are always welcome.
