@@ -110,7 +110,6 @@ UNLIFTABLE_AGGREGATIONS = [
     'mad',
     'skew',
     'kurt',
-    'kurtosis',
     # TODO: The below all have specialized distributed
     # implementations, but they require tracking
     # multiple intermediate series, which is difficult
@@ -120,6 +119,7 @@ UNLIFTABLE_AGGREGATIONS = [
     'corr',
     'cov',
     'nunique',
+    'kurtosis',
 ]
 ALL_AGGREGATIONS = (
     LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
