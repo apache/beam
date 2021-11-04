@@ -572,7 +572,8 @@ class DataflowApplicationClient(object):
       raise RuntimeError('The --temp_location option must be specified.')
 
     resources = []
-    hashes = {}
+    staged_paths = {}
+    staged_hashes = {}
     for _, env in sorted(pipeline.components.environments.items(),
                          key=lambda kv: kv[0]):
       for dep in env.dependencies:
@@ -585,18 +586,27 @@ class DataflowApplicationClient(object):
         role_payload = (
             beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
                 dep.role_payload))
-        if type_payload.sha256 and type_payload.sha256 in hashes:
+        if type_payload.sha256 and type_payload.sha256 in staged_hashes:
           _LOGGER.info(
-              'Found duplicated artifact: %s (%s)',
+              'Found duplicated artifact sha256: %s (%s)',
               type_payload.path,
               type_payload.sha256)
-          staged_name = hashes[type_payload.sha256]
+          staged_name = staged_hashes[type_payload.sha256]
+          dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
+              staged_name=staged_name).SerializeToString()
+        elif type_payload.path and type_payload.path in staged_paths:
+          _LOGGER.info(
+              'Found duplicated artifact path: %s (%s)',
+              type_payload.path,
+              type_payload.sha256)
+          staged_name = staged_paths[type_payload.path]
           dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
               staged_name=staged_name).SerializeToString()
         else:
           staged_name = role_payload.staged_name
           resources.append((type_payload.path, staged_name))
-          hashes[type_payload.sha256] = staged_name
+          staged_paths[type_payload.path] = staged_name
+          staged_hashes[type_payload.sha256] = staged_name
 
         if FileSystems.get_scheme(
             google_cloud_options.staging_location) == GCSFileSystem.scheme():
