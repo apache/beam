@@ -36,7 +36,8 @@ public interface ExpansionServiceOptions extends PipelineOptions {
 
   void setJavaClassLookupAllowlist(AllowList file);
 
-  @Description("Allow list file for Java class based transform expansion")
+  @Description(
+      "Allow list file for Java class based transform expansion, or '*' to allow anything.")
   String getJavaClassLookupAllowlistFile();
 
   void setJavaClassLookupAllowlistFile(String file);

@@ -24,6 +24,7 @@ No backward compatibility guarantees. Everything in this module is experimental.
 import contextlib
 import copy
 import functools
+import glob
 import threading
 from collections import OrderedDict
 from typing import Dict
@@ -285,15 +286,22 @@ class JavaExternalTransform(ptransform.PTransform):
 
   One builds these transforms just as one would in Java, e.g.::
 
-      transform = JavaExternalTransform('fully.qualified.ClassName')(
-          contrustorArg, ...).builderMethod(...)
+      transform = JavaExternalTransform('fully.qualified.ClassName'
+          )(contructorArg, ... ).builderMethod(...)
 
   or::
 
       JavaExternalTransform('fully.qualified.ClassName').staticConstructor(
           ...).builderMethod1(...).builderMethod2(...)
+
+  :param class_name: fully qualified name of the java class
+  :param expansion_service: (Optional) an expansion service to use.  If none is
+      provided, a default expansion service will be started.
+  :param classpath: (Optional) A list paths to additional jars to place on the
+      expansion service classpath.
   """
   def __init__(self, class_name, expansion_service=None, classpath=None):
+    assert not (expansion_service and classpath), (expansion_service, classpath)
     expansion_service = expansion_service or BeamJarExpansionService(
         ':sdks:java:expansion-service:shadowJar',
         extra_args=['{{PORT}}', '--javaClassLookupAllowlistFile=*'],
@@ -674,8 +682,9 @@ class JavaJarExpansionService(object):
     self._service_count = 0
 
   def _default_args(self):
-    to_stage = ','.join([self._path_to_jar] + list(classpath or []))
-    return = ['{{PORT}}', f'--filesToStage={to_stage}']
+    to_stage = ','.join([self._path_to_jar] + sum(
+        (glob.glob(path) or [path] for path in self._classpath or []), []))
+    return ['{{PORT}}', f'--filesToStage={to_stage}']
 
   def __enter__(self):
     if self._service_count == 0:
