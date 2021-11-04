@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
-import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -43,7 +42,6 @@ import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarkAdvancingStreamingListener;
-import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -68,12 +66,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
-import org.apache.spark.scheduler.EventLoggingListener;
-import org.apache.spark.scheduler.SparkListenerApplicationEnd;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,8 +164,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     prepareFilesToStage(pipelineOptions);
 
-    final long startTime = Instant.now().getMillis();
-    EventLoggingListener eventLoggingListener = null;
     JavaSparkContext jsc = null;
     if (pipelineOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(pipelineOptions.getCheckpointDir());
@@ -179,8 +172,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(
               checkpointDir.getSparkCheckpointDir().toString(), streamingContextFactory);
-      jsc = jssc.sparkContext();
-      eventLoggingListener = startEventLoggingListener(jsc, pipelineOptions, startTime);
+      // LI Specific: disable eventLoggingListener for SparkRunner since it causes troubles: see LISAMZA-22077
 
       // Checkpoint aggregator/metrics values
       jssc.addStreamingListener(
@@ -218,7 +210,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
     } else {
       jsc = SparkContextFactory.getSparkContext(pipelineOptions);
-      eventLoggingListener = startEventLoggingListener(jsc, pipelineOptions, startTime);
+      // LI Specific: disable eventLoggingListener for SparkRunner since it causes troubles: see LISAMZA-22077
       final EvaluationContext evaluationContext =
           new EvaluationContext(jsc, pipeline, pipelineOptions);
       translator = new TransformTranslator.Translator();
@@ -253,13 +245,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
             result);
     metricsPusher.start();
 
-    if (eventLoggingListener != null && jsc != null) {
-      eventLoggingListener.onApplicationStart(
-          SparkCompat.buildSparkListenerApplicationStart(jsc, pipelineOptions, startTime, result));
-      eventLoggingListener.onApplicationEnd(
-          new SparkListenerApplicationEnd(Instant.now().getMillis()));
-      eventLoggingListener.stop();
-    }
+    // LI Specific: disable eventLoggingListener for SparkRunner since it causes troubles: see LISAMZA-22077
 
     return result;
   }
