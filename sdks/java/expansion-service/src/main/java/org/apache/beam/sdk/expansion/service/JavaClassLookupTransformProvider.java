@@ -501,9 +501,9 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       }
       if (allowlistClass == null) {
         throw new UnsupportedOperationException(
-                "The provided allow list does not enable expanding a transform class by the name "
-                        + className
-                        + ".");
+            "The provided allow list does not enable expanding a transform class by the name "
+                + className
+                + ".");
       }
       return allowlistClass;
     }
