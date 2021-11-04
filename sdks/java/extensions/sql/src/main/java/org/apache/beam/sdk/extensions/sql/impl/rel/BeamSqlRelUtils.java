@@ -27,6 +27,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStatsMetadata;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
@@ -39,12 +40,15 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.Re
 public class BeamSqlRelUtils {
 
   public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {
-    return toPCollection(pipeline, node, new HashMap());
+    return toPCollection(pipeline, node, new HashMap(), null);
   }
 
   /** Transforms the inputs into a PInput. */
   private static PCollectionList<Row> buildPCollectionList(
-      List<RelNode> inputRels, Pipeline pipeline, Map<Integer, PCollection<Row>> cache) {
+      List<RelNode> inputRels,
+      Pipeline pipeline,
+      Map<Integer, PCollection<Row>> cache,
+      PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer) {
     if (inputRels.isEmpty()) {
       return PCollectionList.empty(pipeline);
     } else {
@@ -58,7 +62,8 @@ public class BeamSqlRelUtils {
                     } else {
                       beamRel = (BeamRelNode) input;
                     }
-                    return BeamSqlRelUtils.toPCollection(pipeline, beamRel, cache);
+                    return BeamSqlRelUtils.toPCollection(
+                        pipeline, beamRel, cache, errorTransformer);
                   })
               .collect(Collectors.toList()));
     }
@@ -68,15 +73,20 @@ public class BeamSqlRelUtils {
    * A {@link BeamRelNode} is a recursive structure, the {@code BeamQueryPlanner} visits it with a
    * DFS(Depth-First-Search) algorithm.
    */
-  static PCollection<Row> toPCollection(
-      Pipeline pipeline, BeamRelNode node, Map<Integer, PCollection<Row>> cache) {
+  public static PCollection<Row> toPCollection(
+      Pipeline pipeline,
+      BeamRelNode node,
+      Map<Integer, PCollection<Row>> cache,
+      PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer) {
     PCollection<Row> output = cache.get(node.getId());
     if (output != null) {
       return output;
     }
 
     String name = node.getClass().getSimpleName() + "_" + node.getId();
-    PCollectionList<Row> input = buildPCollectionList(node.getPCollectionInputs(), pipeline, cache);
+    PCollectionList<Row> input =
+        buildPCollectionList(node.getPCollectionInputs(), pipeline, cache, errorTransformer);
+    node.withErrorsTransformer(errorTransformer);
     PTransform<PCollectionList<Row>, PCollection<Row>> transform = node.buildPTransform();
     output = Pipeline.applyTransform(name, input, transform);
 
