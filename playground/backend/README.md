@@ -28,34 +28,13 @@ across a diversity of execution engines, or runners.
 Beam Playground helps facilitate trying out and adopting Apache Beam by providing a very quick way for prospective Beam
 users to see and run examples of Apache Beam pipelines in a web interface that requires no setup.
 
-## Requirements
-
-- [Go](https://golang.org/dl/) installed (1.16 version).
-- [Protocol Buffer Compiler](https://grpc.io/docs/protoc-installation/)
-
 ## Getting Started
+
+See [playground/README.md](../README.md) for details on requirements and setup.
 
 This section describes what is needed to run the backend application.
 - Generating models from proto file
 - Go commands to run/test application locally
-
-### Generating models from proto file
-
-Beam Playground uses gRPC for communication between client and server. For using gRPC there is a
-`playground/proto/playground.proto` file which contains the definition of all models. To use models in the code they
-should be generated firstly using the `playground/proto/playground.proto` file.
-
-Run the following command from `/playground` directory:
-
-```
-protoc --go_out=backend/pkg/api --go_opt=paths=source_relative \
---go-grpc_out=backend/pkg/api --go-grpc_opt=paths=source_relative --proto_path=playground/v1 \
-playground.proto
-```
-
-As a result you will receive 2 files into `backend/pkg/api` folder with models (`playground.pb.go`) and client/server
-structures (`playground_grpc.pb.go`).
-More information about using gRPC you can find [here](https://grpc.io/docs/languages/).
 
 ### Go commands to run/test application locally
 
@@ -74,7 +53,7 @@ go build ./cmd/server/server.go
 Playground tests may be run using this command:
 
 ```
-go test ./test/... -v
+go test ... -v
 ```
 
 The full list of commands can be found [here](https://pkg.go.dev/cmd/go).
@@ -89,7 +68,7 @@ One more way to run the server is to run it locally how it is described above.
 ## Calling the server from another client
 
 To call the server from another client – models and client code should be generated using the
-`playground/playground/v1/playground.proto` file. More information about generating models and client's code using `.proto`
+`playground/api/v1/api.proto` file. More information about generating models and client's code using `.proto`
 files for each language can be found [here](https://grpc.io/docs/languages/).
 
 ## Deployment

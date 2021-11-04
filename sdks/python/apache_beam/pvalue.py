@@ -238,12 +238,15 @@ class DoOutputsTuple(object):
                pipeline,  # type: Pipeline
                transform,  # type: ParDo
                tags,  # type: Sequence[str]
-               main_tag  # type: Optional[str]
+               main_tag,  # type: Optional[str]
+               allow_unknown_tags=None,  # type: Optional[bool]
               ):
     self._pipeline = pipeline
     self._tags = tags
     self._main_tag = main_tag
     self._transform = transform
+    self._allow_unknown_tags = (
+        not tags if allow_unknown_tags is None else allow_unknown_tags)
     # The ApplyPTransform instance for the application of the multi FlatMap
     # generating this value. The field gets initialized when a transform
     # gets applied.
@@ -288,7 +291,7 @@ class DoOutputsTuple(object):
       tag = str(tag)
     if tag == self._main_tag:
       tag = None
-    elif self._tags and tag not in self._tags:
+    elif self._tags and tag not in self._tags and not self._allow_unknown_tags:
       raise ValueError(
           "Tag '%s' is neither the main tag '%s' "
           "nor any of the tags %s" % (tag, self._main_tag, self._tags))

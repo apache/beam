@@ -45,8 +45,8 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
-  public static final String WRITE_URN = "beam:external:java:kinesis:write:v1";
-  public static final String READ_DATA_URN = "beam:external:java:kinesis:read_data:v1";
+  public static final String WRITE_URN = "beam:transform:org.apache.beam:kinesis_write:v1";
+  public static final String READ_DATA_URN = "beam:transform:org.apache.beam:kinesis_read_data:v1";
 
   @Override
   public Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {

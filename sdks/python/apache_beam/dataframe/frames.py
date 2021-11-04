@@ -1100,6 +1100,23 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
+  def hasnans(self):
+    has_nans = expressions.ComputedExpression(
+        'hasnans',
+        lambda s: pd.Series(s.hasnans), [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations():
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'combine_hasnans',
+              lambda s: s.any(), [has_nans],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
   def dtype(self):
     return self._expr.proxy().dtype
 
@@ -1434,63 +1451,65 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def skew(self, axis, skipna, level, numeric_only, **kwargs):
-      if level is not None:
-          raise NotImplementedError("per-level aggregation")
-      if skipna is None or skipna:
-          self = self.dropna()  # pylint: disable=self-cls-assignment
-      # See the online, numerically stable formulae at
-      # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
-      def compute_moments(x):
-          n = len(x)
-          if n == 0:
-              m, s, third_moment = 0, 0, 0
-          elif n < 3:
-              m = x.std(ddof=0)**2 * n
-              s = x.sum()
-              third_moment = (((x-x.mean())**3).sum())
-          else:
-              m = x.std(ddof=0) ** 2 * n
-              s = x.sum()
-              third_moment = (x.skew()*(m**(3/2)))/math.sqrt(n)
-          return pd.DataFrame(dict(m=[m], s=[s], n=[n], third_moment=[third_moment]))
+    if level is not None:
+      raise NotImplementedError("per-level aggregation")
+    if skipna is None or skipna:
+      self = self.dropna()  # pylint: disable=self-cls-assignment
+    # See the online, numerically stable formulae at
+    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
+    def compute_moments(x):
+      n = len(x)
+      if n == 0:
+        m, s, third_moment = 0, 0, 0
+      elif n < 3:
+        m = x.std(ddof=0)**2 * n
+        s = x.sum()
+        third_moment = (((x - x.mean())**3).sum())
+      else:
+        m = x.std(ddof=0)**2 * n
+        s = x.sum()
+        third_moment = (x.skew() * (m**(3 / 2))) / math.sqrt(n)
+      return pd.DataFrame(
+          dict(m=[m], s=[s], n=[n], third_moment=[third_moment]))
 
-      def combine_moments(data):
-          m = s = n = third_moment = 0.0
-          for datum in data.itertuples():
-            if datum.n == 0:
-                continue
-            elif n == 0:
-                m, s, n, third_moment = datum.m, datum.s, datum.n, datum.third_moment
-            else:
-                mean_b = s / n
-                mean_a = datum.s / datum.n
-                delta = mean_b - mean_a
-                n_a = datum.n
-                n_b = n
-                combined_n = n + datum.n
-                third_moment += datum.third_moment + ((delta ** 3 * ((n_a * n_b) * (n_a - n_b)) / ((combined_n) ** 2)) +
-                                                      ((3 * delta) * ((n_a * m) - (n_b * datum.m)) / (combined_n)))
-                m += datum.m + delta ** 2 * n * datum.n / (n + datum.n)
-                s += datum.s
-                n += datum.n
+    def combine_moments(data):
+      m = s = n = third_moment = 0.0
+      for datum in data.itertuples():
+        if datum.n == 0:
+          continue
+        elif n == 0:
+          m, s, n, third_moment = datum.m, datum.s, datum.n, datum.third_moment
+        else:
+          mean_b = s / n
+          mean_a = datum.s / datum.n
+          delta = mean_b - mean_a
+          n_a = datum.n
+          n_b = n
+          combined_n = n + datum.n
+          third_moment += datum.third_moment + (
+              (delta**3 * ((n_a * n_b) * (n_a - n_b)) / ((combined_n)**2)) +
+              ((3 * delta) * ((n_a * m) - (n_b * datum.m)) / (combined_n)))
+          m += datum.m + delta**2 * n * datum.n / (n + datum.n)
+          s += datum.s
+          n += datum.n
 
-          if n < 3:
-              return float('nan')
-          elif m == 0:
-              return float(0)
-          else:
-              return (math.sqrt(n)*third_moment)/(m**(3/2))
+      if n < 3:
+        return float('nan')
+      elif m == 0:
+        return float(0)
+      else:
+        return (math.sqrt(n) * third_moment) / (m**(3 / 2))
 
-      moments = expressions.ComputedExpression(
-          'compute_moments',
-          compute_moments, [self._expr],
-          requires_partition_by=partitionings.Arbitrary())
-      with expressions.allow_non_parallel_operations(True):
-          return frame_base.DeferredFrame.wrap(
-              expressions.ComputedExpression(
-                  'combine_moments',
-                  combine_moments, [moments],
-                  requires_partition_by=partitionings.Singleton()))
+    moments = expressions.ComputedExpression(
+        'compute_moments',
+        compute_moments, [self._expr],
+        requires_partition_by=partitionings.Arbitrary())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'combine_moments',
+              combine_moments, [moments],
+              requires_partition_by=partitionings.Singleton()))
 
   def _corr_aligned(self, other, min_periods):
     std_x = self.std()
@@ -1692,7 +1711,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           with expressions.allow_non_parallel_operations(True):
             return frame_base.DeferredFrame.wrap(
                 expressions.ComputedExpression(
-                    'wrap_aggregate',
+                    f'wrap_aggregate_{base_func}',
                     lambda x: pd.Series(x, index=[base_func]), [result._expr],
                     requires_partition_by=partitionings.Singleton(),
                     preserves_partition_by=partitionings.Singleton()))
@@ -1703,7 +1722,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       if ((_is_associative(base_func) or _is_liftable_with_sum(base_func)) and
           singleton_reason is None):
         intermediate = expressions.ComputedExpression(
-            'pre_aggregate',
+            f'pre_aggregate_{base_func}',
             # Coerce to a Series, if the result is scalar we still want a Series
             # so we can combine and do the final aggregation next.
             lambda s: pd.Series(s.agg(func, *args, **kwargs)),
@@ -1726,7 +1745,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       with expressions.allow_non_parallel_operations(allow_nonparallel_final):
         return frame_base.DeferredFrame.wrap(
             expressions.ComputedExpression(
-                'aggregate',
+                f'post_aggregate_{base_func}',
                 lambda s: s.agg(agg_func, *args, **agg_kwargs), [intermediate],
                 preserves_partition_by=partitionings.Singleton(),
                 requires_partition_by=partitionings.Singleton(

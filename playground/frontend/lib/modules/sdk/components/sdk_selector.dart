@@ -34,8 +34,8 @@ class SDKSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        vertical: kZeroPadding,
-        horizontal: kLgPadding,
+        vertical: kZeroSpacing,
+        horizontal: kLgSpacing,
       ),
       decoration: BoxDecoration(
         color: ThemeColors.of(context).greyColor,
