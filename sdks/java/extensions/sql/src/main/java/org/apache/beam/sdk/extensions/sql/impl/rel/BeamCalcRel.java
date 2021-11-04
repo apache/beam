@@ -101,6 +101,8 @@ import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ScriptEvaluator;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** BeamRelNode to replace {@code Project} and {@code Filter} node. */
 @SuppressWarnings({
@@ -230,6 +232,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     private final List<String> jarPaths;
     private boolean collectErrors;
     private transient @Nullable ScriptEvaluator se = null;
+    private static final Logger LOG = LoggerFactory.getLogger(CalcFn.class);
 
     public CalcFn(
         String processElementBlock,
@@ -276,16 +279,15 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     @ProcessElement
     public void processElement(ProcessContext c) {
       assert se != null;
-      Object[] v = null;
       try {
-        v = (Object[]) se.evaluate(new Object[] {c.element(), CONTEXT_INSTANCE});
+        Object[] v = (Object[]) se.evaluate(new Object[] {c.element(), CONTEXT_INSTANCE});
         if (v != null) {
           Row row = toBeamRow(Arrays.asList(v), outputSchema, verifyRowValues);
           c.output(row);
         }
       } catch (InvocationTargetException e) {
         if (collectErrors) {
-          // todo add logs
+          LOG.error("CalcFn failed to evaluate: " + processElementBlock, e.getCause());
           BeamCalcRelError beamCalcRelError =
               new BeamCalcRelError(c.element(), e.getCause().getMessage());
           c.output(errors, beamCalcRelError);
