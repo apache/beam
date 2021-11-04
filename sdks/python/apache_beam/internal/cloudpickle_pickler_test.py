@@ -55,26 +55,22 @@ class PicklerTest(unittest.TestCase):
         'closure: abc',
         loads(dumps(module_test.get_lambda_with_closure('abc')))())
 
-  def test_class(self):
-    """Tests that a class object is pickled correctly."""
+  def test_class_object_pickled(self):
     self.assertEqual(['abc', 'def'],
                      loads(dumps(module_test.Xyz))().foo('abc def'))
 
-  def test_object(self):
-    """Tests that a class instance is pickled correctly."""
+  def test_class_instance_pickled(self):
     self.assertEqual(['abc', 'def'],
                      loads(dumps(module_test.XYZ_OBJECT)).foo('abc def'))
 
-  def test_nested_class(self):
-    """Tests that a nested class object is pickled correctly."""
+  def test_pickling_preserves_closure_of_a_function(self):
     self.assertEqual(
         'X:abc', loads(dumps(module_test.TopClass.NestedClass('abc'))).datum)
     self.assertEqual(
         'Y:abc',
         loads(dumps(module_test.TopClass.MiddleClass.NestedClass('abc'))).datum)
 
-  def test_dynamic_class(self):
-    """Tests that a nested class object is pickled correctly."""
+  def test_pickle_dynamic_class(self):
     self.assertEqual(
         'Z:abc', loads(dumps(module_test.create_class('abc'))).get())
 

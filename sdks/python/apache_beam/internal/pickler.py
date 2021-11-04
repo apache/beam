@@ -31,23 +31,25 @@ the coders.*PickleCoder classes should be used instead.
 from apache_beam.internal import cloudpickle_pickler
 from apache_beam.internal import dill_pickler
 
-pickler_lib = dill_pickler
 
 USE_CLOUDPICKLE = 1
 USE_DILL = 2
+DEFAULT_PICKLE_LIB = USE_DILL
 
+desired_pickle_lib = None
+change_pickle_lib(DEFAULT_PICKLE_LIB)
 
 def dumps(o, enable_trace=True, use_zlib=False):
   # type: (...) -> bytes
 
-  return pickler_lib.dumps(o, enable_trace=enable_trace, use_zlib=use_zlib)
+  return desired_pickle_lib.dumps(o, enable_trace=enable_trace, use_zlib=use_zlib)
 
 
 def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
 
-  return pickler_lib.loads(encoded, enable_trace=enable_trace,
-                           use_zlib=use_zlib)
+  return desired_pickle_lib.loads(encoded, enable_trace=enable_trace,
+                                  use_zlib=use_zlib)
 
 
 def dump_session(file_path):
@@ -56,18 +58,22 @@ def dump_session(file_path):
   Pickle the current python session to be used in the worker.
   """
 
-  return pickler_lib.dump_session(file_path)
+  return desired_pickle_lib.dump_session(file_path)
 
 
 def load_session(file_path):
-  return pickler_lib.load_session(file_path)
+  return desired_pickle_lib.load_session(file_path)
 
 
-def change_pickle_lib(pickle_lib):
+def set_pickle_lib(pickle_lib):
   """ Changes pickling library. Users should prefer the default library."""
-  global pickler_lib
+  global desired_pickle_lib
   if pickle_lib == USE_CLOUDPICKLE:
-    pickler_lib = dill_pickler
-  elif pickler_lib == USE_DILL:
-    pickler_lib = cloudPickle_pickler
+    # Dill will override hooks in the dispatch table of the standard pickler.
+    # Those hooks overrides will cause cloudpickle to fail.
+    dill_pickler.override_pickler_hooks(False)
+    desired_pickle_lib = cloudPickle_pickler
+  elif desired_pickle_lib == USE_DILL:
+    desired_pickle_lib = dill_pickler
+    dill_pickler.override_pickler_hooks(True)
 
