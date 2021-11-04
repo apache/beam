@@ -324,7 +324,9 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(ctx, instID, "Failed: %v", err)
 		}
 
-		// TODO(BEAM-11097): Get and set valid tokens in cache
+		tokens := msg.GetCacheTokens()
+		c.cache.SetValidTokens(tokens...)
+
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
 
@@ -337,6 +339,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		data.Close()
 		state.Close()
+
+		c.cache.CompleteBundle(tokens...)
 
 		mons, pylds := monitoring(plan, store)
 		// Move the plan back to the candidate state
