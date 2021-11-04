@@ -20,15 +20,15 @@ import 'package:flutter/material.dart';
 import 'package:playground/components/logo/logo_component.dart';
 import 'package:playground/components/toggle_theme_button/toggle_theme_button.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/shortcuts/components/shortcuts_manager.dart';
-import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
-import 'package:playground/pages/playground/components/playground_page_body.dart';
-import 'package:playground/pages/playground/components/playground_page_footer.dart';
 import 'package:playground/modules/actions/components/new_example_action.dart';
 import 'package:playground/modules/actions/components/reset_action.dart';
 import 'package:playground/modules/examples/example_selector.dart';
 import 'package:playground/modules/sdk/components/sdk_selector.dart';
+import 'package:playground/modules/shortcuts/components/shortcuts_manager.dart';
+import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 import 'package:playground/pages/playground/components/more_actions.dart';
+import 'package:playground/pages/playground/components/playground_page_body.dart';
+import 'package:playground/pages/playground/components/playground_page_footer.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
@@ -46,16 +46,12 @@ class PlaygroundPage extends StatelessWidget {
             builder: (context, state, child) {
               return Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: kLgSpacing,
+                spacing: kXlSpacing,
                 children: [
                   const Logo(),
                   Consumer<ExampleState>(
                     builder: (context, state, child) {
-                      return ExampleSelector(
-                        changeSelectorVisibility: state.changeSelectorVisibility,
-                        isSelectorOpened: state.isSelectorOpened,
-                        categories: state.categories!,
-                      );
+                      return ExampleSelector(categories: state.categories!);
                     },
                   ),
                   SDKSelector(sdk: state.sdk, setSdk: state.setSdk),
