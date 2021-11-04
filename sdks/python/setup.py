@@ -261,7 +261,6 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 9:
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
 
-
 if __name__ == '__main__':
   setuptools.setup(
       name=PACKAGE_NAME,
@@ -305,10 +304,10 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'docs': [
-            'Sphinx>=1.5.2,<2.0',
-            # Pinning docutils as a workaround for Sphinx issue:
-            # https://github.com/sphinx-doc/sphinx/issues/9727
-            'docutils==0.17.1'
+              'Sphinx>=1.5.2,<2.0',
+              # Pinning docutils as a workaround for Sphinx issue:
+              # https://github.com/sphinx-doc/sphinx/issues/9727
+              'docutils==0.17.1'
           ],
           'test': REQUIRED_TEST_PACKAGES,
           'gcp': GCP_REQUIREMENTS,

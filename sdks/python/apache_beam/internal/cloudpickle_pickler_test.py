@@ -85,8 +85,10 @@ class PicklerTest(unittest.TestCase):
 
   def test_function_with_external_reference(self):
     out_of_scope_var = 'expected_value'
+
     def foo():
       return out_of_scope_var
+
     self.assertEqual('expected_value', loads(dumps(foo))())
 
   @unittest.skipIf(NO_MAPPINGPROXYTYPE, 'test if MappingProxyType introduced')

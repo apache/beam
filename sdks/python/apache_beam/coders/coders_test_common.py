@@ -684,12 +684,13 @@ class CodersTest(unittest.TestCase):
         iterable_state_write=iterable_state_write)
     # Note: do not use check_coder see https://github.com/cloudpipe/cloudpickle/issues/452
     self._observe(coder)
-    self.assertEqual([1,2,3], coder.decode(coder.encode([1,2,3])))
+    self.assertEqual([1, 2, 3], coder.decode(coder.encode([1, 2, 3])))
     # Ensure that state was actually used.
     self.assertNotEqual(state, {})
     tupleCoder = coders.TupleCoder((coder, coder))
     self._observe(tupleCoder)
-    self.assertEqual(([1], [2, 3]), tupleCoder.decode(tupleCoder.encode(([1], [2, 3]))))
+    self.assertEqual(([1], [2, 3]),
+                     tupleCoder.decode(tupleCoder.encode(([1], [2, 3]))))
 
   def test_nullable_coder(self):
     self.check_coder(coders.NullableCoder(coders.VarIntCoder()), None, 2 * 64)

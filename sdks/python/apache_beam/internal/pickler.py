@@ -31,7 +31,6 @@ the coders.*PickleCoder classes should be used instead.
 from apache_beam.internal import cloudpickle_pickler
 from apache_beam.internal import dill_pickler
 
-
 USE_CLOUDPICKLE = 1
 USE_DILL = 2
 DEFAULT_PICKLE_LIB = USE_DILL
@@ -39,17 +38,19 @@ DEFAULT_PICKLE_LIB = USE_DILL
 desired_pickle_lib = None
 change_pickle_lib(DEFAULT_PICKLE_LIB)
 
+
 def dumps(o, enable_trace=True, use_zlib=False):
   # type: (...) -> bytes
 
-  return desired_pickle_lib.dumps(o, enable_trace=enable_trace, use_zlib=use_zlib)
+  return desired_pickle_lib.dumps(
+      o, enable_trace=enable_trace, use_zlib=use_zlib)
 
 
 def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
 
-  return desired_pickle_lib.loads(encoded, enable_trace=enable_trace,
-                                  use_zlib=use_zlib)
+  return desired_pickle_lib.loads(
+      encoded, enable_trace=enable_trace, use_zlib=use_zlib)
 
 
 def dump_session(file_path):
@@ -76,4 +77,3 @@ def set_pickle_lib(pickle_lib):
   elif desired_pickle_lib == USE_DILL:
     desired_pickle_lib = dill_pickler
     dill_pickler.override_pickler_hooks(True)
-
