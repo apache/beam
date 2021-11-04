@@ -90,6 +90,8 @@
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * The Go SDK now properly maps main input windows to side input windows by
   default ([BEAM-11087](https://issues.apache.org/jira/browse/BEAM-11087)).
+* Fixed data loss when writing to DynamoDB without setting deduplication key names (Java)
+  ([BEAM-13009](https://issues.apache.org/jira/browse/BEAM-13009)).
 
 ## Known Issues
 
