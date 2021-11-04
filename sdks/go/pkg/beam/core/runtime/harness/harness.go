@@ -36,9 +36,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// This side input cache size is a placeholder value.
-const cacheSize = 20
-
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
@@ -49,7 +46,10 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 	// Pass in the logging endpoint for use w/the default remote logging hook.
 	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
-	hooks.RunInitHooks(ctx)
+	ctx, err := hooks.RunInitHooks(ctx)
+	if err != nil {
+		return err
+	}
 
 	recordHeader()
 
@@ -97,6 +97,11 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		}
 		log.Debugf(ctx, "control response channel closed")
 	}()
+
+	cacheSize, ok := ctx.Value(cacheSizeKey).(int)
+	if !ok {
+		cacheSize = 0
+	}
 
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
