@@ -24,37 +24,50 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
+import org.apache.beam.sdk.values.Row;
 
 public class BeamCalcRelErrorCoder extends StructuredCoder<BeamCalcRelError> {
 
-  public static BeamCalcRelErrorCoder of() {
-    return new BeamCalcRelErrorCoder();
+  private final RowCoder rowCoder;
+
+  private BeamCalcRelErrorCoder(RowCoder rowCoder) {
+    this.rowCoder = rowCoder;
+  }
+
+  public static BeamCalcRelErrorCoder of(RowCoder rowCoder) {
+    return new BeamCalcRelErrorCoder(rowCoder);
   }
 
   @Override
   public void encode(BeamCalcRelError value, OutputStream outStream)
       throws CoderException, IOException {
+    if (rowCoder == null) {
+      throw new CoderException("cannot encode a null row coder");
+    }
+    rowCoder.encode(value.getRow(), outStream);
     StringUtf8Coder.of().encode(value.getError(), outStream);
-    StringUtf8Coder.of().encode(value.getRow(), outStream);
   }
 
   @Override
   public BeamCalcRelError decode(InputStream inStream) throws CoderException, IOException {
-
+    if (rowCoder == null) {
+      throw new CoderException("cannot decode a null row coder");
+    }
+    Row row = rowCoder.decode(inStream);
     String error = StringUtf8Coder.of().decode(inStream);
-    String row = StringUtf8Coder.of().decode(inStream);
     return new BeamCalcRelError(row, error);
   }
 
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    return Arrays.asList();
+    return Arrays.asList(rowCoder);
   }
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    //    verifyDeterministic(this, "Row coder must be deterministic", rowCoder);
+    verifyDeterministic(this, "Row coder must be deterministic", rowCoder);
   }
 }
