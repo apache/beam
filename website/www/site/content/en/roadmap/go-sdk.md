@@ -17,14 +17,14 @@ limitations under the License.
 
 # Go SDK Roadmap
 
-The Go SDK is [fully released as of v2.34.0](https://beam.apache.org/blog/go-sdk-release/).
+The Go SDK is [fully released as of v2.34.0](/blog/go-sdk-release/).
 
-The Go SDK the first SDK purely on the [Beam Portability Framework](https://beam.apache.org/roadmap/portability/)
+The Go SDK the first SDK purely on the [Beam Portability Framework](/roadmap/portability/)
 and can execute pipelines on portable runners, like Flink, Spark, Samza, and Google Cloud Dataflow.
 
 Current roadmap:
 * continue building up Streaming facing features, as described on the [Beam Dev Wiki](https://cwiki.apache.org/confluence/display/BEAM/Supporting+Streaming+in+the+Go+SDK).
-* improve Connector support via Cross Language transforms, and improving scalable native transforms. [Go SDK Connector Roadmap](https://beam.apache.org/roadmap/connectors-go-sdk/)
+* improve Connector support via Cross Language transforms, and improving scalable native transforms. [Go SDK Connector Roadmap](/roadmap/connectors-go-sdk/)
 
 Otherwise, improving examples and documentation for devs and users alike is ongoing.
 Contributions are welcome. Please contact the [dev list](mailto:dev@beam.apache.org?subject=%5BGo%20SDK%5D%20How%20can%20I%20help%3F)

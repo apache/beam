@@ -27,19 +27,19 @@ Built with the [Go Programming Language](https://golang.org/), the Go SDK joins 
 
 ## Using the new Go SDK.
 
-New users of the Go SDK can start using it in their Go programs:
+New users of the Go SDK can start using it in their Go programs by importing the main beam package:
 
 ```
 import "github.com/apache/beam/sdks/v2/go/pkg/beam"
 ```
 
-The next run of `go mod tidy` will fetch the latest stable version.
+The next run of `go mod tidy` will fetch the latest stable version of the module.
 Alternatively executing `go get github.com/apache/beam/sdks/v2/go/pkg/beam` will download it to the local module cache immeadiately, and add it to your `go.mod` file.
 
 Existing users of the experimental Go SDK need to update to new `v2` import paths to start using the latest versions of the SDK.
 This is can be done by adding `v2` to the import paths, changing `github.com/apache/beam/sdks/go/`... to `github.com/apache/beam/sdks/v2/go/`... where applicable, and then running `go mod tidy`.
 
-Further documentation on using the SDK is available in the [Beam Programming Guide](https://beam.apache.org/documentation/programming-guide/), and in the package Go Doc at https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam.
+Further documentation on using the SDK is available in the [Beam Programming Guide](/documentation/programming-guide/), and in the package Go Doc at https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam.
 
 ## Feature Support
 
@@ -77,7 +77,6 @@ custom user use, supporting following features:
 * Provided Built Transforms
   * Sum, Count, Min, Max, Top, Filter
   * Scalable TextIO Reading
-  * Test Stream (for runners that support it.)
 
 Upcoming features support roadmap, and known issues are discussed below.
 
@@ -91,7 +90,7 @@ For released versions, user jobs no longer need to specify a container to use, e
 
 ## Compatibility
 
-The Go SDK will largely follow suite with the Go notion of compatibility.
+The Go SDK will largely follow suit with the Go notion of compatibility.
 Some concessions are made to keep all SDKs together on the same release cycle.
 
 ### Language Compatibility
@@ -139,7 +138,7 @@ DO NOT SUBMIT: include Known Issues w/ 2.33.0, and known features making 2.34.0 
 
 ## Roadmap
 
-The [SDK roadmap](https://beam.apache.org/roadmap/go-sdk/) has been updated.
+The [SDK roadmap](/roadmap/go-sdk/) has been updated.
 Ongoing focus is to bolster more streaming focused features, and improve existing connectors, and make connectors easier to implement.
 
 In the nearer term this comes in the form of improvements to Side Inputs, and providing wrappers and improving ease-of-use for Cross Language Transforms from Java.
@@ -147,10 +146,6 @@ In the nearer term this comes in the form of improvements to Side Inputs, and pr
 ## Conclusion
 
 I hope you find the SDK useful, and it's still early days.
-If you make something using it, consider [sharing it with us](https://beam.apache.org/community/contact-us/).
+If you make something using it, consider [sharing it with us](/community/contact-us/).
 
-And remember, [contributions](https://beam.apache.org/contribute/) are always welcome.
-
-
-
-
+And remember, [contributions](/contribute/) are always welcome.
