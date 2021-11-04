@@ -71,6 +71,9 @@
 * Splittable reading is enabled by default while reading data with ParquetIO ([BEAM-12070](https://issues.apache.org/jira/browse/BEAM-12070)).
 * DoFn Execution Time metrics added to Go ([BEAM-13001](https://issues.apache.org/jira/browse/BEAM-13001)).
 * Cross-bundle side input caching is now available in the Go SDK for runners that support the feature by setting the EnableSideInputCache hook ([BEAM-11097](https://issues.apache.org/jira/browse/BEAM-11097)).
+* Upgraded the GCP Libraries BOM version to 24.0.0 and associated dependencies ([BEAM-11205](
+  https://issues.apache.org/jira/browse/BEAM-11205)). For Google Cloud client library versions set by this BOM,
+  see [this table](https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/24.0.0/artifact_details.html).
 
 ## Breaking Changes
 
