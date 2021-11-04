@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
@@ -213,7 +214,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       PCollectionTuple tuple =
           upstream.apply(ParDo.of(calcFn).withOutputTags(rows, TupleTagList.of(errors)));
       PCollection<BeamCalcRelError> errorPCollection =
-          tuple.get(errors).setCoder(BeamCalcRelErrorCoder.of());
+          tuple.get(errors).setCoder(BeamCalcRelErrorCoder.of(RowCoder.of(upstream.getSchema())));
       if (errorsTransformer != null) {
         errorPCollection.apply(errorsTransformer);
       }
@@ -278,6 +279,10 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       Object[] v = null;
       try {
         v = (Object[]) se.evaluate(new Object[] {c.element(), CONTEXT_INSTANCE});
+        if (v != null) {
+          Row row = toBeamRow(Arrays.asList(v), outputSchema, verifyRowValues);
+          c.output(row);
+        }
       } catch (InvocationTargetException e) {
         if (collectErrors) {
           // todo add logs
@@ -288,10 +293,6 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           throw new RuntimeException(
               "CalcFn failed to evaluate: " + processElementBlock, e.getCause());
         }
-      }
-      if (v != null) {
-        Row row = toBeamRow(Arrays.asList(v), outputSchema, verifyRowValues);
-        c.output(row);
       }
     }
   }

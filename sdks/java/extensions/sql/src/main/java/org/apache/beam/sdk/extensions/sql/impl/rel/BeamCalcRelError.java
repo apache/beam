@@ -21,23 +21,19 @@ import org.apache.beam.sdk.values.Row;
 
 public class BeamCalcRelError {
 
-  private String row;
+  private Row row;
   private String error;
 
-  public BeamCalcRelError(String row, String error) {
+  public BeamCalcRelError(Row row, String error) {
     this.row = row;
-    this.error = error;
+    this.error = error == null ? "empty error msg" : error;
   }
 
-  public BeamCalcRelError(Row row, String message) {
-    this(row.toString(), message == null ? "empty error msg" : message);
-  }
-
-  public String getRow() {
+  public Row getRow() {
     return row;
   }
 
-  public void setRow(String row) {
+  public void setRow(Row row) {
     this.row = row;
   }
 
