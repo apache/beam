@@ -63,7 +63,7 @@ final kResetShortcut = Shortcut(
   shortcuts: LogicalKeySet(
     LogicalKeyboardKey.meta,
     LogicalKeyboardKey.shift,
-    LogicalKeyboardKey.keyR,
+    LogicalKeyboardKey.keyE,
   ),
   actionIntent: const ResetIntent(),
   name: kResetText,
@@ -78,8 +78,7 @@ final kResetShortcut = Shortcut(
 final kClearOutputShortcut = Shortcut(
   shortcuts: LogicalKeySet(
     LogicalKeyboardKey.meta,
-    LogicalKeyboardKey.shift,
-    LogicalKeyboardKey.keyC,
+    LogicalKeyboardKey.keyB,
   ),
   actionIntent: const ClearOutputIntent(),
   name: kClearOutputText,
