@@ -85,10 +85,10 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 				continue
 			}
 			if v, ok := msecs[key]; ok {
-				v.Time[0] = value
+				v.Start = value
 				msecs[key] = v
 			} else {
-				msecs[key] = metrics.MsecValue{Time: [4]time.Duration{value, 0, 0, 0}}
+				msecs[key] = metrics.MsecValue{Start: value}
 			}
 		case UrnToString(UrnProcessBundle):
 			value, err := extractMsecValue(r)
@@ -97,10 +97,10 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 				continue
 			}
 			if v, ok := msecs[key]; ok {
-				v.Time[1] = value
+				v.Process = value
 				msecs[key] = v
 			} else {
-				msecs[key] = metrics.MsecValue{Time: [4]time.Duration{0, value, 0, 0}}
+				msecs[key] = metrics.MsecValue{Process: value}
 			}
 		case UrnToString(UrnFinishBundle):
 			value, err := extractMsecValue(r)
@@ -109,10 +109,10 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 				continue
 			}
 			if v, ok := msecs[key]; ok {
-				v.Time[2] = value
+				v.Finish = value
 				msecs[key] = v
 			} else {
-				msecs[key] = metrics.MsecValue{Time: [4]time.Duration{0, 0, value, 0}}
+				msecs[key] = metrics.MsecValue{Finish: value}
 			}
 		case UrnToString(UrnTransformTotalTime):
 			value, err := extractMsecValue(r)
@@ -121,10 +121,10 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 				continue
 			}
 			if v, ok := msecs[key]; ok {
-				v.Time[3] = value
+				v.Total = value
 				msecs[key] = v
 			} else {
-				msecs[key] = metrics.MsecValue{Time: [4]time.Duration{0, 0, 0, value}}
+				msecs[key] = metrics.MsecValue{Total: value}
 			}
 		default:
 			log.Println("unknown metric type")

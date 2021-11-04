@@ -481,7 +481,7 @@ func (m *executionState) kind() kind {
 
 // MsecValue is the value of a single msec metric
 type MsecValue struct {
-	Time [4]time.Duration
+	Start, Process, Finish, Total time.Duration
 }
 
 // Results represents all metrics gathered during the job's execution.
@@ -875,12 +875,8 @@ func ResultsExtractor(ctx context.Context) Results {
 			attempted := make(map[StepKey]MsecValue)
 			committed := make(map[StepKey]MsecValue)
 			attempted[key] = MsecValue{}
-			committed[key] = MsecValue{[4]time.Duration{0, 0, 0, 0}}
-			for i, v := range opt.(*executionState).state {
-				if t, ok := committed[key]; ok {
-					t.Time[i] = v.TotalTime
-				}
-			}
+			es := opt.(*executionState).state
+			committed[key] = MsecValue{Start: es[0].TotalTime, Process: es[1].TotalTime, Finish: es[2].TotalTime, Total: es[3].TotalTime}
 			r.msecs = append(r.msecs, MergeMsecs(attempted, committed)...)
 		}
 	}

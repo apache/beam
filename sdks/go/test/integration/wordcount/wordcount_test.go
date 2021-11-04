@@ -36,6 +36,8 @@ func TestWordCount(t *testing.T) {
 		hash            string
 		smallWordsCount int64
 		lineLen         metrics.DistributionValue
+		transform       string
+		transformCount  int
 	}{
 		{
 			[]string{
@@ -45,6 +47,8 @@ func TestWordCount(t *testing.T) {
 			"6zZtmVTet7aIhR3wmPE8BA==",
 			1,
 			metrics.DistributionValue{Count: 1, Sum: 3, Min: 3, Max: 3},
+			"wordcount.extractFn",
+			1,
 		},
 		{
 			[]string{
@@ -56,6 +60,8 @@ func TestWordCount(t *testing.T) {
 			"jAk8+k4BOH7vQDUiUZdfWg==",
 			6,
 			metrics.DistributionValue{Count: 3, Sum: 21, Min: 3, Max: 11},
+			"extractFn",
+			1,
 		},
 		{
 			[]string{
@@ -65,6 +71,8 @@ func TestWordCount(t *testing.T) {
 			"Nz70m/sn3Ep9o484r7MalQ==",
 			6,
 			metrics.DistributionValue{Count: 1, Sum: 23, Min: 23, Max: 23},
+			"CountFn",
+			1,
 		},
 		{
 			[]string{
@@ -74,6 +82,8 @@ func TestWordCount(t *testing.T) {
 			"Nz70m/sn3Ep9o484r7MalQ==", // ordering doesn't matter: same hash as above
 			6,
 			metrics.DistributionValue{Count: 1, Sum: 23, Min: 23, Max: 23},
+			"extract",
+			1,
 		},
 		{
 			[]string{
@@ -88,8 +98,12 @@ func TestWordCount(t *testing.T) {
 			"Nz70m/sn3Ep9o484r7MalQ==", // whitespace doesn't matter: same hash as above
 			6,
 			metrics.DistributionValue{Count: 6, Sum: 37, Min: 0, Max: 11},
+			"CreateFn",
+			0,
 		},
 	}
+
+	runner := *ptest.Runner
 
 	for _, test := range tests {
 		integration.CheckFilters(t)
@@ -121,6 +135,17 @@ func TestWordCount(t *testing.T) {
 		}
 		if distribution.Result() != test.lineLen {
 			t.Errorf("Metrics().Query(by Name) failed. Got %v distribution, Want %v distribution", distribution.Result(), test.lineLen)
+		}
+
+		// Filter the DoFn metric test for PyPortable Runner as of now as it
+		// doesn't collect the DoFn metrics.
+		if runner != "portable" && runner != "PortableRunner" {
+			qr = pr.Metrics().Query(func(sr metrics.SingleResult) bool {
+				return strings.Contains(sr.Transform(), test.transform)
+			})
+			if len(qr.Msecs()) != test.transformCount {
+				t.Errorf("Metrics().Query(by Transform) failed. Got %v results, Want %v result", len(qr.Msecs()), test.transformCount)
+			}
 		}
 	}
 }
