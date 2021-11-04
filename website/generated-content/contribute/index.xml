@@ -1462,6 +1462,10 @@ All wheels should be published, in addition to the zip of the release source.
 &lt;pre>&lt;code># Optional: unlock the signing key by signing an arbitrary file.
 gpg --output ~/doc.sig --sign ~/.bashrc
 VERSION_TAG=&amp;quot;v${RELEASE}&amp;quot;
+# Tag for Go SDK
+git tag -s &amp;quot;sdks/$VERSION_TAG&amp;quot; &amp;quot;$RC_TAG&amp;quot;
+git push https://github.com/apache/beam &amp;quot;sdks/$VERSION_TAG&amp;quot;
+# Tag for repo root.
 git tag -s &amp;quot;$VERSION_TAG&amp;quot; &amp;quot;$RC_TAG&amp;quot;
 git push https://github.com/apache/beam &amp;quot;$VERSION_TAG&amp;quot;
 &lt;/code>&lt;/pre>&lt;p>After pushing the tag, the tag should be visible on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/tags">Tags&lt;/a> page.&lt;/p>
