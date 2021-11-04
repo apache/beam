@@ -133,7 +133,7 @@ class Pipeline(object):
         common_urns.primitives.IMPULSE.urn,
     ])
 
-  def __init__(self, runner=None, options=None, argv=None):
+  def __init__(self, runner=None, options=None, argv=None, blocking=True):
     # type: (Optional[Union[str, PipelineRunner]], Optional[PipelineOptions], Optional[List[str]]) -> None
 
     """Initialize a pipeline object.
@@ -151,6 +151,8 @@ class Pipeline(object):
         to be used for building a
         :class:`~apache_beam.options.pipeline_options.PipelineOptions` object.
         This will only be used if argument **options** is :data:`None`.
+      blocking (bool): Will not wait for the job to finish
+        if blocking is set to False.
 
     Raises:
       ValueError: if either the runner or options argument is not
@@ -229,6 +231,8 @@ class Pipeline(object):
 
     # Records whether this pipeline contains any external transforms.
     self.contains_external_transforms = False
+
+    self.blocking = blocking
 
 
   @property  # type: ignore[misc]  # decorated property not supported
@@ -594,7 +598,8 @@ class Pipeline(object):
     try:
       if not exc_type:
         self.result = self.run()
-        self.result.wait_until_finish()
+        if self.blocking:
+          self.result.wait_until_finish()
     finally:
       self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 
