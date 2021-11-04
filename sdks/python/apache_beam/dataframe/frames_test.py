@@ -187,7 +187,7 @@ class _AbstractFrameTest(unittest.TestCase):
         else:
           cmp = lambda x: np.isclose(expected, x, rtol=1e-2, atol=1e-2)
       else:
-        cmp = lambda x: x == expected
+        cmp = expected.__eq__
       self.assertTrue(
           cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
@@ -661,15 +661,6 @@ class DeferredFrameTest(_AbstractFrameTest):
   def test_series_is_unique(self, series):
     self._run_test(lambda s: s.is_unique, series)
 
-  @parameterized.expand([
-      (pd.Series(range(10)), ),  # False
-      (pd.Series([1, 2, np.nan, 3, np.nan]), ),  # True
-      (pd.Series(['a', 'b', 'c', 'd', 'e']), ),  # False
-      (pd.Series(['a', 'b', None, 'c', None]), ),  # True
-  ])
-  def test_series_hasnans(self, series):
-    self._run_test(lambda s: s.hasnans, series)
-
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
     self._run_test(lambda df: df['A'], df)
@@ -720,7 +711,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.nlargest(3, ['A', 'B'], keep='all'), df)
 
   def test_series_cov_corr(self):
-    for s in [pd.Series([1, 2, 3]),
+    for s in [pd.Series([0, 1]),
+              pd.Series([1, 2, 3]),
               pd.Series(range(100)),
               pd.Series([x**3 for x in range(-50, 50)])]:
       self._run_test(lambda s: s.std(), s)
@@ -729,7 +721,6 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda s: s.corr(s + 1), s)
       self._run_test(lambda s: s.corr(s * s), s)
       self._run_test(lambda s: s.cov(s * s), s)
-      self._run_test(lambda s: s.skew(), s)
       self._run_test(lambda s: s.kurtosis(), s)
 
   def test_dataframe_cov_corr(self):
@@ -1402,7 +1393,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'skew', 'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1421,7 +1412,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'skew', 'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1437,7 +1428,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'skew', 'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1454,7 +1445,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'skew', 'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
