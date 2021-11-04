@@ -55,7 +55,11 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.DataContext;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.JavaRowFormat;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.PhysType;
@@ -109,9 +113,17 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   private static final long MILLIS_PER_DAY = 86400000L;
 
   private static final ParameterExpression rowParam = Expressions.parameter(Row.class, "row");
+  private PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer;
+  private static final TupleTag<Row> rows = new TupleTag<Row>() {};
+  private static final TupleTag<BeamCalcRelError> errors = new TupleTag<BeamCalcRelError>() {};
 
   public BeamCalcRel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RexProgram program) {
     super(cluster, traits, input, program);
+  }
+
+  @Override
+  public void withErrorsTransformer(PTransform<PCollection<BeamCalcRelError>, POutput> ptransform) {
+    this.errorsTransformer = ptransform;
   }
 
   @Override
@@ -192,12 +204,20 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               builder.toBlock().toString(),
               outputSchema,
               options.getVerifyRowValues(),
-              getJarPaths(program));
+              getJarPaths(program),
+              errorsTransformer != null);
 
       // validate generated code
       calcFn.compile();
 
-      return upstream.apply(ParDo.of(calcFn)).setRowSchema(outputSchema);
+      PCollectionTuple tuple =
+          upstream.apply(ParDo.of(calcFn).withOutputTags(rows, TupleTagList.of(errors)));
+      PCollection<BeamCalcRelError> errorPCollection =
+          tuple.get(errors).setCoder(BeamCalcRelErrorCoder.of());
+      if (errorsTransformer != null) {
+        errorPCollection.apply(errorsTransformer);
+      }
+      return tuple.get(rows).setRowSchema(outputSchema);
     }
   }
 
@@ -207,17 +227,20 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     private final Schema outputSchema;
     private final boolean verifyRowValues;
     private final List<String> jarPaths;
+    private boolean collectErrors;
     private transient @Nullable ScriptEvaluator se = null;
 
     public CalcFn(
         String processElementBlock,
         Schema outputSchema,
         boolean verifyRowValues,
-        List<String> jarPaths) {
+        List<String> jarPaths,
+        boolean collectErrors) {
       this.processElementBlock = processElementBlock;
       this.outputSchema = outputSchema;
       this.verifyRowValues = verifyRowValues;
       this.jarPaths = jarPaths;
+      this.collectErrors = collectErrors;
     }
 
     ScriptEvaluator compile() {
@@ -252,12 +275,19 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     @ProcessElement
     public void processElement(ProcessContext c) {
       assert se != null;
-      final Object[] v;
+      Object[] v = null;
       try {
         v = (Object[]) se.evaluate(new Object[] {c.element(), CONTEXT_INSTANCE});
       } catch (InvocationTargetException e) {
-        throw new RuntimeException(
-            "CalcFn failed to evaluate: " + processElementBlock, e.getCause());
+        if (collectErrors) {
+          // todo add logs
+          BeamCalcRelError beamCalcRelError =
+              new BeamCalcRelError(c.element(), e.getCause().getMessage());
+          c.output(errors, beamCalcRelError);
+        } else {
+          throw new RuntimeException(
+              "CalcFn failed to evaluate: " + processElementBlock, e.getCause());
+        }
       }
       if (v != null) {
         Row row = toBeamRow(Arrays.asList(v), outputSchema, verifyRowValues);

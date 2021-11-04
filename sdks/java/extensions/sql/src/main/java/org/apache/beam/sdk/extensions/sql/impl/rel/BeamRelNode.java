@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
@@ -50,6 +51,9 @@ public interface BeamRelNode extends RelNode {
         ? PCollection.IsBounded.BOUNDED
         : PCollection.IsBounded.UNBOUNDED;
   }
+
+  default void withErrorsTransformer(
+      PTransform<PCollection<BeamCalcRelError>, POutput> ptransform) {}
 
   default List<RelNode> getPCollectionInputs() {
     return getInputs();

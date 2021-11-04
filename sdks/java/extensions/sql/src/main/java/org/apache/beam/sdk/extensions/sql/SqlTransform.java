@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRelError;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -113,6 +115,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract String queryString();
 
+  abstract @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer();
+
   abstract List<String> ddlStrings();
 
   abstract QueryParameters queryParameters();
@@ -164,7 +168,10 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
     ddlStrings().forEach(sqlEnv::executeDdl);
     return BeamSqlRelUtils.toPCollection(
-        input.getPipeline(), sqlEnv.parseQuery(queryString(), queryParameters()));
+        input.getPipeline(),
+        sqlEnv.parseQuery(queryString(), queryParameters()),
+        new HashMap<>(),
+        errorsTransformer());
   }
 
   @SuppressWarnings("unchecked")
@@ -298,6 +305,11 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return toBuilder().setUdafDefinitions(newUdafs).build();
   }
 
+  public SqlTransform withErrorsTransformer(
+      PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
+    return toBuilder().setErrorsTransformer(errorsTransformer).build();
+  }
+
   abstract Builder toBuilder();
 
   static Builder builder() {
@@ -330,6 +342,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setDefaultTableProvider(@Nullable String defaultTableProvider);
 
     abstract Builder setQueryPlannerClassName(@Nullable String queryPlannerClassName);
+
+    abstract Builder setErrorsTransformer(
+        @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer);
 
     abstract SqlTransform build();
   }
