@@ -88,7 +88,7 @@ This makes it so users, SDK authors, and the testing infrastructure can all rely
 This also makes [validating Go SDK Release Candidates simple](/blog/validate-beam-release/#configuring-a-go-build-to-validate-a-beam-release-candidate).
 
 Versioned SDK worker containers are now built and [published](https://hub.docker.com/r/apache/beam_go_sdk/tags?page=1&ordering=last_updated), with the SDK using matched tagged versions.
-For released versions, user jobs no longer need to specify a container to use, except when using custom containers.
+User jobs no longer need to specify a container to use for released versions, except when using custom containers.
 
 ## Compatibility
 
@@ -157,5 +157,5 @@ In the nearer term this comes in the form of improvements to Side Inputs, and pr
 ## Conclusion
 
 We hope you find the SDK useful, and it's still early days.
-If you make something using it, consider [sharing it with us](/community/contact-us/).
+If you make something with the Go SDK, consider [sharing it with us](/community/contact-us/).
 And remember, [contributions](/contribute/) are always welcome.
