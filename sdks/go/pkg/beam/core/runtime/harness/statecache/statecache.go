@@ -90,11 +90,11 @@ func (c *SideInputCache) Init(cap int) error {
 // new ProcessBundleRequest. If the runner does not support caching, the passed cache token values
 // should be empty and all get/set requests will silently be no-ops.
 func (c *SideInputCache) SetValidTokens(cacheTokens ...*fnpb.ProcessBundleRequest_CacheToken) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if !c.enabled {
 		return
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	for _, tok := range cacheTokens {
 		// User State caching is currently not supported, so these tokens are ignored
 		if tok.GetUserState() != nil {
@@ -125,11 +125,11 @@ func (c *SideInputCache) setValidToken(transformID, sideInputID string, tok toke
 // usage count for the purposes of maintaining a valid count of whether or not a value is
 // still in use. Should be called once ProcessBundle has completed.
 func (c *SideInputCache) CompleteBundle(cacheTokens ...*fnpb.ProcessBundleRequest_CacheToken) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if !c.enabled {
 		return
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	for _, tok := range cacheTokens {
 		// User State caching is currently not supported, so these tokens are ignored
 		if tok.GetUserState() != nil {
@@ -171,11 +171,11 @@ func (c *SideInputCache) makeCacheKey(tok token, w, key []byte) cacheKey {
 // token or one that makes a known but currently invalid token) is treated the same as a
 // cache miss.
 func (c *SideInputCache) QueryCache(ctx context.Context, transformID, sideInputID string, win, key []byte) exec.ReStream {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if !c.enabled {
 		return nil
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
 	if !ok {
 		return nil
@@ -207,11 +207,11 @@ func materializeReStream(input exec.ReStream) (exec.ReStream, error) {
 // then we silently do not cache the input, as this is an indication that the runner is treating that input
 // as uncacheable.
 func (c *SideInputCache) SetCache(ctx context.Context, transformID, sideInputID string, win, key []byte, input exec.ReStream) exec.ReStream {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if !c.enabled {
 		return input
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
 	if !ok {
 		return input
