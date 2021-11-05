@@ -1,4 +1,163 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.33.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Go SDK Exits Experimental in Apache Beam 2.33.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Apache Beam’s latest release, version &lt;a href="/get-started/downloads/">2.33.0&lt;/a>, is the first official release of the long experimental Go SDK.
+Built with the &lt;a href="https://golang.org/">Go Programming Language&lt;/a>, the Go SDK joins the Java and Python SDKs as the third implementation of the Beam programming model.&lt;/p>
+&lt;h2 id="using-the-new-go-sdk">Using the new Go SDK.&lt;/h2>
+&lt;p>New users of the Go SDK can start using it in their Go programs by importing the main beam package:&lt;/p>
+&lt;pre>&lt;code>import &amp;quot;github.com/apache/beam/sdks/v2/go/pkg/beam&amp;quot;
+&lt;/code>&lt;/pre>&lt;p>The next run of &lt;code>go mod tidy&lt;/code> will fetch the latest stable version of the module.
+Alternatively executing &lt;code>go get github.com/apache/beam/sdks/v2/go/pkg/beam&lt;/code> will download it to the local module cache immeadiately, and add it to your &lt;code>go.mod&lt;/code> file.&lt;/p>
+&lt;p>Existing users of the experimental Go SDK need to update to new &lt;code>v2&lt;/code> import paths to start using the latest versions of the SDK.
+This can be done by adding &lt;code>v2&lt;/code> to the import paths, changing &lt;code>github.com/apache/beam/sdks/go/&lt;/code>&amp;hellip; to &lt;code>github.com/apache/beam/sdks/v2/go/&lt;/code>&amp;hellip; where applicable, and then running &lt;code>go mod tidy&lt;/code>.&lt;/p>
+&lt;p>Further documentation on using the SDK is available in the &lt;a href="/documentation/programming-guide/">Beam Programming Guide&lt;/a>, and in the package &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">Go Doc&lt;/a>.&lt;/p>
+&lt;h2 id="feature-support">Feature Support&lt;/h2>
+&lt;p>At time of writing, the Go SDK is currently &amp;ldquo;Batteries Not Included&amp;rdquo;.
+This means that there are gaps or edge cases in supported IOs and transforms.
+That said, the core of the SDK enables a great deal of the Beam Model for
+custom user use, supporting the following features:&lt;/p>
+&lt;ul>
+&lt;li>PTransforms
+&lt;ul>
+&lt;li>Impulse&lt;/li>
+&lt;li>Create&lt;/li>
+&lt;li>ParDo with user DoFns
+&lt;ul>
+&lt;li>Iterable side inputs&lt;/li>
+&lt;li>Multiple output emitters&lt;/li>
+&lt;li>Receive and return key-value pairs&lt;/li>
+&lt;li>SplittableDoFns&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>GroupByKey and CoGroupByKey&lt;/li>
+&lt;li>Combine and CombinePerKey with user CombineFns&lt;/li>
+&lt;li>Flatten&lt;/li>
+&lt;li>Partition&lt;/li>
+&lt;li>Composite transforms&lt;/li>
+&lt;li>Cross language transforms&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Event time windowing
+&lt;ul>
+&lt;li>Global, Interval, Sliding, and Session windows&lt;/li>
+&lt;li>Aggregating over windowed PCollections with GroupByKeys or Combines&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Coders
+&lt;ul>
+&lt;li>Primitive Go types (ints, string, []bytes, and more)&lt;/li>
+&lt;li>Beam Schemas for Go struct types (including struct, slice, and map fields)&lt;/li>
+&lt;li>Registering custom coders&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Metrics
+&lt;ul>
+&lt;li>PCollection metrics (element counts, size estimates)&lt;/li>
+&lt;li>Custom user metrics&lt;/li>
+&lt;li>Post job user metrics querying (coming in 2.34.0)&lt;/li>
+&lt;li>DoFn profiling metrics (coming in 2.35.0)&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Built-in transforms
+&lt;ul>
+&lt;li>Sum, count, min, max, top, filter&lt;/li>
+&lt;li>Scalable TextIO reading&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>Upcoming feature roadmap, and known issues are discussed below.
+In particular, we plan to support a much richer set of IO connectors via Beam&amp;rsquo;s cross-language capabilities.&lt;/p>
+&lt;h2 id="releases">Releases&lt;/h2>
+&lt;p>With this release, the Go SDK now uses &lt;a href="https://golang.org/ref/mod">Go Modules&lt;/a> for dependency management.
+This makes it so users, SDK authors, and the testing infrastructure can all rely on the same versions of dependencies, making builds reproducible.
+This also makes &lt;a href="/blog/validate-beam-release/#configuring-a-go-build-to-validate-a-beam-release-candidate">validating Go SDK Release Candidates simple&lt;/a>.&lt;/p>
+&lt;p>Versioned SDK worker containers are now built and &lt;a href="https://hub.docker.com/r/apache/beam_go_sdk/tags?page=1&amp;amp;ordering=last_updated">published&lt;/a>, with the SDK using matching tagged versions.
+User jobs no longer need to specify a container to use, except when using custom containers.&lt;/p>
+&lt;h2 id="compatibility">Compatibility&lt;/h2>
+&lt;p>The Go SDK will largely follow suit with the Go notion of compatibility.
+Some concessions are made to keep all SDKs together on the same release cycle.&lt;/p>
+&lt;h3 id="language-compatibility">Language Compatibility&lt;/h3>
+&lt;p>The SDK will be tested at a minimum &lt;a href="https://golang.org/doc/devel/release">Go Programming Language version of 1.16&lt;/a>, and use available language features and standard library packages accordingly.
+To maintain a broad compatibility, the Go SDK will not require the latest major version of Go.
+We expect to follow the 2nd newest supported release of the language, with a possible exception when Go 1.18 is released, in order to begin experimenting with &lt;a href="https://go.dev/blog/generics-proposal">Go Generics&lt;/a> in the SDK.
+Release notes will call out when the minimum version of the language changes.&lt;/p>
+&lt;h3 id="package-compatibility">Package Compatibility&lt;/h3>
+&lt;p>The primary user packages will avoid changing in backwards incompatible ways for core features.
+This is to be inline with Go&amp;rsquo;s notion of the &lt;a href="https://research.swtch.com/vgo-import">&lt;code>import compatibility rule&lt;/code>&lt;/a>.&lt;/p>
+&lt;blockquote>
+&lt;p>If an old package and a new package have the same import path,
+the new package must be backwards compatible with the old package.&lt;/p>
+&lt;/blockquote>
+&lt;p>Exceptions to this policy are around newer, experimental, or in development features and are subject to change.
+Such features will have a doc comment noting the experimental status.
+Major changes will be mentioned in the release notes.
+For example, using &lt;code>beam.WindowInto&lt;/code> with Triggers is currently experimental and may have the API changed in a future release.&lt;/p>
+&lt;p>Primary user packages include:&lt;/p>
+&lt;ul>
+&lt;li>The main beam package &lt;code>github.com/apache/beam/sdks/v2/go/pkg/beam&lt;/code>&lt;/li>
+&lt;li>Sub packages under &lt;code>.../transforms&lt;/code>, &lt;code>.../io&lt;/code>, &lt;code>.../runners&lt;/code>, and &lt;code>.../testing&lt;/code>.&lt;/li>
+&lt;/ul>
+&lt;p>Generally, packages in the module other than the primary user packages are for framework use and are at risk of changing.&lt;/p>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;h4 id="batteries-not-included">Batteries not included.&lt;/h4>
+&lt;ul>
+&lt;li>Current native transforms are undertested&lt;/li>
+&lt;li>IOs may not be written to scale&lt;/li>
+&lt;li>Go Direct Runner is incomplete and is not portable, prefer using the Python Portable runner, or Flink
+&lt;ul>
+&lt;li>Doesn&amp;rsquo;t support side input windowing. &lt;a href="https://issues.apache.org/jira/browse/BEAM-13075">BEAM-13075&lt;/a>&lt;/li>
+&lt;li>Doesn&amp;rsquo;t serialize data, making it unlikely to catch coder issues &lt;a href="https://issues.apache.org/jira/browse/BEAM-6372">BEAM-6372&lt;/a>&lt;/li>
+&lt;li>Can use other general improvements, and become portable &lt;a href="https://issues.apache.org/jira/browse/BEAM-11076">BEAM-11076&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Current Trigger API is under iteration and subject to change &lt;a href="https://issues.apache.org/jira/browse/BEAM-3304">BEAM-3304&lt;/a>
+&lt;ul>
+&lt;li>API has a possible breaking change between 2.33.0 and 2.34.0, and may change again&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Support of the SDK on services, like Google Cloud Dataflow, remains at the service owner&amp;rsquo;s discretion&lt;/li>
+&lt;li>Need something?
+&lt;ul>
+&lt;li>File a ticket in the &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go">Beam JIRA&lt;/a> and,&lt;/li>
+&lt;li>Email the &lt;a href="mailto:dev@beam.apache.org?subject=%5BGo%20SDK%20Feature%5D">dev@beam.apache.org&lt;/a> list!&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h4 id="fixed-in-2340">Fixed in 2.34.0&lt;/h4>
+&lt;ul>
+&lt;li>&lt;code>top.SmallestPerKey&lt;/code> was broken &lt;a href="https://issues.apache.org/jira/browse/BEAM-12946">BEAM-12946&lt;/a>&lt;/li>
+&lt;li>&lt;code>beam.TryCrossLanguage&lt;/code> API didn&amp;rsquo;t match non-Try version &lt;a href="https://issues.apache.org/jira/browse/BEAM-9918">BEAM-9918&lt;/a>
+&lt;ul>
+&lt;li>This is a breaking change if one was calling &lt;code>beam.TryCrossLanguage&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h4 id="fixed-in-2350">Fixed in 2.35.0&lt;/h4>
+&lt;ul>
+&lt;li>Non-global window side inputs don&amp;rsquo;t match (correctness bug) &lt;a href="https://issues.apache.org/jira/browse/BEAM-11087">BEAM-11087&lt;/a>
+&lt;ul>
+&lt;li>Until 2.35.0 it&amp;rsquo;s not recommended to use side inputs that are not using the global window.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>DoFns using side inputs accumulate memory over bundles, causing out of memory issues &lt;a href="https://issues.apache.org/jira/browse/BEAM-13130">BEAM-13130&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="roadmap">Roadmap&lt;/h2>
+&lt;p>The &lt;a href="/roadmap/go-sdk/">SDK roadmap&lt;/a> has been updated.
+Ongoing focus is to bolster streaming focused features, improve existing connectors, and make connectors easier to implement.&lt;/p>
+&lt;p>In the nearer term this comes in the form of improvements to side inputs, and providing wrappers and improving ease-of-use for cross language transforms from Java.&lt;/p>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>We hope you find the SDK useful, and it&amp;rsquo;s still early days.
+If you make something with the Go SDK, consider &lt;a href="/community/contact-us/">sharing it with us&lt;/a>.
+And remember, &lt;a href="/contribute/">contributions&lt;/a> are always welcome.&lt;/p></description><link>/blog/go-sdk-release/</link><pubDate>Thu, 04 Nov 2021 00:00:01 -0800</pubDate><guid>/blog/go-sdk-release/</guid><category>blog</category></item><item><title>Apache Beam 2.33.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -415,7 +574,17 @@ environment:&lt;/p>
 &lt;pre>&lt;code>pip install --pre apache-beam
 &lt;/code>&lt;/pre>&lt;p>With that, the Beam version in your environment will be the latest release
 candidate, and you can go ahead and run your tests to verify that everything
-works well.&lt;/p></description><link>/blog/validate-beam-release/</link><pubDate>Tue, 08 Jun 2021 00:00:01 -0800</pubDate><guid>/blog/validate-beam-release/</guid><category>blog</category></item><item><title>Apache Beam 2.29.0</title><description>
+works well.&lt;/p>
+&lt;h3 id="configuring-a-go-build-to-validate-a-beam-release-candidate">Configuring a Go build to validate a Beam release candidate&lt;/h3>
+&lt;p>For Go SDK releases, you can fetch the Go SDK RC using &lt;a href="https://golang.org/ref/mod#go-get">&lt;code>go get&lt;/code>&lt;/a>,
+by requesting the specific pre-release version.&lt;/p>
+&lt;p>For example, to request the first release candidate for 2.34.0:&lt;/p>
+&lt;pre>&lt;code>go get -d github.com/apache/beam/sdks/v2@v2.34.0-RC1
+&lt;/code>&lt;/pre>&lt;p>With that, the Beam version in your &lt;code>go.mod&lt;/code> will be the specified release candidate.
+You can go ahead and run your tests to verify that everything works well.&lt;/p>
+&lt;p>You may need to also specify the RC&amp;rsquo;s matching container when running a job.
+Use the &lt;code>--environment_config&lt;/code> flag to specify the release candidate container:
+eg. &lt;code>--environment_config=apache/beam_go_sdk:2.34.0_rc1&lt;/code>&lt;/p></description><link>/blog/validate-beam-release/</link><pubDate>Tue, 08 Jun 2021 00:00:01 -0800</pubDate><guid>/blog/validate-beam-release/</guid><category>blog</category></item><item><title>Apache Beam 2.29.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -687,141 +856,4 @@ Pawel Pasterz, Piotr Szuberski, purbanow, Reuven Lax, rHermes,
 Robert Bradshaw, Robert Burke, Rui Wang, Sam Rohde, Sam Whittle,
 Siyuan Chen, Tim Robertson, Tobiasz Kędzierski, tszerszen,
 Valentyn Tymofieiev, Tyson Hamilton, Udi Meiri, vachan-shetty, Xinyu Liu,
-Yichi Zhang, Yifan Mai, yoshiki.obata, Yueyang Qiu&lt;/p></description><link>/blog/beam-2.27.0/</link><pubDate>Thu, 07 Jan 2021 12:00:00 -0800</pubDate><guid>/blog/beam-2.27.0/</guid><category>blog</category></item><item><title>DataFrame API Preview now Available!</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We&amp;rsquo;re excited to announce that a preview of the Beam Python SDK&amp;rsquo;s new DataFrame
-API is now available in &lt;a href="https://beam.apache.org/blog/beam-2.26.0/">Beam
-2.26.0&lt;/a>. Much like &lt;code>SqlTransform&lt;/code>
-(&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html">Java&lt;/a>,
-&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform">Python&lt;/a>),
-the DataFrame API gives Beam users a way to express complex
-relational logic much more concisely than previously possible.&lt;/p>
-&lt;h2 id="a-more-expressive-api">A more expressive API&lt;/h2>
-&lt;p>Beam&amp;rsquo;s new DataFrame API aims to be compatible with the well known
-&lt;a href="https://pandas.pydata.org/pandas-docs/stable/index.html">Pandas&lt;/a>
-DataFrame API, with a few caveats detailed below. With this new API a simple
-pipeline that reads NYC taxiride data from a CSV, performs a grouped
-aggregation, and writes the output to CSV, can be expressed very concisely:&lt;/p>
-&lt;pre>&lt;code>from apache_beam.dataframe.io import read_csv
-with beam.Pipeline() as p:
-df = p | read_csv(&amp;quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;quot;,
-usecols=['passenger_count' , 'DOLocationID'])
-# Count the number of passengers dropped off per LocationID
-agg = df.groupby('DOLocationID').sum()
-agg.to_csv(output)
-&lt;/code>&lt;/pre>&lt;p>Compare this to the same logic implemented as a conventional Beam python
-pipeline with a &lt;code>CombinePerKey&lt;/code>:&lt;/p>
-&lt;pre>&lt;code>with beam.Pipeline() as p:
-(p | beam.io.ReadFromText(&amp;quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;quot;,
-skip_header_lines=1)
-| beam.Map(lambda line: line.split(','))
-# Parse CSV, create key - value pairs
-| beam.Map(lambda splits: (int(splits[8] or 0), # DOLocationID
-int(splits[3] or 0))) # passenger_count
-# Sum values per key
-| beam.CombinePerKey(sum)
-| beam.MapTuple(lambda loc_id, pc: f'{loc_id},{pc}')
-| beam.io.WriteToText(known_args.output))
-&lt;/code>&lt;/pre>&lt;p>The DataFrame example is much easier to quickly inspect and understand, as it
-allows you to concisely express grouped aggregations without using the low-level
-&lt;code>CombinePerKey&lt;/code>.&lt;/p>
-&lt;p>In addition to being more expressive, a pipeline written with the DataFrame API
-can often be more efficient than a conventional Beam pipeline. This is because
-the DataFrame API defers to the very efficient, columnar Pandas implementation
-as much as possible.&lt;/p>
-&lt;h2 id="dataframes-as-a-dsl">DataFrames as a DSL&lt;/h2>
-&lt;p>You may already be aware of &lt;a href="https://beam.apache.org/documentation/dsls/sql/overview/">Beam
-SQL&lt;/a>, which is
-a Domain-Specific Language (DSL) built with Beam&amp;rsquo;s Java SDK. SQL is
-considered a DSL because it&amp;rsquo;s possible to express a full pipeline, including IOs
-and complex operations, entirely with SQL. &lt;/p>
-&lt;p>Similarly, the DataFrame API is a DSL built with the Python SDK. You can see
-that the above example is written without traditional Beam constructs like IOs,
-ParDo, or CombinePerKey. In fact the only traditional Beam type is the Pipeline
-instance! Otherwise this pipeline is written completely using the DataFrame API.
-This is possible because the DataFrame API doesn&amp;rsquo;t just implement Pandas&amp;rsquo;
-computation operations, it also includes IOs based on the Pandas native
-implementations (&lt;code>pd.read_{csv,parquet,...}&lt;/code> and &lt;code>pd.DataFrame.to_{csv,parquet,...}&lt;/code>).&lt;/p>
-&lt;p>Like SQL, it&amp;rsquo;s also possible to embed the DataFrame API into a larger pipeline
-by using
-&lt;a href="https://beam.apache.org/documentation/programming-guide/#what-is-a-schema">schemas&lt;/a>.
-A schema-aware PCollection can be converted to a DataFrame, processed, and the
-result converted back to another schema-aware PCollection. For example, if you
-wanted to use traditional Beam IOs rather than one of the DataFrame IOs you
-could rewrite the above pipeline like this:&lt;/p>
-&lt;pre>&lt;code>from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.dataframe.convert import to_pcollection
-with beam.Pipeline() as p:
-...
-schema_pc = (p | beam.ReadFromText(..)
-# Use beam.Select to assign a schema
-| beam.Select(DOLocationID=lambda line: int(...),
-passenger_count=lambda line: int(...)))
-df = to_dataframe(schema_pc)
-agg = df.groupby('DOLocationID').sum()
-agg_pc = to_pcollection(pc)
-# agg_pc has a schema based on the structure of agg
-(agg_pc | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
-| beam.WriteToText(..))
-&lt;/code>&lt;/pre>&lt;p>It&amp;rsquo;s also possible to use the DataFrame API by passing a function to
-&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform">&lt;code>DataframeTransform&lt;/code>&lt;/a>:&lt;/p>
-&lt;pre>&lt;code>from apache_beam.dataframe.transforms import DataframeTransform
-with beam.Pipeline() as p:
-...
-| beam.Select(DOLocationID=lambda line: int(..),
-passenger_count=lambda line: int(..))
-| DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
-| beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
-...
-&lt;/code>&lt;/pre>&lt;h2 id="caveats">Caveats&lt;/h2>
-&lt;p>As hinted above, there are some differences between Beam&amp;rsquo;s DataFrame API and the
-Pandas API. The most significant difference is that the Beam DataFrame API is
-&lt;em>deferred&lt;/em>, just like the rest of the Beam API. This means that you can&amp;rsquo;t
-&lt;code>print()&lt;/code> a DataFrame instance in order to inspect the data, because we haven&amp;rsquo;t
-computed the data yet! The computation doesn&amp;rsquo;t take place until the pipeline is
-&lt;code>run()&lt;/code>. Before that, we only know about the shape/schema of the result (i.e.
-the names and types of the columns), and not the result itself.&lt;/p>
-&lt;p>There are a few common exceptions you will likely see when attempting to use
-certain Pandas operations:&lt;/p>
-&lt;ul>
-&lt;li>&lt;strong>NotImplementedError:&lt;/strong> Indicates this is an operation or argument that we
-haven&amp;rsquo;t had time to look at yet. We&amp;rsquo;ve tried to make as many Pandas operations
-as possible available in the Preview offering of this new API, but there&amp;rsquo;s
-still a long tail of operations to go.&lt;/li>
-&lt;li>&lt;strong>WontImplementError:&lt;/strong> Indicates this is an operation or argument we do not
-intend to support in the near-term because it&amp;rsquo;s incompatible with the Beam
-model. The largest class of operations that raise this error are those that
-are order sensitive (e.g. shift, cummax, cummin, head, tail, etc..). These
-cannot be trivially mapped to Beam because PCollections, representing
-distributed datasets, are unordered. Note that even some of these operations
-&lt;em>may&lt;/em> get implemented in the future - we actually have some ideas for how we
-might support order sensitive operations - but it&amp;rsquo;s a ways off.&lt;/li>
-&lt;/ul>
-&lt;p>Finally, it&amp;rsquo;s important to note that this is a preview of a new feature that
-will get hardened over the next few Beam releases. We would love for you to try
-it out now and give us some feedback, but we do not yet recommend it for use in
-production workloads.&lt;/p>
-&lt;h2 id="how-to-get-involved">How to get involved&lt;/h2>
-&lt;p>The easiest way to get involved with this effort is to try out DataFrames and
-let us know what you think! You can send questions to &lt;a href="mailto:user@beam.apache.org">user@beam.apache.org&lt;/a>, or
-file bug reports and feature requests in &lt;a href="https://issues.apache.org/jira">jira&lt;/a>.
-In particular, it would be really helpful to know if there&amp;rsquo;s an operation we
-haven&amp;rsquo;t implemented yet that you&amp;rsquo;d find useful, so that we can prioritize it.&lt;/p>
-&lt;p>If you&amp;rsquo;d like to learn more about how the DataFrame API works under the hood and
-get involved with the development we recommend you take a look at the
-&lt;a href="http://s.apache.org/beam-dataframes">design doc&lt;/a>
-and our &lt;a href="https://2020.beamsummit.org/sessions/simpler-python-pipelines/">Beam summit
-presentation&lt;/a>.
-From there the best way to help is to knock out some of those not implemented
-operations. We&amp;rsquo;re coordinating that work in
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-9547">BEAM-9547&lt;/a>.&lt;/p></description><link>/blog/dataframe-api-preview-available/</link><pubDate>Wed, 16 Dec 2020 09:09:41 -0800</pubDate><guid>/blog/dataframe-api-preview-available/</guid><category>blog</category></item></channel></rss>
+Yichi Zhang, Yifan Mai, yoshiki.obata, Yueyang Qiu&lt;/p></description><link>/blog/beam-2.27.0/</link><pubDate>Thu, 07 Jan 2021 12:00:00 -0800</pubDate><guid>/blog/beam-2.27.0/</guid><category>blog</category></item></channel></rss>

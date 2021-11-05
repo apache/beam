@@ -29,14 +29,19 @@ limitations under the License.
 -->
 &lt;p>Roadmap for connectors developed using Go SDK.&lt;/p>
 &lt;ul>
-&lt;li>
-&lt;p>We hope to add a Splittable DoFn implementation to Go SDK to support developing new sources. In the
-meantime bounded sources can be developed in the form of ParDos. See
-&lt;a href="https://beam.apache.org/documentation/io/authoring-overview/">Authoring I/O Transforms&lt;/a> for more details.&lt;/p>
+&lt;li>Go SDK plans to utilize currently available Java and Python connectors
+through cross-language transforms feature.
+&lt;ul>
+&lt;li>KafkaIO via Java - DONE&lt;/li>
+&lt;li>BigQuery via Java - In Progress&lt;/li>
+&lt;li>Beam SQL via Java&lt;/li>
+&lt;/ul>
 &lt;/li>
-&lt;li>
-&lt;p>Go SDK plans to utilize currently available Java and Python connectors
-through cross-language transforms feature.&lt;/p>
+&lt;li>The Go SDK supports SplittableDoFns for bounded pipelines, so scalable bounded pipelines are possible.
+&lt;ul>
+&lt;li>The textio package supports &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#ReadSdf">ReadSdf&lt;/a> and &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#ReadAllSdf">ReadAllSdf&lt;/a> for efficient batch text reads.&lt;/li>
+&lt;li>A general FileIO will be produced to simplify adding new file based connectors.&lt;/li>
+&lt;/ul>
 &lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Connectors - Java SDK</title><link>/roadmap/connectors-java-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/connectors-java-sdk/</guid><description>
 &lt;!--
@@ -158,56 +163,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="go-sdk-roadmap">Go SDK Roadmap&lt;/h1>
-&lt;p>The Go SDK is currently experimental. As the first purely portable Beam SDK, the Go SDK is constrained
-by the status of the &lt;a href="https://beam.apache.org/roadmap/portability/">Beam Portability Framework&lt;/a> and the existence of
-portable runners.&lt;/p>
-&lt;p>&lt;strong>April 2020 Update&lt;/strong>
-This year we hope to move the SDK out of experimental at least for Batch usage.&lt;/p>
-&lt;p>To do so, there are a few blocking changes:&lt;/p>
+&lt;p>The Go SDK is &lt;a href="/blog/go-sdk-release/">fully released as of v2.33.0&lt;/a>.&lt;/p>
+&lt;p>The Go SDK the first SDK purely on the &lt;a href="/roadmap/portability/">Beam Portability Framework&lt;/a>
+and can execute pipelines on portable runners, like Flink, Spark, Samza, and Google Cloud Dataflow.&lt;/p>
+&lt;p>Current roadmap:&lt;/p>
 &lt;ul>
-&lt;li>Support Interoperability with other SDKs&lt;/li>
-&lt;li>Scalable IOs&lt;/li>
-&lt;li>Portability Proto stability&lt;/li>
-&lt;li>Go Ecosystem integration improvements&lt;/li>
+&lt;li>continue building up unbounded pipeline facing features, as described on the &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Supporting+Streaming+in+the+Go+SDK">Beam Dev Wiki&lt;/a>.&lt;/li>
+&lt;li>improve IO support via cross language transforms, and add scalable native transforms. &lt;a href="/roadmap/connectors-go-sdk/">Go SDK Connector Roadmap&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;p>Interoperability while not a blocking feature in itself, requires Beam Schema support, which
-the SDK could then use as it&amp;rsquo;s default coder. Batch Splittable DoFns are nearly ready for
-playing with on Flink, and the Python Direct Runner, answering the scalable batch IO question.
-There&amp;rsquo;s much work getting the portability protos to a stable baseline. This will allow runner
-and SDK independance, so they don&amp;rsquo;t need to be updated in lockstep. Finally, the Go SDK should
-adopt Go Modules as it&amp;rsquo;s versioning solution, and officially &amp;ldquo;catch up&amp;rdquo; with the current beam
-version.&lt;/p>
-&lt;p>The Go SDK has the following goals for the next few months:&lt;/p>
-&lt;h2 id="usability">Usability&lt;/h2>
-&lt;ul>
-&lt;li>Beam Schema Support &lt;a href="https://issues.apache.org/jira/browse/BEAM-9615">BEAM-9615&lt;/a>&lt;/li>
-&lt;li>Improvements to starcgen &lt;a href="https://issues.apache.org/jira/browse/BEAM-9616">BEAM-9616&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h2 id="integrating-with-the-go-ecosystem">Integrating with the Go ecosystem&lt;/h2>
-&lt;p>The authors of the Go SDK intended to keep the parts of the language we love, and intend for
-user pipelines to be as close to ordinary Go as possible, minimizing framework boiler plate code.&lt;/p>
-&lt;ul>
-&lt;li>Migrate to a vanity URL path &lt;a href="https://issues.apache.org/jira/browse/BEAM-4115">BEAM-4115&lt;/a>&lt;/li>
-&lt;li>Package versioning support &lt;a href="https://issues.apache.org/jira/browse/BEAM-5379">BEAM-5379&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h2 id="implement-portability-features">Implement Portability features&lt;/h2>
-&lt;p>The following are dependant on the features being implemented in the Portability Framework.&lt;/p>
-&lt;ul>
-&lt;li>Splitable DoFns (SDFs) for Scalable IO &lt;a href="https://issues.apache.org/jira/browse/BEAM-3301">BEAM-3301&lt;/a>
-&lt;ul>
-&lt;li>This is the primary blocker for the Go SDK to scale to ingest large numbers of elements in both batch and streaming.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Triggers and Timers &lt;a href="https://issues.apache.org/jira/browse/BEAM-3304">BEAM-3304&lt;/a>&lt;/li>
-&lt;li>Advanced WindowFns
-&lt;ul>
-&lt;li>Session windows &lt;a href="https://issues.apache.org/jira/browse/BEAM-4152">BEAM-4152&lt;/a>&lt;/li>
-&lt;li>Custom WindowFns (dependant on streaming Splitable DoFn support) &lt;a href="https://issues.apache.org/jira/browse/BEAM-2939">BEAM-2939&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;p>Without SDFs, IOs are always constrained to work on a single machine prior to a sharding operation (like CoGroupByKey),
-which makes scalable IOs difficult to impossible to write.&lt;/p>
 &lt;p>Otherwise, improving examples and documentation for devs and users alike is ongoing.
 Contributions are welcome. Please contact the &lt;a href="mailto:dev@beam.apache.org?subject=%5BGo%20SDK%5D%20How%20can%20I%20help%3F">dev list&lt;/a>
 for assistance in finding a place to help out.&lt;/p>
