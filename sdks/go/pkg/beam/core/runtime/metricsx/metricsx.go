@@ -88,7 +88,18 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 				log.Println(err)
 				continue
 			}
-			msecs[key] = value
+			v := msecs[key]
+			switch minfo.GetUrn() {
+			case UrnToString(UrnStartBundle):
+				v.Start = value
+			case UrnToString(UrnProcessBundle):
+				v.Process = value
+			case UrnToString(UrnFinishBundle):
+				v.Finish = value
+			case UrnToString(UrnTransformTotalTime):
+				v.Total = value
+			}
+			msecs[key] = v
 		default:
 			log.Println("unknown metric type")
 		}
@@ -99,18 +110,6 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 func extractKey(mi *pipepb.MonitoringInfo) (metrics.StepKey, error) {
 	labels := newLabels(mi.GetLabels())
 	stepName := labels.Transform()
-	urn := mi.GetUrn()
-	switch urn {
-	case UrnToString(UrnStartBundle):
-		stepName += "/START"
-	case UrnToString(UrnProcessBundle):
-		stepName += "/PROCESS"
-	case UrnToString(UrnFinishBundle):
-		stepName += "/FINISH"
-	case UrnToString(UrnTransformTotalTime):
-		stepName += "/TOTAL"
-		// TODO: add cases for PCollection metrics
-	}
 
 	if stepName == "" {
 		return metrics.StepKey{}, fmt.Errorf("Failed to deduce Step from MonitoringInfo: %v", mi)
@@ -126,12 +125,12 @@ func extractCounterValue(reader *bytes.Reader) (int64, error) {
 	return value, nil
 }
 
-func extractMsecValue(reader *bytes.Reader) (metrics.MsecValue, error) {
+func extractMsecValue(reader *bytes.Reader) (time.Duration, error) {
 	value, err := coder.DecodeVarInt(reader)
 	if err != nil {
-		return metrics.MsecValue{}, err
+		return 0, err
 	}
-	return metrics.MsecValue{Time: value}, nil
+	return time.Duration(value) * time.Millisecond, nil
 }
 
 func extractDistributionValue(reader *bytes.Reader) (metrics.DistributionValue, error) {
