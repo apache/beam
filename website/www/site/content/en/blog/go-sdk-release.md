@@ -39,7 +39,7 @@ Alternatively executing `go get github.com/apache/beam/sdks/v2/go/pkg/beam` will
 Existing users of the experimental Go SDK need to update to new `v2` import paths to start using the latest versions of the SDK.
 This is can be done by adding `v2` to the import paths, changing `github.com/apache/beam/sdks/go/`... to `github.com/apache/beam/sdks/v2/go/`... where applicable, and then running `go mod tidy`.
 
-Further documentation on using the SDK is available in the [Beam Programming Guide](/documentation/programming-guide/), and in the package Go Doc at https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam.
+Further documentation on using the SDK is available in the [Beam Programming Guide](/documentation/programming-guide/), and in the package [Go Doc](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam).
 
 ## Feature Support
 
@@ -51,33 +51,32 @@ custom user use, supporting following features:
 * PTransforms
   * Impulse
   * Create
-  * ParDo w/User DoFns
-    * Iterable Side Inputs
-    * Multiple Output emitters
-    * Receive and Return Key Value pairs
-    * EventTime
+  * ParDo with user DoFns
+    * Iterable side inputs
+    * Multiple output emitters
+    * Receive and return key-value pairs
     * SplittableDoFns
   * GroupByKey and CoGroupByKey
   * CombineFns for use with Combine and CombinePerKey
-  * Windowing
-    * Global, Fixed intervals, Sliding windows, and Session
-    * Aggregating over windowed PCollections w/GBKs or Combines.
   * Flatten
   * Partition
-  * Composites
-  * Cross Language Transforms
+  * Composite transforms
+  * Cross language transforms
+* EventTime windowing
+  * Global, Fixed Interval, Sliding, and Session windows
+  * Aggregating over windowed PCollections with GroupByKeys or Combines.
 * Coders
   * Primitive Go types (ints, string, []bytes, and more)
   * Beam Schemas for Go Struct types (including struct, slice, and map fields)
   * Registering custom coders
 * Metrics
-  * PCollection metrics (ElementCount, Size Estimates)
-  * Custom User Metrics
+  * PCollection metrics (element counts, size estimates)
+  * Custom user metrics
   * Post job user metrics querying (coming in 2.34.0)
   * DoFn profiling metrics (coming in 2.35.0)
-* Provided Built Transforms
-  * Sum, Count, Min, Max, Top, Filter
-  * Scalable TextIO Reading
+* Built-in transforms
+  * Sum, count, min, max, top, filter
+  * Scalable TextIO reading
 
 Upcoming features support roadmap, and known issues are discussed below.
 In particular, we plan to support a much richer set of IO connectors via Beam's cross-language capabilities.
@@ -85,7 +84,7 @@ In particular, we plan to support a much richer set of IO connectors via Beam's 
 ## Releases
 
 With this release, the Go SDK now uses [Go Modules](https://golang.org/ref/mod) for dependency management.
-This makes it so users, SDK Devs, and the testing infrastructure can all rely on the same versions of dependencies, making builds reproducible.
+This makes it so users, SDK authors, and the testing infrastructure can all rely on the same versions of dependencies, making builds reproducible.
 This also makes [validating Go SDK Release Candidates simple](/blog/validate-beam-release/#configuring-a-go-build-to-validate-a-beam-release-candidate).
 
 Versioned SDK worker containers are now built and [published](https://hub.docker.com/r/apache/beam_go_sdk/tags?page=1&ordering=last_updated), with the SDK using matched tagged versions.
@@ -111,17 +110,16 @@ This is to be inline with Go's notion of the [`import compatibility rule`](https
 > If an old package and a new package have the same import path,
 > the new package must be backwards compatible with the old package.
 
-Exceptions to this policy are around newer, experimental, or in development features.
-These are subject to change.
-Such features will have a doc comment noting the experimental status, or be mentioned the change notes for a release.
-For example, using `beam.WindowInto` with Triggers is currently experimental and may have the api changed in a future release.
+Exceptions to this policy are around newer, experimental, or in development features and are subject to change.
+Such features will have a doc comment noting the experimental status.
+Major changes will be mentioned in the release notes.
+For example, using `beam.WindowInto` with Triggers is currently experimental and may have the API changed in a future release.
 
 Primary user packages include:
 * The main beam package `github.com/apache/beam/sdks/v2/go/pkg/beam`
 * Sub packages under `.../transforms`, `.../io`, `.../runners`, and `.../testing`.
 
-Generally, packages in the module other than the primary user packages are for framework use.
-They are at risk of changing, though at this point, large breaking changes are unlikely.
+Generally, packages in the module other than the primary user packages are for framework use and are at risk of changing.
 
 ### Known Issues
 
@@ -137,7 +135,7 @@ They are at risk of changing, though at this point, large breaking changes are u
 * Support of the SDK on services, like Google Cloud Dataflow, remains at the service owner's discretion.
 * Need something?
   * File a ticket in the [Beam JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go) and,
-  * Email the dev@beam.apache.org list!
+  * Email the [dev@beam.apache.org](mailto:dev@beam.apache.org?subject=%5BGo%20SDK%20Feature%5D) list!
 
 #### Fixed in 2.34.0
   * `top.SmallestPerKey` was broken [BEAM-12946](https://issues.apache.org/jira/browse/BEAM-12946)
@@ -146,13 +144,13 @@ They are at risk of changing, though at this point, large breaking changes are u
 
 #### Fixed in 2.35.0
   * Non-Global Window Side Inputs don't match (correctness bug) [BEAM-11087](https://issues.apache.org/jira/browse/BEAM-11087)
-    * Until 2.35.0 it's not recommended to use SideInputs that are not using the Global Window.
-  * Side Inputs using DoFns accumulate memory over bundles, causing OOMs [BEAM-13130](https://issues.apache.org/jira/browse/BEAM-13130)
+    * Until 2.35.0 it's not recommended to use Side Inputs that are not using the Global Window.
+  * DoFns using Side Inputs accumulate memory over bundles, causing OOMs [BEAM-13130](https://issues.apache.org/jira/browse/BEAM-13130)
 
 ## Roadmap
 
 The [SDK roadmap](/roadmap/go-sdk/) has been updated.
-Ongoing focus is to bolster more streaming focused features, and improve existing connectors, and make connectors easier to implement.
+Ongoing focus is to bolster streaming focused features, improve existing connectors, and make connectors easier to implement.
 
 In the nearer term this comes in the form of improvements to Side Inputs, and providing wrappers and improving ease-of-use for Cross Language Transforms from Java.
 
