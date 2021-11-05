@@ -1402,13 +1402,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1427,13 +1421,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1449,13 +1437,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1472,13 +1454,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad', 'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
