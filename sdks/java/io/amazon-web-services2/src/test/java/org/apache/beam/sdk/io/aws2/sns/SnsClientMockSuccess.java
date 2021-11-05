@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
-import java.util.HashMap;
 import java.util.UUID;
-import org.mockito.Mockito;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.GetTopicAttributesRequest;
@@ -34,27 +32,20 @@ public class SnsClientMockSuccess implements SnsClient {
 
   @Override
   public PublishResponse publish(PublishRequest publishRequest) {
-    PublishResponse response = Mockito.mock(PublishResponse.class);
-    SdkHttpResponse metadata = Mockito.mock(SdkHttpResponse.class);
-
-    Mockito.when(metadata.headers()).thenReturn(new HashMap<>());
-    Mockito.when(metadata.statusCode()).thenReturn(200);
-    Mockito.when(response.sdkHttpResponse()).thenReturn(metadata);
-    Mockito.when(response.messageId()).thenReturn(UUID.randomUUID().toString());
-
-    return response;
+    return (PublishResponse)
+        PublishResponse.builder()
+            .messageId(UUID.randomUUID().toString())
+            .sdkHttpResponse(SdkHttpResponse.builder().statusCode(200).build())
+            .build();
   }
 
   @Override
   public GetTopicAttributesResponse getTopicAttributes(
       GetTopicAttributesRequest topicAttributesRequest) {
-    GetTopicAttributesResponse response = Mockito.mock(GetTopicAttributesResponse.class);
-    SdkHttpResponse metadata = Mockito.mock(SdkHttpResponse.class);
-
-    Mockito.when(metadata.statusCode()).thenReturn(200);
-    Mockito.when(response.sdkHttpResponse()).thenReturn(metadata);
-
-    return response;
+    return (GetTopicAttributesResponse)
+        GetTopicAttributesResponse.builder()
+            .sdkHttpResponse(SdkHttpResponse.builder().statusCode(200).build())
+            .build();
   }
 
   @Override
