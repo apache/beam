@@ -78,54 +78,28 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 				continue
 			}
 			gauges[key] = value
-		case UrnToString(UrnStartBundle):
+		case
+			UrnToString(UrnStartBundle),
+			UrnToString(UrnProcessBundle),
+			UrnToString(UrnFinishBundle),
+			UrnToString(UrnTransformTotalTime):
 			value, err := extractMsecValue(r)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			if v, ok := msecs[key]; ok {
+			v := msecs[key]
+			switch minfo.GetUrn() {
+			case UrnToString(UrnStartBundle):
 				v.Start = value
-				msecs[key] = v
-			} else {
-				msecs[key] = metrics.MsecValue{Start: value}
-			}
-		case UrnToString(UrnProcessBundle):
-			value, err := extractMsecValue(r)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			if v, ok := msecs[key]; ok {
+			case UrnToString(UrnProcessBundle):
 				v.Process = value
-				msecs[key] = v
-			} else {
-				msecs[key] = metrics.MsecValue{Process: value}
-			}
-		case UrnToString(UrnFinishBundle):
-			value, err := extractMsecValue(r)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			if v, ok := msecs[key]; ok {
+			case UrnToString(UrnFinishBundle):
 				v.Finish = value
-				msecs[key] = v
-			} else {
-				msecs[key] = metrics.MsecValue{Finish: value}
-			}
-		case UrnToString(UrnTransformTotalTime):
-			value, err := extractMsecValue(r)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			if v, ok := msecs[key]; ok {
+			case UrnToString(UrnTransformTotalTime):
 				v.Total = value
-				msecs[key] = v
-			} else {
-				msecs[key] = metrics.MsecValue{Total: value}
 			}
+			msecs[key] = v
 		default:
 			log.Println("unknown metric type")
 		}
@@ -154,7 +128,7 @@ func extractCounterValue(reader *bytes.Reader) (int64, error) {
 func extractMsecValue(reader *bytes.Reader) (time.Duration, error) {
 	value, err := coder.DecodeVarInt(reader)
 	if err != nil {
-		return time.Millisecond, err
+		return 0, err
 	}
 	return time.Duration(value) * time.Millisecond, nil
 }

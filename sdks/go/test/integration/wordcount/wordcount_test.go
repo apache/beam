@@ -103,8 +103,6 @@ func TestWordCount(t *testing.T) {
 		},
 	}
 
-	runner := *ptest.Runner
-
 	for _, test := range tests {
 		integration.CheckFilters(t)
 		p, s := beam.NewPipelineWithRoot()
@@ -135,17 +133,6 @@ func TestWordCount(t *testing.T) {
 		}
 		if distribution.Result() != test.lineLen {
 			t.Errorf("Metrics().Query(by Name) failed. Got %v distribution, Want %v distribution", distribution.Result(), test.lineLen)
-		}
-
-		// Filter the DoFn metric test for PyPortable Runner as of now as it
-		// doesn't collect the DoFn metrics.
-		if runner != "portable" && runner != "PortableRunner" {
-			qr = pr.Metrics().Query(func(sr metrics.SingleResult) bool {
-				return strings.Contains(sr.Transform(), test.transform)
-			})
-			if len(qr.Msecs()) != test.transformCount {
-				t.Errorf("Metrics().Query(by Transform) failed. Got %v results, Want %v result", len(qr.Msecs()), test.transformCount)
-			}
 		}
 	}
 }

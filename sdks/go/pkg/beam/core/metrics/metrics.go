@@ -612,7 +612,7 @@ func (r CounterResult) Namespace() string {
 	return r.Key.Namespace
 }
 
-// Transform returns the Transform step for this Metric.
+// Transform returns the Transform step for this CounterResult.
 func (r CounterResult) Transform() string { return r.Key.Step }
 
 // MergeCounters combines counter metrics that share a common key.
@@ -667,7 +667,7 @@ func (r DistributionResult) Namespace() string {
 	return r.Key.Namespace
 }
 
-// Transform returns the Transform step for this Metric.
+// Transform returns the Transform step for this DistributionResult.
 func (r DistributionResult) Transform() string { return r.Key.Step }
 
 // MergeDistributions combines distribution metrics that share a common key.
@@ -722,7 +722,7 @@ func (r GaugeResult) Namespace() string {
 	return r.Key.Namespace
 }
 
-// Transform returns the Transform step for this Metric.
+// Transform returns the Transform step for this GaugeResult.
 func (r GaugeResult) Transform() string { return r.Key.Step }
 
 // StepKey uniquely identifies a metric within a pipeline graph.
@@ -770,17 +770,17 @@ func (r MsecResult) Result() MsecValue {
 	return r.Attempted
 }
 
-// Name returns the Name of this Gauge.
+// Name returns the Name of this MsecResult.
 func (r MsecResult) Name() string {
-	return r.Key.Name
+	return ""
 }
 
-// Namespace returns the Namespace of this Gauge.
+// Namespace returns the Namespace of this MsecResult.
 func (r MsecResult) Namespace() string {
-	return r.Key.Namespace
+	return ""
 }
 
-// Transform returns the Transform step for this Metric.
+// Transform returns the Transform step for this MsecResult.
 func (r MsecResult) Transform() string { return r.Key.Step }
 
 // MergeMsecs combines counter metrics that share a common key.
