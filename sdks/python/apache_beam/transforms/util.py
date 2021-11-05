@@ -725,7 +725,7 @@ class Reshuffle(PTransform):
   """
 
   # We use 32-bit integer as the default number of buckets.
-  _DEFAULT_NUM_BUCKETS = 1 << 32
+  _DEFAULT_NUM_BUCKETS = (1 << 32) - 1
 
   def __init__(self, num_buckets=None):
     """
