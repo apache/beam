@@ -120,3 +120,7 @@ go get -d github.com/apache/beam/sdks/v2@v2.34.0-RC1
 
 With that, the Beam version in your `go.mod` will be the specified release candidate.
 You can go ahead and run your tests to verify that everything works well.
+
+You may need to also specify the RC's matching container when running a job.
+Use the `--environment_config` flag to specify the release candidate container:
+eg. `--environment_config=apache/beam_go_sdk:2.34.0_rc1`

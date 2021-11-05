@@ -46,7 +46,7 @@ Further documentation on using the SDK is available in the [Beam Programming Gui
 At time of writing, the Go SDK is currently "Batteries Not Included".
 This means that there are gaps or edge cases in supported IOs and transforms.
 That said, the core of the SDK enables a great deal of the Beam Model for
-custom user use, supporting following features:
+custom user use, supporting the following features:
 
 * PTransforms
   * Impulse
@@ -57,17 +57,17 @@ custom user use, supporting following features:
     * Receive and return key-value pairs
     * SplittableDoFns
   * GroupByKey and CoGroupByKey
-  * CombineFns for use with Combine and CombinePerKey
+  * Combine and CombinePerKey with user CombineFns
   * Flatten
   * Partition
   * Composite transforms
   * Cross language transforms
-* EventTime windowing
+* Event time windowing
   * Global, Interval, Sliding, and Session windows
   * Aggregating over windowed PCollections with GroupByKeys or Combines
 * Coders
   * Primitive Go types (ints, string, []bytes, and more)
-  * Beam Schemas for Go Struct types (including struct, slice, and map fields)
+  * Beam Schemas for Go struct types (including struct, slice, and map fields)
   * Registering custom coders
 * Metrics
   * PCollection metrics (element counts, size estimates)
@@ -78,7 +78,7 @@ custom user use, supporting following features:
   * Sum, count, min, max, top, filter
   * Scalable TextIO reading
 
-Upcoming features support roadmap, and known issues are discussed below.
+Upcoming feature roadmap, and known issues are discussed below.
 In particular, we plan to support a much richer set of IO connectors via Beam's cross-language capabilities.
 
 ## Releases
@@ -88,7 +88,7 @@ This makes it so users, SDK authors, and the testing infrastructure can all rely
 This also makes [validating Go SDK Release Candidates simple](/blog/validate-beam-release/#configuring-a-go-build-to-validate-a-beam-release-candidate).
 
 Versioned SDK worker containers are now built and [published](https://hub.docker.com/r/apache/beam_go_sdk/tags?page=1&ordering=last_updated), with the SDK using matching tagged versions.
-User jobs no longer need to specify a container to use for released versions, except when using custom containers.
+User jobs no longer need to specify a container to use, except when using custom containers.
 
 ## Compatibility
 
