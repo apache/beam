@@ -111,6 +111,8 @@ public final class SnsIO {
   @AutoValue.CopyAnnotations
   @SuppressWarnings({"rawtypes"})
   public abstract static class RetryConfiguration implements Serializable {
+    private static final Duration DEFAULT_INITIAL_DURATION = Duration.standardSeconds(5);
+
     @VisibleForTesting
     static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
 
@@ -118,18 +120,30 @@ public final class SnsIO {
 
     abstract Duration getMaxDuration();
 
+    abstract Duration getInitialDuration();
+
     abstract RetryPredicate getRetryPredicate();
 
     abstract Builder builder();
 
-    public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+    @VisibleForTesting
+    static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      return create(maxAttempts, maxDuration, DEFAULT_INITIAL_DURATION);
+    }
+
+    static RetryConfiguration create(
+        int maxAttempts, Duration maxDuration, Duration initialDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
       checkArgument(
           maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
           "maxDuration should be greater than 0");
+      checkArgument(
+          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
+          "initialDuration should be greater than 0");
       return new AutoValue_SnsIO_RetryConfiguration.Builder()
           .setMaxAttempts(maxAttempts)
           .setMaxDuration(maxDuration)
+          .setInitialDuration(initialDuration)
           .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
           .build();
     }
@@ -139,6 +153,8 @@ public final class SnsIO {
       abstract SnsIO.RetryConfiguration.Builder setMaxAttempts(int maxAttempts);
 
       abstract SnsIO.RetryConfiguration.Builder setMaxDuration(Duration maxDuration);
+
+      abstract SnsIO.RetryConfiguration.Builder setInitialDuration(Duration initialDuration);
 
       abstract SnsIO.RetryConfiguration.Builder setRetryPredicate(RetryPredicate retryPredicate);
 
@@ -310,7 +326,6 @@ public final class SnsIO {
       @VisibleForTesting
       static final String RETRY_ATTEMPT_LOG = "Error writing to SNS. Retry attempt[%d]";
 
-      private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
       private transient FluentBackoff retryBackoff; // defaults to no retries
       private static final Logger LOG = LoggerFactory.getLogger(SnsWriterFn.class);
       private static final Counter SNS_WRITE_FAILURES =
@@ -332,14 +347,12 @@ public final class SnsIO {
             "Topic %s does not exist",
             spec.getTopicName());
 
-        retryBackoff =
-            FluentBackoff.DEFAULT
-                .withMaxRetries(0) // default to no retrying
-                .withInitialBackoff(RETRY_INITIAL_BACKOFF);
+        retryBackoff = FluentBackoff.DEFAULT.withMaxRetries(0); // default to no retrying
         if (spec.getRetryConfiguration() != null) {
           retryBackoff =
               retryBackoff
                   .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
+                  .withInitialBackoff(spec.getRetryConfiguration().getInitialDuration())
                   .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
         }
       }
