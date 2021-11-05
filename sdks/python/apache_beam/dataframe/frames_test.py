@@ -730,6 +730,7 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda s: s.corr(s * s), s)
       self._run_test(lambda s: s.cov(s * s), s)
       self._run_test(lambda s: s.skew(), s)
+      self._run_test(lambda s: s.kurtosis(), s)
 
   def test_dataframe_cov_corr(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
@@ -1407,7 +1408,6 @@ class AggregationTest(_AbstractFrameTest):
         'median',
         'sem',
         'mad',
-        'kurtosis',
         'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
@@ -1433,7 +1433,6 @@ class AggregationTest(_AbstractFrameTest):
         'median',
         'sem',
         'mad',
-        'kurtosis',
         'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
@@ -1456,7 +1455,6 @@ class AggregationTest(_AbstractFrameTest):
         'median',
         'sem',
         'mad',
-        'kurtosis',
         'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
@@ -1480,7 +1478,6 @@ class AggregationTest(_AbstractFrameTest):
         'median',
         'sem',
         'mad',
-        'kurtosis',
         'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
