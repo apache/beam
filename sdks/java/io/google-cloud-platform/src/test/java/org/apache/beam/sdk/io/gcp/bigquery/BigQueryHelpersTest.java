@@ -107,7 +107,7 @@ public class BigQueryHelpersTest {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(expectedMessage);
-    BigQueryHelpers.parseTableSpec("foo_bar_baz")
+    BigQueryHelpers.parseTableSpec("foo_bar_baz");
   }
 
   @Test
