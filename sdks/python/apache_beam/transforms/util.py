@@ -725,7 +725,7 @@ class Reshuffle(PTransform):
   """
 
   # We use 32-bit integer as the default number of buckets.
-  _DEFAULT_NUM_BUCKETS = (1 << 32) - 1
+  _DEFAULT_NUM_BUCKETS = 1 << 32
 
   def __init__(self, num_buckets=None):
     """
@@ -744,7 +744,7 @@ class Reshuffle(PTransform):
     # type: (pvalue.PValue) -> pvalue.PCollection
     return (
         pcoll | 'AddRandomKeys' >>
-        Map(lambda t: (random.randint(0, self.num_buckets), t)
+        Map(lambda t: (random.randrange(0, self.num_buckets), t)
             ).with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
