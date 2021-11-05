@@ -220,7 +220,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='LEGACY').SerializeToString(),
-                capabilities=environments.python_sdk_docker_capabilities())
+                capabilities=environments.python_sdk_capabilities())
         ])
 
   def test_environment_override_translation_sdk_container_image(self):
@@ -240,7 +240,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='FOO').SerializeToString(),
-                capabilities=environments.python_sdk_docker_capabilities())
+                capabilities=environments.python_sdk_capabilities())
         ])
 
   def test_remote_runner_translation(self):
@@ -256,7 +256,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def test_streaming_create_translation(self):
     remote_runner = DataflowRunner()
     self.default_properties.append("--streaming")
-    self.default_properties.append("--experiments=disable_runner_v2")
     with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
       p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     job_dict = json.loads(str(remote_runner.job))
@@ -840,8 +839,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'Runner determined sharding not available in Dataflow for '
         'GroupIntoBatches for jobs not using Runner V2'):
       _ = self._run_group_into_batches_and_get_step_properties(
-          True,
-          ['--enable_streaming_engine', '--experiments=disable_runner_v2'])
+          True, ['--enable_streaming_engine'])
 
     # JRH
     with self.assertRaisesRegex(
@@ -849,12 +847,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'Runner determined sharding not available in Dataflow for '
         'GroupIntoBatches for jobs not using Runner V2'):
       _ = self._run_group_into_batches_and_get_step_properties(
-          True,
-          [
-              '--enable_streaming_engine',
-              '--experiments=beam_fn_api',
-              '--experiments=disable_runner_v2'
-          ])
+          True, ['--enable_streaming_engine', '--experiments=beam_fn_api'])
 
   def test_pack_combiners(self):
     class PackableCombines(beam.PTransform):

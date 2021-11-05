@@ -129,10 +129,10 @@ public class DoFnOperatorTest {
   public void setUp() {
     PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
     view1 =
-        pc.apply(Window.into(FixedWindows.of(Duration.millis(WINDOW_MSECS_1))))
+        pc.apply(Window.into(FixedWindows.of(new Duration(WINDOW_MSECS_1))))
             .apply(View.asIterable());
     view2 =
-        pc.apply(Window.into(FixedWindows.of(Duration.millis(WINDOW_MSECS_2))))
+        pc.apply(Window.into(FixedWindows.of(new Duration(WINDOW_MSECS_2))))
             .apply(View.asIterable());
   }
 
@@ -275,7 +275,7 @@ public class DoFnOperatorTest {
     final String processingTimeMessage = "Processing timer fired";
 
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
-        WindowingStrategy.of(FixedWindows.of(Duration.millis(10_000)));
+        WindowingStrategy.of(FixedWindows.of(new Duration(10_000)));
 
     final String eventTimerId = "eventTimer";
     final String eventTimerId2 = "eventTimer2";
@@ -592,7 +592,7 @@ public class DoFnOperatorTest {
   public void testLateDroppingForStatefulFn() throws Exception {
 
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
-        WindowingStrategy.of(FixedWindows.of(Duration.millis(10)));
+        WindowingStrategy.of(FixedWindows.of(new Duration(10)));
 
     DoFn<Integer, String> fn =
         new DoFn<Integer, String>() {
@@ -690,8 +690,7 @@ public class DoFnOperatorTest {
   public void testStateGCForStatefulFn() throws Exception {
 
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
-        WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
-            .withAllowedLateness(Duration.ZERO);
+        WindowingStrategy.of(FixedWindows.of(new Duration(10))).withAllowedLateness(Duration.ZERO);
     final int offset = 5000;
     final int timerOutput = 4093;
 
@@ -701,7 +700,7 @@ public class DoFnOperatorTest {
             getHarness(
                 windowingStrategy,
                 offset,
-                (window) -> Objects.requireNonNull(window).maxTimestamp(),
+                (window) -> new Instant(Objects.requireNonNull(window).maxTimestamp()),
                 timerOutput);
 
     testHarness.open();
@@ -1397,7 +1396,7 @@ public class DoFnOperatorTest {
     final String outputMessage = "Timer fired";
 
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
-        WindowingStrategy.of(FixedWindows.of(Duration.millis(10_000)));
+        WindowingStrategy.of(FixedWindows.of(new Duration(10_000)));
 
     DoFn<Integer, String> fn =
         new DoFn<Integer, String>() {
@@ -1486,7 +1485,9 @@ public class DoFnOperatorTest {
 
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(WindowedValue.of(outputMessage, timerTimestamp, window1, PaneInfo.NO_FIRING)));
+        contains(
+            WindowedValue.of(
+                outputMessage, new Instant(timerTimestamp), window1, PaneInfo.NO_FIRING)));
 
     testHarness.close();
   }

@@ -52,7 +52,7 @@ public class HL7v2IOReadWriteIT {
   private transient HealthcareApiClient client;
   private static String healthcareDataset;
   private static final String BASE =
-      "hl7v2_store_rw_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+      "hl7v2_store_rw_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
   private static final String INPUT_HL7V2_STORE_NAME = BASE + "INPUT";
   private static final String OUTPUT_HL7V2_STORE_NAME = BASE + "OUTPUT";
 

@@ -119,6 +119,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.Mean.CountSum;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -469,7 +470,7 @@ public class ParDoTest implements Serializable {
             public void processElement(ProcessContext c) {}
 
             @Override
-            public void populateDisplayData(DisplayData.Builder builder) {
+            public void populateDisplayData(Builder builder) {
               builder.add(DisplayData.item("doFnMetadata", "bar"));
             }
           };
@@ -496,7 +497,7 @@ public class ParDoTest implements Serializable {
             public void proccessElement(ProcessContext c) {}
 
             @Override
-            public void populateDisplayData(DisplayData.Builder builder) {
+            public void populateDisplayData(Builder builder) {
               builder.add(DisplayData.item("fnMetadata", "foobar"));
             }
           };
@@ -1556,7 +1557,7 @@ public class ParDoTest implements Serializable {
             public void proccessElement(ProcessContext c) {}
 
             @Override
-            public void populateDisplayData(DisplayData.Builder builder) {
+            public void populateDisplayData(Builder builder) {
               builder.add(DisplayData.item("fnMetadata", "foobar"));
             }
           };
@@ -2434,114 +2435,6 @@ public class ParDoTest implements Serializable {
               .apply(ParDo.of(fn));
 
       PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
-      pipeline.run();
-    }
-
-    @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      UsesMapState.class,
-      UsesTestStream.class
-    })
-    public void testMapStateNoReadOnComputeIfAbsentAndPutIfAbsentInsertsElement() {
-      final String stateId = "foo";
-      final String countStateId = "count";
-
-      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
-          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
-
-            @StateId(stateId)
-            private final StateSpec<MapState<String, Integer>> mapState =
-                StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
-
-            @StateId(countStateId)
-            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
-                StateSpecs.combining(Sum.ofIntegers());
-
-            @ProcessElement
-            public void processElement(
-                ProcessContext c,
-                @Element KV<String, KV<String, Integer>> element,
-                @StateId(stateId) MapState<String, Integer> state,
-                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
-                OutputReceiver<KV<String, Integer>> r) {
-              KV<String, Integer> value = element.getValue();
-              if ("a".equals(value.getKey())) {
-                state.putIfAbsent(value.getKey(), value.getValue());
-              } else {
-                state.computeIfAbsent(value.getKey(), x -> value.getValue());
-              }
-              count.add(1);
-              if (count.read() >= 4) {
-                Iterable<Map.Entry<String, Integer>> iterate = state.entries().read();
-
-                for (Map.Entry<String, Integer> entry : iterate) {
-                  r.output(KV.of(entry.getKey(), entry.getValue()));
-                }
-              }
-            }
-          };
-      TestStream<KV<String, KV<String, Integer>>> stream =
-          TestStream.create(
-                  KvCoder.of(
-                      StringUtf8Coder.of(), KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-              .advanceWatermarkTo(new Instant(0))
-              .addElements(KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)))
-              .addElements(KV.of("hello", KV.of("b", 33)), KV.of("hello", KV.of("a", 12)))
-              .advanceWatermarkToInfinity();
-      PCollection<KV<String, Integer>> output = pipeline.apply(stream).apply(ParDo.of(fn));
-
-      PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42));
-      pipeline.run();
-    }
-
-    @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      UsesSetState.class,
-      UsesTestStream.class
-    })
-    public void testSetStateNoReadOnAddIfAbsentInsertsElement() {
-      final String stateId = "foo";
-      final String countStateId = "count";
-
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
-
-            @StateId(stateId)
-            private final StateSpec<SetState<Integer>> setState = StateSpecs.set(VarIntCoder.of());
-
-            @StateId(countStateId)
-            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
-                StateSpecs.combining(Sum.ofIntegers());
-
-            @ProcessElement
-            public void processElement(
-                ProcessContext c,
-                @Element KV<String, Integer> element,
-                @StateId(stateId) SetState<Integer> state,
-                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
-                OutputReceiver<Integer> r) {
-              state.addIfAbsent(element.getValue());
-              count.add(1);
-              if (count.read() >= 4) {
-                for (Integer entry : state.read()) {
-                  r.output(entry);
-                }
-              }
-            }
-          };
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(0))
-              .addElements(KV.of("hello", 1), KV.of("hello", 2))
-              .addElements(KV.of("hello", 2), KV.of("hello", 3))
-              .advanceWatermarkToInfinity();
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-
-      PAssert.that(output).containsInAnyOrder(1, 2, 3);
       pipeline.run();
     }
 
@@ -4794,6 +4687,10 @@ public class ParDoTest implements Serializable {
 
             @StateId("minStamp")
             private final StateSpec<ValueState<Instant>> minStamp = StateSpecs.value();
+
+            private Instant minInstant(Instant a, Instant b) {
+              return a.isBefore(b) ? a : b;
+            }
 
             @ProcessElement
             public void processElement(

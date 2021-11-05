@@ -96,8 +96,20 @@ public class TestStreams {
     };
   }
 
+  private static void noop() {}
+
   private static Runnable noopRunnable() {
     return () -> {};
+  }
+
+  private static void noop(Throwable t) {}
+
+  private static <T> Consumer<T> noopConsumer() {
+    return item -> {};
+  }
+
+  private static boolean returnTrue() {
+    return true;
   }
 
   private static Supplier<Boolean> alwaysTrueSupplier() {

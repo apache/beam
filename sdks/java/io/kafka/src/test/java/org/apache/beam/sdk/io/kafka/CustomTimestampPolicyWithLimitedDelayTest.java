@@ -70,7 +70,7 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
 
     CustomTimestampPolicyWithLimitedDelay<String, String> policy =
         new CustomTimestampPolicyWithLimitedDelay<>(
-            record -> new Instant(record.getTimestamp()), maxDelay, Optional.empty());
+            (record -> new Instant(record.getTimestamp())), maxDelay, Optional.empty());
 
     Instant now = Instant.now();
 

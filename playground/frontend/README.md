@@ -26,7 +26,7 @@ It provides a portable API layer for building sophisticated data-parallel proces
 
 ## Getting Started
 
-See [playground/README.md](../README.md) for details on requirements and setup.
+Website development requires [Flutter](https://flutter.dev/docs/get-started/install) installed.
 
 The following command is used to build and serve the website locally:
 
@@ -34,16 +34,14 @@ The following command is used to build and serve the website locally:
 
 Run the following command to generate a release build:
 
-`$flutter build web`
+`flutter build web`
 
-Playground tests may be run using next commands:
+Playground tests may be run using this command:
 
-`$ flutter pub run build_runner build`
-
-`$ flutter test`
+`flutter test`
 
 Dart code should follow next [code style](https://dart-lang.github.io/linter/lints/index.html). Code may be analyzed using this command:
 
-`$ flutter analyze`
+`flutter analyze`
 
 The full list of command can be found [here](https://flutter.dev/docs/reference/flutter-cli)

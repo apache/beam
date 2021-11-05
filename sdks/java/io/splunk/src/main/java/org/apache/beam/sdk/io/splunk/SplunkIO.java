@@ -150,7 +150,7 @@ public class SplunkIO {
               .withUrl(url())
               .withInputBatchCount(batchCount())
               .withDisableCertificateValidation(disableCertificateValidation())
-              .withToken(token());
+              .withToken((token()));
 
       SplunkEventWriter writer = builder.build();
       LOG.info("SplunkEventWriter configured");
@@ -245,7 +245,7 @@ public class SplunkIO {
           disableCertificateValidation != null,
           "withDisableCertificateValidation(disableCertificateValidation) called with null input.");
       return toBuilder()
-          .setDisableCertificateValidation(StaticValueProvider.of(disableCertificateValidation))
+          .setDisableCertificateValidation(StaticValueProvider.of((disableCertificateValidation)))
           .build();
     }
 

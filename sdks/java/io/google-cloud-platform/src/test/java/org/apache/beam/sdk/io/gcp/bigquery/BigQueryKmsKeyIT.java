@@ -55,7 +55,7 @@ public class BigQueryKmsKeyIT {
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryKmsKeyIT");
   private static final String BIG_QUERY_DATASET_ID =
-      "bq_query_to_table_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+      "bq_query_to_table_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
   private static final TableSchema OUTPUT_SCHEMA =
       new TableSchema()
           .setFields(ImmutableList.of(new TableFieldSchema().setName("fruit").setType("STRING")));

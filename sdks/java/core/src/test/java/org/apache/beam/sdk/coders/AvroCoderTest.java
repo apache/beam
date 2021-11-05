@@ -355,7 +355,7 @@ public class AvroCoderTest {
             + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
             + " ]\n"
             + "}";
-    Schema schema = new Schema.Parser().parse(schemaString);
+    Schema schema = (new Schema.Parser()).parse(schemaString);
 
     GenericRecord before = new GenericData.Record(schema);
     before.put("name", "Bob");

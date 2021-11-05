@@ -121,7 +121,7 @@ public class AutoCompleteTest implements Serializable {
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
         input
-            .apply(Window.into(SlidingWindows.of(Duration.millis(2))))
+            .apply(Window.into(SlidingWindows.of(new Duration(2))))
             .apply(new ComputeTopCompletions(2, recursive));
 
     PAssert.that(output)

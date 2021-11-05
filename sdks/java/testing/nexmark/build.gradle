@@ -38,8 +38,7 @@ def nexmarkRunnerDependency = project.findProperty(nexmarkRunnerProperty)
         ?: ":runners:direct-java"
 def nexmarkRunnerVersionProperty = "nexmark.runner.version"
 def nexmarkRunnerVersion = project.findProperty(nexmarkRunnerVersionProperty)
-def shouldProvideSpark2 = ":runners:spark:2".equals(nexmarkRunnerDependency)
-def shouldProvideSpark3 = ":runners:spark:3".equals(nexmarkRunnerDependency)
+def shouldProvideSpark = ":runners:spark:2".equals(nexmarkRunnerDependency)
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(nexmarkRunnerDependency)
 def isDataflowRunnerV2 = isDataflowRunner && "V2".equals(nexmarkRunnerVersion)
 def runnerConfiguration = ":runners:direct-java".equals(nexmarkRunnerDependency) ? "shadow" : null
@@ -85,7 +84,6 @@ dependencies {
   compile library.java.joda_time
   compile library.java.slf4j_api
   compile library.java.kafka_clients
-  compileOnly library.java.error_prone_annotations
   testRuntimeClasspath library.java.slf4j_jdk14
   testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
@@ -95,35 +93,22 @@ dependencies {
   // The Spark runner requires the user to provide a Spark dependency. For self-contained
   // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
   // to not hardcode any runner other than :runners:direct-java
-  if (shouldProvideSpark2) {
+  if (shouldProvideSpark) {
     gradleRun library.java.spark_core, {
       exclude group:"org.slf4j", module:"jul-to-slf4j"
     }
     gradleRun library.java.spark_sql
     gradleRun library.java.spark_streaming
   }
-  if (shouldProvideSpark3) {
-    gradleRun library.java.spark3_core, {
-      exclude group:"org.slf4j", module:"jul-to-slf4j"
-    }
-
-    gradleRun library.java.spark3_sql
-    gradleRun library.java.spark3_streaming
-  }
 }
 
-if (shouldProvideSpark2) {
+if (shouldProvideSpark) {
   configurations.gradleRun {
     // Using Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
     exclude group: "org.slf4j", module: "slf4j-jdk14"
   }
 }
-if (shouldProvideSpark3) {
-  configurations.gradleRun {
-    // Using Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
-    exclude group: "org.slf4j", module: "slf4j-jdk14"
-  }
-}
+
 def getNexmarkArgs = {
   def nexmarkArgsStr =  project.findProperty(nexmarkArgsProperty) ?: ""
   def nexmarkArgsList = new ArrayList<String>()

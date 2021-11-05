@@ -35,30 +35,15 @@
   .body__contained img { max-width: 100% }
 </style>
 
-{{ $bootstrap := resources.Get "js/bootstrap.min.js" | fingerprint }}
-<script type="text/javascript" src="{{ $bootstrap.RelPermalink }}" defer></script>
-
+<script src="/js/bootstrap.min.js"></script>
 <!-- TODO [BEAM-12644]: Create an asset pipeline so we don't have to version .js files. -->
-{{ $switchV2 := resources.Get "js/language-switch-v2.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $switchV2.RelPermalink }}" defer></script>
-
-{{ $fixMenu := resources.Get "js/fix-menu.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $fixMenu.RelPermalink }}" defer></script>
-
-{{ $sectionNav := resources.Get "js/section-nav.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $sectionNav.RelPermalink }}" defer></script>
-
-{{ $pageNav := resources.Get "js/page-nav.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $pageNav.RelPermalink }}" defer></script>
-
-{{ $expandableList := resources.Get "js/expandable-list.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $expandableList.RelPermalink }}" defer></script>
-
-{{ $copyToClipboard := resources.Get "js/copy-to-clipboard.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $copyToClipboard.RelPermalink }}" defer></script>
-
-{{ $calendar := resources.Get "js/calendar.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $calendar.RelPermalink }}" defer></script>
+<script src="/js/language-switch-v2.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+<script src="/js/expandable-list.js"></script>
+<script src="/js/copy-to-clipboard.js"></script>
+<script src="/js/calendar.js"></script>
 
 <link rel="alternate" type="application/rss+xml" title="{{ .Site.Title }}" href="/feed.xml">
 <link rel="canonical" href="{{ .Site.Params.hostName }}{{ .Permalink | absURL }}" data-proofer-ignore>

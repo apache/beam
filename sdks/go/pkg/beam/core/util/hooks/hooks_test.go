@@ -21,9 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
-	"github.com/google/go-cmp/cmp"
 )
 
 type contextKey string
@@ -35,53 +33,51 @@ const (
 	reqValue  = "reqValue"
 )
 
-func initializeHooks(options *runtime.Options) *registry {
-	r := newRegistry(options)
-	r.RegisterHook("test", func([]string) Hook {
-		return Hook{
-			Init: func(ctx context.Context) (context.Context, error) {
-				return context.WithValue(ctx, initKey, initValue), nil
-			},
-			Req: func(ctx context.Context, req *fnpb.InstructionRequest) (context.Context, error) {
-				return context.WithValue(ctx, reqKey, reqValue), nil
-			},
-		}
-	})
-	r.EnableHook("test")
-	r.SerializeHooksToOptions()
-	r.DeserializeHooksFromOptions(context.Background())
+func initializeHooks() *registry {
+	var r = newRegistry()
+	r.activeHooks["test"] = Hook{
+		Init: func(ctx context.Context) (context.Context, error) {
+			return context.WithValue(ctx, initKey, initValue), nil
+		},
+		Req: func(ctx context.Context, req *fnpb.InstructionRequest) (context.Context, error) {
+			return context.WithValue(ctx, reqKey, reqValue), nil
+		},
+	}
 	return r
 }
 
 func TestInitContextPropagation(t *testing.T) {
-	r := initializeHooks(runtime.NewOptions())
+	r := initializeHooks()
 	ctx := context.Background()
 	var err error
 
+	expected := initValue
 	ctx, err = r.RunInitHooks(ctx)
 	if err != nil {
 		t.Errorf("got %v error, wanted no error", err)
 	}
-
-	if got, want := ctx.Value(initKey), initValue; got != want {
-		t.Errorf("RunInitHooks context.Value: got %s, wanted %s", got, want)
+	actual := ctx.Value(initKey)
+	if actual != expected {
+		t.Errorf("Got %s, wanted %s", actual, expected)
 	}
 }
 
 func TestRequestContextPropagation(t *testing.T) {
-	r := initializeHooks(runtime.NewOptions())
+	r := initializeHooks()
 	ctx := context.Background()
 
+	expected := reqValue
 	ctx = r.RunRequestHooks(ctx, nil)
-	if got, want := ctx.Value(reqKey), reqValue; got != want {
-		t.Errorf("RunRequestHooks context.Value: got %s, wanted %s", got, want)
+	actual := ctx.Value(reqKey)
+	if actual != expected {
+		t.Errorf("Got %s, wanted %s", actual, expected)
 	}
 }
 
 // TestConcurrentWrites tests if the concurrent writes are handled properly.
 // It uses go routines to test this on sample hook 'google_logging'.
 func TestConcurrentWrites(t *testing.T) {
-	r := initializeHooks(runtime.NewOptions())
+	r := initializeHooks()
 	hf := func(opts []string) Hook {
 		return Hook{
 			Req: func(ctx context.Context, req *fnpb.InstructionRequest) (context.Context, error) {
@@ -120,54 +116,4 @@ func TestConcurrentWrites(t *testing.T) {
 	close(ch)
 	// Wait for all goroutines to exit properly.
 	wg.Wait()
-}
-
-func TestHookOrder(t *testing.T) {
-	r := newRegistry(runtime.NewOptions())
-
-	want := []string{"a", "d", "b"}
-	var got []string
-	hf := func(args []string) Hook {
-		return Hook{
-			Resp: func(context.Context, *fnpb.InstructionRequest, *fnpb.InstructionResponse) error {
-				got = append(got, args...)
-				return nil
-			},
-		}
-	}
-
-	r.RegisterHook("a", hf)
-	r.RegisterHook("b", hf)
-	r.RegisterHook("c", hf)
-	r.RegisterHook("d", hf)
-
-	r.EnableHook("a", "bad")
-	r.EnableHook("a", "a") // override previous option
-	r.EnableHook("b", "not here")
-	// c never enabled.
-	r.EnableHook("d", "d")
-
-	r.DisableHook("b")
-	r.EnableHook("b", "b")
-
-	r.SerializeHooksToOptions()
-	ctx := context.Background()
-	r.DeserializeHooksFromOptions(ctx)
-
-	r.RunResponseHooks(ctx, nil, nil)
-	if d := cmp.Diff(want, got); d != "" {
-		t.Errorf("bad hook ordering: got %v, want %v; diff:\n %v", got, want, d)
-	}
-}
-
-func TestEncodeDecode(t *testing.T) {
-	name, args := "test", []string{"one", "two", "three"}
-	data := Encode(name, args)
-	gotName, gotArgs := Decode(data)
-	if got, want := gotName, name; got != want {
-		t.Errorf("Decode(Encode(%v, %v)) = %v, %v", name, args, gotName, gotArgs)
-	}
-	if !cmp.Equal(args, gotArgs) {
-		t.Errorf("Decode(Encode(%v, %v)) = %v, %v", name, args, gotName, gotArgs)
-	}
 }

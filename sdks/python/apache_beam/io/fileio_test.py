@@ -507,7 +507,6 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                     if row['foundation'] == 'apache']),
           label='verifyApache')
 
-  @unittest.skip('BEAM-13010')
   def test_find_orphaned_files(self):
     dir = self._new_tempdir()
 

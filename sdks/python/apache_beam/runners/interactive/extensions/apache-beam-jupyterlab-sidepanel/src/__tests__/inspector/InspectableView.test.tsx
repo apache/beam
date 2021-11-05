@@ -53,8 +53,9 @@ it('does not render options if inspecting a pipeline', () => {
 });
 
 it('renders options if inspecting a pcollection', () => {
-  const inspectableViewRef: React.RefObject<InspectableView> =
-    React.createRef<InspectableView>();
+  const inspectableViewRef: React.RefObject<InspectableView> = React.createRef<
+    InspectableView
+  >();
   const fakeModel = {
     html: '',
     script: [] as string[],

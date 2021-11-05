@@ -18,14 +18,14 @@ import {
 const fakeSessionContext = {
   session: {
     kernel: {
-      requestExecute: function (): Record<string, unknown> {
+      requestExecute: function(): object {
         return {
-          onIOPub: function (): void {
+          onIOPub: function(): void {
             // do nothing
           }
         };
       },
-      interrupt: function (): void {
+      interrupt: function(): void {
         // do nothing
       }
     }

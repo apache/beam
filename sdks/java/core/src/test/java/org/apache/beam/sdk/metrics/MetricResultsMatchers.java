@@ -128,7 +128,7 @@ public class MetricResultsMatchers {
 
       private boolean metricResultsEqual(T result1, T result2) {
         if (result1 instanceof GaugeResult) {
-          return ((GaugeResult) result1).getValue() == ((GaugeResult) result2).getValue();
+          return (((GaugeResult) result1).getValue()) == (((GaugeResult) result2).getValue());
         } else {
           return Objects.equals(result1, result2);
         }

@@ -22,13 +22,7 @@ import (
 // GlobalOptions are the global options for the active graph. Options can be
 // defined at any time before execution and are re-created by the harness on
 // remote execution workers. Global options should be used sparingly.
-var GlobalOptions = NewOptions()
-
-// NewOptions provides an initialized set of options. It
-// is only intended for framework and test use.
-func NewOptions() *Options {
-	return &Options{opt: make(map[string]string)}
-}
+var GlobalOptions = &Options{opt: make(map[string]string)}
 
 // Options are untyped options.
 type Options struct {

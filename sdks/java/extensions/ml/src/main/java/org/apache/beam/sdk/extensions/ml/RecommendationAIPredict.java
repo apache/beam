@@ -141,7 +141,7 @@ public abstract class RecommendationAIPredict
       PlacementName name =
           PlacementName.of(projectId, "global", catalogName, eventStore, placementId);
       UserEvent.Builder userEventBuilder = UserEvent.newBuilder();
-      JsonFormat.parser().merge(new JSONObject(context.element()).toString(), userEventBuilder);
+      JsonFormat.parser().merge((new JSONObject(context.element())).toString(), userEventBuilder);
       UserEvent userEvent = userEventBuilder.build();
       try (PredictionServiceClient predictionServiceClient = PredictionServiceClient.create()) {
         for (PredictResponse.PredictionResult res :

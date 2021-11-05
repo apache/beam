@@ -372,7 +372,6 @@ public class SchemaUtilTest {
       return new JdbcFieldInfo(columnLabel, columnType, columnTypeName, nullable, 0, 0);
     }
 
-    @SuppressWarnings("unused")
     private static JdbcFieldInfo of(String columnLabel, int columnType, boolean nullable) {
       return new JdbcFieldInfo(columnLabel, columnType, null, nullable, 0, 0);
     }

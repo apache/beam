@@ -1143,7 +1143,7 @@ public class StreamingDataflowWorker {
     public abstract long shardingKey();
 
     @Override
-    public final String toString() {
+    public String toString() {
       ByteString keyToDisplay = key();
       if (keyToDisplay.size() > 100) {
         keyToDisplay = keyToDisplay.substring(0, 100);

@@ -488,7 +488,7 @@ public class CassandraIOTest implements Serializable {
     private final ListeningExecutorService executor =
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
 
-    final Callable<Void> asyncTask = () -> null;
+    final Callable<Void> asyncTask = () -> (null);
 
     @Override
     public Iterator map(ResultSet resultSet) {

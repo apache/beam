@@ -316,8 +316,8 @@ public class OrderedCode {
    */
   public byte[] readBytes() {
     if ((encodedArrays == null)
-        || encodedArrays.isEmpty()
-        || (encodedArrays.get(0).length - firstArrayPosition <= 0)) {
+        || (encodedArrays.isEmpty())
+        || ((encodedArrays.get(0)).length - firstArrayPosition <= 0)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
 
@@ -404,8 +404,8 @@ public class OrderedCode {
    */
   public long readNumIncreasing() {
     if ((encodedArrays == null)
-        || encodedArrays.isEmpty()
-        || (encodedArrays.get(0).length - firstArrayPosition < 1)) {
+        || (encodedArrays.isEmpty())
+        || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
 
@@ -441,8 +441,8 @@ public class OrderedCode {
    */
   public long readSignedNumIncreasing() {
     if ((encodedArrays == null)
-        || encodedArrays.isEmpty()
-        || (encodedArrays.get(0).length - firstArrayPosition < 1)) {
+        || (encodedArrays.isEmpty())
+        || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
 
@@ -518,8 +518,8 @@ public class OrderedCode {
    */
   public boolean readInfinity() {
     if ((encodedArrays == null)
-        || encodedArrays.isEmpty()
-        || (encodedArrays.get(0).length - firstArrayPosition < 1)) {
+        || (encodedArrays.isEmpty())
+        || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
     byte[] store = encodedArrays.get(0);
@@ -565,8 +565,8 @@ public class OrderedCode {
    */
   public byte[] readBytes(int len) {
     if ((encodedArrays == null)
-        || encodedArrays.isEmpty()
-        || (encodedArrays.get(0).length - firstArrayPosition < len)) {
+        || (encodedArrays.isEmpty())
+        || ((encodedArrays.get(0)).length - firstArrayPosition < len)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
 

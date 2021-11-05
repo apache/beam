@@ -63,7 +63,6 @@ import pkg_resources
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
-from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
@@ -99,8 +98,6 @@ class Stager(object):
   Implementation of this stager has to implement :func:`stage_artifact` and
   :func:`commit_manifest`.
   """
-  _DEFAULT_CHUNK_SIZE = 2 << 20
-
   def stage_artifact(self, local_path_to_artifact, artifact_name):
     # type: (str, str) -> None
 
@@ -466,24 +463,6 @@ class Stager(object):
         _LOGGER.info('Failed to download Artifact from %s', from_url)
         raise
     else:
-      try:
-        read_handle = FileSystems.open(
-            from_url, compression_type=CompressionTypes.UNCOMPRESSED)
-        with read_handle as fin:
-          with open(to_path, 'wb') as f:
-            while True:
-              chunk = fin.read(Stager._DEFAULT_CHUNK_SIZE)
-              if not chunk:
-                break
-              f.write(chunk)
-        _LOGGER.info('Copied remote file from %s to %s.', from_url, to_path)
-        return
-      except Exception as e:
-        _LOGGER.info(
-            'Failed to download file from %s via apache_beam.io.filesystems.'
-            'Trying to copy directly. %s',
-            from_url,
-            repr(e))
       if not os.path.isdir(os.path.dirname(to_path)):
         _LOGGER.info(
             'Created folder (since we have not done yet, and any errors '

@@ -88,7 +88,6 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     abstract SqlKind kind();
   }
 
-  @SuppressWarnings("unused")
   private static SqlOperatorId sqlOperatorId(String nameAndKind) {
     return sqlOperatorId(nameAndKind, SqlKind.valueOf(nameAndKind));
   }
@@ -986,8 +985,8 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     ExpressionChecker checker =
         new ExpressionChecker()
             .addExpr("SIGN(c_integer)", Integer.signum(INTEGER_VALUE))
-            .addExpr("SIGN(c_bigint)", (long) Long.signum(LONG_VALUE))
-            .addExpr("SIGN(c_smallint)", (short) Integer.signum(SHORT_VALUE))
+            .addExpr("SIGN(c_bigint)", (long) (Long.signum(LONG_VALUE)))
+            .addExpr("SIGN(c_smallint)", (short) (Integer.signum(SHORT_VALUE)))
             .addExpr("SIGN(c_tinyint)", (byte) Integer.signum(BYTE_VALUE))
             .addExpr("SIGN(c_double)", Math.signum(DOUBLE_VALUE))
             .addExpr("SIGN(c_float)", Math.signum(FLOAT_VALUE))

@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.loadtests;
 
+import static java.lang.String.format;
+import static java.util.Optional.empty;
+import static java.util.Optional.of;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -72,9 +76,9 @@ class JobFailure {
         testResults.stream().anyMatch(namedTestResult -> namedTestResult.getValue() == -1D);
 
     if (isTestResultInvalid) {
-      return Optional.of(new JobFailure("Invalid test results", false));
+      return of(new JobFailure("Invalid test results", false));
     } else {
-      return Optional.empty();
+      return empty();
     }
   }
 
@@ -82,17 +86,16 @@ class JobFailure {
     switch (state) {
       case RUNNING:
       case UNKNOWN:
-        return Optional.of(new JobFailure("Job timeout.", true));
+        return of(new JobFailure("Job timeout.", true));
 
       case CANCELLED:
       case FAILED:
       case STOPPED:
       case UPDATED:
-        return Optional.of(
-            new JobFailure(String.format("Invalid job state: %s.", state.toString()), false));
+        return of(new JobFailure(format("Invalid job state: %s.", state.toString()), false));
 
       default:
-        return Optional.empty();
+        return empty();
     }
   }
 }

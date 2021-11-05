@@ -219,6 +219,10 @@ public class SchemaCoder<T> extends CustomCoder<T> {
     return Objects.hash(schema, typeDescriptor, toRowFunction, fromRowFunction);
   }
 
+  private static RowIdentity identity() {
+    return new RowIdentity();
+  }
+
   private static class RowIdentity implements SerializableFunction<Row, Row> {
     @Override
     public Row apply(Row input) {

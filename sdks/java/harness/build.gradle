@@ -75,21 +75,5 @@ dependencies {
   testCompile project(path: ":sdks:java:fn-execution", configuration: "testRuntime")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
   jmhCompile project(path: ":sdks:java:harness", configuration: "shadowTest")
-  jmhCompile project(":runners:java-fn-execution")
   jmhRuntime library.java.slf4j_jdk14
-}
-
-jmh {
-  // Specify -Pbenchmark=ProcessBundleBenchmark.testTinyBundle on the command
-  // line to enable running a single benchmark.
-  if (project.hasProperty("benchmark")) {
-    args project.getProperty("benchmark")
-    // Add JVM arguments allowing one to additionally use Google's Java Profiler
-    // Agent: (see https://cloud.google.com/profiler/docs/profiling-java#installing-profiler for instructions on how to install)
-    if (file("/opt/cprof/profiler_java_agent.so").exists()) {
-      def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-      def userName = System.getProperty("user.name").toLowerCase().replaceAll(" ", "_")
-      jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + System.currentTimeMillis() + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
-    }
-  }
 }

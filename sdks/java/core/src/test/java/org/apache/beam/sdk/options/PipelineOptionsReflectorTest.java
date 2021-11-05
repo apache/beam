@@ -230,6 +230,15 @@ public class PipelineOptionsReflectorTest {
     };
   }
 
+  private static Matcher<PipelineOptionSpec> hasGetter(String methodName) {
+    return new FeatureMatcher<PipelineOptionSpec, String>(is(methodName), "getter method", "name") {
+      @Override
+      protected String featureValueOf(PipelineOptionSpec actual) {
+        return actual.getGetterMethod().getName();
+      }
+    };
+  }
+
   private static Matcher<PipelineOptionSpec> shouldSerialize() {
     return new FeatureMatcher<PipelineOptionSpec, Boolean>(
         equalTo(true), "should serialize", "shouldSerialize") {

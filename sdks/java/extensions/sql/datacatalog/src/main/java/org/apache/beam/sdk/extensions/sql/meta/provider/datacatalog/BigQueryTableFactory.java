@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.Table.Builder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** {@link TableFactory} that understands Data Catalog BigQuery entries. */
@@ -41,7 +42,7 @@ class BigQueryTableFactory implements TableFactory {
   }
 
   @Override
-  public Optional<Table.Builder> tableBuilder(Entry entry) {
+  public Optional<Builder> tableBuilder(Entry entry) {
     if (!URI.create(entry.getLinkedResource()).getAuthority().equalsIgnoreCase(BIGQUERY_API)) {
       return Optional.empty();
     }

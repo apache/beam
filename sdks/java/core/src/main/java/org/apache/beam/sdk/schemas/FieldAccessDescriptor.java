@@ -656,7 +656,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   @Override
-  public final String toString() {
+  public String toString() {
     if (getAllFields()) {
       return "*";
     }

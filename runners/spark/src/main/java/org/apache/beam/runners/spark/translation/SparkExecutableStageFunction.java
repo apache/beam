@@ -34,7 +34,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -52,13 +51,11 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.runners.fnexecution.translation.BatchSideInputHandlerFactory;
 import org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -89,8 +86,6 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkExecutableStageFunction.class);
 
-  // Pipeline options for initializing the FileSystems
-  private final SerializablePipelineOptions pipelineOptions;
   private final RunnerApi.ExecutableStagePayload stagePayload;
   private final Map<String, Integer> outputMap;
   private final SparkExecutableStageContextFactory contextFactory;
@@ -105,7 +100,6 @@ class SparkExecutableStageFunction<InputT, SideInputT>
   private transient Object currentTimerKey;
 
   SparkExecutableStageFunction(
-      SerializablePipelineOptions pipelineOptions,
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
@@ -113,7 +107,6 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
       MetricsContainerStepMapAccumulator metricsAccumulator,
       Coder windowCoder) {
-    this.pipelineOptions = pipelineOptions;
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.outputMap = outputMap;
@@ -130,10 +123,6 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
   @Override
   public Iterator<RawUnionValue> call(Iterator<WindowedValue<InputT>> inputs) throws Exception {
-    SparkPipelineOptions options = pipelineOptions.get().as(SparkPipelineOptions.class);
-    // Register standard file systems.
-    FileSystems.setDefaultPipelineOptions(options);
-
     // Do not call processElements if there are no inputs
     // Otherwise, this may cause validation errors (e.g. ParDoTest)
     if (!inputs.hasNext()) {

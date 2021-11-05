@@ -343,7 +343,7 @@ final class MutationUtils {
               .set(column)
               .toTimestampArray(
                   StreamSupport.stream(iterable.spliterator(), false)
-                      .map(datetime -> Timestamp.parseTimestamp(datetime.toString()))
+                      .map(datetime -> Timestamp.parseTimestamp((datetime).toString()))
                       .collect(toList()));
         }
         break;

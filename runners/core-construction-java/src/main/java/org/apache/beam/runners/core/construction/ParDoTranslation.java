@@ -43,6 +43,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput.Builder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRequirements;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformTranslator;
@@ -723,7 +724,7 @@ public class ParDoTranslation {
   }
 
   public static SideInput translateView(PCollectionView<?> view, SdkComponents components) {
-    RunnerApi.SideInput.Builder builder = SideInput.newBuilder();
+    Builder builder = SideInput.newBuilder();
     builder.setAccessPattern(
         FunctionSpec.newBuilder().setUrn(view.getViewFn().getMaterialization().getUrn()).build());
     builder.setViewFn(translateViewFn(view.getViewFn(), components));

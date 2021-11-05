@@ -1193,6 +1193,15 @@ public class PubsubIO {
       return toBuilder().setIdAttribute(idAttribute).build();
     }
 
+    /**
+     * Used to write a PubSub message together with PubSub attributes. The user-supplied format
+     * function translates the input type T to a PubsubMessage object, which is used by the sink to
+     * separately set the PubSub message's payload and attributes.
+     */
+    private Write<T> withFormatFn(SimpleFunction<T, PubsubMessage> formatFn) {
+      return toBuilder().setFormatFn(formatFn).build();
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
       if (getTopicProvider() == null) {

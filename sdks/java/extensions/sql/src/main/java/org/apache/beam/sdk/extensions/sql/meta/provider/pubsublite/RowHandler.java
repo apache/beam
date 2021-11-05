@@ -73,7 +73,7 @@ class RowHandler implements Serializable {
   RowHandler(Schema schema, @Nonnull PayloadSerializer payloadSerializer) {
     this.schema = schema;
     this.payloadSerializer = payloadSerializer;
-    checkArgument(schema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.ROW));
+    checkArgument((schema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.ROW)));
   }
 
   /* Convert a message to a row. If Schema payload field is a Row type, payloadSerializer is required. */

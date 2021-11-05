@@ -19,7 +19,7 @@ import { act } from 'react-dom/test-utils';
 import { Inspectables } from '../../inspector/Inspectables';
 
 jest.mock('../../inspector/InspectableList', () => {
-  const FakeInspectableList = function (): React.ReactNode {
+  const FakeInspectableList = function(): React.ReactNode {
     return <div></div>;
   };
   FakeInspectableList.displayName = 'FakeInspectableList';
@@ -43,8 +43,9 @@ afterEach(() => {
 });
 
 it('renders info message about no inspectable when none is available', () => {
-  const inspectablesRef: React.RefObject<Inspectables> =
-    React.createRef<Inspectables>();
+  const inspectablesRef: React.RefObject<Inspectables> = React.createRef<
+    Inspectables
+  >();
   act(() => {
     render(<Inspectables ref={inspectablesRef} />, container);
     const inspectables = inspectablesRef.current;
@@ -60,8 +61,9 @@ it('renders info message about no inspectable when none is available', () => {
 });
 
 it('renders inspectables as a list of collapsible lists', () => {
-  const inspectablesRef: React.RefObject<Inspectables> =
-    React.createRef<Inspectables>();
+  const inspectablesRef: React.RefObject<Inspectables> = React.createRef<
+    Inspectables
+  >();
   const testData = {
     pipelineId1: {
       metadata: {

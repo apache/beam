@@ -67,16 +67,7 @@ public class RowCoderTest {
     Row row =
         Row.withSchema(schema)
             .addValues(
-                (byte) 0,
-                (short) 1,
-                2,
-                3L,
-                new BigDecimal("2.3"),
-                1.2f,
-                3.0d,
-                "str",
-                dateTime,
-                false)
+                (byte) 0, (short) 1, 2, 3L, new BigDecimal(2.3), 1.2f, 3.0d, "str", dateTime, false)
             .build();
 
     CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);

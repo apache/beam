@@ -91,7 +91,8 @@ public class DataStoreV1SchemaIOProviderTest {
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            new DataStoreV1SchemaIOProvider().from(location, configuration, generateDataSchema()));
+            (new DataStoreV1SchemaIOProvider())
+                .from(location, configuration, generateDataSchema()));
   }
 
   private static Schema generateDataSchema() {

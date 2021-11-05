@@ -27,6 +27,7 @@ import static java.sql.JDBCType.NUMERIC;
 import static java.sql.JDBCType.NVARCHAR;
 import static java.sql.JDBCType.VARBINARY;
 import static java.sql.JDBCType.VARCHAR;
+import static java.sql.JDBCType.valueOf;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
@@ -168,7 +169,7 @@ class SchemaUtil {
     Schema.Builder schemaBuilder = Schema.builder();
 
     for (int i = 1; i <= md.getColumnCount(); i++) {
-      JDBCType jdbcType = JDBCType.valueOf(md.getColumnType(i));
+      JDBCType jdbcType = valueOf(md.getColumnType(i));
       BeamFieldConverter fieldConverter = jdbcTypeToBeamFieldConverter(jdbcType);
       schemaBuilder.addField(fieldConverter.create(i, md));
     }
@@ -221,7 +222,7 @@ class SchemaUtil {
   /** Converts array fields. */
   private static BeamFieldConverter beamArrayField() {
     return (index, md) -> {
-      JDBCType elementJdbcType = JDBCType.valueOf(md.getColumnTypeName(index));
+      JDBCType elementJdbcType = valueOf(md.getColumnTypeName(index));
       BeamFieldConverter elementFieldConverter = jdbcTypeToBeamFieldConverter(elementJdbcType);
 
       String label = md.getColumnLabel(index);

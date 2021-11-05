@@ -125,7 +125,7 @@ public class JetPipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
-    return waitUntilFinish(Duration.millis(Long.MAX_VALUE));
+    return waitUntilFinish(new Duration(Long.MAX_VALUE));
   }
 
   @Override

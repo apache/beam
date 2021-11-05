@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -130,7 +131,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
   private final TupleTag<OutputT> mainOutputTag;
   private final TupleTagList additionalOutputTags;
   private final Map<TupleTag<?>, Coder<?>> outputTagsToCoders;
-  private final Map<String, PCollectionView<?>> sideInputMapping;
 
   public static final String SPLITTABLE_PROCESS_URN =
       "beam:runners_core:transforms:splittable_process:v1";
@@ -143,8 +143,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
       TupleTagList additionalOutputTags,
-      Map<TupleTag<?>, Coder<?>> outputTagsToCoders,
-      Map<String, PCollectionView<?>> sideInputMapping) {
+      Map<TupleTag<?>, Coder<?>> outputTagsToCoders) {
     checkArgument(
         DoFnSignatures.getSignature(doFn.getClass()).processElement().isSplittable(),
         "fn must be a splittable DoFn");
@@ -153,7 +152,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
     this.outputTagsToCoders = outputTagsToCoders;
-    this.sideInputMapping = sideInputMapping;
   }
 
   /**
@@ -177,8 +175,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
           ParDoTranslation.getSideInputs(parDo),
           ParDoTranslation.getMainOutputTag(parDo),
           ParDoTranslation.getAdditionalOutputTags(parDo),
-          outputTagsToCoders,
-          ParDoTranslation.getSideInputMapping(parDo));
+          outputTagsToCoders);
     } catch (IOException exc) {
       throw new RuntimeException(exc);
     }
@@ -198,15 +195,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
         input
             .apply(
                 "Pair with initial restriction",
-                ParDo.of(
-                        new PairWithRestrictionFn<InputT, OutputT, RestrictionT>(
-                            doFn, sideInputMapping))
-                    .withSideInputs(sideInputs))
+                ParDo.of(new PairWithRestrictionFn<InputT, OutputT, RestrictionT>(doFn)))
             .setCoder(splitCoder)
-            .apply(
-                "Split restriction",
-                ParDo.of(new SplitRestrictionFn<InputT, RestrictionT>(doFn, sideInputMapping))
-                    .withSideInputs(sideInputs))
+            .apply("Split restriction", ParDo.of(new SplitRestrictionFn<>(doFn)))
             .setCoder(splitCoder)
             // ProcessFn requires all input elements to be in a single window and have a single
             // element per work item. This must precede the unique keying so each key has a single
@@ -225,8 +216,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
             sideInputs,
             mainOutputTag,
             additionalOutputTags,
-            outputTagsToCoders,
-            sideInputMapping));
+            outputTagsToCoders));
   }
 
   @Override
@@ -262,7 +252,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList additionalOutputTags;
     private final Map<TupleTag<?>, Coder<?>> outputTagsToCoders;
-    private final Map<String, PCollectionView<?>> sideInputMapping;
 
     /**
      * @param fn the splittable {@link DoFn}.
@@ -272,7 +261,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
      * @param additionalOutputTags {@link TupleTagList Tags} of the {@link DoFn DoFn's} additional
      * @param outputTagsToCoders A map from output tag to the coder for that output, which should
      *     provide mappings for the main and all additional tags.
-     * @param sideInputMapping A map from side input tag to view.
      */
     public ProcessKeyedElements(
         DoFn<InputT, OutputT> fn,
@@ -283,8 +271,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList additionalOutputTags,
-        Map<TupleTag<?>, Coder<?>> outputTagsToCoders,
-        Map<String, PCollectionView<?>> sideInputMapping) {
+        Map<TupleTag<?>, Coder<?>> outputTagsToCoders) {
       this.fn = fn;
       this.elementCoder = elementCoder;
       this.restrictionCoder = restrictionCoder;
@@ -294,7 +281,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
       this.mainOutputTag = mainOutputTag;
       this.additionalOutputTags = additionalOutputTags;
       this.outputTagsToCoders = outputTagsToCoders;
-      this.sideInputMapping = sideInputMapping;
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -319,10 +305,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
 
     public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
-    }
-
-    public Map<String, PCollectionView<?>> getSideInputMapping() {
-      return sideInputMapping;
     }
 
     public TupleTag<OutputT> getMainOutputTag() {
@@ -418,7 +400,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                   return ParDoTranslation.translateDoFn(
                       fn,
                       pke.getMainOutputTag(),
-                      pke.getSideInputMapping(),
+                      Collections.emptyMap(),
                       DoFnSchemaInformation.create(),
                       newComponents);
                 }
@@ -514,16 +496,13 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
    */
   private static class PairWithRestrictionFn<InputT, OutputT, RestrictionT>
       extends DoFn<InputT, KV<InputT, RestrictionT>> {
-    private final DoFn<InputT, OutputT> fn;
-    private final Map<String, PCollectionView<?>> sideInputMapping;
+    private DoFn<InputT, OutputT> fn;
 
     // Initialized in setup()
     private transient @Nullable DoFnInvoker<InputT, OutputT> invoker;
 
-    PairWithRestrictionFn(
-        DoFn<InputT, OutputT> fn, Map<String, PCollectionView<?>> sideInputMapping) {
+    PairWithRestrictionFn(DoFn<InputT, OutputT> fn) {
       this.fn = fn;
-      this.sideInputMapping = sideInputMapping;
     }
 
     @Setup
@@ -532,40 +511,30 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow w) {
-      c.output(
+    public void processElement(ProcessContext context, BoundedWindow w) {
+      context.output(
           KV.of(
-              c.element(),
+              context.element(),
               invoker.invokeGetInitialRestriction(
                   new BaseArgumentProvider<InputT, OutputT>() {
                     @Override
                     public InputT element(DoFn<InputT, OutputT> doFn) {
-                      return c.element();
+                      return context.element();
                     }
 
                     @Override
                     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                      return c.timestamp();
+                      return context.timestamp();
                     }
 
                     @Override
                     public PipelineOptions pipelineOptions() {
-                      return c.getPipelineOptions();
-                    }
-
-                    @Override
-                    public Object sideInput(String tagId) {
-                      PCollectionView<?> view = sideInputMapping.get(tagId);
-                      if (view == null) {
-                        throw new IllegalArgumentException(
-                            "calling getSideInput() with unknown view");
-                      }
-                      return c.sideInput(view);
+                      return context.getPipelineOptions();
                     }
 
                     @Override
                     public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                      return c.pane();
+                      return context.pane();
                     }
 
                     @Override
@@ -592,15 +561,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
   private static class SplitRestrictionFn<InputT, RestrictionT>
       extends DoFn<KV<InputT, RestrictionT>, KV<InputT, RestrictionT>> {
     private final DoFn<InputT, ?> splittableFn;
-    private final Map<String, PCollectionView<?>> sideInputMapping;
 
     // Initialized in setup()
     private transient @Nullable DoFnInvoker<InputT, ?> invoker;
 
-    SplitRestrictionFn(
-        DoFn<InputT, ?> splittableFn, Map<String, PCollectionView<?>> sideInputMapping) {
+    SplitRestrictionFn(DoFn<InputT, ?> splittableFn) {
       this.splittableFn = splittableFn;
-      this.sideInputMapping = sideInputMapping;
     }
 
     @Setup
@@ -626,15 +592,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                 @Override
                 public RestrictionTracker<?, ?> restrictionTracker() {
                   return invoker.invokeNewTracker((DoFnInvoker.BaseArgumentProvider) this);
-                }
-
-                @Override
-                public Object sideInput(String tagId) {
-                  PCollectionView<?> view = sideInputMapping.get(tagId);
-                  if (view == null) {
-                    throw new IllegalArgumentException("calling getSideInput() with unknown view");
-                  }
-                  return c.sideInput(view);
                 }
 
                 @Override

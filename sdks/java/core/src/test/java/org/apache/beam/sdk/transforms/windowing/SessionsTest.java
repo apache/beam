@@ -55,7 +55,7 @@ public class SessionsTest {
     expected.put(new IntervalWindow(new Instant(101), new Instant(111)), set(101));
     assertEquals(
         expected,
-        runWindowFn(Sessions.withGapDuration(Duration.millis(10)), Arrays.asList(0L, 10L, 101L)));
+        runWindowFn(Sessions.withGapDuration(new Duration(10)), Arrays.asList(0L, 10L, 101L)));
   }
 
   @Test
@@ -66,8 +66,7 @@ public class SessionsTest {
     assertEquals(
         expected,
         runWindowFn(
-            Sessions.withGapDuration(Duration.millis(10)),
-            Arrays.asList(1L, 2L, 5L, 9L, 100L, 101L)));
+            Sessions.withGapDuration(new Duration(10)), Arrays.asList(1L, 2L, 5L, 9L, 100L, 101L)));
   }
 
   @Test
@@ -78,7 +77,7 @@ public class SessionsTest {
     assertEquals(
         expected,
         runWindowFn(
-            Sessions.withGapDuration(Duration.millis(10)),
+            Sessions.withGapDuration(new Duration(10)),
             Arrays.asList(1L, 15L, 30L, 100L, 101L, 95L, 22L, 10L)));
   }
 
@@ -98,21 +97,21 @@ public class SessionsTest {
   @Test
   public void testEquality() {
     assertTrue(
-        Sessions.withGapDuration(Duration.millis(10))
-            .isCompatible(Sessions.withGapDuration(Duration.millis(10))));
+        Sessions.withGapDuration(new Duration(10))
+            .isCompatible(Sessions.withGapDuration(new Duration(10))));
     assertTrue(
-        Sessions.withGapDuration(Duration.millis(10))
-            .isCompatible(Sessions.withGapDuration(Duration.millis(20))));
+        Sessions.withGapDuration(new Duration(10))
+            .isCompatible(Sessions.withGapDuration(new Duration(20))));
   }
 
   @Test
   public void testVerifyCompatibility() throws IncompatibleWindowException {
-    Sessions.withGapDuration(Duration.millis(10))
-        .verifyCompatibility(Sessions.withGapDuration(Duration.millis(10)));
+    Sessions.withGapDuration(new Duration(10))
+        .verifyCompatibility(Sessions.withGapDuration(new Duration(10)));
 
     thrown.expect(IncompatibleWindowException.class);
-    Sessions.withGapDuration(Duration.millis(10))
-        .verifyCompatibility(FixedWindows.of(Duration.millis(10)));
+    Sessions.withGapDuration(new Duration(10))
+        .verifyCompatibility(FixedWindows.of(new Duration(10)));
   }
 
   /**

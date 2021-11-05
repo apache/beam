@@ -39,7 +39,6 @@ def groupbykey(test=None):
             ('winter', '🍆'),
         ])
         | 'Group counts per produce' >> beam.GroupByKey()
-        | beam.MapTuple(lambda k, vs: (k, sorted(vs)))  # sort and format
         | beam.Map(print))
     # [END groupbykey]
     if test:

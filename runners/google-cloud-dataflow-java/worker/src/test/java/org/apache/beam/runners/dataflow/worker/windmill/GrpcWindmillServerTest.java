@@ -138,7 +138,7 @@ public class GrpcWindmillServerTest {
       int i = 0;
       while (true) {
         try {
-          Thread.sleep(ThreadLocalRandom.current().nextInt(++i * 10));
+          Thread.sleep(ThreadLocalRandom.current().nextInt((++i) * 10));
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           break;

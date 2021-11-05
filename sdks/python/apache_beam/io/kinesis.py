@@ -123,7 +123,7 @@ class WriteToKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:transform:org.apache.beam:kinesis_write:v1'
+  URN = 'beam:external:java:kinesis:write:v1'
 
   def __init__(
       self,
@@ -199,7 +199,7 @@ class ReadDataFromKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:transform:org.apache.beam:kinesis_read:v1'
+  URN = 'beam:external:java:kinesis:read_data:v1'
 
   def __init__(
       self,

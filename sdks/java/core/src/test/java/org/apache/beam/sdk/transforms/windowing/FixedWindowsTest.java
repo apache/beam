@@ -55,7 +55,7 @@ public class FixedWindowsTest {
     assertEquals(
         expected,
         runWindowFn(
-            FixedWindows.of(Duration.millis(10)), Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
+            FixedWindows.of(new Duration(10)), Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
   }
 
   @Test
@@ -67,7 +67,7 @@ public class FixedWindowsTest {
     assertEquals(
         expected,
         runWindowFn(
-            FixedWindows.of(Duration.millis(10)).withOffset(Duration.millis(5)),
+            FixedWindows.of(new Duration(10)).withOffset(new Duration(5)),
             Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
   }
 
@@ -143,24 +143,19 @@ public class FixedWindowsTest {
 
   @Test
   public void testEquality() {
-    assertTrue(
-        FixedWindows.of(Duration.millis(10)).isCompatible(FixedWindows.of(Duration.millis(10))));
-    assertTrue(
-        FixedWindows.of(Duration.millis(10)).isCompatible(FixedWindows.of(Duration.millis(10))));
-    assertTrue(
-        FixedWindows.of(Duration.millis(10)).isCompatible(FixedWindows.of(Duration.millis(10))));
+    assertTrue(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(10))));
+    assertTrue(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(10))));
+    assertTrue(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(10))));
 
-    assertFalse(
-        FixedWindows.of(Duration.millis(10)).isCompatible(FixedWindows.of(Duration.millis(20))));
-    assertFalse(
-        FixedWindows.of(Duration.millis(10)).isCompatible(FixedWindows.of(Duration.millis(20))));
+    assertFalse(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(20))));
+    assertFalse(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(20))));
   }
 
   @Test
   public void testVerifyCompatibility() throws IncompatibleWindowException {
-    FixedWindows.of(Duration.millis(10)).verifyCompatibility(FixedWindows.of(Duration.millis(10)));
+    FixedWindows.of(new Duration(10)).verifyCompatibility(FixedWindows.of(new Duration(10)));
     thrown.expect(IncompatibleWindowException.class);
-    FixedWindows.of(Duration.millis(10)).verifyCompatibility(FixedWindows.of(Duration.millis(20)));
+    FixedWindows.of(new Duration(10)).verifyCompatibility(FixedWindows.of(new Duration(20)));
   }
 
   @Test

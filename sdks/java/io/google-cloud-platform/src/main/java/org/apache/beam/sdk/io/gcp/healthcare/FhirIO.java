@@ -812,6 +812,10 @@ public class FhirIO {
       abstract Write build();
     }
 
+    private static Write.Builder write(String fhirStore) {
+      return new AutoValue_FhirIO_Write.Builder().setFhirStore(StaticValueProvider.of(fhirStore));
+    }
+
     /**
      * Create Method creates a single FHIR resource. @see <a
      * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores.fhir/create></a>

@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-import io
 import logging
 import os
 import shutil
@@ -31,7 +30,6 @@ from typing import List
 import mock
 import pytest
 
-from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -146,59 +144,6 @@ class StagerTest(unittest.TestCase):
           FileSystems.join(args[5], package_file), 'Package content.')
 
     return pip_fake
-
-  @mock.patch('apache_beam.runners.portability.stager.open')
-  @mock.patch('apache_beam.runners.portability.stager.get_new_http')
-  def test_download_file_https(self, mock_new_http, mock_open):
-    from_url = 'https://from_url'
-    to_path = '/tmp/http_file/'
-    mock_new_http.return_value.request.return_value = ({
-        'status': 200
-    },
-                                                       'file_content')
-    self.stager._download_file(from_url, to_path)
-    assert mock_open.mock_calls == [
-        mock.call('/tmp/http_file/', 'wb'),
-        mock.call().__enter__(),
-        mock.call().__enter__().write('file_content'),
-        mock.call().__exit__(None, None, None)
-    ]
-
-  @mock.patch('apache_beam.runners.portability.stager.open')
-  @mock.patch('apache_beam.runners.portability.stager.get_new_http')
-  @mock.patch.object(FileSystems, 'open')
-  def test_download_file_non_http(self, mock_fs_open, mock_new_http, mock_open):
-    from_url = 'gs://bucket/from_url'
-    to_path = '/tmp/file/'
-    mock_fs_open.return_value = io.BytesIO(b"file_content")
-    self.stager._download_file(from_url, to_path)
-    assert not mock_new_http.called
-    mock_fs_open.assert_called_with(
-        from_url, compression_type=CompressionTypes.UNCOMPRESSED)
-    assert mock_open.mock_calls == [
-        mock.call('/tmp/file/', 'wb'),
-        mock.call().__enter__(),
-        mock.call().__enter__().write(b'file_content'),
-        mock.call().__exit__(None, None, None)
-    ]
-
-  @mock.patch('apache_beam.runners.portability.stager.os.mkdir')
-  @mock.patch('apache_beam.runners.portability.stager.shutil.copyfile')
-  @mock.patch('apache_beam.runners.portability.stager.get_new_http')
-  def test_download_file_unrecognized(
-      self, mock_new_http, mock_copyfile, mock_mkdir):
-    from_url = '/tmp/from_file'
-    to_path = '/tmp/to_file/'
-    with mock.patch('apache_beam.runners.portability.stager.os.path.isdir',
-                    return_value=True):
-      self.stager._download_file(from_url, to_path)
-      assert not mock_new_http.called
-      mock_copyfile.assert_called_with(from_url, to_path)
-
-    with mock.patch('apache_beam.runners.portability.stager.os.path.isdir',
-                    return_value=False):
-      self.stager._download_file(from_url, to_path)
-      assert mock_mkdir.called
 
   def test_no_staging_location(self):
     with self.assertRaises(RuntimeError) as cm:

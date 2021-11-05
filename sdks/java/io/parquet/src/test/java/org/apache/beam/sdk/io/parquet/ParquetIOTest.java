@@ -583,8 +583,7 @@ public class ParquetIOTest implements Serializable {
         readPipeline.apply(
             ParquetIO.read(SCHEMA)
                 .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
-                .withConfiguration(configuration)
-                .withSplit());
+                .withConfiguration(configuration));
     PAssert.that(readBack).containsInAnyOrder(expectedRecords);
     readPipeline.run().waitUntilFinish();
   }

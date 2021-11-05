@@ -182,8 +182,8 @@ public class StatefulDoFnRunnerTest {
     MetricsContainerImpl container = new MetricsContainerImpl("any");
     MetricsEnvironment.setCurrentContainer(container);
 
-    timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
-    timerInternals.advanceOutputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    timerInternals.advanceInputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    timerInternals.advanceOutputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
 
     MyDoFn fn = MyDoFn.create(ordered);
 
@@ -422,6 +422,11 @@ public class StatefulDoFnRunnerTest {
         new StatefulDoFnRunner.StateInternalsStateCleaner<>(
             fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()),
         supportTimeSortedInput);
+  }
+
+  private DoFnRunner<KV<String, Integer>, Integer> getDoFnRunner(
+      DoFn<KV<String, Integer>, Integer> fn) {
+    return getDoFnRunner(fn, null);
   }
 
   private DoFnRunner<KV<String, Integer>, Integer> getDoFnRunner(

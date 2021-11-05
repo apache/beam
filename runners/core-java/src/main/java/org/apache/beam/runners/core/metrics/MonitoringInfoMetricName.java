@@ -115,7 +115,7 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   @Override
-  public final String toString() {
+  public String toString() {
     StringBuilder builder = new StringBuilder();
     builder.append(this.urn.toString());
     builder.append(" ");

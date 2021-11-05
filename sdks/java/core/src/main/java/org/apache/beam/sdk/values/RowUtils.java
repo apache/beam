@@ -348,7 +348,7 @@ class RowUtils {
         if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
           FieldDescriptor fieldDescriptor =
               Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
-          return ((fieldDescriptor.getFieldId() < nestedAccess.size())
+          return (((fieldDescriptor.getFieldId() < nestedAccess.size()))
               && nestedAccess.get(fieldDescriptor.getFieldId()) != null);
         } else if (!fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty()) {
           Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =

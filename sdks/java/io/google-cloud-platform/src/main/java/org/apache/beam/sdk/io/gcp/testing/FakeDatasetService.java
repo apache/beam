@@ -36,8 +36,6 @@ import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
 import com.google.cloud.bigquery.storage.v1beta2.WriteStream;
 import com.google.cloud.bigquery.storage.v1beta2.WriteStream.Type;
-import com.google.errorprone.annotations.FormatMethod;
-import com.google.errorprone.annotations.FormatString;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
@@ -566,8 +564,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
     return parsedInsertErrors;
   }
 
-  @FormatMethod
-  void throwNotFound(@FormatString String format, Object... args) throws IOException {
+  void throwNotFound(String format, Object... args) throws IOException {
     throw new IOException(
         String.format(format, args),
         new GoogleJsonResponseException.Builder(404, String.format(format, args), new HttpHeaders())

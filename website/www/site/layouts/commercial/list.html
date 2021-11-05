@@ -76,8 +76,7 @@
     </div>
 
 </div>
-{{ $categoriesFilter := resources.Get "js/categories-filter.js" | minify| fingerprint }}
-<script src="{{ $categoriesFilter.RelPermalink }}"></script>
+<script src='{{ "js/categories-filter.js" | relURL }}'></script>
 <script>
 var ptfConfig={
   filters:[

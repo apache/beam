@@ -505,7 +505,7 @@ public class GroupByKeyTest implements Serializable {
               Create.timestamped(ungroupedPairs, Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L))
                   .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
       PCollection<KV<String, Iterable<Integer>>> output =
-          input.apply(Window.into(FixedWindows.of(Duration.millis(5)))).apply(GroupByKey.create());
+          input.apply(Window.into(FixedWindows.of(new Duration(5)))).apply(GroupByKey.create());
 
       PAssert.that(output)
           .satisfies(

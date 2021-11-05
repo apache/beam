@@ -21,8 +21,6 @@ import static java.lang.Thread.sleep;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -30,7 +28,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +46,7 @@ import org.apache.beam.sdk.testing.UsesBoundedSplittableParDo;
 import org.apache.beam.sdk.testing.UsesBundleFinalizer;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
 import org.apache.beam.sdk.testing.UsesSideInputs;
+import org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -56,12 +54,8 @@ import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
@@ -74,7 +68,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -324,101 +317,44 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   private static class SDFWithSideInputBase extends DoFn<Integer, String> {
-    private final Map<Instant, String> expectedSideInputValues;
+    private final PCollectionView<String> sideInput;
 
-    SDFWithSideInputBase(Map<Instant, String> expectedSideInputValues) {
-      this.expectedSideInputValues = expectedSideInputValues;
+    private SDFWithSideInputBase(PCollectionView<String> sideInput) {
+      this.sideInput = sideInput;
     }
 
     @ProcessElement
-    public void process(
-        ProcessContext c,
-        RestrictionTracker<OffsetRange, Long> tracker,
-        @SideInput("sideInput") String sideInput) {
+    public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
-      c.output(sideInput + ":" + c.element());
+      String side = c.sideInput(sideInput);
+      c.output(side + ":" + c.element());
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(
-        @SideInput("sideInput") String sideInput, @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
+    public OffsetRange getInitialRestriction() {
       return new OffsetRange(0, 1);
-    }
-
-    @GetInitialWatermarkEstimatorState
-    public Instant getInitialWatermarkEstimatorState(
-        @SideInput("sideInput") String sideInput, @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      return timestamp;
-    }
-
-    @GetSize
-    public double getSize(
-        @Restriction OffsetRange range,
-        @SideInput("sideInput") String sideInput,
-        @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      return range.getTo() - range.getFrom();
-    }
-
-    @SplitRestriction
-    public void splitRestriction(
-        @Restriction OffsetRange restriction,
-        OutputReceiver<OffsetRange> splitReceiver,
-        @SideInput("sideInput") String sideInput,
-        @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      splitReceiver.output(restriction);
-    }
-
-    @TruncateRestriction
-    public TruncateResult<OffsetRange> truncate(
-        @Restriction OffsetRange restriction,
-        @SideInput("sideInput") String sideInput,
-        @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      return TruncateResult.of(restriction);
-    }
-
-    @NewTracker
-    public RestrictionTracker<OffsetRange, Long> newTracker(
-        @Restriction OffsetRange restriction,
-        @SideInput("sideInput") String sideInput,
-        @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      return new OffsetRangeTracker(restriction);
-    }
-
-    @NewWatermarkEstimator
-    public WatermarkEstimator<Instant> newWatermarkEstimator(
-        @WatermarkEstimatorState Instant watermarkEstimatorState,
-        @SideInput("sideInput") String sideInput,
-        @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      return new MonotonicallyIncreasing(watermarkEstimatorState);
     }
   }
 
   @BoundedPerElement
   private static class SDFWithSideInputBounded extends SDFWithSideInputBase {
-    SDFWithSideInputBounded(Map<Instant, String> expectedSideInputValues) {
-      super(expectedSideInputValues);
+    private SDFWithSideInputBounded(PCollectionView<String> sideInput) {
+      super(sideInput);
     }
   }
 
   @UnboundedPerElement
   private static class SDFWithSideInputUnbounded extends SDFWithSideInputBase {
-    SDFWithSideInputUnbounded(Map<Instant, String> expectedSideInputValues) {
-      super(expectedSideInputValues);
+    private SDFWithSideInputUnbounded(PCollectionView<String> sideInput) {
+      super(sideInput);
     }
   }
 
   private static SDFWithSideInputBase sdfWithSideInput(
-      IsBounded bounded, Map<Instant, String> expectedSideInputValues) {
-    return bounded == IsBounded.BOUNDED
-        ? new SDFWithSideInputBounded(expectedSideInputValues)
-        : new SDFWithSideInputUnbounded(expectedSideInputValues);
+      IsBounded bounded, PCollectionView<String> sideInput) {
+    return (bounded == IsBounded.BOUNDED)
+        ? new SDFWithSideInputBounded(sideInput)
+        : new SDFWithSideInputUnbounded(sideInput);
   }
 
   @Test
@@ -428,7 +364,7 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class, UsesSideInputs.class})
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
   public void testSideInputUnbounded() {
     testSideInput(IsBounded.UNBOUNDED);
   }
@@ -439,12 +375,7 @@ public class SplittableDoFnTest implements Serializable {
 
     PCollection<String> res =
         p.apply("input", Create.of(0, 1, 2))
-            .apply(
-                ParDo.of(
-                        sdfWithSideInput(
-                            bounded,
-                            Collections.singletonMap(GlobalWindow.TIMESTAMP_MIN_VALUE, "foo")))
-                    .withSideInput("sideInput", sideInput));
+            .apply(ParDo.of(sdfWithSideInput(bounded, sideInput)).withSideInputs(sideInput));
 
     PAssert.that(res).containsInAnyOrder(Arrays.asList("foo:0", "foo:1", "foo:2"));
 
@@ -452,7 +383,11 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesSideInputs.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesBoundedSplittableParDo.class,
+    UsesSplittableParDoWithWindowedSideInputs.class
+  })
   public void testWindowedSideInputBounded() {
     testWindowedSideInput(IsBounded.BOUNDED);
   }
@@ -461,7 +396,7 @@ public class SplittableDoFnTest implements Serializable {
   @Category({
     ValidatesRunner.class,
     UsesUnboundedSplittableParDo.class,
-    UsesSideInputs.class,
+    UsesSplittableParDoWithWindowedSideInputs.class,
   })
   public void testWindowedSideInputUnbounded() {
     testWindowedSideInput(IsBounded.UNBOUNDED);
@@ -492,21 +427,7 @@ public class SplittableDoFnTest implements Serializable {
             .apply("singleton", View.asSingleton());
 
     PCollection<String> res =
-        mainInput.apply(
-            ParDo.of(
-                    sdfWithSideInput(
-                        bounded,
-                        ImmutableMap.<Instant, String>builder()
-                            .put(new Instant(0), "a")
-                            .put(new Instant(1), "a")
-                            .put(new Instant(2), "a")
-                            .put(new Instant(3), "a")
-                            .put(new Instant(4), "b")
-                            .put(new Instant(5), "b")
-                            .put(new Instant(6), "b")
-                            .put(new Instant(7), "b")
-                            .build()))
-                .withSideInput("sideInput", sideInput));
+        mainInput.apply(ParDo.of(sdfWithSideInput(bounded, sideInput)).withSideInputs(sideInput));
 
     PAssert.that(res).containsInAnyOrder("a:0", "a:1", "a:2", "a:3", "b:4", "b:5", "b:6", "b:7");
 
@@ -516,12 +437,12 @@ public class SplittableDoFnTest implements Serializable {
   private static class SDFWithMultipleOutputsPerBlockAndSideInputBase
       extends DoFn<Integer, KV<String, Integer>> {
     private static final int MAX_INDEX = 98765;
-    private final Map<Instant, String> expectedSideInputValues;
+    private final PCollectionView<String> sideInput;
     private final int numClaimsPerCall;
 
     SDFWithMultipleOutputsPerBlockAndSideInputBase(
-        Map<Instant, String> expectedSideInputValues, int numClaimsPerCall) {
-      this.expectedSideInputValues = expectedSideInputValues;
+        PCollectionView<String> sideInput, int numClaimsPerCall) {
+      this.sideInput = sideInput;
       this.numClaimsPerCall = numClaimsPerCall;
     }
 
@@ -536,16 +457,14 @@ public class SplittableDoFnTest implements Serializable {
 
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext c,
-        RestrictionTracker<OffsetRange, Long> tracker,
-        @SideInput("sideInput") String sideInput) {
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
       for (int i = trueStart, numIterations = 1;
           tracker.tryClaim((long) blockStarts[i]);
           ++i, ++numIterations) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
-          c.output(KV.of(sideInput + ":" + c.element(), index));
+          c.output(KV.of(c.sideInput(sideInput) + ":" + c.element(), index));
         }
         if (numIterations == numClaimsPerCall) {
           return resume();
@@ -555,63 +474,8 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(
-        @SideInput("sideInput") String sideInput, @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
+    public OffsetRange getInitialRange() {
       return new OffsetRange(0, MAX_INDEX);
-    }
-
-    @GetInitialWatermarkEstimatorState
-    public Instant getInitialWatermarkEstimatorState(
-        @SideInput("sideInput") String sideInput, @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      return timestamp;
-    }
-
-    @GetSize
-    public double getSize(
-        @Restriction OffsetRange range,
-        @SideInput("sideInput") String sideInput,
-        @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      return range.getTo() - range.getFrom();
-    }
-
-    @SplitRestriction
-    public void splitRestriction(
-        @Restriction OffsetRange restriction,
-        OutputReceiver<OffsetRange> splitReceiver,
-        @SideInput("sideInput") String sideInput,
-        @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      splitReceiver.output(restriction);
-    }
-
-    @TruncateRestriction
-    public TruncateResult<OffsetRange> truncate(
-        @Restriction OffsetRange restriction,
-        @SideInput("sideInput") String sideInput,
-        @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      return TruncateResult.of(restriction);
-    }
-
-    @NewTracker
-    public RestrictionTracker<OffsetRange, Long> newTracker(
-        @Restriction OffsetRange restriction,
-        @SideInput("sideInput") String sideInput,
-        @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      return new OffsetRangeTracker(restriction);
-    }
-
-    @NewWatermarkEstimator
-    public WatermarkEstimator<Instant> newWatermarkEstimator(
-        @WatermarkEstimatorState Instant watermarkEstimatorState,
-        @SideInput("sideInput") String sideInput,
-        @Timestamp Instant timestamp) {
-      assertThat(expectedSideInputValues, hasEntry(timestamp, sideInput));
-      return new MonotonicallyIncreasing(watermarkEstimatorState);
     }
   }
 
@@ -619,8 +483,8 @@ public class SplittableDoFnTest implements Serializable {
   private static class SDFWithMultipleOutputsPerBlockAndSideInputBounded
       extends SDFWithMultipleOutputsPerBlockAndSideInputBase {
     private SDFWithMultipleOutputsPerBlockAndSideInputBounded(
-        Map<Instant, String> expectedSideInputValues, int numClaimsPerCall) {
-      super(expectedSideInputValues, numClaimsPerCall);
+        PCollectionView<String> sideInput, int numClaimsPerCall) {
+      super(sideInput, numClaimsPerCall);
     }
   }
 
@@ -628,23 +492,25 @@ public class SplittableDoFnTest implements Serializable {
   private static class SDFWithMultipleOutputsPerBlockAndSideInputUnbounded
       extends SDFWithMultipleOutputsPerBlockAndSideInputBase {
     private SDFWithMultipleOutputsPerBlockAndSideInputUnbounded(
-        Map<Instant, String> expectedSideInputValues, int numClaimsPerCall) {
-      super(expectedSideInputValues, numClaimsPerCall);
+        PCollectionView<String> sideInput, int numClaimsPerCall) {
+      super(sideInput, numClaimsPerCall);
     }
   }
 
   private static SDFWithMultipleOutputsPerBlockAndSideInputBase
       sdfWithMultipleOutputsPerBlockAndSideInput(
-          IsBounded bounded, Map<Instant, String> expectedSideInputValues, int numClaimsPerCall) {
+          IsBounded bounded, PCollectionView<String> sideInput, int numClaimsPerCall) {
     return (bounded == IsBounded.BOUNDED)
-        ? new SDFWithMultipleOutputsPerBlockAndSideInputBounded(
-            expectedSideInputValues, numClaimsPerCall)
-        : new SDFWithMultipleOutputsPerBlockAndSideInputUnbounded(
-            expectedSideInputValues, numClaimsPerCall);
+        ? new SDFWithMultipleOutputsPerBlockAndSideInputBounded(sideInput, numClaimsPerCall)
+        : new SDFWithMultipleOutputsPerBlockAndSideInputUnbounded(sideInput, numClaimsPerCall);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesSideInputs.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesBoundedSplittableParDo.class,
+    UsesSplittableParDoWithWindowedSideInputs.class
+  })
   public void testWindowedSideInputWithCheckpointsBounded() {
     testWindowedSideInputWithCheckpoints(IsBounded.BOUNDED);
   }
@@ -653,7 +519,7 @@ public class SplittableDoFnTest implements Serializable {
   @Category({
     ValidatesRunner.class,
     UsesUnboundedSplittableParDo.class,
-    UsesSideInputs.class,
+    UsesSplittableParDoWithWindowedSideInputs.class,
   })
   public void testWindowedSideInputWithCheckpointsUnbounded() {
     testWindowedSideInputWithCheckpoints(IsBounded.UNBOUNDED);
@@ -683,15 +549,8 @@ public class SplittableDoFnTest implements Serializable {
         mainInput.apply(
             ParDo.of(
                     sdfWithMultipleOutputsPerBlockAndSideInput(
-                        bounded,
-                        ImmutableMap.<Instant, String>builder()
-                            .put(new Instant(0), "a")
-                            .put(new Instant(1), "a")
-                            .put(new Instant(2), "b")
-                            .put(new Instant(3), "b")
-                            .build(),
-                        3 /* numClaimsPerCall */))
-                .withSideInput("sideInput", sideInput));
+                        bounded, sideInput, 3 /* numClaimsPerCall */))
+                .withSideInputs(sideInput));
     PCollection<KV<String, Iterable<Integer>>> grouped = res.apply(GroupByKey.create());
 
     PAssert.that(grouped.apply(Keys.create())).containsInAnyOrder("a:0", "a:1", "b:2", "b:3");

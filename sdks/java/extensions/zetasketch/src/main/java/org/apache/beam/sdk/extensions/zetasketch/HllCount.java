@@ -279,10 +279,6 @@ public final class HllCount {
       public <K> Combine.PerKey<K, InputT, byte[]> perKey() {
         return Combine.perKey(initFn);
       }
-
-      HllCountInitFn<InputT, ?> asUdaf() {
-        return initFn;
-      }
     }
   }
 

@@ -129,5 +129,10 @@ public class LatestTest implements Serializable {
     p.run();
   }
 
+  /** Helper method to easily create a timestamped value. */
+  private static TimestampedValue<Long> timestamped(Instant timestamp) {
+    return TimestampedValue.of(uniqueLong.incrementAndGet(), timestamp);
+  }
+
   private static final AtomicLong uniqueLong = new AtomicLong();
 }

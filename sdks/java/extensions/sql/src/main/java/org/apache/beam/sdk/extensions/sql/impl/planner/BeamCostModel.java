@@ -80,7 +80,7 @@ public class BeamCostModel implements RelOptCost {
 
   @Override
   public boolean isInfinite() {
-    return this.equals(INFINITY)
+    return (this.equals(INFINITY))
         || (this.cpu == Double.POSITIVE_INFINITY)
         || (this.cpuRate == Double.POSITIVE_INFINITY);
   }

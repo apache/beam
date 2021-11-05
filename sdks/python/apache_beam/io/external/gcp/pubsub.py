@@ -43,7 +43,7 @@ class ReadFromPubSub(beam.PTransform):
   preparation of the Java SDK.  See BEAM-7870.
   """
 
-  URN = 'beam:transform:org.apache.beam:pubsub_read:v1'
+  URN = 'beam:external:java:pubsub:read:v1'
 
   def __init__(
       self,
@@ -127,7 +127,7 @@ class WriteToPubSub(beam.PTransform):
   preparation of the Java SDK.  See BEAM-7870.
   """
 
-  URN = 'beam:transform:org.apache.beam:pubsub_write:v1'
+  URN = 'beam:external:java:pubsub:write:v1'
 
   def __init__(
       self,

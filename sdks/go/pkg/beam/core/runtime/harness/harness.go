@@ -47,10 +47,8 @@ const cacheSize = 20
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	hooks.DeserializeHooksFromOptions(ctx)
 
-	// Pass in the logging endpoint for use w/the default remote logging hook.
-	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
 	hooks.RunInitHooks(ctx)
-
+	setupRemoteLogging(ctx, loggingEndpoint)
 	recordHeader()
 
 	// Connect to FnAPI control server. Receive and execute work.

@@ -1301,6 +1301,10 @@ public class SpannerIOWriteTest implements Serializable {
     return Mutation.delete("test", builder.build());
   }
 
+  private static Mutation delRange(Long start, Long end) {
+    return Mutation.delete("test", KeySet.range(KeyRange.closedClosed(Key.of(start), Key.of(end))));
+  }
+
   private static Iterable<Mutation> mutationsInNoOrder(Iterable<Mutation> expected) {
     final ImmutableSet<Mutation> mutations = ImmutableSet.copyOf(expected);
     return argThat(
@@ -1318,6 +1322,22 @@ public class SpannerIOWriteTest implements Serializable {
           @Override
           public String toString() {
             return "Iterable must match " + mutations;
+          }
+        });
+  }
+
+  private Iterable<Mutation> iterableOfSize(final int size) {
+    return argThat(
+        new ArgumentMatcher<Iterable<Mutation>>() {
+
+          @Override
+          public boolean matches(Iterable<Mutation> argument) {
+            return argument instanceof Iterable && Iterables.size((Iterable<?>) argument) == size;
+          }
+
+          @Override
+          public String toString() {
+            return "The size of the iterable must equal " + size;
           }
         });
   }

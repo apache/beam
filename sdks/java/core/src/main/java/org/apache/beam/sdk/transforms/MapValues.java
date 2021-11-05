@@ -62,7 +62,7 @@ public class MapValues<K, V1, V2>
       SerializableFunction<NewValueT, V2> fn) {
     return new MapValues<>(
         Contextful.fn(
-            (element, c) -> KV.of(element.getKey(), fn.apply(element.getValue())),
+            ((element, c) -> KV.of(element.getKey(), fn.apply(element.getValue()))),
             Requirements.empty()),
         outputType);
   }

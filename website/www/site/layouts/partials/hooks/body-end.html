@@ -10,13 +10,8 @@
   limitations under the License. See accompanying LICENSE file.
 */}}
 
-{{ $lottie := resources.Get "js/hero/lottie-light.min.js" | minify | fingerprint }}
-<script src="{{ $lottie.RelPermalink }}"></script>
-{{ $heroDesktop := resources.Get "js/hero/hero-desktop.js" | minify | fingerprint }}
-<script src="{{ $heroDesktop.RelPermalink }}"></script>
-{{ $heroMobile := resources.Get "js/hero/hero-mobile.js" | minify | fingerprint }}
-<script src="{{ $heroMobile.RelPermalink }}"></script>
-{{ $keenSlider := resources.Get "js/keen-slider.min.js" | minify | fingerprint }}
-<script src="{{ $keenSlider.RelPermalink }}"></script>
-{{ $quotesSlider := resources.Get "js/quotes-slider.js" | minify | fingerprint }}
-<script src="{{ $quotesSlider.RelPermalink }}"></script>
+<script src="/js/hero/lottie-light.min.js"></script>
+<script src="/js/hero/hero-desktop.js"></script>
+<script src="/js/hero/hero-mobile.js"></script>
+<script src="/js/keen-slider.min.js"></script>
+<script src="/js/quotes-slider.js"></script>

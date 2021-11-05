@@ -783,10 +783,10 @@ public class KafkaIOTest {
                     .withTimestampPolicyFactory(
                         (tp, prevWatermark) ->
                             new CustomTimestampPolicyWithLimitedDelay<Integer, Long>(
-                                record ->
+                                (record ->
                                     new Instant(
                                         TimeUnit.SECONDS.toMillis(record.getKV().getValue())
-                                            + customTimestampStartMillis),
+                                            + customTimestampStartMillis)),
                                 Duration.ZERO,
                                 prevWatermark))
                     .withoutMetadata())

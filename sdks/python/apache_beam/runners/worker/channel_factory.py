@@ -22,10 +22,7 @@ import grpc
 
 
 class GRPCChannelFactory(grpc.StreamStreamClientInterceptor):
-  DEFAULT_OPTIONS = [
-      ("grpc.keepalive_time_ms", 20000),
-      ("grpc.keepalive_timeout_ms", 300000),
-  ]
+  DEFAULT_OPTIONS = [("grpc.keepalive_time_ms", 20000)]
 
   def __init__(self):
     pass

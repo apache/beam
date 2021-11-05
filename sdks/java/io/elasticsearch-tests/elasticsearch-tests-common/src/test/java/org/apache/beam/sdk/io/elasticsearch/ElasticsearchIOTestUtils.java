@@ -30,14 +30,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Document;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -55,7 +50,6 @@ class ElasticsearchIOTestUtils {
   static final int ELASTICSEARCH_DEFAULT_PORT = 9200;
   static final String ELASTICSEARCH_PASSWORD = "superSecure";
   static final String ELASTIC_UNAME = "elastic";
-  static final Set<Integer> INVALID_DOCS_IDS = new HashSet<>(Arrays.asList(6, 7));
 
   static final String[] FAMOUS_SCIENTISTS = {
     "einstein",
@@ -169,8 +163,7 @@ class ElasticsearchIOTestUtils {
     request.addParameters(Collections.singletonMap("refresh", "wait_for"));
     request.setEntity(requestBody);
     Response response = restClient.performRequest(request);
-    ElasticsearchIO.createWriteReport(response.getEntity(), Collections.emptySet(), true);
-    refreshAllIndices(restClient);
+    ElasticsearchIO.checkForErrors(response.getEntity(), Collections.emptySet());
   }
 
   /** Inserts the given number of test documents into Elasticsearch. */
@@ -292,8 +285,7 @@ class ElasticsearchIOTestUtils {
     for (int i = 0; i < numDocs; i++) {
       int index = i % FAMOUS_SCIENTISTS.length;
       // insert 2 malformed documents
-      if (InjectionMode.INJECT_SOME_INVALID_DOCS.equals(injectionMode)
-          && INVALID_DOCS_IDS.contains(i)) {
+      if (InjectionMode.INJECT_SOME_INVALID_DOCS.equals(injectionMode) && (i == 6 || i == 7)) {
         data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
       } else {
         data.add(String.format("{\"scientist\":\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
@@ -460,18 +452,4 @@ class ElasticsearchIOTestUtils {
 
     return container;
   }
-
-  static SimpleFunction<Document, Integer> mapToInputId =
-      new SimpleFunction<Document, Integer>() {
-        @Override
-        public Integer apply(Document document) {
-          try {
-            // Account for intentionally invalid input json docs
-            String fixedJson = document.getInputDoc().replaceAll(";", ":");
-            return MAPPER.readTree(fixedJson).path("id").asInt();
-          } catch (JsonProcessingException e) {
-            return -1;
-          }
-        }
-      };
 }

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -47,5 +50,11 @@ public class DicomIOTest {
             });
 
     pipeline.run();
+  }
+
+  private PubsubMessage createPubSubMessage(String webpath) {
+    byte[] badMessageBody;
+    badMessageBody = webpath.getBytes(UTF_8);
+    return new PubsubMessage(badMessageBody, null);
   }
 }

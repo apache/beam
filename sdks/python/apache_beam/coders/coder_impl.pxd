@@ -154,16 +154,8 @@ cdef class TupleSequenceCoderImpl(SequenceCoderImpl):
   pass
 
 
-cdef class _AbstractIterable:
-  cdef object _contents
-
-
 cdef class IterableCoderImpl(SequenceCoderImpl):
   cdef bint _use_abstract_iterable
-
-
-cdef class ListCoderImpl(SequenceCoderImpl):
-  pass
 
 
 cdef object IntervalWindow

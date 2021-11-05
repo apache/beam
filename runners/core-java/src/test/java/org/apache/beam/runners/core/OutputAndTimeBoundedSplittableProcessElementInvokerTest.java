@@ -28,7 +28,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -151,8 +150,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
               public Void getState() {
                 return null;
               }
-            },
-            Collections.emptyMap());
+            });
     return rval;
   }
 

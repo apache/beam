@@ -427,4 +427,14 @@ public class TestPubsub implements TestRule {
       throw new AssertionError("Timed out before subscription created for " + topicPath());
     }
   }
+
+  private PubsubClient.OutgoingMessage toOutgoingMessage(PubsubMessage message) {
+    return PubsubClient.OutgoingMessage.of(
+        com.google.pubsub.v1.PubsubMessage.newBuilder()
+            .setData(ByteString.copyFrom(message.getPayload()))
+            .putAllAttributes(message.getAttributeMap())
+            .build(),
+        DateTime.now().getMillis(),
+        null);
+  }
 }

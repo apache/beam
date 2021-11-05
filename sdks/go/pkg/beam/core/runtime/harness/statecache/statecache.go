@@ -21,7 +21,6 @@
 package statecache
 
 import (
-	"context"
 	"sync"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -30,12 +29,6 @@ import (
 )
 
 type token string
-
-type cacheKey struct {
-	tok token
-	win string
-	key string
-}
 
 // SideInputCache stores a cache of reusable inputs for the purposes of
 // eliminating redundant calls to the runner during execution of ParDos
@@ -51,7 +44,7 @@ type cacheKey struct {
 type SideInputCache struct {
 	capacity    int
 	mu          sync.Mutex
-	cache       map[cacheKey]exec.ReStream
+	cache       map[token]exec.ReStream
 	idsToTokens map[string]token
 	validTokens map[token]int8 // Maps tokens to active bundle counts
 	metrics     CacheMetrics
@@ -59,7 +52,10 @@ type SideInputCache struct {
 
 // CacheMetrics stores metrics for the cache across a pipeline run.
 type CacheMetrics struct {
-	Hits, Misses, Evictions, InUseEvictions, ReStreamErrors int64
+	Hits           int64
+	Misses         int64
+	Evictions      int64
+	InUseEvictions int64
 }
 
 // Init makes the cache map and the map of IDs to cache tokens for the
@@ -71,11 +67,10 @@ func (c *SideInputCache) Init(cap int) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache = make(map[cacheKey]exec.ReStream, cap)
+	c.cache = make(map[token]exec.ReStream, cap)
 	c.idsToTokens = make(map[string]token)
 	c.validTokens = make(map[token]int8)
 	c.capacity = cap
-	c.metrics = CacheMetrics{}
 	return nil
 }
 
@@ -150,24 +145,19 @@ func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (
 	return tok, c.isValid(tok)
 }
 
-func (c *SideInputCache) makeCacheKey(tok token, w, key []byte) cacheKey {
-	return cacheKey{tok: tok, win: string(w), key: string(key)}
-}
-
 // QueryCache takes a transform ID and side input ID and checking if a corresponding side
 // input has been cached. A query having a bad token (e.g. one that doesn't make a known
 // token or one that makes a known but currently invalid token) is treated the same as a
 // cache miss.
-func (c *SideInputCache) QueryCache(ctx context.Context, transformID, sideInputID string, win, key []byte) exec.ReStream {
+func (c *SideInputCache) QueryCache(transformID, sideInputID string) exec.ReStream {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
 	if !ok {
 		return nil
 	}
-	ck := c.makeCacheKey(tok, win, key)
 	// Check to see if cached
-	input, ok := c.cache[ck]
+	input, ok := c.cache[tok]
 	if !ok {
 		c.metrics.Misses++
 		return nil
@@ -177,38 +167,21 @@ func (c *SideInputCache) QueryCache(ctx context.Context, transformID, sideInputI
 	return input
 }
 
-// materializeReStream reads all of the values from the input ReStream and places its
-// values in memory.
-func materializeReStream(input exec.ReStream) (exec.ReStream, error) {
-	values, err := exec.ReadAll(input)
-	if err != nil {
-		return nil, err
-	}
-	return &exec.FixedReStream{Buf: values}, nil
-}
-
 // SetCache allows a user to place a ReusableInput materialized from the reader into the SideInputCache
 // with its corresponding transform ID and side input ID. If the IDs do not pair with a known, valid token
 // then we silently do not cache the input, as this is an indication that the runner is treating that input
 // as uncacheable.
-func (c *SideInputCache) SetCache(ctx context.Context, transformID, sideInputID string, win, key []byte, input exec.ReStream) exec.ReStream {
+func (c *SideInputCache) SetCache(transformID, sideInputID string, input exec.ReStream) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	tok, ok := c.makeAndValidateToken(transformID, sideInputID)
 	if !ok {
-		return input
+		return
 	}
 	if len(c.cache) >= c.capacity {
-		c.evictElement(ctx)
+		c.evictElement()
 	}
-	mat, err := materializeReStream(input)
-	if err != nil {
-		c.metrics.ReStreamErrors++
-		return input
-	}
-	ck := c.makeCacheKey(tok, win, key)
-	c.cache[ck] = mat
-	return mat
+	c.cache[tok] = input
 }
 
 func (c *SideInputCache) isValid(tok token) bool {
@@ -219,12 +192,12 @@ func (c *SideInputCache) isValid(tok token) bool {
 
 // evictElement randomly evicts a ReusableInput that is not currently valid from the cache.
 // It should only be called by a goroutine that obtained the lock in SetCache.
-func (c *SideInputCache) evictElement(ctx context.Context) {
+func (c *SideInputCache) evictElement() {
 	deleted := false
 	// Select a key from the cache at random
 	for k := range c.cache {
 		// Do not evict an element if it's currently valid
-		if !c.isValid(k.tok) {
+		if !c.isValid(k) {
 			delete(c.cache, k)
 			c.metrics.Evictions++
 			deleted = true

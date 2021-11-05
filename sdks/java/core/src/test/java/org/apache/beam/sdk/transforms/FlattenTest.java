@@ -488,7 +488,7 @@ public class FlattenTest implements Serializable {
     List<PCollection<T>> pcs = new ArrayList<>();
     int index = 0;
     for (List<T> list : lists) {
-      PCollection<T> pc = p.apply("Create" + index++, Create.of(list).withCoder(coder));
+      PCollection<T> pc = p.apply("Create" + (index++), Create.of(list).withCoder(coder));
       pcs.add(pc);
     }
     return PCollectionList.of(pcs);

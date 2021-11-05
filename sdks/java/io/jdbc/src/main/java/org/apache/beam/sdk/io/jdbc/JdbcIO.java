@@ -1682,7 +1682,7 @@ public class JdbcIO {
 
       try (Connection connection = getDataSourceProviderFn().apply(null).getConnection();
           PreparedStatement statement =
-              connection.prepareStatement(String.format("SELECT * FROM %s", getTable()))) {
+              connection.prepareStatement((String.format("SELECT * FROM %s", getTable())))) {
         tableSchema = SchemaUtil.toBeamSchema(statement.getMetaData());
         statement.close();
       } catch (SQLException e) {

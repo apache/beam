@@ -155,12 +155,12 @@ class ImmutableListBundleFactory implements BundleFactory {
     }
 
     @Override
-    public final int hashCode() {
+    public int hashCode() {
       return System.identityHashCode(this);
     }
 
     @Override
-    public final boolean equals(@Nullable Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return this == obj;
     }
   }

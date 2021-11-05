@@ -103,13 +103,13 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
           "SortValues requires the values be encoded with IterableCoder");
     }
     IterableCoder<KV<SecondaryKeyT, ValueT>> iterableCoder =
-        (IterableCoder<KV<SecondaryKeyT, ValueT>>) kvCoder.getValueCoder();
+        (IterableCoder<KV<SecondaryKeyT, ValueT>>) (kvCoder.getValueCoder());
 
     if (!(iterableCoder.getElemCoder() instanceof KvCoder)) {
       throw new IllegalStateException(
           "SortValues requires the secondary key-value pairs to use KvCoder");
     }
-    return (KvCoder<SecondaryKeyT, ValueT>) iterableCoder.getElemCoder();
+    return (KvCoder<SecondaryKeyT, ValueT>) (iterableCoder.getElemCoder());
   }
 
   /** Retrieves the {@link Coder} for the secondary keys. */

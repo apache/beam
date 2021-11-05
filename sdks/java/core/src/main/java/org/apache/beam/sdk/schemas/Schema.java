@@ -821,7 +821,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public final boolean equals(@Nullable Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof FieldType)) {
         return false;
       }
@@ -950,7 +950,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public final int hashCode() {
+    public int hashCode() {
       return Arrays.deepHashCode(
           new Object[] {
             getTypeName(),
@@ -964,7 +964,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public final String toString() {
+    public String toString() {
       StringBuilder builder = new StringBuilder();
       switch (getTypeName()) {
         case ROW:
@@ -1085,7 +1085,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public final boolean equals(@Nullable Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof Field)) {
         return false;
       }
@@ -1107,7 +1107,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public final int hashCode() {
+    public int hashCode() {
       return Objects.hash(getName(), getDescription(), getType());
     }
   }

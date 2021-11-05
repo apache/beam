@@ -103,7 +103,7 @@ final class KafkaIOUtils {
     String offsetGroupId =
         String.format(
             "%s_offset_consumer_%d_%s",
-            name, new Random().nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
+            name, (new Random()).nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
     offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
 
     if (offsetConfig != null) {

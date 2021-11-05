@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.errorprone.annotations.FormatMethod;
-import com.google.errorprone.annotations.FormatString;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
@@ -417,8 +415,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     private Set<Schema> activeSchemas = new HashSet<>();
 
     /** Report an error in the current context. */
-    @FormatMethod
-    private void reportError(String context, @FormatString String fmt, Object... args) {
+    private void reportError(String context, String fmt, Object... args) {
       String message = String.format(fmt, args);
       reasons.add(context + ": " + message);
     }

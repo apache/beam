@@ -36,6 +36,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.TestStream.Builder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -325,7 +326,7 @@ public class TestStreamTest implements Serializable {
 
   @Test
   public void testElementAtPositiveInfinityThrows() {
-    TestStream.Builder<Integer> stream =
+    Builder<Integer> stream =
         TestStream.create(VarIntCoder.of())
             .addElements(
                 TimestampedValue.of(
@@ -336,7 +337,7 @@ public class TestStreamTest implements Serializable {
 
   @Test
   public void testAdvanceWatermarkNonMonotonicThrows() {
-    TestStream.Builder<Integer> stream =
+    Builder<Integer> stream =
         TestStream.create(VarIntCoder.of()).advanceWatermarkTo(new Instant(0L));
     thrown.expect(IllegalArgumentException.class);
     stream.advanceWatermarkTo(new Instant(-1L));
@@ -344,7 +345,7 @@ public class TestStreamTest implements Serializable {
 
   @Test
   public void testAdvanceWatermarkEqualToPositiveInfinityThrows() {
-    TestStream.Builder<Integer> stream =
+    Builder<Integer> stream =
         TestStream.create(VarIntCoder.of())
             .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L)));
     thrown.expect(IllegalArgumentException.class);

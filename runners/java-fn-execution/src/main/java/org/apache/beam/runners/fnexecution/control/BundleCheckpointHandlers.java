@@ -98,7 +98,7 @@ public class BundleCheckpointHandlers {
               CoderUtils.decodeFromByteArray(
                   residualCoder, residual.getApplication().getElement().toByteArray());
           TimerInternals timerInternals =
-              timerInternalsFactory.timerInternalsForKey(stateValue.getValue());
+              timerInternalsFactory.timerInternalsForKey((stateValue.getValue()));
           StateInternals stateInternals =
               stateInternalsFactory.stateInternalsForKey(stateValue.getValue());
           // Calculate the timestamp for the timer.

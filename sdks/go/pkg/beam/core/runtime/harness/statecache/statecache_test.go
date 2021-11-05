@@ -16,16 +16,34 @@
 package statecache
 
 import (
-	"context"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
+type TestReStream struct {
+	value interface{}
+}
+
+func (r *TestReStream) Open() (exec.Stream, error) {
+	return &TestFixedStream{value: r.value}, nil
+}
+
+type TestFixedStream struct {
+	value interface{}
+}
+
+func (s *TestFixedStream) Close() error {
+	return nil
+}
+
+func (s *TestFixedStream) Read() (*exec.FullValue, error) {
+	return &exec.FullValue{Elm: s.value}, nil
+}
+
 func makeTestReStream(value interface{}) exec.ReStream {
-	fv := exec.FullValue{Elm: value}
-	return &exec.FixedReStream{Buf: []exec.FullValue{fv}}
+	return &TestReStream{value: value}
 }
 
 func getValue(rs exec.ReStream) interface{} {
@@ -52,14 +70,11 @@ func TestInit_Bad(t *testing.T) {
 
 func TestQueryCache_EmptyCase(t *testing.T) {
 	var s SideInputCache
-	ctx := context.Background()
-	win := []byte{0}
-	key := []byte{1}
 	err := s.Init(1)
 	if err != nil {
 		t.Fatalf("cache init failed, got %v", err)
 	}
-	output := s.QueryCache(ctx, "side1", "transform1", win, key)
+	output := s.QueryCache("side1", "transform1")
 	if output != nil {
 		t.Errorf("Cache hit when it should have missed, got %v", output)
 	}
@@ -67,16 +82,13 @@ func TestQueryCache_EmptyCase(t *testing.T) {
 
 func TestSetCache_UncacheableCase(t *testing.T) {
 	var s SideInputCache
-	ctx := context.Background()
-	win := []byte{0}
-	key := []byte{1}
 	err := s.Init(1)
 	if err != nil {
 		t.Fatalf("cache init failed, got %v", err)
 	}
 	input := makeTestReStream(10)
-	s.SetCache(ctx, "t1", "s1", win, key, input)
-	output := s.QueryCache(ctx, "t1", "s1", win, key)
+	s.SetCache("t1", "s1", input)
+	output := s.QueryCache("t1", "s1")
 	if output != nil {
 		t.Errorf("Cache hit when should have missed, got %v", output)
 	}
@@ -84,9 +96,6 @@ func TestSetCache_UncacheableCase(t *testing.T) {
 
 func TestSetCache_CacheableCase(t *testing.T) {
 	var s SideInputCache
-	ctx := context.Background()
-	win := []byte{0}
-	key := []byte{1}
 	err := s.Init(1)
 	if err != nil {
 		t.Fatalf("cache init failed, got %v", err)
@@ -96,8 +105,8 @@ func TestSetCache_CacheableCase(t *testing.T) {
 	tok := token("tok1")
 	s.setValidToken(transID, sideID, tok)
 	input := makeTestReStream(10)
-	s.SetCache(ctx, transID, sideID, win, key, input)
-	output := s.QueryCache(ctx, transID, sideID, win, key)
+	s.SetCache(transID, sideID, input)
+	output := s.QueryCache(transID, sideID)
 	if output == nil {
 		t.Fatalf("call to query cache missed when should have hit")
 	}
@@ -222,7 +231,7 @@ func TestSetValidTokens_ClearingBetween(t *testing.T) {
 		s.CompleteBundle(tok)
 	}
 
-	for k := range s.validTokens {
+	for k, _ := range s.validTokens {
 		if s.validTokens[k] != 0 {
 			t.Errorf("token count mismatch for token %v, expected 0, got %v", k, s.validTokens[k])
 		}
@@ -231,9 +240,6 @@ func TestSetValidTokens_ClearingBetween(t *testing.T) {
 
 func TestSetCache_Eviction(t *testing.T) {
 	var s SideInputCache
-	ctx := context.Background()
-	win := []byte{0}
-	key := []byte{1}
 	err := s.Init(1)
 	if err != nil {
 		t.Fatalf("cache init failed, got %v", err)
@@ -242,14 +248,14 @@ func TestSetCache_Eviction(t *testing.T) {
 	tokOne := makeRequest("t1", "s1", "tok1")
 	inOne := makeTestReStream(10)
 	s.SetValidTokens(tokOne)
-	s.SetCache(ctx, "t1", "s1", win, key, inOne)
+	s.SetCache("t1", "s1", inOne)
 	// Mark bundle as complete, drop count for tokOne to 0
 	s.CompleteBundle(tokOne)
 
 	tokTwo := makeRequest("t2", "s2", "tok2")
 	inTwo := makeTestReStream(20)
 	s.SetValidTokens(tokTwo)
-	s.SetCache(ctx, "t2", "s2", win, key, inTwo)
+	s.SetCache("t2", "s2", inTwo)
 
 	if len(s.cache) != 1 {
 		t.Errorf("cache size incorrect, expected 1, got %v", len(s.cache))
@@ -261,9 +267,6 @@ func TestSetCache_Eviction(t *testing.T) {
 
 func TestSetCache_EvictionFailure(t *testing.T) {
 	var s SideInputCache
-	ctx := context.Background()
-	win := []byte{0}
-	key := []byte{1}
 	err := s.Init(1)
 	if err != nil {
 		t.Fatalf("cache init failed, got %v", err)
@@ -276,9 +279,9 @@ func TestSetCache_EvictionFailure(t *testing.T) {
 	inTwo := makeTestReStream(20)
 
 	s.SetValidTokens(tokOne, tokTwo)
-	s.SetCache(ctx, "t1", "s1", win, key, inOne)
+	s.SetCache("t1", "s1", inOne)
 	// Should fail to evict because the first token is still valid
-	s.SetCache(ctx, "t2", "s2", win, key, inTwo)
+	s.SetCache("t2", "s2", inTwo)
 	// Cache should not exceed size 1
 	if len(s.cache) != 1 {
 		t.Errorf("cache size incorrect, expected 1, got %v", len(s.cache))

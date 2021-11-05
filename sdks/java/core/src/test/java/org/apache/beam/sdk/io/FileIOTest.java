@@ -113,7 +113,7 @@ public class FileIOTest implements Serializable {
                 FileIO.match()
                     .filepattern(tmpFolder.getRoot().getAbsolutePath() + "/blah")
                     .withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW)))
-        .empty();
+        .containsInAnyOrder();
     PAssert.that(
             p.apply(
                     "Create non-existing",
@@ -121,7 +121,7 @@ public class FileIOTest implements Serializable {
                 .apply(
                     "MatchAll non-existing ALLOW",
                     FileIO.matchAll().withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW)))
-        .empty();
+        .containsInAnyOrder();
 
     PAssert.that(
             p.apply(
@@ -129,7 +129,7 @@ public class FileIOTest implements Serializable {
                 FileIO.match()
                     .filepattern(tmpFolder.getRoot().getAbsolutePath() + "/blah*")
                     .withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW_IF_WILDCARD)))
-        .empty();
+        .containsInAnyOrder();
     PAssert.that(
             p.apply(
                     "Create non-existing wildcard + explicit",
@@ -138,13 +138,13 @@ public class FileIOTest implements Serializable {
                     "MatchAll non-existing ALLOW_IF_WILDCARD",
                     FileIO.matchAll()
                         .withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW_IF_WILDCARD)))
-        .empty();
+        .containsInAnyOrder();
     PAssert.that(
             p.apply(
                     "Create non-existing wildcard + default",
                     Create.of(tmpFolder.getRoot().getAbsolutePath() + "/blah*"))
                 .apply("MatchAll non-existing default", FileIO.matchAll()))
-        .empty();
+        .containsInAnyOrder();
 
     p.run();
   }

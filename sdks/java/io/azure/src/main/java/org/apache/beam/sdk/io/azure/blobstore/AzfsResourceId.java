@@ -122,7 +122,7 @@ class AzfsResourceId implements ResourceId {
 
   @Override
   public boolean isDirectory() {
-    return (blob == null) || blob.endsWith("/");
+    return (blob == null) || (blob.endsWith("/"));
   }
 
   boolean isWildcard() {

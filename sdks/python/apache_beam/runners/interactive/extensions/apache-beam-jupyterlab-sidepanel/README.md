@@ -22,12 +22,9 @@ A side panel providing information and controls to run Apache Beam notebooks int
 
 ## Requirements
 
-| JupyterLab version | Extension version |
-| ------------------ | ----------------- |
-| v3                 | v2.0.0            |
-| v2                 | v1.0.0            |
+* JupyterLab >= 2.0
 
-## Install
+## Install (WIP)
 
 ```bash
 jupyter labextension install apache-beam-jupyterlab-sidepanel

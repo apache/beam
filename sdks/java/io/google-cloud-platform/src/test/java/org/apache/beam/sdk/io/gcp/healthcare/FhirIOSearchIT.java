@@ -63,7 +63,7 @@ public class FhirIOSearchIT {
   private transient HealthcareApiClient client;
   private static String healthcareDataset;
   private static final String BASE_STORE_ID =
-      "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+      "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
   private String fhirStoreId;
   private static final int MAX_NUM_OF_SEARCHES = 50;
   private List<FhirSearchParameter<String>> input = new ArrayList<>();

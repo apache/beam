@@ -146,14 +146,6 @@ dependencies {
   testRuntimeOnly library.java.slf4j_jdk14
 }
 
-// Don't pull in newer versions of the checker framework from dependencies.
-// TODO(BEAM-11125) Remove this when Beam upgrades to newest checker framework version.
-configurations.compile {
-  resolutionStrategy {
-    force library.java.checker_qual
-  }
-}
-
 
 /**
  * These are integration tests with the real Pubsub service and the DirectRunner.

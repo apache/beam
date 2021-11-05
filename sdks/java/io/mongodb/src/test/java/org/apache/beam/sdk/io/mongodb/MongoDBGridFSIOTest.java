@@ -227,7 +227,7 @@ public class MongoDBGridFSIOTest {
                         }
                       }
                     })
-                .withSkew(Duration.millis(3610000L))
+                .withSkew(new Duration(3610000L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo(50100L);

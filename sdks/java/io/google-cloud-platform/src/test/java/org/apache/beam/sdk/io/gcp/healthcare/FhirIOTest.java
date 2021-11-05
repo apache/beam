@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Assert;
@@ -132,4 +134,26 @@ public class FhirIOTest {
   }
 
   private static final long NUM_ELEMENTS = 11;
+
+  private static ArrayList<KV<String, String>> createTestData() {
+    String[] scientists = {
+      "Einstein",
+      "Darwin",
+      "Copernicus",
+      "Pasteur",
+      "Curie",
+      "Faraday",
+      "Newton",
+      "Bohr",
+      "Galilei",
+      "Maxwell"
+    };
+    ArrayList<KV<String, String>> data = new ArrayList<>();
+    for (int i = 0; i < NUM_ELEMENTS; i++) {
+      int index = i % scientists.length;
+      KV<String, String> element = KV.of("key", scientists[index]);
+      data.add(element);
+    }
+    return data;
+  }
 }

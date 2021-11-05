@@ -49,7 +49,7 @@ public class HL7v2IOReadIT {
       "hl7v2_store_"
           + System.currentTimeMillis()
           + "_"
-          + new SecureRandom().nextInt(32)
+          + (new SecureRandom().nextInt(32))
           + "_read_it";
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();

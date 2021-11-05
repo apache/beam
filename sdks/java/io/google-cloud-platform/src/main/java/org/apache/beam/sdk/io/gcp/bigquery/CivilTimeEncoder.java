@@ -628,6 +628,10 @@ public final class CivilTimeEncoder {
     checkArgument(dateTime.equals(dateTime.truncatedTo(ChronoUnit.MICROS)));
   }
 
+  private static void checkValidDateTimeNanos(java.time.LocalDateTime dateTime) {
+    checkValidDateTimeSeconds(dateTime);
+  }
+
   private static void checkValidMicroOfSecond(int microOfSecond) {
     checkArgument(microOfSecond >= 0 && microOfSecond <= 999999);
   }

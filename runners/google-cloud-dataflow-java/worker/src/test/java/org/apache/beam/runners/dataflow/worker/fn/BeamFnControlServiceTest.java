@@ -24,7 +24,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import java.net.InetAddress;
 import java.net.ServerSocket;
-import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -32,12 +31,11 @@ import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.stream.ServerStreamObserverFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
-import org.apache.beam.sdk.fn.channel.AddHarnessIdInterceptor;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -53,8 +51,6 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link BeamFnControlService}. */
 @RunWith(JUnit4.class)
 public class BeamFnControlServiceTest {
-  private static final String WORKER_ID = "testWorker";
-
   @Rule
   public GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule().setTimeout(10, TimeUnit.SECONDS);
 
@@ -95,12 +91,10 @@ public class BeamFnControlServiceTest {
             GrpcContextHeaderAccessorProvider.getHeaderAccessor());
     grpcCleanupRule.register(
         ServerFactory.createDefault().create(ImmutableList.of(service), descriptor));
-
+    String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
-        BeamFnControlGrpc.newStub(
-            ManagedChannelFactory.createDefault()
-                .withInterceptors(Arrays.asList(AddHarnessIdInterceptor.create(WORKER_ID)))
-                .forDescriptor(service.getApiServiceDescriptor()));
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
+
     // Connect from the client.
     clientStub.control(requestObserver);
     try (FnApiControlClient client = service.get()) {
@@ -141,16 +135,11 @@ public class BeamFnControlServiceTest {
     grpcCleanupRule.register(
         ServerFactory.createDefault().create(ImmutableList.of(service), descriptor));
 
+    String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
-        BeamFnControlGrpc.newStub(
-            ManagedChannelFactory.createDefault()
-                .withInterceptors(Arrays.asList(AddHarnessIdInterceptor.create(WORKER_ID + 1)))
-                .forDescriptor(service.getApiServiceDescriptor()));
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
     BeamFnControlGrpc.BeamFnControlStub anotherClientStub =
-        BeamFnControlGrpc.newStub(
-            ManagedChannelFactory.createDefault()
-                .withInterceptors(Arrays.asList(AddHarnessIdInterceptor.create(WORKER_ID + 2)))
-                .forDescriptor(service.getApiServiceDescriptor()));
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
 
     // Connect from the client.
     clientStub.control(requestObserver);

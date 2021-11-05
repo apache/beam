@@ -46,7 +46,7 @@ public class HL7v2IOWriteIT {
   private transient HealthcareApiClient client;
   private static String healthcareDataset;
   private static final String HL7V2_STORE_NAME =
-      "hl7v2_store_write_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+      "hl7v2_store_write_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 

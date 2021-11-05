@@ -120,7 +120,7 @@ else
   echo "* Creating local Beam workspace: ${LOCAL_BEAM_DIR}"
   mkdir -p ${LOCAL_BEAM_DIR}
   echo "* Cloning Beam repo"
-  git clone --branch ${RC_TAG} ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
+  git clone --depth 1 --branch ${RC_TAG} ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
   cd ${LOCAL_BEAM_DIR}
   git checkout -b ${WORKING_BRANCH} ${RC_TAG} --quiet
   echo "* Setting up git config"

@@ -22,6 +22,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.AfterAll;
 import org.apache.beam.sdk.transforms.windowing.AfterEach;
 import org.apache.beam.sdk.transforms.windowing.AfterFirst;
@@ -93,35 +94,30 @@ public class TriggerTranslation implements Serializable {
       }
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(DefaultTrigger v) {
       return RunnerApi.Trigger.newBuilder()
           .setDefault(RunnerApi.Trigger.Default.getDefaultInstance())
           .build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(FromEndOfWindow v) {
       return RunnerApi.Trigger.newBuilder()
           .setAfterEndOfWindow(RunnerApi.Trigger.AfterEndOfWindow.getDefaultInstance())
           .build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(NeverTrigger v) {
       return RunnerApi.Trigger.newBuilder()
           .setNever(RunnerApi.Trigger.Never.getDefaultInstance())
           .build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(ReshuffleTrigger v) {
       return RunnerApi.Trigger.newBuilder()
           .setAlways(RunnerApi.Trigger.Always.getDefaultInstance())
           .build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(AfterSynchronizedProcessingTime v) {
       return RunnerApi.Trigger.newBuilder()
           .setAfterSynchronizedProcessingTime(
@@ -129,7 +125,18 @@ public class TriggerTranslation implements Serializable {
           .build();
     }
 
-    @SuppressWarnings("unused")
+    private RunnerApi.TimeDomain.Enum convertTimeDomain(TimeDomain timeDomain) {
+      switch (timeDomain) {
+        case EVENT_TIME:
+          return RunnerApi.TimeDomain.Enum.EVENT_TIME;
+        case PROCESSING_TIME:
+          return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
+        default:
+          throw new IllegalArgumentException(
+              String.format("Unknown or unsupported time domain: %s", timeDomain));
+      }
+    }
+
     private RunnerApi.Trigger convertSpecific(AfterFirst v) {
       RunnerApi.Trigger.AfterAny.Builder builder = RunnerApi.Trigger.AfterAny.newBuilder();
 
@@ -140,7 +147,6 @@ public class TriggerTranslation implements Serializable {
       return RunnerApi.Trigger.newBuilder().setAfterAny(builder).build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(AfterAll v) {
       RunnerApi.Trigger.AfterAll.Builder builder = RunnerApi.Trigger.AfterAll.newBuilder();
 
@@ -151,7 +157,6 @@ public class TriggerTranslation implements Serializable {
       return RunnerApi.Trigger.newBuilder().setAfterAll(builder).build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(AfterPane v) {
       return RunnerApi.Trigger.newBuilder()
           .setElementCount(
@@ -159,7 +164,6 @@ public class TriggerTranslation implements Serializable {
           .build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(AfterWatermarkEarlyAndLate v) {
       RunnerApi.Trigger.AfterEndOfWindow.Builder builder =
           RunnerApi.Trigger.AfterEndOfWindow.newBuilder();
@@ -172,7 +176,6 @@ public class TriggerTranslation implements Serializable {
       return RunnerApi.Trigger.newBuilder().setAfterEndOfWindow(builder).build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(AfterEach v) {
       RunnerApi.Trigger.AfterEach.Builder builder = RunnerApi.Trigger.AfterEach.newBuilder();
 
@@ -183,7 +186,6 @@ public class TriggerTranslation implements Serializable {
       return RunnerApi.Trigger.newBuilder().setAfterEach(builder).build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(Repeatedly v) {
       return RunnerApi.Trigger.newBuilder()
           .setRepeat(
@@ -191,7 +193,6 @@ public class TriggerTranslation implements Serializable {
           .build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(OrFinallyTrigger v) {
       return RunnerApi.Trigger.newBuilder()
           .setOrFinally(
@@ -201,7 +202,6 @@ public class TriggerTranslation implements Serializable {
           .build();
     }
 
-    @SuppressWarnings("unused")
     private RunnerApi.Trigger convertSpecific(AfterProcessingTime v) {
       RunnerApi.Trigger.AfterProcessingTime.Builder builder =
           RunnerApi.Trigger.AfterProcessingTime.newBuilder();

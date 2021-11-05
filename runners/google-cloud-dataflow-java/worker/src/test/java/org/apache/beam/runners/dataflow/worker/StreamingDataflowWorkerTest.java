@@ -188,7 +188,7 @@ public class StreamingDataflowWorkerTest {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);
 
   private static final IntervalWindow DEFAULT_WINDOW =
-      new IntervalWindow(new Instant(1234), Duration.millis(1000));
+      new IntervalWindow(new Instant(1234), new Duration(1000));
 
   private static final IntervalWindow WINDOW_AT_ZERO =
       new IntervalWindow(new Instant(0), new Instant(1000));

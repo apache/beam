@@ -423,8 +423,6 @@ func (b *CoderUnmarshaller) isCoGBKList(id string) ([]string, bool) {
 type CoderMarshaller struct {
 	coders   map[string]*pipepb.Coder
 	coder2id map[string]string // index of serialized coders to id to deduplicate
-
-	Namespace string // Namespace for xlang coders.
 }
 
 // NewCoderMarshaller returns a new CoderMarshaller.
@@ -585,12 +583,7 @@ func (b *CoderMarshaller) internCoder(coder *pipepb.Coder) string {
 		return id
 	}
 
-	var id string
-	if b.Namespace == "" {
-		id = fmt.Sprintf("c%v", len(b.coder2id))
-	} else {
-		id = fmt.Sprintf("c%v@%v", len(b.coder2id), b.Namespace)
-	}
+	id := fmt.Sprintf("c%v", len(b.coder2id))
 	b.coder2id[key] = id
 	b.coders[id] = coder
 	return id

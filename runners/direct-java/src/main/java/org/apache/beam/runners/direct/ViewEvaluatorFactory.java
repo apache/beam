@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectWriteViewVisitor.WriteView;
+import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -72,7 +73,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       @Override
       public TransformResult<Iterable<InT>> finishBundle() {
         writer.add(elements);
-        StepTransformResult.Builder resultBuilder = StepTransformResult.withoutHold(application);
+        Builder resultBuilder = StepTransformResult.withoutHold(application);
         if (!elements.isEmpty()) {
           resultBuilder = resultBuilder.withAdditionalOutput(OutputType.PCOLLECTION_VIEW);
         }

@@ -94,8 +94,7 @@ class SplittableProcessFnFactory {
               doFnInfo.getInputCoder(),
               restrictionCoder,
               watermarkEstimatorStateCoder,
-              doFnInfo.getWindowingStrategy(),
-              doFnInfo.getSideInputMapping());
+              doFnInfo.getWindowingStrategy());
 
       return DoFnInfo.forFn(
           processFn,
@@ -135,7 +134,6 @@ class SplittableProcessFnFactory {
           (ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>) fn;
       processFn.setStateInternalsFactory(key -> (StateInternals) stepContext.stateInternals());
       processFn.setTimerInternalsFactory(key -> stepContext.timerInternals());
-      processFn.setSideInputReader(sideInputReader);
       processFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               processFn.getFn(),

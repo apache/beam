@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -39,13 +38,13 @@ import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.harness.test.TestStreams;
 import org.apache.beam.runners.dataflow.worker.fn.stream.ServerStreamObserverFactory;
-import org.apache.beam.sdk.fn.channel.AddHarnessIdInterceptor;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
-import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.BindableService;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.junit.After;
@@ -56,7 +55,6 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link BeamFnLoggingService}. */
 @RunWith(JUnit4.class)
 public class BeamFnLoggingServiceTest {
-  private static final String WORKER_ID = "testWorker";
   private Server server;
 
   private Endpoints.ApiServiceDescriptor findOpenPort() throws Exception {
@@ -82,9 +80,7 @@ public class BeamFnLoggingServiceTest {
             logs::add,
             ServerStreamObserverFactory.fromOptions(PipelineOptionsFactory.create())::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor())) {
-      server =
-          ServerFactory.createDefault()
-              .create(Arrays.asList(service), service.getApiServiceDescriptor());
+      server = createServer(service, service.getApiServiceDescriptor());
 
       Collection<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 1; i <= 3; ++i) {
@@ -93,10 +89,8 @@ public class BeamFnLoggingServiceTest {
             () -> {
               CountDownLatch waitForServerHangup = new CountDownLatch(1);
               ManagedChannel channel =
-                  ManagedChannelFactory.createDefault()
-                      .withInterceptors(
-                          Arrays.asList(AddHarnessIdInterceptor.create(WORKER_ID + instructionId)))
-                      .forDescriptor(service.getApiServiceDescriptor());
+                  InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl())
+                      .build();
               StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
                   BeamFnLoggingGrpc.newStub(channel)
                       .logging(
@@ -133,10 +127,7 @@ public class BeamFnLoggingServiceTest {
             logs::add,
             ServerStreamObserverFactory.fromOptions(PipelineOptionsFactory.create())::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor())) {
-      server =
-          ServerFactory.createDefault()
-              .create(Arrays.asList(service), service.getApiServiceDescriptor());
-
+      server = createServer(service, service.getApiServiceDescriptor());
       CountDownLatch waitForTermination = new CountDownLatch(3);
       final BlockingQueue<StreamObserver<List>> outboundObservers = new LinkedBlockingQueue<>();
       for (int i = 1; i <= 3; ++i) {
@@ -144,10 +135,8 @@ public class BeamFnLoggingServiceTest {
         tasks.add(
             () -> {
               ManagedChannel channel =
-                  ManagedChannelFactory.createDefault()
-                      .withInterceptors(
-                          Arrays.asList(AddHarnessIdInterceptor.create(WORKER_ID + instructionId)))
-                      .forDescriptor(service.getApiServiceDescriptor());
+                  InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl())
+                      .build();
               StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
                   BeamFnLoggingGrpc.newStub(channel)
                       .logging(
@@ -179,9 +168,7 @@ public class BeamFnLoggingServiceTest {
             logs::add,
             ServerStreamObserverFactory.fromOptions(PipelineOptionsFactory.create())::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor())) {
-      server =
-          ServerFactory.createDefault()
-              .create(Arrays.asList(service), service.getApiServiceDescriptor());
+      server = createServer(service, service.getApiServiceDescriptor());
 
       for (int i = 1; i <= 3; ++i) {
         long instructionId = i;
@@ -190,11 +177,8 @@ public class BeamFnLoggingServiceTest {
                 () -> {
                   CountDownLatch waitForServerHangup = new CountDownLatch(1);
                   ManagedChannel channel =
-                      ManagedChannelFactory.createDefault()
-                          .withInterceptors(
-                              Arrays.asList(
-                                  AddHarnessIdInterceptor.create(WORKER_ID + instructionId)))
-                          .forDescriptor(service.getApiServiceDescriptor());
+                      InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl())
+                          .build();
                   StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
                       BeamFnLoggingGrpc.newStub(channel)
                           .logging(
@@ -231,5 +215,13 @@ public class BeamFnLoggingServiceTest {
 
   private BeamFnApi.LogEntry createLogWithId(long id) {
     return BeamFnApi.LogEntry.newBuilder().setInstructionId(Long.toString(id)).build();
+  }
+
+  private Server createServer(
+      BindableService service, Endpoints.ApiServiceDescriptor serviceDescriptor) throws Exception {
+    Server server =
+        InProcessServerBuilder.forName(serviceDescriptor.getUrl()).addService(service).build();
+    server.start();
+    return server;
   }
 }

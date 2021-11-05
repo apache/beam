@@ -147,9 +147,8 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
     // by joining two PCollections
     PCollection<Row> output = namesAndFoods.apply(
         SqlTransform.query(
-            "SELECT Apps.appId, COUNT(Reviews.rating), AVG(Reviews.rating) "
-                + "FROM Apps INNER JOIN Reviews ON Apps.appId = Reviews.appId "
-                + "GROUP BY Apps.appId"));
+            "SELECT Names.appId, COUNT(Reviews.rating), AVG(Reviews.rating)"
+                + "FROM Apps INNER JOIN Reviews ON Apps.appId == Reviews.appId"));
     {{< /highlight >}}
 
 [BeamSqlExample](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java)

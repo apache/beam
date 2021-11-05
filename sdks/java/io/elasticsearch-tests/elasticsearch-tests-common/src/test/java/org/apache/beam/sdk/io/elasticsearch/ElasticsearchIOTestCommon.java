@@ -26,13 +26,11 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfigur
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.FAMOUS_SCIENTISTS;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.INVALID_DOCS_IDS;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.NUM_SCIENTISTS;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.SCRIPT_SOURCE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByMatch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByScientistName;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.insertTestDocuments;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputId;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshAllIndices;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
@@ -50,8 +48,6 @@ import static org.junit.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -59,19 +55,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BulkIO.StatefulBatching;
-import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Document;
-import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.DocumentCoder;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DefaultRetryPredicate;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.RetryPredicate;
-import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.InjectionMode;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -85,7 +73,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
@@ -98,7 +85,6 @@ import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,7 +111,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   static final String ES_TYPE = "test";
-  static final long NUM_DOCS_UTESTS = 40L;
+  static final long NUM_DOCS_UTESTS = 100L;
   static final long NUM_DOCS_ITESTS = 50000L;
   static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final long AVERAGE_DOC_SIZE = 25L;
@@ -295,19 +281,13 @@ class ElasticsearchIOTestCommon implements Serializable {
     executeWriteTest(write);
   }
 
-  List<Document> serializeDocs(ElasticsearchIO.Write write, List<String> jsonDocs)
+  List<String> serializeDocs(ElasticsearchIO.Write write, List<String> jsonDocs)
       throws IOException {
-    List<Document> serializedInput = new ArrayList<>();
+    List<String> serializedInput = new ArrayList<>();
     for (String doc : jsonDocs) {
-      String bulkDoc =
+      serializedInput.add(
           DocToBulk.createBulkApiEntity(
-              write.getDocToBulk(), doc, getBackendVersion(connectionConfiguration));
-      Document r =
-          Document.create()
-              .withInputDoc(doc)
-              .withBulkDirective(bulkDoc)
-              .withTimestamp(Instant.now());
-      serializedInput.add(r);
+              write.getDocToBulk(), doc, getBackendVersion(connectionConfiguration)));
     }
     return serializedInput;
   }
@@ -343,76 +323,11 @@ class ElasticsearchIOTestCommon implements Serializable {
 
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    try (DoFnTester<Document, Document> fnTester =
+    try (DoFnTester<String, Void> fnTester =
         DoFnTester.of(new BulkIO.BulkIOBundleFn(write.getBulkIO()))) {
       // inserts into Elasticsearch
       fnTester.processBundle(serializeDocs(write, input));
     }
-  }
-
-  void testWriteWithErrorsReturned() throws Exception {
-    Write write =
-        ElasticsearchIO.write()
-            .withConnectionConfiguration(connectionConfiguration)
-            .withMaxBatchSize(BATCH_SIZE)
-            .withThrowWriteErrors(false);
-
-    List<String> data =
-        ElasticsearchIOTestUtils.createDocuments(
-            numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
-
-    PCollectionTuple outputs = pipeline.apply(Create.of(data)).apply(write);
-    PCollection<Integer> success =
-        outputs
-            .get(Write.SUCCESSFUL_WRITES)
-            .apply("Convert success to input ID", MapElements.via(mapToInputId));
-    PCollection<Integer> fail =
-        outputs
-            .get(Write.FAILED_WRITES)
-            .apply("Convert fails to input ID", MapElements.via(mapToInputId));
-
-    Set<Integer> successfulIds =
-        IntStream.range(0, data.size()).boxed().collect(Collectors.toSet());
-    successfulIds.removeAll(INVALID_DOCS_IDS);
-
-    PAssert.that(success).containsInAnyOrder(successfulIds);
-    PAssert.that(fail).containsInAnyOrder(INVALID_DOCS_IDS);
-
-    pipeline.run();
-  }
-
-  void testWriteWithErrorsReturnedAllowedErrors() throws Exception {
-    Write write =
-        ElasticsearchIO.write()
-            .withConnectionConfiguration(connectionConfiguration)
-            .withMaxBatchSize(BATCH_SIZE)
-            .withThrowWriteErrors(false)
-            .withAllowableResponseErrors(Collections.singleton("json_parse_exception"));
-
-    List<String> data =
-        ElasticsearchIOTestUtils.createDocuments(
-            numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
-
-    PCollectionTuple outputs = pipeline.apply(Create.of(data)).apply(write);
-    PCollection<Integer> success =
-        outputs
-            .get(Write.SUCCESSFUL_WRITES)
-            .apply("Convert success to input ID", MapElements.via(mapToInputId));
-    PCollection<Integer> fail =
-        outputs
-            .get(Write.FAILED_WRITES)
-            .apply("Convert fails to input ID", MapElements.via(mapToInputId));
-
-    // Successful IDs should be all IDs, as we're explicitly telling the ES transform that we
-    // want to ignore failures of a certain kind, therefore treat those failures as having been
-    // successfully processed
-    Set<Integer> successfulIds =
-        IntStream.range(0, data.size()).boxed().collect(Collectors.toSet());
-
-    PAssert.that(success).containsInAnyOrder(successfulIds);
-    PAssert.that(fail).empty();
-
-    pipeline.run();
   }
 
   void testWriteWithAllowedErrors() throws Exception {
@@ -427,7 +342,7 @@ class ElasticsearchIOTestCommon implements Serializable {
 
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    try (DoFnTester<Document, Document> fnTester =
+    try (DoFnTester<String, Void> fnTester =
         DoFnTester.of(new BulkIO.BulkIOBundleFn(write.getBulkIO()))) {
       // inserts into Elasticsearch
       fnTester.processBundle(serializeDocs(write, input));
@@ -442,27 +357,21 @@ class ElasticsearchIOTestCommon implements Serializable {
 
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    try (DoFnTester<Document, Document> fnTester =
+    try (DoFnTester<String, Void> fnTester =
         DoFnTester.of(new BulkIO.BulkIOBundleFn(write.getBulkIO()))) {
       List<String> input =
           ElasticsearchIOTestUtils.createDocuments(
               numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
 
-      List<Document> serializedInput = new ArrayList<>();
+      List<String> serializedInput = new ArrayList<>();
       for (String doc : input) {
-        String bulkDoc =
+        serializedInput.add(
             DocToBulk.createBulkApiEntity(
-                write.getDocToBulk(), doc, getBackendVersion(connectionConfiguration));
-        Document r =
-            Document.create()
-                .withInputDoc(doc)
-                .withBulkDirective(bulkDoc)
-                .withTimestamp(Instant.now());
-        serializedInput.add(r);
+                write.getDocToBulk(), doc, getBackendVersion(connectionConfiguration)));
       }
       long numDocsProcessed = 0;
       long numDocsInserted = 0;
-      for (Document document : serializedInput) {
+      for (String document : serializedInput) {
         fnTester.processElement(document);
         numDocsProcessed++;
         // test every 100 docs to avoid overloading ES
@@ -497,31 +406,25 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withMaxBatchSizeBytes(BATCH_SIZE_BYTES);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    try (DoFnTester<Document, Document> fnTester =
+    try (DoFnTester<String, Void> fnTester =
         DoFnTester.of(new BulkIO.BulkIOBundleFn(write.getBulkIO()))) {
       List<String> input =
           ElasticsearchIOTestUtils.createDocuments(
               numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-      List<Document> serializedInput = new ArrayList<>();
+      List<String> serializedInput = new ArrayList<>();
       for (String doc : input) {
-        String bulkDoc =
+        serializedInput.add(
             DocToBulk.createBulkApiEntity(
-                write.getDocToBulk(), doc, getBackendVersion(connectionConfiguration));
-        Document r =
-            Document.create()
-                .withInputDoc(doc)
-                .withBulkDirective(bulkDoc)
-                .withTimestamp(Instant.now());
-        serializedInput.add(r);
+                write.getDocToBulk(), doc, getBackendVersion(connectionConfiguration)));
       }
       long numDocsProcessed = 0;
       long sizeProcessed = 0;
       long numDocsInserted = 0;
       long batchInserted = 0;
-      for (Document document : serializedInput) {
+      for (String document : serializedInput) {
         fnTester.processElement(document);
         numDocsProcessed++;
-        sizeProcessed += document.getBulkDirective().getBytes(StandardCharsets.UTF_8).length;
+        sizeProcessed += document.getBytes(StandardCharsets.UTF_8).length;
         // test every 40 docs to avoid overloading ES
         if ((numDocsProcessed % 40) == 0) {
           // force the index to upgrade after inserting for the inserted docs
@@ -899,25 +802,22 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   void testMaxParallelRequestsPerWindow() throws Exception {
-    List<Document> data =
+    List<String> data =
         ElasticsearchIOTestUtils.createDocuments(
-                numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS)
-            .stream()
-            .map(doc -> Document.create().withInputDoc(doc).withTimestamp(Instant.now()))
-            .collect(Collectors.toList());
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
 
     Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxParallelRequestsPerWindow(1);
 
-    PCollection<KV<Integer, Iterable<Document>>> batches =
+    PCollection<KV<Integer, Iterable<String>>> batches =
         pipeline.apply(Create.of(data)).apply(StatefulBatching.fromSpec(write.getBulkIO()));
 
     PCollection<Integer> keyValues =
         batches.apply(
             MapElements.into(integers())
-                .via((SerializableFunction<KV<Integer, Iterable<Document>>, Integer>) KV::getKey));
+                .via((SerializableFunction<KV<Integer, Iterable<String>>, Integer>) KV::getKey));
 
     // Number of unique keys produced should be number of maxParallelRequestsPerWindow * numWindows
     // There is only 1 request (key) per window, and 1 (global) window ie. one key total where
@@ -929,51 +829,19 @@ class ElasticsearchIOTestCommon implements Serializable {
     pipeline.run();
   }
 
-  void testDocumentCoder() throws Exception {
-    List<String> data =
-        ElasticsearchIOTestUtils.createDocuments(numDocs, InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-
-    int randomNum = ThreadLocalRandom.current().nextInt(0, data.size());
-    Instant now = Instant.now();
-    Write write = ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration);
-    Document expected =
-        serializeDocs(write, data)
-            .get(randomNum)
-            .withTimestamp(now)
-            .withHasError(randomNum % 2 == 0);
-
-    PipedInputStream in = new PipedInputStream();
-    PipedOutputStream out = new PipedOutputStream(in);
-    DocumentCoder coder = DocumentCoder.of();
-    coder.encode(expected, out);
-    Document actual = coder.decode(in);
-
-    assertEquals(expected, actual);
-  }
-
-  void testPipelineDone() throws Exception {
-    Write write = ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration);
-    List<String> data =
-        ElasticsearchIOTestUtils.createDocuments(
-            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-    pipeline.apply(Create.of(data)).apply(write);
-
-    assertEquals(State.DONE, pipeline.run().waitUntilFinish());
-  }
-
   private static class AssertThatHasExpectedContents
-      implements SerializableFunction<Iterable<KV<Integer, Iterable<Document>>>, Void> {
+      implements SerializableFunction<Iterable<KV<Integer, Iterable<String>>>, Void> {
 
     private final int key;
-    private final List<Document> expectedContents;
+    private final List<String> expectedContents;
 
-    AssertThatHasExpectedContents(int key, List<Document> expected) {
+    AssertThatHasExpectedContents(int key, List<String> expected) {
       this.key = key;
       this.expectedContents = expected;
     }
 
     @Override
-    public Void apply(Iterable<KV<Integer, Iterable<Document>>> actual) {
+    public Void apply(Iterable<KV<Integer, Iterable<String>>> actual) {
       assertThat(
           actual,
           IsIterableContainingInAnyOrder.containsInAnyOrder(

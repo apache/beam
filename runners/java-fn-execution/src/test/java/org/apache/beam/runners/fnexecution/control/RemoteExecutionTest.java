@@ -166,10 +166,8 @@ import org.slf4j.LoggerFactory;
   "keyfor"
 })
 public class RemoteExecutionTest implements Serializable {
-
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
 
-  private static final String WORKER_ID = "remote_test";
   private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutionTest.class);
 
   private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
@@ -215,7 +213,7 @@ public class RemoteExecutionTest implements Serializable {
             () -> {
               try {
                 FnHarness.main(
-                    WORKER_ID,
+                    "id",
                     options,
                     Collections.emptySet(), // Runner capabilities.
                     loggingServer.getApiServiceDescriptor(),
@@ -227,8 +225,9 @@ public class RemoteExecutionTest implements Serializable {
                 throw new RuntimeException(e);
               }
             });
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     InstructionRequestHandler controlClient =
-        clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(2));
+        clientPool.getSource().take("", java.time.Duration.ofSeconds(2));
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 

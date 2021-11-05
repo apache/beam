@@ -18,7 +18,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
-import 'package:playground/pages/playground/components/playground_page_providers.dart';
 import 'package:playground/pages/playground/playground_page.dart';
 import 'package:provider/provider.dart';
 
@@ -31,15 +30,13 @@ class PlaygroundApp extends StatelessWidget {
       create: (context) => ThemeProvider(),
       builder: (context, _) {
         final themeProvider = Provider.of<ThemeProvider>(context);
-        return PlaygroundPageProviders(
-          child: MaterialApp(
-            title: 'Apache Beam Playground',
-            themeMode: themeProvider.themeMode,
-            theme: kLightTheme,
-            darkTheme: kDarkTheme,
-            home: const PlaygroundPage(),
-            debugShowCheckedModeBanner: false,
-          ),
+        return MaterialApp(
+          title: 'Apache Beam Playground',
+          themeMode: themeProvider.themeMode,
+          theme: kLightTheme,
+          darkTheme: kDarkTheme,
+          home: const PlaygroundPage(),
+          debugShowCheckedModeBanner: false,
         );
       },
     );

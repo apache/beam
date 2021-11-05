@@ -40,11 +40,6 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
-    --java_expansion_service_allowlist_file)
-      JAVA_EXPANSION_SERVICE_ALLOWLIST_FILE="$2"
-      shift
-      shift
-      ;;
     --python_virtualenv_dir)
       PYTHON_VIRTUALENV_DIR="$2"
       shift
@@ -111,7 +106,7 @@ case $STARTSTOP in
     fi
 
     echo "Launching Java expansion service @ $JAVA_PORT"
-    java -jar $JAVA_EXPANSION_SERVICE_JAR $JAVA_PORT --javaClassLookupAllowlistFile="$JAVA_EXPANSION_SERVICE_ALLOWLIST_FILE" >$TEMP_DIR/$FILE_BASE-java.log 2>&1 </dev/null &
+    java -jar $JAVA_EXPANSION_SERVICE_JAR $JAVA_PORT >$TEMP_DIR/$FILE_BASE-java.log 2>&1 </dev/null &
     mypid=$!
     if kill -0 $mypid >/dev/null 2>&1; then
       echo $mypid >> $pid

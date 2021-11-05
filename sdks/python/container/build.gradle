@@ -43,20 +43,7 @@ dependencies {
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/v2/python/container'
-
-  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
-  goTest {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goVet {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  gofmt {
-    environment 'GOFLAGS', '-modcacherw'
-  }
   goBuild {
-    environment 'GOFLAGS', '-modcacherw'
-
     // Build for linux and mac.
     targetPlatform = ['linux-amd64', 'darwin-amd64']
     outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'

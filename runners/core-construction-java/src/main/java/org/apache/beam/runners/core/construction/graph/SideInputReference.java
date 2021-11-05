@@ -61,7 +61,7 @@ public abstract class SideInputReference {
   public abstract PCollectionNode collection();
 
   @Override
-  public final String toString() {
+  public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("Transform", transform().toString())
         .add("PCollection", collection().toString())

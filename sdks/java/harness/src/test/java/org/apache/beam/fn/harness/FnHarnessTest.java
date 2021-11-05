@@ -54,6 +54,7 @@ import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
+import org.mockito.Mock;
 
 /** Tests for {@link FnHarness}. */
 @RunWith(JUnit4.class)
@@ -69,8 +70,8 @@ public class FnHarnessTest {
           .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance())
           .build();
 
-  private static Runnable onStartupMock = mock(Runnable.class);
-  private static Consumer<PipelineOptions> beforeProcessingMock = mock(Consumer.class);
+  private static @Mock Runnable onStartupMock = mock(Runnable.class);
+  private static @Mock Consumer<PipelineOptions> beforeProcessingMock = mock(Consumer.class);
 
   @Rule
   public Timeout timeout =

@@ -22,19 +22,25 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -66,6 +72,16 @@ public class FlattenRunnerTest {
             .putOutputs(mainOutputId, "mainOutputTarget")
             .build();
 
+    List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register(
+        "mainOutputTarget",
+        pTransformId,
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add,
+        StringUtf8Coder.of());
     Map<String, PCollection> pCollectionMap = new HashMap<>();
     pCollectionMap.put(
         "inputATarget",
@@ -86,30 +102,36 @@ public class FlattenRunnerTest {
             .setCoderId("coder-id")
             .build());
     RunnerApi.Coder coder = CoderTranslation.toProto(StringUtf8Coder.of()).getCoder();
-
-    PTransformRunnerFactoryTestContext context =
-        PTransformRunnerFactoryTestContext.builder(pTransformId, pTransform)
-            .processBundleInstructionId("57")
-            .pCollections(pCollectionMap)
-            .coders(Collections.singletonMap("coder-id", coder))
-            .build();
-    List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    context.addPCollectionConsumer(
-        "mainOutputTarget",
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add,
-        StringUtf8Coder.of());
-
-    new FlattenRunner.Factory<>().createRunnerForPTransform(context);
+    new FlattenRunner.Factory<>()
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
+            pTransformId,
+            pTransform,
+            Suppliers.ofInstance("57L")::get,
+            pCollectionMap,
+            Collections.singletonMap("coder-id", coder),
+            Collections.emptyMap(),
+            consumers,
+            null /* startFunctionRegistry */,
+            null /* finishFunctionRegistry */,
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     mainOutputValues.clear();
     assertThat(
-        context.getPCollectionConsumers().keySet(),
+        consumers.keySet(),
         containsInAnyOrder("inputATarget", "inputBTarget", "inputCTarget", "mainOutputTarget"));
 
-    context.getPCollectionConsumer("inputATarget").accept(valueInGlobalWindow("A1"));
-    context.getPCollectionConsumer("inputATarget").accept(valueInGlobalWindow("A2"));
-    context.getPCollectionConsumer("inputBTarget").accept(valueInGlobalWindow("B"));
-    context.getPCollectionConsumer("inputCTarget").accept(valueInGlobalWindow("C"));
+    consumers.getMultiplexingConsumer("inputATarget").accept(valueInGlobalWindow("A1"));
+    consumers.getMultiplexingConsumer("inputATarget").accept(valueInGlobalWindow("A2"));
+    consumers.getMultiplexingConsumer("inputBTarget").accept(valueInGlobalWindow("B"));
+    consumers.getMultiplexingConsumer("inputCTarget").accept(valueInGlobalWindow("C"));
     assertThat(
         mainOutputValues,
         contains(
@@ -141,35 +163,50 @@ public class FlattenRunnerTest {
             .putOutputs(mainOutputId, "mainOutputTarget")
             .build();
 
+    List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register(
+        "mainOutputTarget",
+        pTransformId,
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add,
+        StringUtf8Coder.of());
+
     RunnerApi.PCollection pCollection =
         RunnerApi.PCollection.newBuilder()
             .setUniqueName("inputATarget")
             .setCoderId("coder-id")
             .build();
     RunnerApi.Coder coder = CoderTranslation.toProto(StringUtf8Coder.of()).getCoder();
-
-    PTransformRunnerFactoryTestContext context =
-        PTransformRunnerFactoryTestContext.builder(pTransformId, pTransform)
-            .processBundleInstructionId("57")
-            .pCollections(Collections.singletonMap("inputATarget", pCollection))
-            .coders(Collections.singletonMap("coder-id", coder))
-            .build();
-    List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    context.addPCollectionConsumer(
-        "mainOutputTarget",
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add,
-        StringUtf8Coder.of());
-
-    new FlattenRunner.Factory<>().createRunnerForPTransform(context);
+    new FlattenRunner.Factory<>()
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
+            pTransformId,
+            pTransform,
+            Suppliers.ofInstance("57L")::get,
+            Collections.singletonMap("inputATarget", pCollection),
+            Collections.singletonMap("coder-id", coder),
+            Collections.emptyMap(),
+            consumers,
+            null /* startFunctionRegistry */,
+            null /* finishFunctionRegistry */,
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     mainOutputValues.clear();
-    assertThat(
-        context.getPCollectionConsumers().keySet(),
-        containsInAnyOrder("inputATarget", "mainOutputTarget"));
+    assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));
 
-    assertThat(context.getPCollectionConsumers().get("inputATarget"), hasSize(2));
+    assertThat(consumers.getUnderlyingConsumers("inputATarget"), hasSize(2));
 
-    FnDataReceiver<WindowedValue<?>> input = context.getPCollectionConsumer("inputATarget");
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer("inputATarget");
 
     input.accept(WindowedValue.valueInGlobalWindow("A1"));
     input.accept(WindowedValue.valueInGlobalWindow("A2"));

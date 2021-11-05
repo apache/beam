@@ -115,4 +115,14 @@ public class ExampleEchoPipeline {
       }
     }
   }
+
+  private static String getTestShellEcho() {
+    return "#!/bin/sh\n" + "filename=$1;\n" + "echo $2 >> $filename;";
+  }
+
+  private static String getTestShellEchoAgain() {
+    return "#!/bin/sh\n"
+        + "filename=$1;\n"
+        + "echo \"You again? Well ok, here is your word again.\" >> $2 >> $filename;";
+  }
 }

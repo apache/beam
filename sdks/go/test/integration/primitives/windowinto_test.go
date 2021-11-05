@@ -37,13 +37,6 @@ func TestWindowSums_GBK(t *testing.T) {
 	ptest.RunAndValidate(t, p)
 }
 
-func TestValidateWindowedSideInputs(t *testing.T) {
-	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	ValidateWindowedSideInputs(s)
-	ptest.RunAndValidate(t, p)
-}
-
 func TestTriggerDefault(t *testing.T) {
 	integration.CheckFilters(t)
 	p, s := beam.NewPipelineWithRoot()

@@ -154,7 +154,6 @@ func main() {
 
 	args := []string{
 		"-Xmx" + strconv.FormatUint(heapSizeLimit(info), 10),
-		"-XX:+AlwaysActAsServerClassMachine",
 		"-XX:-OmitStackTraceInFastThrow",
 		"-cp", strings.Join(cp, ":"),
 	}

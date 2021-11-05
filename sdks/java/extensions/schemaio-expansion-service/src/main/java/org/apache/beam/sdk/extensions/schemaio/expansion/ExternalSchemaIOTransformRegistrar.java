@@ -54,12 +54,10 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
     try {
       for (SchemaIOProvider schemaIOProvider : ServiceLoader.load(SchemaIOProvider.class)) {
         builder.put(
-            "beam:transform:org.apache.beam:schemaio_" + schemaIOProvider.identifier() + "_read:v1",
+            "beam:external:java:schemaio:" + schemaIOProvider.identifier() + ":read:v1",
             new ReaderBuilder(schemaIOProvider));
         builder.put(
-            "beam:transform:org.apache.beam:schemaio_"
-                + schemaIOProvider.identifier()
-                + "_write:v1",
+            "beam:external:java:schemaio:" + schemaIOProvider.identifier() + ":write:v1",
             new WriterBuilder(schemaIOProvider));
       }
     } catch (Exception e) {

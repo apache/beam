@@ -61,7 +61,7 @@ public class FhirIOWriteIT {
   public FhirIOWriteIT(String version) {
     this.version = version;
     this.fhirStoreName =
-        "FHIR_store_" + version + "_write_it_" + testTime + "_" + new SecureRandom().nextInt(32);
+        "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
   }
 
   @Before

@@ -252,7 +252,6 @@ public class SparkStreamingPortablePipelineTranslator
 
     SparkExecutableStageFunction<InputT, SideInputT> function =
         new SparkExecutableStageFunction<>(
-            context.getSerializableOptions(),
             stagePayload,
             context.jobInfo,
             outputMap,

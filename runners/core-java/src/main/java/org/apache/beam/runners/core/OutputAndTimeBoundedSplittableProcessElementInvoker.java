@@ -20,7 +20,6 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -117,8 +116,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       DoFnInvoker<InputT, OutputT> invoker,
       final WindowedValue<InputT> element,
       final RestrictionTracker<RestrictionT, PositionT> tracker,
-      final WatermarkEstimator<WatermarkEstimatorStateT> watermarkEstimator,
-      final Map<String, PCollectionView<?>> sideInputMapping) {
+      final WatermarkEstimator<WatermarkEstimatorStateT> watermarkEstimator) {
     final ProcessContext processContext = new ProcessContext(element, tracker, watermarkEstimator);
 
     DoFn.ProcessContinuation cont =
@@ -133,15 +131,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               public DoFn<InputT, OutputT>.ProcessContext processContext(
                   DoFn<InputT, OutputT> doFn) {
                 return processContext;
-              }
-
-              @Override
-              public Object sideInput(String tagId) {
-                PCollectionView<?> view = sideInputMapping.get(tagId);
-                if (view == null) {
-                  throw new IllegalArgumentException("calling getSideInput() with unknown view");
-                }
-                return processContext.sideInput(view);
               }
 
               @Override

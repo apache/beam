@@ -177,8 +177,8 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   private Duration boundReadDuration(double readTimePercentage, long minReadTimeMillis) {
     long batchDurationMillis = ssc().graph().batchDuration().milliseconds();
     Duration proportionalDuration =
-        Duration.millis(Math.round(batchDurationMillis * readTimePercentage));
-    Duration lowerBoundDuration = Duration.millis(minReadTimeMillis);
+        new Duration(Math.round(batchDurationMillis * readTimePercentage));
+    Duration lowerBoundDuration = new Duration(minReadTimeMillis);
     Duration readDuration =
         proportionalDuration.isLongerThan(lowerBoundDuration)
             ? proportionalDuration

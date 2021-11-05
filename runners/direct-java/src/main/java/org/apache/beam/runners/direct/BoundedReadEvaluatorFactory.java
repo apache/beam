@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo.PrimitiveBoundedRead;
+import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -121,7 +122,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     private final PCollection<OutputT> outputPCollection;
     private final EvaluationContext evaluationContext;
     private final PipelineOptions options;
-    private StepTransformResult.Builder resultBuilder;
+    private Builder resultBuilder;
 
     private final long minimumDynamicSplitSize;
     private final ExecutorService produceSplitExecutor;

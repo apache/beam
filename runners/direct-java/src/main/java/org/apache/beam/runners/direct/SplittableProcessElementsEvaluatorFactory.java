@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -28,7 +29,6 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ProcessFnRunner;
-import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -133,7 +133,7 @@ class SplittableProcessElementsEvaluatorFactory<
                 application.getTransform().getMainOutputTag(),
                 application.getTransform().getAdditionalOutputTags().getAll(),
                 DoFnSchemaInformation.create(),
-                application.getTransform().getSideInputMapping());
+                Collections.emptyMap());
     final ParDoEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> pde =
         evaluator.getParDoEvaluator();
     final ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT> processFn =
@@ -168,15 +168,12 @@ class SplittableProcessElementsEvaluatorFactory<
             outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
           }
         };
-    SideInputReader sideInputReader =
-        evaluationContext.createSideInputReader(transform.getSideInputs());
-    processFn.setSideInputReader(sideInputReader);
     processFn.setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             transform.getFn(),
             options,
             outputWindowedValue,
-            sideInputReader,
+            evaluationContext.createSideInputReader(transform.getSideInputs()),
             ses,
             // Setting small values here to stimulate frequent checkpointing and better exercise
             // splittable DoFn's in that respect.

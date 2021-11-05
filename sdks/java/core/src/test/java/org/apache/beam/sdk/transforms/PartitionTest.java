@@ -84,10 +84,10 @@ public class PartitionTest implements Serializable {
             .apply(
                 Partition.of(
                     2,
-                    (elem, numPartitions, ct) -> {
+                    ((elem, numPartitions, ct) -> {
                       Integer grades = ct.sideInput(gradesView);
                       return elem < grades ? 0 : 1;
-                    },
+                    }),
                     Requirements.requiresSideInputs(gradesView)));
 
     assertTrue(studentsGrades.size() == 2);

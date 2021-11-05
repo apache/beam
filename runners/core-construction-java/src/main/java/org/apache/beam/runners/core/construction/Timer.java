@@ -117,7 +117,7 @@ public abstract class Timer<K> {
   public abstract @Nullable PaneInfo getPane();
 
   @Override
-  public final boolean equals(@Nullable Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof Timer)) {
       return false;
     }
@@ -132,7 +132,7 @@ public abstract class Timer<K> {
   }
 
   @Override
-  public final int hashCode() {
+  public int hashCode() {
     // Hash only the millis of the timestamp to be consistent with equals
     if (getClearBit()) {
       return Objects.hash(getUserKey(), getDynamicTimerTag(), getClearBit(), getWindows());

@@ -129,6 +129,10 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
                 keyCoder)));
   }
 
+  private <K, V> KV<K, WindowedValue<V>> gwValue(KV<K, V> kv) {
+    return KV.of(kv.getKey(), WindowedValue.valueInGlobalWindow(kv.getValue()));
+  }
+
   private static class KeyedWorkItemMatcher<K, V>
       extends BaseMatcher<WindowedValue<KeyedWorkItem<K, V>>> {
     private final KeyedWorkItem<K, V> myWorkItem;

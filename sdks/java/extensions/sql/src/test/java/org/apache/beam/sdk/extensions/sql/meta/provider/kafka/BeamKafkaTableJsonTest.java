@@ -60,7 +60,7 @@ public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
     return (BeamKafkaTable)
-        new KafkaTableProvider()
+        (new KafkaTableProvider()
             .buildBeamSqlTable(
                 Table.builder()
                     .name("kafka")
@@ -68,7 +68,7 @@ public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
                     .schema(TEST_SCHEMA)
                     .location("localhost/mytopic")
                     .properties(JSON.parseObject("{ \"format\": \"json\" }"))
-                    .build());
+                    .build()));
   }
 
   private String createJson(int i) {

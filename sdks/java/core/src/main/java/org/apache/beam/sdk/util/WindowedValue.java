@@ -127,19 +127,6 @@ public abstract class WindowedValue<T> {
   }
 
   /**
-   * Returns a {@code WindowedValue} with the given value, timestamp, and pane in the {@code
-   * GlobalWindow}.
-   */
-  public static <T> WindowedValue<T> timestampedValueInGlobalWindow(
-      T value, Instant timestamp, PaneInfo paneInfo) {
-    if (paneInfo.equals(PaneInfo.NO_FIRING)) {
-      return timestampedValueInGlobalWindow(value, timestamp);
-    } else {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo);
-    }
-  }
-
-  /**
    * Returns a new {@code WindowedValue} that is a copy of this one, but with a different value,
    * which may have a new type {@code NewT}.
    */
@@ -167,9 +154,6 @@ public abstract class WindowedValue<T> {
    * is in exactly one of the windows that this {@link WindowedValue} is in.
    */
   public Iterable<WindowedValue<T>> explodeWindows() {
-    if (isSingleWindowedValue()) {
-      return ImmutableList.of(this);
-    }
     ImmutableList.Builder<WindowedValue<T>> windowedValues = ImmutableList.builder();
     for (BoundedWindow w : getWindows()) {
       windowedValues.add(of(getValue(), getTimestamp(), w, getPane()));

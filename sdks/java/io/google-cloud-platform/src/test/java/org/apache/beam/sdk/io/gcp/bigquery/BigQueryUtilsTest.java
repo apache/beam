@@ -313,7 +313,7 @@ public class BigQueryUtilsTest {
               LocalTime.parse("12:34"),
               false,
               Base64.getDecoder().decode("ABCD1234"),
-              new BigDecimal("123.456").setScale(3, RoundingMode.HALF_UP),
+              new BigDecimal(123.456).setScale(3, RoundingMode.HALF_UP),
               true,
               123L,
               123.456d)

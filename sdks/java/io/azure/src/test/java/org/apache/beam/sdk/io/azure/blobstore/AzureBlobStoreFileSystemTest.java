@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.azure.blobstore;
 
 import static java.util.UUID.randomUUID;
+import static org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions.builder;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertArrayEquals;
@@ -49,7 +50,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.azure.options.BlobstoreOptions;
-import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
@@ -154,9 +154,7 @@ public class AzureBlobStoreFileSystemTest {
     // First create an object and write data to it
     AzfsResourceId path = AzfsResourceId.fromUri("azfs://account/testcontainer/foo/bar.txt");
     WritableByteChannel writableByteChannel =
-        azureBlobStoreFileSystem.create(
-            path,
-            CreateOptions.StandardCreateOptions.builder().setMimeType("application/text").build());
+        azureBlobStoreFileSystem.create(path, builder().setMimeType("application/text").build());
     writableByteChannel.write(bb);
     writableByteChannel.close();
 
@@ -250,7 +248,7 @@ public class AzureBlobStoreFileSystemTest {
 
   private List<String> toFilenames(MatchResult matchResult) throws IOException {
     return FluentIterable.from(matchResult.metadata())
-        .transform(metadata -> metadata.resourceId().toString())
+        .transform(metadata -> (metadata.resourceId()).toString())
         .toList();
   }
 

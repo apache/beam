@@ -59,7 +59,7 @@ public class SparkCoGroupByKeyStreamingTest {
 
   private Duration batchDuration() {
     return Duration.millis(
-        pipeline.getOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis());
+        (pipeline.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis());
   }
 
   @Category(StreamingTest.class)

@@ -780,7 +780,7 @@ public class FlinkStreamingPortablePipelineTranslator
         context.getDataStreamOrThrow(inputPCollectionId);
 
     CoderTypeInformation<WindowedValue<OutputT>> outputTypeInformation =
-        !outputs.isEmpty()
+        (!outputs.isEmpty())
             ? new CoderTypeInformation(
                 outputCoders.get(mainOutputTag.getId()), context.getPipelineOptions())
             : null;

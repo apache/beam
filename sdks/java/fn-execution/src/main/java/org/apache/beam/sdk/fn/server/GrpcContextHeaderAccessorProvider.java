@@ -25,7 +25,6 @@ import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerCall;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerCall.Listener;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerCallHandler;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerInterceptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /**
  * A HeaderAccessorProvider which intercept the header in a GRPC request and expose the relevant
@@ -68,8 +67,14 @@ public class GrpcContextHeaderAccessorProvider {
     @Override
     /** This method should be called from the request method. */
     public String getSdkWorkerId() {
-      return Preconditions.checkNotNull(
-          SDK_WORKER_CONTEXT_KEY.get(), "No worker_id header provided in client headers.");
+      // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Some harnesses may not set the worker
+      // id header. Remove the null check below once this is fixed.
+      String workerId = SDK_WORKER_CONTEXT_KEY.get();
+      if (workerId == null) {
+        return "";
+      } else {
+        return workerId;
+      }
     }
   }
 }

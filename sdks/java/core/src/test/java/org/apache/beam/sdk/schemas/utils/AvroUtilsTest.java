@@ -152,7 +152,7 @@ public class AvroUtilsTest {
         new org.apache.avro.Schema.Field(
             "arrayField",
             ReflectData.makeNullable(
-                org.apache.avro.Schema.createArray(org.apache.avro.Schema.create(Type.INT))),
+                org.apache.avro.Schema.createArray((org.apache.avro.Schema.create(Type.INT)))),
             "",
             null);
 
@@ -170,7 +170,7 @@ public class AvroUtilsTest {
         new org.apache.avro.Schema.Field(
             "arrayField",
             ReflectData.makeNullable(
-                org.apache.avro.Schema.createArray(org.apache.avro.Schema.create(Type.INT))),
+                org.apache.avro.Schema.createArray((org.apache.avro.Schema.create(Type.INT)))),
             "",
             null);
 

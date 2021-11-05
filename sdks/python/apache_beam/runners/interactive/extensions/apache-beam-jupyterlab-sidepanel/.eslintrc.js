@@ -25,33 +25,9 @@ module.exports = {
   },
   plugins: ['@typescript-eslint'],
   rules: {
-    '@typescript-eslint/naming-convention': [
+    '@typescript-eslint/interface-name-prefix': [
       'error',
-      {
-        'selector': ['variable', 'function'],
-        'format': ['camelCase'],
-        'leadingUnderscore': 'allow'
-      }
-    ],
-    '@typescript-eslint/naming-convention': [
-      'error',
-      {
-        'selector': 'interface',
-        'format': ['PascalCase'],
-        'custom': {
-          'regex': '^I[A-Z]',
-          'match': true
-        }
-      }
-    ],
-    "@typescript-eslint/ban-types": [
-      "error",
-      {
-        "extendDefaults": true,
-        "types": {
-          "object": false
-        }
-      }
+      { prefixWithI: 'always' }
     ],
     '@typescript-eslint/no-unused-vars': ['warn', { args: 'none' }],
     '@typescript-eslint/no-explicit-any': 'off',

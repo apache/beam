@@ -180,12 +180,12 @@ public class XmlSource<T> extends FileBasedSource<T> {
       // this XML parsing may fail or may produce incorrect results.
 
       byte[] dummyStartDocumentBytes =
-          String.format(
+          (String.format(
                   "<?xml version=\"%s\" encoding=\""
                       + getCurrentSource().configuration.getCharset()
                       + "\"?><%s>",
                   XML_VERSION,
-                  getCurrentSource().configuration.getRootElement())
+                  getCurrentSource().configuration.getRootElement()))
               .getBytes(Charset.forName(getCurrentSource().configuration.getCharset()));
       preambleByteBuffer.write(dummyStartDocumentBytes);
       // Gets the byte offset (in the input file) of the first record in ReadableByteChannel. This

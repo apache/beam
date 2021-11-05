@@ -108,8 +108,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
     /** Return an auction window for {@code auction}. */
     public static AuctionOrBidWindow forAuction(Instant timestamp, Auction auction) {
-
-      return new AuctionOrBidWindow(timestamp, auction.expires, auction.id, true);
+      return new AuctionOrBidWindow(timestamp, new Instant(auction.expires), auction.id, true);
     }
 
     /**

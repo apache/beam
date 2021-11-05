@@ -63,7 +63,6 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.jackson_annotations
   compile library.java.avro
-  compileOnly library.java.error_prone_annotations
   // Avro 1.8 leaks an older version of paranamer that conflicts in runtime with the dependencies
   // of some runners so we need to fix it to a more recent but still compatible version.
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"

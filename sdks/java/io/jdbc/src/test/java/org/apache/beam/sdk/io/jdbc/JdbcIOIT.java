@@ -272,12 +272,12 @@ public class JdbcIOIT {
           dataCollection.apply(
               getJdbcWriteWithReturning(firstTableName)
                   .withWriteResults(
-                      resultSet -> {
+                      (resultSet -> {
                         if (resultSet != null && resultSet.next()) {
                           return new JdbcTestHelper.TestDto(resultSet.getInt(1));
                         }
                         return new JdbcTestHelper.TestDto(JdbcTestHelper.TestDto.EMPTY_RESULT);
-                      }));
+                      })));
       resultSetCollection.setCoder(JdbcTestHelper.TEST_DTO_CODER);
 
       List<JdbcTestHelper.TestDto> expectedResult = new ArrayList<>();

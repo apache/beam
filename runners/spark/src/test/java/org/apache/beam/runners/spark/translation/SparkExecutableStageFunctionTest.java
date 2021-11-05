@@ -37,7 +37,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -54,7 +53,6 @@ import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -78,8 +76,6 @@ public class SparkExecutableStageFunctionTest {
   @Mock private MetricsContainerStepMap stepMap;
   @Mock private MetricsContainerImpl container;
 
-  private final SerializablePipelineOptions pipelineOptions =
-      new SerializablePipelineOptions(PipelineOptionsFactory.create());
   private final String inputId = "input-id";
   private final ExecutableStagePayload stagePayload =
       ExecutableStagePayload.newBuilder()
@@ -262,7 +258,6 @@ public class SparkExecutableStageFunctionTest {
   private <InputT, SideInputT> SparkExecutableStageFunction<InputT, SideInputT> getFunction(
       Map<String, Integer> outputMap) {
     return new SparkExecutableStageFunction<>(
-        pipelineOptions,
         stagePayload,
         null,
         outputMap,

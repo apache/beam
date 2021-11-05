@@ -287,12 +287,7 @@ class JavaExternalTransform(ptransform.PTransform):
   """
   def __init__(self, class_name, expansion_service=None):
     self._payload_builder = JavaClassLookupPayloadBuilder(class_name)
-    self._expansion_service = expansion_service
-
-    # Beam explicitly looks for following attributes. Hence adding
-    # 'None' values here to prevent '__getattr__' from being called.
-    self.inputs = None
-    self._fn_api_payload = None
+    self._expansion_service = None
 
   def __call__(self, *args, **kwargs):
     self._payload_builder.with_constructor(*args, **kwargs)
@@ -315,8 +310,8 @@ class JavaExternalTransform(ptransform.PTransform):
 
   def expand(self, pcolls):
     return pcolls | ExternalTransform(
-        common_urns.java_class_lookup.urn,
-        self._payload_builder,
+        common_urns.java_class_lookup,
+        self._payload_builder.build(),
         self._expansion_service)
 
 
@@ -389,7 +384,7 @@ class ExternalTransform(ptransform.PTransform):
     """
     expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
     if not urn and isinstance(payload, JavaClassLookupPayloadBuilder):
-      urn = common_urns.java_class_lookup.urn
+      urn = common_urns.java_class_lookup
     self._urn = urn
     self._payload = (
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)

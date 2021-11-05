@@ -29,7 +29,7 @@ from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardPTransf
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardRequirements
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardResourceHints
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardSideInputTypes
-from apache_beam.portability.api.external_transforms_pb2_urns import ExpansionMethods
+from apache_beam.portability.api.external_transforms_pb2 import ExpansionMethods
 from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfo
 from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfoSpecs
 from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfoTypeUrns
@@ -68,4 +68,4 @@ requirements = StandardRequirements.Enum
 
 displayData = StandardDisplayData.DisplayData
 
-java_class_lookup = ExpansionMethods.Enum.JAVA_CLASS_LOOKUP
+java_class_lookup = ExpansionMethods.JAVA_CLASS_LOOKUP

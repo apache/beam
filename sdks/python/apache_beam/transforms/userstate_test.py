@@ -26,7 +26,7 @@ import mock
 
 import apache_beam as beam
 from apache_beam.coders import BytesCoder
-from apache_beam.coders import ListCoder
+from apache_beam.coders import IterableCoder
 from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import VarIntCoder
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -791,7 +791,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   def test_simple_stateful_dofn_combining(self):
     class SimpleTestStatefulDoFn(DoFn):
       BUFFER_STATE = CombiningValueStateSpec(
-          'buffer', ListCoder(VarIntCoder()), ToListCombineFn())
+          'buffer', IterableCoder(VarIntCoder()), ToListCombineFn())
       EXPIRY_TIMER = TimerSpec('expiry1', TimeDomain.WATERMARK)
 
       def process(

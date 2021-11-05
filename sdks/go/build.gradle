@@ -29,20 +29,7 @@ resolveTestDependencies.enabled = false
 golang {
   packagePath = 'github.com/apache/beam/sdks/v2/go'
 
-  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
-  goTest {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goVet {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  gofmt {
-    environment 'GOFLAGS', '-modcacherw'
-    gofmt '-w ./cmd ./pkg' // Avoid sub-directories with gradle modules.
-  }
   goBuild {
-    environment 'GOFLAGS', '-modcacherw'
-
     // The symlinks makes it hard (impossible?) to do a wildcard build
     // of pkg. Go build refuses to follow symlinks. Drop for now. The files
     // are built when tested anyway.

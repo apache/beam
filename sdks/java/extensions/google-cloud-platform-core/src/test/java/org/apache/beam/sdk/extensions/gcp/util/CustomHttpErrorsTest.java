@@ -23,6 +23,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.http.GenericUrl;
+import com.google.api.client.json.Json;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -43,6 +45,15 @@ public class CustomHttpErrorsTest {
   @Before
   public void initMocks() {
     MockitoAnnotations.initMocks(this);
+  }
+
+  private static MockLowLevelHttpResponse createResponse(int code, String body) {
+    MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+    response.addHeader("custom_header", "value");
+    response.setStatusCode(code);
+    response.setContentType(Json.MEDIA_TYPE);
+    response.setContent(body);
+    return response;
   }
 
   private HttpRequestWrapper createHttpRequest(String url) throws MalformedURLException {

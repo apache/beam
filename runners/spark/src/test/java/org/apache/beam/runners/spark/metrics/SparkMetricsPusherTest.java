@@ -58,7 +58,7 @@ public class SparkMetricsPusherTest {
 
   private Duration batchDuration() {
     return Duration.millis(
-        pipeline.getOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis());
+        (pipeline.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis());
   }
 
   @Before

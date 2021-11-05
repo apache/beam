@@ -134,7 +134,7 @@ public class AttributeValueCoderTest {
             .bs(
                 ImmutableList.of(
                     SdkBytes.fromByteArray("mylistbyte1".getBytes(StandardCharsets.UTF_8)),
-                    SdkBytes.fromByteArray("mylistbyte2".getBytes(StandardCharsets.UTF_8))))
+                    SdkBytes.fromByteArray(("mylistbyte2".getBytes(StandardCharsets.UTF_8)))))
             .build();
 
     AttributeValueCoder coder = AttributeValueCoder.of();

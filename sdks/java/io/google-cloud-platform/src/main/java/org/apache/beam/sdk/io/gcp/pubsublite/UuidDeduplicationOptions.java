@@ -21,11 +21,9 @@ import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.che
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.io.gcp.pubsublite.internal.Uuid;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -50,6 +48,8 @@ public abstract class UuidDeduplicationOptions implements Serializable {
         return Uuid.of(attributes.get(0));
       };
 
+  public static final int DEFAULT_HASH_PARTITIONS = 10000;
+
   public static final TimeDomain DEFAULT_TIME_DOMAIN = TimeDomain.EVENT_TIME;
   public static final Duration DEFAULT_DEDUPLICATE_DURATION = Duration.standardDays(1);
 
@@ -69,7 +69,6 @@ public abstract class UuidDeduplicationOptions implements Serializable {
     return builder;
   }
 
-  @CanIgnoreReturnValue
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setUuidExtractor(

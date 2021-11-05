@@ -229,7 +229,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
       @Nullable
       OnTimerInvoker onTimerInvoker =
-          timerFamilyId.isEmpty()
+          (timerFamilyId.isEmpty())
               ? onTimerInvokers.get(timerId)
               : onTimerFamilyInvokers.get(timerFamilyId);
 
@@ -621,6 +621,14 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         : new DoFnMethodDelegation(doFnType, method.targetMethod());
   }
 
+  /** Delegates to the given method if available, or does nothing. */
+  private static Implementation delegateOrThrow(
+      TypeDescription doFnType, DoFnSignature.DoFnMethod method) {
+    return (method == null)
+        ? ExceptionMethod.throwing(UnsupportedOperationException.class)
+        : new DoFnMethodDelegation(doFnType, method.targetMethod());
+  }
+
   /** Delegates method with extra parameters to the given method if available, or does nothing. */
   private static Implementation delegateMethodWithExtraParametersOrNoop(
       TypeDescription doFnType, DoFnSignature.MethodWithExtraParameters method) {
@@ -634,6 +642,14 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     return (method == null)
         ? ExceptionMethod.throwing(UnsupportedOperationException.class)
         : new DoFnMethodWithExtraParametersDelegation(doFnType, method);
+  }
+
+  /** Delegates to the given method if available, or throws UnsupportedOperationException. */
+  private static Implementation delegateWithDowncastOrThrow(
+      TypeDescription doFnType, DoFnSignature.DoFnMethod method) {
+    return (method == null)
+        ? ExceptionMethod.throwing(UnsupportedOperationException.class)
+        : new DowncastingParametersMethodDelegation(doFnType, method.targetMethod());
   }
 
   /**

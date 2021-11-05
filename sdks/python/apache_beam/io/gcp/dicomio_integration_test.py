@@ -25,7 +25,6 @@ in order to check if the connectors are functioning correctly.
 """
 # pytype: skip-file
 
-import datetime
 import random
 import string
 import unittest
@@ -127,8 +126,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
         METADATA_DIR_PATH + META_DATA_REFINED_NAME)
 
     # create a temp Dicom store based on the time stamp
-    self.temp_dicom_store = "DICOM_store_" + datetime.datetime.now().strftime(
-        '%Y-%m-%d_%H%M%S.%f_') + random_string_generator(RAND_LEN)
+    self.temp_dicom_store = "DICOM_store_" + random_string_generator(RAND_LEN)
     create_dicom_store(self.project, DATA_SET_ID, REGION, self.temp_dicom_store)
 
   def tearDown(self):

@@ -63,7 +63,7 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
           new AdaptableCollector<>(
               accumulatorProvider,
               operatorName,
-              (ctx, elem) -> ctx.output(KV.of(ctx.element().getKey(), elem)));
+              ((ctx, elem) -> ctx.output(KV.of(ctx.element().getKey(), elem))));
     }
 
     @ProcessElement

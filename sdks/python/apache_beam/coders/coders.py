@@ -1245,9 +1245,6 @@ class ListCoder(ListLikeCoder):
   def to_type_hint(self):
     return typehints.List[self._elem_coder.to_type_hint()]
 
-  def _create_impl(self):
-    return coder_impl.ListCoderImpl(self._elem_coder.get_impl())
-
 
 class GlobalWindowCoder(SingletonCoder):
   """Coder for global windows."""

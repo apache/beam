@@ -552,7 +552,7 @@ public class CreateRegisterFnOperationFunctionTest {
     public abstract String getName();
 
     @Override
-    public final String toString() {
+    public String toString() {
       return hashCode() + " " + getName();
     }
   }

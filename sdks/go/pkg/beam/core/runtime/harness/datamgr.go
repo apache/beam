@@ -502,10 +502,6 @@ func (w *dataWriter) Close() error {
 	if err != nil {
 		return errors.Wrapf(err, "dataWriter[%v;%v].Close: error flushing buffer of length %d", w.id, w.ch.id, l)
 	}
-	// TODO(BEAM-13082): Consider a sync.Pool to reuse < 64MB buffers.
-	// The dataWriter won't be reused, but may be referenced elsewhere.
-	// Drop the buffer to let it be GC'd.
-	w.buf = nil
 
 	// Now acquire the locks since we're sending.
 	w.ch.mu.Lock()
@@ -527,11 +523,12 @@ func (w *dataWriter) Close() error {
 const largeBufferNotificationThreshold = 1024 * 1024 * 1024 // 1GB
 
 func (w *dataWriter) Flush() error {
+	w.ch.mu.Lock()
+	defer w.ch.mu.Unlock()
+
 	if w.buf == nil {
 		return nil
 	}
-	w.ch.mu.Lock()
-	defer w.ch.mu.Unlock()
 
 	msg := &fnpb.Elements{
 		Data: []*fnpb.Elements_Data{
@@ -545,7 +542,7 @@ func (w *dataWriter) Flush() error {
 	if l := len(w.buf); l > largeBufferNotificationThreshold {
 		log.Infof(context.TODO(), "dataWriter[%v;%v].Flush flushed large buffer of length %d", w.id, w.ch.id, l)
 	}
-	w.buf = w.buf[:0]
+	w.buf = nil
 	return w.send(msg)
 }
 

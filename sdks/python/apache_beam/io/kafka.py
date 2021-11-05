@@ -117,10 +117,8 @@ class ReadFromKafka(ExternalTransform):
   create_time_policy = 'CreateTime'
   log_append_time = 'LogAppendTime'
 
-  URN_WITH_METADATA = (
-      'beam:transform:org.apache.beam:kafka_read_with_metadata:v1')
-  URN_WITHOUT_METADATA = (
-      'beam:transform:org.apache.beam:kafka_read_without_metadata:v1')
+  URN_WITH_METADATA = 'beam:external:java:kafkaio:externalwithmetadata:v1'
+  URN_WITHOUT_METADATA = 'beam:external:java:kafkaio:typedwithoutmetadata:v1'
 
   def __init__(
       self,
@@ -212,7 +210,7 @@ class WriteToKafka(ExternalTransform):
   byte_array_serializer = (
       'org.apache.kafka.common.serialization.ByteArraySerializer')
 
-  URN = 'beam:transform:org.apache.beam:kafka_write:v1'
+  URN = 'beam:external:java:kafka:write:v1'
 
   def __init__(
       self,

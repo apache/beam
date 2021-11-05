@@ -102,7 +102,7 @@ public class EncoderHelpers {
       StringContext sc =
           new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
       Block code =
-          new Block.BlockHelper(sc).code(JavaConversions.collectionAsScalaIterable(args).toSeq());
+          (new Block.BlockHelper(sc)).code(JavaConversions.collectionAsScalaIterable(args).toSeq());
 
       return ev.copy(input.code().$plus(code), input.isNull(), ev.value());
     }
@@ -213,7 +213,7 @@ public class EncoderHelpers {
       StringContext sc =
           new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
       Block code =
-          new Block.BlockHelper(sc).code(JavaConversions.collectionAsScalaIterable(args).toSeq());
+          (new Block.BlockHelper(sc)).code(JavaConversions.collectionAsScalaIterable(args).toSeq());
       return ev.copy(input.code().$plus(code), input.isNull(), ev.value());
     }
 

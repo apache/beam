@@ -961,12 +961,12 @@ public class ParquetIO {
                   continue;
                 }
                 if (record == null) {
-                  // it happens when a record is filtered out in this block
+                  // only happens with FilteredRecordReader at end of block
                   LOG.debug(
-                      "record is filtered out by reader in block {} in file {}",
+                      "filtered record reader reached end of block in block {} in file {}",
                       currentBlock,
                       file.toString());
-                  continue;
+                  break;
                 }
                 if (recordReader.shouldSkipCurrentRecord()) {
                   // this record is being filtered via the filter2 package

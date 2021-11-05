@@ -128,7 +128,7 @@ class ReadFromDebezium(PTransform):
 
         Experimental; no backwards compatibility guarantees.
     """
-  URN = 'beam:transform:org.apache.beam:debezium_read:v1'
+  URN = 'beam:external:java:debezium:read:v1'
 
   def __init__(
       self,

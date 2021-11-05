@@ -169,7 +169,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     } else if (isLimitQuery(node)) {
       return limitCollect(options, node);
     }
-    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues(collectRows(options, node)));
+    return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues((collectRows(options, node))));
   }
 
   private static PipelineResult limitRun(
@@ -329,7 +329,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           if (beamValue instanceof Long) { // base type
             return ((Long) beamValue).intValue();
           } else { // input type
-            return (int) ((LocalDate) beamValue).toEpochDay();
+            return (int) (((LocalDate) beamValue).toEpochDay());
           }
         } else if (CharType.IDENTIFIER.equals(logicalId)) {
           return beamValue;

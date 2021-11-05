@@ -44,6 +44,7 @@ import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.ItemSpec;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
@@ -820,7 +821,7 @@ public class ParDo {
      * DoFn#populateDisplayData}.
      */
     @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
+    public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
       ParDo.populateDisplayData(builder, fn, fnDisplayData);
     }
@@ -983,7 +984,7 @@ public class ParDo {
     }
 
     @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
+    public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
       ParDo.populateDisplayData(builder, fn, fnDisplayData);
     }
@@ -1072,5 +1073,9 @@ public class ParDo {
         throw new RuntimeException(e);
       }
     }
+  }
+
+  private static boolean isSplittable(DoFn<?, ?> fn) {
+    return DoFnSignatures.signatureForDoFn(fn).processElement().isSplittable();
   }
 }

@@ -24,12 +24,10 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 
-import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -46,21 +44,29 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.fn.channel.AddHarnessIdInterceptor;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
-import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Metadata.Key;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -76,23 +82,15 @@ public class BeamFnDataGrpcServiceTest {
   private static final String TRANSFORM_ID = "888";
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
-  private static final String WORKER_ID = "testWorker";
+  private static final String DEFAULT_CLIENT = "";
 
   private Server server;
   private BeamFnDataGrpcService service;
 
-  private Endpoints.ApiServiceDescriptor findOpenPort() throws Exception {
-    InetAddress address = InetAddress.getLoopbackAddress();
-    try (ServerSocket socket = new ServerSocket(0, -1, address)) {
-      return Endpoints.ApiServiceDescriptor.newBuilder()
-          .setUrl(HostAndPort.fromParts(address.getHostAddress(), socket.getLocalPort()).toString())
-          .build();
-    }
-  }
-
   @Before
   public void setUp() throws Exception {
-    Endpoints.ApiServiceDescriptor descriptor = findOpenPort();
+    Endpoints.ApiServiceDescriptor descriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder().setUrl(UUID.randomUUID().toString()).build();
     PipelineOptions options = PipelineOptionsFactory.create();
     service =
         new BeamFnDataGrpcService(
@@ -100,7 +98,7 @@ public class BeamFnDataGrpcServiceTest {
             descriptor,
             ServerStreamObserverFactory.fromOptions(options)::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor());
-    server = ServerFactory.createDefault().create(Arrays.asList(service), descriptor);
+    server = createServer(service, descriptor);
   }
 
   @After
@@ -116,13 +114,10 @@ public class BeamFnDataGrpcServiceTest {
     int numberOfClients = 3;
 
     for (int client = 0; client < numberOfClients; ++client) {
-      final int workerSuffix = client;
       executorService.submit(
           () -> {
             ManagedChannel channel =
-                ManagedChannelFactory.createDefault()
-                    .withInterceptors(Arrays.asList(AddHarnessIdInterceptor.create(WORKER_ID)))
-                    .forDescriptor(service.getApiServiceDescriptor());
+                InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl()).build();
             StreamObserver<BeamFnApi.Elements> outboundObserver =
                 BeamFnDataGrpc.newStub(channel)
                     .data(TestStreams.withOnNext(clientInboundElements::add).build());
@@ -135,7 +130,7 @@ public class BeamFnDataGrpcServiceTest {
     for (int i = 0; i < 3; ++i) {
       CloseableFnDataReceiver<WindowedValue<String>> consumer =
           service
-              .getDataService(WORKER_ID)
+              .getDataService(DEFAULT_CLIENT)
               .send(LogicalEndpoint.data(Integer.toString(i), TRANSFORM_ID), CODER);
 
       consumer.accept(valueInGlobalWindow("A" + i));
@@ -172,9 +167,28 @@ public class BeamFnDataGrpcServiceTest {
       executorService.submit(
           () -> {
             ManagedChannel channel =
-                ManagedChannelFactory.createDefault()
-                    .withInterceptors(Arrays.asList(AddHarnessIdInterceptor.create(clientId)))
-                    .forDescriptor(service.getApiServiceDescriptor());
+                InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl())
+                    .intercept(
+                        new ClientInterceptor() {
+                          @Override
+                          public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+                              MethodDescriptor<ReqT, RespT> method,
+                              CallOptions callOptions,
+                              Channel next) {
+                            return new SimpleForwardingClientCall<ReqT, RespT>(
+                                next.newCall(method, callOptions)) {
+                              @Override
+                              public void start(
+                                  Listener<RespT> responseListener, Metadata headers) {
+                                headers.put(
+                                    Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER),
+                                    clientId);
+                                super.start(responseListener, headers);
+                              }
+                            };
+                          }
+                        })
+                    .build();
             StreamObserver<BeamFnApi.Elements> outboundObserver =
                 BeamFnDataGrpc.newStub(channel)
                     .data(TestStreams.withOnNext(clientInboundElements.get(clientId)::add).build());
@@ -227,9 +241,7 @@ public class BeamFnDataGrpcServiceTest {
       executorService.submit(
           () -> {
             ManagedChannel channel =
-                ManagedChannelFactory.createDefault()
-                    .withInterceptors(Arrays.asList(AddHarnessIdInterceptor.create(WORKER_ID)))
-                    .forDescriptor(service.getApiServiceDescriptor());
+                InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl()).build();
             StreamObserver<BeamFnApi.Elements> outboundObserver =
                 BeamFnDataGrpc.newStub(channel)
                     .data(TestStreams.withOnNext(clientInboundElements::add).build());
@@ -247,7 +259,7 @@ public class BeamFnDataGrpcServiceTest {
       serverInboundValues.add(serverInboundValue);
       inboundDataClients.add(
           service
-              .getDataService(WORKER_ID)
+              .getDataService(DEFAULT_CLIENT)
               .receive(
                   LogicalEndpoint.data(Integer.toString(i), TRANSFORM_ID),
                   CODER,
@@ -290,5 +302,18 @@ public class BeamFnDataGrpcServiceTest {
                 .setTransformId(TRANSFORM_ID)
                 .setIsLast(true))
         .build();
+  }
+
+  private Server createServer(BindableService service, Endpoints.ApiServiceDescriptor descriptor)
+      throws Exception {
+    String serverName = descriptor.getUrl();
+    Server server =
+        InProcessServerBuilder.forName(serverName)
+            .addService(
+                ServerInterceptors.intercept(
+                    service, GrpcContextHeaderAccessorProvider.interceptor()))
+            .build();
+    server.start();
+    return server;
   }
 }
