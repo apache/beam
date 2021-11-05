@@ -22,10 +22,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 )
 
-type cacheHookKey string
-
-const (
-	cacheSizeKey cacheHookKey = "sideCacheSize"
+var (
+	cacheSize int = 0
 )
 
 func init() {
@@ -33,7 +31,7 @@ func init() {
 		return hooks.Hook{
 			Init: func(ctx context.Context) (context.Context, error) {
 				if len(opts) == 0 {
-					return context.WithValue(ctx, cacheSizeKey, 0), nil
+					return ctx, nil
 				}
 				if len(opts) > 1 {
 					return ctx, fmt.Errorf("expected 1 option, got %v: %v", len(opts), opts)
@@ -44,8 +42,8 @@ func init() {
 				if err != nil {
 					return nil, err
 				}
-
-				return context.WithValue(ctx, cacheSizeKey, count), nil
+				cacheSize = count
+				return ctx, nil
 			},
 		}
 	}

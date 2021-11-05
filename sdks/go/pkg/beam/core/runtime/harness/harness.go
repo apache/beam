@@ -98,11 +98,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
-	cacheSize, ok := ctx.Value(cacheSizeKey).(int)
-	if !ok {
-		cacheSize = 0
-	}
-
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
