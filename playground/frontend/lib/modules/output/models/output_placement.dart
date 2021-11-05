@@ -23,9 +23,9 @@ const kRightOutputPlacementName = 'Right';
 const kLeftOutputPlacementName = 'Left';
 
 enum OutputPlacement {
-  bottom,
-  left,
   right,
+  left,
+  bottom,
 }
 
 extension OutputPlacementToIcon on OutputPlacement {
