@@ -400,7 +400,12 @@ public class BigQueryHelpers {
     Matcher match = BigQueryIO.TABLE_SPEC.matcher(tableSpec);
     if (!match.matches()) {
       throw new IllegalArgumentException(
-          "Table reference is not in the expected " + "format: " + tableSpec);
+          String.format(
+              "Table specification [%s] is not in one of the expected formats ("
+                  + " [project_id]:[dataset_id].[table_id],"
+                  + " [project_id].[dataset_id].[table_id],"
+                  + " [dataset_id].[table_id])",
+              tableSpec));
     }
 
     TableReference ref = new TableReference();

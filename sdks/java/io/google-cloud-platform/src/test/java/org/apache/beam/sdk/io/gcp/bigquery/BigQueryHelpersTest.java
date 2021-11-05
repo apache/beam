@@ -98,6 +98,19 @@ public class BigQueryHelpersTest {
   }
 
   @Test
+  public void testTableParsingError0() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, BigQueryHelpers.parseTableSpec("foo_bar_baz"));
+    String expectedMessage =
+        "Table specification [foo_bar_baz] is not in one of the expected formats ("
+            + " [project_id]:[dataset_id].[table_id],"
+            + " [project_id].[dataset_id].[table_id],"
+            + " [dataset_id].[table_id])";
+
+    assertEquals(expectedMessage, e.getMessage());
+  }
+
+  @Test
   public void testTableParsingError() {
     thrown.expect(IllegalArgumentException.class);
     BigQueryHelpers.parseTableSpec("0123456:foo.bar");
