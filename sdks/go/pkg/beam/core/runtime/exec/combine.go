@@ -50,6 +50,8 @@ type Combine struct {
 	createAccumInv, addInputInv, mergeInv, extractOutputInv *invoker
 	// cached value converter for add input.
 	aiValConvert func(interface{}) interface{}
+
+	states *metrics.PTransformState
 }
 
 // GetPID returns the PTransformID for this CombineFn.
@@ -68,6 +70,8 @@ func (n *Combine) Up(ctx context.Context) error {
 		return errors.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
 	n.status = Up
+
+	n.states = metrics.NewPTransformState(n.PID)
 
 	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
@@ -121,6 +125,8 @@ func (n *Combine) StartBundle(ctx context.Context, id string, data DataContext) 
 	// per-unit, to avoid the constant allocation overhead.
 	n.ctx = metrics.SetPTransformID(ctx, n.PID)
 
+	n.states.Set(n.ctx, metrics.StartBundle)
+
 	if err := n.Out.StartBundle(n.ctx, id, data); err != nil {
 		return n.fail(err)
 	}
@@ -133,6 +139,8 @@ func (n *Combine) ProcessElement(ctx context.Context, value *FullValue, values .
 	if n.status != Active {
 		return errors.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
+
+	n.states.Set(n.ctx, metrics.ProcessBundle)
 
 	// Note that we do not explicitly call merge, although it may
 	// be called implicitly when adding input.
@@ -177,6 +185,9 @@ func (n *Combine) FinishBundle(ctx context.Context) error {
 		return errors.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
 	n.status = Up
+
+	n.states.Set(n.ctx, metrics.FinishBundle)
+
 	if n.createAccumInv != nil {
 		n.createAccumInv.Reset()
 	}
