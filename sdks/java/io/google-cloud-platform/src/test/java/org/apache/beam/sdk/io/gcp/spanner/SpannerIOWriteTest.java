@@ -44,6 +44,7 @@ import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Options.ReadQueryUpdateTransactionOption;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSets;
 import com.google.cloud.spanner.SpannerExceptionFactory;
@@ -63,6 +64,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherSortCreateBatchesFn;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.Write;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteToSpannerFn;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -338,6 +340,30 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
+  public void streamingWritesWithPriority() throws Exception {
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(2L))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(m(3L), m(4L))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(m(5L), m(6L))
+            .advanceWatermarkToInfinity();
+    Write write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withHighPriority();
+    pipeline.apply(testStream).apply(write);
+    pipeline.run();
+
+    assertEquals(RpcPriority.HIGH, write.getSpannerConfig().getRpcPriority().get());
+    verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+  }
+
+  @Test
   public void streamingWritesWithGrouping() throws Exception {
 
     // verify that grouping/sorting occurs when set.
@@ -356,6 +382,32 @@ public class SpannerIOWriteTest implements Serializable {
                 .withGroupingFactor(40)
                 .withMaxNumRows(2));
     pipeline.run();
+
+    // Output should be batches of sorted mutations.
+    verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+  }
+
+  @Test
+  public void streamingWritesWithGroupingWithPriority() throws Exception {
+
+    // verify that grouping/sorting occurs when set.
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(5L), m(2L), m(4L), m(3L), m(6L))
+            .advanceWatermarkToInfinity();
+
+    Write write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withGroupingFactor(40)
+            .withMaxNumRows(2)
+            .withLowPriority();
+    pipeline.apply(testStream).apply(write);
+    pipeline.run();
+    assertEquals(RpcPriority.LOW, write.getSpannerConfig().getRpcPriority().get());
 
     // Output should be batches of sorted mutations.
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));

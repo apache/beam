@@ -30,6 +30,7 @@ import com.google.cloud.spanner.FakeBatchTransactionId;
 import com.google.cloud.spanner.FakePartitionFactory;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Options.ReadQueryUpdateTransactionOption;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.ResultSets;
@@ -48,6 +49,7 @@ import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.Read;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -140,6 +142,47 @@ public class SpannerIOReadTest implements Serializable {
     pipeline.run();
   }
 
+  @Test
+  public void runQueryWithPriority() throws Exception {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig = getSpannerConfig();
+    Read read =
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery("SELECT * FROM users")
+            .withTimestampBound(timestampBound)
+            .withHighPriority();
+
+    PCollection<Struct> one = pipeline.apply("read q", read);
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runQueryTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+        .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+        .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+        FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionQuery(
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
+        .thenReturn(Arrays.asList(fakePartition, fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+        .thenReturn(
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 6)));
+
+    PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
+    assertEquals(RpcPriority.HIGH, read.getSpannerConfig().getRpcPriority().get());
+    pipeline.run();
+  }
+
   private SpannerConfig getSpannerConfig() {
     return SpannerConfig.create()
         .withProjectId("test")
@@ -190,6 +233,51 @@ public class SpannerIOReadTest implements Serializable {
 
     PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
 
+    pipeline.run();
+  }
+
+  @Test
+  public void runReadWithPriority() throws Exception {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig = getSpannerConfig();
+
+    Read read =
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withTable("users")
+            .withColumns("id", "name")
+            .withTimestampBound(timestampBound)
+            .withLowPriority();
+    PCollection<Struct> one = pipeline.apply("read q", read);
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runReadTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+        .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+        .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+        FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionRead(
+            any(PartitionOptions.class),
+            eq("users"),
+            eq(KeySet.all()),
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
+        .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+        .thenReturn(
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
+
+    PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
+    assertEquals(RpcPriority.LOW, read.getSpannerConfig().getRpcPriority().get());
     pipeline.run();
   }
 
