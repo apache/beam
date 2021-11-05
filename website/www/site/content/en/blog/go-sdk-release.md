@@ -143,8 +143,8 @@ Generally, packages in the module other than the primary user packages are for f
     * This is a breaking change if one was calling `beam.TryCrossLanguage`
 
 #### Fixed in 2.35.0
-  * Non-Global Window Side Inputs don't match (correctness bug) [BEAM-11087](https://issues.apache.org/jira/browse/BEAM-11087)
-    * Until 2.35.0 it's not recommended to use Side Inputs that are not using the Global Window.
+  * Non-global window Side Inputs don't match (correctness bug) [BEAM-11087](https://issues.apache.org/jira/browse/BEAM-11087)
+    * Until 2.35.0 it's not recommended to use Side Inputs that are not using the global window.
   * DoFns using Side Inputs accumulate memory over bundles, causing OOMs [BEAM-13130](https://issues.apache.org/jira/browse/BEAM-13130)
 
 ## Roadmap
