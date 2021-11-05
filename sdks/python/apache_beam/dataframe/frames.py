@@ -1581,6 +1581,18 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Arbitrary(),
             requires_partition_by=partitionings.Arbitrary()))
 
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def set_axis(self, labels, **kwargs):
+    # TODO: assigning the index is generally order-sensitive, but we could
+    # support it in some rare cases, e.g. when assigning the index from one
+    # of a DataFrame's columns
+    raise NotImplementedError(
+        "Assigning an index is not yet supported. "
+        "Consider using set_index() instead.")
+
   isnull = isna = frame_base._elementwise_method('isna', base=pd.Series)
   notnull = notna = frame_base._elementwise_method('notna', base=pd.Series)
 
@@ -2318,6 +2330,29 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           [self._expr],
           requires_partition_by=partitionings.Arbitrary(),
           preserves_partition_by=partitionings.Singleton()))
+
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def set_axis(self, labels, axis, **kwargs):
+    if axis in ('index', 0):
+      # TODO: assigning the index is generally order-sensitive, but we could
+      # support it in some rare cases, e.g. when assigning the index from one
+      # of a DataFrame's columns
+      raise NotImplementedError(
+          "Assigning an index is not yet supported. "
+          "Consider using set_index() instead.")
+    else:
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'set_axis',
+              lambda df: df.set_axis(labels, axis, **kwargs),
+              [self._expr],
+              requires_partition_by=partitionings.Arbitrary(),
+              preserves_partition_by=partitionings.Arbitrary()))
+
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
@@ -3375,6 +3410,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       # bug with shift on empty indexes.
       # Fortunately the proxy should be identical to the input.
       proxy = self._expr.proxy().copy()
+
 
       # index is modified, so no partitioning is preserved.
       preserves = partitionings.Singleton()
