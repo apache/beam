@@ -126,11 +126,11 @@ public final class SnsIO {
 
     abstract Builder builder();
 
-    @VisibleForTesting
-    static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+    public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
       return create(maxAttempts, maxDuration, DEFAULT_INITIAL_DURATION);
     }
 
+    @VisibleForTesting
     static RetryConfiguration create(
         int maxAttempts, Duration maxDuration, Duration initialDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
