@@ -65,6 +65,7 @@ import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialRestrictionMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialWatermarkEstimatorStateMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
@@ -2535,11 +2536,18 @@ public class DoFnSignatures {
     return parameters.stream().anyMatch(parameter -> parameter instanceof BundleFinalizerParameter);
   }
 
+  private static boolean containsBundleFinalizer(@Nullable MethodWithExtraParameters method) {
+    if (method == null) {
+      return false;
+    }
+    return containsBundleFinalizer(method.extraParameters());
+  }
+
   public static boolean usesBundleFinalizer(DoFn<?, ?> doFn) {
     DoFnSignature sig = signatureForDoFn(doFn);
-    return containsBundleFinalizer(sig.startBundle().extraParameters())
-        || containsBundleFinalizer(sig.finishBundle().extraParameters())
-        || containsBundleFinalizer(sig.processElement().extraParameters());
+    return containsBundleFinalizer(sig.startBundle())
+        || containsBundleFinalizer(sig.finishBundle())
+        || containsBundleFinalizer(sig.processElement());
   }
 
   public static boolean requiresTimeSortedInput(DoFn<?, ?> doFn) {
