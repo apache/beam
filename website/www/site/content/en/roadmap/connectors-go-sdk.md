@@ -22,6 +22,6 @@ through cross-language transforms feature.
   * KafkaIO via Java - DONE
   * BigQuery via Java - In Progress
   * Beam SQL via Java
-* The Go SDK supports SplittableDoFns for Batch, so scalable batch transforms are possible.
+* The Go SDK supports SplittableDoFns for bounded pipelines, so scalable bounded pipelines are possible.
     * The textio package supports [ReadSdf](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#ReadSdf) and [ReadAllSdf](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#ReadAllSdf) for efficient batch text reads.
     * A general FileIO will be produced to simplify adding new file based connectors.

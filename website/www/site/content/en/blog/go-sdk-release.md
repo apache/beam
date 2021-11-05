@@ -37,7 +37,7 @@ The next run of `go mod tidy` will fetch the latest stable version of the module
 Alternatively executing `go get github.com/apache/beam/sdks/v2/go/pkg/beam` will download it to the local module cache immeadiately, and add it to your `go.mod` file.
 
 Existing users of the experimental Go SDK need to update to new `v2` import paths to start using the latest versions of the SDK.
-This is can be done by adding `v2` to the import paths, changing `github.com/apache/beam/sdks/go/`... to `github.com/apache/beam/sdks/v2/go/`... where applicable, and then running `go mod tidy`.
+This can be done by adding `v2` to the import paths, changing `github.com/apache/beam/sdks/go/`... to `github.com/apache/beam/sdks/v2/go/`... where applicable, and then running `go mod tidy`.
 
 Further documentation on using the SDK is available in the [Beam Programming Guide](/documentation/programming-guide/), and in the package [Go Doc](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam).
 
@@ -63,8 +63,8 @@ custom user use, supporting following features:
   * Composite transforms
   * Cross language transforms
 * EventTime windowing
-  * Global, Fixed Interval, Sliding, and Session windows
-  * Aggregating over windowed PCollections with GroupByKeys or Combines.
+  * Global, Interval, Sliding, and Session windows
+  * Aggregating over windowed PCollections with GroupByKeys or Combines
 * Coders
   * Primitive Go types (ints, string, []bytes, and more)
   * Beam Schemas for Go Struct types (including struct, slice, and map fields)
@@ -87,7 +87,7 @@ With this release, the Go SDK now uses [Go Modules](https://golang.org/ref/mod) 
 This makes it so users, SDK authors, and the testing infrastructure can all rely on the same versions of dependencies, making builds reproducible.
 This also makes [validating Go SDK Release Candidates simple](/blog/validate-beam-release/#configuring-a-go-build-to-validate-a-beam-release-candidate).
 
-Versioned SDK worker containers are now built and [published](https://hub.docker.com/r/apache/beam_go_sdk/tags?page=1&ordering=last_updated), with the SDK using matched tagged versions.
+Versioned SDK worker containers are now built and [published](https://hub.docker.com/r/apache/beam_go_sdk/tags?page=1&ordering=last_updated), with the SDK using matching tagged versions.
 User jobs no longer need to specify a container to use for released versions, except when using custom containers.
 
 ## Compatibility
@@ -124,15 +124,15 @@ Generally, packages in the module other than the primary user packages are for f
 ### Known Issues
 
 #### Batteries not included.
-* Current native transforms are undertested.
-* IOs may not be written to scale.
-* Go Direct Runner is incomplete and is not portable, prefer using the Python Portable runner, or Flink.
+* Current native transforms are undertested
+* IOs may not be written to scale
+* Go Direct Runner is incomplete and is not portable, prefer using the Python Portable runner, or Flink
   * Doesn't support side input windowing. [BEAM-13075](https://issues.apache.org/jira/browse/BEAM-13075)
   * Doesn't serialize data, making it unlikely to catch coder issues [BEAM-6372](https://issues.apache.org/jira/browse/BEAM-6372)
   * Can use other general improvements, and become portable [BEAM-11076](https://issues.apache.org/jira/browse/BEAM-11076)
-* Current Trigger API is under iteration and subject to change [BEAM-3304](https://issues.apache.org/jira/browse/BEAM-3304).
-  * API has a possible breaking change between 2.33.0 and 2.34.0, and may change again.
-* Support of the SDK on services, like Google Cloud Dataflow, remains at the service owner's discretion.
+* Current Trigger API is under iteration and subject to change [BEAM-3304](https://issues.apache.org/jira/browse/BEAM-3304)
+  * API has a possible breaking change between 2.33.0 and 2.34.0, and may change again
+* Support of the SDK on services, like Google Cloud Dataflow, remains at the service owner's discretion
 * Need something?
   * File a ticket in the [Beam JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go) and,
   * Email the [dev@beam.apache.org](mailto:dev@beam.apache.org?subject=%5BGo%20SDK%20Feature%5D) list!
@@ -143,16 +143,16 @@ Generally, packages in the module other than the primary user packages are for f
     * This is a breaking change if one was calling `beam.TryCrossLanguage`
 
 #### Fixed in 2.35.0
-  * Non-global window Side Inputs don't match (correctness bug) [BEAM-11087](https://issues.apache.org/jira/browse/BEAM-11087)
-    * Until 2.35.0 it's not recommended to use Side Inputs that are not using the global window.
-  * DoFns using Side Inputs accumulate memory over bundles, causing OOMs [BEAM-13130](https://issues.apache.org/jira/browse/BEAM-13130)
+  * Non-global window side inputs don't match (correctness bug) [BEAM-11087](https://issues.apache.org/jira/browse/BEAM-11087)
+    * Until 2.35.0 it's not recommended to use side inputs that are not using the global window.
+  * DoFns using side inputs accumulate memory over bundles, causing out of memory issues [BEAM-13130](https://issues.apache.org/jira/browse/BEAM-13130)
 
 ## Roadmap
 
 The [SDK roadmap](/roadmap/go-sdk/) has been updated.
 Ongoing focus is to bolster streaming focused features, improve existing connectors, and make connectors easier to implement.
 
-In the nearer term this comes in the form of improvements to Side Inputs, and providing wrappers and improving ease-of-use for Cross Language Transforms from Java.
+In the nearer term this comes in the form of improvements to side inputs, and providing wrappers and improving ease-of-use for cross language transforms from Java.
 
 ## Conclusion
 

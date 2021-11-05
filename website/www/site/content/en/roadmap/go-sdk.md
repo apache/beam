@@ -23,8 +23,8 @@ The Go SDK the first SDK purely on the [Beam Portability Framework](/roadmap/por
 and can execute pipelines on portable runners, like Flink, Spark, Samza, and Google Cloud Dataflow.
 
 Current roadmap:
-* continue building up Streaming facing features, as described on the [Beam Dev Wiki](https://cwiki.apache.org/confluence/display/BEAM/Supporting+Streaming+in+the+Go+SDK).
-* improve Connector support via Cross Language transforms, and improving scalable native transforms. [Go SDK Connector Roadmap](/roadmap/connectors-go-sdk/)
+* continue building up unbounded pipeline facing features, as described on the [Beam Dev Wiki](https://cwiki.apache.org/confluence/display/BEAM/Supporting+Streaming+in+the+Go+SDK).
+* improve IO support via cross language transforms, and add scalable native transforms. [Go SDK Connector Roadmap](/roadmap/connectors-go-sdk/)
 
 Otherwise, improving examples and documentation for devs and users alike is ongoing.
 Contributions are welcome. Please contact the [dev list](mailto:dev@beam.apache.org?subject=%5BGo%20SDK%5D%20How%20can%20I%20help%3F)
