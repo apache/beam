@@ -744,7 +744,7 @@ class Reshuffle(PTransform):
     # type: (pvalue.PValue) -> pvalue.PCollection
     return (
         pcoll | 'AddRandomKeys' >>
-        Map(lambda t: (random.randint(0, self.num_buckets), t)
+        Map(lambda t: (random.randrange(0, self.num_buckets), t)
             ).with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
