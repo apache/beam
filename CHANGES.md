@@ -73,6 +73,7 @@
 * Upgraded the GCP Libraries BOM version to 24.0.0 and associated dependencies ([BEAM-11205](
   https://issues.apache.org/jira/browse/BEAM-11205)). For Google Cloud client library versions set by this BOM,
   see [this table](https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/24.0.0/artifact_details.html).
+* Removed avro-python3 support and made Fastavro as default. Boolean use_fastavro will have no effect.([BEAM-13016](https://github.com/apache/beam/pull/15900)).
 
 ## Breaking Changes
 
