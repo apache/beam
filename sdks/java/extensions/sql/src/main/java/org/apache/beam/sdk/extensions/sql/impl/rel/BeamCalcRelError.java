@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.util.Objects;
 import org.apache.beam.sdk.values.Row;
 
 public class BeamCalcRelError {
@@ -43,5 +44,22 @@ public class BeamCalcRelError {
 
   public void setError(String error) {
     this.error = error;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof BeamCalcRelError)) {
+      return false;
+    }
+    BeamCalcRelError that = (BeamCalcRelError) o;
+    return Objects.equals(getRow(), that.getRow()) && Objects.equals(getError(), that.getError());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getRow(), getError());
   }
 }
