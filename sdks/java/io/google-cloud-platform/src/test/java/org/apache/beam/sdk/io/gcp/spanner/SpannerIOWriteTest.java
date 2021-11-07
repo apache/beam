@@ -358,7 +358,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withHighPriority();
     pipeline.apply(testStream).apply(write);
     pipeline.run();
-
     assertEquals(RpcPriority.HIGH, write.getSpannerConfig().getRpcPriority().get());
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
   }
