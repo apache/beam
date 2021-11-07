@@ -280,7 +280,7 @@
       "type": "table"
     },
     {
-      "datasource": null,
+      "datasource": "Java Tests",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -420,7 +420,7 @@
       "type": "piechart"
     },
     {
-      "datasource": null,
+      "datasource": "Java Tests",
       "fieldConfig": {
         "defaults": {
           "color": {

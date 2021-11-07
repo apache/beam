@@ -22,16 +22,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
-import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStatsMetadata;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.volcano.RelSubset;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for {@code BeamRelNode}. */
@@ -59,7 +59,10 @@ public class BeamSqlRelUtils {
                   input -> {
                     final BeamRelNode beamRel;
                     if (input instanceof RelSubset) {
-                      beamRel = (BeamRelNode) ((RelSubset) input).getBest();
+                      beamRel =
+                          Preconditions.checkArgumentNotNull(
+                              (BeamRelNode) ((RelSubset) input).getBest(),
+                              "Attempted to build PCollection from unoptimized RelSubset (best is null).");
                     } else {
                       beamRel = (BeamRelNode) input;
                     }
@@ -98,7 +101,9 @@ public class BeamSqlRelUtils {
   public static BeamRelNode getBeamRelInput(RelNode input) {
     if (input instanceof RelSubset) {
       // go with known best input
-      input = ((RelSubset) input).getBest();
+      input =
+          Preconditions.checkArgumentNotNull(
+              ((RelSubset) input).getBest(), "input RelSubset has no best.");
     }
     return (BeamRelNode) input;
   }
@@ -106,16 +111,21 @@ public class BeamSqlRelUtils {
   public static RelNode getInput(RelNode input) {
     RelNode result = input;
     if (input instanceof RelSubset) {
-      // go with known best input
+      // prefer known best input
       result = ((RelSubset) input).getBest();
-      result = result == null ? ((RelSubset) input).getOriginal() : result;
+      if (result == null) {
+        result =
+            Preconditions.checkArgumentNotNull(
+                ((RelSubset) input).getOriginal(),
+                "best and original nodes are both null for input RelSubset.");
+      }
     }
 
     return result;
   }
 
-  public static NodeStats getNodeStats(RelNode input, RelMetadataQuery mq) {
+  public static NodeStats getNodeStats(RelNode input, BeamRelMetadataQuery mq) {
     input = getInput(input);
-    return input.metadata(NodeStatsMetadata.class, mq).getNodeStats();
+    return mq.getNodeStats(input);
   }
 }

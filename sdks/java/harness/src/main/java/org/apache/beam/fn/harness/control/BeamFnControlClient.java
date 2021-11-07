@@ -23,6 +23,7 @@ import java.util.EnumMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -81,11 +82,11 @@ public class BeamFnControlClient {
               BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
           handlers) {
+    this.onFinish = new CompletableFuture<>();
+    this.handlers = handlers;
     this.outboundObserver =
         outboundObserverFactory.outboundObserverFor(
             controlStub::control, new InboundObserver(executor));
-    this.handlers = handlers;
-    this.onFinish = new CompletableFuture<>();
   }
 
   private static final Object COMPLETED = new Object();
@@ -102,18 +103,28 @@ public class BeamFnControlClient {
     }
 
     @Override
-    public void onNext(BeamFnApi.InstructionRequest value) {
-      LOG.debug("Received InstructionRequest {}", value);
-      executor.execute(
-          () -> {
-            try {
-              BeamFnApi.InstructionResponse response = delegateOnInstructionRequestType(value);
-              sendInstructionResponse(response);
-            } catch (Error e) {
-              sendErrorResponse(e);
-              throw e;
-            }
-          });
+    public void onNext(BeamFnApi.InstructionRequest request) {
+      try {
+        BeamFnLoggingMDC.setInstructionId(request.getInstructionId());
+        LOG.debug("Received InstructionRequest {}", request);
+        executor.execute(
+            () -> {
+              try {
+                // Ensure that we set and clear the MDC since processing the request will occur
+                // in a separate thread.
+                BeamFnLoggingMDC.setInstructionId(request.getInstructionId());
+                BeamFnApi.InstructionResponse response = delegateOnInstructionRequestType(request);
+                sendInstructionResponse(response);
+              } catch (Error e) {
+                sendErrorResponse(e);
+                throw e;
+              } finally {
+                BeamFnLoggingMDC.setInstructionId(null);
+              }
+            });
+      } finally {
+        BeamFnLoggingMDC.setInstructionId(null);
+      }
     }
 
     @Override

@@ -27,8 +27,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.AggregateCall;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.AggregateCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Wrapper {@link CombineFn}s for aggregation function calls. */
@@ -51,10 +51,7 @@ public class AggregationCombineFnAdapter<T> {
 
     @Override
     public Object addInput(Object accumulator, T input) {
-      T processedInput = getInput(input);
-      return (processedInput == null)
-          ? accumulator
-          : combineFn.addInput(accumulator, getInput(input));
+      return combineFn.addInput(accumulator, getInput(input));
     }
 
     @Override

@@ -147,6 +147,8 @@ import org.slf4j.LoggerFactory;
  * ...
  * }</pre>
  *
+ * <p>Since Beam version 2.35.0 the splittable reading is enabled by default.
+ *
  * <p>Reading with projection can be enabled with the projection schema as following. Splittable
  * reading is enabled when reading with projection. The projection_schema contains only the column
  * that we would like to read and encoder_schema contains the schema to encode the output with the
@@ -269,7 +271,7 @@ public class ParquetIO {
     return new AutoValue_ParquetIO_Read.Builder()
         .setSchema(schema)
         .setInferBeamSchema(false)
-        .setSplittable(false)
+        .setSplittable(true)
         .build();
   }
 
@@ -279,9 +281,9 @@ public class ParquetIO {
    */
   public static ReadFiles readFiles(Schema schema) {
     return new AutoValue_ParquetIO_ReadFiles.Builder()
-        .setSplittable(false)
-        .setInferBeamSchema(false)
         .setSchema(schema)
+        .setInferBeamSchema(false)
+        .setSplittable(true)
         .build();
   }
 
@@ -292,7 +294,7 @@ public class ParquetIO {
   public static <T> Parse<T> parseGenericRecords(SerializableFunction<GenericRecord, T> parseFn) {
     return new AutoValue_ParquetIO_Parse.Builder<T>()
         .setParseFn(parseFn)
-        .setSplittable(false)
+        .setSplittable(true)
         .build();
   }
 
@@ -304,7 +306,7 @@ public class ParquetIO {
       SerializableFunction<GenericRecord, T> parseFn) {
     return new AutoValue_ParquetIO_ParseFiles.Builder<T>()
         .setParseFn(parseFn)
-        .setSplittable(false)
+        .setSplittable(true)
         .build();
   }
 
@@ -387,9 +389,26 @@ public class ParquetIO {
       return toBuilder().setInferBeamSchema(inferBeamSchema).build();
     }
 
-    /** Enable the Splittable reading. */
+    /**
+     * Enable the Splittable reading.
+     *
+     * @deprecated as of version 2.35.0. Splittable reading is enabled by default.
+     */
+    @Deprecated
     public Read withSplit() {
       return toBuilder().setSplittable(true).build();
+    }
+
+    /**
+     * Disable the Splittable reading.
+     *
+     * @deprecated This method may currently be used to opt-out of the default, splittable,
+     *     behavior. However, this will be removed in a future release assuming no issues are
+     *     discovered.
+     */
+    @Deprecated
+    public Read withoutSplit() {
+      return toBuilder().setSplittable(false).build();
     }
 
     /**
@@ -502,8 +521,26 @@ public class ParquetIO {
       return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
+    /**
+     * Enable the Splittable reading.
+     *
+     * @deprecated as of version 2.35.0. Splittable reading is enabled by default.
+     */
+    @Deprecated
     public Parse<T> withSplit() {
       return toBuilder().setSplittable(true).build();
+    }
+
+    /**
+     * Disable the Splittable reading.
+     *
+     * @deprecated This method may currently be used to opt-out of the default, splittable,
+     *     behavior. However, this will be removed in a future release assuming no issues are
+     *     discovered.
+     */
+    @Deprecated
+    public Parse<T> withoutSplit() {
+      return toBuilder().setSplittable(false).build();
     }
 
     @Override
@@ -518,6 +555,7 @@ public class ParquetIO {
                   .toBuilder()
                   .setCoder(getCoder())
                   .setSplittable(isSplittable())
+                  .setConfiguration(getConfiguration())
                   .build());
     }
 
@@ -588,8 +626,26 @@ public class ParquetIO {
       return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
+    /**
+     * Enable the Splittable reading.
+     *
+     * @deprecated as of version 2.35.0. Splittable reading is enabled by default.
+     */
+    @Deprecated
     public ParseFiles<T> withSplit() {
       return toBuilder().setSplittable(true).build();
+    }
+
+    /**
+     * Disable the Splittable reading.
+     *
+     * @deprecated This method may currently be used to opt-out of the default, splittable,
+     *     behavior. However, this will be removed in a future release assuming no issues are
+     *     discovered.
+     */
+    @Deprecated
+    public ParseFiles<T> withoutSplit() {
+      return toBuilder().setSplittable(false).build();
     }
 
     @Override
@@ -734,9 +790,26 @@ public class ParquetIO {
       return toBuilder().setInferBeamSchema(inferBeamSchema).build();
     }
 
-    /** Enable the Splittable reading. */
+    /**
+     * Enable the Splittable reading.
+     *
+     * @deprecated as of version 2.35.0. Splittable reading is enabled by default.
+     */
+    @Deprecated
     public ReadFiles withSplit() {
       return toBuilder().setSplittable(true).build();
+    }
+
+    /**
+     * Disable the Splittable reading.
+     *
+     * @deprecated This method may currently be used to opt-out of the default, splittable,
+     *     behavior. However, this will be removed in a future release assuming no issues are
+     *     discovered.
+     */
+    @Deprecated
+    public ReadFiles withoutSplit() {
+      return toBuilder().setSplittable(false).build();
     }
 
     @Override
@@ -888,12 +961,12 @@ public class ParquetIO {
                   continue;
                 }
                 if (record == null) {
-                  // only happens with FilteredRecordReader at end of block
+                  // it happens when a record is filtered out in this block
                   LOG.debug(
-                      "filtered record reader reached end of block in block {} in file {}",
+                      "record is filtered out by reader in block {} in file {}",
                       currentBlock,
                       file.toString());
-                  break;
+                  continue;
                 }
                 if (recordReader.shouldSkipCurrentRecord()) {
                   // this record is being filtered via the filter2 package
@@ -1054,6 +1127,11 @@ public class ParquetIO {
       }
     }
 
+    /**
+     * @deprecated as of version 2.35.0. Splittable reading with {@link SplitReadFn} should be used
+     *     instead.
+     */
+    @Deprecated
     static class ReadFn<T> extends DoFn<ReadableFile, T> {
 
       private final Class<? extends GenericData> modelClass;

@@ -57,6 +57,10 @@ const (
 	URNReshuffleInput       = "beam:go:transform:reshuffleinput:v1"
 	URNReshuffleOutput      = "beam:go:transform:reshuffleoutput:v1"
 
+	URNWindowMappingGlobal  = "beam:go:windowmapping:global:v1"
+	URNWindowMappingFixed   = "beam:go:windowmapping:fixed:v1"
+	URNWindowMappingSliding = "beam:go:windowmapping:sliding:v1"
+
 	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
 
@@ -386,6 +390,24 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 				// Fixup input map
 				inputs[fmt.Sprintf("i%v", i)] = out
 
+				siWfn := in.From.WindowingStrategy().Fn
+				var mappingUrn string
+				switch siWfn.Kind {
+				case window.GlobalWindows:
+					mappingUrn = URNWindowMappingGlobal
+				case window.FixedWindows:
+					mappingUrn = URNWindowMappingFixed
+				case window.SlidingWindows:
+					mappingUrn = URNWindowMappingSliding
+				case window.Sessions:
+					panic("session windowing is not supported for side inputs")
+				}
+
+				siWSpec, err := makeWindowFn(siWfn)
+				if err != nil {
+					return nil, err
+				}
+
 				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput{
 					AccessPattern: &pipepb.FunctionSpec{
 						Urn: URNMultimapSideInput,
@@ -394,7 +416,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 						Urn: "foo",
 					},
 					WindowMappingFn: &pipepb.FunctionSpec{
-						Urn: "bar",
+						Urn:     mappingUrn,
+						Payload: siWSpec.Payload,
 					},
 				}
 
@@ -796,7 +819,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 				// ...and since every pane should have 1 element,
 				// try to preserve the timestamp.
 				OutputTime: pipepb.OutputTime_EARLIEST_IN_PANE,
-				// Defaults copied from marshalWindowingStrategy.
+				// Defaults copied from MarshalWindowingStrategy.
 				// TODO(BEAM-3304): migrate to user side operations once trigger support is in.
 				EnvironmentId:   m.addDefaultEnv(),
 				MergeStatus:     pipepb.MergeStatus_NON_MERGING,
@@ -940,7 +963,7 @@ func (m *marshaller) addDefaultEnv() string {
 }
 
 func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) (string, error) {
-	ws, err := marshalWindowingStrategy(m.coders, w)
+	ws, err := MarshalWindowingStrategy(m.coders, w)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to add window strategy %v", w)
 	}
@@ -960,9 +983,9 @@ func (m *marshaller) internWindowingStrategy(w *pipepb.WindowingStrategy) string
 	return id
 }
 
-// marshalWindowingStrategy marshals the given windowing strategy in
+// MarshalWindowingStrategy marshals the given windowing strategy in
 // the given coder context.
-func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (*pipepb.WindowingStrategy, error) {
+func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (*pipepb.WindowingStrategy, error) {
 	windowFn, err := makeWindowFn(w.Fn)
 	if err != nil {
 		return nil, err
@@ -1042,16 +1065,34 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 			},
 		}
 	case window.AfterProcessingTimeTrigger:
-		// TODO(BEAM-3304) Right now would work only for single delay value.
-		// could be configured to take more than one delay values later.
-		ttd := &pipepb.TimestampTransform{
-			TimestampTransform: &pipepb.TimestampTransform_Delay_{
-				Delay: &pipepb.TimestampTransform_Delay{DelayMillis: t.Delay},
-			}}
-		tt := []*pipepb.TimestampTransform{ttd}
+		if len(t.TimestampTransforms) == 0 {
+			panic("AfterProcessingTime trigger set without a delay or alignment.")
+		}
+		tts := []*pipepb.TimestampTransform{}
+		for _, tt := range t.TimestampTransforms {
+			var ttp *pipepb.TimestampTransform
+			switch tt := tt.(type) {
+			case window.DelayTransform:
+				ttp = &pipepb.TimestampTransform{
+					TimestampTransform: &pipepb.TimestampTransform_Delay_{
+						Delay: &pipepb.TimestampTransform_Delay{DelayMillis: tt.Delay},
+					}}
+			case window.AlignToTransform:
+				ttp = &pipepb.TimestampTransform{
+					TimestampTransform: &pipepb.TimestampTransform_AlignTo_{
+						AlignTo: &pipepb.TimestampTransform_AlignTo{
+							Period: tt.Period,
+							Offset: tt.Offset,
+						},
+					}}
+			}
+			tts = append(tts, ttp)
+		}
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterProcessingTime_{
-				AfterProcessingTime: &pipepb.Trigger_AfterProcessingTime{TimestampTransforms: tt},
+				AfterProcessingTime: &pipepb.Trigger_AfterProcessingTime{
+					TimestampTransforms: tts,
+				},
 			},
 		}
 	case window.ElementCountTrigger:

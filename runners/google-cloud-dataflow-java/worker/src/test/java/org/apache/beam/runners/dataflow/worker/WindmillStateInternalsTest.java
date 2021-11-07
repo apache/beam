@@ -440,6 +440,69 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testMapPutIfAbsentNoReadSucceeds() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag1, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    waitAndSet(future, null, 50);
+    ReadableState<Integer> readableState = mapState.putIfAbsent(tag1, 42);
+    assertEquals(42, (int) mapState.get(tag1).read());
+    assertNull(readableState.read());
+  }
+
+  @Test
+  public void testMapPutIfAbsentNoReadFails() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    mapState.put(tag1, 1);
+    ReadableState<Integer> readableState = mapState.putIfAbsent(tag1, 42);
+    assertEquals(1, (int) mapState.get(tag1).read());
+    assertEquals(1, (int) readableState.read());
+
+    final String tag2 = "tag2";
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag2, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    waitAndSet(future, 2, 50);
+    readableState = mapState.putIfAbsent(tag2, 42);
+    assertEquals(2, (int) mapState.get(tag2).read());
+    assertEquals(2, (int) readableState.read());
+  }
+
+  @Test
+  public void testMapMultiplePutIfAbsentNoRead() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag1, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    waitAndSet(future, null, 50);
+    ReadableState<Integer> readableState = mapState.putIfAbsent(tag1, 42);
+    assertEquals(42, (int) mapState.get(tag1).read());
+    ReadableState<Integer> readableState2 = mapState.putIfAbsent(tag1, 43);
+    mapState.put(tag1, 1);
+    ReadableState<Integer> readableState3 = mapState.putIfAbsent(tag1, 44);
+    assertEquals(1, (int) mapState.get(tag1).read());
+    assertNull(readableState.read());
+    assertEquals(42, (int) readableState2.read());
+    assertEquals(1, (int) readableState3.read());
+  }
+
+  @Test
   public void testMapNegativeCache() throws Exception {
     StateTag<MapState<String, Integer>> addr =
         StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());

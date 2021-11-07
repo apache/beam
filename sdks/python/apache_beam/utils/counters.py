@@ -114,7 +114,7 @@ class CounterName(_CounterName):
       output_index=None,
       io_target=None):
     origin = origin or CounterName.SYSTEM
-    return super(CounterName, cls).__new__(
+    return super().__new__(
         cls,
         name,
         stage_name,
@@ -206,7 +206,7 @@ class AccumulatorCombineFnCounter(Counter):
   def __init__(self, name, combine_fn):
     # type: (CounterName, cy_combiners.AccumulatorCombineFn) -> None
     assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
-    super(AccumulatorCombineFnCounter, self).__init__(name, combine_fn)
+    super().__init__(name, combine_fn)
     self.reset()
 
   def update(self, value):
@@ -268,4 +268,4 @@ class CounterFactory(object):
       this method returns hence the returned iterable may be stale.
     """
     with self._lock:
-      return self.counters.values()  # pylint: disable=dict-values-not-iterating
+      return self.counters.values()  # pylint: disable=bad-option-value

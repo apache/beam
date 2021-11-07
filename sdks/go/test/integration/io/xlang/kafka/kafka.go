@@ -32,26 +32,11 @@ func appendUuid(prefix string) string {
 	return fmt.Sprintf("%v_%v", prefix, uuid.New())
 }
 
-// Constants for the BasicPipeline.
-const (
-	numRecords = 1000
-	basicTopic = "xlang_kafkaio_basic_test"
-)
+// writeList encodes a list of ints and sends encoded ints to Kafka.
+func writeInts(s beam.Scope, expansionAddr, bootstrapAddr, topic string, inputs []int) {
+	s = s.Scope("kafka_test.WriteListToKafka")
 
-// BasicPipeline creates a pipeline that writes and then reads a range of ints
-// to and from a Kafka topic and asserts that all elements are present. This
-// function requires an expansion service address and a Kafka bootstrap server
-// address.
-func BasicPipeline(expansionAddr, bootstrapAddr string) *beam.Pipeline {
-	topic := appendUuid(basicTopic)
-	inputs := make([]int, numRecords)
-	for i := 0; i < numRecords; i++ {
-		inputs[i] = i
-	}
-	p, s := beam.NewPipelineWithRoot()
 	ins := beam.CreateList(s, inputs)
-
-	// Write to Kafka
 	encoded := beam.ParDo(s, func(i int) ([]byte, error) {
 		var buf bytes.Buffer
 		err := coder.EncodeVarInt(int64(i), &buf)
@@ -61,17 +46,40 @@ func BasicPipeline(expansionAddr, bootstrapAddr string) *beam.Pipeline {
 		return []byte(""), b
 	}, encoded)
 	kafkaio.Write(s, expansionAddr, bootstrapAddr, topic, keyed)
+}
 
-	// Read from Kafka
-	reads := kafkaio.Read(s, expansionAddr, bootstrapAddr, []string{topic})
+// readList reads a set number of elements from Kafka and decodes them to ints.
+func readInts(s beam.Scope, expansionAddr, bootstrapAddr, topic string, numRecords int64) beam.PCollection {
+	s = s.Scope("kafka_test.ReadListFromKafka")
+
+	reads := kafkaio.Read(s, expansionAddr, bootstrapAddr, []string{topic},
+		kafkaio.MaxNumRecords(numRecords),
+		kafkaio.ConsumerConfigs(map[string]string{"auto.offset.reset": "earliest"}))
 	vals := beam.DropKey(s, reads)
 	decoded := beam.ParDo(s, func(b []byte) (int, error) {
 		buf := bytes.NewBuffer(b)
 		i, err := coder.DecodeVarInt(buf)
 		return int(i), err
 	}, vals)
+	return decoded
+}
 
-	passert.Equals(s, decoded, ins)
+// WritePipeline creates a pipeline that writes a given slice of ints to Kafka.
+func WritePipeline(expansionAddr, bootstrapAddr, topic string, inputs []int) *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+	writeInts(s, expansionAddr, bootstrapAddr, topic, inputs)
+	return p
+}
 
+// ReadPipeline creates a pipeline that reads ints from Kafka and asserts that
+// they match a given slice of ints. This reads a number of records equal to
+// the length of the given slice.
+func ReadPipeline(expansionAddr, bootstrapAddr, topic string, inputs []int) *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+	result := readInts(s, expansionAddr, bootstrapAddr, topic, int64(len(inputs)))
+
+	// Validate that records read from Kafka match the given slice.
+	ins := beam.CreateList(s, inputs)
+	passert.Equals(s, result, ins)
 	return p
 }

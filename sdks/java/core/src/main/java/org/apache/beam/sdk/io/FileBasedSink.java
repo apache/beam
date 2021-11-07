@@ -50,6 +50,8 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
@@ -948,7 +950,16 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
           getWriteOperation().getSink().writableByteChannelFactory;
       // The factory may force a MIME type or it may return null, indicating to use the sink's MIME.
       String channelMimeType = firstNonNull(factory.getMimeType(), mimeType);
-      WritableByteChannel tempChannel = FileSystems.create(outputFile, channelMimeType);
+      CreateOptions createOptions =
+          StandardCreateOptions.builder()
+              .setMimeType(channelMimeType)
+              // The file is based upon a uuid and thus we expect it to be unique and to not already
+              // exist. A new uuid is generated on each bundle processing and thus this also holds
+              // across bundle retries. Collisions of filenames would result in data loss as we
+              // would otherwise overwrite already finalized data.
+              .setExpectFileToNotExist(true)
+              .build();
+      WritableByteChannel tempChannel = FileSystems.create(outputFile, createOptions);
       try {
         channel = factory.create(tempChannel);
       } catch (Exception e) {

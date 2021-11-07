@@ -26,12 +26,10 @@ API](https://beam.apache.org/documentation/dsls/dataframes/overview/).
 
 You must have `apache-beam>=2.30.0` installed in order to run these pipelines,
 because the `apache_beam.examples.dataframe` module was added in that release.
-Additionally using the DataFrame API requires `pandas>=1.0.0` to be installed
-in your local Python session. The _same_ version should be installed on workers
-when executing DataFrame API pipelines on distributed runners. Reference
-[`base_image_requirements.txt`](../../../container/base_image_requirements.txt)
-for the Beam release you are using to see what version of pandas will be used
-by default on distributed workers.
+Using the DataFrame API also requires a compatible pandas version to be
+installed, see the
+[documentation](https://beam.apache.org/documentation/dsls/dataframes/overview/#pre-requisites)
+for details.
 
 ## Wordcount Pipeline
 

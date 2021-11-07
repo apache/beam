@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.BuilderMethod;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
@@ -74,6 +75,9 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     implements TransformProvider<PInput, POutput> {
 
   public static final String ALLOW_LIST_VERSION = "v1";
+
+  public static final Pattern FIELD_NAME_IGNORE_PATTERN = Pattern.compile("ignore[0-9]+");
+
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
   private final AllowList allowList;
 
@@ -230,7 +234,15 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
             .filter(m -> PTransform.class.isAssignableFrom(m.getReturnType()))
             .collect(Collectors.toList());
 
-    if (matchingMethods.size() != 1) {
+    if (matchingMethods.size() == 0) {
+      throw new RuntimeException(
+          "Could not find a matching method in transform "
+              + transform
+              + " for BuilderMethod"
+              + builderMethod
+              + ". When using field names, make sure they are available in the compiled"
+              + " Java class.");
+    } else if (matchingMethods.size() > 1) {
       throw new RuntimeException(
           "Expected to find exactly one matching method in transform "
               + transform
@@ -276,10 +288,13 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     for (int i = 0; i < methodParameters.length; i++) {
       java.lang.reflect.Parameter parameterFromReflection = methodParameters[i];
       Field parameterFromPayload = constructorSchema.getField(i);
-
       String paramNameFromReflection = parameterFromReflection.getName();
-      if (!paramNameFromReflection.startsWith("arg")
-          && !paramNameFromReflection.equals(parameterFromPayload.getName())) {
+
+      // Spec requires field names in this format to be ignored.
+      boolean ignoreFieldName =
+          FIELD_NAME_IGNORE_PATTERN.matcher(parameterFromPayload.getName()).matches();
+
+      if (!ignoreFieldName && !paramNameFromReflection.equals(parameterFromPayload.getName())) {
         // Parameter name through reflection is from the class file (not through synthesizing,
         // hence we can validate names)
         return false;
@@ -310,7 +325,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
           }
           if (values != null) {
             @Nullable Row firstItem = values.iterator().next();
-            if (firstItem != null && !(firstItem.getSchema().assignableTo(arrayFieldSchema))) {
+            if (firstItem != null && !firstItem.getSchema().assignableTo(arrayFieldSchema)) {
               return false;
             }
           }
@@ -407,7 +422,12 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
             .filter(c -> c.getParameterCount() == payload.getConstructorSchema().getFieldsCount())
             .filter(c -> parametersCompatible(c.getParameters(), constructorRow))
             .collect(Collectors.toList());
-    if (mappingConstructors.size() != 1) {
+
+    if (mappingConstructors.size() == 0) {
+      throw new RuntimeException(
+          "Could not find a matching constructor. When using field names, make sure they are "
+              + "available in the compiled Java class.");
+    } else if (mappingConstructors.size() != 1) {
       throw new RuntimeException(
           "Expected to find a single mapping constructor but found " + mappingConstructors.size());
     }
@@ -452,7 +472,11 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
             .filter(m -> parametersCompatible(m.getParameters(), constructorRow))
             .collect(Collectors.toList());
 
-    if (mappingConstructorMethods.size() != 1) {
+    if (mappingConstructorMethods.size() == 0) {
+      throw new RuntimeException(
+          "Could not find a matching constructor method. When using field names, make sure they "
+              + "are available in the compiled Java class.");
+    } else if (mappingConstructorMethods.size() != 1) {
       throw new RuntimeException(
           "Expected to find a single mapping constructor method but found "
               + mappingConstructorMethods.size()

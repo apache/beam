@@ -77,7 +77,8 @@ class RunnerApiTest(unittest.TestCase):
     context = pipeline_context.PipelineContext()
     proto = environment.to_runner_api(context)
     self.assertEqual(
-        set(proto.capabilities), set(environments.python_sdk_capabilities()))
+        set(proto.capabilities),
+        set(environments.python_sdk_docker_capabilities()))
 
 
 class EnvironmentOptionsTest(unittest.TestCase):

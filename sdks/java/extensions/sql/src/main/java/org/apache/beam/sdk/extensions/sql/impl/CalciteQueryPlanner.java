@@ -25,47 +25,48 @@ import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Table;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.CalciteConnectionConfig;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.Contexts;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCost;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptUtil;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitDef;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.prepare.CalciteCatalogReader;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelRoot;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.BuiltInMetadata;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.MetadataDef;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.MetadataHandler;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperatorTable;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParser;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParserImplFactory;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.util.SqlOperatorTables;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.FrameworkConfig;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.Frameworks;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.Planner;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RelConversionException;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.ValidationException;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.BuiltInMethod;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.Table;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.Contexts;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCost;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitDef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.CalciteCatalogReader;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelRoot;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.BuiltInMetadata;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.MetadataDef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.MetadataHandler;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParser;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserImplFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.util.SqlOperatorTables;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.FrameworkConfig;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.Planner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RelConversionException;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.ValidationException;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.BuiltInMethod;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -202,6 +203,8 @@ public class CalciteQueryPlanner implements QueryPlanner {
                       NonCumulativeCostImpl.SOURCE,
                       RelMdNodeStats.SOURCE,
                       root.rel.getCluster().getMetadataProvider())));
+
+      root.rel.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
       RelMetadataQuery.THREAD_PROVIDERS.set(
           JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
       root.rel.getCluster().invalidateMetadataQuery();
@@ -233,11 +236,14 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
     @SuppressWarnings("UnusedDeclaration")
     public RelOptCost getNonCumulativeCost(RelNode rel, RelMetadataQuery mq) {
+      assert mq instanceof BeamRelMetadataQuery;
+      BeamRelMetadataQuery bmq = (BeamRelMetadataQuery) mq;
+
       // This is called by a generated code in calcite MetadataQuery.
       // If the rel is Calcite rel or we are in JDBC path and cost factory is not set yet we should
       // use calcite cost estimation
       if (!(rel instanceof BeamRelNode)) {
-        return rel.computeSelfCost(rel.getCluster().getPlanner(), mq);
+        return rel.computeSelfCost(rel.getCluster().getPlanner(), bmq);
       }
 
       // Currently we do nothing in this case, however, we can plug our own cost estimation method
@@ -245,14 +251,14 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
       // We need to first remove the cached values.
       List<Table.Cell<RelNode, List, Object>> costKeys =
-          mq.map.cellSet().stream()
+          bmq.map.cellSet().stream()
               .filter(entry -> entry.getValue() instanceof BeamCostModel)
               .filter(entry -> ((BeamCostModel) entry.getValue()).isInfinite())
               .collect(Collectors.toList());
 
-      costKeys.forEach(cell -> mq.map.remove(cell.getRowKey(), cell.getColumnKey()));
+      costKeys.forEach(cell -> bmq.map.remove(cell.getRowKey(), cell.getColumnKey()));
 
-      return ((BeamRelNode) rel).beamComputeSelfCost(rel.getCluster().getPlanner(), mq);
+      return ((BeamRelNode) rel).beamComputeSelfCost(rel.getCluster().getPlanner(), bmq);
     }
   }
 }

@@ -98,7 +98,7 @@ class TransformIOCounter(object):
 class NoOpTransformIOCounter(TransformIOCounter):
   """All operations for IO tracking are no-ops."""
   def __init__(self):
-    super(NoOpTransformIOCounter, self).__init__(None, None)
+    super().__init__(None, None)
 
   def update_current_step(self):
     pass
@@ -148,7 +148,7 @@ class SideInputReadCounter(TransformIOCounter):
     side input, and input_index is the index of the PCollectionView within
     the list of inputs.
     """
-    super(SideInputReadCounter, self).__init__(counter_factory, state_sampler)
+    super().__init__(counter_factory, state_sampler)
     self.declaring_step = declaring_step
     self.input_index = input_index
 

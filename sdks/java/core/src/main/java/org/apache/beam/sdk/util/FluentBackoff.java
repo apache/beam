@@ -204,7 +204,7 @@ public final class FluentBackoff {
       nextBackoffMillis = Math.min(nextBackoffMillis, remainingCumulative.getMillis());
 
       // Update state and return backoff.
-      currentCumulativeBackoff = currentCumulativeBackoff.plus(nextBackoffMillis);
+      currentCumulativeBackoff = currentCumulativeBackoff.plus(Duration.millis(nextBackoffMillis));
       currentRetry += 1;
       return nextBackoffMillis;
     }

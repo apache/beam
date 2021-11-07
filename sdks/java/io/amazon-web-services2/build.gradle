@@ -53,6 +53,7 @@ dependencies {
   compile library.java.commons_lang3
   compile library.java.http_core
   compile library.java.commons_codec
+  runtime library.java.aws_java_sdk2_sts
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:io:kinesis", configuration: "testRuntime")
@@ -74,6 +75,5 @@ test {
       '--awsRegion=us-west-2',
       '--awsCredentialsProvider={"@type": "StaticCredentialsProvider", "accessKeyId": "key_id_value", "secretAccessKey": "secret_value"}'
   ])
-  // Forking every test resolves an issue where KinesisMockReadTest gets stuck forever.
-  forkEvery 1
+  maxParallelForks 4
 }

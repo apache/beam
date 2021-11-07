@@ -43,6 +43,7 @@ import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -359,7 +360,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     public void setForWindow(InputT input, BoundedWindow window) {
       Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
       // make sure this fires after any window.maxTimestamp() timers
-      gcTime = gcTime.plus(GC_DELAY_MS);
+      gcTime = gcTime.plus(Duration.millis(GC_DELAY_MS));
       timerInternals.setTimer(
           StateNamespaces.window(windowCoder, window),
           GC_TIMER_ID,
@@ -374,7 +375,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
         String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
       boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
       Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
-      gcTime = gcTime.plus(GC_DELAY_MS);
+      gcTime = gcTime.plus(Duration.millis(GC_DELAY_MS));
       return isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp);
     }
   }
