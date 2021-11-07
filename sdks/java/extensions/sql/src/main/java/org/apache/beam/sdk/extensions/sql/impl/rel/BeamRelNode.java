@@ -29,6 +29,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
 @SuppressWarnings({
@@ -53,7 +54,7 @@ public interface BeamRelNode extends RelNode {
   }
 
   default void withErrorsTransformer(
-      PTransform<PCollection<BeamCalcRelError>, POutput> ptransform) {}
+      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> ptransform) {}
 
   default List<RelNode> getPCollectionInputs() {
     return getInputs();
