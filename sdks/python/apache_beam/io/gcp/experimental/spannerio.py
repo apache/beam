@@ -177,7 +177,10 @@ from apache_beam import DoFn
 from apache_beam import Flatten
 from apache_beam import ParDo
 from apache_beam import Reshuffle
+from apache_beam.internal.metrics.metric import ServiceCallMetric
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import Metrics
+from apache_beam.metrics import monitoring_infos
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import PBegin
 from apache_beam.pvalue import TaggedOutput
@@ -189,12 +192,17 @@ from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.utils.annotations import experimental
 
+# Protect against environments where spanner library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+# pylint: disable=unused-import
 try:
   from google.cloud.spanner import Client
   from google.cloud.spanner import KeySet
   from google.cloud.spanner_v1 import batch
   from google.cloud.spanner_v1.database import BatchSnapshot
   from google.cloud.spanner_v1.proto.mutation_pb2 import Mutation
+  from google.api_core.exceptions import ClientError, GoogleAPICallError
+  from apitools.base.py.exceptions import HttpError
 except ImportError:
   Client = None
   KeySet = None
@@ -284,6 +292,8 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
                                            ["project",
                                             "instance",
                                             "database",
+                                            "table",
+                                            "query_name",
                                             "credentials",
                                             "pool",
                                             "snapshot_read_timestamp",
@@ -320,6 +330,42 @@ class _NaiveSpannerReadDoFn(DoFn):
     self._spanner_configuration = spanner_configuration
     self._snapshot = None
     self._session = None
+    self.base_labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Read',
+        monitoring_infos.SPANNER_PROJECT_ID: (
+            self._spanner_configuration.project),
+        monitoring_infos.SPANNER_DATABASE_ID: (
+            self._spanner_configuration.database),
+    }
+
+  def _table_metric(self, table_id, status):
+    database_id = self._spanner_configuration.database
+    project_id = self._spanner_configuration.project
+    resource = resource_identifiers.SpannerTable(
+        project_id, database_id, table_id)
+    labels = {
+        **self.base_labels,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: table_id
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+    service_call_metric.call(str(status))
+
+  def _query_metric(self, query_name, status):
+    project_id = self._spanner_configuration.project
+    resource = resource_identifiers.SpannerSqlQuery(project_id, query_name)
+    labels = {
+        **self.base_labels,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_QUERY_NAME: query_name
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+    service_call_metric.call(str(status))
 
   def _get_session(self):
     if self._session is None:
@@ -357,16 +403,32 @@ class _NaiveSpannerReadDoFn(DoFn):
     # getting the transaction from the snapshot's session to run read operation.
     # with self._snapshot.session().transaction() as transaction:
     with self._get_session().transaction() as transaction:
+      table_id = self._spanner_configuration.table
+      query_name = self._spanner_configuration.query_name or ''
+
       if element.is_sql is True:
         transaction_read = transaction.execute_sql
+        metric_action = self._query_metric
+        metric_id = query_name
       elif element.is_table is True:
         transaction_read = transaction.read
+        metric_action = self._table_metric
+        metric_id = table_id
       else:
         raise ValueError(
             "ReadOperation is improperly configure: %s" % str(element))
 
-      for row in transaction_read(**element.kwargs):
-        yield row
+      try:
+        for row in transaction_read(**element.kwargs):
+          yield row
+
+        metric_action(metric_id, 'ok')
+      except (ClientError, GoogleAPICallError) as e:
+        metric_action(metric_id, e.code.value)
+        raise
+      except HttpError as e:
+        metric_action(metric_id, e)
+        raise
 
 
 @with_input_types(ReadOperation)
@@ -523,6 +585,43 @@ class _ReadFromPartitionFn(DoFn):
   """
   def __init__(self, spanner_configuration):
     self._spanner_configuration = spanner_configuration
+    self.base_labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Read',
+        monitoring_infos.SPANNER_PROJECT_ID: (
+            self._spanner_configuration.project),
+        monitoring_infos.SPANNER_DATABASE_ID: (
+            self._spanner_configuration.database),
+    }
+    self.service_metric = None
+
+  def _table_metric(self, table_id):
+    database_id = self._spanner_configuration.database
+    project_id = self._spanner_configuration.project
+    resource = resource_identifiers.SpannerTable(
+        project_id, database_id, table_id)
+    labels = {
+        **self.base_labels,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: table_id
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+    return service_call_metric
+
+  def _query_metric(self, query_name):
+    project_id = self._spanner_configuration.project
+    resource = resource_identifiers.SpannerSqlQuery(project_id, query_name)
+    labels = {
+        **self.base_labels,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_QUERY_NAME: query_name
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+    return service_call_metric
 
   def setup(self):
     spanner_client = Client(self._spanner_configuration.project)
@@ -537,16 +636,30 @@ class _ReadFromPartitionFn(DoFn):
     self._snapshot = BatchSnapshot.from_dict(
         self._database, element['transaction_info'])
 
+    table_id = self._spanner_configuration.table
+    query_name = self._spanner_configuration.query_name or ''
+
     if element['is_sql'] is True:
       read_action = self._snapshot.process_query_batch
+      self.service_metric = self._query_metric(query_name)
     elif element['is_table'] is True:
       read_action = self._snapshot.process_read_batch
+      self.service_metric = self._table_metric(table_id)
     else:
       raise ValueError(
           "ReadOperation is improperly configure: %s" % str(element))
 
-    for row in read_action(element['partitions']):
-      yield row
+    try:
+      for row in read_action(element['partitions']):
+        yield row
+
+      self.service_metric.call('ok')
+    except (ClientError, GoogleAPICallError) as e:
+      self.service_metric(str(e.code.value))
+      raise
+    except HttpError as e:
+      self.service_metric(str(e))
+      raise
 
   def teardown(self):
     if self._snapshot:
@@ -563,7 +676,8 @@ class ReadFromSpanner(PTransform):
   def __init__(self, project_id, instance_id, database_id, pool=None,
                read_timestamp=None, exact_staleness=None, credentials=None,
                sql=None, params=None, param_types=None,  # with_query
-               table=None, columns=None, index="", keyset=None,  # with_table
+               table=None, query_name=None, columns=None, index="",
+               keyset=None,  # with_table
                read_operations=None,  # for read all
                transaction=None
               ):
@@ -611,6 +725,8 @@ class ReadFromSpanner(PTransform):
         project=project_id,
         instance=instance_id,
         database=database_id,
+        table=table,
+        query_name=query_name,
         credentials=credentials,
         pool=pool,
         snapshot_read_timestamp=read_timestamp,
@@ -669,7 +785,7 @@ class ReadFromSpanner(PTransform):
     return p
 
   def display_data(self):
-    res = dict()
+    res = {}
     sql = []
     table = []
     if self._read_operations is not None:
@@ -725,6 +841,8 @@ class WriteToSpanner(PTransform):
         project=project_id,
         instance=instance_id,
         database=database_id,
+        table=None,
+        query_name=None,
         credentials=credentials,
         pool=pool,
         snapshot_read_timestamp=None,
@@ -1068,6 +1186,28 @@ class _WriteToSpannerDoFn(DoFn):
     self._spanner_configuration = spanner_configuration
     self._db_instance = None
     self.batches = Metrics.counter(self.__class__, 'SpannerBatches')
+    self.base_labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Write',
+        monitoring_infos.SPANNER_PROJECT_ID: spanner_configuration.project,
+        monitoring_infos.SPANNER_DATABASE_ID: spanner_configuration.database,
+    }
+    self.service_metric = None
+
+  def _table_metric(self, table_id):
+    database_id = self._spanner_configuration.database
+    project_id = self._spanner_configuration.project
+    resource = resource_identifiers.SpannerTable(
+        project_id, database_id, table_id)
+    labels = {
+        **self.base_labels,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: table_id
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+    return service_call_metric
 
   def setup(self):
     spanner_client = Client(self._spanner_configuration.project)
@@ -1078,22 +1218,33 @@ class _WriteToSpannerDoFn(DoFn):
 
   def process(self, element):
     self.batches.inc()
-    with self._db_instance.batch() as b:
-      for m in element:
-        if m.operation == WriteMutation._OPERATION_DELETE:
-          batch_func = b.delete
-        elif m.operation == WriteMutation._OPERATION_REPLACE:
-          batch_func = b.replace
-        elif m.operation == WriteMutation._OPERATION_INSERT_OR_UPDATE:
-          batch_func = b.insert_or_update
-        elif m.operation == WriteMutation._OPERATION_INSERT:
-          batch_func = b.insert
-        elif m.operation == WriteMutation._OPERATION_UPDATE:
-          batch_func = b.update
-        else:
-          raise ValueError("Unknown operation action: %s" % m.operation)
+    try:
+      with self._db_instance.batch() as b:
+        for m in element:
+          table_id = m.kwargs['table']
+          self.service_metric = self._table_metric(table_id)
 
-        batch_func(**m.kwargs)
+          if m.operation == WriteMutation._OPERATION_DELETE:
+            batch_func = b.delete
+          elif m.operation == WriteMutation._OPERATION_REPLACE:
+            batch_func = b.replace
+          elif m.operation == WriteMutation._OPERATION_INSERT_OR_UPDATE:
+            batch_func = b.insert_or_update
+          elif m.operation == WriteMutation._OPERATION_INSERT:
+            batch_func = b.insert
+          elif m.operation == WriteMutation._OPERATION_UPDATE:
+            batch_func = b.update
+          else:
+            raise ValueError("Unknown operation action: %s" % m.operation)
+          batch_func(**m.kwargs)
+
+      self.service_metric.call('ok')
+    except (ClientError, GoogleAPICallError) as e:
+      self.service_metric.call(str(e.code.value))
+      raise
+    except HttpError as e:
+      self.service_metric.call(str(e))
+      raise
 
 
 @with_input_types(typing.Union[MutationGroup, _Mutator])

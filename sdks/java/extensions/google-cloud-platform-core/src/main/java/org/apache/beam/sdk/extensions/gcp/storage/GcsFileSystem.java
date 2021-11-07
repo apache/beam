@@ -133,16 +133,16 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @Override
   protected WritableByteChannel create(GcsResourceId resourceId, CreateOptions createOptions)
       throws IOException {
+    GcsUtil.CreateOptions.Builder builder =
+        GcsUtil.CreateOptions.builder()
+            .setContentType(createOptions.mimeType())
+            .setExpectFileToNotExist(createOptions.expectFileToNotExist());
     if (createOptions instanceof GcsCreateOptions) {
-      return options
-          .getGcsUtil()
-          .create(
-              resourceId.getGcsPath(),
-              createOptions.mimeType(),
+      builder =
+          builder.setUploadBufferSizeBytes(
               ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
-    } else {
-      return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType());
     }
+    return options.getGcsUtil().create(resourceId.getGcsPath(), builder.build());
   }
 
   @Override

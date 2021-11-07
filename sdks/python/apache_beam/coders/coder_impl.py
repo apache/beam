@@ -31,6 +31,7 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 
 import enum
+import itertools
 import json
 import logging
 import pickle
@@ -747,7 +748,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_, nested):
     # type: (create_InputStream, bool) -> IntervalWindow
     if not TYPE_CHECKING:
-      global IntervalWindow
+      global IntervalWindow  # pylint: disable=global-variable-not-assigned
       if IntervalWindow is None:
         from apache_beam.transforms.window import IntervalWindow
     # instantiating with None is not part of the public interface
@@ -1193,12 +1194,58 @@ class TupleSequenceCoderImpl(SequenceCoderImpl):
     return tuple(components)
 
 
+class _AbstractIterable(object):
+  """Wraps an iterable hiding methods that might not always be available."""
+  def __init__(self, contents):
+    self._contents = contents
+
+  def __iter__(self):
+    return iter(self._contents)
+
+  def __repr__(self):
+    head = [repr(e) for e in itertools.islice(self, 4)]
+    if len(head) == 4:
+      head[-1] = '...'
+    return '_AbstractIterable([%s])' % ', '.join(head)
+
+  # Mostly useful for tests.
+  def __eq__(left, right):
+    end = object()
+    for a, b in itertools.zip_longest(left, right, fillvalue=end):
+      if a != b:
+        return False
+    return True
+
+
+FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
+
+# TODO(BEAM-13066): Enable using abstract iterables permanently
+_iterable_coder_uses_abstract_iterable_by_default = False
+
+
 class IterableCoderImpl(SequenceCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for homogeneous iterable objects."""
+  def __init__(self, *args, use_abstract_iterable=None, **kwargs):
+    super().__init__(*args, **kwargs)
+    if use_abstract_iterable is None:
+      use_abstract_iterable = _iterable_coder_uses_abstract_iterable_by_default
+    self._use_abstract_iterable = use_abstract_iterable
+
   def _construct_from_sequence(self, components):
-    return components
+    if self._use_abstract_iterable:
+      return _AbstractIterable(components)
+    else:
+      return components
+
+
+class ListCoderImpl(SequenceCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for homogeneous list objects."""
+  def _construct_from_sequence(self, components):
+    return components if isinstance(components, list) else list(components)
 
 
 class PaneInfoEncoding(object):
@@ -1390,8 +1437,7 @@ class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
   and pane info values during decoding when reconstructing the windowed
   value."""
   def __init__(self, value_coder, window_coder, payload):
-    super(ParamWindowedValueCoderImpl,
-          self).__init__(value_coder, TimestampCoderImpl(), window_coder)
+    super().__init__(value_coder, TimestampCoderImpl(), window_coder)
     self._timestamp, self._windows, self._pane_info = self._from_proto(
         payload, window_coder)
 

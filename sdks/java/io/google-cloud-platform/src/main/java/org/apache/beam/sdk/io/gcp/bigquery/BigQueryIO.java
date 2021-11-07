@@ -525,12 +525,8 @@ public class BigQueryIO {
 
   private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
       DEFAULT_AVRO_SCHEMA_FACTORY =
-          new SerializableFunction<TableSchema, org.apache.avro.Schema>() {
-            @Override
-            public org.apache.avro.Schema apply(TableSchema input) {
-              return BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
-            }
-          };
+          (SerializableFunction<TableSchema, org.apache.avro.Schema>)
+              input -> BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
 
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead. {@link
@@ -589,7 +585,7 @@ public class BigQueryIO {
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setParseFn(parseFn)
-        .setMethod(Method.DEFAULT)
+        .setMethod(TypedRead.Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
         .build();
@@ -779,7 +775,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryTempDataset(String queryTempDataset);
 
-      abstract Builder<T> setMethod(Method method);
+      abstract Builder<T> setMethod(TypedRead.Method method);
 
       @Experimental(Experimental.Kind.SOURCE_SINK)
       abstract Builder<T> setFormat(DataFormat method);
@@ -830,7 +826,7 @@ public class BigQueryIO {
 
     abstract @Nullable String getQueryTempDataset();
 
-    abstract Method getMethod();
+    abstract TypedRead.Method getMethod();
 
     @Experimental(Experimental.Kind.SOURCE_SINK)
     abstract DataFormat getFormat();
@@ -940,7 +936,7 @@ public class BigQueryIO {
       // read is properly specified.
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
 
-      if (getMethod() != Method.DIRECT_READ) {
+      if (getMethod() != TypedRead.Method.DIRECT_READ) {
         String tempLocation = bqOptions.getTempLocation();
         checkArgument(
             !Strings.isNullOrEmpty(tempLocation),
@@ -1060,7 +1056,7 @@ public class BigQueryIO {
       Pipeline p = input.getPipeline();
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
 
-      if (getMethod() == Method.DIRECT_READ) {
+      if (getMethod() == TypedRead.Method.DIRECT_READ) {
         return expandForDirectRead(input, coder);
       }
 
@@ -1570,7 +1566,7 @@ public class BigQueryIO {
     }
 
     /** See {@link Method}. */
-    public TypedRead<T> withMethod(Method method) {
+    public TypedRead<T> withMethod(TypedRead.Method method) {
       return toBuilder().setMethod(method).build();
     }
 
@@ -1760,8 +1756,14 @@ public class BigQueryIO {
        * BigQuery</a>.
        */
       STREAMING_INSERTS,
-      /** Use the new, experimental Storage Write API. */
-      STORAGE_WRITE_API
+      /** Use the new, exactly-once Storage Write API. */
+      STORAGE_WRITE_API,
+      /**
+       * Use the new, Storage Write API without exactly once enabled. This will be cheaper and
+       * provide lower latency, however comes with the caveat that the output table may contain
+       * duplicates.
+       */
+      STORAGE_API_AT_LEAST_ONCE
     }
 
     abstract @Nullable ValueProvider<String> getJsonTableRef();
@@ -1816,7 +1818,7 @@ public class BigQueryIO {
 
     abstract @Nullable Duration getTriggeringFrequency();
 
-    abstract Method getMethod();
+    abstract Write.Method getMethod();
 
     abstract @Nullable ValueProvider<String> getLoadJobProjectId();
 
@@ -1900,7 +1902,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setTriggeringFrequency(Duration triggeringFrequency);
 
-      abstract Builder<T> setMethod(Method method);
+      abstract Builder<T> setMethod(Write.Method method);
 
       abstract Builder<T> setLoadJobProjectId(ValueProvider<String> loadJobProjectId);
 
@@ -2279,7 +2281,7 @@ public class BigQueryIO {
      * Choose the method used to write data to BigQuery. See the Javadoc on {@link Method} for
      * information and restrictions of the different methods.
      */
-    public Write<T> withMethod(Method method) {
+    public Write<T> withMethod(Write.Method method) {
       checkArgument(method != null, "method can not be null");
       return toBuilder().setMethod(method).build();
     }
@@ -2508,18 +2510,21 @@ public class BigQueryIO {
       }
     }
 
-    private Method resolveMethod(PCollection<T> input) {
-      if (getMethod() != Method.DEFAULT) {
+    private Write.Method resolveMethod(PCollection<T> input) {
+      if (getMethod() != Write.Method.DEFAULT) {
         return getMethod();
       }
-      if (input.getPipeline().getOptions().as(BigQueryOptions.class).getUseStorageWriteApi()) {
-        return Method.STORAGE_WRITE_API;
+      BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+      if (bqOptions.getUseStorageWriteApi()) {
+        return bqOptions.getUseStorageWriteApiAtLeastOnce()
+            ? Method.STORAGE_API_AT_LEAST_ONCE
+            : Method.STORAGE_WRITE_API;
       }
       // By default, when writing an Unbounded PCollection, we use StreamingInserts and
       // BigQuery's streaming import API.
       return (input.isBounded() == IsBounded.UNBOUNDED)
-          ? Method.STREAMING_INSERTS
-          : Method.FILE_LOADS;
+          ? Write.Method.STREAMING_INSERTS
+          : Write.Method.FILE_LOADS;
     }
 
     private Duration getStorageApiTriggeringFrequency(BigQueryOptions options) {
@@ -2568,12 +2573,12 @@ public class BigQueryIO {
                       .collect(Collectors.toList())),
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may be set");
 
-      Method method = resolveMethod(input);
+      Write.Method method = resolveMethod(input);
       if (input.isBounded() == IsBounded.UNBOUNDED
-          && (method == Method.FILE_LOADS || method == Method.STORAGE_WRITE_API)) {
+          && (method == Write.Method.FILE_LOADS || method == Write.Method.STORAGE_WRITE_API)) {
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         Duration triggeringFrequency =
-            (method == Method.STORAGE_WRITE_API)
+            (method == Write.Method.STORAGE_WRITE_API)
                 ? getStorageApiTriggeringFrequency(bqOptions)
                 : getTriggeringFrequency();
         checkArgument(
@@ -2590,7 +2595,7 @@ public class BigQueryIO {
             method);
       }
 
-      if (method != Method.FILE_LOADS) {
+      if (method != Write.Method.FILE_LOADS) {
         // we only support writing avro for FILE_LOADS
         checkArgument(
             getAvroRowWriterFactory() == null,
@@ -2602,7 +2607,7 @@ public class BigQueryIO {
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
-      if (method == Method.STORAGE_WRITE_API) {
+      if (method == Write.Method.STORAGE_WRITE_API) {
         checkArgument(!getAutoSharding(), "Auto sharding not yet available for Storage API writes");
       }
 
@@ -2627,7 +2632,7 @@ public class BigQueryIO {
         if (getJsonTableRef() != null) {
           dynamicDestinations =
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
-                  getJsonTableRef(), getTableDescription());
+                  getJsonTableRef(), getTableDescription(), getClustering() != null);
         } else if (getTableFunction() != null) {
           dynamicDestinations =
               new TableFunctionDestinations<>(getTableFunction(), getClustering() != null);
@@ -2708,7 +2713,7 @@ public class BigQueryIO {
         throw new RuntimeException(e);
       }
 
-      Method method = resolveMethod(input);
+      Write.Method method = resolveMethod(input);
       RowWriterFactory<T, DestinationT> rowWriterFactory;
       if (optimizeWrites) {
         if (avroRowWriterFactory != null) {
@@ -2777,8 +2782,8 @@ public class BigQueryIO {
         Coder<DestinationT> destinationCoder,
         DynamicDestinations<T, DestinationT> dynamicDestinations,
         RowWriterFactory<T, DestinationT> rowWriterFactory,
-        Method method) {
-      if (method == Method.STREAMING_INSERTS) {
+        Write.Method method) {
+      if (method == Write.Method.STREAMING_INSERTS) {
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded PCollection.");
@@ -2810,7 +2815,7 @@ public class BigQueryIO {
                 .withAutoSharding(getAutoSharding())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
-      } else if (method == Method.FILE_LOADS) {
+      } else if (method == Write.Method.FILE_LOADS) {
         checkArgument(
             getFailedInsertRetryPolicy() == null,
             "Record-insert retry policies are not supported when using BigQuery load jobs.");
@@ -2861,7 +2866,7 @@ public class BigQueryIO {
           batchLoads.setNumFileShards(getNumFileShards());
         }
         return input.apply(batchLoads);
-      } else if (method == Method.STORAGE_WRITE_API) {
+      } else if (method == Method.STORAGE_WRITE_API || method == Method.STORAGE_API_AT_LEAST_ONCE) {
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
           // This ensures that the Beam rows are directly translated into protos for Sorage API
@@ -2888,7 +2893,8 @@ public class BigQueryIO {
                 getKmsKey(),
                 getStorageApiTriggeringFrequency(bqOptions),
                 getBigQueryServices(),
-                getStorageApiNumStreams(bqOptions));
+                getStorageApiNumStreams(bqOptions),
+                method == Method.STORAGE_API_AT_LEAST_ONCE);
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

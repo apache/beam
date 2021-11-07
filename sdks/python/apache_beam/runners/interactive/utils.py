@@ -20,14 +20,21 @@
 
 import functools
 import hashlib
+import importlib
 import json
 import logging
+from typing import Any
+from typing import Dict
+from typing import Tuple
 
 import pandas as pd
 
+import apache_beam as beam
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.runners.interactive.caching.cacheable import Cacheable
+from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.caching.expression_cache import ExpressionCache
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.typehints.schemas import named_fields_from_element_type
@@ -146,8 +153,8 @@ def register_ipython_log_handler():
   # will be triggered at the "root"'s own logging level. And if a child logger
   # sets its logging level, it can take control back.
   interactive_root_logger = logging.getLogger('apache_beam.runners.interactive')
-  if any([isinstance(h, IPythonLogHandler)
-          for h in interactive_root_logger.handlers]):
+  if any(isinstance(h, IPythonLogHandler)
+         for h in interactive_root_logger.handlers):
     return
   interactive_root_logger.setLevel(logging.INFO)
   interactive_root_logger.addHandler(IPythonLogHandler())
@@ -294,3 +301,129 @@ def deferred_df_to_pcollection(df):
 
   proxy = df._expr.proxy()
   return to_pcollection(df, yield_elements='pandas', label=str(df._expr)), proxy
+
+
+def pcoll_by_name() -> Dict[str, beam.PCollection]:
+  """Finds all PCollections by their variable names defined in the notebook."""
+  from apache_beam.runners.interactive import interactive_environment as ie
+
+  inspectables = ie.current_env().inspector_with_synthetic.inspectables
+  pcolls = {}
+  for _, inspectable in inspectables.items():
+    metadata = inspectable['metadata']
+    if metadata['type'] == 'pcollection':
+      pcolls[metadata['name']] = inspectable['value']
+  return pcolls
+
+
+def find_pcoll_name(pcoll: beam.PCollection) -> str:
+  """Finds the variable name of a PCollection defined by the user.
+
+  Returns None if not assigned to any variable.
+  """
+  from apache_beam.runners.interactive import interactive_environment as ie
+
+  inspectables = ie.current_env().inspector.inspectables
+  for _, inspectable in inspectables.items():
+    if inspectable['value'] is pcoll:
+      return inspectable['metadata']['name']
+  return None
+
+
+def cacheables() -> Dict[CacheKey, Cacheable]:
+  """Finds all Cacheables with their CacheKeys."""
+  from apache_beam.runners.interactive import interactive_environment as ie
+
+  inspectables = ie.current_env().inspector_with_synthetic.inspectables
+  cacheables = {}
+  for _, inspectable in inspectables.items():
+    metadata = inspectable['metadata']
+    if metadata['type'] == 'pcollection':
+      cacheable = Cacheable.from_pcoll(metadata['name'], inspectable['value'])
+      cacheables[cacheable.to_key()] = cacheable
+  return cacheables
+
+
+def watch_sources(pipeline):
+  """Watches the unbounded sources in the pipeline.
+
+  Sources can output to a PCollection without a user variable reference. In
+  this case the source is not cached. We still want to cache the data so we
+  synthetically create a variable to the intermediate PCollection.
+  """
+  from apache_beam.pipeline import PipelineVisitor
+  from apache_beam.runners.interactive import interactive_environment as ie
+
+  retrieved_user_pipeline = ie.current_env().user_pipeline(pipeline)
+  pcoll_to_name = {v: k for k, v in pcoll_by_name().items()}
+
+  class CacheableUnboundedPCollectionVisitor(PipelineVisitor):
+    def __init__(self):
+      self.unbounded_pcolls = set()
+
+    def enter_composite_transform(self, transform_node):
+      self.visit_transform(transform_node)
+
+    def visit_transform(self, transform_node):
+      if isinstance(transform_node.transform,
+                    tuple(ie.current_env().options.recordable_sources)):
+        for pcoll in transform_node.outputs.values():
+          # Only generate a synthetic var when it's not already watched. For
+          # example, the user could have assigned the unbounded source output
+          # to a variable, watching it again with a different variable name
+          # creates ambiguity.
+          if pcoll not in pcoll_to_name:
+            ie.current_env().watch({'synthetic_var_' + str(id(pcoll)): pcoll})
+
+  retrieved_user_pipeline.visit(CacheableUnboundedPCollectionVisitor())
+
+
+def has_unbounded_sources(pipeline):
+  """Checks if a given pipeline has recordable sources."""
+  return len(unbounded_sources(pipeline)) > 0
+
+
+def unbounded_sources(pipeline):
+  """Returns a pipeline's recordable sources."""
+  from apache_beam.pipeline import PipelineVisitor
+  from apache_beam.runners.interactive import interactive_environment as ie
+
+  class CheckUnboundednessVisitor(PipelineVisitor):
+    """Visitor checks if there are any unbounded read sources in the Pipeline.
+
+    Visitor visits all nodes and checks if it is an instance of recordable
+    sources.
+    """
+    def __init__(self):
+      self.unbounded_sources = []
+
+    def enter_composite_transform(self, transform_node):
+      self.visit_transform(transform_node)
+
+    def visit_transform(self, transform_node):
+      if isinstance(transform_node.transform,
+                    tuple(ie.current_env().options.recordable_sources)):
+        self.unbounded_sources.append(transform_node)
+
+  v = CheckUnboundednessVisitor()
+  pipeline.visit(v)
+  return v.unbounded_sources
+
+
+def create_var_in_main(name: str,
+                       value: Any,
+                       watch: bool = True) -> Tuple[str, Any]:
+  """Declares a variable in the main module.
+
+  Args:
+    name: the variable name in the main module.
+    value: the value of the variable.
+    watch: whether to watch it in the interactive environment.
+  Returns:
+    A 2-entry tuple of the variable name and value.
+  """
+  setattr(importlib.import_module('__main__'), name, value)
+  if watch:
+    from apache_beam.runners.interactive import interactive_environment as ie
+    ie.current_env().watch({name: value})
+  return name, value

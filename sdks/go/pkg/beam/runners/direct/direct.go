@@ -84,7 +84,7 @@ type directPipelineResult struct {
 }
 
 func newDirectPipelineResult(ctx context.Context) (*directPipelineResult, error) {
-	metrics := metrics.MetricsExtractor(ctx)
+	metrics := metrics.ResultsExtractor(ctx)
 	return &directPipelineResult{metrics: &metrics}, nil
 }
 

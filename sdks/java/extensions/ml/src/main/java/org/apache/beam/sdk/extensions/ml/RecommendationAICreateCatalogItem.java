@@ -119,7 +119,7 @@ public abstract class RecommendationAICreateCatalogItem
     public void processElement(ProcessContext context) throws IOException {
       CatalogName parent = CatalogName.of(projectId, "global", catalogName);
       CatalogItem.Builder catalogItemBuilder = CatalogItem.newBuilder();
-      JsonFormat.parser().merge((new JSONObject(context.element())).toString(), catalogItemBuilder);
+      JsonFormat.parser().merge(new JSONObject(context.element()).toString(), catalogItemBuilder);
       CatalogItem catalogItem = catalogItemBuilder.build();
 
       try (CatalogServiceClient catalogServiceClient = CatalogServiceClient.create()) {

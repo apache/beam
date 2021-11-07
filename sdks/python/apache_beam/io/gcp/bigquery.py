@@ -270,6 +270,7 @@ encoding when writing to BigQuery.
 # pytype: skip-file
 
 import collections
+import io
 import itertools
 import json
 import logging
@@ -277,13 +278,18 @@ import random
 import time
 import uuid
 from typing import Dict
+from typing import List
+from typing import Optional
 from typing import Union
+
+import fastavro
 
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io import range_trackers
 from apache_beam.io.avroio import _create_avro_source as create_avro_source
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
@@ -292,6 +298,7 @@ from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.bigquery_read_internal import _BigQueryReadSplit
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanup
+from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanupTempDatasets
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -328,19 +335,28 @@ except ImportError:
   DatasetReference = None
   TableReference = None
 
+_LOGGER = logging.getLogger(__name__)
+
+try:
+  import google.cloud.bigquery_storage_v1 as bq_storage
+except ImportError:
+  _LOGGER.info(
+      'No module named google.cloud.bigquery_storage_v1. '
+      'As a result, the ReadFromBigQuery transform *CANNOT* be '
+      'used with `method=DIRECT_READ`.')
+
 __all__ = [
     'TableRowJsonCoder',
     'BigQueryDisposition',
     'BigQuerySource',
     'BigQuerySink',
+    'BigQueryQueryPriority',
     'WriteToBigQuery',
     'ReadFromBigQuery',
     'ReadFromBigQueryRequest',
     'ReadAllFromBigQuery',
     'SCHEMA_AUTODETECT',
 ]
-
-_LOGGER = logging.getLogger(__name__)
 """
 Template for BigQuery jobs created by BigQueryIO. This template is:
 `"beam_bq_job_{job_type}_{job_id}_{step_id}_{random}"`, where:
@@ -461,6 +477,13 @@ class BigQueryDisposition(object):
       raise ValueError(
           'Invalid write disposition %s. Expecting %s' % (disposition, values))
     return disposition
+
+
+class BigQueryQueryPriority(object):
+  """Class holding standard strings used for query priority."""
+
+  INTERACTIVE = 'INTERACTIVE'
+  BATCH = 'BATCH'
 
 
 # -----------------------------------------------------------------------------
@@ -637,6 +660,7 @@ class _BigQuerySource(dataflow_io.NativeSource):
 class _CustomBigQuerySource(BoundedSource):
   def __init__(
       self,
+      method,
       gcs_location=None,
       table=None,
       dataset=None,
@@ -653,7 +677,8 @@ class _CustomBigQuerySource(BoundedSource):
       job_name=None,
       step_name=None,
       unique_id=None,
-      temp_dataset=None):
+      temp_dataset=None,
+      query_priority=BigQueryQueryPriority.BATCH):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -673,6 +698,7 @@ class _CustomBigQuerySource(BoundedSource):
       self.use_legacy_sql = not use_standard_sql
       self.table_reference = None
 
+    self.method = method
     self.gcs_location = gcs_location
     self.project = project
     self.validate = validate
@@ -685,6 +711,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.bigquery_job_labels = bigquery_job_labels or {}
     self.use_json_exports = use_json_exports
     self.temp_dataset = temp_dataset
+    self.query_priority = query_priority
     self._job_name = job_name or 'BQ_EXPORT_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
@@ -697,6 +724,7 @@ class _CustomBigQuerySource(BoundedSource):
   def display_data(self):
     export_format = 'JSON' if self.use_json_exports else 'AVRO'
     return {
+        'method': str(self.method),
         'table': str(self.table_reference),
         'query': str(self.query),
         'project': str(self.project),
@@ -737,6 +765,7 @@ class _CustomBigQuerySource(BoundedSource):
           self.use_legacy_sql,
           self.flatten_results,
           job_id=query_job_name,
+          priority=self.query_priority,
           dry_run=True,
           kms_key=self.kms_key,
           job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
@@ -785,10 +814,10 @@ class _CustomBigQuerySource(BoundedSource):
         self.table_reference.projectId = self._get_project()
 
       schema, metadata_list = self._export_files(bq)
-      self.split_result = [
+      # Sources to be created lazily within a generator as they're output.
+      self.split_result = (
           self._create_source(metadata.path, schema)
-          for metadata in metadata_list
-      ]
+          for metadata in metadata_list)
 
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
@@ -833,6 +862,7 @@ class _CustomBigQuerySource(BoundedSource):
         self.use_legacy_sql,
         self.flatten_results,
         job_id=query_job_name,
+        priority=self.query_priority,
         kms_key=self.kms_key,
         job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
             self.bigquery_job_labels))
@@ -885,6 +915,388 @@ class _CustomBigQuerySource(BoundedSource):
         table_ref.projectId, table_ref.datasetId, table_ref.tableId)
 
     return table.schema, metadata_list
+
+
+class _CustomBigQueryStorageSource(BoundedSource):
+  """A base class for BoundedSource implementations which read from BigQuery
+  using the BigQuery Storage API.
+  Args:
+    table (str, TableReference): The ID of the table. The ID must contain only
+      letters ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``  If
+      **dataset** argument is :data:`None` then the table argument must
+      contain the entire table reference specified as:
+      ``'PROJECT:DATASET.TABLE'`` or must specify a TableReference.
+    dataset (str): Optional ID of the dataset containing this table or
+      :data:`None` if the table argument specifies a TableReference.
+    project (str): Optional ID of the project containing this table or
+      :data:`None` if the table argument specifies a TableReference.
+    selected_fields (List[str]): Optional List of names of the fields in the
+      table that should be read. If empty, all fields will be read. If the
+      specified field is a nested field, all the sub-fields in the field will be
+      selected. The output field order is unrelated to the order of fields in
+      selected_fields.
+    row_restriction (str): Optional SQL text filtering statement, similar to a
+      WHERE clause in a query. Aggregates are not supported. Restricted to a
+      maximum length for 1 MB.
+    use_native_datetime (bool): If :data:`True`, BigQuery DATETIME fields will
+      be returned as native Python datetime objects. If :data:`False`,
+      DATETIME fields will be returned as formatted strings (for example:
+      2021-01-01T12:59:59). The default is :data:`False`.
+  """
+
+  # The maximum number of streams which will be requested when creating a read
+  # session, regardless of the desired bundle size.
+  MAX_SPLIT_COUNT = 10000
+  # The minimum number of streams which will be requested when creating a read
+  # session, regardless of the desired bundle size. Note that the server may
+  # still choose to return fewer than ten streams based on the layout of the
+  # table.
+  MIN_SPLIT_COUNT = 10
+
+  def __init__(
+      self,
+      method: str,
+      query_priority: [BigQueryQueryPriority] = BigQueryQueryPriority.BATCH,
+      table: Optional[Union[str, TableReference]] = None,
+      dataset: Optional[str] = None,
+      project: Optional[str] = None,
+      query: Optional[str] = None,
+      selected_fields: Optional[List[str]] = None,
+      row_restriction: Optional[str] = None,
+      pipeline_options: Optional[GoogleCloudOptions] = None,
+      unique_id: Optional[uuid.UUID] = None,
+      bigquery_job_labels: Optional[Dict] = None,
+      bigquery_dataset_labels: Optional[Dict] = None,
+      job_name: Optional[str] = None,
+      step_name: Optional[str] = None,
+      use_standard_sql: Optional[bool] = False,
+      flatten_results: Optional[bool] = True,
+      kms_key: Optional[str] = None,
+      temp_dataset: Optional[DatasetReference] = None,
+      temp_table: Optional[TableReference] = None,
+      use_native_datetime: Optional[bool] = False):
+
+    if table is not None and query is not None:
+      raise ValueError(
+          'Both a BigQuery table and a query were specified.'
+          ' Please specify only one of these.')
+    elif table is None and query is None:
+      raise ValueError('A BigQuery table or a query must be specified')
+    elif table is not None:
+      self.table_reference = bigquery_tools.parse_table_reference(
+          table, dataset, project)
+      self.query = None
+      self.use_legacy_sql = True
+    else:
+      if isinstance(query, str):
+        query = StaticValueProvider(str, query)
+      self.query = query
+      # TODO(BEAM-1082): Change the internal flag to be standard_sql
+      self.use_legacy_sql = not use_standard_sql
+      self.table_reference = None
+
+    self.method = method
+    self.project = project
+    self.selected_fields = selected_fields
+    self.row_restriction = row_restriction
+    self.pipeline_options = pipeline_options
+    self.split_result = None
+    self.bigquery_job_labels = bigquery_job_labels or {}
+    self.bigquery_dataset_labels = bigquery_dataset_labels or {}
+    self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
+    self.flatten_results = flatten_results
+    self.kms_key = kms_key
+    self.temp_table = temp_table
+    self.query_priority = query_priority
+    self.use_native_datetime = use_native_datetime
+    self._job_name = job_name or 'BQ_DIRECT_READ_JOB'
+    self._step_name = step_name
+    self._source_uuid = unique_id
+
+  def _get_parent_project(self):
+    """Returns the project that will be billed."""
+    if self.temp_table:
+      return self.temp_table.projectId
+
+    project = self.pipeline_options.view_as(GoogleCloudOptions).project
+    if isinstance(project, vp.ValueProvider):
+      project = project.get()
+    if not project:
+      project = self.project
+    return project
+
+  def _get_table_size(self, bq, table_reference):
+    project = (
+        table_reference.projectId
+        if table_reference.projectId else self._get_parent_project())
+    table = bq.get_table(
+        project, table_reference.datasetId, table_reference.tableId)
+    return table.numBytes
+
+  def _get_bq_metadata(self):
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
+    return self.bq_io_metadata
+
+  @check_accessible(['query'])
+  def _setup_temporary_dataset(self, bq):
+    if self.temp_table:
+      # Temp dataset was provided by the user so we can just return.
+      return
+    location = bq.get_query_location(
+        self._get_parent_project(), self.query.get(), self.use_legacy_sql)
+    _LOGGER.warning("### Labels: %s", str(self.bigquery_dataset_labels))
+    bq.create_temporary_dataset(
+        self._get_parent_project(), location, self.bigquery_dataset_labels)
+
+  @check_accessible(['query'])
+  def _execute_query(self, bq):
+    query_job_name = bigquery_tools.generate_bq_job_name(
+        self._job_name,
+        self._source_uuid,
+        bigquery_tools.BigQueryJobTypes.QUERY,
+        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
+    job = bq._start_query_job(
+        self._get_parent_project(),
+        self.query.get(),
+        self.use_legacy_sql,
+        self.flatten_results,
+        job_id=query_job_name,
+        priority=self.query_priority,
+        kms_key=self.kms_key,
+        job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
+            self.bigquery_job_labels))
+    job_ref = job.jobReference
+    bq.wait_for_bq_job(job_ref, max_retries=0)
+    table_reference = bq._get_temp_table(self._get_parent_project())
+    return table_reference
+
+  def display_data(self):
+    return {
+        'method': self.method,
+        'output_format': 'ARROW' if self.use_native_datetime else 'AVRO',
+        'project': str(self.project),
+        'table_reference': str(self.table_reference),
+        'query': str(self.query),
+        'use_legacy_sql': self.use_legacy_sql,
+        'use_native_datetime': self.use_native_datetime,
+        'selected_fields': str(self.selected_fields),
+        'row_restriction': str(self.row_restriction)
+    }
+
+  def estimate_size(self):
+    # Returns the pre-filtering size of the (temporary) table being read.
+    bq = bigquery_tools.BigQueryWrapper()
+    if self.table_reference is not None:
+      return self._get_table_size(bq, self.table_reference)
+    elif self.query is not None and self.query.is_accessible():
+      query_job_name = bigquery_tools.generate_bq_job_name(
+          self._job_name,
+          self._source_uuid,
+          bigquery_tools.BigQueryJobTypes.QUERY,
+          '%s_%s' % (int(time.time()), random.randint(0, 1000)))
+      job = bq._start_query_job(
+          self._get_parent_project(),
+          self.query.get(),
+          self.use_legacy_sql,
+          self.flatten_results,
+          job_id=query_job_name,
+          priority=self.query_priority,
+          dry_run=True,
+          kms_key=self.kms_key,
+          job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
+              self.bigquery_job_labels))
+      size = int(job.statistics.totalBytesProcessed)
+      return size
+    else:
+      # Size estimation is best effort. We return None as we have
+      # no access to the query that we're running.
+      return None
+
+  def split(self, desired_bundle_size, start_position=None, stop_position=None):
+    if self.split_result is None:
+      bq = bigquery_tools.BigQueryWrapper(
+          temp_table_ref=(self.temp_table if self.temp_table else None))
+
+      if self.query is not None:
+        self._setup_temporary_dataset(bq)
+        self.table_reference = self._execute_query(bq)
+
+      requested_session = bq_storage.types.ReadSession()
+      requested_session.table = 'projects/{}/datasets/{}/tables/{}'.format(
+          self.table_reference.projectId,
+          self.table_reference.datasetId,
+          self.table_reference.tableId)
+
+      if self.use_native_datetime:
+        requested_session.data_format = bq_storage.types.DataFormat.ARROW
+        requested_session.read_options\
+          .arrow_serialization_options.buffer_compression = \
+          bq_storage.types.ArrowSerializationOptions.CompressionCodec.LZ4_FRAME
+      else:
+        requested_session.data_format = bq_storage.types.DataFormat.AVRO
+
+      if self.selected_fields is not None:
+        requested_session.read_options.selected_fields = self.selected_fields
+      if self.row_restriction is not None:
+        requested_session.read_options.row_restriction = self.row_restriction
+
+      storage_client = bq_storage.BigQueryReadClient()
+      stream_count = 0
+      if desired_bundle_size > 0:
+        table_size = self._get_table_size(bq, self.table_reference)
+        stream_count = min(
+            int(table_size / desired_bundle_size),
+            _CustomBigQueryStorageSource.MAX_SPLIT_COUNT)
+      stream_count = max(
+          stream_count, _CustomBigQueryStorageSource.MIN_SPLIT_COUNT)
+
+      parent = 'projects/{}'.format(self.table_reference.projectId)
+      read_session = storage_client.create_read_session(
+          parent=parent,
+          read_session=requested_session,
+          max_stream_count=stream_count)
+      _LOGGER.info(
+          'Sent BigQuery Storage API CreateReadSession request: \n %s \n'
+          'Received response \n %s.',
+          requested_session,
+          read_session)
+
+      self.split_result = [
+          _CustomBigQueryStorageStreamSource(
+              stream.name, self.use_native_datetime)
+          for stream in read_session.streams
+      ]
+
+    for source in self.split_result:
+      yield SourceBundle(
+          weight=1.0, source=source, start_position=None, stop_position=None)
+
+  def get_range_tracker(self, start_position, stop_position):
+    class NonePositionRangeTracker(RangeTracker):
+      """A RangeTracker that always returns positions as None. Prevents the
+      BigQuery Storage source from being read() before being split()."""
+      def start_position(self):
+        return None
+
+      def stop_position(self):
+        return None
+
+    return NonePositionRangeTracker()
+
+  def read(self, range_tracker):
+    raise NotImplementedError(
+        'BigQuery storage source must be split before being read')
+
+
+class _CustomBigQueryStorageStreamSource(BoundedSource):
+  """A source representing a single stream in a read session."""
+  def __init__(
+      self, read_stream_name: str, use_native_datetime: Optional[bool] = True):
+    self.read_stream_name = read_stream_name
+    self.use_native_datetime = use_native_datetime
+
+  def display_data(self):
+    return {
+        'output_format': 'ARROW' if self.use_native_datetime else 'AVRO',
+        'read_stream': str(self.read_stream_name),
+        'use_native_datetime': str(self.use_native_datetime)
+    }
+
+  def estimate_size(self):
+    # The size of stream source cannot be estimate due to server-side liquid
+    # sharding.
+    # TODO(BEAM-12990): Implement progress reporting.
+    return None
+
+  def split(self, desired_bundle_size, start_position=None, stop_position=None):
+    # A stream source can't be split without reading from it due to
+    # server-side liquid sharding. A split will simply return the current source
+    # for now.
+    return SourceBundle(
+        weight=1.0,
+        source=_CustomBigQueryStorageStreamSource(
+            self.read_stream_name, self.use_native_datetime),
+        start_position=None,
+        stop_position=None)
+
+  def get_range_tracker(self, start_position, stop_position):
+    # TODO(BEAM-12989): Implement dynamic work rebalancing.
+    assert start_position is None
+    # Defaulting to the start of the stream.
+    start_position = 0
+    # Since the streams are unsplittable we choose OFFSET_INFINITY as the
+    # default end offset so that all data of the source gets read.
+    stop_position = range_trackers.OffsetRangeTracker.OFFSET_INFINITY
+    range_tracker = range_trackers.OffsetRangeTracker(
+        start_position, stop_position)
+    # Ensuring that all try_split() calls will be ignored by the Rangetracker.
+    range_tracker = range_trackers.UnsplittableRangeTracker(range_tracker)
+
+    return range_tracker
+
+  def read(self, range_tracker):
+    _LOGGER.info(
+        "Started BigQuery Storage API read from stream %s.",
+        self.read_stream_name)
+    if self.use_native_datetime:
+      return self.read_arrow()
+    else:
+      return self.read_avro()
+
+  def read_arrow(self):
+    storage_client = bq_storage.BigQueryReadClient()
+    row_iter = iter(storage_client.read_rows(self.read_stream_name).rows())
+    row = next(row_iter, None)
+    # Handling the case where the user might provide very selective filters
+    # which can result in read_rows_response being empty.
+    if row is None:
+      return iter([])
+
+    while row is not None:
+      py_row = dict(map(lambda item: (item[0], item[1].as_py()), row.items()))
+      row = next(row_iter, None)
+      yield py_row
+
+  def read_avro(self):
+    storage_client = bq_storage.BigQueryReadClient()
+    read_rows_iterator = iter(storage_client.read_rows(self.read_stream_name))
+    # Handling the case where the user might provide very selective filters
+    # which can result in read_rows_response being empty.
+    first_read_rows_response = next(read_rows_iterator, None)
+    if first_read_rows_response is None:
+      return iter([])
+
+    row_reader = _ReadReadRowsResponsesWithFastAvro(
+        read_rows_iterator, first_read_rows_response)
+    return iter(row_reader)
+
+
+class _ReadReadRowsResponsesWithFastAvro():
+  """An iterator that deserializes ReadRowsResponses using the fastavro
+  library."""
+  def __init__(self, read_rows_iterator, read_rows_response):
+    self.read_rows_iterator = read_rows_iterator
+    self.read_rows_response = read_rows_response
+    self.avro_schema = fastavro.parse_schema(
+        json.loads(self.read_rows_response.avro_schema.schema))
+    self.bytes_reader = io.BytesIO(
+        self.read_rows_response.avro_rows.serialized_binary_rows)
+
+  def __iter__(self):
+    return self
+
+  def __next__(self):
+    try:
+      return fastavro.schemaless_reader(self.bytes_reader, self.avro_schema)
+    except StopIteration:
+      self.read_rows_response = next(self.read_rows_iterator, None)
+      if self.read_rows_response is not None:
+        self.bytes_reader = io.BytesIO(
+            self.read_rows_response.avro_rows.serialized_binary_rows)
+        return fastavro.schemaless_reader(self.bytes_reader, self.avro_schema)
+      else:
+        raise StopIteration
 
 
 @deprecated(since='2.11.0', current="WriteToBigQuery")
@@ -1848,6 +2260,17 @@ class ReadFromBigQuery(PTransform):
     default.
 
   Args:
+    method: The method to use to read from BigQuery. It may be EXPORT or
+      DIRECT_READ. EXPORT invokes a BigQuery export request
+      (https://cloud.google.com/bigquery/docs/exporting-data). DIRECT_READ reads
+      directly from BigQuery storage using the BigQuery Read API
+      (https://cloud.google.com/bigquery/docs/reference/storage). If
+      unspecified, the default is currently EXPORT.
+    use_native_datetime (bool): By default this transform exports BigQuery
+      DATETIME fields as formatted strings (for example:
+      2021-01-01T12:59:59). If :data:`True`, BigQuery DATETIME fields will
+      be returned as native Python datetime objects. This can only be used when
+      'method' is 'DIRECT_READ'.
     table (str, callable, ValueProvider): The ID of the table, or a callable
       that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
       numbers ``0-9``, or underscores ``_``. If dataset argument is
@@ -1915,12 +2338,36 @@ class ReadFromBigQuery(PTransform):
         that dataset, and will remove it once it is not needed. Job needs access
         to create and delete tables within the given dataset. Dataset name
         should *not* start with the reserved prefix `beam_temp_dataset_`.
+    query_priority (BigQueryQueryPriority): By default, this transform runs
+      queries with BATCH priority. Use :attr:`BigQueryQueryPriority.INTERACTIVE`
+      to run queries with INTERACTIVE priority. This option is ignored when
+      reading from a table rather than a query. To learn more about query
+      priority, see: https://cloud.google.com/bigquery/docs/running-queries
    """
+  class Method(object):
+    EXPORT = 'EXPORT'  #  This is currently the default.
+    DIRECT_READ = 'DIRECT_READ'
 
   COUNTER = 0
 
-  def __init__(self, gcs_location=None, *args, **kwargs):
-    if gcs_location:
+  def __init__(
+      self,
+      gcs_location=None,
+      method=None,
+      use_native_datetime=False,
+      *args,
+      **kwargs):
+    self.method = method or ReadFromBigQuery.Method.EXPORT
+    self.use_native_datetime = use_native_datetime
+
+    if self.method is ReadFromBigQuery.Method.EXPORT \
+        and self.use_native_datetime is True:
+      raise TypeError(
+          'The "use_native_datetime" parameter cannot be True for EXPORT.'
+          ' Please set the "use_native_datetime" parameter to False *OR*'
+          ' set the "method" parameter to ReadFromBigQuery.Method.DIRECT_READ.')
+
+    if gcs_location and self.method is ReadFromBigQuery.Method.EXPORT:
       if not isinstance(gcs_location, (str, ValueProvider)):
         raise TypeError(
             '%s: gcs_location must be of type string'
@@ -1930,10 +2377,24 @@ class ReadFromBigQuery(PTransform):
         gcs_location = StaticValueProvider(str, gcs_location)
 
     self.gcs_location = gcs_location
+    self.bigquery_dataset_labels = {
+        'type': 'bq_direct_read_' + str(uuid.uuid4())[0:10]
+    }
     self._args = args
     self._kwargs = kwargs
 
   def expand(self, pcoll):
+    if self.method is ReadFromBigQuery.Method.EXPORT:
+      return self._expand_export(pcoll)
+    elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
+      return self._expand_direct_read(pcoll)
+    else:
+      raise ValueError(
+          'The method to read from BigQuery must be either EXPORT'
+          'or DIRECT_READ.')
+
+  def _expand_export(self, pcoll):
+    # TODO(BEAM-11115): Make ReadFromBQ rely on ReadAllFromBQ implementation.
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
@@ -1961,12 +2422,52 @@ class ReadFromBigQuery(PTransform):
             _CustomBigQuerySource(
                 gcs_location=self.gcs_location,
                 pipeline_options=pcoll.pipeline.options,
+                method=self.method,
                 job_name=job_name,
                 step_name=step_name,
                 unique_id=unique_id,
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanup(files_to_remove_pcoll))
+
+  def _expand_direct_read(self, pcoll):
+    project_id = None
+    temp_table_ref = None
+    if 'temp_dataset' in self._kwargs:
+      temp_table_ref = bigquery.TableReference(
+          projectId=self._kwargs['temp_dataset'].projectId,
+          datasetId=self._kwargs['temp_dataset'].datasetId,
+          tableId='beam_temp_table_' + uuid.uuid4().hex)
+    else:
+      project_id = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
+
+    def _get_pipeline_details(unused_elm):
+      pipeline_details = {}
+      if temp_table_ref is not None:
+        pipeline_details['temp_table_ref'] = temp_table_ref
+      elif project_id is not None:
+        pipeline_details['project_id'] = project_id
+        pipeline_details[
+            'bigquery_dataset_labels'] = self.bigquery_dataset_labels
+      return pipeline_details
+
+    project_to_cleanup_pcoll = beam.pvalue.AsList(
+        pcoll.pipeline
+        | 'ProjectToCleanupImpulse' >> beam.Create([None])
+        | 'MapProjectToCleanup' >> beam.Map(_get_pipeline_details))
+
+    return (
+        pcoll
+        | beam.io.Read(
+            _CustomBigQueryStorageSource(
+                pipeline_options=pcoll.pipeline.options,
+                method=self.method,
+                use_native_datetime=self.use_native_datetime,
+                temp_table=temp_table_ref,
+                bigquery_dataset_labels=self.bigquery_dataset_labels,
+                *self._args,
+                **self._kwargs))
+        | _PassThroughThenCleanupTempDatasets(project_to_cleanup_pcoll))
 
 
 class ReadFromBigQueryRequest:
@@ -2051,7 +2552,8 @@ class ReadAllFromBigQuery(PTransform):
       validate: bool = False,
       kms_key: str = None,
       temp_dataset: Union[str, DatasetReference] = None,
-      bigquery_job_labels: Dict[str, str] = None):
+      bigquery_job_labels: Dict[str, str] = None,
+      query_priority: str = BigQueryQueryPriority.BATCH):
     if gcs_location:
       if not isinstance(gcs_location, (str, ValueProvider)):
         raise TypeError(
@@ -2064,6 +2566,7 @@ class ReadAllFromBigQuery(PTransform):
     self.kms_key = kms_key
     self.bigquery_job_labels = bigquery_job_labels
     self.temp_dataset = temp_dataset
+    self.query_priority = query_priority
 
   def expand(self, pcoll):
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
@@ -2088,7 +2591,8 @@ class ReadAllFromBigQuery(PTransform):
             unique_id=unique_id,
             kms_key=self.kms_key,
             project=project,
-            temp_dataset=self.temp_dataset)).with_outputs(
+            temp_dataset=self.temp_dataset,
+            query_priority=self.query_priority)).with_outputs(
         "location_to_cleanup", main="files_to_read")
     )
 

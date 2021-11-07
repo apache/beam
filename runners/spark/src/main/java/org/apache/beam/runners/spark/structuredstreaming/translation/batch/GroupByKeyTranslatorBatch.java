@@ -17,27 +17,26 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.beam.runners.core.Concatenate;
+import java.io.Serializable;
+import org.apache.beam.runners.core.InMemoryStateInternals;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.GroupAlsoByWindowViaOutputBufferFn;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.KVHelpers;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.KeyValueGroupedDataset;
-import scala.Tuple2;
 
 class GroupByKeyTranslatorBatch<K, V>
     implements TransformTranslator<
@@ -49,62 +48,43 @@ class GroupByKeyTranslatorBatch<K, V>
       AbstractTranslationContext context) {
 
     @SuppressWarnings("unchecked")
-    final PCollection<KV<K, V>> input = (PCollection<KV<K, V>>) context.getInput();
-    @SuppressWarnings("unchecked")
-    final PCollection<KV<K, List<V>>> output = (PCollection<KV<K, List<V>>>) context.getOutput();
-    final Combine.CombineFn<V, List<V>, List<V>> combineFn = new Concatenate<>();
+    final PCollection<KV<K, V>> inputPCollection = (PCollection<KV<K, V>>) context.getInput();
+    Dataset<WindowedValue<KV<K, V>>> input = context.getDataset(inputPCollection);
+    WindowingStrategy<?, ?> windowingStrategy = inputPCollection.getWindowingStrategy();
+    KvCoder<K, V> kvCoder = (KvCoder<K, V>) inputPCollection.getCoder();
+    Coder<V> valueCoder = kvCoder.getValueCoder();
 
-    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+    // group by key only
+    Coder<K> keyCoder = kvCoder.getKeyCoder();
+    KeyValueGroupedDataset<K, WindowedValue<KV<K, V>>> groupByKeyOnly =
+        input.groupByKey(KVHelpers.extractKey(), EncoderHelpers.fromBeamCoder(keyCoder));
 
-    Dataset<WindowedValue<KV<K, V>>> inputDataset = context.getDataset(input);
+    // group also by windows
+    WindowedValue.FullWindowedValueCoder<KV<K, Iterable<V>>> outputCoder =
+        WindowedValue.FullWindowedValueCoder.of(
+            KvCoder.of(keyCoder, IterableCoder.of(valueCoder)),
+            windowingStrategy.getWindowFn().windowCoder());
+    Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
+        groupByKeyOnly.flatMapGroups(
+            new GroupAlsoByWindowViaOutputBufferFn<>(
+                windowingStrategy,
+                new InMemoryStateInternalsFactory<>(),
+                SystemReduceFn.buffering(valueCoder),
+                context.getSerializableOptions()),
+            EncoderHelpers.fromBeamCoder(outputCoder));
 
-    KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
-    Coder<K> keyCoder = inputCoder.getKeyCoder();
-    KvCoder<K, List<V>> outputKVCoder = (KvCoder<K, List<V>>) output.getCoder();
-    Coder<List<V>> outputCoder = outputKVCoder.getValueCoder();
+    context.putDataset(context.getOutput(), output);
+  }
 
-    KeyValueGroupedDataset<K, WindowedValue<KV<K, V>>> groupedDataset =
-      inputDataset.groupByKey(KVHelpers.extractKey(), EncoderHelpers.fromBeamCoder(keyCoder));
-
-    Coder<List<V>> accumulatorCoder = null;
-    try {
-      accumulatorCoder =
-        combineFn.getAccumulatorCoder(
-          input.getPipeline().getCoderRegistry(), inputCoder.getValueCoder());
-    } catch (CannotProvideCoderException e) {
-      throw new RuntimeException(e);
+  /**
+   * In-memory state internals factory.
+   *
+   * @param <K> State key type.
+   */
+  static class InMemoryStateInternalsFactory<K> implements StateInternalsFactory<K>, Serializable {
+    @Override
+    public StateInternals stateInternalsForKey(K key) {
+      return InMemoryStateInternals.forKey(key);
     }
-
-    Dataset<Tuple2<K, Iterable<WindowedValue<List<V>>>>> combinedDataset =
-      groupedDataset.agg(
-        new AggregatorCombiner<K, V, List<V>, List<V>, BoundedWindow>(
-          combineFn, windowingStrategy, accumulatorCoder, outputCoder)
-          .toColumn());
-
-    // expand the list into separate elements and put the key back into the elements
-    WindowedValue.WindowedValueCoder<KV<K, List<V>>> wvCoder =
-      WindowedValue.FullWindowedValueCoder.of(
-        outputKVCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
-    Dataset<WindowedValue<KV<K, List<V>>>> outputDataset =
-      combinedDataset.flatMap(
-        (FlatMapFunction<
-          Tuple2<K, Iterable<WindowedValue<List<V>>>>, WindowedValue<KV<K, List<V>>>>)
-          tuple2 -> {
-            K key = tuple2._1();
-            Iterable<WindowedValue<List<V>>> windowedValues = tuple2._2();
-            List<WindowedValue<KV<K, List<V>>>> result = new ArrayList<>();
-            for (WindowedValue<List<V>> windowedValue : windowedValues) {
-              KV<K, List<V>> kv = KV.of(key, windowedValue.getValue());
-              result.add(
-                WindowedValue.of(
-                  kv,
-                  windowedValue.getTimestamp(),
-                  windowedValue.getWindows(),
-                  windowedValue.getPane()));
-            }
-            return result.iterator();
-          },
-        EncoderHelpers.fromBeamCoder(wvCoder));
-    context.putDataset(output, outputDataset);
   }
 }

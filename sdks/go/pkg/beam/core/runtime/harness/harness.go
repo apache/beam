@@ -26,6 +26,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -35,6 +36,9 @@ import (
 	"google.golang.org/grpc"
 )
 
+// This side input cache size is a placeholder value.
+const cacheSize = 20
+
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
@@ -43,8 +47,10 @@ import (
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	hooks.DeserializeHooksFromOptions(ctx)
 
+	// Pass in the logging endpoint for use w/the default remote logging hook.
+	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
 	hooks.RunInitHooks(ctx)
-	setupRemoteLogging(ctx, loggingEndpoint)
+
 	recordHeader()
 
 	// Connect to FnAPI control server. Receive and execute work.
@@ -92,6 +98,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
+	sideCache := statecache.SideInputCache{}
+	sideCache.Init(cacheSize)
+
 	ctrl := &control{
 		lookupDesc:  lookupDesc,
 		descriptors: make(map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor),
@@ -102,6 +111,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		failed:      make(map[instructionID]error),
 		data:        &DataChannelManager{},
 		state:       &StateChannelManager{},
+		cache:       &sideCache,
 	}
 
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
@@ -231,6 +241,8 @@ type control struct {
 
 	data  *DataChannelManager
 	state *StateChannelManager
+	// TODO(BEAM-11097): Cache is currently unused.
+	cache *statecache.SideInputCache
 }
 
 func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
@@ -307,9 +319,17 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(ctx, instID, "Failed: %v", err)
 		}
 
+		// TODO(BEAM-11097): Get and set valid tokens in cache
 		data := NewScopedDataManager(c.data, instID)
-		state := NewScopedStateReader(c.state, instID)
+		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
+
+		sampler := newSampler(store)
+		go sampler.start(ctx, time.Millisecond*200)
+
 		err = plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
+
+		sampler.stop()
+
 		data.Close()
 		state.Close()
 

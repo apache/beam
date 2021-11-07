@@ -106,7 +106,7 @@ class CounterCell(MetricCell):
   This class is thread safe.
   """
   def __init__(self, *args):
-    super(CounterCell, self).__init__(*args)
+    super().__init__(*args)
     self.value = CounterAggregator.identity_element()
 
   def reset(self):
@@ -170,7 +170,7 @@ class DistributionCell(MetricCell):
   This class is thread safe.
   """
   def __init__(self, *args):
-    super(DistributionCell, self).__init__(*args)
+    super().__init__(*args)
     self.data = DistributionAggregator.identity_element()
 
   def reset(self):
@@ -229,7 +229,7 @@ class GaugeCell(MetricCell):
   This class is thread safe.
   """
   def __init__(self, *args):
-    super(GaugeCell, self).__init__(*args)
+    super().__init__(*args)
     self.data = GaugeAggregator.identity_element()
 
   def reset(self):

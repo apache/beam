@@ -35,7 +35,7 @@ public abstract class MetricKey implements Serializable {
   public abstract MetricName metricName();
 
   @Override
-  public String toString() {
+  public final String toString() {
     return stepName() + ":" + metricName();
   }
 

@@ -160,7 +160,7 @@ public class SyntheticSourceOptions extends SyntheticOptions {
 
     Record(KV<byte[], byte[]> kv, long sleepMsec) {
       this.kv = kv;
-      this.sleepMsec = new Duration(sleepMsec);
+      this.sleepMsec = Duration.millis(sleepMsec);
     }
   }
 

@@ -219,7 +219,7 @@ class ReadFromPubSub(PTransform):
           timestamp is optional, and digits beyond the first three (i.e., time
           units smaller than milliseconds) may be ignored.
     """
-    super(ReadFromPubSub, self).__init__()
+    super().__init__()
     self.with_attributes = with_attributes
     self._source = _PubSubSource(
         topic=topic,
@@ -250,7 +250,7 @@ def ReadStringsFromPubSub(topic=None, subscription=None, id_label=None):
 class _ReadStringsFromPubSub(PTransform):
   """This class is deprecated. Use ``ReadFromPubSub`` instead."""
   def __init__(self, topic=None, subscription=None, id_label=None):
-    super(_ReadStringsFromPubSub, self).__init__()
+    super().__init__()
     self.topic = topic
     self.subscription = subscription
     self.id_label = id_label
@@ -278,7 +278,7 @@ class _WriteStringsToPubSub(PTransform):
     Attributes:
       topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
     """
-    super(_WriteStringsToPubSub, self).__init__()
+    super().__init__()
     self.topic = topic
 
   def expand(self, pcoll):
@@ -315,7 +315,7 @@ class WriteToPubSub(PTransform):
       timestamp_attribute: If set, will set an attribute for each Cloud Pub/Sub
         message with the given name and the message's publish time as the value.
     """
-    super(WriteToPubSub, self).__init__()
+    super().__init__()
     self.with_attributes = with_attributes
     self.id_label = id_label
     self.timestamp_attribute = timestamp_attribute

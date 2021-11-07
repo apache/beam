@@ -76,7 +76,7 @@ class SpannerWritePerfTest(LoadTest):
   TEST_DATABASE = None
 
   def __init__(self):
-    super(SpannerWritePerfTest, self).__init__()
+    super().__init__()
     self.project = self.pipeline.get_option('project')
     self.spanner_instance = self.pipeline.get_option('spanner_instance')
     self.spanner_database = self.pipeline.get_option('spanner_database')

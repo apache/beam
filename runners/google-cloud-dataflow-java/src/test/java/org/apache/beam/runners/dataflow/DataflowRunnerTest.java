@@ -39,9 +39,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
@@ -267,7 +265,7 @@ public class DataflowRunnerTest implements Serializable {
   private static GcsUtil buildMockGcsUtil() throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+    when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
         .then(
             invocation ->
                 FileChannel.open(
@@ -276,7 +274,7 @@ public class DataflowRunnerTest implements Serializable {
                     StandardOpenOption.WRITE,
                     StandardOpenOption.DELETE_ON_CLOSE));
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+    when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
         .then(
             invocation ->
                 FileChannel.open(
@@ -882,7 +880,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+    when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
         .then(
             invocation ->
                 FileChannel.open(
@@ -950,7 +948,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+    when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
         .then(
             invocation ->
                 FileChannel.open(
@@ -1541,6 +1539,15 @@ public class DataflowRunnerTest implements Serializable {
     verifyMapStateUnsupported(options);
   }
 
+  @Test
+  public void testMapStateUnsupportedStreamingUnifiedRunner() throws Exception {
+    PipelineOptions options = buildPipelineOptions();
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_unified_worker");
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
+
+    verifyMapStateUnsupported(options);
+  }
+
   private void verifySetStateUnsupported(PipelineOptions options) throws Exception {
     Pipeline p = Pipeline.create(options);
     p.apply(Create.of(KV.of(13, 42)))
@@ -1564,6 +1571,14 @@ public class DataflowRunnerTest implements Serializable {
     PipelineOptions options = buildPipelineOptions();
     ExperimentalOptions.addExperiment(
         options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
+    verifySetStateUnsupported(options);
+  }
+
+  @Test
+  public void testSetStateUnsupportedStreamingUnifiedWorker() throws Exception {
+    PipelineOptions options = buildPipelineOptions();
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_unified_worker");
     options.as(DataflowPipelineOptions.class).setStreaming(true);
     verifySetStateUnsupported(options);
   }

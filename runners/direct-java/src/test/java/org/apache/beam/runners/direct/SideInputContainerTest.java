@@ -51,6 +51,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -234,7 +235,7 @@ public class SideInputContainerTest {
       valuesBuilder.add(
           WindowedValue.of(
               materializedValue,
-              FIRST_WINDOW.maxTimestamp().minus(200L),
+              FIRST_WINDOW.maxTimestamp().minus(Duration.millis(200L)),
               FIRST_WINDOW,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
@@ -243,7 +244,7 @@ public class SideInputContainerTest {
       valuesBuilder.add(
           WindowedValue.of(
               materializedValue,
-              SECOND_WINDOW.maxTimestamp().minus(2_000_000L),
+              SECOND_WINDOW.maxTimestamp().minus(Duration.millis(2_000_000L)),
               SECOND_WINDOW,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
@@ -268,7 +269,7 @@ public class SideInputContainerTest {
       valuesBuilder.add(
           WindowedValue.of(
               materializedValue,
-              FIRST_WINDOW.maxTimestamp().minus(200L),
+              FIRST_WINDOW.maxTimestamp().minus(Duration.millis(200L)),
               FIRST_WINDOW,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
@@ -289,7 +290,7 @@ public class SideInputContainerTest {
       valuesBuilder.add(
           WindowedValue.of(
               materializedValue,
-              FIRST_WINDOW.maxTimestamp().minus(200L),
+              FIRST_WINDOW.maxTimestamp().minus(Duration.millis(200L)),
               ImmutableList.of(FIRST_WINDOW, SECOND_WINDOW),
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
@@ -374,7 +375,7 @@ public class SideInputContainerTest {
       mapValuesBuilder.add(
           WindowedValue.of(
               materializedValue,
-              SECOND_WINDOW.maxTimestamp().minus(100L),
+              SECOND_WINDOW.maxTimestamp().minus(Duration.millis(100L)),
               SECOND_WINDOW,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
@@ -393,7 +394,7 @@ public class SideInputContainerTest {
       newMapValuesBuilder.add(
           WindowedValue.of(
               materializedValue,
-              FIRST_WINDOW.maxTimestamp().minus(100L),
+              FIRST_WINDOW.maxTimestamp().minus(Duration.millis(100L)),
               FIRST_WINDOW,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
@@ -407,7 +408,7 @@ public class SideInputContainerTest {
       singletonValuesBuilder.add(
           WindowedValue.of(
               materializedValue,
-              SECOND_WINDOW.maxTimestamp().minus(100L),
+              SECOND_WINDOW.maxTimestamp().minus(Duration.millis(100L)),
               SECOND_WINDOW,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }

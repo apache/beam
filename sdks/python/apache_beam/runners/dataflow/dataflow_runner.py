@@ -138,7 +138,7 @@ class DataflowRunner(PipelineRunner):
 
   def apply(self, transform, input, options):
     self._maybe_add_unified_worker_missing_options(options)
-    return super(DataflowRunner, self).apply(transform, input, options)
+    return super().apply(transform, input, options)
 
   def _get_unique_step_name(self):
     self._unique_step_id += 1
@@ -508,13 +508,6 @@ class DataflowRunner(PipelineRunner):
       # in the proto representation of the graph.
       pipeline.replace_all(DataflowRunner._NON_PORTABLE_PTRANSFORM_OVERRIDES)
 
-    # Always upload graph out-of-band when explicitly using runner v2 with
-    # use_portable_job_submission to avoid irrelevant large graph limits.
-    if (apiclient._use_unified_worker(debug_options) and
-        debug_options.lookup_experiment('use_portable_job_submission') and
-        not debug_options.lookup_experiment('upload_graph')):
-      debug_options.add_experiment("upload_graph")
-
     # Add setup_options for all the BeamPlugin imports
     setup_options = options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
@@ -601,9 +594,17 @@ class DataflowRunner(PipelineRunner):
     return result
 
   def _maybe_add_unified_worker_missing_options(self, options):
+    debug_options = options.view_as(DebugOptions)
+    # Streaming is always portable, default to runner v2.
+    if (options.view_as(StandardOptions).streaming and
+        not debug_options.lookup_experiment('disable_streaming_engine') and
+        not options.view_as(GoogleCloudOptions).dataflow_kms_key):
+      if not debug_options.lookup_experiment('disable_runner_v2'):
+        debug_options.add_experiment('beam_fn_api')
+        debug_options.add_experiment('use_runner_v2')
+        debug_options.add_experiment('use_portable_job_submission')
     # set default beam_fn_api experiment if use unified
     # worker experiment flag exists, no-op otherwise.
-    debug_options = options.view_as(DebugOptions)
     from apache_beam.runners.dataflow.internal import apiclient
     if apiclient._use_unified_worker(options):
       if not debug_options.lookup_experiment('beam_fn_api'):
@@ -1674,5 +1675,5 @@ class DataflowPipelineResult(PipelineResult):
 class DataflowRuntimeException(Exception):
   """Indicates an error has occurred in running this pipeline."""
   def __init__(self, msg, result):
-    super(DataflowRuntimeException, self).__init__(msg)
+    super().__init__(msg)
     self.result = result

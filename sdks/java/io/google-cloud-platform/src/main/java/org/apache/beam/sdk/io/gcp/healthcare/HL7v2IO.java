@@ -163,11 +163,6 @@ public class HL7v2IO {
     return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(StaticValueProvider.of(hl7v2Store));
   }
 
-  /** Write HL7v2 Messages to a store. */
-  private static Write.Builder write(ValueProvider<String> hl7v2Store) {
-    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store);
-  }
-
   /**
    * Retrieve all HL7v2 Messages from a PCollection of message IDs (such as from PubSub notification
    * subscription).
@@ -323,7 +318,7 @@ public class HL7v2IO {
         new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
-    public Result expand(PCollection<String> input) {
+    public Read.Result expand(PCollection<String> input) {
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return input.apply("Fetch HL7v2 messages", new FetchHL7v2Message());
@@ -354,7 +349,7 @@ public class HL7v2IO {
       public FetchHL7v2Message() {}
 
       @Override
-      public Result expand(PCollection<String> msgIds) {
+      public Read.Result expand(PCollection<String> msgIds) {
         CoderRegistry coderRegistry = msgIds.getPipeline().getCoderRegistry();
         coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
         return new Result(
@@ -531,7 +526,10 @@ public class HL7v2IO {
       Instant from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter.get());
       // filters are [from, to) to match logic of OffsetRangeTracker but need latest element to be
       // included in results set to add an extra ms to the upper bound.
-      Instant to = this.client.getLatestHL7v2SendTime(hl7v2Store, this.filter.get()).plus(1);
+      Instant to =
+          this.client
+              .getLatestHL7v2SendTime(hl7v2Store, this.filter.get())
+              .plus(Duration.millis(1));
       return new OffsetRange(from.getMillis(), to.getMillis());
     }
 
@@ -628,7 +626,7 @@ public class HL7v2IO {
     abstract WriteMethod getWriteMethod();
 
     @Override
-    public Result expand(PCollection<HL7v2Message> messages) {
+    public Write.Result expand(PCollection<HL7v2Message> messages) {
       CoderRegistry coderRegistry = messages.getPipeline().getCoderRegistry();
       coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return messages.apply(new WriteHL7v2(this.getHL7v2Store(), this.getWriteMethod()));

@@ -65,7 +65,7 @@ class PipelineFragment(object):
     self._runner_pipeline = self._build_runner_pipeline()
     _, self._context = self._runner_pipeline.to_runner_api(return_context=True)
     from apache_beam.runners.interactive import pipeline_instrument as instr
-    self._runner_pcoll_to_id = instr.pcolls_to_pcoll_id(
+    self._runner_pcoll_to_id = instr.pcoll_to_pcoll_id(
         self._runner_pipeline, self._context)
     # Correlate components in the runner pipeline to components in the user
     # pipeline. The target pcolls are the pcolls given and defined in the user
@@ -190,9 +190,21 @@ class PipelineFragment(object):
             break
           # Mark the AppliedPTransform as necessary.
           necessary_transforms.add(producer)
+
+          # Also mark composites that are not the root transform. If the root
+          # transform is added, then all transforms are incorrectly marked as
+          # necessary. If composites are not handled, then there will be
+          # orphaned PCollections.
+          if producer.parent is not None:
+            necessary_transforms.update(producer.parts)
+
+            # This will recursively add all the PCollections in this composite.
+            for part in producer.parts:
+              updated_all_inputs.update(part.outputs.values())
+
           # Record all necessary input and side input PCollections.
           updated_all_inputs.update(producer.inputs)
-          # pylint: disable=map-builtin-not-iterating
+          # pylint: disable=bad-option-value
           side_input_pvalues = set(
               map(lambda side_input: side_input.pvalue, producer.side_inputs))
           updated_all_inputs.update(side_input_pvalues)

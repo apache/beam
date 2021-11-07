@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermark
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -77,7 +78,7 @@ public class WatermarkEstimatorsTest {
             () -> {
               countDownLatch.countDown();
               for (int i = 0; i < 1000; ++i) {
-                watermarkUpdater.accept(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(i));
+                watermarkUpdater.accept(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(i)));
               }
             });
     t.start();

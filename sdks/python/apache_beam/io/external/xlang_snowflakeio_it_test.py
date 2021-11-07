@@ -109,7 +109,7 @@ class SnowflakeTest(unittest.TestCase):
       _ = (
           p
           | 'Impulse' >> beam.Impulse()
-          | 'Generate' >> beam.FlatMap(lambda x: range(NUM_RECORDS))  # pylint: disable=range-builtin-not-iterating
+          | 'Generate' >> beam.FlatMap(lambda x: range(NUM_RECORDS))  # pylint: disable=bad-option-value
           | 'Map to TestRow' >> beam.Map(
               lambda num: TestRow(
                   num, num % 2 == 0, b"test" + str(num).encode()))
