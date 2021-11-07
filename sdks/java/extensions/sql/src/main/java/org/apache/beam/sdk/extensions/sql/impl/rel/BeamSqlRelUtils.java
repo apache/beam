@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for {@code BeamRelNode}. */
 @SuppressWarnings({
@@ -48,7 +49,7 @@ public class BeamSqlRelUtils {
       List<RelNode> inputRels,
       Pipeline pipeline,
       Map<Integer, PCollection<Row>> cache,
-      PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer) {
+      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer) {
     if (inputRels.isEmpty()) {
       return PCollectionList.empty(pipeline);
     } else {
@@ -77,7 +78,7 @@ public class BeamSqlRelUtils {
       Pipeline pipeline,
       BeamRelNode node,
       Map<Integer, PCollection<Row>> cache,
-      PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer) {
+      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer) {
     PCollection<Row> output = cache.get(node.getId());
     if (output != null) {
       return output;
