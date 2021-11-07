@@ -99,7 +99,7 @@ for (String runner : testRunnerClass.keySet()) {
 // https://docs.gradle.org/current/samples/sample_java_modules_multi_project.html
 plugins.withType(JavaPlugin).configureEach{
   java {
-//    modularity.inferModulePath = true
+    modularity.inferModulePath = true
   }
 }
 
