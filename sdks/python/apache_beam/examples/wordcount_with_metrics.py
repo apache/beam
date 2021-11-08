@@ -117,6 +117,7 @@ def main(argv=None, save_main_session=True):
   result.wait_until_finish()
 
   # Do not query metrics when creating a template which doesn't run
+  # TODO Change the structure of how we fetch results from the PipelineResult
   if (not hasattr(result, 'has_job')  # direct runner
       or result.has_job):  # not just a template creation
     empty_lines_filter = MetricsFilter().with_name('empty_lines')
@@ -130,6 +131,9 @@ def main(argv=None, save_main_session=True):
     if query_result['distributions']:
       word_lengths_dist = query_result['distributions'][0]
       logging.info('average word length: %d', word_lengths_dist.result.mean)
+
+    result.get('empty_lines')
+    result.get('word_len_dist')
 
 
 if __name__ == '__main__':
