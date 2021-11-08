@@ -32,13 +32,14 @@ const (
 )
 
 // EnableSideInputCache accepts a desired maximum size for the side input cache, validates that
-// it is non-negative, then formats the integer as a string to pass to EnableHook. A size of 0
-// disables the cache (the cache capacity is 0 by default.)
+// it is non-negative, then formats the integer as a string to pass to EnableHook. A non-zero positive
+// integer enables the cache (the capacity of the cache is 0 by default.) Cache use also requires runner
+// support.
 func SideInputCacheCapacity(capacity int64) error {
 	if capacity < 0 {
 		return fmt.Errorf("capacity of cache cannot be negative, got %v", capacity)
 	}
 	capString := strconv.FormatInt(capacity, 10)
-	// The hook itself is defined in harness/cache_hooks.go
+	// The hook itself is defined in beam/core/runtime/harness/cache_hooks.go
 	return hooks.EnableHook(cacheCapacityHook, capString)
 }
