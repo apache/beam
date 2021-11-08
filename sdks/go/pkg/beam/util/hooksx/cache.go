@@ -31,10 +31,10 @@ import (
 // it is non-negative, then formats the integer as a string to pass to EnableHook. A size of 0
 // disables the cache. This hook is utilized in pkg/beam/core/runtime/harness/harness.go when the
 // cache is initialized.
-func EnableSideInputCache(size int64) {
+func EnableSideInputCache(size int64) error {
 	if size < 0 {
-		panic(fmt.Sprintf("side input cache size must be greater than or equal to 0, got %v", size))
+		return fmt.Errorf("size of cache cannot be negative, got %v", size)
 	}
 	sizeString := strconv.FormatInt(size, 10)
-	hooks.EnableHook("EnableSideInputCache", sizeString)
+	return hooks.EnableHook("EnableSideInputCache", sizeString)
 }
