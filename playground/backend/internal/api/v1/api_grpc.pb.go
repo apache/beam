@@ -41,6 +41,8 @@ type PlaygroundServiceClient interface {
 	CheckStatus(ctx context.Context, in *CheckStatusRequest, opts ...grpc.CallOption) (*CheckStatusResponse, error)
 	// Get the result of pipeline execution.
 	GetRunOutput(ctx context.Context, in *GetRunOutputRequest, opts ...grpc.CallOption) (*GetRunOutputResponse, error)
+	// Get the error of pipeline execution.
+	GetRunError(ctx context.Context, in *GetRunErrorRequest, opts ...grpc.CallOption) (*GetRunErrorResponse, error)
 	// Get the result of pipeline compilation.
 	GetCompileOutput(ctx context.Context, in *GetCompileOutputRequest, opts ...grpc.CallOption) (*GetCompileOutputResponse, error)
 	// Get the list of precompiled examples.
@@ -80,6 +82,15 @@ func (c *playgroundServiceClient) CheckStatus(ctx context.Context, in *CheckStat
 func (c *playgroundServiceClient) GetRunOutput(ctx context.Context, in *GetRunOutputRequest, opts ...grpc.CallOption) (*GetRunOutputResponse, error) {
 	out := new(GetRunOutputResponse)
 	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetRunOutput", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *playgroundServiceClient) GetRunError(ctx context.Context, in *GetRunErrorRequest, opts ...grpc.CallOption) (*GetRunErrorResponse, error) {
+	out := new(GetRunErrorResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetRunError", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +143,8 @@ type PlaygroundServiceServer interface {
 	CheckStatus(context.Context, *CheckStatusRequest) (*CheckStatusResponse, error)
 	// Get the result of pipeline execution.
 	GetRunOutput(context.Context, *GetRunOutputRequest) (*GetRunOutputResponse, error)
+	// Get the error of pipeline execution.
+	GetRunError(context.Context, *GetRunErrorRequest) (*GetRunErrorResponse, error)
 	// Get the result of pipeline compilation.
 	GetCompileOutput(context.Context, *GetCompileOutputRequest) (*GetCompileOutputResponse, error)
 	// Get the list of precompiled examples.
@@ -154,6 +167,9 @@ func (UnimplementedPlaygroundServiceServer) CheckStatus(context.Context, *CheckS
 }
 func (UnimplementedPlaygroundServiceServer) GetRunOutput(context.Context, *GetRunOutputRequest) (*GetRunOutputResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRunOutput not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetRunError(context.Context, *GetRunErrorRequest) (*GetRunErrorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRunError not implemented")
 }
 func (UnimplementedPlaygroundServiceServer) GetCompileOutput(context.Context, *GetCompileOutputRequest) (*GetCompileOutputResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCompileOutput not implemented")
@@ -229,6 +245,24 @@ func _PlaygroundService_GetRunOutput_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PlaygroundServiceServer).GetRunOutput(ctx, req.(*GetRunOutputRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PlaygroundService_GetRunError_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRunErrorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetRunError(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetRunError",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetRunError(ctx, req.(*GetRunErrorRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -323,6 +357,10 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetRunOutput",
 			Handler:    _PlaygroundService_GetRunOutput_Handler,
+		},
+		{
+			MethodName: "GetRunError",
+			Handler:    _PlaygroundService_GetRunError_Handler,
 		},
 		{
 			MethodName: "GetCompileOutput",
