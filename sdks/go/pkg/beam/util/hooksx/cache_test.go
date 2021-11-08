@@ -21,7 +21,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 )
 
-// The true EnableSideInputCache hook is defined in harness.go in an init()
+// The true EnableSideInputCache hook is defined in harness/cache_hooks.go.
 // function, so we mock it here to make sure the correct arg is being passed
 // to the hooks package.
 func createMockCacheHook() {
