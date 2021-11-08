@@ -92,7 +92,7 @@ After applying terraform following resources will be created:
 
 * GCP [Artifact Registry](https://cloud.google.com/artifact-registry) used to store application docker files:
 * VPC to run GCP App Engine VM's ([VPC](https://cloud.google.com/vpc))
-* 2 buckets to store Examples for Playground Application and Terraform states [buckets](https://cloud.google.com/storage/docs/key-terms#buckets) 
+* 2 buckets to store Examples for Playground Application and Terraform states [buckets](https://cloud.google.com/storage/docs/key-terms#buckets)
 * 2 GCP [App Engine](https://cloud.google.com/appengine) services for backend and frontend applications
 
 
