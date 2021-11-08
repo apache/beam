@@ -265,7 +265,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               return RetryType.RETRY_ALL_OPERATIONS;
             },
             response -> {
-              LOG.info("Append to stream {} succeeded.", streamName);
               recordsAppended.inc(protoRows.getSerializedRowsCount());
             },
             new Context<>());
