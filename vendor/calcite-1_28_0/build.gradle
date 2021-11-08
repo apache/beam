@@ -18,14 +18,14 @@
 
 plugins { id 'org.apache.beam.vendor-java' }
 
-description = "Apache Beam :: Vendored Dependencies :: Calcite 1.26.0"
+description = "Apache Beam :: Vendored Dependencies :: Calcite 1.28.0"
 
 group = "org.apache.beam"
 version = "0.1"
 
-def calcite_version = "1.26.0"
-def avatica_version = "1.17.0"
-def prefix = "org.apache.beam.vendor.calcite.v1_26_0"
+def calcite_version = "1.28.0"
+def avatica_version = "1.19.0"
+def prefix = "org.apache.beam.vendor.calcite.v1_28_0"
 
 List<String> packagesToRelocate = [
         "com.esri",
@@ -66,6 +66,8 @@ vendorJava(
                 "javax/annotation/**",
                 "org/checkerframework/**",
                 "org/jmlspecs/**",
+                "org/intellij/lang/annotations/**",
+                "org/jetbrains/annotations/**",
 
                 // Runtime logging interface
                 "org/slf4j/**",
@@ -91,9 +93,12 @@ vendorJava(
                 "org/apache/commons/pool2/proxy/**",
                 "org/codehaus/janino/AntCompilerAdapter*",
 
+                // Optional kotlin code
+                "kotlin/**",
+
                 "**/module-info.class",
         ],
         groupId: group,
-        artifactId: "beam-vendor-calcite-1_26_0",
+        artifactId: "beam-vendor-calcite-1_28_0",
         version: version,
 )

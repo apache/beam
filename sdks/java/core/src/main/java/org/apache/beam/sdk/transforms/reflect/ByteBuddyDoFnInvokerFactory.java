@@ -678,7 +678,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
          * @param instrumentedMethod The {@link DoFnInvoker} method for which we're generating code.
          */
         @Override
-        public Size apply(
+        public ByteCodeAppender.Size apply(
             MethodVisitor methodVisitor,
             Context implementationContext,
             MethodDescription instrumentedMethod) {
@@ -724,7 +724,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                   afterDelegation(instrumentedMethod));
 
           StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
-          return new Size(size.getMaximalSize(), numLocals);
+          return new ByteCodeAppender.Size(size.getMaximalSize(), numLocals);
         }
       };
     }
@@ -1240,8 +1240,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
 
     @Override
-    public Size apply(MethodVisitor mv, Context context) {
-      Size size = new Size(0, 0);
+    public StackManipulation.Size apply(MethodVisitor mv, Context context) {
+      StackManipulation.Size size = new StackManipulation.Size(0, 0);
 
       mv.visitLabel(wrapStart);
 
@@ -1255,7 +1255,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       if (returnVarIndex != null) {
         Type returnType = Type.getReturnType(targetMethod.getDescriptor());
         mv.visitVarInsn(returnType.getOpcode(Opcodes.ISTORE), returnVarIndex);
-        size = size.aggregate(new Size(-1, 0)); // Reduces the size of the stack
+        size = size.aggregate(new StackManipulation.Size(-1, 0)); // Reduces the size of the stack
       }
       mv.visitJumpInsn(Opcodes.GOTO, catchBlockEnd);
       mv.visitLabel(tryBlockEnd);
@@ -1280,7 +1280,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       if (returnVarIndex != null) {
         Type returnType = Type.getReturnType(targetMethod.getDescriptor());
         mv.visitVarInsn(returnType.getOpcode(Opcodes.ILOAD), returnVarIndex);
-        size = size.aggregate(new Size(1, 0)); // Increases the size of the stack
+        size = size.aggregate(new StackManipulation.Size(1, 0)); // Increases the size of the stack
       }
       mv.visitLabel(wrapEnd);
       if (returnVarIndex != null) {

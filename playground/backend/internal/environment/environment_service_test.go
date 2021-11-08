@@ -49,6 +49,7 @@ func setup() error {
 	if err != nil {
 		return err
 	}
+	os.Clearenv()
 	return nil
 }
 
@@ -95,6 +96,7 @@ func TestNewEnvironment(t *testing.T) {
 
 func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 	jars := strings.Join([]string{defaultBeamSdkPath, defaultBeamRunner, defaultSLF4j}, ":")
+	workingDir := "./"
 	tests := []struct {
 		name      string
 		want      *BeamEnvs
@@ -104,25 +106,25 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 		{
 			name:      "not specified beam sdk key in os envs",
 			want:      nil,
-			envsToSet: map[string]string{workingDirKey: "./"},
+			envsToSet: map[string]string{},
 			wantErr:   true,
 		},
 		{
 			name:      "default beam envs",
 			want:      NewBeamEnvs(defaultSdk, NewExecutorConfig("javac", "java", []string{"-d", "bin", "-classpath", defaultBeamSdkPath}, []string{"-cp", "bin:" + jars})),
-			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA", workingDirKey: "./"},
+			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
 		{
 			name:      "specific sdk key in os envs",
 			want:      NewBeamEnvs(defaultSdk, NewExecutorConfig("javac", "java", []string{"-d", "bin", "-classpath", defaultBeamSdkPath}, []string{"-cp", "bin:" + jars})),
-			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA", workingDirKey: "./"},
+			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
 		{
 			name:      "wrong sdk key in os envs",
 			want:      nil,
-			envsToSet: map[string]string{beamSdkKey: "SDK_J", workingDirKey: "./"},
+			envsToSet: map[string]string{beamSdkKey: "SDK_J"},
 			wantErr:   true,
 		},
 	}
@@ -131,7 +133,7 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 			if err := setOsEnvs(tt.envsToSet); err != nil {
 				t.Fatalf("couldn't setup os env")
 			}
-			got, err := GetSdkEnvsFromOsEnvs()
+			got, err := ConfigureBeamEnvs(workingDir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getSdkEnvsFromOsEnvs() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -141,6 +143,7 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 			}
 		})
 	}
+	os.Clearenv()
 }
 
 func Test_getNetworkEnvsFromOsEnvs(t *testing.T) {
@@ -181,6 +184,7 @@ func Test_getNetworkEnvsFromOsEnvs(t *testing.T) {
 			}
 		})
 	}
+	os.Clearenv()
 }
 
 func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
@@ -210,6 +214,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 			os.Clearenv()
 		})
 	}
+	os.Clearenv()
 }
 
 func Test_createExecutorConfig(t *testing.T) {

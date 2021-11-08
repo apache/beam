@@ -18,7 +18,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/modules/shortcuts/components/shortcuts_modal.dart';
@@ -33,23 +32,23 @@ enum HeaderAction {
   aboutBeam,
 }
 
-const kShortcutsText = "Shortcuts";
+const kShortcutsText = 'Shortcuts';
 
-const kBeamPlaygroundGithubText = "Beam Playground on GitHub";
+const kBeamPlaygroundGithubText = 'Beam Playground on GitHub';
 const kBeamPlaygroundGithubLink =
-    "https://github.com/apache/beam/tree/master/playground/frontend";
+    'https://github.com/apache/beam/tree/master/playground/frontend';
 
-const kApacheBeamGithubText = "Apache Beam on GitHub";
+const kApacheBeamGithubText = 'Apache Beam on GitHub';
 const kApacheBeamGithubLink =
-    "https://github.com/apache/beam/tree/master/playground/frontend";
+    'https://github.com/apache/beam/tree/master/playground/frontend';
 
-const kScioGithubText = "SCIO on GitHub";
-const kScioGithubLink = "https://github.com/spotify/scio";
+const kScioGithubText = 'SCIO on GitHub';
+const kScioGithubLink = 'https://github.com/spotify/scio';
 
-const kBeamWebsiteText = "To Apache Beam website";
-const kBeamWebsiteLink = "https://beam.apache.org/";
+const kBeamWebsiteText = 'To Apache Beam website';
+const kBeamWebsiteLink = 'https://beam.apache.org/';
 
-const kAboutBeamText = "About Apache Beam";
+const kAboutBeamText = 'About Apache Beam';
 
 class MoreActions extends StatefulWidget {
   const MoreActions({Key? key}) : super(key: key);
@@ -115,7 +114,7 @@ class _MoreActionsState extends State<MoreActions> {
             padding: EdgeInsets.zero,
             value: HeaderAction.beamWebsite,
             child: ListTile(
-              leading: const Image(image: AssetImage('beam.png')),
+              leading: const Image(image: AssetImage(kBeamIconAsset)),
               title: const Text(kBeamWebsiteText),
               onTap: () => launch(kBeamWebsiteLink),
             ),

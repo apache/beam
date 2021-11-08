@@ -136,6 +136,9 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 	// Checking for *beamCtx is an optimization, so we don't dig deeply
 	// for ids if not necessary.
 	if bctx, ok := ctx.(*beamCtx); ok {
+		if _, ok := bctx.store.stateRegistry[id]; !ok {
+			bctx.store.stateRegistry[id] = &[4]ExecutionState{}
+		}
 		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, store: bctx.store, ptransformID: id}
 	}
 	// Avoid breaking if the bundle is unset in testing.
@@ -179,6 +182,7 @@ const (
 	kindSumCounter
 	kindDistribution
 	kindGauge
+	kindDoFnMsec
 )
 
 func (t kind) String() string {
@@ -189,6 +193,8 @@ func (t kind) String() string {
 		return "Distribution"
 	case kindGauge:
 		return "Gauge"
+	case kindDoFnMsec:
+		return "DoFnMsec"
 	default:
 		panic(fmt.Sprintf("Unknown metric type value: %v", uint8(t)))
 	}
@@ -461,25 +467,44 @@ type GaugeValue struct {
 	Timestamp time.Time
 }
 
+type executionState struct {
+	state *[4]ExecutionState
+}
+
+func (m *executionState) String() string {
+	return fmt.Sprintf("value: {%v}", m.state)
+}
+
+func (m *executionState) kind() kind {
+	return kindDoFnMsec
+}
+
+// MsecValue is the value of a single msec metric
+type MsecValue struct {
+	Start, Process, Finish, Total time.Duration
+}
+
 // Results represents all metrics gathered during the job's execution.
 // It allows for querying metrics using a provided filter.
 type Results struct {
 	counters      []CounterResult
 	distributions []DistributionResult
 	gauges        []GaugeResult
+	msecs         []MsecResult
 }
 
 // NewResults creates a new Results.
 func NewResults(
 	counters []CounterResult,
 	distributions []DistributionResult,
-	gauges []GaugeResult) *Results {
-	return &Results{counters, distributions, gauges}
+	gauges []GaugeResult,
+	msecs []MsecResult) *Results {
+	return &Results{counters, distributions, gauges, msecs}
 }
 
 // AllMetrics returns all metrics from a Results instance.
 func (mr Results) AllMetrics() QueryResults {
-	return QueryResults{mr.counters, mr.distributions, mr.gauges}
+	return QueryResults{mr.counters, mr.distributions, mr.gauges, mr.msecs}
 }
 
 // TODO(BEAM-11217): Implement querying metrics by DoFn
@@ -488,6 +513,7 @@ func (mr Results) AllMetrics() QueryResults {
 type SingleResult interface {
 	Name() string
 	Namespace() string
+	Transform() string
 }
 
 // Query allows metrics querying with filter. The filter takes the form of predicate function. Example:
@@ -498,6 +524,7 @@ func (mr Results) Query(f func(SingleResult) bool) QueryResults {
 	counters := []CounterResult{}
 	distributions := []DistributionResult{}
 	gauges := []GaugeResult{}
+	msecs := []MsecResult{}
 
 	for _, counter := range mr.counters {
 		if f(counter) {
@@ -514,7 +541,12 @@ func (mr Results) Query(f func(SingleResult) bool) QueryResults {
 			gauges = append(gauges, gauge)
 		}
 	}
-	return QueryResults{counters, distributions, gauges}
+	for _, msec := range mr.msecs {
+		if f(msec) {
+			msecs = append(msecs, msec)
+		}
+	}
+	return QueryResults{counters: counters, distributions: distributions, gauges: gauges, msecs: msecs}
 }
 
 // QueryResults is the result of a query. Allows accessing all of the
@@ -523,6 +555,7 @@ type QueryResults struct {
 	counters      []CounterResult
 	distributions []DistributionResult
 	gauges        []GaugeResult
+	msecs         []MsecResult
 }
 
 // Counters returns a slice of counter metrics.
@@ -543,6 +576,13 @@ func (qr QueryResults) Distributions() []DistributionResult {
 func (qr QueryResults) Gauges() []GaugeResult {
 	out := make([]GaugeResult, len(qr.gauges))
 	copy(out, qr.gauges)
+	return out
+}
+
+// Msecs returns a slice of DoFn metrics
+func (qr QueryResults) Msecs() []MsecResult {
+	out := make([]MsecResult, len(qr.msecs))
+	copy(out, qr.msecs)
 	return out
 }
 
@@ -571,6 +611,9 @@ func (r CounterResult) Name() string {
 func (r CounterResult) Namespace() string {
 	return r.Key.Namespace
 }
+
+// Transform returns the Transform step for this CounterResult.
+func (r CounterResult) Transform() string { return r.Key.Step }
 
 // MergeCounters combines counter metrics that share a common key.
 func MergeCounters(
@@ -624,6 +667,9 @@ func (r DistributionResult) Namespace() string {
 	return r.Key.Namespace
 }
 
+// Transform returns the Transform step for this DistributionResult.
+func (r DistributionResult) Transform() string { return r.Key.Step }
+
 // MergeDistributions combines distribution metrics that share a common key.
 func MergeDistributions(
 	attempted map[StepKey]DistributionValue,
@@ -676,6 +722,9 @@ func (r GaugeResult) Namespace() string {
 	return r.Key.Namespace
 }
 
+// Transform returns the Transform step for this GaugeResult.
+func (r GaugeResult) Transform() string { return r.Key.Step }
+
 // StepKey uniquely identifies a metric within a pipeline graph.
 type StepKey struct {
 	Step, Name, Namespace string
@@ -706,6 +755,59 @@ func MergeGauges(
 	return res
 }
 
+// MsecResult is an attempted and a commited value of a counter metric plus key.
+type MsecResult struct {
+	Attempted, Committed MsecValue
+	Key                  StepKey
+}
+
+// Result returns committed metrics. Falls back to attempted metrics if committed
+// are not populated (e.g. due to not being supported on a given runner).
+func (r MsecResult) Result() MsecValue {
+	if r.Committed != (MsecValue{}) {
+		return r.Committed
+	}
+	return r.Attempted
+}
+
+// Name returns the Name of this MsecResult.
+func (r MsecResult) Name() string {
+	return ""
+}
+
+// Namespace returns the Namespace of this MsecResult.
+func (r MsecResult) Namespace() string {
+	return ""
+}
+
+// Transform returns the Transform step for this MsecResult.
+func (r MsecResult) Transform() string { return r.Key.Step }
+
+// MergeMsecs combines counter metrics that share a common key.
+func MergeMsecs(
+	attempted map[StepKey]MsecValue,
+	committed map[StepKey]MsecValue) []MsecResult {
+	res := make([]MsecResult, 0)
+	merged := map[StepKey]MsecResult{}
+
+	for k, v := range attempted {
+		merged[k] = MsecResult{Attempted: v, Key: k}
+	}
+	for k, v := range committed {
+		m, ok := merged[k]
+		if ok {
+			merged[k] = MsecResult{Attempted: m.Attempted, Committed: v, Key: k}
+		} else {
+			merged[k] = MsecResult{Committed: v, Key: k}
+		}
+	}
+
+	for _, v := range merged {
+		res = append(res, v)
+	}
+	return res
+}
+
 // ResultsExtractor extracts the metrics.Results from Store using ctx.
 // This is same as what metrics.dumperExtractor and metrics.dumpTo would do together.
 func ResultsExtractor(ctx context.Context) Results {
@@ -720,6 +822,9 @@ func ResultsExtractor(ctx context.Context) Results {
 		},
 		GaugeInt64: func(l Labels, v int64, t time.Time) {
 			m[l] = &gauge{v: v, t: t}
+		},
+		MsecsInt64: func(labels string, e *[4]ExecutionState) {
+			m[PTransformLabels(labels)] = &executionState{state: e}
 		},
 	}
 	e.ExtractFrom(store)
@@ -744,7 +849,7 @@ func ResultsExtractor(ctx context.Context) Results {
 		return false
 	})
 
-	r := Results{counters: []CounterResult{}, distributions: []DistributionResult{}, gauges: []GaugeResult{}}
+	r := Results{counters: []CounterResult{}, distributions: []DistributionResult{}, gauges: []GaugeResult{}, msecs: []MsecResult{}}
 	for _, l := range ls {
 		key := StepKey{Step: l.transform, Name: l.name, Namespace: l.namespace}
 		switch opt := m[l]; opt.(type) {
@@ -766,6 +871,13 @@ func ResultsExtractor(ctx context.Context) Results {
 			attempted[key] = GaugeValue{}
 			committed[key] = GaugeValue{opt.(*gauge).v, opt.(*gauge).t}
 			r.gauges = append(r.gauges, MergeGauges(attempted, committed)...)
+		case *executionState:
+			attempted := make(map[StepKey]MsecValue)
+			committed := make(map[StepKey]MsecValue)
+			attempted[key] = MsecValue{}
+			es := opt.(*executionState).state
+			committed[key] = MsecValue{Start: es[0].TotalTime, Process: es[1].TotalTime, Finish: es[2].TotalTime, Total: es[3].TotalTime}
+			r.msecs = append(r.msecs, MergeMsecs(attempted, committed)...)
 		}
 	}
 	return r
