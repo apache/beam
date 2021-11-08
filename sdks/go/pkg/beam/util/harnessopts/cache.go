@@ -31,8 +31,7 @@ const (
 	cacheCapacityHook = "beam:go:hook:sideinputcache:capacity"
 )
 
-// EnableSideInputCache accepts a desired maximum size for the side input cache, validates that
-// it is non-negative, then formats the integer as a string to pass to EnableHook. A non-zero positive
+// SideInputCacheCapacity accepts a desired maximum size for the side input cache. A non-zero positive
 // integer enables the cache (the capacity of the cache is 0 by default.) Cache use also requires runner
 // support.
 func SideInputCacheCapacity(capacity int64) error {
