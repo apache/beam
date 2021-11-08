@@ -296,6 +296,14 @@ message ProcessBundleRequest {
   // (Optional) A list of cache tokens that can be used by an SDK to reuse
   // cached data returned by the State API across multiple bundles.
   repeated CacheToken cache_tokens = 2;
+
+  // (optional) Elements to be processed with the bundle. Either all or
+  // none of the bundle elements should be included in the ProcessBundleRequest.
+  // This elements embedding is to achieve better Fn API efficiency for bundles
+  // that contain only small amount of data and are cheap to be processed on the
+  // SDK harness side. See more at
+  // https://s.apache.org/beam-fn-api-control-data-embedding.
+  Elements elements = 3;
 }
 
 message ProcessBundleResponse {
@@ -326,6 +334,13 @@ message ProcessBundleResponse {
   // as the MonitoringInfo could be reconstructed fully by overwriting its
   // payload field with the bytes specified here.
   map<string, bytes> monitoring_data = 5;
+
+  // (optional) Output elements of the processed bundle. Either all or
+  // none of the bundle elements should be included in the ProcessBundleResponse.
+  // This elements embedding is to achieve better Fn API efficiency for bundles
+  // that only produce small amount of outputs. See more at
+  // https://s.apache.org/beam-fn-api-control-data-embedding.
+  Elements elements = 6;
 
   reserved 1;
 }
