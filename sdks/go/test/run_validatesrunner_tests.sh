@@ -339,9 +339,6 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   # Verify it exists
   docker images | grep $TAG
 
-  # Add gcloud as a credential helper for Docker (if it is not already).
-  gcloud auth configure-docker
-
   # Push the container
   docker push $CONTAINER:$TAG
 

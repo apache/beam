@@ -93,9 +93,6 @@ echo "Using container $CONTAINER"
 # Tag the docker container.
 docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
 
-# Add gcloud as a credential helper for Docker (if it is not already).
-gcloud auth configure-docker
-
 # Push the container.
 docker push $CONTAINER:$TAG
 
