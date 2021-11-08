@@ -20,13 +20,18 @@ package org.apache.beam.sdk.io.redis;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -119,6 +124,38 @@ public class RedisIO {
         .setBatchSize(1000)
         .setOutputParallelization(true)
         .build();
+  }
+
+  public static ByteKey cursorToByteKey(String cursor, long dbSize) throws IOException {
+    long cursorLong = Long.parseLong(cursor);
+    long reversed = shiftBits(cursorLong, dbSize);
+    BigEndianLongCoder coder = BigEndianLongCoder.of();
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    coder.encode(reversed, os);
+    byte[] byteArray = os.toByteArray();
+    return ByteKey.copyFrom(byteArray);
+  }
+
+  public static String byteKeyToString(ByteKey byteKeyStart) {
+    ByteBuffer bb = ByteBuffer.wrap(byteKeyStart.getBytes());
+    if (bb.capacity() < 8) {
+      int rem = 8 - bb.capacity();
+      byte[] padding = new byte[rem];
+      bb = ByteBuffer.allocate(8).put(padding).put(bb.array());
+      bb.position(0);
+    }
+    long l = bb.getLong();
+    return Long.toString(l);
+  }
+
+  public static long shiftBits(long a, long dbSize) {
+    long b = 0;
+    for (long i = 0; i < dbSize; ++i) {
+      b <<= 1;
+      b |= (a & 1);
+      a >>= 1;
+    }
+    return b;
   }
 
   /**
@@ -319,8 +356,7 @@ public class RedisIO {
 
     protected final RedisConnectionConfiguration connectionConfiguration;
     transient Jedis jedis;
-    private long batchSize;
-    private static long nKeys;
+    private final long batchSize;
     @Nullable AtomicInteger batchCount = null;
 
     ReadFn(RedisConnectionConfiguration connectionConfiguration, int batchSize) {
@@ -340,21 +376,18 @@ public class RedisIO {
 
     @GetInitialRestriction
     public RedisCursorRange getInitialRestriction() {
-      nKeys = jedis.dbSize();
-      return RedisCursorRange.of(RedisCursor.of("0", nKeys), RedisCursor.of("0", nKeys));
+      long dbSize = jedis.dbSize();
+      return RedisCursorRange.of(RedisCursor.of("0", dbSize), RedisCursor.of("0", dbSize));
     }
 
     @ProcessElement
     public ProcessContinuation processElement(
         ProcessContext c, RestrictionTracker<RedisCursorRange, RedisCursor> tracker) {
-      String cursor = tracker.currentRestriction().getStartPosition().getCursor();
+      RedisCursor cursor = tracker.currentRestriction().getStartPosition();
       ScanParams scanParams = new ScanParams();
       scanParams.match(c.element());
-      while (true) {
-        ScanResult<String> scanResult = jedis.scan(cursor, scanParams);
-        if (!tracker.tryClaim(RedisCursor.of(scanResult.getCursor(), nKeys))) {
-          return ProcessContinuation.stop();
-        }
+      while (tracker.tryClaim(cursor)) {
+        ScanResult<String> scanResult = jedis.scan(cursor.getCursor(), scanParams);
         List<String> keys = new ArrayList<>();
         for (String k : scanResult.getResult()) {
           keys.add(k);
@@ -364,31 +397,12 @@ public class RedisIO {
             c.output(kv);
           }
         }
-        cursor = scanResult.getCursor();
-        if ("0".equals(cursor)) {
-          return ProcessContinuation.stop();
+        if (RedisCursor.ZERO_CURSOR.getCursor().equals(scanResult.getCursor())) {
+          break;
         }
+        cursor = RedisCursor.of(scanResult.getCursor(), jedis.dbSize());
       }
-    }
-
-    private List<String> getKeyPatters(String pattern) {
-      ScanParams scanParams = new ScanParams();
-      scanParams.match(pattern);
-
-      String cursor = ScanParams.SCAN_POINTER_START;
-      List<String> keys = new ArrayList<>();
-      boolean finished = false;
-      while (!finished) {
-        ScanResult<String> scanResult = jedis.scan(cursor, scanParams);
-        for (String k : scanResult.getResult()) {
-          keys.add(k);
-        }
-        cursor = scanResult.getCursor();
-        if (cursor.equals(ScanParams.SCAN_POINTER_START)) {
-          finished = true;
-        }
-      }
-      return keys;
+      return ProcessContinuation.stop();
     }
 
     private List<KV<String, String>> fetchAndFlush(List<String> bundle) {

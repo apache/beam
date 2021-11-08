@@ -23,7 +23,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 
 public class RedisCursorRange
-    implements Serializable, HasDefaultTracker<RedisCursorRange, RedisCursorTracker> {
+    implements Serializable, HasDefaultTracker<RedisCursorRange, RedisCursorRangeTracker> {
 
   private RedisCursor startPosition;
   private RedisCursor endPosition;
@@ -38,8 +38,8 @@ public class RedisCursorRange
   }
 
   @Override
-  public RedisCursorTracker newTracker() {
-    return RedisCursorTracker.of(this);
+  public RedisCursorRangeTracker newTracker() {
+    return RedisCursorRangeTracker.of(this);
   }
 
   public RedisCursor getStartPosition() {

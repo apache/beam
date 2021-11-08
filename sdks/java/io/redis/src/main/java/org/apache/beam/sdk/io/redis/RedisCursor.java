@@ -19,60 +19,104 @@ package org.apache.beam.sdk.io.redis;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.io.range.ByteKey;
 
 public class RedisCursor implements Comparable<RedisCursor>, Serializable {
 
-  public static final String START_CURSOR = "0";
-  public static final String END_CURSOR = "0";
+  public static final RedisCursor ZERO_CURSOR = RedisCursor.of("0", 8);
 
   private final String cursor;
-  private final long nKeys;
-  private final long index;
+  private final ByteKey byteCursor;
+  private final long dbSize;
+  private final int nBits;
 
-  public static RedisCursor of(String cursor, long nKeys) throws IllegalStateException {
-    if (nKeys == 0) {
-      throw new IllegalStateException("zero keys");
-    }
-    return new RedisCursor(cursor, nKeys);
+  public static RedisCursor of(String cursor, long dbSize) {
+    return new RedisCursor(cursor, dbSize);
   }
 
-  private RedisCursor(String cursor, long nKeys) {
+  public static RedisCursor of(ByteKey byteCursor, long dbSize) {
+    return new RedisCursor(byteCursor, dbSize);
+  }
+
+  private RedisCursor(ByteKey byteCursor, long dbSize) {
+    this.byteCursor = byteCursor;
+    this.dbSize = dbSize;
+    this.nBits = getTablePow(dbSize);
+    this.cursor = byteKeyToString(byteCursor, nBits);
+  }
+
+  private RedisCursor(String cursor, long dbSize) {
     this.cursor = cursor;
-    this.nKeys = nKeys;
-    this.index = toIndex();
+    this.byteCursor = stringCursorToByteKey(cursor);
+    this.dbSize = dbSize;
+    this.nBits = getTablePow(dbSize);
   }
 
   /**
-   * {@link RedisCursor} implements {@link Comparable Comparable&lt;RedisCursor&gt;} by transformig
+   * {@link RedisCursor} implements {@link Comparable Comparable&lt;RedisCursor&gt;} by transforming
    * the cursors to an index of the Redis table.
    */
   @Override
   public int compareTo(@Nonnull RedisCursor other) {
     checkNotNull(other, "other");
-    return Long.compare(index, other.index);
-  }
-
-  private int toIndex() {
-    int cursorInt = Integer.parseInt(cursor);
-    StringBuilder cursorBuilder = new StringBuilder(Integer.toBinaryString(cursorInt)).reverse();
-    double pow = getTablePow();
-    while (cursorBuilder.length() < pow) {
-      cursorBuilder.append("0");
-    }
-    return Integer.parseInt(cursorBuilder.toString(), 2);
-  }
-
-  private double getTablePow() {
-    return 64 - Long.numberOfLeadingZeros(nKeys - 1);
+    return Long.compare(Long.parseLong(cursor), Long.parseLong(other.cursor));
   }
 
   public String getCursor() {
     return cursor;
   }
 
-  public long getIndex() {
-    return index;
+  public ByteKey getByteCursor() {
+    return byteCursor;
+  }
+
+  public long getDbSize() {
+    return dbSize;
+  }
+
+  private ByteKey stringCursorToByteKey(String cursor) {
+    long cursorLong = Long.parseLong(cursor);
+    long reversed = shiftBits(cursorLong);
+    BigEndianLongCoder coder = BigEndianLongCoder.of();
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    try {
+      coder.encode(reversed, os);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("invalid redis cursor " + cursor);
+    }
+    byte[] byteArray = os.toByteArray();
+    return ByteKey.copyFrom(byteArray);
+  }
+
+  private long shiftBits(long a) {
+    long b = 0;
+    for (int i = 0; i < nBits; ++i) {
+      b <<= 1;
+      b |= (a & 1);
+      a >>= 1;
+    }
+    return b;
+  }
+
+  private int getTablePow(long nKeys) {
+    return 64 - Long.numberOfLeadingZeros(nKeys - 1);
+  }
+
+  private String byteKeyToString(ByteKey byteKeyStart, int nBites) {
+    ByteBuffer bb = ByteBuffer.wrap(byteKeyStart.getBytes());
+    if (bb.capacity() < nBites) {
+      int rem = nBites - bb.capacity();
+      byte[] padding = new byte[rem];
+      bb = ByteBuffer.allocate(nBites).put(padding).put(bb.array());
+      bb.position(0);
+    }
+    long l = bb.getLong();
+    return Long.toString(l);
   }
 }
