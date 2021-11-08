@@ -105,8 +105,6 @@ class GrpcCodeClient implements CodeClient {
   RunCodeStatus _toClientStatus(grpc.Status status) {
     switch (status) {
       case grpc.Status.STATUS_ERROR:
-      case grpc.Status.STATUS_COMPILE_ERROR:
-      case grpc.Status.STATUS_RUN_TIMEOUT:
       case grpc.Status.STATUS_VALIDATION_ERROR:
         return RunCodeStatus.error;
       case grpc.Status.STATUS_EXECUTING:
