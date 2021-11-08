@@ -41,11 +41,6 @@ class PlaygroundState with ChangeNotifier {
     return name.substring(0, min(kTitleLength, name.length));
   }
 
-  String get examplesTitle {
-    final name = _selectedExample?.name ?? '';
-    return name.substring(0, min(kTitleLength, name.length));
-  }
-
   PlaygroundState({
     SDK sdk = SDK.java,
     ExampleModel? selectedExample,
