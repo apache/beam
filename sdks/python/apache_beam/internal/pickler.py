@@ -64,15 +64,15 @@ def load_session(file_path):
   return desired_pickle_lib.load_session(file_path)
 
 
-def set_pickle_lib(pickle_lib):
+def set_pickle_lib(pickle_lib_enum):
   """ Changes pickling library. Users should prefer the default library."""
   global desired_pickle_lib
-  if pickle_lib == USE_CLOUDPICKLE:
+  if pickle_lib_enum == USE_CLOUDPICKLE:
     # Dill will override hooks in the dispatch table of the standard pickler.
     # Those hooks overrides will cause cloudpickle to fail.
-    dill_pickler.override_pickler_hooks(False)
     desired_pickle_lib = cloudPickle_pickler
-  elif desired_pickle_lib == USE_DILL:
+    dill_pickler.override_pickler_hooks(False)
+  elif pickle_lib_enum == USE_DILL:
     desired_pickle_lib = dill_pickler
     dill_pickler.override_pickler_hooks(True)
 
