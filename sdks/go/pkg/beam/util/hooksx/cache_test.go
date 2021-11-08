@@ -18,27 +18,18 @@ package hooksx
 import (
 	"testing"
 
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness" // Imports the cache hook
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 )
 
-// The true EnableSideInputCache hook is defined in harness/cache_hooks.go.
-// function, so we mock it here to make sure the correct arg is being passed
-// to the hooks package.
-func createMockCacheHook() {
-	hooks.RegisterHook("EnableSideInputCache", func(opts []string) hooks.Hook {
-		return hooks.Hook{}
-	})
-}
-
-func TestEnableSideInputCache(t *testing.T) {
-	createMockCacheHook()
-	err := EnableSideInputCache(1)
+func TestSideInputCacheCapacity(t *testing.T) {
+	err := SideInputCacheCapacity(1)
 	if err != nil {
-		t.Errorf("EnableSideInputCache failed when it should have succeeded, got %v", err)
+		t.Errorf("SideInputCacheCapacity failed when it should have succeeded, got %v", err)
 	}
-	ok, opts := hooks.IsEnabled("EnableSideInputCache")
+	ok, opts := hooks.IsEnabled(cacheCapacityHook)
 	if !ok {
-		t.Fatalf("EnableSideInputCache hook is not enabled")
+		t.Fatalf("SideInputCacheCapacity hook is not enabled")
 	}
 	if len(opts) != 1 {
 		t.Errorf("num opts mismatch, got %v, want 1", len(opts))
@@ -48,10 +39,9 @@ func TestEnableSideInputCache(t *testing.T) {
 	}
 }
 
-func TestEnableSideInputCache_Bad(t *testing.T) {
-	createMockCacheHook()
-	err := EnableSideInputCache(-1)
+func TestSideInputCacheCapacity_Bad(t *testing.T) {
+	err := SideInputCacheCapacity(-1)
 	if err == nil {
-		t.Errorf("EnableSideInputCache succeeded when it should have failed")
+		t.Errorf("SideInputCacheCapacity succeeded when it should have failed")
 	}
 }

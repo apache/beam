@@ -47,5 +47,5 @@ func init() {
 			},
 		}
 	}
-	hooks.RegisterHook("EnableSideInputCache", hf)
+	hooks.RegisterHook("beam:go:hook:sideinputcache:capacity", hf)
 }

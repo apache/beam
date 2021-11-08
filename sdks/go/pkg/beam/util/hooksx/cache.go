@@ -27,14 +27,18 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 )
 
+const (
+	cacheCapacityHook = "beam:go:hook:sideinputcache:capacity"
+)
+
 // EnableSideInputCache accepts a desired maximum size for the side input cache, validates that
 // it is non-negative, then formats the integer as a string to pass to EnableHook. A size of 0
-// disables the cache. This hook is utilized in pkg/beam/core/runtime/harness/harness.go when the
-// cache is initialized.
-func EnableSideInputCache(size int64) error {
-	if size < 0 {
-		return fmt.Errorf("size of cache cannot be negative, got %v", size)
+// disables the cache (the cache capacity is 0 by default.)
+func SideInputCacheCapacity(capacity int64) error {
+	if capacity < 0 {
+		return fmt.Errorf("capacity of cache cannot be negative, got %v", capacity)
 	}
-	sizeString := strconv.FormatInt(size, 10)
-	return hooks.EnableHook("EnableSideInputCache", sizeString)
+	capString := strconv.FormatInt(capacity, 10)
+	// The hook itself is defined in harness/cache_hooks.go
+	return hooks.EnableHook(cacheCapacityHook, capString)
 }
