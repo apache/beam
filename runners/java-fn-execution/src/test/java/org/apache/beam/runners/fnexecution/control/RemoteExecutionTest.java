@@ -166,8 +166,10 @@ import org.slf4j.LoggerFactory;
   "keyfor"
 })
 public class RemoteExecutionTest implements Serializable {
+
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
 
+  private static final String WORKER_ID = "remote_test";
   private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutionTest.class);
 
   private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
@@ -213,7 +215,7 @@ public class RemoteExecutionTest implements Serializable {
             () -> {
               try {
                 FnHarness.main(
-                    "id",
+                    WORKER_ID,
                     options,
                     Collections.emptySet(), // Runner capabilities.
                     loggingServer.getApiServiceDescriptor(),
@@ -225,9 +227,8 @@ public class RemoteExecutionTest implements Serializable {
                 throw new RuntimeException(e);
               }
             });
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     InstructionRequestHandler controlClient =
-        clientPool.getSource().take("", java.time.Duration.ofSeconds(2));
+        clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(2));
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 
@@ -1494,7 +1495,7 @@ public class RemoteExecutionTest implements Serializable {
                     context.output(KV.of("main" + context.element().getKey(), ""));
                     eventTimeTimer
                         .withOutputTimestamp(context.timestamp())
-                        .set(context.timestamp().plus(1L));
+                        .set(context.timestamp().plus(Duration.millis(1L)));
                     processingTimeTimer.offset(Duration.millis(2L));
                     processingTimeTimer.setRelative();
                   }
@@ -1507,7 +1508,7 @@ public class RemoteExecutionTest implements Serializable {
                     context.output(KV.of("event", ""));
                     eventTimeTimer
                         .withOutputTimestamp(context.timestamp())
-                        .set(context.fireTimestamp().plus(11L));
+                        .set(context.fireTimestamp().plus(Duration.millis(11L)));
                     processingTimeTimer.offset(Duration.millis(12L));
                     processingTimeTimer.setRelative();
                   }
@@ -1520,7 +1521,7 @@ public class RemoteExecutionTest implements Serializable {
                     context.output(KV.of("processing", ""));
                     eventTimeTimer
                         .withOutputTimestamp(context.timestamp())
-                        .set(context.fireTimestamp().plus(21L));
+                        .set(context.fireTimestamp().plus(Duration.millis(21L)));
                     processingTimeTimer.offset(Duration.millis(22L));
                     processingTimeTimer.setRelative();
                   }
@@ -1625,9 +1626,10 @@ public class RemoteExecutionTest implements Serializable {
         containsInAnyOrder(
             valueInGlobalWindow(KV.of("mainX", "")),
             WindowedValue.timestampedValueInGlobalWindow(
-                KV.of("event", ""), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(100L)),
+                KV.of("event", ""), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(100L))),
             WindowedValue.timestampedValueInGlobalWindow(
-                KV.of("processing", ""), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(200L))));
+                KV.of("processing", ""),
+                BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(200L)))));
     assertThat(
         timerValues.get(KV.of(eventTimerSpec.transformId(), eventTimerSpec.timerId())),
         containsInAnyOrder(
@@ -1953,8 +1955,8 @@ public class RemoteExecutionTest implements Serializable {
         key,
         "",
         Collections.singletonList(GlobalWindow.INSTANCE),
-        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(fireTimestamp),
-        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(holdTimestamp),
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(fireTimestamp)),
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(holdTimestamp)),
         PaneInfo.NO_FIRING);
   }
 }

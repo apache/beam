@@ -82,11 +82,11 @@ public class BeamFnControlClient {
               BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
           handlers) {
+    this.onFinish = new CompletableFuture<>();
+    this.handlers = handlers;
     this.outboundObserver =
         outboundObserverFactory.outboundObserverFor(
             controlStub::control, new InboundObserver(executor));
-    this.handlers = handlers;
-    this.onFinish = new CompletableFuture<>();
   }
 
   private static final Object COMPLETED = new Object();

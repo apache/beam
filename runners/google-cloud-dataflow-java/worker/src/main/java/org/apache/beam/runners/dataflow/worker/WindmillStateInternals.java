@@ -772,7 +772,7 @@ class WindmillStateInternals<K> implements StateInternals {
           currentTsRangeDeletions.remove(
               Range.closedOpen(
                   pendingAdd.getValue().getTimestamp(),
-                  pendingAdd.getValue().getTimestamp().plus(1)));
+                  pendingAdd.getValue().getTimestamp().plus(Duration.millis(1))));
         }
         idsUsed.add(Range.closedOpen(currentId, currentId + 1));
         output.accept(pendingAdd.getValue(), currentId++);

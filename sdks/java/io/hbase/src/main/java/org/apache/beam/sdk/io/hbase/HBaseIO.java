@@ -300,7 +300,7 @@ public class HBaseIO {
      * article</a>.
      */
     private Object writeReplace() {
-      return new SerializationProxy(this);
+      return new Read.SerializationProxy(this);
     }
 
     private static class SerializationProxy implements Serializable {
@@ -676,7 +676,7 @@ public class HBaseIO {
      * article</a>.
      */
     private Object writeReplace() {
-      return new SerializationProxy(this);
+      return new Write.SerializationProxy(this);
     }
 
     private static class SerializationProxy implements Serializable {

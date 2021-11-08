@@ -58,12 +58,12 @@ import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
-import org.apache.beam.sdk.fn.server.InProcessServerFactory;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -81,6 +81,8 @@ import org.openjdk.jmh.annotations.Threads;
 
 /** Benchmarks for processing a bundle end to end. */
 public class ProcessBundleBenchmark {
+
+  private static final String WORKER_ID = "benchmark_worker";
 
   /** Sets up the {@link ExecutionStateTracker} and an execution state. */
   @State(Scope.Benchmark)
@@ -101,7 +103,7 @@ public class ProcessBundleBenchmark {
         // Setup execution-time servers
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setDaemon(true).build();
         serverExecutor = Executors.newCachedThreadPool(threadFactory);
-        InProcessServerFactory serverFactory = InProcessServerFactory.create();
+        ServerFactory serverFactory = ServerFactory.createDefault();
         dataServer =
             GrpcFnServer.allocatePortAndCreateFor(
                 GrpcDataService.create(
@@ -136,21 +138,20 @@ public class ProcessBundleBenchmark {
                 () -> {
                   try {
                     FnHarness.main(
-                        "id",
+                        WORKER_ID,
                         PipelineOptionsFactory.create(),
                         Collections.emptySet(), // Runner capabilities.
                         loggingServer.getApiServiceDescriptor(),
                         controlServer.getApiServiceDescriptor(),
                         null,
-                        InProcessManagedChannelFactory.create(),
+                        ManagedChannelFactory.createDefault(),
                         OutboundObserverFactory.clientDirect());
                   } catch (Exception e) {
                     throw new RuntimeException(e);
                   }
                 });
-        // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
         InstructionRequestHandler controlClient =
-            clientPool.getSource().take("", java.time.Duration.ofSeconds(2));
+            clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(2));
         this.controlClient =
             SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
       } catch (Exception e) {

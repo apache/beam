@@ -18,6 +18,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -443,6 +444,43 @@ func TestMergeGauges(t *testing.T) {
 			got := MergeGauges(test.attempted, test.committed)
 			if d := cmp.Diff(test.want, got, cmpopts.SortSlices(less)); d != "" {
 				t.Errorf("MergeGauges(%+v, %+v) = %+v, want %+v\ndiff:\n%v", test.attempted, test.committed, got, test.want, d)
+			}
+		})
+	}
+}
+
+func TestMsecQueryResult(t *testing.T) {
+	realKey := StepKey{Step: "sumFn"}
+	msecA := MsecValue{Start: 0, Process: 0, Finish: 0, Total: 0}
+	msecB := MsecValue{Start: 200 * time.Millisecond, Process: 0, Finish: 0, Total: 200 * time.Millisecond}
+	msecR := MsecResult{Attempted: msecA, Committed: msecB, Key: realKey}
+	res := Results{msecs: []MsecResult{msecR}}
+
+	tests := []struct {
+		name        string
+		queryResult Results
+		query       string
+		want        QueryResults
+	}{
+		{
+			name:        "present",
+			queryResult: res,
+			query:       "sumFn",
+			want:        QueryResults{msecs: []MsecResult{msecR}},
+		}, {
+			name:        "not present",
+			queryResult: res,
+			query:       "countFn",
+			want:        QueryResults{},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := res.Query(func(sr SingleResult) bool {
+				return strings.Contains(sr.Transform(), test.query)
+			})
+			if len(got.Msecs()) != len(test.want.Msecs()) {
+				t.Errorf("(Results).Query(by Transform %v) = %v, want = %v", test.query, got.Msecs(), test.want.Msecs())
 			}
 		})
 	}
