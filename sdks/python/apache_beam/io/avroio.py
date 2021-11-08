@@ -63,7 +63,12 @@ __all__ = ['ReadFromAvro', 'ReadAllFromAvro', 'WriteToAvro']
 class ReadFromAvro(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading avro
   files."""
-  def __init__(self, file_pattern=None, min_bundle_size=0, validate=True):
+  def __init__(
+      self,
+      file_pattern=None,
+      min_bundle_size=0,
+      validate=True,
+      use_fastavro=True):
     """Initializes :class:`ReadFromAvro`.
 
     Uses source :class:`~apache_beam.io._AvroSource` to read a set of Avro
@@ -128,6 +133,8 @@ class ReadFromAvro(PTransform):
         splitting the input into bundles.
       validate (bool): flag to verify that the files exist during the pipeline
         creation time.
+      use_fastavro (bool): This flag is left for API backwards compatibility
+        and no longer has an effect.  Do not use.
     """
     super().__init__()
     self._source = _create_avro_source(
@@ -152,6 +159,7 @@ class ReadAllFromAvro(PTransform):
   def __init__(
       self,
       min_bundle_size=0,
+      use_fastavro=True,
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       with_filename=False,
       label='ReadAllFiles'):
@@ -165,6 +173,8 @@ class ReadAllFromAvro(PTransform):
       with_filename: If True, returns a Key Value with the key being the file
         name and the value being the actual data. If False, it only returns
         the data.
+      use_fastavro (bool): This flag is left for API backwards compatibility
+        and no longer has an effect. Do not use.
     """
     source_from_file = partial(
         _create_avro_source, min_bundle_size=min_bundle_size)
@@ -206,7 +216,8 @@ class _AvroUtils(object):
         data = f.read(buf_size)
 
 
-def _create_avro_source(file_pattern=None, min_bundle_size=0, validate=False):
+def _create_avro_source(
+    file_pattern=None, min_bundle_size=0, validate=False, use_fasvro=True):
   return \
       _FastAvroSource(
           file_pattern=file_pattern,
@@ -274,7 +285,8 @@ class WriteToAvro(beam.transforms.PTransform):
       file_name_suffix='',
       num_shards=0,
       shard_name_template=None,
-      mime_type='application/x-avro'):
+      mime_type='application/x-avro',
+      use_fastavro=True):
     """Initialize a WriteToAvro transform.
 
     Args:
@@ -301,6 +313,8 @@ class WriteToAvro(beam.transforms.PTransform):
         is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
       mime_type: The MIME type to use for the produced files, if the filesystem
         supports specifying MIME types.
+      use_fastavro (bool): This flag is left for API backwards compatibility
+        and no longer has an effect. Do not use.
 
     Returns:
       A WriteToAvro transform usable for writing.
