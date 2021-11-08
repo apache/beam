@@ -28,10 +28,10 @@ import (
 
 // FromMonitoringInfos extracts metrics from monitored states and
 // groups them into counters, distributions and gauges.
-func FromMonitoringInfos(attempted []*pipepb.MonitoringInfo, committed []*pipepb.MonitoringInfo) *metrics.Results {
-	ac, ad, ag, am := groupByType(attempted)
-	cc, cd, cg, cm := groupByType(committed)
-
+func FromMonitoringInfos(p *pipepb.Pipeline, attempted []*pipepb.MonitoringInfo, committed []*pipepb.MonitoringInfo) *metrics.Results {
+	ac, ad, ag, am, ap := groupByType(attempted)
+	cc, cd, cg, cm, cp := groupByType(committed)
+	p.GetPT()
 	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), metrics.MergeGauges(ag, cg), metrics.MergeMsecs(am, cm))
 }
 
@@ -39,11 +39,13 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 	map[metrics.StepKey]int64,
 	map[metrics.StepKey]metrics.DistributionValue,
 	map[metrics.StepKey]metrics.GaugeValue,
-	map[metrics.StepKey]metrics.MsecValue) {
+	map[metrics.StepKey]metrics.MsecValue,
+	map[metrics.StepKey]metrics.PcolValue) {
 	counters := make(map[metrics.StepKey]int64)
 	distributions := make(map[metrics.StepKey]metrics.DistributionValue)
 	gauges := make(map[metrics.StepKey]metrics.GaugeValue)
 	msecs := make(map[metrics.StepKey]metrics.MsecValue)
+	pcols := make(map[metrics.StepKey]metrics.PcolValue)
 
 	for _, minfo := range minfos {
 		key, err := extractKey(minfo)
@@ -89,11 +91,29 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 				continue
 			}
 			msecs[key] = value
+		case UrnToString(UrnElementCount):
+			value, err := extractCounterValue(r)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			v := pcols[key]
+			v.ElementCount = value
+			pcols[key] = v
+		case UrnToString(UrnSampledByteSize):
+			value, err := extractDistributionValue(r)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			v := pcols[key]
+			v.SampledByteSize = value
+			pcols[key] = v
 		default:
 			log.Println("unknown metric type")
 		}
 	}
-	return counters, distributions, gauges, msecs
+	return counters, distributions, gauges, msecs, pcols
 }
 
 func extractKey(mi *pipepb.MonitoringInfo) (metrics.StepKey, error) {

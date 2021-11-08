@@ -484,6 +484,11 @@ type MsecValue struct {
 	Time int64
 }
 
+type PcolValue struct {
+	ElementCount    int64
+	SampledByteSize DistributionValue
+}
+
 // Results represents all metrics gathered during the job's execution.
 // It allows for querying metrics using a provided filter.
 type Results struct {
