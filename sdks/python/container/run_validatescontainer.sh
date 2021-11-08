@@ -94,7 +94,7 @@ echo "Using container $CONTAINER"
 docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
 
 # Push the container.
-gcloud docker -- push $CONTAINER:$TAG
+docker push $CONTAINER:$TAG
 
 function cleanup_container {
   # Delete the container locally and remotely

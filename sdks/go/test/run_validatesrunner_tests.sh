@@ -340,7 +340,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   docker images | grep $TAG
 
   # Push the container
-  gcloud docker -- push $CONTAINER:$TAG
+  docker push $CONTAINER:$TAG
 
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" ]]; then
     ARGS="$ARGS --experiments=use_portable_job_submission"
@@ -356,7 +356,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
       docker images | grep $JAVA_TAG
 
       # Push the container
-      gcloud docker -- push $JAVA_CONTAINER:$JAVA_TAG
+      docker push $JAVA_CONTAINER:$JAVA_TAG
 
       SDK_OVERRIDES=".*java.*,$JAVA_CONTAINER:$JAVA_TAG"
     fi
