@@ -132,14 +132,6 @@ class FastavroIT(unittest.TestCase):
         parse_schema(json.loads(self.SCHEMA_STRING)),
     )
 
-    # # pylint: disable=expression-not-assigned
-    # records_pcoll \
-    # | 'write_avro' >> WriteToAvro(
-    #     avro_output,
-    #     Parse(self.SCHEMA_STRING),
-    #     use_fastavro=False
-    # )
-
     result = self.test_pipeline.run()
     result.wait_until_finish()
     assert result.state == PipelineState.DONE
@@ -151,12 +143,6 @@ class FastavroIT(unittest.TestCase):
           | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
           | 'read-fastavro' >> ReadAllFromAvro() \
           | Map(lambda rec: (rec['number'], rec))
-
-      # avro_records = \
-      #     fastavro_read_pipeline \
-      #     | 'create-avro' >> Create(['%s*' % avro_output]) \
-      #     | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
-      #     | Map(lambda rec: (rec['number'], rec))
 
       def check(elem):
         v = elem[1]
