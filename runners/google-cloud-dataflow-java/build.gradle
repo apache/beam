@@ -264,6 +264,9 @@ task buildAndPushDockerContainer() {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
     }
     exec {
+      commandLine "gcloud", "auth", "configure-docker"
+    }
+    exec {
       commandLine "docker", "push", "${dockerImageName}"
     }
   }
