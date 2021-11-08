@@ -16,14 +16,14 @@ package main
 
 import (
 	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/logger"
 	"context"
-	"google.golang.org/grpc/grpclog"
 	"net/http"
 )
 
 // listenHttp binds the http.Handler on the TCP network address
-func listenHttp(ctx context.Context, errChan chan error, envs environment.ServerEnvs, handler http.Handler) {
-	grpclog.Infof("listening HTTP at %s\n", envs.Address())
+func listenHttp(ctx context.Context, errChan chan error, envs environment.NetworkEnvs, handler http.Handler) {
+	logger.Infof("listening HTTP at %s\n", envs.Address())
 	if err := http.ListenAndServe(envs.Address(), handler); err != nil {
 		errChan <- err
 		return

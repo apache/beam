@@ -1219,13 +1219,25 @@ class _AbstractIterable(object):
 
 FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
 
+# TODO(BEAM-13066): Enable using abstract iterables permanently
+_iterable_coder_uses_abstract_iterable_by_default = False
+
 
 class IterableCoderImpl(SequenceCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for homogeneous iterable objects."""
+  def __init__(self, *args, use_abstract_iterable=None, **kwargs):
+    super().__init__(*args, **kwargs)
+    if use_abstract_iterable is None:
+      use_abstract_iterable = _iterable_coder_uses_abstract_iterable_by_default
+    self._use_abstract_iterable = use_abstract_iterable
+
   def _construct_from_sequence(self, components):
-    return _AbstractIterable(components)
+    if self._use_abstract_iterable:
+      return _AbstractIterable(components)
+    else:
+      return components
 
 
 class ListCoderImpl(SequenceCoderImpl):

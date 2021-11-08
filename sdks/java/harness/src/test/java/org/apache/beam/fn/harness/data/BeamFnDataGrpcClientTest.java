@@ -21,15 +21,16 @@ import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.collection.IsEmptyCollection.empty;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -38,8 +39,9 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver2;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
+import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
@@ -63,9 +65,14 @@ public class BeamFnDataGrpcClientTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(
           WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
-  private static final LogicalEndpoint ENDPOINT_A = LogicalEndpoint.data("12L", "34L");
-
-  private static final LogicalEndpoint ENDPOINT_B = LogicalEndpoint.data("56L", "78L");
+  private static final String INSTRUCTION_ID_A = "12L";
+  private static final String INSTRUCTION_ID_B = "56L";
+  private static final String TRANSFORM_ID_A = "34L";
+  private static final String TRANSFORM_ID_B = "78L";
+  private static final LogicalEndpoint ENDPOINT_A =
+      LogicalEndpoint.data(INSTRUCTION_ID_A, TRANSFORM_ID_A);
+  private static final LogicalEndpoint ENDPOINT_B =
+      LogicalEndpoint.data(INSTRUCTION_ID_B, TRANSFORM_ID_B);
 
   private static final BeamFnApi.Elements ELEMENTS_A_1;
   private static final BeamFnApi.Elements ELEMENTS_A_2;
@@ -135,7 +142,7 @@ public class BeamFnDataGrpcClientTest {
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
-            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID())
             .build();
     Server server =
         InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
@@ -161,8 +168,17 @@ public class BeamFnDataGrpcClientTest {
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
 
-      InboundDataClient readFutureA =
-          clientFactory.receive(apiServiceDescriptor, ENDPOINT_A, CODER, inboundValuesA::add);
+      BeamFnDataInboundObserver2 observerA =
+          BeamFnDataInboundObserver2.forConsumers(
+              Arrays.asList(DataEndpoint.create(TRANSFORM_ID_A, CODER, inboundValuesA::add)),
+              Collections.emptyList());
+      BeamFnDataInboundObserver2 observerB =
+          BeamFnDataInboundObserver2.forConsumers(
+              Arrays.asList(DataEndpoint.create(TRANSFORM_ID_B, CODER, inboundValuesB::add)),
+              Collections.emptyList());
+
+      clientFactory.registerReceiver(
+          INSTRUCTION_ID_A, Arrays.asList(apiServiceDescriptor), observerA);
 
       waitForClientToConnect.await();
       outboundServerObserver.get().onNext(ELEMENTS_A_1);
@@ -171,15 +187,15 @@ public class BeamFnDataGrpcClientTest {
       outboundServerObserver.get().onNext(ELEMENTS_B_1);
       Thread.sleep(100);
 
-      InboundDataClient readFutureB =
-          clientFactory.receive(apiServiceDescriptor, ENDPOINT_B, CODER, inboundValuesB::add);
+      clientFactory.registerReceiver(
+          INSTRUCTION_ID_B, Arrays.asList(apiServiceDescriptor), observerB);
 
       // Show that out of order stream completion can occur.
-      readFutureB.awaitCompletion();
+      observerB.awaitCompletion();
       assertThat(inboundValuesB, contains(valueInGlobalWindow("JKL"), valueInGlobalWindow("MNO")));
 
       outboundServerObserver.get().onNext(ELEMENTS_A_2);
-      readFutureA.awaitCompletion();
+      observerA.awaitCompletion();
       assertThat(
           inboundValuesA,
           contains(
@@ -201,7 +217,7 @@ public class BeamFnDataGrpcClientTest {
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
-            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID())
             .build();
     Server server =
         InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
@@ -228,15 +244,20 @@ public class BeamFnDataGrpcClientTest {
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
 
-      InboundDataClient readFuture =
-          clientFactory.receive(
-              apiServiceDescriptor,
-              ENDPOINT_A,
-              CODER,
-              t -> {
-                consumerInvoked.incrementAndGet();
-                throw exceptionToThrow;
-              });
+      BeamFnDataInboundObserver2 observer =
+          BeamFnDataInboundObserver2.forConsumers(
+              Arrays.asList(
+                  DataEndpoint.create(
+                      TRANSFORM_ID_A,
+                      CODER,
+                      t -> {
+                        consumerInvoked.incrementAndGet();
+                        throw exceptionToThrow;
+                      })),
+              Collections.emptyList());
+
+      clientFactory.registerReceiver(
+          INSTRUCTION_ID_A, Arrays.asList(apiServiceDescriptor), observer);
 
       waitForClientToConnect.await();
 
@@ -245,10 +266,10 @@ public class BeamFnDataGrpcClientTest {
       outboundServerObserver.get().onNext(ELEMENTS_A_2);
 
       try {
-        readFuture.awaitCompletion();
+        observer.awaitCompletion();
         fail("Expected channel to fail");
-      } catch (ExecutionException e) {
-        assertEquals(exceptionToThrow, e.getCause());
+      } catch (Exception e) {
+        assertEquals(exceptionToThrow, e);
       }
       // The server should not have received any values
       assertThat(inboundServerValues, empty());
@@ -273,7 +294,7 @@ public class BeamFnDataGrpcClientTest {
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
-            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID())
             .build();
     Server server =
         InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())

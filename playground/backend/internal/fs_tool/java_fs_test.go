@@ -18,18 +18,22 @@ package fs_tool
 import (
 	"fmt"
 	"github.com/google/uuid"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
 
 func Test_newJavaLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", javaBaseFileFolder, pipelineId)
+	workingDir := "workingDir"
+	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, javaBaseFileFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
 	type args struct {
 		pipelineId uuid.UUID
+		workingDir string
 	}
 	tests := []struct {
 		name string
@@ -38,7 +42,10 @@ func Test_newJavaLifeCycle(t *testing.T) {
 	}{
 		{
 			name: "newJavaLifeCycle",
-			args: args{pipelineId: pipelineId},
+			args: args{
+				pipelineId: pipelineId,
+				workingDir: workingDir,
+			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Folder: Folder{
@@ -50,14 +57,87 @@ func Test_newJavaLifeCycle(t *testing.T) {
 					ExecutableExtension: javaExecutableFileExtension,
 					CompiledExtension:   javaCompiledFileExtension,
 				},
-				pipelineId: pipelineId,
+				ExecutableName: executableName,
+				pipelineId:     pipelineId,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newJavaLifeCycle(tt.args.pipelineId); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newJavaLifeCycle() = %v, want %v", got, tt.want)
+			got := newJavaLifeCycle(tt.args.pipelineId, tt.args.workingDir)
+			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
+				t.Errorf("newJavaLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
+			}
+			if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
+				t.Errorf("newJavaLifeCycle() Folder = %v, want %v", got.Folder, tt.want.Folder)
+			}
+			if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
+				t.Errorf("newJavaLifeCycle() Extension = %v, want %v", got.Extension, tt.want.Extension)
+			}
+			if !reflect.DeepEqual(got.pipelineId, tt.want.pipelineId) {
+				t.Errorf("newJavaLifeCycle() pipelineId = %v, want %v", got.pipelineId, tt.want.pipelineId)
+			}
+		})
+	}
+}
+
+func Test_executableName(t *testing.T) {
+	pipelineId := uuid.New()
+	workDir := "workingDir"
+
+	lc := newJavaLifeCycle(pipelineId, workDir)
+	lc.CreateFolders()
+	defer os.RemoveAll(workDir)
+
+	type args struct {
+		pipelineId uuid.UUID
+		workingDir string
+	}
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "all success",
+			prepare: func() {
+				compiled := filepath.Join(workDir, javaBaseFileFolder, pipelineId.String(), javaCompiledFolderName)
+				filePath := filepath.Join(compiled, "temp.class")
+				err := os.WriteFile(filePath, []byte("TEMP_DATA"), 0600)
+				if err != nil {
+					panic(err)
+				}
+			},
+			args: args{
+				pipelineId: pipelineId,
+				workingDir: workDir,
+			},
+			want:    "temp",
+			wantErr: false,
+		},
+		{
+			name:    "directory doesn't exist",
+			prepare: func() {},
+			args: args{
+				pipelineId: uuid.New(),
+				workingDir: workDir,
+			},
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := executableName(tt.args.pipelineId, tt.args.workingDir)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("executableName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("executableName() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

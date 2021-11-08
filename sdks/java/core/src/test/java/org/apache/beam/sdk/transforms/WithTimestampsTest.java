@@ -115,7 +115,8 @@ public class WithTimestampsTest implements Serializable {
             .apply("FirstTimestamp", WithTimestamps.of(timestampFn))
             .apply(
                 "WithSkew",
-                WithTimestamps.of(backInTimeFn).withAllowedTimestampSkew(skew.plus(100L)));
+                WithTimestamps.of(backInTimeFn)
+                    .withAllowedTimestampSkew(skew.plus(Duration.millis(100L))));
 
     PCollection<KV<String, Instant>> timestampedVals =
         timestampedWithSkew.apply(

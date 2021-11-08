@@ -366,8 +366,8 @@ public class UserParDoFnFactoryTest {
             SimpleParDoFn.CLEANUP_TIMER_ID,
             firstWindow,
             IntervalWindow.getCoder(),
-            firstWindow.maxTimestamp().plus(1L),
-            firstWindow.maxTimestamp().plus(1L));
+            firstWindow.maxTimestamp().plus(Duration.millis(1L)),
+            firstWindow.maxTimestamp().plus(Duration.millis(1L)));
   }
 
   @Test
@@ -430,8 +430,8 @@ public class UserParDoFnFactoryTest {
             TimerData.of(
                 SimpleParDoFn.CLEANUP_TIMER_ID,
                 firstWindowNamespace,
-                firstWindow.maxTimestamp().plus(1L),
-                firstWindow.maxTimestamp().plus(1L),
+                firstWindow.maxTimestamp().plus(Duration.millis(1L)),
+                firstWindow.maxTimestamp().plus(Duration.millis(1L)),
                 TimeDomain.EVENT_TIME))
         .thenReturn(null);
 
@@ -446,8 +446,8 @@ public class UserParDoFnFactoryTest {
             TimerData.of(
                 SimpleParDoFn.CLEANUP_TIMER_ID,
                 secondWindowNamespace,
-                secondWindow.maxTimestamp().plus(1L),
-                secondWindow.maxTimestamp().plus(1L),
+                secondWindow.maxTimestamp().plus(Duration.millis(1L)),
+                secondWindow.maxTimestamp().plus(Duration.millis(1L)),
                 TimeDomain.EVENT_TIME))
         .thenReturn(null);
 

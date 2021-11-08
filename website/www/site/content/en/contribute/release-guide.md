@@ -1155,6 +1155,12 @@ Create and push a new signed tag for the released version by copying the tag for
 gpg --output ~/doc.sig --sign ~/.bashrc
 
 VERSION_TAG="v${RELEASE}"
+
+# Tag for Go SDK
+git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
+git push https://github.com/apache/beam "sdks/$VERSION_TAG"
+
+# Tag for repo root.
 git tag -s "$VERSION_TAG" "$RC_TAG"
 git push https://github.com/apache/beam "$VERSION_TAG"
 ```
