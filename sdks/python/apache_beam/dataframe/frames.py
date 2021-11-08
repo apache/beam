@@ -929,11 +929,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'truncate',
-            lambda df: df.truncate(before=before, after=after, axis=axis),
-            [self._expr],
+            lambda df: df.sort_index().truncate(
+                before=before, after=after, axis=axis), [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
-            preserves_partition_by=partitionings.Arbitrary()
-            if axis in (1, 'columns') else partitionings.Singleton()))
+            preserves_partition_by=partitionings.Arbitrary()))
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)

@@ -651,11 +651,11 @@ class DeferredFrameTest(_AbstractFrameTest):
     s.index = s.index.map(float)
     self._run_test(lambda s: s[1.5:6], s)
 
-  def test_dataframe_truncate(self):
+  def test_series_truncate(self):
     s = pd.Series(['a', 'b', 'c', 'd', 'e', 'f'])
     self._run_test(lambda s: s.truncate(before=1, after=3), s)
 
-  def test_series_truncate(self):
+  def test_dataframe_truncate(self):
     df = pd.DataFrame({
         'A': list('abcde'), 'B': list('fghij'), 'C': list('klmno')
     },
