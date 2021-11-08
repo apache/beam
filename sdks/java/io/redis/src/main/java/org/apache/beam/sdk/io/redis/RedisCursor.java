@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.io.range.ByteKey;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 public class RedisCursor implements Comparable<RedisCursor>, Serializable {
 
@@ -53,9 +54,9 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
 
   private RedisCursor(String cursor, long dbSize) {
     this.cursor = cursor;
-    this.byteCursor = stringCursorToByteKey(cursor);
     this.dbSize = dbSize;
     this.nBits = getTablePow(dbSize);
+    this.byteCursor = stringCursorToByteKey(cursor, this.nBits);
   }
 
   /**
@@ -80,9 +81,10 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
     return dbSize;
   }
 
-  private ByteKey stringCursorToByteKey(String cursor) {
+  @VisibleForTesting
+  static ByteKey stringCursorToByteKey(String cursor, int nBits) {
     long cursorLong = Long.parseLong(cursor);
-    long reversed = shiftBits(cursorLong);
+    long reversed = shiftBits(cursorLong, nBits);
     BigEndianLongCoder coder = BigEndianLongCoder.of();
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     try {
@@ -94,7 +96,8 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
     return ByteKey.copyFrom(byteArray);
   }
 
-  private long shiftBits(long a) {
+  @VisibleForTesting
+  static long shiftBits(long a, int nBits) {
     long b = 0;
     for (int i = 0; i < nBits; ++i) {
       b <<= 1;
@@ -104,11 +107,13 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
     return b;
   }
 
-  private int getTablePow(long nKeys) {
+  @VisibleForTesting
+  static int getTablePow(long nKeys) {
     return 64 - Long.numberOfLeadingZeros(nKeys - 1);
   }
 
-  private String byteKeyToString(ByteKey byteKeyStart, int nBites) {
+  @VisibleForTesting
+  static String byteKeyToString(ByteKey byteKeyStart, int nBites) {
     ByteBuffer bb = ByteBuffer.wrap(byteKeyStart.getBytes());
     if (bb.capacity() < nBites) {
       int rem = nBites - bb.capacity();
