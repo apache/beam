@@ -26,7 +26,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIOWrite.Import.ContentStructure;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -105,10 +105,10 @@ public class FhirIOWriteIT {
 
   @Test
   public void testFhirIO_ExecuteBundle() throws IOException {
-    FhirIO.Write.Result writeResult =
+    FhirIOWrite.Result writeResult =
         pipeline
             .apply(Create.of(BUNDLES.get(version)))
-            .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
+            .apply(FhirIOWrite.executeBundles(options.getFhirStore()));
 
     PAssert.that(writeResult.getFailedBodies()).empty();
 
@@ -121,11 +121,11 @@ public class FhirIOWriteIT {
     if (options.getTempLocation() == null) {
       options.setTempLocation("gs://temp-storage-for-healthcare-io-tests");
     }
-    FhirIO.Write.Result result =
+    FhirIOWrite.Result result =
         pipeline
             .apply(Create.of(BUNDLES.get(version)))
             .apply(
-                FhirIO.Write.fhirStoresImport(
+                FhirIOWrite.fhirStoresImport(
                     options.getFhirStore(),
                     options.getGcsDeadLetterPath(),
                     ContentStructure.BUNDLE));
