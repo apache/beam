@@ -35,6 +35,8 @@ import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIOSearch.SearchParameter;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIOSearch.SearchParameterCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -66,8 +68,8 @@ public class FhirIOSearchIT {
       "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
   private String fhirStoreId;
   private static final int MAX_NUM_OF_SEARCHES = 50;
-  private List<FhirSearchParameter<String>> input = new ArrayList<>();
-  private List<FhirSearchParameter<List<Integer>>> genericParametersInput = new ArrayList<>();
+  private List<SearchParameter<String>> input = new ArrayList<>();
+  private List<SearchParameter<List<Integer>>> genericParametersInput = new ArrayList<>();
   private static final String KEY = "key";
 
   public String version;
@@ -103,8 +105,8 @@ public class FhirIOSearchIT {
     for (JsonElement resource : fhirResources) {
       String resourceType =
           resource.getAsJsonObject().getAsJsonObject("resource").get("resourceType").getAsString();
-      input.add(FhirSearchParameter.of(resourceType, KEY, searchParameters));
-      genericParametersInput.add(FhirSearchParameter.of(resourceType, genericSearchParameters));
+      input.add(SearchParameter.of(resourceType, KEY, searchParameters));
+      genericParametersInput.add(SearchParameter.of(resourceType, genericSearchParameters));
       searches++;
       if (searches > MAX_NUM_OF_SEARCHES) {
         break;
@@ -125,10 +127,9 @@ public class FhirIOSearchIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     // Search using the resource type of each written resource and empty search parameters.
-    PCollection<FhirSearchParameter<String>> searchConfigs =
-        pipeline.apply(
-            Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
-    FhirIO.Search.Result result =
+    PCollection<SearchParameter<String>> searchConfigs =
+        pipeline.apply(Create.of(input).withCoder(SearchParameterCoder.of(StringUtf8Coder.of())));
+    FhirIOSearch.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
 
@@ -154,13 +155,13 @@ public class FhirIOSearchIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     // Search using the resource type of each written resource and empty search parameters.
-    PCollection<FhirSearchParameter<List<Integer>>> searchConfigs =
+    PCollection<SearchParameter<List<Integer>>> searchConfigs =
         pipeline.apply(
             Create.of(genericParametersInput)
-                .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
-    FhirIO.Search.Result result =
+                .withCoder(SearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
+    FhirIOSearch.Result result =
         searchConfigs.apply(
-            (FhirIO.Search<List<Integer>>)
+            (FhirIOSearch<List<Integer>>)
                 FhirIO.searchResourcesWithGenericParameters(
                     healthcareDataset + "/fhirStores/" + fhirStoreId));
 
@@ -185,12 +186,12 @@ public class FhirIOSearchIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     // Search using a search that will return no results.
-    FhirSearchParameter<String> emptySearch =
-        FhirSearchParameter.of("Patient", KEY, ImmutableMap.of("name", "INVALID_NAME"));
-    PCollection<FhirSearchParameter<String>> searchConfigs =
+    SearchParameter<String> emptySearch =
+        SearchParameter.of("Patient", KEY, ImmutableMap.of("name", "INVALID_NAME"));
+    PCollection<SearchParameter<String>> searchConfigs =
         pipeline.apply(
-            Create.of(emptySearch).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
-    FhirIO.Search.Result result =
+            Create.of(emptySearch).withCoder(SearchParameterCoder.of(StringUtf8Coder.of())));
+    FhirIOSearch.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
 

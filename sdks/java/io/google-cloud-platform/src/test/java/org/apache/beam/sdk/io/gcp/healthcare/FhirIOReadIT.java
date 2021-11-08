@@ -123,7 +123,7 @@ public class FhirIOReadIT {
   public void testFhirIORead() throws Exception {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
-    FhirIO.Read.Result result =
+    FhirIORead.Result result =
         pipeline
             .apply(PubsubIO.readStrings().fromSubscription(pubsubSubscription))
             .apply(FhirIO.readResources());
