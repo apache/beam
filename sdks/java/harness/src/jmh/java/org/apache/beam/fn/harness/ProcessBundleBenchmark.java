@@ -58,12 +58,12 @@ import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
-import org.apache.beam.sdk.fn.server.InProcessServerFactory;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -103,7 +103,7 @@ public class ProcessBundleBenchmark {
         // Setup execution-time servers
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setDaemon(true).build();
         serverExecutor = Executors.newCachedThreadPool(threadFactory);
-        InProcessServerFactory serverFactory = InProcessServerFactory.create();
+        ServerFactory serverFactory = ServerFactory.createDefault();
         dataServer =
             GrpcFnServer.allocatePortAndCreateFor(
                 GrpcDataService.create(
@@ -144,7 +144,7 @@ public class ProcessBundleBenchmark {
                         loggingServer.getApiServiceDescriptor(),
                         controlServer.getApiServiceDescriptor(),
                         null,
-                        InProcessManagedChannelFactory.create(),
+                        ManagedChannelFactory.createDefault(),
                         OutboundObserverFactory.clientDirect());
                   } catch (Exception e) {
                     throw new RuntimeException(e);

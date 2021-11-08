@@ -656,8 +656,6 @@ class JavaJarExpansionService(object):
   transform.
   """
   def __init__(self, path_to_jar, extra_args=None):
-    if extra_args is None:
-      extra_args = ['{{PORT}}', f'--filesToStage={path_to_jar}']
     self._path_to_jar = path_to_jar
     self._extra_args = extra_args
     self._service_count = 0
@@ -666,6 +664,8 @@ class JavaJarExpansionService(object):
     if self._service_count == 0:
       self._path_to_jar = subprocess_server.JavaJarServer.local_jar(
           self._path_to_jar)
+      if self._extra_args is None:
+        self._extra_args = ['{{PORT}}', f'--filesToStage={self._path_to_jar}']
       # Consider memoizing these servers (with some timeout).
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,

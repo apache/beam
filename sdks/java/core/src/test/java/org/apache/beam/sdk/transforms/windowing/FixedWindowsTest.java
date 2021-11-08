@@ -108,7 +108,8 @@ public class FixedWindowsTest {
     Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
     FixedWindows windowFn = FixedWindows.of(Duration.standardHours(1));
 
-    IntervalWindow truncatedWindow = windowFn.assignWindow(endOfGlobalWindow.minus(1));
+    IntervalWindow truncatedWindow =
+        windowFn.assignWindow(endOfGlobalWindow.minus(Duration.millis(1)));
 
     assertThat(truncatedWindow.maxTimestamp(), equalTo(endOfGlobalWindow));
   }

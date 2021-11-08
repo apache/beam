@@ -22,7 +22,7 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
-def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
+def commonLoadTestConfig = { jobType, isStreaming ->
   [
     [
       title          : 'Load test: 2GB of 10B records',
@@ -32,9 +32,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         project             : 'apache-beam-testing',
         appName             : "load_tests_Java_SparkStructuredStreaming_${jobType}_Combine_1",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_Combine_1",
         influxMeasurement   : "java_${jobType}_combine_1",
         publishToInfluxDB   : true,
         sourceOptions       : """
@@ -59,9 +56,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         project             : 'apache-beam-testing',
         appName             : "load_tests_Java_SparkStructuredStreaming_${jobType}_Combine_4",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_Combine_4",
         influxMeasurement   : "java_${jobType}_combine_4",
         publishToInfluxDB   : true,
         sourceOptions       : """
@@ -86,9 +80,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         project             : 'apache-beam-testing',
         appName             : "load_tests_Java_SparkStructuredStreaming_${jobType}_Combine_5",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_Combine_5",
         influxMeasurement   : "java_${jobType}_combine_5",
         publishToInfluxDB   : true,
         sourceOptions       : """
@@ -110,8 +101,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
 
 
 def batchLoadTestJob = { scope, triggeringContext ->
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false, datasetName), "Combine", "batch")
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false), "Combine", "batch")
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch', 'H 12 * * *', this) {

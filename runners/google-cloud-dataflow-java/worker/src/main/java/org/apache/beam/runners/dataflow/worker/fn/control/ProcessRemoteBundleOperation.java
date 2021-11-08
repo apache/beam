@@ -54,6 +54,8 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private final StageBundleFactory stageBundleFactory;
   private static final OutputReceiver[] EMPTY_RECEIVER_ARRAY = new OutputReceiver[0];
   private final Map<String, OutputReceiver> outputReceiverMap;
+
+  @SuppressWarnings("UnnecessaryAnonymousClass")
   private final OutputReceiverFactory receiverFactory =
       new OutputReceiverFactory() {
         @Override
@@ -61,6 +63,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
           return receivedElement -> receive(pCollectionId, receivedElement);
         }
       };
+
   private final StateRequestHandler stateRequestHandler;
   private final BundleProgressHandler progressHandler;
   private RemoteBundle remoteBundle;

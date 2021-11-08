@@ -170,6 +170,7 @@ func Int64Distribution(count, sum, min, max int64) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// ExecutionMsecUrn returns the Urn for the bundle state
 func ExecutionMsecUrn(i int) Urn {
 	switch i {
 	case 0:
