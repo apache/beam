@@ -13,12 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package hooksx defines user-facing entrypoints into Beam hooks, providing
-// input validation and removing potential errors arising from typos in hook
-// names. This also allows hook failures to occur earlier when the hook is
-// enabled, not when the hooks are called. All hooks that accept input from
-// users should have hooksx functions associated with them.
-package hooksx
+// Package harnessopts defines user-facing entrypoints into Beam hooks affecting
+// the SDK harness, providing input validation and removing potential errors
+// arising from typos in hook names. This also allows hook failures to occur earlier
+// when the hook is  enabled, not when the hooks are called. All harness-defined hooks
+// that accept input from users should have harnessopts functions associated with them.
+package harnessopts
 
 import (
 	"fmt"
