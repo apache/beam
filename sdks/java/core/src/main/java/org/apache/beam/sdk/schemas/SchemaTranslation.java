@@ -226,7 +226,13 @@ public class SchemaTranslation {
     Schema.Builder builder = Schema.builder();
     Map<String, Integer> encodingLocationMap = Maps.newHashMap();
     for (SchemaApi.Field protoField : protoSchema.getFieldsList()) {
-      Field field = fieldFromProto(protoField);
+      Field field;
+      try {
+        field = fieldFromProto(protoField);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+            "Failed to decode Schema due to an error decoding Field proto:\n\n" + protoField, e);
+      }
       builder.addField(field);
       encodingLocationMap.put(protoField.getName(), protoField.getEncodingPosition());
     }

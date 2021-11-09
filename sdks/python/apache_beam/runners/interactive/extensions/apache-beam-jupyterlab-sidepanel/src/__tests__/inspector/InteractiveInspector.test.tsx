@@ -23,9 +23,9 @@ import { InspectableViewModel } from '../../inspector/InspectableViewModel';
 const fakeSessionContext = {
   session: {
     kernel: {
-      requestExecute: function(): object {
+      requestExecute: function (): Record<string, unknown> {
         return {
-          onIOPub: function(): void {
+          onIOPub: function (): void {
             // do nothing
           }
         };
@@ -118,9 +118,8 @@ it('renders the drawer open by default', () => {
 });
 
 it('closes the drawer on flip from open state', () => {
-  const inspectorRef: React.RefObject<InteractiveInspector> = React.createRef<
-    InteractiveInspector
-  >();
+  const inspectorRef: React.RefObject<InteractiveInspector> =
+    React.createRef<InteractiveInspector>();
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );
@@ -147,9 +146,8 @@ it('closes the drawer on flip from open state', () => {
 });
 
 it('updates session info on change', () => {
-  const inspectorRef: React.RefObject<InteractiveInspector> = React.createRef<
-    InteractiveInspector
-  >();
+  const inspectorRef: React.RefObject<InteractiveInspector> =
+    React.createRef<InteractiveInspector>();
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );

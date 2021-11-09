@@ -45,7 +45,7 @@ from apache_beam.utils.timestamp import Duration
 class AuctionOrBidWindow(IntervalWindow):
   """Windows for open auctions and bids."""
   def __init__(self, start, end, auction_id, is_auction_window):
-    super(AuctionOrBidWindow, self).__init__(start, end)
+    super().__init__(start, end)
     self.auction = auction_id
     self.is_auction_window = is_auction_window
 

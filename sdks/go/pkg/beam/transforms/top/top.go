@@ -100,7 +100,7 @@ func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{})
 	_, t := beam.ValidateKVType(col)
 	validate(t, n, less)
 
-	return beam.Combine(s, newCombineFn(less, n, t.Type(), true), col)
+	return beam.CombinePerKey(s, newCombineFn(less, n, t.Type(), true), col)
 }
 
 func validate(t typex.FullType, n int, less interface{}) {

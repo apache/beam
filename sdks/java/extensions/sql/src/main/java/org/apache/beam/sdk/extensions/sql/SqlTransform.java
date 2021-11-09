@@ -44,8 +44,8 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -107,12 +107,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * }</pre>
  */
 @AutoValue
-@Experimental
 @AutoValue.CopyAnnotations
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> {
   static final String PCOLLECTION_NAME = "PCOLLECTION";
 
@@ -122,9 +117,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract QueryParameters queryParameters();
 
-  abstract List<UdfDefinition> udfDefinitions();
+  abstract @Experimental List<UdfDefinition> udfDefinitions();
 
-  abstract List<UdafDefinition> udafDefinitions();
+  abstract @Experimental List<UdafDefinition> udafDefinitions();
 
   abstract boolean autoLoading();
 
@@ -154,8 +149,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
     tableProviderMap().forEach(sqlEnvBuilder::addSchema);
 
-    if (defaultTableProvider() != null) {
-      sqlEnvBuilder.setCurrentSchema(defaultTableProvider());
+    final @Nullable String defaultTableProvider = defaultTableProvider();
+    if (defaultTableProvider != null) {
+      sqlEnvBuilder.setCurrentSchema(defaultTableProvider);
     }
 
     sqlEnvBuilder.setQueryPlannerClassName(
@@ -223,7 +219,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
    * <p>Any available implementation of {@link QueryPlanner} can be used as the query planner in
    * {@link SqlTransform}. An implementation can be specified globally for the entire pipeline with
    * {@link BeamSqlPipelineOptions#getPlannerName()}. The global planner can be overridden
-   * per-transform with {@link #withQueryPlannerClass(Class<? extends QueryPlanner>)}.
+   * per-transform with {@link #withQueryPlannerClass(Class)}.
    */
   public static SqlTransform query(String queryString) {
     return builder().setQueryString(queryString).build();
@@ -239,6 +235,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return withTableProvider(name, tableProvider).toBuilder().setDefaultTableProvider(name).build();
   }
 
+  @Experimental
   public SqlTransform withQueryPlannerClass(Class<? extends QueryPlanner> clazz) {
     return toBuilder().setQueryPlannerClassName(clazz.getName()).build();
   }
@@ -265,6 +262,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
    *
    * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDF in BeamSql.
    */
+  @Experimental
   public SqlTransform registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
     return registerUdf(functionName, clazz, BeamSqlUdf.UDF_METHOD);
   }
@@ -273,6 +271,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
    * Register {@link SerializableFunction} as a UDF function used in this query. Note, {@link
    * SerializableFunction} must have a constructor without arguments.
    */
+  @Experimental
   public SqlTransform registerUdf(String functionName, SerializableFunction sfn) {
     return registerUdf(functionName, sfn.getClass(), "apply");
   }
@@ -288,6 +287,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   /** register a {@link Combine.CombineFn} as UDAF function used in this query. */
+  @Experimental
   public SqlTransform registerUdaf(String functionName, Combine.CombineFn combineFn) {
     ImmutableList<UdafDefinition> newUdafs =
         ImmutableList.<UdafDefinition>builder()
@@ -311,6 +311,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   @AutoValue.Builder
+  @AutoValue.CopyAnnotations
   abstract static class Builder {
     abstract Builder setQueryString(String queryString);
 
@@ -318,9 +319,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
     abstract Builder setDdlStrings(List<String> ddlStrings);
 
-    abstract Builder setUdfDefinitions(List<UdfDefinition> udfDefinitions);
+    abstract @Experimental Builder setUdfDefinitions(List<UdfDefinition> udfDefinitions);
 
-    abstract Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
+    abstract @Experimental Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
 
     abstract Builder setAutoLoading(boolean autoLoading);
 
@@ -335,7 +336,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   @AutoValue
   @AutoValue.CopyAnnotations
-  @SuppressWarnings({"rawtypes"})
+  @Experimental
   abstract static class UdfDefinition {
     abstract String udfName();
 
@@ -350,7 +351,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   @AutoValue
   @AutoValue.CopyAnnotations
-  @SuppressWarnings({"rawtypes"})
+  @Experimental
   abstract static class UdafDefinition {
     abstract String udafName();
 

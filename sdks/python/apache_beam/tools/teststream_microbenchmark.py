@@ -45,12 +45,12 @@ import logging
 import random
 
 import apache_beam as beam
-import apache_beam.typehints.typehints as typehints
 from apache_beam import WindowInto
 from apache_beam.runners import DirectRunner
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.tools import utils
 from apache_beam.transforms.window import FixedWindows
+from apache_beam.typehints import typehints
 
 NUM_PARALLEL_STAGES = 7
 

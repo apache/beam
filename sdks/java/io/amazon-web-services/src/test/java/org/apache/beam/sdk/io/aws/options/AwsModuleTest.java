@@ -25,6 +25,7 @@ import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.auth.ClasspathPropertiesFileCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
@@ -78,6 +79,20 @@ public class AwsModuleTest {
     assertEquals(
         credentialsProvider.getCredentials().getAWSSecretKey(),
         deserializedCredentialsProvider.getCredentials().getAWSSecretKey());
+
+    String sessionToken = "session-token";
+    BasicSessionCredentials sessionCredentials =
+        new BasicSessionCredentials(awsKeyId, awsSecretKey, sessionToken);
+    credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials);
+    serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
+    deserializedCredentialsProvider =
+        objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
+    BasicSessionCredentials deserializedCredentials =
+        (BasicSessionCredentials) deserializedCredentialsProvider.getCredentials();
+    assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
+    assertEquals(deserializedCredentials.getAWSAccessKeyId(), awsKeyId);
+    assertEquals(deserializedCredentials.getAWSSecretKey(), awsSecretKey);
+    assertEquals(deserializedCredentials.getSessionToken(), sessionToken);
   }
 
   @Test

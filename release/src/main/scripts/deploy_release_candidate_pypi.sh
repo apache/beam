@@ -127,6 +127,10 @@ RELEASE_COMMIT=$(git rev-list -n 1 $RC_TAG)
 
 echo "================Download python artifacts======================"
 PYTHON_ARTIFACTS_DIR="${LOCAL_CLONE_DIR_ROOT}/python"
+virtualenv deploy_pypi_env
+source ./deploy_pypi_env/bin/activate
+pip install -U pip
+pip install requests python-dateutil
 python "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
   --github-user "${USER_GITHUB_ID}" \
   --repo-url "${GIT_REPO_BASE_URL}" \
@@ -149,8 +153,6 @@ echo "===================Removing sha512 files======================="
 rm $(ls | grep -i ".*.sha512$")
 
 echo "====================Upload rc to pypi========================"
-virtualenv deploy_pypi_env
-source ./deploy_pypi_env/bin/activate
 pip install twine
 
 mkdir dist && mv $(ls | grep apache) dist && cd dist

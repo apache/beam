@@ -551,6 +551,10 @@ See the source of the script for more details, or to run commands manually in ca
 
 ### Run build_release_candidate.sh to create a release candidate
 
+Before you start, run this command to make sure you'll be using the latest docker images:
+
+      docker system prune -a
+
 * **Script:** [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
 
 * **Usage**
@@ -1147,7 +1151,16 @@ Merge all of the website pull requests
 Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
 
 ```
+# Optional: unlock the signing key by signing an arbitrary file.
+gpg --output ~/doc.sig --sign ~/.bashrc
+
 VERSION_TAG="v${RELEASE}"
+
+# Tag for Go SDK
+git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
+git push https://github.com/apache/beam "sdks/$VERSION_TAG"
+
+# Tag for repo root.
 git tag -s "$VERSION_TAG" "$RC_TAG"
 git push https://github.com/apache/beam "$VERSION_TAG"
 ```

@@ -130,7 +130,7 @@ public class AttributeValueCoder extends AtomicCoder<AttributeValue> {
         attrBuilder.ns(LIST_STRING_CODER.decode(inStream));
         break;
       case bs:
-        attrBuilder.bs((convertToListByteBuffer(LIST_BYTE_CODER.decode(inStream))));
+        attrBuilder.bs(convertToListByteBuffer(LIST_BYTE_CODER.decode(inStream)));
         break;
       case l:
         attrBuilder.l(LIST_ATTRIBUTE_CODER.decode(inStream));

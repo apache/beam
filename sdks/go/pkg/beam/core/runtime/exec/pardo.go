@@ -48,6 +48,8 @@ type ParDo struct {
 
 	status Status
 	err    errorx.GuardedError
+
+	states *metrics.PTransformState
 }
 
 // GetPID returns the PTransformID for this ParDo.
@@ -74,6 +76,8 @@ func (n *ParDo) Up(ctx context.Context) error {
 	}
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
+
+	n.states = metrics.NewPTransformState(n.PID)
 
 	// We can't cache the context during Setup since it runs only once per bundle.
 	// Subsequent bundles might run this same node, and the context here would be
@@ -103,6 +107,8 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	// per-unit, to avoid the constant allocation overhead.
 	n.ctx = metrics.SetPTransformID(ctx, n.PID)
 
+	n.states.Set(n.ctx, metrics.StartBundle)
+
 	if err := MultiStartBundle(n.ctx, id, data, n.Out...); err != nil {
 		return n.fail(err)
 	}
@@ -120,6 +126,8 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 	if n.status != Active {
 		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
+
+	n.states.Set(n.ctx, metrics.ProcessBundle)
 
 	return n.processMainInput(&MainInput{Key: *elm, Values: values})
 }
@@ -198,6 +206,8 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	n.status = Up
 	n.inv.Reset()
 
+	n.states.Set(n.ctx, metrics.FinishBundle)
+
 	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
@@ -257,6 +267,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 	if err != nil {
 		return err
 	}
+	n.cache.key = w
 	n.cache.sideinput = sideinput
 	for i := 0; i < len(n.Side); i++ {
 		n.cache.extra[i] = sideinput[i].Value()
@@ -271,33 +282,39 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 }
 
 // invokeDataFn handle non-per element invocations.
-func (n *ParDo) invokeDataFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput) (*FullValue, error) {
+func (n *ParDo) invokeDataFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput) (val *FullValue, err error) {
 	if fn == nil {
 		return nil, nil
 	}
+	// Defer side input clean-up in case of panic
+	defer func() {
+		if postErr := n.postInvoke(); postErr != nil {
+			err = postErr
+		}
+	}()
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err := Invoke(ctx, ws, ts, fn, opt, n.cache.extra...)
+	val, err = Invoke(ctx, ws, ts, fn, opt, n.cache.extra...)
 	if err != nil {
-		return nil, err
-	}
-	if err := n.postInvoke(); err != nil {
 		return nil, err
 	}
 	return val, nil
 }
 
 // invokeProcessFn handles the per element invocations
-func (n *ParDo) invokeProcessFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, opt *MainInput) (*FullValue, error) {
+func (n *ParDo) invokeProcessFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, opt *MainInput) (val *FullValue, err error) {
+	// Defer side input clean-up in case of panic
+	defer func() {
+		if postErr := n.postInvoke(); postErr != nil {
+			err = postErr
+		}
+	}()
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err := n.inv.Invoke(ctx, ws, ts, opt, n.cache.extra...)
+	val, err = n.inv.Invoke(ctx, ws, ts, opt, n.cache.extra...)
 	if err != nil {
-		return nil, err
-	}
-	if err := n.postInvoke(); err != nil {
 		return nil, err
 	}
 	return val, nil
@@ -312,10 +329,15 @@ func (n *ParDo) preInvoke(ctx context.Context, ws []typex.Window, ts typex.Event
 	return n.initSideInput(ctx, ws[0])
 }
 
+// postInvoke cleans up all of the open side inputs. postInvoke is deferred in invokeDataFn() and invokeProcessFn() to
+// ensure that it is called even if a panic occurs. ReIter side input types may leak memory if the spawned iterators
+// are not fully read before a panic/bundle failure occurs as they do not track the iterators they return.
 func (n *ParDo) postInvoke() error {
-	for _, s := range n.cache.sideinput {
-		if err := s.Reset(); err != nil {
-			return err
+	if n.cache != nil {
+		for _, s := range n.cache.sideinput {
+			if err := s.Reset(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

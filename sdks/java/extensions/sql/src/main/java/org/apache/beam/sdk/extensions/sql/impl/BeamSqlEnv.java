@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.sql.SQLException;
 import java.util.AbstractMap.SimpleEntry;
@@ -31,6 +31,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
+import org.apache.beam.sdk.extensions.sql.impl.parser.BeamSqlParser;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -42,12 +43,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptUtil;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlExecutableStatement;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to
@@ -112,12 +113,11 @@ public class BeamSqlEnv {
   }
 
   public boolean isDdl(String sqlStatement) throws ParseException {
-    return planner.parse(sqlStatement) instanceof SqlExecutableStatement;
+    return planner.parse(sqlStatement).getKind().belongsTo(SqlKind.DDL);
   }
 
   public void executeDdl(String sqlStatement) throws ParseException {
-    SqlExecutableStatement ddl = (SqlExecutableStatement) planner.parse(sqlStatement);
-    ddl.execute(getContext());
+    BeamSqlParser.DDL_EXECUTOR.executeDdl(getContext(), planner.parse(sqlStatement));
   }
 
   public CalcitePrepare.Context getContext() {

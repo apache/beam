@@ -499,7 +499,7 @@ public class BigQueryIO {
    */
   private static final String DATASET_TABLE_REGEXP =
       String.format(
-          "((?<PROJECT>%s):)?(?<DATASET>%s)\\.(?<TABLE>%s)",
+          "((?<PROJECT>%s)[:\\.])?(?<DATASET>%s)\\.(?<TABLE>%s)",
           PROJECT_ID_REGEXP, DATASET_REGEXP, TABLE_REGEXP);
 
   static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
@@ -525,12 +525,8 @@ public class BigQueryIO {
 
   private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
       DEFAULT_AVRO_SCHEMA_FACTORY =
-          new SerializableFunction<TableSchema, org.apache.avro.Schema>() {
-            @Override
-            public org.apache.avro.Schema apply(TableSchema input) {
-              return BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
-            }
-          };
+          (SerializableFunction<TableSchema, org.apache.avro.Schema>)
+              input -> BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
 
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead. {@link
@@ -589,7 +585,7 @@ public class BigQueryIO {
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setParseFn(parseFn)
-        .setMethod(Method.DEFAULT)
+        .setMethod(TypedRead.Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
         .build();
@@ -779,7 +775,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryTempDataset(String queryTempDataset);
 
-      abstract Builder<T> setMethod(Method method);
+      abstract Builder<T> setMethod(TypedRead.Method method);
 
       @Experimental(Experimental.Kind.SOURCE_SINK)
       abstract Builder<T> setFormat(DataFormat method);
@@ -830,7 +826,7 @@ public class BigQueryIO {
 
     abstract @Nullable String getQueryTempDataset();
 
-    abstract Method getMethod();
+    abstract TypedRead.Method getMethod();
 
     @Experimental(Experimental.Kind.SOURCE_SINK)
     abstract DataFormat getFormat();
@@ -940,7 +936,7 @@ public class BigQueryIO {
       // read is properly specified.
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
 
-      if (getMethod() != Method.DIRECT_READ) {
+      if (getMethod() != TypedRead.Method.DIRECT_READ) {
         String tempLocation = bqOptions.getTempLocation();
         checkArgument(
             !Strings.isNullOrEmpty(tempLocation),
@@ -965,49 +961,53 @@ public class BigQueryIO {
       // earlier stages of the pipeline or if a query depends on earlier stages of a pipeline.
       // For these cases the withoutValidation method can be used to disable the check.
       if (getValidate()) {
-        if (table != null) {
-          checkArgument(table.isAccessible(), "Cannot call validate if table is dynamically set.");
-        }
-        if (table != null && table.get().getProjectId() != null) {
-          // Check for source table presence for early failure notification.
-          DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
-          BigQueryHelpers.verifyDatasetPresence(datasetService, table.get());
-          BigQueryHelpers.verifyTablePresence(datasetService, table.get());
-        } else if (getQuery() != null) {
-          checkArgument(
-              getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
-          JobService jobService = getBigQueryServices().getJobService(bqOptions);
-          try {
-            jobService.dryRunQuery(
-                bqOptions.getBigQueryProject() == null
-                    ? bqOptions.getProject()
-                    : bqOptions.getBigQueryProject(),
-                new JobConfigurationQuery()
-                    .setQuery(getQuery().get())
-                    .setFlattenResults(getFlattenResults())
-                    .setUseLegacySql(getUseLegacySql()),
-                getQueryLocation());
-          } catch (Exception e) {
-            throw new IllegalArgumentException(
-                String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
+        try (DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions)) {
+          if (table != null) {
+            checkArgument(
+                table.isAccessible(), "Cannot call validate if table is dynamically set.");
           }
+          if (table != null && table.get().getProjectId() != null) {
+            // Check for source table presence for early failure notification.
+            BigQueryHelpers.verifyDatasetPresence(datasetService, table.get());
+            BigQueryHelpers.verifyTablePresence(datasetService, table.get());
+          } else if (getQuery() != null) {
+            checkArgument(
+                getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
+            JobService jobService = getBigQueryServices().getJobService(bqOptions);
+            try {
+              jobService.dryRunQuery(
+                  bqOptions.getBigQueryProject() == null
+                      ? bqOptions.getProject()
+                      : bqOptions.getBigQueryProject(),
+                  new JobConfigurationQuery()
+                      .setQuery(getQuery().get())
+                      .setFlattenResults(getFlattenResults())
+                      .setUseLegacySql(getUseLegacySql()),
+                  getQueryLocation());
+            } catch (Exception e) {
+              throw new IllegalArgumentException(
+                  String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
+            }
 
-          DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
-          // If the user provided a temp dataset, check if the dataset exists before launching the
-          // query
-          if (getQueryTempDataset() != null) {
-            // The temp table is only used for dataset and project id validation, not for table name
-            // validation
-            TableReference tempTable =
-                new TableReference()
-                    .setProjectId(
-                        bqOptions.getBigQueryProject() == null
-                            ? bqOptions.getProject()
-                            : bqOptions.getBigQueryProject())
-                    .setDatasetId(getQueryTempDataset())
-                    .setTableId("dummy table");
-            BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
+            // If the user provided a temp dataset, check if the dataset exists before launching the
+            // query
+            if (getQueryTempDataset() != null) {
+              // The temp table is only used for dataset and project id validation, not for table
+              // name
+              // validation
+              TableReference tempTable =
+                  new TableReference()
+                      .setProjectId(
+                          bqOptions.getBigQueryProject() == null
+                              ? bqOptions.getProject()
+                              : bqOptions.getBigQueryProject())
+                      .setDatasetId(getQueryTempDataset())
+                      .setTableId("dummy table");
+              BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
+            }
           }
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
       }
     }
@@ -1056,7 +1056,7 @@ public class BigQueryIO {
       Pipeline p = input.getPipeline();
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
 
-      if (getMethod() == Method.DIRECT_READ) {
+      if (getMethod() == TypedRead.Method.DIRECT_READ) {
         return expandForDirectRead(input, coder);
       }
 
@@ -1401,15 +1401,17 @@ public class BigQueryIO {
                           options.getJobName(), jobUuid, JobType.QUERY),
                       queryTempDataset);
 
-              DatasetService datasetService = getBigQueryServices().getDatasetService(options);
-              LOG.info("Deleting temporary table with query results {}", tempTable);
-              datasetService.deleteTable(tempTable);
-              // Delete dataset only if it was created by Beam
-              boolean datasetCreatedByBeam = !queryTempDataset.isPresent();
-              if (datasetCreatedByBeam) {
-                LOG.info(
-                    "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
-                datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
+              try (DatasetService datasetService =
+                  getBigQueryServices().getDatasetService(options)) {
+                LOG.info("Deleting temporary table with query results {}", tempTable);
+                datasetService.deleteTable(tempTable);
+                // Delete dataset only if it was created by Beam
+                boolean datasetCreatedByBeam = !queryTempDataset.isPresent();
+                if (datasetCreatedByBeam) {
+                  LOG.info(
+                      "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
+                  datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
+                }
               }
             }
           };
@@ -1564,7 +1566,7 @@ public class BigQueryIO {
     }
 
     /** See {@link Method}. */
-    public TypedRead<T> withMethod(Method method) {
+    public TypedRead<T> withMethod(TypedRead.Method method) {
       return toBuilder().setMethod(method).build();
     }
 
@@ -1754,8 +1756,14 @@ public class BigQueryIO {
        * BigQuery</a>.
        */
       STREAMING_INSERTS,
-      /** Use the new, experimental Storage Write API. */
-      STORAGE_WRITE_API
+      /** Use the new, exactly-once Storage Write API. */
+      STORAGE_WRITE_API,
+      /**
+       * Use the new, Storage Write API without exactly once enabled. This will be cheaper and
+       * provide lower latency, however comes with the caveat that the output table may contain
+       * duplicates.
+       */
+      STORAGE_API_AT_LEAST_ONCE
     }
 
     abstract @Nullable ValueProvider<String> getJsonTableRef();
@@ -1810,7 +1818,7 @@ public class BigQueryIO {
 
     abstract @Nullable Duration getTriggeringFrequency();
 
-    abstract Method getMethod();
+    abstract Write.Method getMethod();
 
     abstract @Nullable ValueProvider<String> getLoadJobProjectId();
 
@@ -1894,7 +1902,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setTriggeringFrequency(Duration triggeringFrequency);
 
-      abstract Builder<T> setMethod(Method method);
+      abstract Builder<T> setMethod(Write.Method method);
 
       abstract Builder<T> setLoadJobProjectId(ValueProvider<String> loadJobProjectId);
 
@@ -2273,7 +2281,7 @@ public class BigQueryIO {
      * Choose the method used to write data to BigQuery. See the Javadoc on {@link Method} for
      * information and restrictions of the different methods.
      */
-    public Write<T> withMethod(Method method) {
+    public Write<T> withMethod(Write.Method method) {
       checkArgument(method != null, "method can not be null");
       return toBuilder().setMethod(method).build();
     }
@@ -2484,33 +2492,39 @@ public class BigQueryIO {
       // The user specified a table.
       if (getJsonTableRef() != null && getJsonTableRef().isAccessible() && getValidate()) {
         TableReference table = getTableWithDefaultProject(options).get();
-        DatasetService datasetService = getBigQueryServices().getDatasetService(options);
-        // Check for destination table presence and emptiness for early failure notification.
-        // Note that a presence check can fail when the table or dataset is created by an earlier
-        // stage of the pipeline. For these cases the #withoutValidation method can be used to
-        // disable the check.
-        BigQueryHelpers.verifyDatasetPresence(datasetService, table);
-        if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
-          BigQueryHelpers.verifyTablePresence(datasetService, table);
-        }
-        if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
-          BigQueryHelpers.verifyTableNotExistOrEmpty(datasetService, table);
+        try (DatasetService datasetService = getBigQueryServices().getDatasetService(options)) {
+          // Check for destination table presence and emptiness for early failure notification.
+          // Note that a presence check can fail when the table or dataset is created by an earlier
+          // stage of the pipeline. For these cases the #withoutValidation method can be used to
+          // disable the check.
+          BigQueryHelpers.verifyDatasetPresence(datasetService, table);
+          if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
+            BigQueryHelpers.verifyTablePresence(datasetService, table);
+          }
+          if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
+            BigQueryHelpers.verifyTableNotExistOrEmpty(datasetService, table);
+          }
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
       }
     }
 
-    private Method resolveMethod(PCollection<T> input) {
-      if (getMethod() != Method.DEFAULT) {
+    private Write.Method resolveMethod(PCollection<T> input) {
+      if (getMethod() != Write.Method.DEFAULT) {
         return getMethod();
       }
-      if (input.getPipeline().getOptions().as(BigQueryOptions.class).getUseStorageWriteApi()) {
-        return Method.STORAGE_WRITE_API;
+      BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+      if (bqOptions.getUseStorageWriteApi()) {
+        return bqOptions.getUseStorageWriteApiAtLeastOnce()
+            ? Method.STORAGE_API_AT_LEAST_ONCE
+            : Method.STORAGE_WRITE_API;
       }
       // By default, when writing an Unbounded PCollection, we use StreamingInserts and
       // BigQuery's streaming import API.
       return (input.isBounded() == IsBounded.UNBOUNDED)
-          ? Method.STREAMING_INSERTS
-          : Method.FILE_LOADS;
+          ? Write.Method.STREAMING_INSERTS
+          : Write.Method.FILE_LOADS;
     }
 
     private Duration getStorageApiTriggeringFrequency(BigQueryOptions options) {
@@ -2559,12 +2573,12 @@ public class BigQueryIO {
                       .collect(Collectors.toList())),
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may be set");
 
-      Method method = resolveMethod(input);
+      Write.Method method = resolveMethod(input);
       if (input.isBounded() == IsBounded.UNBOUNDED
-          && (method == Method.FILE_LOADS || method == Method.STORAGE_WRITE_API)) {
+          && (method == Write.Method.FILE_LOADS || method == Write.Method.STORAGE_WRITE_API)) {
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         Duration triggeringFrequency =
-            (method == Method.STORAGE_WRITE_API)
+            (method == Write.Method.STORAGE_WRITE_API)
                 ? getStorageApiTriggeringFrequency(bqOptions)
                 : getTriggeringFrequency();
         checkArgument(
@@ -2581,7 +2595,7 @@ public class BigQueryIO {
             method);
       }
 
-      if (method != Method.FILE_LOADS) {
+      if (method != Write.Method.FILE_LOADS) {
         // we only support writing avro for FILE_LOADS
         checkArgument(
             getAvroRowWriterFactory() == null,
@@ -2593,7 +2607,7 @@ public class BigQueryIO {
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
-      if (method == Method.STORAGE_WRITE_API) {
+      if (method == Write.Method.STORAGE_WRITE_API) {
         checkArgument(!getAutoSharding(), "Auto sharding not yet available for Storage API writes");
       }
 
@@ -2618,7 +2632,7 @@ public class BigQueryIO {
         if (getJsonTableRef() != null) {
           dynamicDestinations =
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
-                  getJsonTableRef(), getTableDescription());
+                  getJsonTableRef(), getTableDescription(), getClustering() != null);
         } else if (getTableFunction() != null) {
           dynamicDestinations =
               new TableFunctionDestinations<>(getTableFunction(), getClustering() != null);
@@ -2699,7 +2713,7 @@ public class BigQueryIO {
         throw new RuntimeException(e);
       }
 
-      Method method = resolveMethod(input);
+      Write.Method method = resolveMethod(input);
       RowWriterFactory<T, DestinationT> rowWriterFactory;
       if (optimizeWrites) {
         if (avroRowWriterFactory != null) {
@@ -2768,8 +2782,8 @@ public class BigQueryIO {
         Coder<DestinationT> destinationCoder,
         DynamicDestinations<T, DestinationT> dynamicDestinations,
         RowWriterFactory<T, DestinationT> rowWriterFactory,
-        Method method) {
-      if (method == Method.STREAMING_INSERTS) {
+        Write.Method method) {
+      if (method == Write.Method.STREAMING_INSERTS) {
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded PCollection.");
@@ -2801,7 +2815,7 @@ public class BigQueryIO {
                 .withAutoSharding(getAutoSharding())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
-      } else if (method == Method.FILE_LOADS) {
+      } else if (method == Write.Method.FILE_LOADS) {
         checkArgument(
             getFailedInsertRetryPolicy() == null,
             "Record-insert retry policies are not supported when using BigQuery load jobs.");
@@ -2852,7 +2866,7 @@ public class BigQueryIO {
           batchLoads.setNumFileShards(getNumFileShards());
         }
         return input.apply(batchLoads);
-      } else if (method == Method.STORAGE_WRITE_API) {
+      } else if (method == Method.STORAGE_WRITE_API || method == Method.STORAGE_API_AT_LEAST_ONCE) {
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
           // This ensures that the Beam rows are directly translated into protos for Sorage API
@@ -2879,7 +2893,8 @@ public class BigQueryIO {
                 getKmsKey(),
                 getStorageApiTriggeringFrequency(bqOptions),
                 getBigQueryServices(),
-                getStorageApiNumStreams(bqOptions));
+                getStorageApiNumStreams(bqOptions),
+                method == Method.STORAGE_API_AT_LEAST_ONCE);
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

@@ -17,14 +17,18 @@
  */
 package org.apache.beam.sdk.io.common;
 
+import static org.junit.Assert.assertEquals;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Optional;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.values.KV;
 import org.postgresql.ds.PGSimpleDataSource;
 
 /** This class contains helper methods to ease database usage in tests. */
@@ -101,6 +105,28 @@ public class DatabaseTestHelper {
     try (Connection connection = dataSource.getConnection()) {
       try (Statement statement = connection.createStatement()) {
         statement.execute(stmt);
+      }
+    }
+  }
+
+  public static ArrayList<KV<Integer, String>> getTestDataToWrite(long rowsToAdd) {
+    ArrayList<KV<Integer, String>> data = new ArrayList<>();
+    for (int i = 0; i < rowsToAdd; i++) {
+      KV<Integer, String> kv = KV.of(i, "Test");
+      data.add(kv);
+    }
+    return data;
+  }
+
+  public static void assertRowCount(DataSource dataSource, String tableName, int expectedRowCount)
+      throws SQLException {
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        try (ResultSet resultSet = statement.executeQuery("select count(*) from " + tableName)) {
+          resultSet.next();
+          int count = resultSet.getInt(1);
+          assertEquals(expectedRowCount, count);
+        }
       }
     }
   }

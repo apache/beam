@@ -25,7 +25,8 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames
 
-PD_VERSION = tuple(map(int, pd.__version__.split('.')))
+# Get major, minor version
+PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
 
 GROUPBY_DF = pd.DataFrame({
     'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
@@ -186,7 +187,7 @@ class _AbstractFrameTest(unittest.TestCase):
         else:
           cmp = lambda x: np.isclose(expected, x)
       else:
-        cmp = expected.__eq__
+        cmp = lambda x: x == expected
       self.assertTrue(
           cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
@@ -234,6 +235,17 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df, df2: df - 2 * df2, df, df2)
     self._run_test(
         lambda df, df2: df.subtract(2).multiply(df2).divide(df), df, df2)
+
+  @unittest.skipIf(PD_VERSION < (1, 3), "dropna=False is new in pandas 1.3")
+  def test_value_counts_dropna_false(self):
+    df = pd.DataFrame({
+        'first_name': ['John', 'Anne', 'John', 'Beth'],
+        'middle_name': ['Smith', pd.NA, pd.NA, 'Louise']
+    })
+    # TODO(BEAM-12495): Remove the assertRaises this when the underlying bug in
+    # https://github.com/pandas-dev/pandas/issues/36470 is fixed.
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda df: df.value_counts(dropna=False), df)
 
   def test_get_column(self):
     df = pd.DataFrame({
@@ -369,10 +381,15 @@ class DeferredFrameTest(_AbstractFrameTest):
         nonparallel=True)
 
   def test_combine_Series(self):
-    with expressions.allow_non_parallel_operations():
-      s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
-      s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
-      self._run_test(lambda s1, s2: s1.combine(s2, max), s1, s2)
+    s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
+    s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
+    self._run_test(
+        lambda s1,
+        s2: s1.combine(s2, max),
+        s1,
+        s2,
+        nonparallel=True,
+        check_proxy=False)
 
   def test_combine_first_dataframe(self):
     df1 = pd.DataFrame({'A': [None, 0], 'B': [None, 4]})
@@ -415,6 +432,23 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_error_test(lambda df: df.set_index('bad'), df)
     self._run_error_test(
         lambda df: df.set_index(['index2', 'bad', 'really_bad']), df)
+
+  def test_set_axis(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}, index=['X', 'Y', 'Z'])
+
+    self._run_test(lambda df: df.set_axis(['I', 'II'], axis='columns'), df)
+    self._run_test(lambda df: df.set_axis([0, 1], axis=1), df)
+    self._run_inplace_test(
+        lambda df: df.set_axis(['i', 'ii'], axis='columns'), df)
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda df: df.set_axis(['a', 'b', 'c'], axis='index'), df)
+      self._run_test(lambda df: df.set_axis([0, 1, 2], axis=0), df)
+
+  def test_series_set_axis(self):
+    s = pd.Series(list(range(3)), index=['X', 'Y', 'Z'])
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda s: s.set_axis(['a', 'b', 'c']), s)
+      self._run_test(lambda s: s.set_axis([1, 2, 3]), s)
 
   def test_series_drop_ignore_errors(self):
     midx = pd.MultiIndex(
@@ -587,8 +621,27 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
 
+    if PD_VERSION >= (1, 3):
+      # dropna=False is new in pandas 1.3
+      # TODO(BEAM-12495): Remove the assertRaises this when the underlying bug
+      # in https://github.com/pandas-dev/pandas/issues/36470 is fixed.
+      with self.assertRaises(NotImplementedError):
+        self._run_test(lambda df: df.value_counts(dropna=False), df)
+
+    # Test the defaults.
     self._run_test(lambda df: df.num_wings.value_counts(), df)
     self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
+    self._run_test(lambda df: df.num_wings.value_counts(dropna=False), df)
+
+    # Test the combination interactions.
+    for normalize in (True, False):
+      for dropna in (True, False):
+        self._run_test(
+            lambda df,
+            dropna=dropna,
+            normalize=normalize: df.num_wings.value_counts(
+                dropna=dropna, normalize=normalize),
+            df)
 
   def test_value_counts_does_not_support_sort(self):
     df = pd.DataFrame({
@@ -624,6 +677,15 @@ class DeferredFrameTest(_AbstractFrameTest):
   ])
   def test_series_is_unique(self, series):
     self._run_test(lambda s: s.is_unique, series)
+
+  @parameterized.expand([
+      (pd.Series(range(10)), ),  # False
+      (pd.Series([1, 2, np.nan, 3, np.nan]), ),  # True
+      (pd.Series(['a', 'b', 'c', 'd', 'e']), ),  # False
+      (pd.Series(['a', 'b', None, 'c', None]), ),  # True
+  ])
+  def test_series_hasnans(self, series):
+    self._run_test(lambda s: s.hasnans, series)
 
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
@@ -684,6 +746,7 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda s: s.corr(s + 1), s)
       self._run_test(lambda s: s.corr(s * s), s)
       self._run_test(lambda s: s.cov(s * s), s)
+      self._run_test(lambda s: s.skew(), s)
 
   def test_dataframe_cov_corr(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
@@ -1361,7 +1424,6 @@ class AggregationTest(_AbstractFrameTest):
         'median',
         'sem',
         'mad',
-        'skew',
         'kurtosis',
         'kurt')
 
@@ -1388,7 +1450,6 @@ class AggregationTest(_AbstractFrameTest):
         'median',
         'sem',
         'mad',
-        'skew',
         'kurtosis',
         'kurt')
 
@@ -1412,7 +1473,6 @@ class AggregationTest(_AbstractFrameTest):
         'median',
         'sem',
         'mad',
-        'skew',
         'kurtosis',
         'kurt')
 
@@ -1437,7 +1497,6 @@ class AggregationTest(_AbstractFrameTest):
         'median',
         'sem',
         'mad',
-        'skew',
         'kurtosis',
         'kurt')
 

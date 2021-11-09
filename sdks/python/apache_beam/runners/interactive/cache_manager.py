@@ -208,8 +208,6 @@ class FileBasedCacheManager(CacheManager):
 
   def load_pcoder(self, *labels):
     saved_pcoder = self._saved_pcoders.get(self._path(*labels), None)
-    # TODO(BEAM-12506): Get rid of the SafeFastPrimitivesCoder for
-    # WindowedValueHolder.
     if saved_pcoder is None or isinstance(saved_pcoder,
                                           coders.FastPrimitivesCoder):
       return self._default_pcoder
@@ -347,7 +345,7 @@ class WriteCache(beam.PTransform):
 class SafeFastPrimitivesCoder(coders.Coder):
   """This class add an quote/unquote step to escape special characters."""
 
-  # pylint: disable=deprecated-urllib-function
+  # pylint: disable=bad-option-value
 
   def encode(self, value):
     return quote(

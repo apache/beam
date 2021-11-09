@@ -107,11 +107,11 @@ public class PubsubJsonClientTest {
     PullResponse expectedResponse =
         new PullResponse().setReceivedMessages(ImmutableList.of(expectedReceivedMessage));
     when((Object)
-            (mockPubsub
+            mockPubsub
                 .projects()
                 .subscriptions()
                 .pull(expectedSubscription, expectedRequest)
-                .execute()))
+                .execute())
         .thenReturn(expectedResponse);
     List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
     assertEquals(1, acutalMessages.size());
@@ -139,11 +139,11 @@ public class PubsubJsonClientTest {
     PullResponse expectedResponse =
         new PullResponse().setReceivedMessages(ImmutableList.of(expectedReceivedMessage));
     when((Object)
-            (mockPubsub
+            mockPubsub
                 .projects()
                 .subscriptions()
                 .pull(expectedSubscription, expectedRequest)
-                .execute()))
+                .execute())
         .thenReturn(expectedResponse);
     List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
     assertEquals(1, acutalMessages.size());
@@ -171,11 +171,11 @@ public class PubsubJsonClientTest {
         new PullResponse().setReceivedMessages(ImmutableList.of(expectedReceivedMessage));
     Mockito.when(
             (Object)
-                (mockPubsub
+                mockPubsub
                     .projects()
                     .subscriptions()
                     .pull(expectedSubscription, expectedRequest)
-                    .execute()))
+                    .execute())
         .thenReturn(expectedResponse);
     List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
     assertEquals(1, acutalMessages.size());
@@ -200,8 +200,7 @@ public class PubsubJsonClientTest {
         new PublishRequest().setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse =
         new PublishResponse().setMessageIds(ImmutableList.of(MESSAGE_ID));
-    when((Object)
-            (mockPubsub.projects().topics().publish(expectedTopic, expectedRequest).execute()))
+    when((Object) mockPubsub.projects().topics().publish(expectedTopic, expectedRequest).execute())
         .thenReturn(expectedResponse);
     Map<String, String> attrs = new HashMap<>();
     attrs.put("k", "v");
@@ -233,8 +232,7 @@ public class PubsubJsonClientTest {
         new PublishRequest().setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse =
         new PublishResponse().setMessageIds(ImmutableList.of(MESSAGE_ID));
-    when((Object)
-            (mockPubsub.projects().topics().publish(expectedTopic, expectedRequest).execute()))
+    when((Object) mockPubsub.projects().topics().publish(expectedTopic, expectedRequest).execute())
         .thenReturn(expectedResponse);
     OutgoingMessage actualMessage =
         OutgoingMessage.of(
@@ -262,8 +260,7 @@ public class PubsubJsonClientTest {
         new PublishRequest().setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse =
         new PublishResponse().setMessageIds(ImmutableList.of(MESSAGE_ID));
-    when((Object)
-            (mockPubsub.projects().topics().publish(expectedTopic, expectedRequest).execute()))
+    when((Object) mockPubsub.projects().topics().publish(expectedTopic, expectedRequest).execute())
         .thenReturn(expectedResponse);
     Map<String, String> attrs = new HashMap<>();
     attrs.put("k", "v");
@@ -289,7 +286,7 @@ public class PubsubJsonClientTest {
     expectedResponse2.setTopics(Collections.singletonList(buildTopic(2)));
 
     Topics.List request = mockPubsub.projects().topics().list(PROJECT.getPath());
-    when((Object) (request.execute())).thenReturn(expectedResponse1, expectedResponse2);
+    when((Object) request.execute()).thenReturn(expectedResponse1, expectedResponse2);
 
     List<TopicPath> topicPaths = client.listTopics(PROJECT);
     assertEquals(2, topicPaths.size());
@@ -311,7 +308,7 @@ public class PubsubJsonClientTest {
     expectedResponse2.setSubscriptions(Collections.singletonList(buildSubscription(2)));
 
     Subscriptions.List request = mockPubsub.projects().subscriptions().list(PROJECT.getPath());
-    when((Object) (request.execute())).thenReturn(expectedResponse1, expectedResponse2);
+    when((Object) request.execute()).thenReturn(expectedResponse1, expectedResponse2);
 
     final TopicPath topic101 = PubsubClient.topicPathFromName("testProject", "Topic2");
     List<SubscriptionPath> subscriptionPaths = client.listSubscriptions(PROJECT, topic101);

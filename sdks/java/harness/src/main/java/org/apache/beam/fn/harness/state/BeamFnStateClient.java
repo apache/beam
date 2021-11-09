@@ -31,9 +31,6 @@ public interface BeamFnStateClient {
    * Consumes a state request populating a unique id returning a future to the response.
    *
    * @param requestBuilder A partially completed state request. The id will be populated the client.
-   * @param response A future containing a corresponding {@link StateResponse} for the supplied
-   *     request.
    */
-  void handle(
-      BeamFnApi.StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response);
+  CompletableFuture<StateResponse> handle(BeamFnApi.StateRequest.Builder requestBuilder);
 }

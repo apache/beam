@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.io.aws.options;
 
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.auth.ClasspathPropertiesFileCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
@@ -66,6 +68,7 @@ public class AwsModule extends SimpleModule {
 
   private static final String AWS_ACCESS_KEY_ID = "awsAccessKeyId";
   private static final String AWS_SECRET_KEY = "awsSecretKey";
+  private static final String SESSION_TOKEN = "sessionToken";
   private static final String CREDENTIALS_FILE_PATH = "credentialsFilePath";
   public static final String CLIENT_EXECUTION_TIMEOUT = "clientExecutionTimeout";
   public static final String CONNECTION_MAX_IDLE_TIME = "connectionMaxIdleTime";
@@ -119,8 +122,17 @@ public class AwsModule extends SimpleModule {
       }
 
       if (typeName.equals(AWSStaticCredentialsProvider.class.getSimpleName())) {
-        return new AWSStaticCredentialsProvider(
-            new BasicAWSCredentials(asMap.get(AWS_ACCESS_KEY_ID), asMap.get(AWS_SECRET_KEY)));
+        boolean isSession = asMap.containsKey(SESSION_TOKEN);
+        if (isSession) {
+          return new AWSStaticCredentialsProvider(
+              new BasicSessionCredentials(
+                  asMap.get(AWS_ACCESS_KEY_ID),
+                  asMap.get(AWS_SECRET_KEY),
+                  asMap.get(SESSION_TOKEN)));
+        } else {
+          return new AWSStaticCredentialsProvider(
+              new BasicAWSCredentials(asMap.get(AWS_ACCESS_KEY_ID), asMap.get(AWS_SECRET_KEY)));
+        }
       } else if (typeName.equals(PropertiesFileCredentialsProvider.class.getSimpleName())) {
         return new PropertiesFileCredentialsProvider(asMap.get(CREDENTIALS_FILE_PATH));
       } else if (typeName.equals(
@@ -179,11 +191,16 @@ public class AwsModule extends SimpleModule {
       typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
 
       if (credentialsProvider.getClass().equals(AWSStaticCredentialsProvider.class)) {
-        jsonGenerator.writeStringField(
-            AWS_ACCESS_KEY_ID, credentialsProvider.getCredentials().getAWSAccessKeyId());
-        jsonGenerator.writeStringField(
-            AWS_SECRET_KEY, credentialsProvider.getCredentials().getAWSSecretKey());
-
+        AWSCredentials credentials = credentialsProvider.getCredentials();
+        if (credentials.getClass().equals(BasicSessionCredentials.class)) {
+          BasicSessionCredentials sessionCredentials = (BasicSessionCredentials) credentials;
+          jsonGenerator.writeStringField(AWS_ACCESS_KEY_ID, sessionCredentials.getAWSAccessKeyId());
+          jsonGenerator.writeStringField(AWS_SECRET_KEY, sessionCredentials.getAWSSecretKey());
+          jsonGenerator.writeStringField(SESSION_TOKEN, sessionCredentials.getSessionToken());
+        } else {
+          jsonGenerator.writeStringField(AWS_ACCESS_KEY_ID, credentials.getAWSAccessKeyId());
+          jsonGenerator.writeStringField(AWS_SECRET_KEY, credentials.getAWSSecretKey());
+        }
       } else if (credentialsProvider.getClass().equals(PropertiesFileCredentialsProvider.class)) {
         try {
           PropertiesFileCredentialsProvider specificProvider =

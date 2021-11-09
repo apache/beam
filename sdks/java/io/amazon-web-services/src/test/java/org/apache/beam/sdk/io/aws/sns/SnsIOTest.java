@@ -18,7 +18,8 @@
 package org.apache.beam.sdk.io.aws.sns;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
+import static org.joda.time.Duration.millis;
+import static org.joda.time.Duration.standardSeconds;
 
 import com.amazonaws.http.SdkHttpMetadata;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
@@ -61,7 +62,10 @@ public class SnsIOTest implements Serializable {
   private static final String topicName = "arn:aws:sns:us-west-2:5880:topic-FMFEHJ47NRFO";
 
   @Rule public TestPipeline p = TestPipeline.create();
-  @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(SnsIO.class);
+
+  @Rule
+  public final transient ExpectedLogs snsWriterFnLogs =
+      ExpectedLogs.none(SnsIO.Write.SnsWriterFn.class);
 
   private static PublishRequest createSampleMessage(String message) {
     return new PublishRequest().withTopicArn(topicName).withMessage(message);
@@ -114,7 +118,10 @@ public class SnsIOTest implements Serializable {
 
   @Test
   public void testRetries() throws Throwable {
+    thrown.expect(IOException.class);
     thrown.expectMessage("Error writing to SNS");
+    thrown.expectMessage("No more attempts allowed");
+
     final PublishRequest request1 = createSampleMessage("my message that will not be published");
     final TupleTag<PublishResult> results = new TupleTag<>();
     final AmazonSNS amazonSnsErrors = getAmazonSnsMockErrors();
@@ -123,7 +130,7 @@ public class SnsIOTest implements Serializable {
             SnsIO.write()
                 .withTopicName(topicName)
                 .withRetryConfiguration(
-                    SnsIO.RetryConfiguration.create(4, org.joda.time.Duration.standardSeconds(10)))
+                    SnsIO.RetryConfiguration.create(4, standardSeconds(10), millis(1)))
                 .withAWSClientsProvider(new Provider(amazonSnsErrors))
                 .withResultOutputTag(results));
 
@@ -131,12 +138,11 @@ public class SnsIOTest implements Serializable {
       p.run();
     } catch (final Pipeline.PipelineExecutionException e) {
       // check 3 retries were initiated by inspecting the log before passing on the exception
-      expectedLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 1));
-      expectedLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2));
-      expectedLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3));
+      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 1));
+      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2));
+      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3));
       throw e.getCause();
     }
-    fail("Pipeline is expected to fail because we were unable to write to SNS.");
   }
 
   @Test

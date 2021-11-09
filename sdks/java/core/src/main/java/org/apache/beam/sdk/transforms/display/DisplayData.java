@@ -297,7 +297,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return String.format("%s%s:%s=%s", getPath(), getNamespace().getName(), getKey(), getValue());
     }
   }
@@ -411,7 +411,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return String.format("%s:%s=%s", getNamespace(), getKey(), getValue());
     }
 
@@ -478,7 +478,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return String.format("%s%s:%s", getPath(), getNamespace(), getKey());
     }
   }

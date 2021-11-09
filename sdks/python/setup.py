@@ -148,7 +148,7 @@ REQUIRED_PACKAGES = [
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
-    'pyarrow>=0.15.1,<5.0.0',
+    'pyarrow>=0.15.1,<6.0.0',
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
@@ -165,7 +165,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
     'mock>=1.0.1,<3.0.0',
-    'pandas>=1.0,<1.3.0',
+    'pandas<2.0.0',
     'parameterized>=0.7.1,<0.8.0',
     'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
     'pyyaml>=3.12,<6.0.0',
@@ -182,11 +182,15 @@ REQUIRED_TEST_PACKAGES = [
 GCP_REQUIREMENTS = [
     'cachetools>=3.1.0,<5',
     'google-apitools>=0.5.31,<0.5.32',
-    'google-auth>=1.18.0,<2',
+    # NOTE: Maintainers, please do not require google-auth>=2.x.x
+    # Until this issue is closed
+    # https://github.com/googleapis/google-cloud-python/issues/10566
+    'google-auth>=1.18.0,<3',
     'google-cloud-datastore>=1.8.0,<2',
     'google-cloud-pubsub>=0.39.0,<2',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<3',
+    'google-cloud-bigquery-storage>=2.6.3',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<2',
     'google-cloud-spanner>=3.3.0',
@@ -203,6 +207,7 @@ INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
     'ipython>=7,<8',
     'ipykernel>=5.2.0,<6',
+    'ipywidgets>=7.6.5,<8',
     # Skip version 6.1.13 due to
     # https://github.com/jupyter/jupyter_client/issues/637
     'jupyter-client>=6.1.11,<6.1.13',
@@ -212,11 +217,11 @@ INTERACTIVE_BEAM = [
 INTERACTIVE_BEAM_TEST = [
     # notebok utils
     'nbformat>=5.0.5,<6',
-    'nbconvert>=5.6.1,<6',
+    'nbconvert>=6.2.0,<7',
     # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
-    'chromedriver-binary>=91,<92',
+    'chromedriver-binary>=93,<94',
     # use a fixed major version of PIL for different python versions
     'pillow>=7.1.1,<8',
 ]
@@ -239,7 +244,7 @@ def generate_protos_first(original_cmd):
     class cmd(original_cmd, object):
       def run(self):
         gen_protos.generate_proto_files()
-        super(cmd, self).run()
+        super().run()
 
     return cmd
   except ImportError:
@@ -255,76 +260,84 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 9:
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
 
-setuptools.setup(
-    name=PACKAGE_NAME,
-    version=PACKAGE_VERSION,
-    description=PACKAGE_DESCRIPTION,
-    long_description=PACKAGE_LONG_DESCRIPTION,
-    url=PACKAGE_URL,
-    download_url=PACKAGE_DOWNLOAD_URL,
-    author=PACKAGE_AUTHOR,
-    author_email=PACKAGE_EMAIL,
-    packages=setuptools.find_packages(),
-    package_data={
-        'apache_beam': [
-            '*/*.pyx',
-            '*/*/*.pyx',
-            '*/*.pxd',
-            '*/*/*.pxd',
-            '*/*.h',
-            '*/*/*.h',
-            'testing/data/*.yaml',
-            'portability/api/*.yaml'
-        ]
-    },
-    ext_modules=cythonize([
-        # Make sure to use language_level=3 cython directive in files below.
-        'apache_beam/**/*.pyx',
-        'apache_beam/coders/coder_impl.py',
-        'apache_beam/metrics/cells.py',
-        'apache_beam/metrics/execution.py',
-        'apache_beam/runners/common.py',
-        'apache_beam/runners/worker/logger.py',
-        'apache_beam/runners/worker/opcounters.py',
-        'apache_beam/runners/worker/operations.py',
-        'apache_beam/transforms/cy_combiners.py',
-        'apache_beam/transforms/stats.py',
-        'apache_beam/utils/counters.py',
-        'apache_beam/utils/windowed_value.py',
-    ]),
-    install_requires=REQUIRED_PACKAGES,
-    python_requires=python_requires,
-    # BEAM-8840: Do NOT use tests_require or setup_requires.
-    extras_require={
-        'docs': ['Sphinx>=1.5.2,<2.0'],
-        'test': REQUIRED_TEST_PACKAGES,
-        'gcp': GCP_REQUIREMENTS,
-        'interactive': INTERACTIVE_BEAM,
-        'interactive_test': INTERACTIVE_BEAM_TEST,
-        'aws': AWS_REQUIREMENTS,
-        'azure': AZURE_REQUIREMENTS
-    },
-    zip_safe=False,
-    # PyPI package information.
-    classifiers=[
-        'Intended Audience :: End Users/Desktop',
-        'License :: OSI Approved :: Apache Software License',
-        'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        # When updating vesion classifiers, also update version warnings
-        # above and in apache_beam/__init__.py.
-        'Topic :: Software Development :: Libraries',
-        'Topic :: Software Development :: Libraries :: Python Modules',
-    ],
-    license='Apache License, Version 2.0',
-    keywords=PACKAGE_KEYWORDS,
-    cmdclass={
-        'build_py': generate_protos_first(build_py),
-        'develop': generate_protos_first(develop),
-        'egg_info': generate_protos_first(egg_info),
-        'test': generate_protos_first(test),
-        'mypy': generate_protos_first(mypy),
-    },
-)
+
+if __name__ == '__main__':
+  setuptools.setup(
+      name=PACKAGE_NAME,
+      version=PACKAGE_VERSION,
+      description=PACKAGE_DESCRIPTION,
+      long_description=PACKAGE_LONG_DESCRIPTION,
+      url=PACKAGE_URL,
+      download_url=PACKAGE_DOWNLOAD_URL,
+      author=PACKAGE_AUTHOR,
+      author_email=PACKAGE_EMAIL,
+      packages=setuptools.find_packages(),
+      package_data={
+          'apache_beam': [
+              '*/*.pyx',
+              '*/*/*.pyx',
+              '*/*.pxd',
+              '*/*/*.pxd',
+              '*/*.h',
+              '*/*/*.h',
+              'testing/data/*.yaml',
+              'portability/api/*.yaml'
+          ]
+      },
+      ext_modules=cythonize([
+          # Make sure to use language_level=3 cython directive in files below.
+          'apache_beam/**/*.pyx',
+          'apache_beam/coders/coder_impl.py',
+          'apache_beam/metrics/cells.py',
+          'apache_beam/metrics/execution.py',
+          'apache_beam/runners/common.py',
+          'apache_beam/runners/worker/logger.py',
+          'apache_beam/runners/worker/opcounters.py',
+          'apache_beam/runners/worker/operations.py',
+          'apache_beam/transforms/cy_combiners.py',
+          'apache_beam/transforms/stats.py',
+          'apache_beam/utils/counters.py',
+          'apache_beam/utils/windowed_value.py',
+      ]),
+      install_requires=REQUIRED_PACKAGES,
+      python_requires=python_requires,
+      # BEAM-8840: Do NOT use tests_require or setup_requires.
+      extras_require={
+          'docs': [
+            'Sphinx>=1.5.2,<2.0',
+            # Pinning docutils as a workaround for Sphinx issue:
+            # https://github.com/sphinx-doc/sphinx/issues/9727
+            'docutils==0.17.1'
+          ],
+          'test': REQUIRED_TEST_PACKAGES,
+          'gcp': GCP_REQUIREMENTS,
+          'interactive': INTERACTIVE_BEAM,
+          'interactive_test': INTERACTIVE_BEAM_TEST,
+          'aws': AWS_REQUIREMENTS,
+          'azure': AZURE_REQUIREMENTS,
+          'dataframe': ['pandas>=1.0,<1.4']
+      },
+      zip_safe=False,
+      # PyPI package information.
+      classifiers=[
+          'Intended Audience :: End Users/Desktop',
+          'License :: OSI Approved :: Apache Software License',
+          'Operating System :: POSIX :: Linux',
+          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.8',
+          # When updating version classifiers, also update version warnings
+          # above and in apache_beam/__init__.py.
+          'Topic :: Software Development :: Libraries',
+          'Topic :: Software Development :: Libraries :: Python Modules',
+      ],
+      license='Apache License, Version 2.0',
+      keywords=PACKAGE_KEYWORDS,
+      cmdclass={
+          'build_py': generate_protos_first(build_py),
+          'develop': generate_protos_first(develop),
+          'egg_info': generate_protos_first(egg_info),
+          'test': generate_protos_first(test),
+          'mypy': generate_protos_first(mypy),
+      },
+  )

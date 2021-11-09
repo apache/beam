@@ -34,12 +34,12 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySql
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlWriter;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.pretty.SqlPrettyWriter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.junit.Test;
 
 /** UnitTest for {@link BeamSqlParserImpl}. */
@@ -225,13 +225,13 @@ public class BeamDDLTest {
     SqlIdentifier name = new SqlIdentifier("foo", SqlParserPos.ZERO);
     SqlNode jarPath = SqlLiteral.createCharString("path/to/udf.jar", SqlParserPos.ZERO);
     SqlCreateFunction createFunction =
-        new SqlCreateFunction(SqlParserPos.ZERO, name, jarPath, false);
+        new SqlCreateFunction(SqlParserPos.ZERO, false, name, jarPath, false);
     SqlWriter sqlWriter = new SqlPrettyWriter(BeamBigQuerySqlDialect.DEFAULT);
 
     createFunction.unparse(sqlWriter, 0, 0);
 
     assertEquals(
-        "CREATE FUNCTION `foo` USING JAR 'path/to/udf.jar'", sqlWriter.toSqlString().getSql());
+        "CREATE FUNCTION foo USING JAR 'path/to/udf.jar'", sqlWriter.toSqlString().getSql());
   }
 
   @Test
@@ -239,13 +239,13 @@ public class BeamDDLTest {
     SqlIdentifier name = new SqlIdentifier("foo", SqlParserPos.ZERO);
     SqlNode jarPath = SqlLiteral.createCharString("path/to/udf.jar", SqlParserPos.ZERO);
     SqlCreateFunction createFunction =
-        new SqlCreateFunction(SqlParserPos.ZERO, name, jarPath, true);
+        new SqlCreateFunction(SqlParserPos.ZERO, false, name, jarPath, true);
     SqlWriter sqlWriter = new SqlPrettyWriter(BeamBigQuerySqlDialect.DEFAULT);
 
     createFunction.unparse(sqlWriter, 0, 0);
 
     assertEquals(
-        "CREATE AGGREGATE FUNCTION `foo` USING JAR 'path/to/udf.jar'",
+        "CREATE AGGREGATE FUNCTION foo USING JAR 'path/to/udf.jar'",
         sqlWriter.toSqlString().getSql());
   }
 

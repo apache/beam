@@ -33,6 +33,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
@@ -49,7 +50,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -57,6 +60,7 @@ import java.io.PrintStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionType;
@@ -2078,6 +2082,161 @@ public class PipelineOptionsFactoryTest {
     static String myStaticMethod(OptionsWithStaticMethod o) {
       return o.getMyMethod();
     }
+  }
+
+  public static class SimpleParsedObject {
+    public String value;
+
+    public SimpleParsedObject(String value) {
+      this.value = value;
+    }
+  }
+
+  public interface OptionsWithParsing extends PipelineOptions {
+    SimpleParsedObject getSimple();
+
+    void setSimple(SimpleParsedObject value);
+  }
+
+  @Test
+  public void testAutoQuoteStringArgumentsForComplexObjects() {
+    OptionsWithParsing options =
+        PipelineOptionsFactory.fromArgs("--simple=test").as(OptionsWithParsing.class);
+
+    assertEquals("test", options.getSimple().value);
+  }
+
+  public static class ComplexType2 {
+    public String value;
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ComplexType2 that = (ComplexType2) o;
+      return value.equals(that.value);
+    }
+
+    @Override
+    public int hashCode() {
+      return value.hashCode();
+    }
+  }
+
+  public interface OptionsWithJsonDeserialize1 extends PipelineOptions {
+    @JsonDeserialize(using = ComplexType2Deserializer1.class)
+    @JsonSerialize(using = ComplexType2Serializer1.class)
+    ComplexType2 getComplexType();
+
+    void setComplexType(ComplexType2 value);
+  }
+
+  public interface OptionsWithJsonDeserialize2 extends PipelineOptions {
+    @JsonDeserialize(using = ComplexType2Deserializer2.class)
+    ComplexType2 getComplexType();
+
+    void setComplexType(ComplexType2 value);
+  }
+
+  public static class ComplexType2Deserializer1 extends StdDeserializer<ComplexType2> {
+    public ComplexType2Deserializer1() {
+      super(ComplexType2.class);
+    }
+
+    @Override
+    public ComplexType2 deserialize(JsonParser p, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
+      ComplexType2 ct = new ComplexType2();
+      ct.value = p.getText();
+      return ct;
+    }
+  }
+
+  public static class ComplexType2Serializer1 extends StdSerializer<ComplexType2> {
+    public ComplexType2Serializer1() {
+      super(ComplexType2.class);
+    }
+
+    @Override
+    public void serialize(ComplexType2 value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
+      gen.writeString(value.value);
+    }
+  }
+
+  public static class ComplexType2Deserializer2 extends StdDeserializer<ComplexType2> {
+    public ComplexType2Deserializer2() {
+      super(ComplexType2.class);
+    }
+
+    @Override
+    public ComplexType2 deserialize(JsonParser p, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
+      ComplexType2 ct = new ComplexType2();
+      ct.value = p.getText();
+      return ct;
+    }
+  }
+
+  @Test
+  public void testJsonDeserializeAttribute_NoConflict() {
+    OptionsWithJsonDeserialize1 options =
+        PipelineOptionsFactory.fromArgs("--complexType=test").as(OptionsWithJsonDeserialize1.class);
+
+    assertEquals("test", options.getComplexType().value);
+  }
+
+  @Test
+  public void testJsonDeserializeAttribute_Conflict() {
+    OptionsWithJsonDeserialize1 options =
+        PipelineOptionsFactory.fromArgs("--complexType=test").as(OptionsWithJsonDeserialize1.class);
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class, () -> options.as(OptionsWithJsonDeserialize2.class));
+    assertThat(
+        thrown.getMessage(),
+        containsString("Property [complexType] is marked with contradictory annotations"));
+  }
+
+  public interface InconsistentJsonDeserializeAttributes extends PipelineOptions {
+    @JsonDeserialize()
+    String getString();
+
+    void setString(String value);
+  }
+
+  public interface InconsistentJsonSerializeAttributes extends PipelineOptions {
+    @JsonSerialize()
+    String getString();
+
+    void setString(String value);
+  }
+
+  @Test
+  public void testJsonDeserializeAttributeValidation() {
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                PipelineOptionsFactory.fromArgs("--string=test")
+                    .as(InconsistentJsonDeserializeAttributes.class));
+    assertThat(thrown.getMessage(), containsString("Property [string] had only @JsonDeserialize"));
+  }
+
+  @Test
+  public void testJsonSerializeAttributeValidation() {
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                PipelineOptionsFactory.fromArgs("--string=test")
+                    .as(InconsistentJsonSerializeAttributes.class));
+    assertThat(thrown.getMessage(), containsString("Property [string] had only @JsonSerialize"));
   }
 
   /** Test interface. */

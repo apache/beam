@@ -22,13 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.I
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
-import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
-import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -36,8 +31,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
@@ -45,9 +38,6 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
-import org.apache.beam.sdk.function.ThrowingRunnable;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -83,43 +73,24 @@ public class BeamFnDataWriteRunner<InputT> {
   static class Factory<InputT> implements PTransformRunnerFactory<BeamFnDataWriteRunner<InputT>> {
 
     @Override
-    public BeamFnDataWriteRunner<InputT> createRunnerForPTransform(
-        PipelineOptions pipelineOptions,
-        BeamFnDataClient beamFnDataClient,
-        BeamFnStateClient beamFnStateClient,
-        BeamFnTimerClient beamFnTimerClient,
-        String pTransformId,
-        PTransform pTransform,
-        Supplier<String> processBundleInstructionId,
-        Map<String, PCollection> pCollections,
-        Map<String, RunnerApi.Coder> coders,
-        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        PCollectionConsumerRegistry pCollectionConsumerRegistry,
-        PTransformFunctionRegistry startFunctionRegistry,
-        PTransformFunctionRegistry finishFunctionRegistry,
-        Consumer<ThrowingRunnable> addResetFunction,
-        Consumer<ThrowingRunnable> tearDownFunctions,
-        Consumer<ProgressRequestCallback> addProgressRequestCallback,
-        BundleSplitListener splitListener,
-        BundleFinalizer bundleFinalizer)
+    public BeamFnDataWriteRunner<InputT> createRunnerForPTransform(Context context)
         throws IOException {
 
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
-              pTransformId,
-              pTransform,
-              processBundleInstructionId,
-              coders,
-              beamFnDataClient,
-              beamFnStateClient);
-      startFunctionRegistry.register(pTransformId, runner::registerForOutput);
-      pCollectionConsumerRegistry.register(
-          getOnlyElement(pTransform.getInputsMap().values()),
-          pTransformId,
+              context.getPTransformId(),
+              context.getPTransform(),
+              context.getProcessBundleInstructionIdSupplier(),
+              context.getCoders(),
+              context.getBeamFnDataClient(),
+              context.getBeamFnStateClient());
+      context.addStartBundleFunction(runner::registerForOutput);
+      context.addPCollectionConsumer(
+          getOnlyElement(context.getPTransform().getInputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume,
           ((WindowedValueCoder<InputT>) runner.coder).getValueCoder());
 
-      finishFunctionRegistry.register(pTransformId, runner::close);
+      context.addFinishBundleFunction(runner::close);
       return runner;
     }
   }

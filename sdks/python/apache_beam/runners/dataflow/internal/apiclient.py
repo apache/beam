@@ -163,7 +163,7 @@ class Environment(object):
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
     self._proto_pipeline = proto_pipeline
-    self._sdk_image_overrides = _sdk_image_overrides or dict()
+    self._sdk_image_overrides = _sdk_image_overrides or {}
 
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
@@ -405,7 +405,7 @@ class Job(object):
     # further modify it to not output too-long strings, aimed at the
     # 10,000+ character hex-encoded "serialized_fn" values.
     return json.dumps(
-        json.loads(encoding.MessageToJson(self.proto), encoding='shortstrings'),
+        json.loads(encoding.MessageToJson(self.proto)),
         indent=2,
         sort_keys=True)
 
@@ -554,8 +554,7 @@ class DataflowApplicationClient(object):
     worker_options = pipeline_options.view_as(WorkerOptions)
     sdk_overrides = worker_options.sdk_harness_container_image_overrides
     return (
-        dict(s.split(',', 1)
-             for s in sdk_overrides) if sdk_overrides else dict())
+        dict(s.split(',', 1) for s in sdk_overrides) if sdk_overrides else {})
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -573,7 +572,8 @@ class DataflowApplicationClient(object):
       raise RuntimeError('The --temp_location option must be specified.')
 
     resources = []
-    hashes = {}
+    staged_paths = {}
+    staged_hashes = {}
     for _, env in sorted(pipeline.components.environments.items(),
                          key=lambda kv: kv[0]):
       for dep in env.dependencies:
@@ -586,18 +586,27 @@ class DataflowApplicationClient(object):
         role_payload = (
             beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
                 dep.role_payload))
-        if type_payload.sha256 and type_payload.sha256 in hashes:
+        if type_payload.sha256 and type_payload.sha256 in staged_hashes:
           _LOGGER.info(
-              'Found duplicated artifact: %s (%s)',
+              'Found duplicated artifact sha256: %s (%s)',
               type_payload.path,
               type_payload.sha256)
-          staged_name = hashes[type_payload.sha256]
+          staged_name = staged_hashes[type_payload.sha256]
+          dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
+              staged_name=staged_name).SerializeToString()
+        elif type_payload.path and type_payload.path in staged_paths:
+          _LOGGER.info(
+              'Found duplicated artifact path: %s (%s)',
+              type_payload.path,
+              type_payload.sha256)
+          staged_name = staged_paths[type_payload.path]
           dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
               staged_name=staged_name).SerializeToString()
         else:
           staged_name = role_payload.staged_name
           resources.append((type_payload.path, staged_name))
-          hashes[type_payload.sha256] = staged_name
+          staged_paths[type_payload.path] = staged_name
+          staged_hashes[type_payload.sha256] = staged_name
 
         if FileSystems.get_scheme(
             google_cloud_options.staging_location) == GCSFileSystem.scheme():
@@ -1031,7 +1040,7 @@ class MetricUpdateTranslators(object):
 
 class _LegacyDataflowStager(Stager):
   def __init__(self, dataflow_application_client):
-    super(_LegacyDataflowStager, self).__init__()
+    super().__init__()
     self._dataflow_application_client = dataflow_application_client
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):

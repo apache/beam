@@ -252,8 +252,7 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
       }
       if (eventTime != null) {
         // Set or reset the cleanup timer to clear the state.
-        Instant firingTime =
-            new Instant(eventTime).plus(Duration.standardSeconds(maxAuctionsWaitingTime));
+        Instant firingTime = eventTime.plus(Duration.standardSeconds(maxAuctionsWaitingTime));
         timer.set(firingTime);
       }
     }

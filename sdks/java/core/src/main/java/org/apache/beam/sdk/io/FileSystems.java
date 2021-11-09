@@ -272,10 +272,14 @@ public class FileSystems {
   public static void copy(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
       throws IOException {
-    FilterResult filtered = filterFiles(srcResourceIds, destResourceIds, moveOptions);
+    validateSrcDestLists(srcResourceIds, destResourceIds);
+    if (srcResourceIds.isEmpty()) {
+      return;
+    }
+    FileSystem fileSystem = getFileSystemInternal(srcResourceIds.iterator().next().getScheme());
+    FilterResult filtered = filterFiles(fileSystem, srcResourceIds, destResourceIds, moveOptions);
     if (!filtered.resultSources.isEmpty()) {
-      getFileSystemInternal(filtered.resultSources.iterator().next().getScheme())
-          .copy(filtered.resultSources, filtered.resultDestinations);
+      fileSystem.copy(filtered.resultSources, filtered.resultDestinations);
     }
   }
 
@@ -297,22 +301,36 @@ public class FileSystems {
   public static void rename(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
       throws IOException {
-    FilterResult filtered = filterFiles(srcResourceIds, destResourceIds, moveOptions);
-    if (!filtered.resultSources.isEmpty()) {
-      try {
-        getFileSystemInternal(filtered.resultSources.iterator().next().getScheme())
-            .rename(filtered.resultSources, filtered.resultDestinations, moveOptions);
-      } catch (UnsupportedOperationException e) {
-        // Some file systems do not yet support specifying the move options.  We handle the move
-        // options above with filtering so specifying them is just an optimization for error
-        // handling and it is safe to rename without specifying them.
-        getFileSystemInternal(filtered.resultSources.iterator().next().getScheme())
-            .rename(filtered.resultSources, filtered.resultDestinations);
-      }
+    validateSrcDestLists(srcResourceIds, destResourceIds);
+    if (srcResourceIds.isEmpty()) {
+      return;
     }
-    if (!filtered.filteredExistingSrcs.isEmpty()) {
-      getFileSystemInternal(filtered.filteredExistingSrcs.iterator().next().getScheme())
-          .delete(filtered.filteredExistingSrcs);
+    renameInternal(
+        getFileSystemInternal(srcResourceIds.iterator().next().getScheme()),
+        srcResourceIds,
+        destResourceIds,
+        moveOptions);
+  }
+
+  @VisibleForTesting
+  static void renameInternal(
+      FileSystem fileSystem,
+      List<ResourceId> srcResourceIds,
+      List<ResourceId> destResourceIds,
+      MoveOptions... moveOptions)
+      throws IOException {
+    try {
+      fileSystem.rename(srcResourceIds, destResourceIds, moveOptions);
+    } catch (UnsupportedOperationException e) {
+      // Some file systems do not yet support specifying the move options. Instead we
+      // perform filtering using match calls before renaming.
+      FilterResult filtered = filterFiles(fileSystem, srcResourceIds, destResourceIds, moveOptions);
+      if (!filtered.resultSources.isEmpty()) {
+        fileSystem.rename(filtered.resultSources, filtered.resultDestinations);
+      }
+      if (!filtered.filteredExistingSrcs.isEmpty()) {
+        fileSystem.delete(filtered.filteredExistingSrcs);
+      }
     }
   }
 
@@ -382,9 +400,11 @@ public class FileSystems {
   };
 
   private static FilterResult filterFiles(
-      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
+      FileSystem fileSystem,
+      List<ResourceId> srcResourceIds,
+      List<ResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
-    validateSrcDestLists(srcResourceIds, destResourceIds);
     FilterResult result = new FilterResult();
     if (moveOptions.length == 0 || srcResourceIds.isEmpty()) {
       // Nothing will be filtered.
@@ -407,7 +427,9 @@ public class FileSystems {
     if (skipExistingDest) {
       matchResources.addAll(destResourceIds);
     }
-    List<MatchResult> matchResults = matchResources(matchResources);
+    List<MatchResult> matchResults =
+        fileSystem.match(
+            FluentIterable.from(matchResources).transform(ResourceId::toString).toList());
     List<MatchResult> matchSrcResults = ignoreMissingSrc ? matchResults.subList(0, size) : null;
     List<MatchResult> matchDestResults =
         skipExistingDest
