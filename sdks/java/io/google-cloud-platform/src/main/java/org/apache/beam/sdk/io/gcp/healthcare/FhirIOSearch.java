@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIOSearch.SearchParameter;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -154,20 +155,20 @@ public class FhirIOSearch<T>
         String transformName, PInput input, PTransform<?, ?> transform) {}
   }
 
-  /** The tag for the main output of Fhir Messages. */
+  /** The tag for the main output of FHIR resources. */
   public static final TupleTag<KV<String, JsonArray>> OUT =
       new TupleTag<KV<String, JsonArray>>() {};
-  /** The tag for the deadletter output of Fhir Messages. */
+  /** The tag for the deadletter output of FHIR resources. */
   public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
       new TupleTag<HealthcareIOError<String>>() {};
 
   @Override
   public Result expand(PCollection<SearchParameter<T>> input) {
-    return input.apply("Fetch Fhir messages", new SearchResourcesJsonString(this.fhirStore));
+    return input.apply("Search FHIR Resources", new SearchResourcesJsonString(this.fhirStore));
   }
 
   /**
-   * DoFn to fetch resources from an Google Cloud Healthcare FHIR store based on search request
+   * DoFn to read resources from an Google Cloud Healthcare FHIR store based on search request
    *
    * <p>This DoFn consumes a {@link PCollection} of search requests consisting of resource type and
    * search parameters, and fetches all matching resources based on the search criteria and will
@@ -196,28 +197,24 @@ public class FhirIOSearch<T>
     public Result expand(PCollection<SearchParameter<T>> resourceIds) {
       return new Result(
           resourceIds.apply(
-              ParDo.of(new SearchResourcesJsonString.SearchResourcesFn(this.fhirStore))
+              ParDo.of(new SearchResourcesFn(this.fhirStore))
                   .withOutputTags(OUT, TupleTagList.of(DEAD_LETTER))));
     }
 
-    /** DoFn for searching messages from the Fhir store with error handling. */
+    /** DoFn for searching resources from the FHIR store with error handling. */
     class SearchResourcesFn extends DoFn<SearchParameter<T>, KV<String, JsonArray>> {
 
       private final Counter searchResourceErrors =
           Metrics.counter(
-              SearchResourcesJsonString.SearchResourcesFn.class,
-              FhirIO.BASE_METRIC_PREFIX + "search_resource_error_count");
+              SearchResourcesFn.class, FhirIO.BASE_METRIC_PREFIX + "search_resource_error_count");
       private final Counter searchResourceSuccess =
           Metrics.counter(
-              SearchResourcesJsonString.SearchResourcesFn.class,
-              FhirIO.BASE_METRIC_PREFIX + "search_resource_success_count");
+              SearchResourcesFn.class, FhirIO.BASE_METRIC_PREFIX + "search_resource_success_count");
       private final Distribution searchResourceLatencyMs =
           Metrics.distribution(
-              SearchResourcesJsonString.SearchResourcesFn.class,
-              FhirIO.BASE_METRIC_PREFIX + "search_resource_latency_ms");
+              SearchResourcesFn.class, FhirIO.BASE_METRIC_PREFIX + "search_resource_latency_ms");
 
-      private final Logger log =
-          LoggerFactory.getLogger(SearchResourcesJsonString.SearchResourcesFn.class);
+      private final Logger LOG = LoggerFactory.getLogger(SearchResourcesFn.class);
       private HealthcareApiClient client;
       private final ValueProvider<String> fhirStore;
 
@@ -255,9 +252,9 @@ public class FhirIOSearch<T>
                       fhirSearchParameters.getQueries())));
         } catch (IllegalArgumentException | NoSuchElementException e) {
           searchResourceErrors.inc();
-          log.warn(
+          LOG.warn(
               String.format(
-                  "Error search FHIR messages writing to Dead Letter "
+                  "Error search FHIR resources writing to Dead Letter "
                       + "Queue. Cause: %s Stack Trace: %s",
                   e.getMessage(), Throwables.getStackTraceAsString(e)));
           context.output(DEAD_LETTER, HealthcareIOError.of(this.fhirStore.toString(), e));
@@ -276,9 +273,8 @@ public class FhirIOSearch<T>
         if (parameters != null) {
           parameters.forEach(parameterObjects::put);
         }
-        HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator iter =
-            new HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator(
-                client, fhirStore, resourceType, parameterObjects);
+        FhirResourcePagesIterator iter =
+            new FhirResourcePagesIterator(client, fhirStore, resourceType, parameterObjects);
         JsonArray result = new JsonArray();
         while (iter.hasNext()) {
           result.addAll(iter.next());
@@ -356,16 +352,9 @@ public class FhirIOSearch<T>
 
     @Override
     public String toString() {
-      return "FhirSearchParameter{"
-          + "resourceType='"
-          + resourceType
-          + '\''
-          + ", key='"
-          + key
-          + '\''
-          + ", queries="
-          + queries
-          + '}';
+      return String.format(
+          "FhirSearchParameter{resourceType='%s', key='%s', queries='%s'}",
+          resourceType, key, queries);
     }
   }
 

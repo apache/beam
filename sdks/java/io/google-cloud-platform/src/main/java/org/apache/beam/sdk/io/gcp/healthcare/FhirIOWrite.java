@@ -187,14 +187,12 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
         @Nullable PCollection<HealthcareIOError<String>> failedFiles) {
       this.pipeline = pipeline;
       if (successfulBodies == null) {
-        successfulBodies = (PCollection<String>) pipeline.apply(Create.empty(StringUtf8Coder.of()));
+        successfulBodies = pipeline.apply(Create.empty(StringUtf8Coder.of()));
       }
       this.successfulBodies = successfulBodies;
       this.failedBodies = failedBodies;
       if (failedFiles == null) {
-        failedFiles =
-            (PCollection<HealthcareIOError<String>>)
-                pipeline.apply(Create.empty(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
+        failedFiles = pipeline.apply(Create.empty(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
       }
       this.failedFiles = failedFiles;
     }
@@ -243,7 +241,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
      * Sets Fhir store.
      *
      * @param fhirStore the Fhir store
-     * @return the Fhir store
+     * @return the write builder
      */
     abstract Builder setFhirStore(ValueProvider<String> fhirStore);
 
@@ -251,7 +249,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
      * Sets write method.
      *
      * @param writeMethod the write method
-     * @return the write method
+     * @return the write builder
      */
     abstract Builder setWriteMethod(WriteMethod writeMethod);
 
@@ -259,7 +257,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
      * Sets content structure.
      *
      * @param contentStructure the content structure
-     * @return the content structure
+     * @return the write builder
      */
     abstract Builder setContentStructure(ContentStructure contentStructure);
 
@@ -267,7 +265,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
      * Sets import gcs temp path.
      *
      * @param gcsTempPath the gcs temp path
-     * @return the import gcs temp path
+     * @return the write builder
      */
     abstract Builder setImportGcsTempPath(ValueProvider<String> gcsTempPath);
 
@@ -275,7 +273,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
      * Sets import gcs dead letter path.
      *
      * @param gcsDeadLetterPath the gcs dead letter path
-     * @return the import gcs dead letter path
+     * @return the write builder
      */
     abstract Builder setImportGcsDeadLetterPath(ValueProvider<String> gcsDeadLetterPath);
 
@@ -366,7 +364,6 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
 
   @Override
   public Result expand(PCollection<String> input) {
-    PCollectionTuple bundles;
     switch (this.getWriteMethod()) {
       case IMPORT:
         LOG.warn(
@@ -383,15 +380,8 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
         return input.apply(new Import(getFhirStore(), tempPath, deadPath, contentStructure));
       case EXECUTE_BUNDLE:
       default:
-        bundles =
-            input.apply(
-                "Execute FHIR Bundles",
-                ParDo.of(new ExecuteBundles.ExecuteBundlesFn(this.getFhirStore()))
-                    .withOutputTags(SUCCESSFUL_BODY, TupleTagList.of(FAILED_BODY)));
-        bundles.get(SUCCESSFUL_BODY).setCoder(StringUtf8Coder.of());
-        bundles.get(FAILED_BODY).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
+        return input.apply(new ExecuteBundles(this.getFhirStore()));
     }
-    return Result.in(input.getPipeline(), bundles);
   }
 
   /**
@@ -431,13 +421,6 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
       } else {
         this.contentStructure = contentStructure;
       }
-    }
-
-    Import(
-        ValueProvider<String> fhirStore,
-        ValueProvider<String> deadLetterGcsPath,
-        @Nullable ContentStructure contentStructure) {
-      this(fhirStore, null, deadLetterGcsPath, contentStructure);
     }
 
     /**
@@ -620,7 +603,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
           String resource =
               String.format(
                   "Failed to parse payload: %s as json at: %s : %s."
-                      + "Dropping message from batch import.",
+                      + "Dropping resource from batch import.",
                   httpBody, e.getLocation().getCharOffset(), e.getMessage());
           LOG.warn(resource);
           context.output(FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
@@ -785,13 +768,16 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
     }
   }
 
-  /** The type Execute bundles. */
-  public static class ExecuteBundles extends PTransform<PCollection<String>, Result> {
+  /**
+   * The type ExecuteBundles which executes FHIR bundles on the provided FHIR store. According to
+   * the JSON input, bundles are either executed in batch or transactionally.
+   */
+  public static class ExecuteBundles extends FhirIOWrite {
 
     private final ValueProvider<String> fhirStore;
 
     /**
-     * Instantiates a new Execute bundles.
+     * Instantiates a new ExecuteBundles.
      *
      * @param fhirStore the fhir store
      */
@@ -800,12 +786,37 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
     }
 
     /**
-     * Instantiates a new Execute bundles.
+     * Instantiates a new ExecuteBundles.
      *
      * @param fhirStore the fhir store
      */
     ExecuteBundles(String fhirStore) {
       this.fhirStore = StaticValueProvider.of(fhirStore);
+    }
+
+    @Override
+    ValueProvider<String> getFhirStore() {
+      return fhirStore;
+    }
+
+    @Override
+    WriteMethod getWriteMethod() {
+      return WriteMethod.EXECUTE_BUNDLE;
+    }
+
+    @Override
+    Optional<ContentStructure> getContentStructure() {
+      return Optional.empty();
+    }
+
+    @Override
+    Optional<ValueProvider<String>> getImportGcsTempPath() {
+      return Optional.empty();
+    }
+
+    @Override
+    Optional<ValueProvider<String>> getImportGcsDeadLetterPath() {
+      return Optional.empty();
     }
 
     @Override
@@ -819,7 +830,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
       return Result.in(input.getPipeline(), bodies);
     }
 
-    /** The type Write Fhir fn. */
+    /** ExecuteBundlesFn executes the FHIR JSON bundle. */
     static class ExecuteBundlesFn extends DoFn<String, String> {
 
       private static final Counter EXECUTE_BUNDLE_ERRORS =
@@ -832,18 +843,14 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
           Metrics.distribution(
               ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_latency_ms");
 
-      private transient HealthcareApiClient client;
-      private final ObjectMapper mapper = new ObjectMapper();
-      /** The Fhir store. */
       private final ValueProvider<String> fhirStore;
+      private final ObjectMapper mapper;
 
-      /**
-       * Instantiates a new Write Fhir fn.
-       *
-       * @param fhirStore the Fhir store
-       */
+      private transient HealthcareApiClient client;
+
       ExecuteBundlesFn(ValueProvider<String> fhirStore) {
         this.fhirStore = fhirStore;
+        this.mapper = new ObjectMapper();
       }
 
       /**
