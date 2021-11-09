@@ -29,26 +29,36 @@ import (
 // FromMonitoringInfos extracts metrics from monitored states and
 // groups them into counters, distributions and gauges.
 func FromMonitoringInfos(p *pipepb.Pipeline, attempted []*pipepb.MonitoringInfo, committed []*pipepb.MonitoringInfo) *metrics.Results {
-	ac, ad, ag, am, ap := groupByType(attempted)
-	cc, cd, cg, cm, cp := groupByType(committed)
+	ac, ad, ag, am, ap := groupByType(p, attempted)
+	cc, cd, cg, cm, cp := groupByType(p, committed)
 
-	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), metrics.MergeGauges(ag, cg), metrics.MergeMsecs(am, cm))
+	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), metrics.MergeGauges(ag, cg), metrics.MergeMsecs(am, cm), metrics.MergePCols(ap, cp))
 }
 
-func groupByType(minfos []*pipepb.MonitoringInfo) (
+func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 	map[metrics.StepKey]int64,
 	map[metrics.StepKey]metrics.DistributionValue,
 	map[metrics.StepKey]metrics.GaugeValue,
 	map[metrics.StepKey]metrics.MsecValue,
-	map[metrics.StepKey]metrics.PcolValue) {
+	map[metrics.StepKey]metrics.PColValue) {
 	counters := make(map[metrics.StepKey]int64)
 	distributions := make(map[metrics.StepKey]metrics.DistributionValue)
 	gauges := make(map[metrics.StepKey]metrics.GaugeValue)
 	msecs := make(map[metrics.StepKey]metrics.MsecValue)
-	pcols := make(map[metrics.StepKey]metrics.PcolValue)
+	pcols := make(map[metrics.StepKey]metrics.PColValue)
+
+	// extract pcol for a PTransform into a map from pipeline proto.
+	pcolTransform := make(map[string]string)
+
+	for _, transform := range p.GetComponents().GetTransforms() {
+		outputs := transform.GetOutputs()
+		for _, pid := range outputs {
+			pcolTransform[pid] = transform.GetUniqueName()
+		}
+	}
 
 	for _, minfo := range minfos {
-		key, err := extractKey(minfo)
+		key, err := extractKey(minfo, pcolTransform)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -127,10 +137,13 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 	return counters, distributions, gauges, msecs, pcols
 }
 
-func extractKey(mi *pipepb.MonitoringInfo) (metrics.StepKey, error) {
+func extractKey(mi *pipepb.MonitoringInfo, p map[string]string) (metrics.StepKey, error) {
 	labels := newLabels(mi.GetLabels())
 	stepName := labels.Transform()
 
+	if v, ok := p[labels.PCollection()]; ok {
+		stepName = v
+	}
 	if stepName == "" {
 		return metrics.StepKey{}, fmt.Errorf("Failed to deduce Step from MonitoringInfo: %v", mi)
 	}
@@ -170,7 +183,7 @@ func extractGaugeValue(reader *bytes.Reader) (metrics.GaugeValue, error) {
 }
 
 func newLabels(miLabels map[string]string) *metrics.Labels {
-	labels := metrics.UserLabels(miLabels["PTRANSFORM"], miLabels["NAMESPACE"], miLabels["NAME"])
+	labels := metrics.UserLabels(miLabels["PTRANSFORM"], miLabels["NAMESPACE"], miLabels["NAME"], miLabels["PCOLLECTION"])
 	return &labels
 }
 

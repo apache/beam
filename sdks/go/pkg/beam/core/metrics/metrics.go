@@ -479,12 +479,13 @@ func (m *executionState) kind() kind {
 	return kindDoFnMsec
 }
 
-// MsecValue is the value of a single msec metric
+// MsecValue is the value of a single msec metric.
 type MsecValue struct {
 	Start, Process, Finish, Total time.Duration
 }
 
-type PcolValue struct {
+// PColValue is the value of a single PCollection metric.
+type PColValue struct {
 	ElementCount    int64
 	SampledByteSize DistributionValue
 }
@@ -496,6 +497,7 @@ type Results struct {
 	distributions []DistributionResult
 	gauges        []GaugeResult
 	msecs         []MsecResult
+	pCols         []PColResult
 }
 
 // NewResults creates a new Results.
@@ -503,16 +505,15 @@ func NewResults(
 	counters []CounterResult,
 	distributions []DistributionResult,
 	gauges []GaugeResult,
-	msecs []MsecResult) *Results {
-	return &Results{counters, distributions, gauges, msecs}
+	msecs []MsecResult,
+	pCols []PColResult) *Results {
+	return &Results{counters, distributions, gauges, msecs, pCols}
 }
 
 // AllMetrics returns all metrics from a Results instance.
 func (mr Results) AllMetrics() QueryResults {
-	return QueryResults{mr.counters, mr.distributions, mr.gauges, mr.msecs}
+	return QueryResults{mr.counters, mr.distributions, mr.gauges, mr.msecs, mr.pCols}
 }
-
-// TODO(BEAM-11217): Implement querying metrics by DoFn
 
 // SingleResult interface facilitates metrics query filtering methods.
 type SingleResult interface {
@@ -530,6 +531,7 @@ func (mr Results) Query(f func(SingleResult) bool) QueryResults {
 	distributions := []DistributionResult{}
 	gauges := []GaugeResult{}
 	msecs := []MsecResult{}
+	pCols := []PColResult{}
 
 	for _, counter := range mr.counters {
 		if f(counter) {
@@ -551,7 +553,12 @@ func (mr Results) Query(f func(SingleResult) bool) QueryResults {
 			msecs = append(msecs, msec)
 		}
 	}
-	return QueryResults{counters: counters, distributions: distributions, gauges: gauges, msecs: msecs}
+	for _, pCol := range mr.pCols {
+		if f(pCol) {
+			pCols = append(pCols, pCol)
+		}
+	}
+	return QueryResults{counters: counters, distributions: distributions, gauges: gauges, msecs: msecs, pCols: pCols}
 }
 
 // QueryResults is the result of a query. Allows accessing all of the
@@ -561,6 +568,7 @@ type QueryResults struct {
 	distributions []DistributionResult
 	gauges        []GaugeResult
 	msecs         []MsecResult
+	pCols         []PColResult
 }
 
 // Counters returns a slice of counter metrics.
@@ -588,6 +596,13 @@ func (qr QueryResults) Gauges() []GaugeResult {
 func (qr QueryResults) Msecs() []MsecResult {
 	out := make([]MsecResult, len(qr.msecs))
 	copy(out, qr.msecs)
+	return out
+}
+
+// PCols returns a slice of PCollection metrics.
+func (qr QueryResults) PCols() []PColResult {
+	out := make([]PColResult, len(qr.pCols))
+	copy(out, qr.pCols)
 	return out
 }
 
@@ -729,6 +744,61 @@ func (r GaugeResult) Namespace() string {
 
 // Transform returns the Transform step for this GaugeResult.
 func (r GaugeResult) Transform() string { return r.Key.Step }
+
+// PColResult is an attempted and a commited value of a pcollection
+// metric plus key.
+type PColResult struct {
+	Attempted, Committed PColValue
+	Key                  StepKey
+}
+
+// Result returns committed metrics. Falls back to attempted metrics if committed
+// are not populated (e.g. due to not being supported on a given runner).
+func (r PColResult) Result() PColValue {
+	empty := PColValue{}
+	if r.Committed != empty {
+		return r.Committed
+	}
+	return r.Attempted
+}
+
+// Name returns the Name of this Pcollection Result.
+func (r PColResult) Name() string {
+	return ""
+}
+
+// Namespace returns the Namespace of this Pcollection Result.
+func (r PColResult) Namespace() string {
+	return ""
+}
+
+// Transform returns the Transform step for this Pcollection Result.
+func (r PColResult) Transform() string { return r.Key.Step }
+
+// MergePCols combines pcollection metrics that share a common key.
+func MergePCols(
+	attempted map[StepKey]PColValue,
+	committed map[StepKey]PColValue) []PColResult {
+	res := make([]PColResult, 0)
+	merged := map[StepKey]PColResult{}
+
+	for k, v := range attempted {
+		merged[k] = PColResult{Attempted: v, Key: k}
+	}
+	for k, v := range committed {
+		m, ok := merged[k]
+		if ok {
+			merged[k] = PColResult{Attempted: m.Attempted, Committed: v, Key: k}
+		} else {
+			merged[k] = PColResult{Committed: v, Key: k}
+		}
+	}
+
+	for _, v := range merged {
+		res = append(res, v)
+	}
+	return res
+}
 
 // StepKey uniquely identifies a metric within a pipeline graph.
 type StepKey struct {
