@@ -89,15 +89,8 @@ public class FhirSearchParameter<T> {
 
   @Override
   public String toString() {
-    return "FhirSearchParameter{"
-        + "resourceType='"
-        + resourceType
-        + '\''
-        + ", key='"
-        + key
-        + '\''
-        + ", queries="
-        + queries
-        + '}';
+    return String.format(
+        "FhirSearchParameter{resourceType='%s', key='%s', queries='%s'}'",
+        resourceType, key, queries);
   }
 }
