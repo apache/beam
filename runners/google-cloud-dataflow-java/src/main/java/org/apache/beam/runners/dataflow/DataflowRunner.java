@@ -852,7 +852,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   protected RunnerApi.Pipeline applySdkEnvironmentOverrides(
       RunnerApi.Pipeline pipeline, DataflowPipelineDebugOptions options) {
-    String[] overrides = options.getSdkHarnessContainerImageOverrides().split(",", -1);
+    String sdkHarnessContainerImageOverrides = options.getSdkHarnessContainerImageOverrides();
+    if (Strings.isNullOrEmpty(sdkHarnessContainerImageOverrides)) {
+      return pipeline;
+    }
+    String[] overrides = sdkHarnessContainerImageOverrides.split(",", -1);
     if (overrides.length % 2 != 0) {
       throw new RuntimeException(
           "invalid syntax for SdkHarnessContainerImageOverrides: "
