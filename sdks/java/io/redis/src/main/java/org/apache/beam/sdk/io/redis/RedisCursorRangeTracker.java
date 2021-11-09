@@ -30,6 +30,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange, RedisCursor>
     implements RestrictionTracker.HasProgress {
 
