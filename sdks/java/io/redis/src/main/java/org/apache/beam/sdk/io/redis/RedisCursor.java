@@ -73,8 +73,12 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
 
   @Override
   public boolean equals(@Nullable Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     RedisCursor that = (RedisCursor) o;
     return dbSize == that.dbSize
         && nBits == that.nBits
