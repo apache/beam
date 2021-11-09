@@ -486,6 +486,43 @@ func TestMsecQueryResult(t *testing.T) {
 	}
 }
 
+func TestPcolQueryResult(t *testing.T) {
+	realKey := StepKey{Step: "sumFn"}
+	pcolA := PColValue{}
+	pcolB := PColValue{ElementCount: 1, SampledByteSize: DistributionValue{1, 1, 1, 1}}
+	pcolR := PColResult{Attempted: pcolA, Committed: pcolB, Key: realKey}
+	res := Results{pCols: []PColResult{pcolR}}
+
+	tests := []struct {
+		name        string
+		queryResult Results
+		query       string
+		want        QueryResults
+	}{
+		{
+			name:        "present",
+			queryResult: res,
+			query:       "sumFn",
+			want:        QueryResults{pCols: []PColResult{pcolR}},
+		}, {
+			name:        "not present",
+			queryResult: res,
+			query:       "countFn",
+			want:        QueryResults{},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := res.Query(func(sr SingleResult) bool {
+				return strings.Contains(sr.Transform(), test.query)
+			})
+			if len(got.PCols()) != len(test.want.PCols()) {
+				t.Errorf("(Results).Query(by Transform %v) = %v, want = %v", test.query, got.PCols(), test.want.PCols())
+			}
+		})
+	}
+}
+
 // Run on @lostluck's desktop (2020/01/21) go1.13.4
 //
 // Allocs & bytes should be consistent within go versions, but ns/op is relative to the running machine.
