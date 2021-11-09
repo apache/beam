@@ -631,7 +631,8 @@ public class Neo4jIO {
     // Transaction timeout
     public ReadAll<ParameterT, OutputT> withTransactionTimeoutMs(long timeout) {
       checkArgument(
-          timeout > 0, "Neo4jIO.readAll().withTransactionTimeOutMs(timeout) called with timeout<=0");
+          timeout > 0,
+          "Neo4jIO.readAll().withTransactionTimeOutMs(timeout) called with timeout<=0");
       return withTransactionTimeoutMs(ValueProvider.StaticValueProvider.of(timeout));
     }
 
@@ -657,7 +658,8 @@ public class Neo4jIO {
 
     // Fetch size
     public ReadAll<ParameterT, OutputT> withFetchSize(long fetchSize) {
-      checkArgument(fetchSize > 0, "Neo4jIO.readAll().withFetchSize(query) called with fetchSize<=0");
+      checkArgument(
+          fetchSize > 0, "Neo4jIO.readAll().withFetchSize(query) called with fetchSize<=0");
       return withFetchSize(ValueProvider.StaticValueProvider.of(fetchSize));
     }
 
@@ -671,7 +673,8 @@ public class Neo4jIO {
     // Row mapper
     public ReadAll<ParameterT, OutputT> withRowMapper(RowMapper<OutputT> rowMapper) {
       checkArgument(
-          rowMapper != null, "Neo4jIO.readAll().withRowMapper(rowMapper) called with null rowMapper");
+          rowMapper != null,
+          "Neo4jIO.readAll().withRowMapper(rowMapper) called with null rowMapper");
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
