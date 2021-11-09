@@ -43,6 +43,7 @@ The release process consists of several steps:
 
 1. Decide to release
 1. Prepare for the release
+1. Update base image dependencies for Python container images
 1. Investigate performance regressions
 1. Create a release branch
 1. Verify release branch
@@ -230,7 +231,19 @@ If you are not a PMC, please ask for help in dev@ mailing list.
 **********
 
 
-## 3. Investigate performance regressions
+## 3. Update base image dependencies for Python container images
+
+1. Check the versions specified in sdks/python/container/base_image_requirements_manual.txt` and update them if necessary.
+2. Regenerate full dependency list by running:
+`./gradlew :sdks:python:container:generatePythonRequirementsAll` and commiting
+the changes. Exectution takes about ~5 min per Python version and is somewhat resource-demanding.
+You can also regenerate the dependencies indiviually per version with targets like `./gradlew :sdks:python:container:py38:generatePythonRequirements`.
+
+
+Ideally, do this at least a week before the release cut, so that any issues
+related to the update have time to surface.
+
+## 4. Investigate performance regressions
 
 Check the Beam load tests for possible performance regressions.
 Measurements are available on [metrics.beam.apache.org](http://metrics.beam.apache.org).
@@ -247,7 +260,7 @@ The release manager oversees these just like any other JIRA issue marked with th
 
 The mailing list should be informed to allow fixing the regressions in the course of the release.
 
-## 4. Create a release branch in apache/beam repository
+## 5. Create a release branch in apache/beam repository
 
 Attention: Only committer has permission to create release branch in apache/beam.
 
@@ -316,7 +329,7 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 **********
 
 
-## 5. Verify release branch
+## 6. Verify release branch
 
 After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
@@ -435,7 +448,7 @@ Afterwards, this list can be refined and updated by the release manager and the 
 **********
 
 
-## 6. Triage release-blocking issues in JIRA
+## 7. Triage release-blocking issues in JIRA
 
 There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate.
 We track them by assigning the blocked release to the issue's `Fix version` field before the issue is resolved.
@@ -496,7 +509,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 **********
 
 
-## 7. Build a release candidate
+## 8. Build a release candidate
 
 ### Checklist before proceeding
 
@@ -634,7 +647,7 @@ See the source of the script for more details or to run commands manually in cas
 **********
 
 
-## 8. Prepare documents
+## 9. Prepare documents
 
 ### Propose pull requests for website updates
 
@@ -752,7 +765,7 @@ docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 **********
 
 
-## 9. Vote and validate release candidate
+## 10. Vote and validate release candidate
 
 Once you have built and individually reviewed the release candidate, please share it for the community-wide review.
 Please review foundation-wide [voting guidelines](http://www.apache.org/foundation/voting.html) for more information.
@@ -1102,7 +1115,7 @@ Here’s an email template; please adjust as you see fit.
 **********
 
 
-## 10. Finalize the release
+## 11. Finalize the release
 
 Once the release candidate has been reviewed and approved by the community, the release should be finalized.
 This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.
@@ -1217,7 +1230,7 @@ Use [reporter.apache.org](https://reporter.apache.org/addrelease.html?beam) to s
 **********
 
 
-## 11. Promote the release
+## 12. Promote the release
 
 Once the release has been finalized, the last step of the process is to promote the release within the project and beyond.
 

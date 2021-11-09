@@ -38,11 +38,10 @@ RUN apt-get update && \
 # Install required packages for Beam Python SDK and common dependencies used by users.
 ####
 
-# SDK dependencies not listed in base_image_requirements.txt will be installed
-# when we install SDK with pip below.
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 RUN \
-    pip install -r /tmp/base_image_requirements.txt && \
+    # use --no-deps to ensure the list includes all transitive dependencies.
+    pip install --no-deps -r /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
     # Check that the fast implementation of protobuf is used.
@@ -67,10 +66,12 @@ RUN ln -s /usr/bin/ccache /usr/local/bin/gcc
 RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=false
 
 ####
-# Install Apache Beam SDK
+# Install Apache Beam SDK. Use --no-deps and pip check to verify that all
+# necessary dependencies are specified in base_image_requiremetns.txt.
 ####
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
+RUN pip install --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
+RUN pip check
 
 COPY target/license_scripts /tmp/license_scripts/
 
