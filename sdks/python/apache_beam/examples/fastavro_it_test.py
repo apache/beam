@@ -149,7 +149,7 @@ class FastavroIT(unittest.TestCase):
           if l != r:
             raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
 
-        assertEqual(sorted(v.keys()), ['avro', 'fastavro'])
+        assertEqual(sorted(v.keys()), ['fastavro'])
         fastavro_values = v['fastavro']
         assertEqual(len(fastavro_values), 1)
 
