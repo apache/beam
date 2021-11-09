@@ -35,6 +35,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -211,6 +212,8 @@ func TestPlaygroundController_CheckStatus(t *testing.T) {
 		wantErr    bool
 	}{
 		{
+			// Test case with calling CheckStatus method with pipelineId which doesn't exist.
+			// As a result, want to receive an error.
 			name:    "status is not set",
 			prepare: func() {},
 			args: args{
@@ -221,7 +224,9 @@ func TestPlaygroundController_CheckStatus(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name: "all success",
+			// Test case with calling CheckStatus method with pipelineId which contains status.
+			// As a result, want to receive an expected status.
+			name: "status exists",
 			prepare: func() {
 				_ = cacheService.SetValue(ctx, pipelineId, cache.Status, wantStatus)
 			},
@@ -448,6 +453,58 @@ func TestPlaygroundController_GetRunError(t *testing.T) {
 	}
 }
 
+func TestPlaygroundController_Cancel(t *testing.T) {
+	ctx := context.Background()
+	pipelineId := uuid.New()
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
+	if err != nil {
+		t.Fatalf("Failed to dial bufnet: %v", err)
+	}
+	defer conn.Close()
+	client := pb.NewPlaygroundServiceClient(conn)
+
+	type args struct {
+		ctx  context.Context
+		info *pb.CancelRequest
+	}
+	tests := []struct {
+		name      string
+		checkFunc func() bool
+		args      args
+		want      *pb.CancelResponse
+		wantErr   bool
+	}{
+		{
+			// Test case with calling Cancel method.
+			// As a result, want to find value in cache for cache.Canceled subKey.
+			name: "set cancel without error",
+			args: args{
+				ctx:  ctx,
+				info: &pb.CancelRequest{PipelineUuid: pipelineId.String()},
+			},
+			checkFunc: func() bool {
+				value, err := cacheService.GetValue(context.Background(), pipelineId, cache.Canceled)
+				if err != nil {
+					return false
+				}
+				return value.(bool)
+			},
+			want:    &pb.CancelResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := client.Cancel(tt.args.ctx, tt.args.info); (err != nil) != tt.wantErr {
+				t.Errorf("Cancel() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.checkFunc() {
+				t.Error("Cancel() doesn't set canceled flag")
+			}
+		})
+	}
+}
+
 func Test_processCode(t *testing.T) {
 	networkEnvs, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {
@@ -465,15 +522,16 @@ func Test_processCode(t *testing.T) {
 	env := environment.NewEnvironment(*networkEnvs, *sdkEnv, *appEnvs)
 
 	type args struct {
-		pipelineId uuid.UUID
 		ctx        context.Context
 		env        *environment.Environment
 		sdk        pb.Sdk
+		pipelineId uuid.UUID
 	}
 	tests := []struct {
 		name                  string
 		createExecFile        bool
 		code                  string
+		cancelFunc            bool
 		expectedStatus        pb.Status
 		expectedRunOutput     interface{}
 		expectedRunError      interface{}
@@ -486,23 +544,25 @@ func Test_processCode(t *testing.T) {
 			name:                  "small pipeline execution timeout",
 			createExecFile:        false,
 			code:                  "",
+			cancelFunc:            false,
 			expectedStatus:        pb.Status_STATUS_RUN_TIMEOUT,
 			expectedCompileOutput: nil,
 			expectedRunOutput:     nil,
 			expectedRunError:      nil,
 			args: args{
-				ctx: context.Background(),
-				env: environment.NewEnvironment(*networkEnvs, *sdkEnv, environment.ApplicationEnvs{}),
-				sdk: pb.Sdk_SDK_JAVA,
+				ctx:        context.Background(),
+				env:        environment.NewEnvironment(*networkEnvs, *sdkEnv, environment.ApplicationEnvs{}),
+				sdk:        pb.Sdk_SDK_JAVA,
 				pipelineId: uuid.New(),
 			},
 		},
 		{
-			// Test case with calling processCode method without creating files with code.
+			// Test case with calling processCode method without preparing files with code.
 			// As a result status into cache should be set as Status_STATUS_VALIDATION_ERROR.
 			name:                  "validation failed",
 			createExecFile:        false,
 			code:                  "",
+			cancelFunc:            false,
 			expectedStatus:        pb.Status_STATUS_VALIDATION_ERROR,
 			expectedCompileOutput: nil,
 			expectedRunOutput:     nil,
@@ -520,6 +580,7 @@ func Test_processCode(t *testing.T) {
 			name:                  "compilation failed",
 			createExecFile:        true,
 			code:                  "MOCK_CODE",
+			cancelFunc:            false,
 			expectedStatus:        pb.Status_STATUS_COMPILE_ERROR,
 			expectedCompileOutput: "error: exit status 1, output: %s:1: error: reached end of file while parsing\nMOCK_CODE\n^\n1 error\n",
 			expectedRunOutput:     nil,
@@ -537,6 +598,7 @@ func Test_processCode(t *testing.T) {
 			name:                  "run failed",
 			createExecFile:        true,
 			code:                  "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(1/0);\n    }\n}",
+			cancelFunc:            false,
 			expectedStatus:        pb.Status_STATUS_RUN_ERROR,
 			expectedCompileOutput: "",
 			expectedRunOutput:     nil,
@@ -549,10 +611,29 @@ func Test_processCode(t *testing.T) {
 			},
 		},
 		{
+			// Test case with calling processCode with canceling code processing.
+			// As a result status into cache should be set as Status_STATUS_CANCELED.
+			name:                  "cancel",
+			createExecFile:        true,
+			code:                  "class HelloWorld {\n    public static void main(String[] args) {\n        while(true){}\n    }\n}",
+			cancelFunc:            true,
+			expectedStatus:        pb.Status_STATUS_CANCELED,
+			expectedCompileOutput: "",
+			expectedRunOutput:     nil,
+			expectedRunError:      nil,
+			args: args{
+				ctx:        context.Background(),
+				env:        env,
+				sdk:        pb.Sdk_SDK_JAVA,
+				pipelineId: uuid.New(),
+			},
+		},
+		{
 			// Test case with calling processCode without any error cases.
 			// As a result status into cache should be set as Status_STATUS_FINISHED.
-			name:                  "all success",
+			name:                  "processing complete successfully",
 			createExecFile:        true,
+			cancelFunc:            false,
 			code:                  "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
 			expectedStatus:        pb.Status_STATUS_FINISHED,
 			expectedCompileOutput: "",
@@ -589,6 +670,13 @@ func Test_processCode(t *testing.T) {
 				_, _ = lc.CreateExecutableFile(tt.code)
 			}
 
+			if tt.cancelFunc {
+				go func(ctx context.Context, pipelineId uuid.UUID) {
+					// to imitate behavior of cancellation
+					time.Sleep(5 * time.Second)
+					cacheService.SetValue(ctx, pipelineId, cache.Canceled, true)
+				}(tt.args.ctx, tt.args.pipelineId)
+			}
 			processCode(tt.args.ctx, cacheService, lc, exec, tt.args.pipelineId, tt.args.env, tt.args.sdk)
 
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
@@ -597,7 +685,7 @@ func Test_processCode(t *testing.T) {
 			}
 
 			compileOutput, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.CompileOutput)
-			if tt.expectedCompileOutput != nil && strings.Contains(tt.expectedCompileOutput.(string), "%s") {
+			if tt.expectedCompileOutput != "" && tt.expectedCompileOutput != nil && strings.Contains(tt.expectedCompileOutput.(string), "%s") {
 				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.GetAbsoluteExecutableFilePath())
 			}
 			if !reflect.DeepEqual(compileOutput, tt.expectedCompileOutput) {
@@ -605,12 +693,15 @@ func Test_processCode(t *testing.T) {
 			}
 
 			runOutput, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.RunOutput)
+			if tt.expectedRunOutput != "" && tt.expectedRunOutput != nil && strings.Contains(tt.expectedRunOutput.(string), "%s") {
+				tt.expectedRunOutput = fmt.Sprintf(tt.expectedRunOutput.(string), tt.args.pipelineId)
+			}
 			if !reflect.DeepEqual(runOutput, tt.expectedRunOutput) {
 				t.Errorf("processCode() set runOutput: %s, but expectes: %s", runOutput, tt.expectedRunOutput)
 			}
 
 			runError, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.RunError)
-			if tt.expectedRunError != nil && strings.Contains(tt.expectedRunError.(string), "%s") {
+			if tt.expectedRunError != "" && tt.expectedRunError != nil && strings.Contains(tt.expectedRunError.(string), "%s") {
 				tt.expectedRunError = fmt.Sprintf(tt.expectedRunError.(string), tt.args.pipelineId)
 			}
 			if !reflect.DeepEqual(runError, tt.expectedRunError) {
