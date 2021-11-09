@@ -104,6 +104,23 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 	return &pipelineResult, nil
 }
 
+//GetRunError is returning error output of execution for specific pipeline by PipelineUuid
+func (controller *playgroundController) GetRunError(ctx context.Context, info *pb.GetRunErrorRequest) (*pb.GetRunErrorResponse, error) {
+	pipelineId := info.PipelineUuid
+	runErrorInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.RunError)
+	if err != nil {
+		logger.Errorf("%s: GetRunError(): cache.GetValue: error: %s", pipelineId, err.Error())
+		return nil, errors.NotFoundError("GetRunError", "there is no run error output for pipelineId: "+pipelineId+", subKey: cache.RunError")
+	}
+	runError, converted := runErrorInterface.(string)
+	if !converted {
+		return nil, errors.InternalError("GetRunError", "run output can't be converted to string")
+	}
+	pipelineResult := pb.GetRunErrorResponse{Output: runError}
+
+	return &pipelineResult, nil
+}
+
 //GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetCompileOutput(ctx context.Context, info *pb.GetCompileOutputRequest) (*pb.GetCompileOutputResponse, error) {
 	pipelineId := info.PipelineUuid
@@ -237,10 +254,10 @@ func setupValidators(sdk pb.Sdk, filepath string) *[]validators.Validator {
 
 // processCode validates, compiles and runs code by pipelineId.
 // During each operation updates status of execution and saves it into cache:
-// - In case of validation step is failed saves playground.Status_STATUS_ERROR as cache.Status into cache.
+// - In case of validation step is failed saves playground.Status_STATUS_VALIDATION_ERROR as cache.Status into cache.
 // - In case of compile step is failed saves playground.Status_STATUS_COMPILE_ERROR as cache.Status and compile logs as cache.CompileOutput into cache.
-// - In case of compile step is completed with no errors saves empty string ("") as cache.CompileOutput into cache.
-// - In case of run step is failed saves playground.Status_STATUS_ERROR as cache.Status and run logs as cache.RunOutput into cache.
+// - In case of compile step is completed with no errors saves compile output as cache.CompileOutput into cache.
+// - In case of run step is failed saves playground.Status_STATUS_RUN_ERROR as cache.Status and run logs as cache.RunError into cache.
 // - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
 // At the end of this method deletes all created folders.
 func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, compileBuilder *executors.CompileBuilder, pipelineId uuid.UUID, env *environment.Environment, sdk pb.Sdk) {
@@ -282,7 +299,7 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	logger.Infof("%s: Run() ...\n", pipelineId)
 	runCmd := exec.Run()
 	if data, err := runCmd.CombinedOutput(); err != nil {
-		processError(ctx, err, data, pipelineId, cacheService, pb.Status_STATUS_ERROR)
+		processError(ctx, err, data, pipelineId, cacheService, pb.Status_STATUS_RUN_ERROR)
 		return
 	} else {
 		processSuccess(ctx, data, pipelineId, cacheService, pb.Status_STATUS_FINISHED)
@@ -305,24 +322,19 @@ func processError(ctx context.Context, err error, data []byte, pipelineId uuid.U
 	case pb.Status_STATUS_VALIDATION_ERROR:
 		logger.Errorf("%s: Validate: %s\n", pipelineId, err.Error())
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_VALIDATION_ERROR
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATION_ERROR)
 	case pb.Status_STATUS_COMPILE_ERROR:
 		logger.Errorf("%s: Compile: err: %s, output: %s\n", pipelineId, err.Error(), data)
 
-		// set to cache pipelineId: cache.SubKey_CompileOutput: err.Error()
 		setToCache(ctx, cacheService, pipelineId, cache.CompileOutput, "error: "+err.Error()+", output: "+string(data))
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILE_ERROR)
-	case pb.Status_STATUS_ERROR:
+	case pb.Status_STATUS_RUN_ERROR:
 		logger.Errorf("%s: Run: err: %s, output: %s\n", pipelineId, err.Error(), data)
 
-		// set to cache pipelineId: cache.SubKey_RunOutput: err.Error()
-		setToCache(ctx, cacheService, pipelineId, cache.RunOutput, "error: "+err.Error()+", output: "+string(data))
+		setToCache(ctx, cacheService, pipelineId, cache.RunError, "error: "+err.Error()+", output: "+string(data))
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_ERROR
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
+		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_RUN_ERROR)
 	}
 }
 
@@ -332,23 +344,18 @@ func processSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, ca
 	case pb.Status_STATUS_COMPILING:
 		logger.Infof("%s: Validate() finish\n", pipelineId)
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_EXECUTING
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILING)
 	case pb.Status_STATUS_EXECUTING:
 		logger.Infof("%s: Compile() finish\n", pipelineId)
 
-		// set to cache pipelineId: cache.SubKey_CompileOutput: output
 		setToCache(ctx, cacheService, pipelineId, cache.CompileOutput, string(output))
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_EXECUTING
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)
 	case pb.Status_STATUS_FINISHED:
 		logger.Infof("%s: Run() finish\n", pipelineId)
 
-		// set to cache pipelineId: cache.SubKey_RunOutput: output
 		setToCache(ctx, cacheService, pipelineId, cache.RunOutput, string(output))
 
-		// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_FINISHED
 		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_FINISHED)
 	}
 }
