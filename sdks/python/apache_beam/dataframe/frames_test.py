@@ -1083,34 +1083,34 @@ class DeferredFrameTest(_AbstractFrameTest):
         s)
 
   def test_idxmin(self):
-    # df = pd.DataFrame({
-    #     'consumption': [10.51, 103.11, 55.48],
-    #     'co2_emissions': [37.2, 19.66, 1712]
-    # },
-    #                   index=['Pork', 'Wheat Products', 'Beef'])
+    df = pd.DataFrame({
+        'consumption': [10.51, 103.11, 55.48],
+        'co2_emissions': [37.2, 19.66, 1712]
+    },
+                      index=['Pork', 'Wheat Products', 'Beef'])
 
     s = pd.Series(data=[4, 3, None, 1], index=['A', 'B', 'C', 'D'])
 
-    # self._run_test(lambda df: df.idxmin(), df)
-    # self._run_test(lambda df: df.idxmin(axis='columns'), df)
+    self._run_test(lambda df: df.idxmin(axis=1), df)
+    self._run_test(lambda df: df.idxmin(), df, nonparallel=True)
+
     self._run_test(lambda s: s.idxmin(), s)
-    self._run_test(lambda s: s.idxmin(axis='columns'), s)
     with self.assertRaises(NotImplementedError):
       self._run_test(lambda s: s.idxmin(skipna=False), s)
 
   def test_idxmax(self):
-    # df = pd.DataFrame({
-    #     'consumption': [10.51, 103.11, 55.48],
-    #     'co2_emissions': [37.2, 19.66, 1712]
-    # },
-    #                   index=['Pork', 'Wheat Products', 'Beef'])
+    df = pd.DataFrame({
+        'consumption': [10.51, 103.11, 55.48],
+        'co2_emissions': [37.2, 19.66, 1712]
+    },
+                      index=['Pork', 'Wheat Products', 'Beef'])
 
     s = pd.Series(data=[1, None, 4, 1], index=['A', 'B', 'C', 'D'])
 
-    # self._run_test(lambda df: df.idxmax(), df)
-    # self._run_test(lambda df: df.idxmax(axis='columns'), df)
+    self._run_test(lambda df: df.idxmax(), df, nonparallel=True)
+    self._run_test(lambda df: df.idxmax(axis=1), df)
+
     self._run_test(lambda s: s.idxmax(), s)
-    self._run_test(lambda s: s.idxmax(axis='columns'), s)
     with self.assertRaises(NotImplementedError):
       self._run_test(lambda s: s.idxmax(skipna=False), s)
 

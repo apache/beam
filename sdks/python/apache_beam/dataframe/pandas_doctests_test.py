@@ -300,8 +300,8 @@ class DoctestTest(unittest.TestCase):
                 "df.loc[df.index[5:10], 'b'] = np.nan",
                 'df.cov(min_periods=12)',
             ],
-            'pandas.core.frame.DataFrame.idxmax': ['*'],
-            'pandas.core.frame.DataFrame.idxmin': ['*'],
+            # 'pandas.core.frame.DataFrame.idxmax': ['*'],
+            # 'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.rename': [
                 # Returns deferred index.
                 'df.index',
@@ -498,7 +498,7 @@ class DoctestTest(unittest.TestCase):
                 "s1.cov(s2)",
             ],
             'pandas.core.series.Series.duplicated': ['*'],
-            'pandas.core.series.Series.idxmax': ['*'],
+            'pandas.core.series.Series.idxmax': ['s.idxmax(skipna=False)'],
             'pandas.core.series.Series.idxmin': ['s.idxmin(skipna=False)'],
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect

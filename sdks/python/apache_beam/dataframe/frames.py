@@ -1282,9 +1282,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   def idxmin(self, **kwargs):
     skipna = kwargs.get('skipna', True)
+    axis = kwargs.pop('axis', 0)
+
+    if axis in ('index', 0):
+      axis = 0
+    elif axis in ('columns', 1):
+      axis = 1
+
+    kwargs['axis'] = axis
 
     if not skipna:
-      raise NotImplementedError("Skipping nan is not yet supported.")
+      raise NotImplementedError("idxmin(skipna=False) is not yet supported.")
 
     def compute_idxmin(s):
       min_index = s.idxmin(**kwargs)
@@ -1313,9 +1321,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   def idxmax(self, **kwargs):
     skipna = kwargs.get('skipna', True)
+    axis = kwargs.pop('axis', 0)
+
+    if axis in ('index', 0):
+      axis = 0
+    elif axis in ('columns', 1):
+      axis = 1
+
+    kwargs['axis'] = axis
 
     if not skipna:
-      raise NotImplementedError("Skipping nan is not yet supported.")
+      raise NotImplementedError("idxmax(skipna=False) is not yet supported.")
 
     def compute_idxmax(s):
       max_index = s.idxmax(**kwargs)
@@ -3503,6 +3519,73 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         return result/dropped.length()
       else:
         return result
+
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def idxmin(self, **kwargs):
+    skipna = kwargs.get('skipna', True)
+    axis = kwargs.pop('axis', 0)
+
+    if axis in ('index', 0):
+      axis = 0
+    elif axis in ('columns', 1):
+      axis = 1
+
+    kwargs['axis'] = axis
+
+    if not skipna:
+      raise NotImplementedError("idxmin(skipna=False) is not yet supported.")
+
+    if axis:
+      requires = partitionings.Index()
+    else:
+      requires = partitionings.Singleton(
+        reason="Only idxmin(index='rows') is parallelizable")
+
+    return frame_base.DeferredFrame.wrap(
+      expressions.ComputedExpression(
+        'idxmin',
+        lambda df: df.idxmin(**kwargs),
+        [self._expr],
+        proxy=pd.Series(['A'], index=['Z']),
+        requires_partition_by=requires,
+        preserves_partition_by=partitionings.Singleton()))
+
+
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def idxmax(self, **kwargs):
+    skipna = kwargs.get('skipna', True)
+    axis = kwargs.pop('axis', 0)
+
+    if axis in ('index', 0):
+      axis = 0
+    elif axis in ('columns', 1):
+      axis = 1
+
+    kwargs['axis'] = axis
+
+    if not skipna:
+      raise NotImplementedError("idxmax(skipna=False) is not yet supported.")
+
+    if axis:
+      requires = partitionings.Index()
+    else:
+      requires = partitionings.Singleton(
+        reason="Only idxmax(index='rows') is parallelizable")
+
+    return frame_base.DeferredFrame.wrap(
+      expressions.ComputedExpression(
+        'idxmax',
+        lambda df: df.idxmax(**kwargs),
+        [self._expr],
+        proxy=pd.Series(['A'], index=['Z']),
+        requires_partition_by=requires,
+        preserves_partition_by=partitionings.Singleton()))
 
 
 for io_func in dir(io):
