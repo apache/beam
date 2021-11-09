@@ -301,7 +301,10 @@ class JavaExternalTransform(ptransform.PTransform):
       expansion service classpath.
   """
   def __init__(self, class_name, expansion_service=None, classpath=None):
-    assert not (expansion_service and classpath), (expansion_service, classpath)
+    if expansion_service and classpath:
+      raise ValueError(
+          f'Only one of expansion_service ({expansion_service}) '
+          f'or classpath ({classpath}) may be provided.')
     self._payload_builder = JavaClassLookupPayloadBuilder(class_name)
     self._classpath = classpath
     self._expansion_service = expansion_service

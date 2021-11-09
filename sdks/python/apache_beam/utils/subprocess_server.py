@@ -18,6 +18,8 @@
 # pytype: skip-file
 
 import contextlib
+import glob
+import hashlib
 import logging
 import os
 import re
@@ -28,6 +30,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import zipfile
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -160,12 +163,11 @@ class JavaJarServer(SubprocessServer):
 
   def __init__(self, stub_class, path_to_jar, java_arguments, classpath=None):
     if classpath:
-      cp_args = ['-classpath', os.pathsep.join(classpath)]
-    else:
-      cp_args = []
+      # java -jar ignores the classpath, so we make a new jar that embeds
+      # the requested classpath.
+      path_to_jar = self.make_classpath_jar(path_to_jar, classpath)
     super().__init__(
-        stub_class,
-        ['java'] + cp_args + ['-jar', path_to_jar] + list(java_arguments))
+        stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
     self._existing_service = path_to_jar if _is_service_endpoint(
         path_to_jar) else None
 
@@ -287,6 +289,44 @@ class JavaJarServer(SubprocessServer):
       yield
     finally:
       cls._BEAM_SERVICES.replacements = old
+
+  @classmethod
+  def make_classpath_jar(cls, main_jar, extra_jars, cache_dir=None):
+    if cache_dir is None:
+      cache_dir = cls.JAR_CACHE
+    composite_jar_dir = os.path.join(cache_dir, 'composite-jars')
+    os.makedirs(composite_jar_dir, exist_ok=True)
+    classpath = []
+    # Class-Path references from a jar must be relative, so we create
+    # a relatively-addressable subdirectory with symlinks to all the
+    # required jars.
+    for pattern in [main_jar] + list(extra_jars):
+      for path in glob.glob(pattern) or [pattern]:
+        path = os.path.abspath(path)
+        rel_path = hashlib.sha256(
+            path.encode('utf-8')).hexdigest() + os.path.splitext(path)[1]
+        classpath.append(rel_path)
+        if not os.path.lexists(os.path.join(composite_jar_dir, rel_path)):
+          os.symlink(path, os.path.join(composite_jar_dir, rel_path))
+    # Now create a single jar that simply references the rest and has the same
+    # main class as main_jar.
+    composite_jar = os.path.join(
+        composite_jar_dir,
+        hashlib.sha256(' '.join(sorted(classpath)).encode('ascii')).hexdigest()
+        + '.jar')
+    if not os.path.exists(composite_jar):
+      with zipfile.ZipFile(main_jar) as main:
+        with main.open('META-INF/MANIFEST.MF') as manifest:
+          main_class = next(
+              filter(lambda line: line.startswith(b'Main-Class: '), manifest))
+      with zipfile.ZipFile(composite_jar + '.tmp', 'w') as composite:
+        with composite.open('META-INF/MANIFEST.MF', 'w') as manifest:
+          manifest.write(b'Manifest-Version: 1.0\n')
+          manifest.write(main_class)
+          manifest.write(
+              b'Class-Path: ' + ' '.join(classpath).encode('ascii') + b'\n')
+      os.rename(composite_jar + '.tmp', composite_jar)
+    return composite_jar
 
 
 def _is_service_endpoint(path):
