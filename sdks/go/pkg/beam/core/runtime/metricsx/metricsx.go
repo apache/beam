@@ -48,17 +48,17 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 	pcols := make(map[metrics.StepKey]metrics.PColValue)
 
 	// extract pcol for a PTransform into a map from pipeline proto.
-	pcolTransform := make(map[string]string)
+	pcolToTransform := make(map[string]string)
 
 	for _, transform := range p.GetComponents().GetTransforms() {
 		outputs := transform.GetOutputs()
 		for o, pid := range outputs {
-			pcolTransform[pid] = fmt.Sprintf("%s.%s", transform.GetUniqueName(), o)
+			pcolToTransform[pid] = fmt.Sprintf("%s.%s", transform.GetUniqueName(), o)
 		}
 	}
 
 	for _, minfo := range minfos {
-		key, err := extractKey(minfo, pcolTransform)
+		key, err := extractKey(minfo, pcolToTransform)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -137,11 +137,11 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 	return counters, distributions, gauges, msecs, pcols
 }
 
-func extractKey(mi *pipepb.MonitoringInfo, p map[string]string) (metrics.StepKey, error) {
+func extractKey(mi *pipepb.MonitoringInfo, pcolToTransform map[string]string) (metrics.StepKey, error) {
 	labels := newLabels(mi.GetLabels())
 	stepName := labels.Transform()
 
-	if v, ok := p[labels.PCollection()]; ok {
+	if v, ok := pcolToTransform[labels.PCollection()]; ok {
 		stepName = v
 	}
 	if stepName == "" {
