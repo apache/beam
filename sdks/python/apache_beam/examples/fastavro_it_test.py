@@ -123,8 +123,6 @@ class FastavroIT(unittest.TestCase):
         | 'create-records' >> Map(record)
 
     fastavro_output = '/'.join([self.output, 'fastavro'])
-    # avro_output = '/'.join([self.output, 'avro'])
-
     # pylint: disable=expression-not-assigned
     records_pcoll \
     | 'write_fastavro' >> WriteToAvro(
@@ -152,10 +150,8 @@ class FastavroIT(unittest.TestCase):
             raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
 
         assertEqual(sorted(v.keys()), ['avro', 'fastavro'])
-        avro_values = v['avro']
         fastavro_values = v['fastavro']
-        assertEqual(avro_values, fastavro_values)
-        assertEqual(len(avro_values), 1)
+        assertEqual(len(fastavro_values), 1)
 
       # pylint: disable=expression-not-assigned
       {

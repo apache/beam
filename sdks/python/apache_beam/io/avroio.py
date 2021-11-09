@@ -159,8 +159,8 @@ class ReadAllFromAvro(PTransform):
   def __init__(
       self,
       min_bundle_size=0,
-      use_fastavro=True,
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
+      use_fastavro=True,
       with_filename=False,
       label='ReadAllFiles'):
     """Initializes ``ReadAllFromAvro``.
@@ -170,11 +170,11 @@ class ReadAllFromAvro(PTransform):
                        splitting the input into bundles.
       desired_bundle_size: the desired size in bytes, to be considered when
                        splitting the input into bundles.
+      use_fastavro (bool): This flag is left for API backwards compatibility
+        and no longer has an effect. Do not use.
       with_filename: If True, returns a Key Value with the key being the file
         name and the value being the actual data. If False, it only returns
         the data.
-      use_fastavro (bool): This flag is left for API backwards compatibility
-        and no longer has an effect. Do not use.
     """
     source_from_file = partial(
         _create_avro_source, min_bundle_size=min_bundle_size)
@@ -216,8 +216,7 @@ class _AvroUtils(object):
         data = f.read(buf_size)
 
 
-def _create_avro_source(
-    file_pattern=None, min_bundle_size=0, validate=False, use_fasvro=True):
+def _create_avro_source(file_pattern=None, min_bundle_size=0, validate=False):
   return \
       _FastAvroSource(
           file_pattern=file_pattern,
