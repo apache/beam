@@ -26,6 +26,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIOWrite.Import;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIOWrite.Import.ContentStructure;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -49,12 +50,12 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading</h3>
  *
  * <p>FHIR resources can be read with {@link FhirIORead}, which supports use cases where you have
- * a ${@link PCollection} of message IDs. This is appropriate for reading the Fhir notifications
+ * a ${@link PCollection} of resource IDs. This is appropriate for reading the Fhir notifications
  * from a Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a
- * manually prepared list of messages that you need to process (e.g. in a text file read with {@link
+ * manually prepared list of resources that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}*) .
  *
- * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of message ID
+ * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of resource ID
  * strings {@link FhirIORead.Result} where one can call {@link FhirIORead.Result#getResources()} to
  * retrieve a {@link PCollection} containing the successfully fetched {@link String}s and/or {@link
  * FhirIORead.Result#getFailedReads()}* to retrieve a {@link PCollection} of {@link
@@ -97,7 +98,7 @@ import org.slf4j.LoggerFactory;
  * @see <a href=>https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores/deidentify></a>
  * @see <a href=>https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores/search></a>
  * A {@link PCollection} of {@link String} can be ingested into an Fhir store using {@link
- * FhirIOWrite#fhirStoresImport(String, String, String, Import.ContentStructure)} This will
+ * FhirIOWrite#fhirStoresImport(String, String, String, ContentStructure)} This will
  * return a {@link FhirIOWrite.Result} on which you can call {@link
  * FhirIOWrite.Result#getFailedBodies()} to retrieve a {@link PCollection} of {@link
  * HealthcareIOError} containing the {@link String} that failed to be ingested and the exception.
@@ -111,12 +112,12 @@ import org.slf4j.LoggerFactory;
  *     PubsubIO.readStrings().fromSubscription(options.getNotificationSubscription()))
  *   .apply(FhirIO.readResources());
  *
- * // happily retrived messages
+ * // happily retrived resources
  * PCollection<String> resources = readResult.getResources();
- * // message IDs that couldn't be retrieved + error context
+ * // resource IDs that couldn't be retrieved + error context
  * PCollection<HealthcareIOError<String>> failedReads = readResult.getFailedReads();
  *
- * failedReads.apply("Write Message IDs / Stacktrace for Failed Reads to BigQuery",
+ * failedReads.apply("Write Resource IDs / Stacktrace for Failed Reads to BigQuery",
  *     BigQueryIO
  *         .write()
  *         .to(option.getBQFhirExecuteBundlesDeadLetterTable())
@@ -235,7 +236,7 @@ public class FhirIO {
       String fhirStore,
       String tempDir,
       String deadLetterDir,
-      Import.@Nullable ContentStructure contentStructure) {
+      @Nullable ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
   }
 
@@ -253,7 +254,7 @@ public class FhirIO {
       ValueProvider<String> fhirStore,
       ValueProvider<String> tempDir,
       ValueProvider<String> deadLetterDir,
-      Import.@Nullable ContentStructure contentStructure) {
+      @Nullable ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
   }
 
