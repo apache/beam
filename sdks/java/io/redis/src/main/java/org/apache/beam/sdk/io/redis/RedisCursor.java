@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.io.range.ByteKey;
@@ -67,6 +68,22 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
   public int compareTo(@Nonnull RedisCursor other) {
     checkNotNull(other, "other");
     return Long.compare(Long.parseLong(cursor), Long.parseLong(other.cursor));
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    RedisCursor that = (RedisCursor) o;
+    return dbSize == that.dbSize
+        && nBits == that.nBits
+        && Objects.equals(cursor, that.cursor)
+        && Objects.equals(byteCursor, that.byteCursor);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(cursor, byteCursor, dbSize, nBits);
   }
 
   public String getCursor() {

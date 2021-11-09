@@ -123,7 +123,6 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
     if (range.getStartPosition().getCursor().equals(RedisCursor.ZERO_CURSOR.getCursor())
         && range.getEndPosition().getCursor().equals(RedisCursor.ZERO_CURSOR.getCursor())) {
       lastAttemptedKey = key.getByteCursor();
-      range.fromEndPosition(key);
       return true;
     }
 
