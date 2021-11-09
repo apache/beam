@@ -39,8 +39,9 @@ enum Status {
   STATUS_COMPILE_ERROR = 6;
   STATUS_EXECUTING = 7;
   STATUS_FINISHED = 8;
-  STATUS_ERROR = 9;
-  STATUS_RUN_TIMEOUT = 10;
+  STATUS_RUN_ERROR = 9;
+  STATUS_ERROR = 10;
+  STATUS_RUN_TIMEOUT = 11;
 }
 
 enum ExampleType {
@@ -89,7 +90,16 @@ message GetRunOutputRequest {
 // RunOutputResponse represents the result of the executed code.
 message GetRunOutputResponse {
   string output = 1;
-  Status compilation_status = 2;
+}
+
+// GetRunErrorRequest contains information of the pipeline uuid.
+message GetRunErrorRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetRunErrorResponse represents the error of the executed code.
+message GetRunErrorResponse {
+  string output = 1;
 }
 
 // ListOfExamplesRequest contains information of the needed examples sdk and categories.
@@ -141,6 +151,9 @@ service PlaygroundService {
 
   // Get the result of pipeline execution.
   rpc GetRunOutput(GetRunOutputRequest) returns (GetRunOutputResponse);
+
+  // Get the error of pipeline execution.
+  rpc GetRunError(GetRunErrorRequest) returns (GetRunErrorResponse);
 
   // Get the result of pipeline compilation.
   rpc GetCompileOutput(GetCompileOutputRequest) returns (GetCompileOutputResponse);

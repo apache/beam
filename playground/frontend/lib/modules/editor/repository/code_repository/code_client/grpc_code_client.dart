@@ -17,8 +17,8 @@
  */
 
 import 'package:grpc/grpc_web.dart';
-import 'package:playground/constants/api.dart';
 import 'package:playground/api/v1/api.pbgrpc.dart' as grpc;
+import 'package:playground/constants/api.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/check_status_response.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
@@ -27,6 +27,8 @@ import 'package:playground/modules/editor/repository/code_repository/run_code_er
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
+
+const kGeneralError = 'Failed to execute code';
 
 class GrpcCodeClient implements CodeClient {
   late final GrpcWebClientChannel _channel;
@@ -71,11 +73,13 @@ class GrpcCodeClient implements CodeClient {
         .then((response) => OutputResponse(response.output)));
   }
 
-  Future<T> _runSafely<T>(Future<T> Function() invoke) {
+  Future<T> _runSafely<T>(Future<T> Function() invoke) async {
     try {
-      return invoke();
+      return await invoke();
     } on GrpcError catch (error) {
       throw RunCodeError(error.message);
+    } on Exception catch (_) {
+      throw RunCodeError(kGeneralError);
     }
   }
 
@@ -101,8 +105,6 @@ class GrpcCodeClient implements CodeClient {
   RunCodeStatus _toClientStatus(grpc.Status status) {
     switch (status) {
       case grpc.Status.STATUS_ERROR:
-      case grpc.Status.STATUS_COMPILE_ERROR:
-      case grpc.Status.STATUS_RUN_TIMEOUT:
       case grpc.Status.STATUS_VALIDATION_ERROR:
         return RunCodeStatus.error;
       case grpc.Status.STATUS_EXECUTING:
@@ -113,6 +115,10 @@ class GrpcCodeClient implements CodeClient {
         return RunCodeStatus.finished;
       case grpc.Status.STATUS_UNSPECIFIED:
         return RunCodeStatus.unspecified;
+      case grpc.Status.STATUS_COMPILE_ERROR:
+        return RunCodeStatus.compileError;
+      case grpc.Status.STATUS_RUN_TIMEOUT:
+        return RunCodeStatus.timeout;
     }
     return RunCodeStatus.unspecified;
   }
