@@ -66,6 +66,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
 	}
 
+	// TODO change using of context.TODO() to context.Background()
 	go processCode(context.TODO(), controller.cacheService, lc, compileBuilder, pipelineId, controller.env, info.Sdk)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
@@ -253,7 +254,7 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 
 	errorChannel := make(chan error, 1)
 	dataChannel := make(chan interface{}, 1)
-	doneChannel := make(chan bool, 1)
+	successChannel := make(chan bool, 1)
 
 	// build executor for validate and compile steps
 	exec := compileBuilder.Build()
@@ -261,13 +262,13 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	// validate
 	logger.Infof("%s: Validate() ...\n", pipelineId)
 	validateFunc := exec.Validate()
-	go validateFunc(doneChannel, errorChannel)
+	go validateFunc(successChannel, errorChannel)
 
 	select {
 	case <-ctxWithTimeout.Done():
 		finishByContext(ctxWithTimeout, pipelineId, cacheService)
 		return
-	case ok := <-doneChannel:
+	case ok := <-successChannel:
 		if !ok {
 			err := <-errorChannel
 			processError(ctx, err, nil, pipelineId, cacheService, pb.Status_STATUS_VALIDATION_ERROR)
@@ -279,13 +280,13 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	// prepare
 	logger.Info("%s: Prepare() ...\n", pipelineId)
 	prepareFunc := exec.Prepare()
-	go prepareFunc(doneChannel, errorChannel)
+	go prepareFunc(successChannel, errorChannel)
 
 	select {
 	case <-ctxWithTimeout.Done():
 		finishByContext(ctxWithTimeout, pipelineId, cacheService)
 		return
-	case ok := <-doneChannel:
+	case ok := <-successChannel:
 		if !ok {
 			err := <-errorChannel
 			processError(ctx, err, nil, pipelineId, cacheService, pb.Status_STATUS_PREPARATION_ERROR)
@@ -297,22 +298,23 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	// compile
 	logger.Infof("%s: Compile() ...\n", pipelineId)
 	compileCmd := exec.Compile(ctxWithTimeout)
-	go func(doneCh chan bool, errCh chan error, dataCh chan interface{}) {
+	go func(successCh chan bool, errCh chan error, dataCh chan interface{}) {
+		// TODO separate stderr from stdout
 		data, err := compileCmd.CombinedOutput()
 		dataCh <- data
 		if err != nil {
 			errCh <- err
-			doneCh <- false
+			successCh <- false
 		} else {
-			doneCh <- true
+			successCh <- true
 		}
-	}(doneChannel, errorChannel, dataChannel)
+	}(successChannel, errorChannel, dataChannel)
 
 	select {
 	case <-ctxWithTimeout.Done():
 		finishByContext(ctxWithTimeout, pipelineId, cacheService)
 		return
-	case ok := <-doneChannel:
+	case ok := <-successChannel:
 		data := <-dataChannel
 		if !ok {
 			err := <-errorChannel
@@ -335,22 +337,23 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	// run
 	logger.Infof("%s: Run() ...\n", pipelineId)
 	runCmd := exec.Run(ctxWithTimeout)
-	go func(doneCh chan bool, errCh chan error, dataCh chan interface{}) {
+	go func(successCh chan bool, errCh chan error, dataCh chan interface{}) {
+		// TODO separate stderr from stdout
 		data, err := runCmd.CombinedOutput()
 		dataCh <- data
 		if err != nil {
 			errCh <- err
-			doneCh <- false
+			successChannel <- false
 		} else {
-			doneCh <- true
+			successChannel <- true
 		}
-	}(doneChannel, errorChannel, dataChannel)
+	}(successChannel, errorChannel, dataChannel)
 
 	select {
 	case <-ctxWithTimeout.Done():
 		finishByContext(ctxWithTimeout, pipelineId, cacheService)
 		return
-	case ok := <-doneChannel:
+	case ok := <-successChannel:
 		data := <-dataChannel
 		if !ok {
 			err := <-errorChannel
