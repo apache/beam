@@ -25,6 +25,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -111,9 +112,8 @@ import org.slf4j.LoggerFactory;
  * <p>The following example reads ages to return the IDs of Person nodes. It runs a Cypher query for
  * each provided age.
  *
- * <p>The {@link ParametersMapper} maps input values to each execution of the Cypher statement.
- * These parameter values are stored in a {@link Map} (mapping String to Object). The map is cleared
- * after each execution.
+ * <p>The mapping {@link SerializableFunction} maps input values to each execution of the Cypher
+ * statement. In the function simply return a map containing the parameters you want to set.
  *
  * <p>The {@link RowMapper} converts output Neo4j {@link Record} values to the output of the source.
  *
@@ -125,7 +125,7 @@ import org.slf4j.LoggerFactory;
  *     .withCypher("MATCH(n:Person) WHERE n.age = $age RETURN n.id")
  *     .withReadTransaction()
  *     .withCoder(StringUtf8Coder.of())
- *     .withParametersMapper((age, rowMap) -> rowMap.put("age", age))
+ *     .withParametersFunction( age -> Collections.singletonMap( "age", age ))
  *     .withRowMapper( record -> return record.get(0).asString() )
  *   );
  * }</pre>
@@ -141,12 +141,12 @@ import org.slf4j.LoggerFactory;
  * <p>In the following example we'll merge a collection of {@link org.apache.beam.sdk.values.Row}
  * into Person nodes. Since this is a Sink it has no output and as such no RowMapper is needed. The
  * rows are being used as a container for the parameters of the Cypher statement. The used Cypher in
- * question needs to be an UNWIND statement. Like in the read case, the {@link ParametersMapper}
- * maps values to a {@link Map<String, Object>}. The difference is that the resulting Map is stored
- * in a {@link List} (containing maps) which in turn is stored in another Map under the name
- * provided by the {@link WriteUnwind#withUnwindMapName(String)} method. All of this is handled
- * automatically. You do need to provide the unwind map name so that you can reference that in the
- * UNWIND statement.
+ * question needs to be an UNWIND statement. Like in the read case, the parameters {@link
+ * SerializableFunction} converts parameter values to a {@link Map<String, Object>}. The difference
+ * here is that the resulting Map is stored in a {@link List} (containing maps) which in turn is
+ * stored in another Map under the name provided by the {@link
+ * WriteUnwind#withUnwindMapName(String)} method. All of this is handled automatically. You do need
+ * to provide the unwind map name so that you can reference that in the UNWIND statement.
  *
  * <p>
  *
@@ -159,11 +159,10 @@ import org.slf4j.LoggerFactory;
  *      .withDriverConfiguration(Neo4jIO.DriverConfiguration.create("neo4j://localhost:7687", "neo4j", "password"))
  *      .withUnwindMapName("rows")
  *      .withCypher("UNWIND $rows AS row MERGE(n:Person { id : row.id } ) SET n.firstName = row.first, n.lastName = row.last")
- *      .withParametersMapper( (row, map ) -> {
- *        map.put("id", row.getString("id));
- *        map.put("first", row.getString("firstName"));
- *        map.put("last", row.getString("lastName"));
- *      })
+ *      .withParametersFunction( row -> ImmutableMap.of(
+ *        "id", row.getString("id),
+ *        "first", row.getString("firstName")
+ *        "last", row.getString("lastName")))
  *    );
  * }</pre>
  */
@@ -222,21 +221,6 @@ public class Neo4jIO {
   @FunctionalInterface
   public interface RowMapper<T> extends Serializable {
     T mapRow(Record record) throws Exception;
-  }
-
-  /**
-   * An interface used by {@link ReadAll} for converting input parameter data to a parameters map
-   * which can be used by your Neo4j cypher query.
-   */
-  @FunctionalInterface
-  public interface ParametersMapper<ParameterT> extends Serializable {
-    /**
-     * Simply map an input record to a parameters map.
-     *
-     * @param input the input read
-     * @param parametersMap the parameters map to update in this llabmda
-     */
-    void mapParameters(ParameterT input, Map<String, Object> parametersMap);
   }
 
   /** This describes all the information needed to create a Neo4j {@link Session}. */
@@ -599,7 +583,8 @@ public class Neo4jIO {
 
     abstract @Nullable RowMapper<OutputT> getRowMapper();
 
-    abstract @Nullable ParametersMapper<ParameterT> getParametersMapper();
+    abstract @Nullable SerializableFunction<ParameterT, Map<String, Object>>
+        getParametersFunction();
 
     abstract @Nullable Coder<OutputT> getCoder();
 
@@ -679,12 +664,12 @@ public class Neo4jIO {
     }
 
     // Parameters mapper
-    public ReadAll<ParameterT, OutputT> withParametersMapper(
-        ParametersMapper<ParameterT> parametersMapper) {
+    public ReadAll<ParameterT, OutputT> withParametersFunction(
+        SerializableFunction<ParameterT, Map<String, Object>> parametersFunction) {
       checkArgument(
-          parametersMapper != null,
-          "Neo4jIO.readAll().withParametersMapper(parametersMapper) called with null parametersMapper");
-      return toBuilder().setParametersMapper(parametersMapper).build();
+          parametersFunction != null,
+          "Neo4jIO.readAll().withParametersFunction(parametersFunction) called with null parametersFunction");
+      return toBuilder().setParametersFunction(parametersFunction).build();
     }
 
     // Coder
@@ -756,7 +741,7 @@ public class Neo4jIO {
               getDriverProviderFn(),
               getCypher().get(),
               getRowMapper(),
-              getParametersMapper(),
+              getParametersFunction(),
               fetchSize,
               databaseName,
               writeTransaction,
@@ -794,8 +779,8 @@ public class Neo4jIO {
 
       abstract Builder<ParameterT, OutputT> setRowMapper(RowMapper<OutputT> rowMapper);
 
-      abstract Builder<ParameterT, OutputT> setParametersMapper(
-          ParametersMapper<ParameterT> parameterMapper);
+      abstract Builder<ParameterT, OutputT> setParametersFunction(
+          SerializableFunction<ParameterT, Map<String, Object>> parametersFunction);
 
       abstract Builder<ParameterT, OutputT> setCoder(Coder<OutputT> coder);
 
@@ -818,8 +803,6 @@ public class Neo4jIO {
     protected transient Session session;
     protected transient TransactionConfig transactionConfig;
 
-    protected Map<String, Object> parametersMap;
-
     private ReadWriteFn(
         SerializableFunction<Void, Driver> driverProviderFn,
         String databaseName,
@@ -829,8 +812,6 @@ public class Neo4jIO {
       this.databaseName = databaseName;
       this.fetchSize = fetchSize;
       this.transactionTimeoutMs = transactionTimeoutMs;
-
-      parametersMap = new HashMap<>();
     }
 
     /**
@@ -910,7 +891,7 @@ public class Neo4jIO {
   private static class ReadFn<ParameterT, OutputT> extends ReadWriteFn<ParameterT, OutputT> {
     private final String cypher;
     private final RowMapper<OutputT> rowMapper;
-    private final ParametersMapper<ParameterT> parametersMapper;
+    private final SerializableFunction<ParameterT, Map<String, Object>> parametersFunction;
     private final boolean writeTransaction;
     private final boolean logCypher;
 
@@ -918,7 +899,7 @@ public class Neo4jIO {
         SerializableFunction<Void, Driver> driverProviderFn,
         String cypher,
         RowMapper<OutputT> rowMapper,
-        ParametersMapper<ParameterT> parametersMapper,
+        SerializableFunction<ParameterT, Map<String, Object>> parametersFunction,
         long fetchSize,
         String databaseName,
         boolean writeTransaction,
@@ -927,7 +908,7 @@ public class Neo4jIO {
       super(driverProviderFn, databaseName, fetchSize, transactionTimeoutMs);
       this.cypher = cypher;
       this.rowMapper = rowMapper;
-      this.parametersMapper = parametersMapper;
+      this.parametersFunction = parametersFunction;
       this.writeTransaction = writeTransaction;
       this.logCypher = logCypher;
     }
@@ -944,14 +925,17 @@ public class Neo4jIO {
       // Map the input data to the parameters map...
       //
       ParameterT parameters = context.element();
-      if (parametersMapper != null) {
-        parametersMapper.mapParameters(parameters, parametersMap);
+      final Map<String, Object> parametersMap;
+      if (parametersFunction != null) {
+        parametersMap = parametersFunction.apply(parameters);
+      } else {
+        parametersMap = Collections.emptyMap();
       }
-
-      executeReadCypherStatement(context);
+      executeReadCypherStatement(context, parametersMap);
     }
 
-    private void executeReadCypherStatement(final ProcessContext processContext) {
+    private void executeReadCypherStatement(
+        final ProcessContext processContext, Map<String, Object> parametersMap) {
       // The transaction.
       //
       TransactionWork<Void> transactionWork =
@@ -991,10 +975,6 @@ public class Neo4jIO {
       } else {
         session.readTransaction(transactionWork, transactionConfig);
       }
-
-      // Now we need to clear out the parameters map
-      //
-      parametersMap.clear();
     }
   }
 
@@ -1044,7 +1024,8 @@ public class Neo4jIO {
 
     abstract @Nullable ValueProvider<Long> getTransactionTimeoutMs();
 
-    abstract @Nullable ParametersMapper<ParameterT> getParametersMapper();
+    abstract @Nullable SerializableFunction<ParameterT, Map<String, Object>>
+        getParametersFunction();
 
     abstract @Nullable ValueProvider<Long> getBatchSize();
 
@@ -1132,12 +1113,12 @@ public class Neo4jIO {
     }
 
     // Parameters mapper
-    public WriteUnwind<ParameterT> withParametersMapper(
-        ParametersMapper<ParameterT> parametersMapper) {
+    public WriteUnwind<ParameterT> withParametersFunction(
+        SerializableFunction<ParameterT, Map<String, Object>> parametersFunction) {
       checkArgument(
-          parametersMapper != null,
-          "Neo4jIO.readAll().withParametersMapper(parametersMapper) called with null parametersMapper");
-      return toBuilder().setParametersMapper(parametersMapper).build();
+          parametersFunction != null,
+          "Neo4jIO.readAll().withParametersFunction(parametersFunction) called with null parametersFunction");
+      return toBuilder().setParametersFunction(parametersFunction).build();
     }
 
     // Logging
@@ -1188,7 +1169,7 @@ public class Neo4jIO {
           new WriteUnwindFn<>(
               getDriverProviderFn(),
               getCypher().get(),
-              getParametersMapper(),
+              getParametersFunction(),
               -1,
               databaseName,
               transactionTimeOutMs,
@@ -1224,8 +1205,8 @@ public class Neo4jIO {
       abstract Builder<ParameterT> setTransactionTimeoutMs(
           ValueProvider<Long> transactionTimeoutMs);
 
-      abstract Builder<ParameterT> setParametersMapper(
-          ParametersMapper<ParameterT> parameterMapper);
+      abstract Builder<ParameterT> setParametersFunction(
+          SerializableFunction<ParameterT, Map<String, Object>> parametersFunction);
 
       abstract Builder<ParameterT> setBatchSize(ValueProvider<Long> batchSize);
 
@@ -1239,7 +1220,7 @@ public class Neo4jIO {
   private static class WriteUnwindFn<ParameterT> extends ReadWriteFn<ParameterT, Void> {
 
     private final String cypher;
-    private final ParametersMapper<ParameterT> parametersMapper;
+    private final SerializableFunction<ParameterT, Map<String, Object>> parametersFunction;
     private final boolean logCypher;
     private final long batchSize;
     private final String unwindMapName;
@@ -1251,7 +1232,7 @@ public class Neo4jIO {
     private WriteUnwindFn(
         SerializableFunction<Void, Driver> driverProviderFn,
         String cypher,
-        ParametersMapper<ParameterT> parametersMapper,
+        SerializableFunction<ParameterT, Map<String, Object>> parametersFunction,
         long fetchSize,
         String databaseName,
         long transactionTimeoutMs,
@@ -1260,7 +1241,7 @@ public class Neo4jIO {
         String unwindMapName) {
       super(driverProviderFn, databaseName, fetchSize, transactionTimeoutMs);
       this.cypher = cypher;
-      this.parametersMapper = parametersMapper;
+      this.parametersFunction = parametersFunction;
       this.logCypher = logCypher;
       this.batchSize = batchSize;
       this.unwindMapName = unwindMapName;
@@ -1280,12 +1261,13 @@ public class Neo4jIO {
       // Map the input data to the parameters map...
       //
       ParameterT parameters = context.element();
-      if (parametersMapper != null) {
-        // Every row gets a new Map<String,Object> entry in unwindList
+      if (parametersFunction != null) {
+        // Every input element creates a new Map<String,Object> entry in unwindList
         //
-        Map<String, Object> rowMap = new HashMap<>();
-        parametersMapper.mapParameters(parameters, rowMap);
-        unwindList.add(rowMap);
+        unwindList.add(parametersFunction.apply(parameters));
+      } else {
+        // Someone is writing a bunch of static or procedurally generated values to Neo4j
+        unwindList.add(Collections.emptyMap());
       }
       elementsInput++;
 
@@ -1311,15 +1293,16 @@ public class Neo4jIO {
         return;
       }
 
+      // Add the accumulated list to the overall parameters map
+      // It contains a single parameter to unwind
+      //
+      final Map<String, Object> parametersMap = new HashMap<>();
+      parametersMap.put(unwindMapName, unwindList);
+
       // The transaction.
       //
       TransactionWork<Void> transactionWork =
           transaction -> {
-            // Add the list to the overall parameters map
-            //
-            parametersMap.clear();
-            parametersMap.put(unwindMapName, unwindList);
-
             Result result = transaction.run(cypher, parametersMap);
             while (result.hasNext()) {
               // This just consumes any output but the function basically has no output

@@ -19,7 +19,9 @@ package org.apache.beam.sdk.io.neo4j;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -27,9 +29,11 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -108,8 +112,8 @@ public class Neo4jIOIT {
             Schema.Field.of("One", Schema.FieldType.INT32),
             Schema.Field.of("Str", Schema.FieldType.STRING));
 
-    Neo4jIO.ParametersMapper<String> parametersMapper =
-        (string, parametersMap) -> parametersMap.put("par1", string);
+    SerializableFunction<String, Map<String, Object>> parametersFunction =
+        string -> Collections.singletonMap("par1", string);
 
     Neo4jIO.RowMapper<Row> rowMapper =
         record -> {
@@ -126,7 +130,7 @@ public class Neo4jIOIT {
             .withReadTransaction()
             .withFetchSize(5000)
             .withRowMapper(rowMapper)
-            .withParametersMapper(parametersMapper)
+            .withParametersFunction(parametersFunction)
             .withCoder(SerializableCoder.of(Row.class))
             .withCypherLogging();
 
@@ -152,8 +156,8 @@ public class Neo4jIOIT {
     // Every row is represented by a Map<String, Object> in the parameters map.
     // We accumulate the rows and 'unwind' those to Neo4j for performance reasons.
     //
-    Neo4jIO.ParametersMapper<String> parametersMapper =
-        (string, rowMap) -> rowMap.put("name", string);
+    SerializableFunction<String, Map<String, Object>> parametersMapper =
+        name -> Collections.singletonMap("name", name);
 
     Neo4jIO.WriteUnwind<String> read =
         Neo4jIO.<String>writeUnwind()
@@ -162,7 +166,7 @@ public class Neo4jIOIT {
             .withBatchSize(5000)
             .withUnwindMapName("rows")
             .withCypher("UNWIND $rows AS row MERGE(n:Num { name : row.name })")
-            .withParametersMapper(parametersMapper)
+            .withParametersFunction(parametersMapper)
             .withCypherLogging();
 
     stringsCollections.apply(read);
@@ -210,7 +214,8 @@ public class Neo4jIOIT {
     // Every row is represented by a Map<String, Object> in the parameters map.
     // We accumulate the rows and 'unwind' those to Neo4j for performance reasons.
     //
-    Neo4jIO.ParametersMapper<Integer> parametersMapper = (id, rowMap) -> rowMap.put("id", id);
+    SerializableFunction<Integer, Map<String, Object>> parametersFunction =
+        id -> ImmutableMap.of("id", id, "name", "Casters", "firstName", "Matt");
 
     // 1000 rows with a batch size of 123 should trigger most scenarios we can think of
     // We've put a unique constraint on Something.id
@@ -222,7 +227,7 @@ public class Neo4jIOIT {
             .withUnwindMapName("rows")
             .withCypher("UNWIND $rows AS row CREATE(n:Something { id : row.id })")
             .withDatabase(Neo4jTestUtil.NEO4J_DATABASE)
-            .withParametersMapper(parametersMapper)
+            .withParametersFunction(parametersFunction)
             .withCypherLogging();
 
     idCollection.apply(read);
