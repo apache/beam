@@ -104,7 +104,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading from Neo4j</h3>
  *
- * <p>{@link Neo4jIO#read()} source returns a bounded collection of {@code OuptutT} as a {@code
+ * <p>{@link Neo4jIO#readAll()} source returns a bounded collection of {@code OuptutT} as a {@code
  * PCollection<OutputT>}. OutputT is the type returned by the provided {@link RowMapper}. It accepts
  * parameters as input in the form of {@code ParameterT} as a {@code PCollection<ParameterT>}
  *
@@ -118,14 +118,16 @@ import org.slf4j.LoggerFactory;
  * <p>The {@link RowMapper} converts output Neo4j {@link Record} values to the output of the source.
  *
  * <pre>{@code
- * pipeline.apply( Neo4jIO.<Integer, String>read()
- *   .withDriverConfiguration(Neo4jIO.DriverConfiguration.create("neo4j://localhost:7687", "neo4j", "password"))
- *   .withCypher("MATCH(n:Person) WHERE n.age = $age RETURN n.id")
- *   .withReadTransaction()
- *   .withCoder(StringUtf8Coder.of())
- *   .withParametersMapper((age, rowMap) -> rowMap.put("age", age))
- *   .withRowMapper( record -> return record.get(0).asString() )
- * );
+ * pipeline
+ *   .apply(Create.of(40, 50, 60))
+ *   .apply(Neo4jIO.<Integer, String>readAll()
+ *     .withDriverConfiguration(Neo4jIO.DriverConfiguration.create("neo4j://localhost:7687", "neo4j", "password"))
+ *     .withCypher("MATCH(n:Person) WHERE n.age = $age RETURN n.id")
+ *     .withReadTransaction()
+ *     .withCoder(StringUtf8Coder.of())
+ *     .withParametersMapper((age, rowMap) -> rowMap.put("age", age))
+ *     .withRowMapper( record -> return record.get(0).asString() )
+ *   );
  * }</pre>
  *
  * <h3>Writing to Neo4j</h3>
@@ -176,8 +178,8 @@ public class Neo4jIO {
    * @param <ParameterT> Type of the data representing query parameters.
    * @param <OutputT> Type of the data to be read.
    */
-  public static <ParameterT, OutputT> Read<ParameterT, OutputT> read() {
-    return new AutoValue_Neo4jIO_Read.Builder<ParameterT, OutputT>()
+  public static <ParameterT, OutputT> ReadAll<ParameterT, OutputT> readAll() {
+    return new AutoValue_Neo4jIO_ReadAll.Builder<ParameterT, OutputT>()
         .setFetchSize(ValueProvider.StaticValueProvider.of(Config.defaultConfig().fetchSize()))
         .build();
   }
@@ -214,7 +216,7 @@ public class Neo4jIO {
   }
 
   /**
-   * An interface used by {@link Read} for converting each row of a Neo4j {@link Result} record
+   * An interface used by {@link ReadAll} for converting each row of a Neo4j {@link Result} record
    * {@link Record} into an element of the resulting {@link PCollection}.
    */
   @FunctionalInterface
@@ -223,8 +225,8 @@ public class Neo4jIO {
   }
 
   /**
-   * An interface used by {@link Read} for converting input parameter data to a parameters map which
-   * can be used by your Neo4j cypher query.
+   * An interface used by {@link ReadAll} for converting input parameter data to a parameters map
+   * which can be used by your Neo4j cypher query.
    */
   @FunctionalInterface
   public interface ParametersMapper<ParameterT> extends Serializable {
@@ -580,9 +582,9 @@ public class Neo4jIO {
     }
   }
 
-  /** This is the class which handles the work behind the {@link #read} method. */
+  /** This is the class which handles the work behind the {@link #readAll} method. */
   @AutoValue
-  public abstract static class Read<ParameterT, OutputT>
+  public abstract static class ReadAll<ParameterT, OutputT>
       extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
 
     abstract @Nullable SerializableFunction<Void, Driver> getDriverProviderFn();
@@ -608,105 +610,105 @@ public class Neo4jIO {
     abstract Builder<ParameterT, OutputT> toBuilder();
 
     // Driver configuration
-    public Read<ParameterT, OutputT> withDriverConfiguration(DriverConfiguration config) {
+    public ReadAll<ParameterT, OutputT> withDriverConfiguration(DriverConfiguration config) {
       return toBuilder()
           .setDriverProviderFn(new DriverProviderFromDriverConfiguration(config))
           .build();
     }
 
     // Cypher
-    public Read<ParameterT, OutputT> withCypher(String cypher) {
+    public ReadAll<ParameterT, OutputT> withCypher(String cypher) {
       checkArgument(
-          cypher != null, "Neo4jIO.read().withCypher(query) called with null cypher query");
+          cypher != null, "Neo4jIO.readAll().withCypher(query) called with null cypher query");
       return withCypher(ValueProvider.StaticValueProvider.of(cypher));
     }
 
-    public Read<ParameterT, OutputT> withCypher(ValueProvider<String> cypher) {
-      checkArgument(cypher != null, "Neo4jIO.read().withCypher(cypher) called with null cypher");
+    public ReadAll<ParameterT, OutputT> withCypher(ValueProvider<String> cypher) {
+      checkArgument(cypher != null, "Neo4jIO.readAll().withCypher(cypher) called with null cypher");
       return toBuilder().setCypher(cypher).build();
     }
 
     // Transaction timeout
-    public Read<ParameterT, OutputT> withTransactionTimeoutMs(long timeout) {
+    public ReadAll<ParameterT, OutputT> withTransactionTimeoutMs(long timeout) {
       checkArgument(
-          timeout > 0, "Neo4jIO.read().withTransactionTimeOutMs(timeout) called with timeout<=0");
+          timeout > 0, "Neo4jIO.readAll().withTransactionTimeOutMs(timeout) called with timeout<=0");
       return withTransactionTimeoutMs(ValueProvider.StaticValueProvider.of(timeout));
     }
 
-    public Read<ParameterT, OutputT> withTransactionTimeoutMs(ValueProvider<Long> timeout) {
+    public ReadAll<ParameterT, OutputT> withTransactionTimeoutMs(ValueProvider<Long> timeout) {
       checkArgument(
           timeout != null && timeout.get() > 0,
-          "Neo4jIO.read().withTransactionTimeOutMs(timeout) called with timeout<=0");
+          "Neo4jIO.readAll().withTransactionTimeOutMs(timeout) called with timeout<=0");
       return toBuilder().setTransactionTimeoutMs(timeout).build();
     }
 
     // Database
-    public Read<ParameterT, OutputT> withDatabase(String database) {
+    public ReadAll<ParameterT, OutputT> withDatabase(String database) {
       checkArgument(
-          database != null, "Neo4jIO.read().withDatabase(database) called with null database");
+          database != null, "Neo4jIO.readAll().withDatabase(database) called with null database");
       return withDatabase(ValueProvider.StaticValueProvider.of(database));
     }
 
-    public Read<ParameterT, OutputT> withDatabase(ValueProvider<String> database) {
+    public ReadAll<ParameterT, OutputT> withDatabase(ValueProvider<String> database) {
       checkArgument(
-          database != null, "Neo4jIO.read().withDatabase(database) called with null database");
+          database != null, "Neo4jIO.readAll().withDatabase(database) called with null database");
       return toBuilder().setDatabase(database).build();
     }
 
     // Fetch size
-    public Read<ParameterT, OutputT> withFetchSize(long fetchSize) {
-      checkArgument(fetchSize > 0, "Neo4jIO.read().withFetchSize(query) called with fetchSize<=0");
+    public ReadAll<ParameterT, OutputT> withFetchSize(long fetchSize) {
+      checkArgument(fetchSize > 0, "Neo4jIO.readAll().withFetchSize(query) called with fetchSize<=0");
       return withFetchSize(ValueProvider.StaticValueProvider.of(fetchSize));
     }
 
-    public Read<ParameterT, OutputT> withFetchSize(ValueProvider<Long> fetchSize) {
+    public ReadAll<ParameterT, OutputT> withFetchSize(ValueProvider<Long> fetchSize) {
       checkArgument(
           fetchSize != null && fetchSize.get() >= 0,
-          "Neo4jIO.read().withFetchSize(query) called with fetchSize<=0");
+          "Neo4jIO.readAll().withFetchSize(query) called with fetchSize<=0");
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
     // Row mapper
-    public Read<ParameterT, OutputT> withRowMapper(RowMapper<OutputT> rowMapper) {
+    public ReadAll<ParameterT, OutputT> withRowMapper(RowMapper<OutputT> rowMapper) {
       checkArgument(
-          rowMapper != null, "Neo4jIO.read().withRowMapper(rowMapper) called with null rowMapper");
+          rowMapper != null, "Neo4jIO.readAll().withRowMapper(rowMapper) called with null rowMapper");
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
     // Parameters mapper
-    public Read<ParameterT, OutputT> withParametersMapper(
+    public ReadAll<ParameterT, OutputT> withParametersMapper(
         ParametersMapper<ParameterT> parametersMapper) {
       checkArgument(
           parametersMapper != null,
-          "Neo4jIO.read().withParametersMapper(parametersMapper) called with null parametersMapper");
+          "Neo4jIO.readAll().withParametersMapper(parametersMapper) called with null parametersMapper");
       return toBuilder().setParametersMapper(parametersMapper).build();
     }
 
     // Coder
-    public Read<ParameterT, OutputT> withCoder(Coder<OutputT> coder) {
-      checkArgument(coder != null, "Neo4jIO.read().withCoder(coder) called with null coder");
+    public ReadAll<ParameterT, OutputT> withCoder(Coder<OutputT> coder) {
+      checkArgument(coder != null, "Neo4jIO.readAll().withCoder(coder) called with null coder");
       return toBuilder().setCoder(coder).build();
     }
 
     // Read/Write transaction
-    public Read<ParameterT, OutputT> withReadTransaction() {
+    public ReadAll<ParameterT, OutputT> withReadTransaction() {
       return toBuilder()
           .setWriteTransaction(ValueProvider.StaticValueProvider.of(Boolean.FALSE))
           .build();
     }
 
-    public Read<ParameterT, OutputT> withWriteTransaction() {
+    public ReadAll<ParameterT, OutputT> withWriteTransaction() {
       return toBuilder()
           .setWriteTransaction(ValueProvider.StaticValueProvider.of(Boolean.TRUE))
           .build();
     }
 
     // Log cypher statements
-    public Read<ParameterT, OutputT> withoutCypherLogging() {
+    public ReadAll<ParameterT, OutputT> withoutCypherLogging() {
       return toBuilder().setLogCypher(ValueProvider.StaticValueProvider.of(Boolean.FALSE)).build();
     }
 
-    public Read<ParameterT, OutputT> withCypherLogging() {
+    public ReadAll<ParameterT, OutputT> withCypherLogging() {
       return toBuilder().setLogCypher(ValueProvider.StaticValueProvider.of(Boolean.TRUE)).build();
     }
 
@@ -798,7 +800,7 @@ public class Neo4jIO {
 
       abstract Builder<ParameterT, OutputT> setLogCypher(ValueProvider<Boolean> logCypher);
 
-      abstract Read<ParameterT, OutputT> build();
+      abstract ReadAll<ParameterT, OutputT> build();
     }
   }
 
@@ -1122,7 +1124,7 @@ public class Neo4jIO {
     public WriteUnwind<ParameterT> withBatchSize(ValueProvider<Long> batchSize) {
       checkArgument(
           batchSize != null && batchSize.get() >= 0,
-          "Neo4jIO.read().withBatchSize(query) called with batchSize<=0");
+          "Neo4jIO.readAll().withBatchSize(query) called with batchSize<=0");
       return toBuilder().setBatchSize(batchSize).build();
     }
 
@@ -1131,7 +1133,7 @@ public class Neo4jIO {
         ParametersMapper<ParameterT> parametersMapper) {
       checkArgument(
           parametersMapper != null,
-          "Neo4jIO.read().withParametersMapper(parametersMapper) called with null parametersMapper");
+          "Neo4jIO.readAll().withParametersMapper(parametersMapper) called with null parametersMapper");
       return toBuilder().setParametersMapper(parametersMapper).build();
     }
 

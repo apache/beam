@@ -118,8 +118,8 @@ public class Neo4jIOIT {
           return Row.withSchema(outputSchema).attachValues(one, string);
         };
 
-    Neo4jIO.Read<String, Row> read =
-        Neo4jIO.<String, Row>read()
+    Neo4jIO.ReadAll<String, Row> read =
+        Neo4jIO.<String, Row>readAll()
             .withCypher("RETURN 1, $par1")
             .withDatabase(Neo4jTestUtil.NEO4J_DATABASE)
             .withDriverConfiguration(Neo4jTestUtil.getDriverConfiguration())
