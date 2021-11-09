@@ -183,16 +183,15 @@ func extractGaugeValue(reader *bytes.Reader) (metrics.GaugeValue, error) {
 }
 
 func newLabels(miLabels map[string]string) *metrics.Labels {
-	labels := metrics.Labels{}
 	if miLabels["PTRANSFORM"] != "" {
-		labels = metrics.UserLabels(miLabels["PTRANSFORM"], miLabels["NAMESPACE"], miLabels["NAME"])
+		labels := metrics.UserLabels(miLabels["PTRANSFORM"], miLabels["NAMESPACE"], miLabels["NAME"])
 		return &labels
 	}
 	if miLabels["PCOLLECTION"] != "" {
-		labels = metrics.PCollectionLabels(miLabels["PCOLLECTION"])
+		labels := metrics.PCollectionLabels(miLabels["PCOLLECTION"])
 		return &labels
 	}
-	return &labels
+	return &metrics.Labels{}
 }
 
 func decodeMany(reader *bytes.Reader, size int) ([]int64, error) {
