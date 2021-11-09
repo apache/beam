@@ -87,9 +87,6 @@ func TestCreateList(t *testing.T) {
 	}
 }
 
-func TestNothing(t *testing.T) {
-}
-
 func TestCreateEmptyList(t *testing.T) {
 	tests := []struct {
 		values interface{}
