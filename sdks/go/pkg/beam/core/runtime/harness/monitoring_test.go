@@ -70,13 +70,13 @@ func TestGetShortID(t *testing.T) {
 			// with the same urn are in fact assigned different short ids.
 			id:           "7",
 			urn:          metricsx.UrnUserSumInt64,
-			labels:       metrics.UserLabels("myT", "harness", "metricNumber7", ""),
+			labels:       metrics.UserLabels("myT", "harness", "metricNumber7"),
 			expectedUrn:  "beam:metric:user:sum_int64:v1",
 			expectedType: "beam:metrics:sum_int64:v1",
 		}, {
 			id:           "8",
 			urn:          metricsx.UrnUserSumInt64,
-			labels:       metrics.UserLabels("myT", "harness", "metricNumber8", ""),
+			labels:       metrics.UserLabels("myT", "harness", "metricNumber8"),
 			expectedUrn:  "beam:metric:user:sum_int64:v1",
 			expectedType: "beam:metrics:sum_int64:v1",
 		}, {
@@ -86,7 +86,7 @@ func TestGetShortID(t *testing.T) {
 			// to validate that condition.
 			id:           "9",
 			urn:          metricsx.UrnUserTopNFloat64,
-			labels:       metrics.UserLabels("myT", "harness", "metricNumber7", ""),
+			labels:       metrics.UserLabels("myT", "harness", "metricNumber7"),
 			expectedUrn:  "beam:metric:user:top_n_double:v1",
 			expectedType: "beam:metrics:top_n_double:v1",
 		}, {
@@ -134,7 +134,7 @@ func TestGetShortID(t *testing.T) {
 // is initialized properly.
 func TestShortIdCache_Default(t *testing.T) {
 	defaultShortIDCache.mu.Lock()
-	s := getShortID(metrics.UserLabels("this", "doesn't", "matter", ""), metricsx.UrnTestSentinel)
+	s := getShortID(metrics.UserLabels("this", "doesn't", "matter"), metricsx.UrnTestSentinel)
 	defaultShortIDCache.mu.Unlock()
 
 	info := shortIdsToInfos([]string{s})[s]
@@ -148,11 +148,11 @@ func TestShortIdCache_Default(t *testing.T) {
 
 func BenchmarkGetShortID(b *testing.B) {
 	b.Run("new", func(b *testing.B) {
-		l := metrics.UserLabels("this", "doesn't", strconv.FormatInt(-1, 36), "")
+		l := metrics.UserLabels("this", "doesn't", strconv.FormatInt(-1, 36))
 		last := getShortID(l, metricsx.UrnTestSentinel)
 		for i := int64(0); i < int64(b.N); i++ {
 			// Ensure it's allocated to the stack.
-			l = metrics.UserLabels("this", "doesn't", strconv.FormatInt(i, 36), "")
+			l = metrics.UserLabels("this", "doesn't", strconv.FormatInt(i, 36))
 			got := getShortID(l, metricsx.UrnTestSentinel)
 			if got == last {
 				b.Fatalf("short collision: at %s", got)
@@ -161,7 +161,7 @@ func BenchmarkGetShortID(b *testing.B) {
 		}
 	})
 	b.Run("amortized", func(b *testing.B) {
-		l := metrics.UserLabels("this", "doesn't", "matter", "")
+		l := metrics.UserLabels("this", "doesn't", "matter")
 		c := newShortIDCache()
 		want := c.getShortID(l, metricsx.UrnTestSentinel)
 		for i := 0; i < b.N; i++ {

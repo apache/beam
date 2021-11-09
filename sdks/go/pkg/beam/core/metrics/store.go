@@ -42,8 +42,8 @@ func (l Labels) Name() string { return l.name }
 
 // UserLabels builds a Labels for user metrics.
 // Intended for framework use.
-func UserLabels(transform, namespace, name, pcollection string) Labels {
-	return Labels{transform: transform, namespace: namespace, name: name, pcollection: pcollection}
+func UserLabels(transform, namespace, name string) Labels {
+	return Labels{transform: transform, namespace: namespace, name: name}
 }
 
 // PCollectionLabels builds a Labels for pcollection metrics.

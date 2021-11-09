@@ -52,8 +52,8 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 
 	for _, transform := range p.GetComponents().GetTransforms() {
 		outputs := transform.GetOutputs()
-		for _, pid := range outputs {
-			pcolTransform[pid] = transform.GetUniqueName()
+		for o, pid := range outputs {
+			pcolTransform[pid] = fmt.Sprintf("%s.%s", transform.GetUniqueName(), o)
 		}
 	}
 
@@ -183,7 +183,15 @@ func extractGaugeValue(reader *bytes.Reader) (metrics.GaugeValue, error) {
 }
 
 func newLabels(miLabels map[string]string) *metrics.Labels {
-	labels := metrics.UserLabels(miLabels["PTRANSFORM"], miLabels["NAMESPACE"], miLabels["NAME"], miLabels["PCOLLECTION"])
+	labels := metrics.Labels{}
+	if miLabels["PTRANSFORM"] != "" {
+		labels = metrics.UserLabels(miLabels["PTRANSFORM"], miLabels["NAMESPACE"], miLabels["NAME"])
+		return &labels
+	}
+	if miLabels["PCOLLECTION"] != "" {
+		labels = metrics.PCollectionLabels(miLabels["PCOLLECTION"])
+		return &labels
+	}
 	return &labels
 }
 
