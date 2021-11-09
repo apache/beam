@@ -62,7 +62,6 @@ from apache_beam.testing.util import BeamAssertException
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Map
-from apache_beam.transforms.util import CoGroupByKey
 
 LABELS = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu', 'vwx']
 COLORS = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'PURPLE', None]
@@ -75,6 +74,18 @@ def record(i):
       'number_str': str(i),
       'color': COLORS[i % len(COLORS)]
   }
+
+
+def assertEqual(l, r):
+  if l != r:
+    raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
+
+
+def check(element):
+  assert element['color'] in COLORS
+  assert element['label'] in LABELS
+  assertEqual(
+      sorted(element.keys()), ['color', 'label', 'number', 'number_str'])
 
 
 class FastavroIT(unittest.TestCase):
@@ -135,29 +146,9 @@ class FastavroIT(unittest.TestCase):
     assert result.state == PipelineState.DONE
 
     with TestPipeline(is_integration_test=True) as fastavro_read_pipeline:
-
-      fastavro_records = \
-          fastavro_read_pipeline \
-          | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
-          | 'read-fastavro' >> ReadAllFromAvro() \
-          | Map(lambda rec: (rec['number'], rec))
-
-      def check(elem):
-        v = elem[1]
-
-        def assertEqual(l, r):
-          if l != r:
-            raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
-
-        assertEqual(sorted(v.keys()), ['fastavro'])
-        fastavro_values = v['fastavro']
-        assertEqual(len(fastavro_values), 1)
-
-      # pylint: disable=expression-not-assigned
-      {
-          'fastavro': fastavro_records
-      } \
-      | CoGroupByKey() \
+      fastavro_read_pipeline \
+      | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
+      | 'read-fastavro' >> ReadAllFromAvro() \
       | Map(check)
 
       self.addCleanup(delete_files, [self.output])
