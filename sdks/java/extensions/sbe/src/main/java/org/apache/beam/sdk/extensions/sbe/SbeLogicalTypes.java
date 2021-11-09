@@ -17,16 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.sbe;
 
-import static org.apache.beam.sdk.extensions.sbe.Schemas.TZ_TIME_SCHEMA;
-import static org.apache.beam.sdk.extensions.sbe.Schemas.UTC_TIME_SCHEMA;
-
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
-import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -90,43 +90,127 @@ public final class SbeLogicalTypes {
   // SBE time-based composite and logical types.
 
   /** Represents SBE's UTCTimestamp composite type. */
-  public static final class UTCTimestamp extends PassThroughLogicalType<Row> {
+  public static final class UTCTimestamp implements LogicalType<Instant, String> {
     public static final String IDENTIFIER = "UTCTimestamp";
 
-    UTCTimestamp() {
-      super(IDENTIFIER, FieldType.STRING, DEFAULT_STRING_ARG, FieldType.row(UTC_TIME_SCHEMA));
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized String getIdentifier() {
+      return IDENTIFIER;
+    }
+
+    @Override
+    public @Nullable @UnknownKeyFor @Initialized FieldType getArgumentType() {
+      return null;
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized FieldType getBaseType() {
+      return FieldType.INT64;
+    }
+
+    @Override
+    public @NonNull String toBaseType(@NonNull Instant input) {
+      return input.toString();
+    }
+
+    @Override
+    public @NonNull Instant toInputType(@NonNull String base) {
+      return Instant.parse(base);
     }
   }
 
   /** Represents SBE's UTCTimeOnly composite type. */
-  public static final class UTCTimeOnly extends PassThroughLogicalType<Row> {
+  public static final class UTCTimeOnly implements LogicalType<LocalTime, String> {
     public static final String IDENTIFIER = "UTCTimeOnly";
 
-    UTCTimeOnly() {
-      super(IDENTIFIER, FieldType.STRING, DEFAULT_STRING_ARG, FieldType.row(UTC_TIME_SCHEMA));
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized String getIdentifier() {
+      return IDENTIFIER;
+    }
+
+    @Override
+    public @Nullable @UnknownKeyFor @Initialized FieldType getArgumentType() {
+      return null;
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized FieldType getBaseType() {
+      return FieldType.INT64;
+    }
+
+    @Override
+    public @NonNull String toBaseType(@NonNull LocalTime input) {
+      return input.toString();
+    }
+
+    @Override
+    public @NonNull LocalTime toInputType(@NonNull String base) {
+      return LocalTime.parse(base);
     }
   }
 
   /** Represents SBE's TZTimestamp composite type. */
-  public static final class TZTimestamp extends PassThroughLogicalType<Row> {
+  public static final class TZTimestamp implements LogicalType<OffsetDateTime, String> {
     public static final String IDENTIFIER = "TZTimestamp";
 
-    TZTimestamp() {
-      super(IDENTIFIER, FieldType.STRING, DEFAULT_STRING_ARG, FieldType.row(TZ_TIME_SCHEMA));
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized String getIdentifier() {
+      return IDENTIFIER;
+    }
+
+    @Override
+    public @Nullable @UnknownKeyFor @Initialized FieldType getArgumentType() {
+      return null;
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized FieldType getBaseType() {
+      return FieldType.STRING;
+    }
+
+    @Override
+    public @NonNull String toBaseType(@NonNull OffsetDateTime input) {
+      return input.toString();
+    }
+
+    @Override
+    public @NonNull OffsetDateTime toInputType(@NonNull String base) {
+      return OffsetDateTime.parse(base);
     }
   }
 
   /** Represents SBE's TimeOnly composite type. */
-  public static final class TZTimeOnly extends PassThroughLogicalType<Row> {
+  public static final class TZTimeOnly implements LogicalType<OffsetTime, String> {
     public static final String IDENTIFIER = "TZTimeOnly";
 
-    TZTimeOnly() {
-      super(IDENTIFIER, FieldType.STRING, DEFAULT_STRING_ARG, FieldType.row(TZ_TIME_SCHEMA));
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized String getIdentifier() {
+      return IDENTIFIER;
+    }
+
+    @Override
+    public @Nullable @UnknownKeyFor @Initialized FieldType getArgumentType() {
+      return null;
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized FieldType getBaseType() {
+      return FieldType.STRING;
+    }
+
+    @Override
+    public @NonNull String toBaseType(@NonNull OffsetTime input) {
+      return input.toString();
+    }
+
+    @Override
+    public @NonNull OffsetTime toInputType(@NonNull String base) {
+      return OffsetTime.parse(base);
     }
   }
 
   /** Helper type for SBE's date types. */
-  private static class SbeDateType implements LogicalType<LocalDate, Integer> {
+  private static class SbeDateType implements LogicalType<LocalDate, String> {
     private final String identifier;
 
     SbeDateType(String identifier) {
@@ -149,15 +233,13 @@ public final class SbeLogicalTypes {
     }
 
     @Override
-    public @NonNull Integer toBaseType(@NonNull LocalDate input) {
-      // This is a safe cast. SBE's type is only 16 bits, but it's unsigned, so we
-      // use 32-bit integers to represent it.
-      return (int) input.toEpochDay();
+    public @NonNull String toBaseType(@NonNull LocalDate input) {
+      return input.toString();
     }
 
     @Override
-    public @NonNull LocalDate toInputType(@NonNull Integer base) {
-      return LocalDate.ofEpochDay(base);
+    public @NonNull LocalDate toInputType(@NonNull String base) {
+      return LocalDate.parse(base);
     }
   }
 
