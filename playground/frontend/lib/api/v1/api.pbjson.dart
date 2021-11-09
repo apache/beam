@@ -46,18 +46,20 @@ const Status$json = const {
     const {'1': 'STATUS_UNSPECIFIED', '2': 0},
     const {'1': 'STATUS_VALIDATING', '2': 1},
     const {'1': 'STATUS_VALIDATION_ERROR', '2': 2},
-    const {'1': 'STATUS_COMPILING', '2': 3},
-    const {'1': 'STATUS_COMPILE_ERROR', '2': 4},
-    const {'1': 'STATUS_EXECUTING', '2': 5},
-    const {'1': 'STATUS_FINISHED', '2': 6},
-    const {'1': 'STATUS_RUN_ERROR', '2': 7},
-    const {'1': 'STATUS_ERROR', '2': 8},
-    const {'1': 'STATUS_RUN_TIMEOUT', '2': 9},
+    const {'1': 'STATUS_PREPARING', '2': 3},
+    const {'1': 'STATUS_PREPARATION_ERROR', '2': 4},
+    const {'1': 'STATUS_COMPILING', '2': 5},
+    const {'1': 'STATUS_COMPILE_ERROR', '2': 6},
+    const {'1': 'STATUS_EXECUTING', '2': 7},
+    const {'1': 'STATUS_FINISHED', '2': 8},
+    const {'1': 'STATUS_RUN_ERROR', '2': 9},
+    const {'1': 'STATUS_ERROR', '2': 10},
+    const {'1': 'STATUS_RUN_TIMEOUT', '2': 11},
   ],
 };
 
 /// Descriptor for `Status`. Decode as a `google.protobuf.EnumDescriptorProto`.
-final $typed_data.Uint8List statusDescriptor = $convert.base64Decode('CgZTdGF0dXMSFgoSU1RBVFVTX1VOU1BFQ0lGSUVEEAASFQoRU1RBVFVTX1ZBTElEQVRJTkcQARIbChdTVEFUVVNfVkFMSURBVElPTl9FUlJPUhACEhQKEFNUQVRVU19DT01QSUxJTkcQAxIYChRTVEFUVVNfQ09NUElMRV9FUlJPUhAEEhQKEFNUQVRVU19FWEVDVVRJTkcQBRITCg9TVEFUVVNfRklOSVNIRUQQBhIUChBTVEFUVVNfUlVOX0VSUk9SEAcSEAoMU1RBVFVTX0VSUk9SEAgSFgoSU1RBVFVTX1JVTl9USU1FT1VUEAk=');
+final $typed_data.Uint8List statusDescriptor = $convert.base64Decode('CgZTdGF0dXMSFgoSU1RBVFVTX1VOU1BFQ0lGSUVEEAASFQoRU1RBVFVTX1ZBTElEQVRJTkcQARIbChdTVEFUVVNfVkFMSURBVElPTl9FUlJPUhACEhQKEFNUQVRVU19QUkVQQVJJTkcQAxIcChhTVEFUVVNfUFJFUEFSQVRJT05fRVJST1IQBBIUChBTVEFUVVNfQ09NUElMSU5HEAUSGAoUU1RBVFVTX0NPTVBJTEVfRVJST1IQBhIUChBTVEFUVVNfRVhFQ1VUSU5HEAcSEwoPU1RBVFVTX0ZJTklTSEVEEAgSFAoQU1RBVFVTX1JVTl9FUlJPUhAJEhAKDFNUQVRVU19FUlJPUhAKEhYKElNUQVRVU19SVU5fVElNRU9VVBAL');
 @$core.Deprecated('Use exampleTypeDescriptor instead')
 const ExampleType$json = const {
   '1': 'ExampleType',

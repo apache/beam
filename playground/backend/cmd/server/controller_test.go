@@ -481,7 +481,24 @@ func Test_processCode(t *testing.T) {
 		args                  args
 	}{
 		{
-			// Test case with calling processCode method without preparing files with code.
+			// Test case with calling processCode method with small timeout.
+			// As a result status into cache should be set as Status_STATUS_RUN_TIMEOUT.
+			name:                  "small pipeline execution timeout",
+			createExecFile:        false,
+			code:                  "",
+			expectedStatus:        pb.Status_STATUS_RUN_TIMEOUT,
+			expectedCompileOutput: nil,
+			expectedRunOutput:     nil,
+			expectedRunError:      nil,
+			args: args{
+				ctx: context.Background(),
+				env: environment.NewEnvironment(*networkEnvs, *sdkEnv, environment.ApplicationEnvs{}),
+				sdk: pb.Sdk_SDK_JAVA,
+				pipelineId: uuid.New(),
+			},
+		},
+		{
+			// Test case with calling processCode method without creating files with code.
 			// As a result status into cache should be set as Status_STATUS_VALIDATION_ERROR.
 			name:                  "validation failed",
 			createExecFile:        false,

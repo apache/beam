@@ -51,18 +51,22 @@ class Status extends $pb.ProtobufEnum {
   static const Status STATUS_UNSPECIFIED = Status._(0, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_UNSPECIFIED');
   static const Status STATUS_VALIDATING = Status._(1, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_VALIDATING');
   static const Status STATUS_VALIDATION_ERROR = Status._(2, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_VALIDATION_ERROR');
-  static const Status STATUS_COMPILING = Status._(3, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_COMPILING');
-  static const Status STATUS_COMPILE_ERROR = Status._(4, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_COMPILE_ERROR');
-  static const Status STATUS_EXECUTING = Status._(5, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_EXECUTING');
-  static const Status STATUS_FINISHED = Status._(6, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_FINISHED');
-  static const Status STATUS_RUN_ERROR = Status._(7, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_RUN_ERROR');
-  static const Status STATUS_ERROR = Status._(8, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_ERROR');
-  static const Status STATUS_RUN_TIMEOUT = Status._(9, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_RUN_TIMEOUT');
+  static const Status STATUS_PREPARING = Status._(3, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_PREPARING');
+  static const Status STATUS_PREPARATION_ERROR = Status._(4, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_PREPARATION_ERROR');
+  static const Status STATUS_COMPILING = Status._(5, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_COMPILING');
+  static const Status STATUS_COMPILE_ERROR = Status._(6, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_COMPILE_ERROR');
+  static const Status STATUS_EXECUTING = Status._(7, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_EXECUTING');
+  static const Status STATUS_FINISHED = Status._(8, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_FINISHED');
+  static const Status STATUS_RUN_ERROR = Status._(9, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_RUN_ERROR');
+  static const Status STATUS_ERROR = Status._(10, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_ERROR');
+  static const Status STATUS_RUN_TIMEOUT = Status._(11, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_RUN_TIMEOUT');
 
   static const $core.List<Status> values = <Status> [
     STATUS_UNSPECIFIED,
     STATUS_VALIDATING,
     STATUS_VALIDATION_ERROR,
+    STATUS_PREPARING,
+    STATUS_PREPARATION_ERROR,
     STATUS_COMPILING,
     STATUS_COMPILE_ERROR,
     STATUS_EXECUTING,

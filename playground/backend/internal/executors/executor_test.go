@@ -20,6 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/preparators"
 	"beam.apache.org/playground/backend/internal/validators"
+	"context"
 	"os"
 	"os/exec"
 	"reflect"
@@ -103,7 +104,7 @@ func TestExecutor_Compile(t *testing.T) {
 				runArgs:     tt.fields.runArgs,
 				validators:  tt.fields.validators,
 			}
-			if got := ex.Compile(); !reflect.DeepEqual(got.String(), tt.want.String()) {
+			if got := ex.Compile(context.Background()); !reflect.DeepEqual(got.String(), tt.want.String()) {
 				t.Errorf("WithCompiler() = %v, want %v", got, tt.want)
 			}
 		})
@@ -155,7 +156,7 @@ func TestExecutor_Run(t *testing.T) {
 				runArgs:     tt.fields.runArgs,
 				validators:  tt.fields.validators,
 			}
-			if got := ex.Run(); !reflect.DeepEqual(got.String(), tt.want.String()) {
+			if got := ex.Run(context.Background()); !reflect.DeepEqual(got.String(), tt.want.String()) {
 				t.Errorf("WithRunner() = %v, want %v", got, tt.want)
 			}
 		})
