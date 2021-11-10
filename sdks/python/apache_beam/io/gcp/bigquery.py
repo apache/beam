@@ -2034,6 +2034,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         A streaming inserts batch will be submitted at least every
         triggering_frequency seconds when data is waiting. The batch can be
         sent earlier if it reaches the maximum batch size set by batch_size.
+        Default value is 0.2 seconds.
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
       temp_file_format: The format to use for file loads into BigQuery. The
@@ -2163,13 +2164,18 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               'Avro based file loads')
 
       from apache_beam.io.gcp import bigquery_file_loads
-
+      # Only cast to int when a value is given.
+      # We only use an int for BigQueryBatchFileLoads
+      if self.triggering_frequency is not None:
+        triggering_frequency = int(self.triggering_frequency)
+      else:
+        triggering_frequency = self.triggering_frequency
       return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
           destination=self.table_reference,
           schema=self.schema,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
-          triggering_frequency=int(self.triggering_frequency),
+          triggering_frequency=triggering_frequency,
           with_auto_sharding=self.with_auto_sharding,
           temp_file_format=self._temp_file_format,
           max_file_size=self.max_file_size,
