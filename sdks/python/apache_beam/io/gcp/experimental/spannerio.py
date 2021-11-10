@@ -16,29 +16,39 @@
 #
 
 """Google Cloud Spanner IO
+
 Experimental; no backwards-compatibility guarantees.
+
 This is an experimental module for reading and writing data from Google Cloud
 Spanner. Visit: https://cloud.google.com/spanner for more details.
+
 Reading Data from Cloud Spanner.
+
 To read from Cloud Spanner apply ReadFromSpanner transformation. It will
 return a PCollection, where each element represents an individual row returned
 from the read operation. Both Query and Read APIs are supported.
+
 ReadFromSpanner relies on the ReadOperation objects which is exposed by the
 SpannerIO API. ReadOperation holds the immutable data which is responsible to
 execute batch and naive reads on Cloud Spanner. This is done for more
 convenient programming.
+
 ReadFromSpanner reads from Cloud Spanner by providing either an 'sql' param
 in the constructor or 'table' name with 'columns' as list. For example:::
+
   records = (pipeline
             | ReadFromSpanner(PROJECT_ID, INSTANCE_ID, DB_NAME,
             sql='Select * from users'))
+
   records = (pipeline
             | ReadFromSpanner(PROJECT_ID, INSTANCE_ID, DB_NAME,
             table='users', columns=['id', 'name', 'email']))
+
 You can also perform multiple reads by providing a list of ReadOperations
 to the ReadFromSpanner transform constructor. ReadOperation exposes two static
 methods. Use 'query' to perform sql based reads, 'table' to perform read from
 table name. For example:::
+
   read_operations = [
                       ReadOperation.table(table='customers', columns=['name',
                       'email']),
@@ -47,7 +57,9 @@ table name. For example:::
                     ]
   all_users = pipeline | ReadFromSpanner(PROJECT_ID, INSTANCE_ID, DB_NAME,
         read_operations=read_operations)
+
   ...OR...
+
   read_operations = [
                       ReadOperation.query(sql='Select name, email from
                       customers'),
@@ -60,44 +72,59 @@ table name. For example:::
   # `params_types` are instance of `google.cloud.spanner.param_types`
   all_users = pipeline | ReadFromSpanner(PROJECT_ID, INSTANCE_ID, DB_NAME,
         read_operations=read_operations)
+
 For more information, please review the docs on class ReadOperation.
+
 User can also able to provide the ReadOperation in form of PCollection via
 pipeline. For example:::
+
   users = (pipeline
            | beam.Create([ReadOperation...])
            | ReadFromSpanner(PROJECT_ID, INSTANCE_ID, DB_NAME))
+
 User may also create cloud spanner transaction from the transform called
 `create_transaction` which is available in the SpannerIO API.
+
 The transform is guaranteed to be executed on a consistent snapshot of data,
 utilizing the power of read only transactions. Staleness of data can be
 controlled by providing the `read_timestamp` or `exact_staleness` param values
 in the constructor.
+
 This transform requires root of the pipeline (PBegin) and returns PTransform
 which is passed later to the `ReadFromSpanner` constructor. `ReadFromSpanner`
 pass this transaction PTransform as a singleton side input to the
 `_NaiveSpannerReadDoFn` containing 'session_id' and 'transaction_id'.
 For example:::
+
   transaction = (pipeline | create_transaction(TEST_PROJECT_ID,
                                               TEST_INSTANCE_ID,
                                               DB_NAME))
+
   users = pipeline | ReadFromSpanner(PROJECT_ID, INSTANCE_ID, DB_NAME,
         sql='Select * from users', transaction=transaction)
+
   tweets = pipeline | ReadFromSpanner(PROJECT_ID, INSTANCE_ID, DB_NAME,
         sql='Select * from tweets', transaction=transaction)
+
 For further details of this transform, please review the docs on the
 :meth:`create_transaction` method available in the SpannerIO API.
+
 ReadFromSpanner takes this transform in the constructor and pass this to the
 read pipeline as the singleton side input.
+
 Writing Data to Cloud Spanner.
+
 The WriteToSpanner transform writes to Cloud Spanner by executing a
 collection a input rows (WriteMutation). The mutations are grouped into
 batches for efficiency.
+
 WriteToSpanner transform relies on the WriteMutation objects which is exposed
 by the SpannerIO API. WriteMutation have five static methods (insert, update,
 insert_or_update, replace, delete). These methods returns the instance of the
 _Mutator object which contains the mutation type and the Spanner Mutation
 object. For more details, review the docs of the class SpannerIO.WriteMutation.
 For example:::
+
   mutations = [
                 WriteMutation.insert(table='user', columns=('name', 'email'),
                 values=[('sara', 'sara@dev.com')])
@@ -109,12 +136,16 @@ For example:::
           instance_id=SPANNER_INSTANCE_ID,
           database_id=SPANNER_DATABASE_NAME)
         )
+
 You can also create WriteMutation via calling its constructor. For example:::
+
   mutations = [
       WriteMutation(insert='users', columns=('name', 'email'),
                     values=[('sara", 'sara@example.com')])
   ]
+
 For more information, review the docs available on WriteMutation class.
+
 WriteToSpanner transform also takes three batching parameters (max_number_rows,
 max_number_cells and max_batch_size_bytes). By default, max_number_rows is set
 to 50 rows, max_number_cells is set to 500 cells and max_batch_size_bytes is
@@ -123,6 +154,7 @@ transactions sent to spanner by grouping the mutation into batches. Setting
 these param values either to smaller value or zero to disable batching.
 Unlike the Java connector, this connector does not create batches of
 transactions sorted by table and primary key.
+
 WriteToSpanner transforms starts with the grouping into batches. The first step
 in this process is to make the make the mutation groups of the WriteMutation
 objects and then filtering them into batchable and unbatchable mutation
@@ -206,6 +238,7 @@ class ReadOperation(namedtuple(
   def query(cls, sql, params=None, param_types=None):
     """
     A convenient method to construct ReadOperation from sql query.
+
     Args:
       sql: SQL query statement
       params: (optional) values for parameter replacement. Keys must match the
@@ -229,6 +262,7 @@ class ReadOperation(namedtuple(
   def table(cls, table, columns, index="", keyset=None):
     """
     A convenient method to construct ReadOperation from table.
+
     Args:
       table: name of the table from which to fetch data.
       columns: names of columns to be retrieved.
@@ -290,6 +324,7 @@ class _NaiveSpannerReadDoFn(DoFn):
     https://googleapis.dev/python/spanner/latest/transaction-api.html
     In Naive reads, this transform performs single reads, where as the
     Batch reads use the spanner partitioning query to create batches.
+
     Args:
       spanner_configuration: (_BeamSpannerConfiguration) Connection details to
         connect with cloud spanner.
@@ -405,10 +440,12 @@ class _CreateReadPartitions(DoFn):
   A DoFn to create partitions. Uses the Partitioning API (PartitionRead /
   PartitionQuery) request to start a partitioned query operation. Returns a
   list of batch information needed to perform the actual queries.
+
   If the element is the instance of :class:`ReadOperation` is to perform sql
   query, `PartitionQuery` API is used the create partitions and returns mappings
   of information used perform actual partitioned reads via
   :meth:`process_query_batch`.
+
   If the element is the instance of :class:`ReadOperation` is to perform read
   from table, `PartitionRead` API is used the create partitions and returns
   mappings of information used perform actual partitioned reads via
@@ -456,6 +493,7 @@ class _CreateTransactionFn(DoFn):
   It connects to the database and and returns the transaction_id and session_id
   by using the batch_snapshot.to_dict() method available in the google cloud
   spanner sdk.
+
   https://googleapis.dev/python/spanner/latest/database-api.html?highlight=
   batch_snapshot#google.cloud.spanner_v1.database.BatchSnapshot.to_dict
   """
@@ -504,6 +542,7 @@ def create_transaction(
     exact_staleness=None):
   """
   A PTransform method to create a batch transaction.
+
   Args:
     pbegin: Root of the pipeline
     project_id: Cloud spanner project id. Be sure to use the Project ID,
@@ -662,6 +701,7 @@ class ReadFromSpanner(PTransform):
               ):
     """
     A PTransform that uses Spanner Batch API to perform reads.
+
     Args:
       project_id: Cloud spanner project id. Be sure to use the Project ID,
         not the Project Number.
@@ -804,6 +844,7 @@ class WriteToSpanner(PTransform):
       max_number_cells=500):
     """
     A PTransform to write onto Google Cloud Spanner.
+
     Args:
       project_id: Cloud spanner project id. Be sure to use the Project ID,
         not the Project Number.
@@ -913,10 +954,12 @@ class WriteMutation(object):
     """
     A convenient class to create Spanner Mutations for Write. User can provide
     the operation via constructor or via static methods.
+
     Note: If a user passing the operation via construction, make sure that it
     will only accept one operation at a time. For example, if a user passing
     a table name in the `insert` parameter, and he also passes the `update`
     parameter value, this will cause an error.
+
     Args:
       insert: (Optional) Name of the table in which rows will be inserted.
       update: (Optional) Name of the table in which existing rows will be
@@ -984,6 +1027,7 @@ class WriteMutation(object):
   @staticmethod
   def insert(table, columns, values):
     """Insert one or more new table rows.
+
     Args:
       table: Name of the table to be modified.
       columns: Name of the table columns to be modified.
@@ -1003,6 +1047,7 @@ class WriteMutation(object):
   @staticmethod
   def update(table, columns, values):
     """Update one or more existing table rows.
+
     Args:
       table: Name of the table to be modified.
       columns: Name of the table columns to be modified.
@@ -1042,6 +1087,7 @@ class WriteMutation(object):
   @staticmethod
   def replace(table, columns, values):
     """Replace one or more table rows.
+
     Args:
       table: Name of the table to be modified.
       columns: Name of the table columns to be modified.
@@ -1061,6 +1107,7 @@ class WriteMutation(object):
   @staticmethod
   def delete(table, keyset):
     """Delete one or more table rows.
+
     Args:
       table: Name of the table to be modified.
       keyset: Keys/ranges identifying rows to delete.
