@@ -180,6 +180,8 @@ class RowCoderImpl(StreamCoderImpl):
         words = array('B', itertools.repeat(0, (nvals + 7) // 8))
         for i, is_null in enumerate(nulls):
           words[i // 8] |= is_null << (i % 8)
+        while len(words) and words[-1] == 0:
+          words.pop(-1)
 
     self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
 

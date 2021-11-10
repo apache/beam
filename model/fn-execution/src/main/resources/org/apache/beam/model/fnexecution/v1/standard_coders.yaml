@@ -420,6 +420,19 @@ examples:
 
 ---
 
+# Test a wide schema
+# Row coder should elide trailing 0 bytes in the null bitset.
+coder:
+  urn: "beam:coder:row:v1"
+  # Fields are f_{0-8}, types are all nullable int64
+  payload: "\n\x0b\n\x03f_0\x1a\x04\x08\x01\x10\x04\n\x0b\n\x03f_1\x1a\x04\x08\x01\x10\x04\n\x0b\n\x03f_2\x1a\x04\x08\x01\x10\x04\n\x0b\n\x03f_3\x1a\x04\x08\x01\x10\x04\n\x0b\n\x03f_4\x1a\x04\x08\x01\x10\x04\n\x0b\n\x03f_5\x1a\x04\x08\x01\x10\x04\n\x0b\n\x03f_6\x1a\x04\x08\x01\x10\x04\n\x0b\n\x03f_7\x1a\x04\x08\x01\x10\x04\n\x0b\n\x03f_8\x1a\x04\x08\x01\x10\x04\x12$9f42b9e4-f276-48f2-9009-e2db320a240d"
+examples:
+    "\t\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08": {f_0: 0, f_1: 1, f_2: 2, f_3: 3, f_4: 4, f_5: 5, f_6: 6, f_7: 7, f_8: 8}
+    "\t\x01\x02\x00\x02\x03\x04\x05\x06\x07\x08": {f_0: 0, f_1: null, f_2: 2, f_3: 3, f_4: 4, f_5: 5, f_6: 6, f_7: 7, f_8: 8}
+    "\t\x02\x00\x01\x00\x01\x02\x03\x04\x05\x06\x07": {f_0: 0, f_1: 1, f_2: 2, f_3: 3, f_4: 4, f_5: 5, f_6: 6, f_7: 7, f_8: null}
+
+---
+
 coder:
   urn: "beam:coder:sharded_key:v1"
   components: [{urn: "beam:coder:string_utf8:v1"}]

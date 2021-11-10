@@ -103,9 +103,12 @@ class RowCoderTest(unittest.TestCase):
         None,
         "NotNull")
     out = expected_coder.encode(person)
-    # 9 fields, 1 null byte, field 0, 5, 7 are null
-    new_payload = bytes([9, 1, 1 | 1 << 5 | 1 << 7]) + out[4:]
-    new_value = expected_coder.decode(new_payload)
+
+    # Verify that trailing 0 null byte is elided
+    # Expected: 1 null byte, field 0, 5, 7 are null
+    self.assertEqual(out[1:3], bytes([1, 1 | 1 << 5 | 1 << 7]))
+
+    new_value = expected_coder.decode(out)
     self.assertEqual(person, new_value)
 
   def test_create_row_coder_from_named_tuple(self):
