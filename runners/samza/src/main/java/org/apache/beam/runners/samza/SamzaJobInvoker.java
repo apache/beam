@@ -41,11 +41,10 @@ public class SamzaJobInvoker extends JobInvoker {
 
   public static SamzaJobInvoker create(
       SamzaJobServerDriver.SamzaServerConfiguration configuration) {
-    return new SamzaJobInvoker(configuration);
+    return new SamzaJobInvoker();
   }
 
-  @SuppressWarnings("unused")
-  private SamzaJobInvoker(SamzaJobServerDriver.SamzaServerConfiguration configuration) {
+  private SamzaJobInvoker() {
     super("samza-runner-job-invoker-%d");
   }
 

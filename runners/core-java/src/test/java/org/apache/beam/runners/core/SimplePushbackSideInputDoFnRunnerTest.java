@@ -114,7 +114,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
             .apply(Window.into(new IdentitySideInputWindowFn()))
             .apply(Sum.integersGlobally().asSingletonView());
 
-    underlying = new TestDoFnRunner<>(VarIntCoder.of());
+    underlying = new TestDoFnRunner<>();
 
     DoFn<KV<String, Integer>, Integer> fn = new MyDoFn();
 
@@ -324,7 +324,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     private boolean started = false;
     private boolean finished = false;
 
-    TestDoFnRunner(Coder<InputT> inputCoder) {}
+    TestDoFnRunner() {}
 
     @Override
     public DoFn<InputT, OutputT> getFn() {

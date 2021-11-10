@@ -73,7 +73,7 @@ public class ReadTranslationTest {
         new SplittableParDo.PrimitiveBoundedRead<>(Read.from(boundedSource));
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
-    ReadPayload payload = ReadTranslation.toProto(boundedRead, components);
+    ReadPayload payload = ReadTranslation.toProto(boundedRead);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.BOUNDED));
     BoundedSource<?> deserializedSource = ReadTranslation.boundedSourceFromProto(payload);
     assertThat(deserializedSource, equalTo(source));
@@ -85,9 +85,8 @@ public class ReadTranslationTest {
     UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) this.source;
     SplittableParDo.PrimitiveUnboundedRead<?> unboundedRead =
         new SplittableParDo.PrimitiveUnboundedRead<>(Read.from(unboundedSource));
-    SdkComponents components = SdkComponents.create();
     // No environment set for unbounded sources
-    ReadPayload payload = ReadTranslation.toProto(unboundedRead, components);
+    ReadPayload payload = ReadTranslation.toProto(unboundedRead);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.UNBOUNDED));
     UnboundedSource<?, ?> deserializedSource = ReadTranslation.unboundedSourceFromProto(payload);
     assertThat(deserializedSource, equalTo(source));

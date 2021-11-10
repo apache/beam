@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.io.Serializable;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
 
 /** Core pattern class that stores the definition of a single pattern. */
@@ -32,9 +31,7 @@ public class CEPPattern implements Serializable {
   private final CEPCall patternCondition;
   private final Quantifier quant;
 
-  @SuppressWarnings("unused")
-  private CEPPattern(
-      Schema mySchema, String patternVar, @Nullable RexCall patternDef, Quantifier quant) {
+  private CEPPattern(String patternVar, @Nullable RexCall patternDef, Quantifier quant) {
 
     this.patternVar = patternVar;
     this.quant = quant;
@@ -64,8 +61,7 @@ public class CEPPattern implements Serializable {
     return quant;
   }
 
-  public static CEPPattern of(
-      Schema theSchema, String patternVar, RexCall patternDef, Quantifier quant) {
-    return new CEPPattern(theSchema, patternVar, patternDef, quant);
+  public static CEPPattern of(String patternVar, RexCall patternDef, Quantifier quant) {
+    return new CEPPattern(patternVar, patternDef, quant);
   }
 }

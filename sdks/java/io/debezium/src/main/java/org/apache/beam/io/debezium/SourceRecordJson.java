@@ -188,7 +188,7 @@ public class SourceRecordJson {
   }
 
   /** Depicts a SourceRecord as an Event in order for it to be mapped as JSON. */
-  @SuppressWarnings("unused")
+  @SuppressWarnings("unused") // Unused params are validated as JSON
   static class Event implements Serializable {
     private final SourceRecordJson.Event.Metadata metadata;
     private final SourceRecordJson.Event.Before before;
@@ -221,7 +221,7 @@ public class SourceRecordJson {
     }
 
     /** Depicts the metadata within a SourceRecord. It has valuable fields. */
-    @SuppressWarnings("unused")
+    @SuppressWarnings("unused") // Unused params are validated as JSON
     static class Metadata implements Serializable {
       private final @Nullable String connector;
       private final @Nullable String version;

@@ -60,7 +60,6 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         loggingServiceServer,
         retrievalServiceServer,
         provisioningServiceServer,
-        idGenerator,
         clientSource);
   }
 
@@ -69,9 +68,6 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
 
-  @SuppressWarnings("unused")
-  private final IdGenerator idGenerator;
-
   private final ControlClientPool.Source clientSource;
 
   private ExternalEnvironmentFactory(
@@ -79,13 +75,11 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      IdGenerator idGenerator,
       ControlClientPool.Source clientSource) {
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;
     this.retrievalServiceServer = retrievalServiceServer;
     this.provisioningServiceServer = provisioningServiceServer;
-    this.idGenerator = idGenerator;
     this.clientSource = clientSource;
   }
 

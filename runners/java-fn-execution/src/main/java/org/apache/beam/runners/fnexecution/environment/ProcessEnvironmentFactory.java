@@ -52,14 +52,11 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       IdGenerator idGenerator,
       PipelineOptions pipelineOptions) {
     return new ProcessEnvironmentFactory(
-        processManager, provisioningServiceServer, idGenerator, clientSource, pipelineOptions);
+        processManager, provisioningServiceServer, clientSource, pipelineOptions);
   }
 
   private final ProcessManager processManager;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
-
-  @SuppressWarnings("unused")
-  private final IdGenerator idGenerator;
 
   private final ControlClientPool.Source clientSource;
   private final PipelineOptions pipelineOptions;
@@ -67,12 +64,10 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
   private ProcessEnvironmentFactory(
       ProcessManager processManager,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      IdGenerator idGenerator,
       ControlClientPool.Source clientSource,
       PipelineOptions pipelineOptions) {
     this.processManager = processManager;
     this.provisioningServiceServer = provisioningServiceServer;
-    this.idGenerator = idGenerator;
     this.clientSource = clientSource;
     this.pipelineOptions = pipelineOptions;
   }

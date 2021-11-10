@@ -59,17 +59,13 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       DockerCommand docker,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
-      IdGenerator idGenerator,
       PipelineOptions pipelineOptions) {
     return new DockerEnvironmentFactory(
-        docker, provisioningServiceServer, idGenerator, clientSource, pipelineOptions);
+        docker, provisioningServiceServer, clientSource, pipelineOptions);
   }
 
   private final DockerCommand docker;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
-
-  @SuppressWarnings("unused")
-  private final IdGenerator idGenerator;
 
   private final ControlClientPool.Source clientSource;
   private final PipelineOptions pipelineOptions;
@@ -77,12 +73,10 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   private DockerEnvironmentFactory(
       DockerCommand docker,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      IdGenerator idGenerator,
       ControlClientPool.Source clientSource,
       PipelineOptions pipelineOptions) {
     this.docker = docker;
     this.provisioningServiceServer = provisioningServiceServer;
-    this.idGenerator = idGenerator;
     this.clientSource = clientSource;
     this.pipelineOptions = pipelineOptions;
   }
@@ -254,7 +248,6 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
           DockerCommand.getDefault(),
           provisioningServiceServer,
           clientPool.getSource(),
-          idGenerator,
           pipelineOptions);
     }
 

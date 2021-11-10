@@ -19,22 +19,13 @@ package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 
 @Experimental(Kind.SCHEMAS)
 public class StateKeySpec {
-  @SuppressWarnings("unused")
-  private final FieldAccessDescriptor keyDescriptor;
 
-  private StateKeySpec(FieldAccessDescriptor keyDescriptor) {
-    this.keyDescriptor = keyDescriptor;
-  }
+  private StateKeySpec() {}
 
-  public static StateKeySpec fields(String fieldNames) {
-    return new StateKeySpec(FieldAccessDescriptor.withFieldNames(fieldNames));
-  }
-
-  public static StateKeySpec fields(FieldAccessDescriptor fieldAccessDescriptor) {
-    return new StateKeySpec(fieldAccessDescriptor);
+  public static StateKeySpec fields() {
+    return new StateKeySpec();
   }
 }

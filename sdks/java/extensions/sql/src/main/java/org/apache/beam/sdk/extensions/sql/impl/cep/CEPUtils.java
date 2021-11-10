@@ -43,7 +43,7 @@ public class CEPUtils {
     Quantifier quantToAdd;
     if (!isReluctant) {
       if (start == end) {
-        quantToAdd = new Quantifier("{ " + start + " }", start, end, false);
+        quantToAdd = new Quantifier("{ " + start + " }");
       } else {
         if (end == -1) {
           if (start == 0) {
@@ -51,21 +51,21 @@ public class CEPUtils {
           } else if (start == 1) {
             quantToAdd = Quantifier.PLUS;
           } else {
-            quantToAdd = new Quantifier("{ " + start + " }", start, end, false);
+            quantToAdd = new Quantifier("{ " + start + " }");
           }
         } else {
           if (start == 0 && end == 1) {
             quantToAdd = Quantifier.QMARK;
           } else if (start == -1) {
-            quantToAdd = new Quantifier("{ , " + end + " }", start, end, false);
+            quantToAdd = new Quantifier("{ , " + end + " }");
           } else {
-            quantToAdd = new Quantifier("{ " + start + " , }", start, end, false);
+            quantToAdd = new Quantifier("{ " + start + " , }");
           }
         }
       }
     } else {
       if (start == end) {
-        quantToAdd = new Quantifier("{ " + start + " }?", start, end, true);
+        quantToAdd = new Quantifier("{ " + start + " }?");
       } else {
         if (end == -1) {
           if (start == 0) {
@@ -73,15 +73,15 @@ public class CEPUtils {
           } else if (start == 1) {
             quantToAdd = Quantifier.PLUS_RELUCTANT;
           } else {
-            quantToAdd = new Quantifier("{ " + start + " }?", start, end, true);
+            quantToAdd = new Quantifier("{ " + start + " }?");
           }
         } else {
           if (start == 0 && end == 1) {
             quantToAdd = Quantifier.QMARK_RELUCTANT;
           } else if (start == -1) {
-            quantToAdd = new Quantifier("{ , " + end + " }?", start, end, true);
+            quantToAdd = new Quantifier("{ , " + end + " }?");
           } else {
-            quantToAdd = new Quantifier("{ " + start + " , }?", start, end, true);
+            quantToAdd = new Quantifier("{ " + start + " , }?");
           }
         }
       }
@@ -97,7 +97,7 @@ public class CEPUtils {
     if (call.getClass() == RexLiteral.class) {
       String p = ((RexLiteral) call).getValueAs(String.class);
       RexNode pd = patternDefs.get(p);
-      patternList.add(CEPPattern.of(upStreamSchema, p, (RexCall) pd, Quantifier.NONE));
+      patternList.add(CEPPattern.of(p, (RexCall) pd, Quantifier.NONE));
     } else {
       RexCall patCall = (RexCall) call;
       SqlOperator operator = patCall.getOperator();
@@ -111,8 +111,7 @@ public class CEPUtils {
         int end = ((RexLiteral) operands.get(2)).getValueAs(Integer.class);
         boolean isReluctant = ((RexLiteral) operands.get(3)).getValueAs(Boolean.class);
 
-        patternList.add(
-            CEPPattern.of(upStreamSchema, p, (RexCall) pd, getQuantifier(start, end, isReluctant)));
+        patternList.add(CEPPattern.of(p, (RexCall) pd, getQuantifier(start, end, isReluctant)));
       } else {
         for (RexNode i : operands) {
           patternList.addAll(getCEPPatternFromPattern(upStreamSchema, i, patternDefs));

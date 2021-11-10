@@ -145,19 +145,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     // 2. The reporting thread calls extractUpdate which reads the current sum *AND* sets it to 0.
     private final AtomicLong totalMillisInState = new AtomicLong();
 
-    // The worker that created this state.  Used to report lulls back to the worker.
-    @SuppressWarnings("unused")
-    private final StreamingDataflowWorker worker;
-
     public StreamingModeExecutionState(
         NameContext nameContext,
         String stateName,
         MetricsContainer metricsContainer,
-        ProfileScope profileScope,
-        StreamingDataflowWorker worker) {
+        ProfileScope profileScope) {
       // TODO: Take in the requesting step name and side input index for streaming.
       super(nameContext, stateName, null, null, metricsContainer, profileScope);
-      this.worker = worker;
     }
 
     /**
@@ -193,11 +187,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   public static class StreamingModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
 
-    private final StreamingDataflowWorker worker;
-
-    public StreamingModeExecutionStateRegistry(StreamingDataflowWorker worker) {
-      this.worker = worker;
-    }
+    public StreamingModeExecutionStateRegistry() {}
 
     @Override
     protected DataflowOperationContext.DataflowExecutionState createState(
@@ -207,8 +197,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         Integer inputIndex,
         MetricsContainer container,
         ProfileScope profileScope) {
-      return new StreamingModeExecutionState(
-          nameContext, stateName, container, profileScope, worker);
+      return new StreamingModeExecutionState(nameContext, stateName, container, profileScope);
     }
   }
 

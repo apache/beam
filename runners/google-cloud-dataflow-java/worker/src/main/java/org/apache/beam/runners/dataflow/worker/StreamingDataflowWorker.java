@@ -513,11 +513,11 @@ public class StreamingDataflowWorker {
     final Counter<Long, Long> totalProcessingMsecs;
     final Counter<Long, Long> timerProcessingMsecs;
 
-    StageInfo(String stageName, String systemName, StreamingDataflowWorker worker) {
+    StageInfo(String stageName, String systemName) {
       this.stageName = stageName;
       this.systemName = systemName;
       metricsContainerRegistry = StreamingStepMetricsContainer.createRegistry();
-      executionStateRegistry = new StreamingModeExecutionStateRegistry(worker);
+      executionStateRegistry = new StreamingModeExecutionStateRegistry();
       NameContext nameContext = NameContext.create(stageName, null, systemName, null);
       deltaCounters = new CounterSet();
       throttledMsecs =
@@ -729,14 +729,9 @@ public class StreamingDataflowWorker {
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
           pipeline == null
               ? RegisterNodeFunction.withoutPipeline(
-                  idGenerator,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
-                  sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
+                  idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
               : RegisterNodeFunction.forPipeline(
-                  pipeline,
-                  idGenerator,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
-                  sdkHarnessRegistry.beamFnDataApiServiceDescriptor());
+                  pipeline, idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>>
@@ -1290,7 +1285,7 @@ public class StreamingDataflowWorker {
 
     StageInfo stageInfo =
         stageInfoMap.computeIfAbsent(
-            mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName(), this));
+            mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName()));
 
     ExecutionState executionState = null;
 

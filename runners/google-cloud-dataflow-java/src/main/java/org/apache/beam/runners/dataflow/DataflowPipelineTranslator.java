@@ -49,7 +49,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
@@ -111,7 +110,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.commons.codec.EncoderException;
 import org.apache.commons.codec.net.PercentCodec;
@@ -270,22 +268,6 @@ public class DataflowPipelineTranslator {
    * <p>For internal use only.
    */
   class Translator extends PipelineVisitor.Defaults implements TranslationContext {
-
-    /**
-     * An id generator to be used when giving unique ids for pipeline level constructs. This is
-     * purposely wrapped inside of a {@link Supplier} to prevent the incorrect usage of the {@link
-     * AtomicLong} that is contained.
-     */
-    @SuppressWarnings("unused")
-    private final Supplier<Long> idGenerator =
-        new Supplier<Long>() {
-          private final AtomicLong generator = new AtomicLong(1L);
-
-          @Override
-          public Long get() {
-            return generator.getAndIncrement();
-          }
-        };
 
     /** The Pipeline to translate. */
     private final Pipeline pipeline;
@@ -995,7 +977,6 @@ public class DataflowPipelineTranslator {
                 transform.getSideInputs().values(),
                 context);
             translateOutputs(context.getOutputs(transform), stepContext);
-            context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
             translateFn(
                 stepContext,
                 transform.getFn(),
@@ -1040,7 +1021,6 @@ public class DataflowPipelineTranslator {
                 context);
             stepContext.addOutput(
                 transform.getMainOutputTag().getId(), context.getOutput(transform));
-            context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
             translateFn(
                 stepContext,
                 transform.getFn(),
@@ -1177,7 +1157,6 @@ public class DataflowPipelineTranslator {
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
             translateOutputs(context.getOutputs(transform), stepContext);
-            context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
             translateFn(
                 stepContext,
                 transform.getFn(),

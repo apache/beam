@@ -187,8 +187,6 @@ public class CombineTranslationTest {
 
       SdkComponents sdkComponents = SdkComponents.create();
       sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
-      CombineTranslation.CombineGloballyPayloadTranslator.payloadForCombineGlobally(
-          (AppliedPTransform) combine.get(), sdkComponents);
     }
   }
 

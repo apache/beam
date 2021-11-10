@@ -51,7 +51,6 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
@@ -153,11 +152,6 @@ public class AzureModule extends SimpleModule {
   }
 
   private static class TokenCredentialSerializer extends JsonSerializer<TokenCredential> {
-    // These providers are singletons, so don't require any serialization, other than type.
-    // add any singleton credentials...
-    @SuppressWarnings("unused")
-    private static final ImmutableSet<Object> SINGLETON_CREDENTIAL_PROVIDERS = ImmutableSet.of();
-
     @Override
     public void serialize(
         TokenCredential tokenCredential,

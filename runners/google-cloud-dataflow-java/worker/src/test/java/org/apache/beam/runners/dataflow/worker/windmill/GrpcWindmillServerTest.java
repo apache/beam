@@ -360,9 +360,7 @@ public class GrpcWindmillServerTest {
                     compRequest.getComputationId(), Matchers.is("computation"));
                 KeyedGetDataRequest request = compRequest.getRequests(0);
                 KeyedGetDataResponse response =
-                    makeGetDataResponse(
-                        request.getKey().toStringUtf8(),
-                        request.getValuesToFetch(0).getTag().toStringUtf8());
+                    makeGetDataResponse(request.getValuesToFetch(0).getTag().toStringUtf8());
                 return response.toByteString();
               }
 
@@ -422,7 +420,7 @@ public class GrpcWindmillServerTest {
           () -> {
             errorCollector.checkThat(
                 stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
-                Matchers.equalTo(makeGetDataResponse(key, s)));
+                Matchers.equalTo(makeGetDataResponse(s)));
             done.countDown();
           });
       executor.execute(
@@ -451,8 +449,7 @@ public class GrpcWindmillServerTest {
         .build();
   }
 
-  @SuppressWarnings("unused")
-  private KeyedGetDataResponse makeGetDataResponse(String key, String tag) {
+  private KeyedGetDataResponse makeGetDataResponse(String tag) {
     return KeyedGetDataResponse.newBuilder()
         .setKey(ByteString.copyFromUtf8("key"))
         .addValues(

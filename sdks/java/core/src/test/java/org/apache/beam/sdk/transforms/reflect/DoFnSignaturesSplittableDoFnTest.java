@@ -84,7 +84,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   private abstract static class SomeRestrictionCoder extends StructuredCoder<SomeRestriction> {}
 
   @Test
-  @SuppressWarnings("unused")
+  @SuppressWarnings("unused") // used via reflection
   public void testReturnsProcessContinuation() throws Exception {
     DoFnSignature.ProcessElementMethod signature =
         analyzeProcessElementMethod(
@@ -99,7 +99,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
-  @SuppressWarnings("unused")
+  @SuppressWarnings("unused") // used via reflection
   public void testHasRestrictionTracker() throws Exception {
     DoFnSignature.ProcessElementMethod signature =
         analyzeProcessElementMethod(
@@ -118,7 +118,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
-  @SuppressWarnings("unused")
+  @SuppressWarnings("unused") // used via reflection
   public void testSplittableProcessElementMustNotHaveUnsupportedParams() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Illegal parameter");
@@ -761,8 +761,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     thrown.expectMessage(
         "Has watermark estimator type SomeDefaultWatermarkEstimator, but the DoFn's watermark estimator type must be one of [WatermarkEstimator, ManualWatermarkEstimator] types.");
-    @SuppressWarnings("unused")
-    DoFnSignature signature = DoFnSignatures.getSignature(Fn.class);
+    DoFnSignatures.getSignature(Fn.class);
   }
 
   @Test
@@ -950,7 +949,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
-  @SuppressWarnings("unused")
+  @SuppressWarnings("unused") // used via reflection
   public void testSplitRestrictionWrongArgumentType() throws Exception {
     thrown.expectMessage("Object is not a valid context parameter.");
     DoFnSignatures.analyzeSplitRestrictionMethod(
@@ -1053,7 +1052,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
-  @SuppressWarnings("unused")
+  @SuppressWarnings("unused") // used via reflection
   public void testTruncateRestrictionWrongArgumentType() throws Exception {
     thrown.expectMessage("Object is not a valid context parameter.");
     DoFnSignatures.analyzeTruncateRestrictionMethod(
@@ -1173,7 +1172,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
-  @SuppressWarnings("unused")
+  @SuppressWarnings("unused") // used via reflection
   public void testNewTrackerWrongArgumentType() throws Exception {
     thrown.expectMessage("Object is not a valid context parameter.");
     DoFnSignatures.analyzeNewTrackerMethod(
@@ -1192,7 +1191,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
-  @SuppressWarnings("unused")
+  @SuppressWarnings("unused") // used via reflection
   public void testNewTrackerInconsistent() throws Exception {
     thrown.expectMessage(
         "Returns SomeRestrictionTracker, "

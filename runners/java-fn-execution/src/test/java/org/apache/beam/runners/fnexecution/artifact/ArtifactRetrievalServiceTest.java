@@ -63,9 +63,6 @@ public class ArtifactRetrievalServiceTest {
             .start());
     ManagedChannel channel =
         grpcCleanup.register(InProcessChannelBuilder.forName("server").build());
-    @SuppressWarnings("unused")
-    ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub retrievalStub =
-        ArtifactRetrievalServiceGrpc.newStub(channel);
     retrievalBlockingStub = ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
 
     stagingDir = tempFolder.newFolder("staging").toPath();

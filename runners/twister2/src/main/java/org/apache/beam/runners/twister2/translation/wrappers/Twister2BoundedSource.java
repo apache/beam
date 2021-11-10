@@ -71,7 +71,7 @@ public class Twister2BoundedSource<T> extends BaseSourceFunc<WindowedValue<T>> {
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(options.as(PortablePipelineOptions.class)));
-    RunnerApi.FunctionSpec sourceProto = ReadTranslation.toProto(source, components);
+    RunnerApi.FunctionSpec sourceProto = ReadTranslation.toProto(source);
     sourceBytes = sourceProto.getPayload().toByteArray();
   }
 

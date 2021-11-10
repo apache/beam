@@ -224,7 +224,6 @@ public class SamzaDoFnRunners {
                 executableStage.getInputPCollection().getId(), executableStage.getComponents()),
             outputManager,
             stageBundleFactory,
-            mainOutputTag,
             idToTupleTagMap,
             bundledEventsBag,
             stateRequestHandler);
@@ -246,13 +245,11 @@ public class SamzaDoFnRunners {
     private FnDataReceiver<WindowedValue<?>> inputReceiver;
     private StateRequestHandler stateRequestHandler;
 
-    @SuppressWarnings("unused")
     private SdkHarnessDoFnRunner(
         SamzaTimerInternalsFactory<?> timerInternalsFactory,
         WindowingStrategy windowingStrategy,
         DoFnRunners.OutputManager outputManager,
         StageBundleFactory stageBundleFactory,
-        TupleTag<FnOutT> mainOutputTag,
         Map<String, TupleTag<?>> idToTupleTagMap,
         BagState<WindowedValue<InT>> bundledEventsBag,
         StateRequestHandler stateRequestHandler) {

@@ -164,10 +164,6 @@ public class SdkHarnessClientTest {
         .putTransforms(SDK_GRPC_READ_TRANSFORM, readNode.toPTransform())
         .putTransforms(SDK_GRPC_WRITE_TRANSFORM, writeNode.toPTransform());
     descriptor = pbdBuilder.build();
-
-    @SuppressWarnings("unused")
-    String inputPCollection =
-        getOnlyElement(descriptor.getTransformsOrThrow("read").getOutputsMap().values());
   }
 
   @Test
@@ -182,8 +178,7 @@ public class SdkHarnessClientTest {
                     FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
                 SDK_GRPC_READ_TRANSFORM));
 
-    @SuppressWarnings("unused")
-    BundleProcessor processor1 = sdkHarnessClient.getProcessor(descriptor1, remoteInputs);
+    sdkHarnessClient.getProcessor(descriptor1, remoteInputs);
 
     verify(fnApiControlClient).registerProcessBundleDescriptor(descriptor1);
   }

@@ -799,8 +799,7 @@ public class StreamingDataflowWorkerTest {
           makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
-    @SuppressWarnings("unused")
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
+    server.waitForAndGetCommits(numIters);
     worker.stop();
 
     verify(hotKeyLogger, atLeastOnce())
@@ -836,8 +835,7 @@ public class StreamingDataflowWorkerTest {
           makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
-    @SuppressWarnings("unused")
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
+    server.waitForAndGetCommits(numIters);
     worker.stop();
 
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());

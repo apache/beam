@@ -33,7 +33,6 @@ import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
-import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
@@ -51,7 +50,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link GroupingShuffleEntryIterator}. */
@@ -146,9 +144,6 @@ public class GroupingShuffleEntryIteratorTest {
     options
         .as(DataflowPipelineDebugOptions.class)
         .setExperiments(Lists.newArrayList(Experiment.IntertransformIO.getName()));
-    @SuppressWarnings("unused")
-    BatchModeExecutionContext spyExecutionContext =
-        Mockito.spy(BatchModeExecutionContext.forTesting(options, "STAGE"));
 
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
     entries.add(shuffleEntry("k1", "v11"));

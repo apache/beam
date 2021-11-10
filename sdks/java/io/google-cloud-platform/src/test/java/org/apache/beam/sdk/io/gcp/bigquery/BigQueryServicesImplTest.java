@@ -1042,9 +1042,6 @@ public class BigQueryServicesImplTest {
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
-    @SuppressWarnings("unused")
-    final TableDataInsertAllResponse allRowsSucceeded =
-        new TableDataInsertAllResponse().setInsertErrors(ImmutableList.of());
     // First response is 403 non-{rate-limited, quota-exceeded}, second response has valid payload
     // but should not be invoked.
     setupMockResponses(

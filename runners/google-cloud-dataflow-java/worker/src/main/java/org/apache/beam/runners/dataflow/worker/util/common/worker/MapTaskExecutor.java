@@ -69,7 +69,6 @@ public class MapTaskExecutor implements WorkExecutor {
     // Save the current thread that is executing so that abort() can interrupt it, we save it before
     // starting the progress reporter thread, therefore ensuring thread safety through implicit
     // serialization of events.
-    // Current thread that execute() is running on; null when not running.
 
     try (Closeable stateCloser = executionStateTracker.activate()) {
       try {
