@@ -29,10 +29,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @DefaultCoder(FhirSearchParameterCoder.class)
 public class FhirSearchParameter<T> {
 
+  /** FHIR resource type. */
   private final String resourceType;
-  // The key is used as a key for the search query, if there is source information to propagate
-  // through the pipeline.
+  /**
+   * The key is used as a key for the search query, if there is source information to propagate
+   * through the pipeline.
+   */
   private final String key;
+  /**
+   * The search query. For an OR search, put both query values in a single string. For an AND
+   * search, use a list.
+   */
   private final @Nullable Map<String, T> queries;
 
   private FhirSearchParameter(
@@ -46,11 +53,28 @@ public class FhirSearchParameter<T> {
     this.queries = queries;
   }
 
+  /**
+   * Creates a FhirSearchParameter of type T.
+   *
+   * @param resourceType the FHIR resource type.
+   * @param key Key for the search query to key the results with.
+   * @param queries The search query.
+   * @param <T> The type of the search query value.
+   * @return The FhirSearchParameter of type T.
+   */
   public static <T> FhirSearchParameter<T> of(
       String resourceType, @Nullable String key, @Nullable Map<String, T> queries) {
     return new FhirSearchParameter<>(resourceType, key, queries);
   }
 
+  /**
+   * Creates a FhirSearchParameter of type T, without a key.
+   *
+   * @param resourceType the FHIR resource type.
+   * @param queries The search query.
+   * @param <T> The type of the search query value.
+   * @return The FhirSearchParameter of type T.
+   */
   public static <T> FhirSearchParameter<T> of(
       String resourceType, @Nullable Map<String, T> queries) {
     return new FhirSearchParameter<>(resourceType, null, queries);

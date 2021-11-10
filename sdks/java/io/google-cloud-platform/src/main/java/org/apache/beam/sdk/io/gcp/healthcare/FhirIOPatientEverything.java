@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.MapCoder;
@@ -57,17 +56,29 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** The type FhirIOPatientEverything for querying a FHIR Patient resource's compartment. * */
 public class FhirIOPatientEverything
     extends PTransform<PCollection<PatientEverythingParameter>, FhirIOPatientEverything.Result> {
 
+  /** The tag for the main output of FHIR Resources from a GetPatientEverything request. */
   public static final TupleTag<JsonArray> OUT = new TupleTag<JsonArray>() {};
-  public static final TupleTag<HealthcareIOError<String>> FAILED_READS =
+  /** The tag for the deadletter output of FHIR Resources from a GetPatientEverything request. */
+  public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
       new TupleTag<HealthcareIOError<String>>() {};
 
+  /**
+   * PatientEverythingParameter defines required attributes for a FHIR GetPatientEverything request
+   * in {@link FhirIOPatientEverything}. *
+   */
   @DefaultCoder(PatientEverythingParameterCoder.class)
   public static class PatientEverythingParameter implements Serializable {
 
+    /**
+     * FHIR Patient resource name in the format of
+     * projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}.
+     */
     private final String resourceName;
+    /** Optional filters for the request, eg. start, end, _type, _since, _count */
     @Nullable private final Map<String, String> filters;
 
     PatientEverythingParameter(String resourceName, @Nullable Map<String, String> filters) {
@@ -75,11 +86,27 @@ public class FhirIOPatientEverything
       this.filters = filters;
     }
 
+    /**
+     * Creates a PatientEverythingParameter.
+     *
+     * @param resourceName The FHIR Patient resource name in the format of
+     *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}.
+     * @return the PatientEverythingParameter
+     */
     public static PatientEverythingParameter of(String resourceName) {
       return new PatientEverythingParameter(resourceName, null);
     }
 
-    public static PatientEverythingParameter of(String resourceName, Map<String, String> filters) {
+    /**
+     * Creates a PatientEverythingParameter.
+     *
+     * @param resourceName The FHIR Patient resource name in the format of
+     *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}.
+     * @param filters Optional filters for the request.
+     * @return the PatientEverythingParameter
+     */
+    public static PatientEverythingParameter of(
+        String resourceName, @Nullable Map<String, String> filters) {
       return new PatientEverythingParameter(resourceName, filters);
     }
 
@@ -117,18 +144,22 @@ public class FhirIOPatientEverything
     }
   }
 
-  public static class PatientEverythingParameterCoder extends CustomCoder<PatientEverythingParameter> {
+  /** PatientEverythingParameterCoder is a coder for {@link PatientEverythingParameter}. */
+  public static class PatientEverythingParameterCoder
+      extends CustomCoder<PatientEverythingParameter> {
 
-    private static final NullableCoder<String> STRING_CODER = NullableCoder
-        .of(StringUtf8Coder.of());
-    private static final NullableCoder<Map<String, String>> MAP_CODER = NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+    private static final NullableCoder<String> STRING_CODER =
+        NullableCoder.of(StringUtf8Coder.of());
+    private static final NullableCoder<Map<String, String>> MAP_CODER =
+        NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
     public static PatientEverythingParameterCoder of() {
       return new PatientEverythingParameterCoder();
     }
 
     @Override
-    public void encode(PatientEverythingParameter value, OutputStream outStream) throws IOException {
+    public void encode(PatientEverythingParameter value, OutputStream outStream)
+        throws IOException {
       STRING_CODER.encode(value.getResourceName(), outStream);
       MAP_CODER.encode(value.getFilters(), outStream);
     }
@@ -141,35 +172,36 @@ public class FhirIOPatientEverything
     }
   }
 
+  /** The Result for a {@link FhirIOPatientEverything} request. */
   public static class Result implements POutput, PInput {
 
-    private final PCollection<JsonArray> resources;
+    private final PCollection<JsonArray> patientCompartments;
     private final PCollection<HealthcareIOError<String>> failedReads;
 
     PCollectionTuple pct;
 
     /**
-     * Create FhirIO.Search.Result form PCollectionTuple with OUT and DEAD_LETTER tags.
+     * Create FhirIOPatientEverything.Result form PCollectionTuple with OUT and DEAD_LETTER tags.
      *
      * @param pct the pct
-     * @return the search result
+     * @return the patient everything result
      * @throws IllegalArgumentException the illegal argument exception
      */
     static Result of(PCollectionTuple pct) throws IllegalArgumentException {
-      if (pct.has(OUT) && pct.has(FAILED_READS)) {
+      if (pct.has(OUT) && pct.has(DEAD_LETTER)) {
         return new Result(pct);
       } else {
         throw new IllegalArgumentException(
-            "The PCollection tuple must have the FhirIO.Search.OUT "
-                + "and FhirIO.Search.DEAD_LETTER tuple tags");
+            "The PCollection tuple must have the FhirIOPatientEverything.OUT "
+                + "and FhirIOPatientEverything.DEAD_LETTER tuple tags");
       }
     }
 
     private Result(PCollectionTuple pct) {
       this.pct = pct;
-      this.resources = pct.get(OUT).setCoder(JsonArrayCoder.of());
+      this.patientCompartments = pct.get(OUT).setCoder(JsonArrayCoder.of());
       this.failedReads =
-          pct.get(FAILED_READS).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
+          pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
     }
 
     /**
@@ -182,12 +214,12 @@ public class FhirIOPatientEverything
     }
 
     /**
-     * Gets rad resources.
+     * Gets the patient compartment responses for GetPatientEverything requests.
      *
-     * @return the read resources
+     * @return the read patient compartments
      */
-    public PCollection<JsonArray> getResources() {
-      return resources;
+    public PCollection<JsonArray> getPatientCompartments() {
+      return patientCompartments;
     }
 
     @Override
@@ -197,7 +229,7 @@ public class FhirIOPatientEverything
 
     @Override
     public Map<TupleTag<?>, PValue> expand() {
-      return ImmutableMap.of(OUT, resources, FAILED_READS, failedReads);
+      return ImmutableMap.of(OUT, patientCompartments, DEAD_LETTER, failedReads);
     }
 
     @Override
@@ -211,10 +243,11 @@ public class FhirIOPatientEverything
         input.apply(
             "GetPatientEverything",
             ParDo.of(new GetPatientEverythingFn())
-                .withOutputTags(OUT, TupleTagList.of(FAILED_READS)));
+                .withOutputTags(OUT, TupleTagList.of(DEAD_LETTER)));
     return new Result(results);
   }
 
+  /** GetPatientEverythingFn executes a GetPatientEverything request. */
   static class GetPatientEverythingFn extends DoFn<PatientEverythingParameter, JsonArray> {
 
     private final Counter GET_PATIENT_EVERYTHING_ERROR_COUNT =
@@ -246,16 +279,18 @@ public class FhirIOPatientEverything
     public void processElement(ProcessContext context) {
       PatientEverythingParameter patientEverythingParameter = context.element();
       try {
-        context.output(getPatientEverything(patientEverythingParameter.getResourceName(), patientEverythingParameter
-            .getFilters()));
+        context.output(
+            getPatientEverything(
+                patientEverythingParameter.getResourceName(),
+                patientEverythingParameter.getFilters()));
       } catch (IllegalArgumentException | NoSuchElementException e) {
         GET_PATIENT_EVERYTHING_ERROR_COUNT.inc();
         LOG.warn(
             String.format(
-                "Error search FHIR resources writing to Dead Letter "
+                "Error executing GetPatientEverything: FHIR resources writing to Dead Letter "
                     + "Queue. Cause: %s Stack Trace: %s",
                 e.getMessage(), Throwables.getStackTraceAsString(e)));
-        context.output(FhirIO.Search.DEAD_LETTER, HealthcareIOError.of(patientEverythingParameter.toString(), e));
+        context.output(DEAD_LETTER, HealthcareIOError.of(patientEverythingParameter.toString(), e));
       }
     }
 

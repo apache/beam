@@ -103,15 +103,18 @@ import org.slf4j.LoggerFactory;
  * prepared list of resources that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}*) .
  *
- * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of FHIR resource name strings
+ * <p>Get Resource contents from the FHIR Store based on the {@link PCollection} of FHIR resource name strings
  * {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to retrieve a
  * {@link PCollection} containing the successfully fetched json resources as {@link String}s and/or {@link
- * FhirIO.Read.Result#getFailedReads()}
- * to retrieve a {@link PCollection} of {@link HealthcareIOError}
+ * FhirIO.Read.Result#getFailedReads()} to retrieve a {@link PCollection} of {@link HealthcareIOError}
  * containing the resources that could not be fetched and the exception as a
  * {@link HealthcareIOError}, this can be used to write to the dead letter storage system of your
  * choosing. This error handling is mainly to transparently surface errors where the upstream {@link
  * PCollection} contains FHIR resources that are not valid or are not reachable due to permissions issues.
+ *
+ * Additionally, you can query an entire FHIR Patient resource's compartment (resources that
+ * refer to the patient, and are referred to by the patient) using {@link FhirIOPatientEverything} to
+ * execute a FHIR GetPatientEverythingRequest.
  *
  * <h3>Writing</h3>
  *
@@ -373,6 +376,18 @@ public class FhirIO {
       ValueProvider<String> destinationFhirStore,
       ValueProvider<DeidentifyConfig> deidConfig) {
     return new Deidentify(sourceFhirStore, destinationFhirStore, deidConfig);
+  }
+
+  /**
+   * Get the patient compartment for a FHIR Patient using the GetPatientEverything/$everything API.
+   *
+   * @see <a
+   *     href=https://cloud.google.com/healthcare-api/docs/reference/rest/v1/projects.locations.datasets.fhirStores.fhir/Patient-everything></a>
+   * @return the patient everything
+   * @see FhirIOPatientEverything
+   */
+  public static FhirIOPatientEverything getPatientEverything() {
+    return new FhirIOPatientEverything();
   }
 
   /**
@@ -876,7 +891,8 @@ public class FhirIO {
     }
 
     /**
-     * Execute Bundle Method executes a batch of requests in batch or as a single transaction @see <a
+     * Execute Bundle Method executes a batch of requests in batch or as a single transaction @see
+     * <a
      * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>.
      *
      * @param fhirStore the fhir store
@@ -890,7 +906,8 @@ public class FhirIO {
     }
 
     /**
-     * Execute Bundle Method executes a batch of requests in batch or as a single transaction @see <a
+     * Execute Bundle Method executes a batch of requests in batch or as a single transaction @see
+     * <a
      * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>.
      *
      * @param fhirStore the fhir store

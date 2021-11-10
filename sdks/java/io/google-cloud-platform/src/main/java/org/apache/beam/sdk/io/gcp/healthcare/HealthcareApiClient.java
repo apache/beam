@@ -197,9 +197,7 @@ public interface HealthcareApiClient {
    * @throws IOException
    */
   HttpBody getPatientEverything(
-      String resourceName,
-      @Nullable Map<String, Object> filters,
-      String pageToken)
+      String resourceName, @Nullable Map<String, Object> filters, String pageToken)
       throws IOException;
 
   /**
