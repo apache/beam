@@ -64,6 +64,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class ParDoLifecycleTest implements Serializable {
 
@@ -168,7 +169,6 @@ public class ParDoLifecycleTest implements Serializable {
       extends CallSequenceEnforcingFn<KV<K, V>> {
     private static final String STATE_ID = "foo";
 
-    @SuppressWarnings("unused")
     @StateId(STATE_ID)
     private final StateSpec<ValueState<String>> valueSpec = StateSpecs.value();
   }
@@ -470,7 +470,6 @@ public class ParDoLifecycleTest implements Serializable {
   private static class ExceptionThrowingStatefulFn<K, V> extends ExceptionThrowingFn<KV<K, V>> {
     private static final String STATE_ID = "foo";
 
-    @SuppressWarnings("unused")
     @StateId(STATE_ID)
     private final StateSpec<ValueState<String>> valueSpec = StateSpecs.value();
 

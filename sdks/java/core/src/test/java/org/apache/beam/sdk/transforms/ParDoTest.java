@@ -167,6 +167,7 @@ import org.junit.runners.JUnit4;
 /** Tests for ParDo. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
@@ -592,7 +593,7 @@ public class ParDoTest implements Serializable {
           .apply(
               ParDo.of(
                   new DoFn<Integer, Integer>() {
-                    @SuppressWarnings("unused")
+
                     @TimerId(timerId)
                     private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -1629,7 +1630,6 @@ public class ParDoTest implements Serializable {
     public static class StatefulBundleFinalizingDoFn extends BundleFinalizingDoFn {
       private static final String STATE_ID = "STATE_ID";
 
-      @SuppressWarnings("unused")
       @StateId(STATE_ID)
       private final StateSpec<ValueState<Integer>> intState = StateSpecs.value();
 
@@ -1969,15 +1969,13 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
-                @AlwaysFetched @SuppressWarnings("unused") @StateId(stateId)
-                    ValueState<Integer> state,
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
                 OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               r.output(currentValue);
@@ -2002,7 +2000,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<Integer, Integer>, Integer> onePerKey =
           new DoFn<KV<Integer, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<Integer>> seenSpec =
                 StateSpecs.value(VarIntCoder.of());
@@ -2010,7 +2007,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<Integer, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<Integer> seenState,
+                @StateId(stateId) ValueState<Integer> seenState,
                 OutputReceiver<Integer> r) {
               Integer seen = MoreObjects.firstNonNull(seenState.read(), 0);
 
@@ -2052,14 +2049,12 @@ public class ParDoTest implements Serializable {
       DoFn<String, Integer> fn =
           new DoFn<String, Integer>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<Integer>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
-                ProcessContext c,
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<Integer> state) {}
+                ProcessContext c, @StateId(stateId) ValueState<Integer> state) {}
           };
 
       thrown.expect(IllegalArgumentException.class);
@@ -2077,14 +2072,12 @@ public class ParDoTest implements Serializable {
       DoFn<KV<Double, String>, Integer> fn =
           new DoFn<KV<Double, String>, Integer>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<Integer>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
-                ProcessContext c,
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<Integer> state) {}
+                ProcessContext c, @StateId(stateId) ValueState<Integer> state) {}
           };
 
       thrown.expect(IllegalArgumentException.class);
@@ -2106,14 +2099,13 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, List<MyInteger>> fn =
           new DoFn<KV<String, Integer>, List<MyInteger>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<List<MyInteger>>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
                 @Element KV<String, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<List<MyInteger>> state,
+                @StateId(stateId) ValueState<List<MyInteger>> state,
                 OutputReceiver<List<MyInteger>> r) {
               MyInteger myInteger = new MyInteger(element.getValue());
               List<MyInteger> currentValue = state.read();
@@ -2145,15 +2137,13 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<Integer> state,
-                OutputReceiver<Integer> r) {
+                @StateId(stateId) ValueState<Integer> state, OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               r.output(currentValue);
               state.write(currentValue + 1);
@@ -2195,14 +2185,13 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, KV<String, Integer>> fn =
           new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<Integer> state,
+                @StateId(stateId) ValueState<Integer> state,
                 OutputReceiver<KV<String, Integer>> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               r.output(KV.of("sizzle", currentValue));
@@ -2213,15 +2202,13 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn2 =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<Integer> state,
-                OutputReceiver<Integer> r) {
+                @StateId(stateId) ValueState<Integer> state, OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 13);
               r.output(currentValue);
               state.write(currentValue + 13);
@@ -2252,15 +2239,13 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
             @ProcessElement
             public void processElement(
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<Integer> state,
-                MultiOutputReceiver r) {
+                @StateId(stateId) ValueState<Integer> state, MultiOutputReceiver r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               if (currentValue % 2 == 0) {
                 r.get(evenTag).output(currentValue);
@@ -2302,7 +2287,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, List<Integer>> fn =
           new DoFn<KV<String, Integer>, List<Integer>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<BagState<Integer>> bufferState =
                 StateSpecs.bag(VarIntCoder.of());
@@ -2310,7 +2294,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<String, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId) BagState<Integer> state,
+                @StateId(stateId) BagState<Integer> state,
                 OutputReceiver<List<Integer>> r) {
               ReadableState<Boolean> isEmpty = state.isEmpty();
               state.add(element.getValue());
@@ -2352,11 +2336,9 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Set<Integer>> fn =
           new DoFn<KV<String, Integer>, Set<Integer>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<SetState<Integer>> setState = StateSpecs.set(VarIntCoder.of());
 
-            @SuppressWarnings("unused")
             @StateId(countStateId)
             private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
                 StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -2364,7 +2346,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<String, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId) SetState<Integer> state,
+                @StateId(stateId) SetState<Integer> state,
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<Set<Integer>> r) {
               ReadableState<Boolean> isEmpty = state.isEmpty();
@@ -2407,12 +2389,10 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
           new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<MapState<String, Integer>> mapState =
                 StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
 
-            @SuppressWarnings("unused")
             @StateId(countStateId)
             private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
                 StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -2421,7 +2401,7 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 ProcessContext c,
                 @Element KV<String, KV<String, Integer>> element,
-                @SuppressWarnings("unused") @StateId(stateId) MapState<String, Integer> state,
+                @StateId(stateId) MapState<String, Integer> state,
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, Integer>> r) {
               KV<String, Integer> value = element.getValue();
@@ -2470,12 +2450,10 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
           new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<MapState<String, Integer>> mapState =
                 StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
 
-            @SuppressWarnings("unused")
             @StateId(countStateId)
             private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
                 StateSpecs.combining(Sum.ofIntegers());
@@ -2531,11 +2509,9 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<SetState<Integer>> setState = StateSpecs.set(VarIntCoder.of());
 
-            @SuppressWarnings("unused")
             @StateId(countStateId)
             private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
                 StateSpecs.combining(Sum.ofIntegers());
@@ -2586,7 +2562,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>> fn =
           new DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<OrderedListState<String>> orderedListState =
                 StateSpecs.orderedList(StringUtf8Coder.of());
@@ -2594,13 +2569,13 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<String, TimestampedValue<String>> element,
-                @SuppressWarnings("unused") @StateId(stateId) OrderedListState<String> state) {
+                @StateId(stateId) OrderedListState<String> state) {
               state.add(element.getValue());
             }
 
             @OnWindowExpiration
             public void onWindowExpiration(
-                @SuppressWarnings("unused") @StateId(stateId) OrderedListState<String> state,
+                @StateId(stateId) OrderedListState<String> state,
                 OutputReceiver<Iterable<TimestampedValue<String>>> o) {
               Iterable<TimestampedValue<String>> strings = state.read();
               o.output(strings);
@@ -2647,7 +2622,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>> fn =
           new DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<OrderedListState<String>> orderedListState =
                 StateSpecs.orderedList(StringUtf8Coder.of());
@@ -2655,13 +2629,13 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<String, TimestampedValue<String>> element,
-                @SuppressWarnings("unused") @StateId(stateId) OrderedListState<String> state) {
+                @StateId(stateId) OrderedListState<String> state) {
               state.add(element.getValue());
             }
 
             @OnWindowExpiration
             public void onWindowExpiration(
-                @SuppressWarnings("unused") @StateId(stateId) OrderedListState<String> state,
+                @StateId(stateId) OrderedListState<String> state,
                 OutputReceiver<Iterable<TimestampedValue<String>>> o) {
               o.output(state.readRange(Instant.ofEpochMilli(0), Instant.ofEpochMilli(12)));
               o.output(state.readRange(Instant.ofEpochMilli(0), Instant.ofEpochMilli(13)));
@@ -2717,19 +2691,17 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>> fn =
           new DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<OrderedListState<String>> orderedListState =
                 StateSpecs.orderedList(StringUtf8Coder.of());
 
-            @SuppressWarnings("unused")
             @TimerId("timer")
             private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
             @ProcessElement
             public void processElement(
                 @Element KV<String, TimestampedValue<String>> element,
-                @SuppressWarnings("unused") @StateId(stateId) OrderedListState<String> state,
+                @StateId(stateId) OrderedListState<String> state,
                 @TimerId("timer") Timer timer) {
               state.add(element.getValue());
               timer.set(Instant.ofEpochMilli(42));
@@ -2737,14 +2709,13 @@ public class ParDoTest implements Serializable {
 
             @OnTimer("timer")
             public void processTimer(
-                @SuppressWarnings("unused") @StateId(stateId) OrderedListState<String> state,
-                @Timestamp Instant ts) {
+                @StateId(stateId) OrderedListState<String> state, @Timestamp Instant ts) {
               state.clearRange(Instant.EPOCH, ts.plus(Duration.millis(1)));
             }
 
             @OnWindowExpiration
             public void onWindowExpiration(
-                @SuppressWarnings("unused") @StateId(stateId) OrderedListState<String> state,
+                @StateId(stateId) OrderedListState<String> state,
                 OutputReceiver<Iterable<TimestampedValue<String>>> o) {
               o.output(state.read());
             }
@@ -2780,7 +2751,6 @@ public class ParDoTest implements Serializable {
 
             private static final double EPSILON = 0.0001;
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<CombiningState<Double, CountSum<Double>, Double>>
                 combiningState = StateSpecs.combining(new Mean.CountSumCoder<Double>(), Mean.of());
@@ -2789,8 +2759,7 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 ProcessContext c,
                 @Element KV<String, Double> element,
-                @SuppressWarnings("unused") @StateId(stateId)
-                    CombiningState<Double, CountSum<Double>, Double> state,
+                @StateId(stateId) CombiningState<Double, CountSum<Double>, Double> state,
                 OutputReceiver<String> r) {
               state.add(element.getValue());
               Double currentValue = state.read();
@@ -2819,7 +2788,6 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<Integer, Integer>, String>() {
             private static final int EXPECTED_SUM = 8;
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<CombiningState<Integer, int[], Integer>> state =
                 StateSpecs.combining(Sum.ofIntegers());
@@ -2827,7 +2795,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<Integer, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId) GroupingState<Integer, Integer> state,
+                @StateId(stateId) GroupingState<Integer, Integer> state,
                 OutputReceiver<String> r) {
               state.add(element.getValue());
               Integer currentValue = state.read();
@@ -2857,7 +2825,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, List<Integer>> fn =
           new DoFn<KV<String, Integer>, List<Integer>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<BagState<Integer>> bufferState =
                 StateSpecs.bag(VarIntCoder.of());
@@ -2866,7 +2833,7 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 ProcessContext c,
                 @Element KV<String, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId) BagState<Integer> state,
+                @StateId(stateId) BagState<Integer> state,
                 OutputReceiver<List<Integer>> r) {
               state.add(element.getValue());
               Iterable<Integer> currentValue = state.read();
@@ -2925,25 +2892,19 @@ public class ParDoTest implements Serializable {
       // SideInput tag id
       final String sideInputTag1 = "tag1";
 
-      @SuppressWarnings("unused")
-      private final PCollectionView<Integer> view;
-
       final String stateId = "foo";
       Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
 
-      @SuppressWarnings("unused")
       @StateId(stateId)
       private final StateSpec<BagState<MyInteger>> bufferState = StateSpecs.bag();
 
-      private TestSimpleStatefulDoFn(PCollectionView<Integer> view) {
-        this.view = view;
-      }
+      private TestSimpleStatefulDoFn(PCollectionView<Integer> view) {}
 
       @ProcessElement
       public void processElem(
           ProcessContext c,
           @SideInput(sideInputTag1) Integer sideInputTag,
-          @SuppressWarnings("unused") @StateId(stateId) BagState<MyInteger> state) {
+          @StateId(stateId) BagState<MyInteger> state) {
         state.add(new MyInteger(sideInputTag));
         c.output(sideInputTag);
       }
@@ -3163,7 +3124,6 @@ public class ParDoTest implements Serializable {
     private static DoFn<KV<String, Long>, Integer> timeSortedDoFn() {
       return new DoFn<KV<String, Long>, Integer>() {
 
-        @SuppressWarnings("unused")
         @StateId("last")
         private final StateSpec<ValueState<Long>> lastSpec = StateSpecs.value();
 
@@ -3194,14 +3154,13 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, List<MyInteger>> fn =
           new DoFn<KV<String, Integer>, List<MyInteger>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<BagState<MyInteger>> bufferState = StateSpecs.bag();
 
             @ProcessElement
             public void processElement(
                 @Element KV<String, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId) BagState<MyInteger> state,
+                @StateId(stateId) BagState<MyInteger> state,
                 OutputReceiver<List<MyInteger>> r) {
               state.add(new MyInteger(element.getValue()));
               Iterable<MyInteger> currentValue = state.read();
@@ -3242,14 +3201,13 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, List<MyInteger>> fn =
           new DoFn<KV<String, Integer>, List<MyInteger>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<BagState<MyInteger>> bufferState = StateSpecs.bag();
 
             @ProcessElement
             public void processElement(
                 @Element KV<String, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId) BagState<MyInteger> state,
+                @StateId(stateId) BagState<MyInteger> state,
                 OutputReceiver<List<MyInteger>> r) {
               state.add(new MyInteger(element.getValue()));
               Iterable<MyInteger> currentValue = state.read();
@@ -3285,11 +3243,9 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Set<MyInteger>> fn =
           new DoFn<KV<String, Integer>, Set<MyInteger>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<SetState<MyInteger>> setState = StateSpecs.set();
 
-            @SuppressWarnings("unused")
             @StateId(countStateId)
             private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
                 StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -3297,7 +3253,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<String, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId) SetState<MyInteger> state,
+                @StateId(stateId) SetState<MyInteger> state,
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<Set<MyInteger>> r) {
               state.add(new MyInteger(element.getValue()));
@@ -3336,11 +3292,9 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Set<MyInteger>> fn =
           new DoFn<KV<String, Integer>, Set<MyInteger>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<SetState<MyInteger>> setState = StateSpecs.set();
 
-            @SuppressWarnings("unused")
             @StateId(countStateId)
             private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
                 StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -3348,7 +3302,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<String, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId) SetState<MyInteger> state,
+                @StateId(stateId) SetState<MyInteger> state,
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<Set<MyInteger>> r) {
               state.add(new MyInteger(element.getValue()));
@@ -3384,11 +3338,9 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
           new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<MapState<String, MyInteger>> mapState = StateSpecs.map();
 
-            @SuppressWarnings("unused")
             @StateId(countStateId)
             private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
                 StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -3396,7 +3348,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<String, KV<String, Integer>> element,
-                @SuppressWarnings("unused") @StateId(stateId) MapState<String, MyInteger> state,
+                @StateId(stateId) MapState<String, MyInteger> state,
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, MyInteger>> r) {
               KV<String, Integer> value = element.getValue();
@@ -3438,11 +3390,9 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
           new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<MapState<String, MyInteger>> mapState = StateSpecs.map();
 
-            @SuppressWarnings("unused")
             @StateId(countStateId)
             private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
                 StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -3451,7 +3401,7 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 ProcessContext c,
                 @Element KV<String, KV<String, Integer>> element,
-                @SuppressWarnings("unused") @StateId(stateId) MapState<String, MyInteger> state,
+                @StateId(stateId) MapState<String, MyInteger> state,
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, MyInteger>> r) {
               KV<String, Integer> value = element.getValue();
@@ -3491,7 +3441,6 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<String, Integer>, String>() {
             private static final int EXPECTED_SUM = 16;
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<CombiningState<Integer, MyInteger, Integer>> combiningState =
                 StateSpecs.combining(
@@ -3524,8 +3473,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<String, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId)
-                    CombiningState<Integer, MyInteger, Integer> state,
+                @StateId(stateId) CombiningState<Integer, MyInteger, Integer> state,
                 OutputReceiver<String> r) {
               state.add(element.getValue());
               Integer currentValue = state.read();
@@ -3554,7 +3502,6 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<String, Integer>, String>() {
             private static final int EXPECTED_SUM = 16;
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<CombiningState<Integer, MyInteger, Integer>> combiningState =
                 StateSpecs.combining(
@@ -3587,8 +3534,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @Element KV<String, Integer> element,
-                @SuppressWarnings("unused") @StateId(stateId)
-                    CombiningState<Integer, MyInteger, Integer> state,
+                @StateId(stateId) CombiningState<Integer, MyInteger, Integer> state,
                 OutputReceiver<String> r) {
               state.add(element.getValue());
               Integer currentValue = state.read();
@@ -3621,7 +3567,6 @@ public class ParDoTest implements Serializable {
       DoFn<String, Integer> fn =
           new DoFn<String, Integer>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -3647,7 +3592,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<Double, String>, Integer> fn =
           new DoFn<KV<Double, String>, Integer>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -3691,7 +3635,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -3727,7 +3670,6 @@ public class ParDoTest implements Serializable {
 
             public static final String TIMER_ID = "foo";
 
-            @SuppressWarnings("unused")
             @TimerId(TIMER_ID)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -3762,7 +3704,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, KV<Long, Instant>> fn =
           new DoFn<KV<String, Long>, KV<Long, Instant>>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -3798,7 +3739,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, BoundedWindow> fn =
           new DoFn<KV<String, Integer>, BoundedWindow>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -3849,7 +3789,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -3886,24 +3825,22 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec loopSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<Integer> countState,
+                @StateId(stateId) ValueState<Integer> countState,
                 @TimerId(timerId) Timer loopTimer) {
               loopTimer.offset(Duration.millis(1)).setRelative();
             }
 
             @OnTimer(timerId)
             public void onLoopTimer(
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<Integer> countState,
+                @StateId(stateId) ValueState<Integer> countState,
                 @TimerId(timerId) Timer loopTimer,
                 OutputReceiver<Integer> r) {
               int count = MoreObjects.firstNonNull(countState.read(), 0);
@@ -3938,11 +3875,9 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, KV<String, Long>> fn =
           new DoFn<KV<String, Long>, KV<String, Long>>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<String>> stateSpec =
                 StateSpecs.value(StringUtf8Coder.of());
@@ -3951,7 +3886,7 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 ProcessContext context,
                 @TimerId(timerId) Timer timer,
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<String> state,
+                @StateId(stateId) ValueState<String> state,
                 BoundedWindow window) {
               timer.set(window.maxTimestamp());
               state.write(context.element().getKey());
@@ -3961,8 +3896,7 @@ public class ParDoTest implements Serializable {
 
             @OnTimer(timerId)
             public void onTimer(
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<String> state,
-                OutputReceiver<KV<String, Long>> r) {
+                @StateId(stateId) ValueState<String> state, OutputReceiver<KV<String, Long>> r) {
               r.output(KV.of(state.read(), timerOutput));
             }
           };
@@ -3998,7 +3932,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4048,7 +3981,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn1 =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4084,7 +4016,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4127,7 +4058,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -4176,7 +4106,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -4216,7 +4145,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4252,7 +4180,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, KV<Long, Instant>> fn =
           new DoFn<KV<String, Long>, KV<Long, Instant>>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4300,7 +4227,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, KV<Long, Instant>> fn =
           new DoFn<KV<String, Long>, KV<Long, Instant>>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4350,7 +4276,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, String>, String> fn =
           new DoFn<KV<String, String>, String>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -4395,7 +4320,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, String>, String> fn =
           new DoFn<KV<String, String>, String>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4490,20 +4414,16 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, String>, String> fn =
           new DoFn<KV<String, String>, String>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerIdBagAppend)
             private final TimerSpec appendSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-            @SuppressWarnings("unused")
             @TimerId(timerIdGc)
             private final TimerSpec gcSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-            @SuppressWarnings("unused")
             @StateId(bag)
             private final StateSpec<BagState<TimestampedValue<String>>> bagStateSpec =
                 StateSpecs.bag();
 
-            @SuppressWarnings("unused")
             @StateId(minTimestamp)
             private final StateSpec<ValueState<Instant>> minTimestampSpec = StateSpecs.value();
 
@@ -4594,7 +4514,7 @@ public class ParDoTest implements Serializable {
               .apply(
                   ParDo.of(
                       new DoFn<KV<Long, Long>, String>() {
-                        @SuppressWarnings("unused")
+
                         @TimerId(timerId)
                         private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4700,7 +4620,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, KV<String, Long>> fn1 =
           new DoFn<KV<String, Long>, KV<String, Long>>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4723,7 +4642,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn2 =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4786,7 +4704,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, KV<String, Long>> fn1 =
           new DoFn<KV<String, Long>, KV<String, Long>>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -4810,7 +4727,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn2 =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4866,16 +4782,13 @@ public class ParDoTest implements Serializable {
       DoFn<KV<Void, String>, String> buffferFn =
           new DoFn<KV<Void, String>, String>() {
 
-            @SuppressWarnings("unused")
             @TimerId("timer")
             private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-            @SuppressWarnings("unused")
             @StateId("buffer")
             private final StateSpec<BagState<TimestampedValue<String>>> bufferSpec =
                 StateSpecs.bag(TimestampedValue.TimestampedValueCoder.of(StringUtf8Coder.of()));
 
-            @SuppressWarnings("unused")
             @StateId("minStamp")
             private final StateSpec<ValueState<Instant>> minStamp = StateSpecs.value();
 
@@ -5061,7 +4974,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -5100,7 +5012,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -5142,7 +5053,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -5180,7 +5090,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -5222,11 +5131,9 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-            @SuppressWarnings("unused")
             @TimerId(clearTimerId)
             private final TimerSpec clearTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -5281,11 +5188,9 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-            @SuppressWarnings("unused")
             @TimerId(clearTimerId)
             private final TimerSpec clearSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -5338,7 +5243,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -5380,7 +5284,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -5423,14 +5326,13 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, MyInteger> fn =
           new DoFn<KV<String, Integer>, MyInteger>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<MyInteger>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
                 ProcessContext c,
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<MyInteger> state,
+                @StateId(stateId) ValueState<MyInteger> state,
                 OutputReceiver<MyInteger> r) {
               MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
               r.output(currentValue);
@@ -5457,14 +5359,12 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, MyInteger> fn =
           new DoFn<KV<String, Integer>, MyInteger>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<MyInteger>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<MyInteger> state,
-                OutputReceiver<MyInteger> r) {
+                @StateId(stateId) ValueState<MyInteger> state, OutputReceiver<MyInteger> r) {
               MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
               r.output(currentValue);
               state.write(new MyInteger(currentValue.getValue() + 1));
@@ -5491,14 +5391,12 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, MyInteger>, MyInteger> fn =
           new DoFn<KV<String, MyInteger>, MyInteger>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<MyInteger>> intState = StateSpecs.value();
 
             @ProcessElement
             public void processElement(
-                @SuppressWarnings("unused") @StateId(stateId) ValueState<MyInteger> state,
-                OutputReceiver<MyInteger> r) {
+                @StateId(stateId) ValueState<MyInteger> state, OutputReceiver<MyInteger> r) {
               MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
               r.output(currentValue);
               state.write(new MyInteger(currentValue.getValue() + 1));
@@ -5771,7 +5669,7 @@ public class ParDoTest implements Serializable {
   }
 
   private static class TwoTimerDoFn extends DoFn<KV<String, String>, String> {
-    @SuppressWarnings("unused")
+
     @TimerId("timer")
     private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -5939,7 +5837,6 @@ public class ParDoTest implements Serializable {
             @TimerFamily(timerFamilyId)
             private final TimerSpec spec1 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec2 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -6036,7 +5933,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -6069,7 +5965,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<KV<String, String>, Integer>, Integer> fn =
           new DoFn<KV<KV<String, String>, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -6109,7 +6004,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -6141,7 +6035,6 @@ public class ParDoTest implements Serializable {
       DoFn<String, Integer> fn =
           new DoFn<String, Integer>() {
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -6194,12 +6087,10 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @SuppressWarnings("unused")
             @StateId(stateId)
             private final StateSpec<ValueState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
-            @SuppressWarnings("unused")
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -6211,8 +6102,7 @@ public class ParDoTest implements Serializable {
             @OnTimer(timerId)
             public void onTimer(
                 @Timestamp Instant timestamp,
-                @AlwaysFetched @SuppressWarnings("unused") @StateId(stateId)
-                    ValueState<Integer> state) {
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state) {
               // To check if state is persisted until OnWindowExpiration
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               state.write(currentValue + 1);
@@ -6220,8 +6110,7 @@ public class ParDoTest implements Serializable {
 
             @OnWindowExpiration
             public void onWindowExpiration(
-                @AlwaysFetched @SuppressWarnings("unused") @StateId(stateId)
-                    ValueState<Integer> state,
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
                 @Key String key,
                 OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);

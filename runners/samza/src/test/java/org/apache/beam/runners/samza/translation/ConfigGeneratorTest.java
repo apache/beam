@@ -55,6 +55,8 @@ import org.apache.samza.zk.ZkJobCoordinatorFactory;
 import org.junit.Test;
 
 /** Test config generations for {@link org.apache.beam.runners.samza.SamzaRunner}. */
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class ConfigGeneratorTest {
   private static final String APP_RUNNER_CLASS = "app.runner.class";
   private static final String JOB_FACTORY_CLASS = "job.factory.class";
@@ -222,7 +224,6 @@ public class ConfigGeneratorTest {
                 new DoFn<KV<String, String>, Void>() {
                   private static final String testState = "testState";
 
-                  @SuppressWarnings("unused")
                   @StateId(testState)
                   private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
 
@@ -265,7 +266,6 @@ public class ConfigGeneratorTest {
                 new DoFn<KV<String, String>, KV<String, String>>() {
                   private static final String testState = "testState";
 
-                  @SuppressWarnings("unused")
                   @StateId(testState)
                   private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
 
@@ -280,7 +280,6 @@ public class ConfigGeneratorTest {
                 new DoFn<KV<String, String>, Void>() {
                   private static final String testState = "testState";
 
-                  @SuppressWarnings("unused")
                   @StateId(testState)
                   private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
 

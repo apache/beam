@@ -79,6 +79,7 @@ import org.junit.Test;
 /** Tests for SamzaStoreStateInternals. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class SamzaStoreStateInternalsTest implements Serializable {
   @Rule
@@ -94,12 +95,10 @@ public class SamzaStoreStateInternalsTest implements Serializable {
     DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
         new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
 
-          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<MapState<String, Integer>> mapState =
               StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
 
-          @SuppressWarnings("unused")
           @StateId(countStateId)
           private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
               StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -151,11 +150,9 @@ public class SamzaStoreStateInternalsTest implements Serializable {
     DoFn<KV<String, Integer>, Set<Integer>> fn =
         new DoFn<KV<String, Integer>, Set<Integer>>() {
 
-          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<SetState<Integer>> setState = StateSpecs.set(VarIntCoder.of());
 
-          @SuppressWarnings("unused")
           @StateId(countStateId)
           private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
               StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
@@ -261,7 +258,6 @@ public class SamzaStoreStateInternalsTest implements Serializable {
     DoFn<KV<String, Integer>, Set<Integer>> fn =
         new DoFn<KV<String, Integer>, Set<Integer>>() {
 
-          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<SetState<Integer>> setState = StateSpecs.set(VarIntCoder.of());
 

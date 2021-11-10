@@ -77,7 +77,8 @@ import org.joda.time.Instant;
  * the same topic to which the Injector is publishing.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "unused" // TODO: Remove when new version of errorprone is released (2.11.0)
 })
 public class StatefulTeamScore extends LeaderBoard {
 
@@ -193,7 +194,6 @@ public class StatefulTeamScore extends LeaderBoard {
      * this case the {@link VarIntCoder}. If the coder is not provided as in {@code
      * StateSpecs.value()}, Beam's coder inference will try to provide a coder automatically.
      */
-    @SuppressWarnings("unused")
     @StateId(TOTAL_SCORE)
     private final StateSpec<ValueState<Integer>> totalScoreSpec =
         StateSpecs.value(VarIntCoder.of());

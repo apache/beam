@@ -152,6 +152,7 @@ import org.junit.runners.JUnit4;
 @RunWith(Enclosed.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class FnApiDoFnRunnerTest implements Serializable {
 
@@ -189,16 +190,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     private static class TestStatefulDoFn extends DoFn<KV<String, String>, String> {
 
-      @SuppressWarnings("unused")
       @StateId("value")
       private final StateSpec<ValueState<String>> valueStateSpec =
           StateSpecs.value(StringUtf8Coder.of());
 
-      @SuppressWarnings("unused")
       @StateId("bag")
       private final StateSpec<BagState<String>> bagStateSpec = StateSpecs.bag(StringUtf8Coder.of());
 
-      @SuppressWarnings("unused")
       @StateId("combine")
       private final StateSpec<CombiningState<String, String, String>> combiningStateSpec =
           StateSpecs.combining(StringUtf8Coder.of(), new ConcatCombineFn());
@@ -1104,23 +1102,19 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {
-      @SuppressWarnings("unused")
+
       @StateId("bag")
       private final StateSpec<BagState<String>> bagStateSpec = StateSpecs.bag(StringUtf8Coder.of());
 
-      @SuppressWarnings("unused")
       @TimerId("event")
       private final TimerSpec eventTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-      @SuppressWarnings("unused")
       @TimerId("processing")
       private final TimerSpec processingTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-      @SuppressWarnings("unused")
       @TimerFamily("event-family")
       private final TimerSpec eventTimerFamilySpec = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
-      @SuppressWarnings("unused")
       @TimerFamily("processing-family")
       private final TimerSpec processingTimerFamilySpec =
           TimerSpecs.timerMap(TimeDomain.PROCESSING_TIME);

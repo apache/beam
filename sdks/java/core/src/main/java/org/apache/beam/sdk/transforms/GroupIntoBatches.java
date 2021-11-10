@@ -103,7 +103,8 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-  "rawtypes"
+  "rawtypes",
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
@@ -316,42 +317,38 @@ public class GroupIntoBatches<K, InputT>
     // The following timer is no longer set. We maintain the spec for update compatibility.
     private static final String END_OF_WINDOW_ID = "endOFWindow";
 
-    @SuppressWarnings("unused")
     @TimerId(END_OF_WINDOW_ID)
     private final TimerSpec windowTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     // This timer expires when it's time to batch and output the buffered data.
     private static final String END_OF_BUFFERING_ID = "endOfBuffering";
 
-    @SuppressWarnings("unused")
     @TimerId(END_OF_BUFFERING_ID)
     private final TimerSpec bufferingTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
     // The set of elements that will go in the next batch.
     private static final String BATCH_ID = "batch";
 
-    @SuppressWarnings("unused")
     @StateId(BATCH_ID)
     private final StateSpec<BagState<InputT>> batchSpec;
 
     // The size of the current batch.
     private static final String NUM_ELEMENTS_IN_BATCH_ID = "numElementsInBatch";
 
-    @SuppressWarnings("unused")
     @StateId(NUM_ELEMENTS_IN_BATCH_ID)
     private final StateSpec<CombiningState<Long, long[], Long>> batchSizeSpec;
 
     private static final String NUM_BYTES_IN_BATCH_ID = "numBytesInBatch";
 
     // The byte size of the current batch.
-    @SuppressWarnings("unused")
+
     @StateId(NUM_BYTES_IN_BATCH_ID)
     private final StateSpec<CombiningState<Long, long[], Long>> batchSizeBytesSpec;
 
     private static final String TIMER_TIMESTAMP = "timerTs";
 
     // The timestamp of the current active timer.
-    @SuppressWarnings("unused")
+
     @StateId(TIMER_TIMESTAMP)
     private final StateSpec<ValueState<Long>> timerTsSpec;
 
@@ -360,7 +357,6 @@ public class GroupIntoBatches<K, InputT>
     // on the timer which ensures that the watermark correctly tracks the buffered elements.
     private static final String MIN_BUFFERED_TS = "minBufferedTs";
 
-    @SuppressWarnings("unused")
     @StateId(MIN_BUFFERED_TS)
     private final StateSpec<CombiningState<Long, long[], Long>> minBufferedTsSpec;
 

@@ -114,7 +114,10 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link DoFnOperator}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"keyfor"})
+@SuppressWarnings({
+  "keyfor",
+  "unused" // TODO: Remove when new version of errorprone is released (2.11.0)
+})
 public class DoFnOperatorTest {
 
   // views and windows for testing side inputs
@@ -283,15 +286,12 @@ public class DoFnOperatorTest {
     DoFn<Integer, String> fn =
         new DoFn<Integer, String>() {
 
-          @SuppressWarnings("unused")
           @TimerId(eventTimerId)
           private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-          @SuppressWarnings("unused")
           @TimerId(eventTimerId2)
           private final TimerSpec eventTimer2 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-          @SuppressWarnings("unused")
           @TimerId(processingTimerId)
           private final TimerSpec processingTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -600,7 +600,6 @@ public class DoFnOperatorTest {
     DoFn<Integer, String> fn =
         new DoFn<Integer, String>() {
 
-          @SuppressWarnings("unused")
           @StateId("state")
           private final StateSpec<ValueState<String>> stateSpec =
               StateSpecs.value(StringUtf8Coder.of());
@@ -833,11 +832,9 @@ public class DoFnOperatorTest {
     DoFn<KV<String, Integer>, KV<String, Integer>> fn =
         new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
-          @SuppressWarnings("unused")
           @TimerId(timerId)
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<ValueState<String>> stateSpec =
               StateSpecs.value(StringUtf8Coder.of());
@@ -1017,7 +1014,6 @@ public class DoFnOperatorTest {
     DoFn<KV<String, Long>, KV<String, Long>> filterElementsEqualToCountFn =
         new DoFn<KV<String, Long>, KV<String, Long>>() {
 
-          @SuppressWarnings("unused")
           @StateId("counter")
           private final StateSpec<ValueState<Long>> counterSpec =
               StateSpecs.value(VarLongCoder.of());
@@ -1410,7 +1406,6 @@ public class DoFnOperatorTest {
         new DoFn<Integer, String>() {
           private static final String EVENT_TIMER_ID = "eventTimer";
 
-          @SuppressWarnings("unused")
           @TimerId(EVENT_TIMER_ID)
           private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

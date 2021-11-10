@@ -39,6 +39,8 @@ import org.slf4j.LoggerFactory;
 
 /** Batches input rows to reduce number of requests sent to Cloud DLP service. */
 @Experimental
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable<Table.Row>>> {
   private static final Logger LOG = LoggerFactory.getLogger(BatchRequestForDLP.class);
 
@@ -47,11 +49,9 @@ class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable
 
   private final Integer batchSizeBytes;
 
-  @SuppressWarnings("unused")
   @StateId("elementsBag")
   private final StateSpec<BagState<KV<String, Table.Row>>> elementsBag = StateSpecs.bag();
 
-  @SuppressWarnings("unused")
   @TimerId("eventTimer")
   private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

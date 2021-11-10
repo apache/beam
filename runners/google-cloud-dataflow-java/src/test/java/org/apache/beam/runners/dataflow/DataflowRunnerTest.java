@@ -180,6 +180,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -1516,7 +1518,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
-                  @SuppressWarnings("unused")
+
                   @StateId("fizzle")
                   private final StateSpec<MapState<Void, Void>> voidState = StateSpecs.map();
 
@@ -1554,7 +1556,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
-                  @SuppressWarnings("unused")
+
                   @StateId("fizzle")
                   private final StateSpec<SetState<Void>> voidState = StateSpecs.set();
 
@@ -1789,7 +1791,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
-                  @SuppressWarnings("unused")
+
                   @StateId("fizzle")
                   private final StateSpec<ValueState<Void>> voidState = StateSpecs.value();
 

@@ -58,6 +58,8 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BatchStatefulParDoOverrides}. */
 @RunWith(JUnit4.class)
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class BatchStatefulParDoOverridesTest implements Serializable {
 
   @Test
@@ -138,7 +140,6 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
 
   private static class DummyStatefulDoFn extends DoFn<KV<Integer, Integer>, Integer> {
 
-    @SuppressWarnings("unused")
     @StateId("foo")
     private final StateSpec<ValueState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
 

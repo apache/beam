@@ -172,6 +172,8 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(Parameterized.class)
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class StreamingDataflowWorkerTest {
 
   private final boolean streamingEngine;
@@ -2771,7 +2773,6 @@ public class StreamingDataflowWorkerTest {
 
     static boolean thrown = false;
 
-    @SuppressWarnings("unused")
     @StateId("int")
     private final StateSpec<ValueState<Integer>> counter = StateSpecs.value(VarIntCoder.of());
 

@@ -32,6 +32,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * Test helper for {@link DoFnInvokersTest}, which needs to test package-private access to DoFns in
  * other packages.
  */
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class DoFnInvokersTestHelper {
 
   private static class StaticPrivateDoFn extends DoFn<String, String> {
@@ -135,7 +137,7 @@ public class DoFnInvokersTestHelper {
   private static final String TIMER_ID = "test-timer-id";
 
   private static class StaticPrivateDoFnWithTimers extends DoFn<String, String> {
-    @SuppressWarnings("unused")
+
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -148,7 +150,7 @@ public class DoFnInvokersTestHelper {
 
   @SuppressWarnings("ClassCanBeStatic")
   private class InnerPrivateDoFnWithTimers extends DoFn<String, String> {
-    @SuppressWarnings("unused")
+
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -160,7 +162,7 @@ public class DoFnInvokersTestHelper {
   }
 
   static class StaticPackagePrivateDoFnWithTimers extends DoFn<String, String> {
-    @SuppressWarnings("unused")
+
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -173,7 +175,7 @@ public class DoFnInvokersTestHelper {
 
   @SuppressWarnings("ClassCanBeStatic")
   class InnerPackagePrivateDoFnWithTimers extends DoFn<String, String> {
-    @SuppressWarnings("unused")
+
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -222,7 +224,7 @@ public class DoFnInvokersTestHelper {
 
   public DoFn<String, String> newInnerAnonymousDoFnWithTimers() {
     return new DoFn<String, String>() {
-      @SuppressWarnings("unused")
+
       @TimerId(TIMER_ID)
       private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -247,7 +249,6 @@ public class DoFnInvokersTestHelper {
       @ProcessElement
       public void process(ProcessContext c) {}
 
-      @SuppressWarnings("unused")
       @TimerId(TIMER_ID)
       private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 

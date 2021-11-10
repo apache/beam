@@ -90,6 +90,8 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Integration Test utility for KafkaTableProvider implementations. */
 @RunWith(Parameterized.class)
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class KafkaTableProviderIT {
   private static final String KAFKA_CONTAINER_VERSION = "5.5.2";
 
@@ -285,12 +287,10 @@ public class KafkaTableProviderIT {
       this.expected = expected;
     }
 
-    @SuppressWarnings("unused")
     @StateId("seenValues")
     private final StateSpec<BagState<Row>> seenRows =
         StateSpecs.bag(RowCoder.of(TEST_TABLE_SCHEMA));
 
-    @SuppressWarnings("unused")
     @StateId("count")
     private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
 

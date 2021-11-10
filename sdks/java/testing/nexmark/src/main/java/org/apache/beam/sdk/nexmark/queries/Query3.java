@@ -62,7 +62,8 @@ import org.slf4j.LoggerFactory;
  * <p>A real system would use an external system to maintain the id-to-person association.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
 
@@ -165,23 +166,16 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
     private static final String AUCTIONS = "auctions";
     private static final String PERSON = "person";
 
-    @SuppressWarnings("unused")
     @StateId(PERSON)
     private static final StateSpec<ValueState<Person>> personSpec = StateSpecs.value(Person.CODER);
 
     private static final String STATE_EXPIRING = "stateExpiring";
 
-    @SuppressWarnings("unused")
     @StateId(AUCTIONS)
     private final StateSpec<BagState<Auction>> auctionsSpec = StateSpecs.bag(Auction.CODER);
 
-    @SuppressWarnings("unused")
     @TimerId(STATE_EXPIRING)
     private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-    @SuppressWarnings("unused")
-    // Used to refer the metrics namespace
-    private final String name;
 
     private final Counter newAuctionCounter;
     private final Counter newPersonCounter;
@@ -190,7 +184,6 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
     private final Counter fatalCounter;
 
     private JoinDoFn(String name, int maxAuctionsWaitingTime) {
-      this.name = name;
       this.maxAuctionsWaitingTime = maxAuctionsWaitingTime;
       newAuctionCounter = Metrics.counter(name, "newAuction");
       newPersonCounter = Metrics.counter(name, "newPerson");

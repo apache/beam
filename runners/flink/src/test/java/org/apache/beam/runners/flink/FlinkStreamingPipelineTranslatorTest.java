@@ -55,6 +55,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests if overrides are properly applied. */
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class FlinkStreamingPipelineTranslatorTest {
 
   @Test
@@ -216,7 +218,6 @@ public class FlinkStreamingPipelineTranslatorTest {
 
   private static class StatefulNoopDoFn<KeyT, ValueT> extends DoFn<KV<KeyT, ValueT>, Void> {
 
-    @SuppressWarnings("unused")
     @TimerId("my-timer")
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

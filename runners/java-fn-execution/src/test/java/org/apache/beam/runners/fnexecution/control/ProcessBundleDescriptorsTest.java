@@ -63,6 +63,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.junit.Test;
 
 /** Tests for {@link ProcessBundleDescriptors}. */
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class ProcessBundleDescriptorsTest implements Serializable {
 
   /**
@@ -89,12 +91,10 @@ public class ProcessBundleDescriptorsTest implements Serializable {
             ParDo.of(
                 new DoFn<KV<Void, String>, KV<Void, String>>() {
 
-                  @SuppressWarnings("unused")
                   @StateId("stateId")
                   private final StateSpec<BagState<String>> bufferState =
                       StateSpecs.bag(StringUtf8Coder.of());
 
-                  @SuppressWarnings("unused")
                   @TimerId("timerId")
                   private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

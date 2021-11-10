@@ -71,6 +71,8 @@ import org.slf4j.LoggerFactory;
  * of a given timer is run.
  */
 @RunWith(Parameterized.class)
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class PortableTimersExecutionTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(PortableTimersExecutionTest.class);
@@ -149,11 +151,9 @@ public class PortableTimersExecutionTest implements Serializable {
     DoFn<KV<String, Integer>, KV<String, Integer>> testFn =
         new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
-          @SuppressWarnings("unused")
           @TimerId(timerId)
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-          @SuppressWarnings("unused")
           @StateId(stateId)
           private final StateSpec<ValueState<String>> stateSpec =
               StateSpecs.value(StringUtf8Coder.of());

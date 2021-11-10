@@ -94,7 +94,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class BeamSortRel extends Sort implements BeamRelNode {
   private List<Integer> fieldIndices = new ArrayList<>();
@@ -260,11 +261,9 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       startIndex = s;
     }
 
-    @SuppressWarnings("unused")
     @StateId("counter")
     private final StateSpec<ValueState<Integer>> counterState = StateSpecs.value(VarIntCoder.of());
 
-    @SuppressWarnings("unused")
     @StateId("skipped_rows")
     private final StateSpec<ValueState<Integer>> skippedRowsState =
         StateSpecs.value(VarIntCoder.of());

@@ -49,7 +49,10 @@ import org.joda.time.Instant;
  * https://docs.google.com/document/d/1FU3GxVRetHPLVizP3Mdv6mP5tpjZ3fd99qNjUI5DT5k/edit# for more
  * details.
  */
-@SuppressWarnings({"nullness"})
+@SuppressWarnings({
+  "nullness",
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+})
 @Experimental
 class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceDescriptor> {
 
@@ -83,11 +86,9 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
     this.topics = topics;
   }
 
-  @SuppressWarnings("unused")
   @TimerId(TIMER_ID)
   private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-  @SuppressWarnings("unused")
   @StateId(STATE_ID)
   private final StateSpec<BagState<TopicPartition>> bagStateSpec =
       StateSpecs.bag(new TopicPartitionCoder());

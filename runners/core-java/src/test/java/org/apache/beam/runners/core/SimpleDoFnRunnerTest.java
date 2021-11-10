@@ -63,6 +63,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unused" // TODO: Remove when new version of errorprone is released (2.11.0)
 })
 public class SimpleDoFnRunnerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -391,7 +392,6 @@ public class SimpleDoFnRunnerTest {
 
     static final String TIMER_ID = "throwingTimerId";
 
-    @SuppressWarnings("unused")
     @TimerId(TIMER_ID)
     private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -431,7 +431,6 @@ public class SimpleDoFnRunnerTest {
       this.onTimerInvocations = new ArrayList<>();
     }
 
-    @SuppressWarnings("unused")
     @TimerId(TIMER_ID)
     private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

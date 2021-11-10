@@ -77,6 +77,8 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link UserParDoFnFactory}. */
 @RunWith(JUnit4.class)
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class UserParDoFnFactoryTest {
   static class TestDoFn extends DoFn<Integer, String> {
     enum State {
@@ -143,7 +145,6 @@ public class UserParDoFnFactoryTest {
 
     public static final String STATE_ID = "state-id";
 
-    @SuppressWarnings("unused")
     @StateId(STATE_ID)
     private final StateSpec<ValueState<String>> spec = StateSpecs.value(StringUtf8Coder.of());
 

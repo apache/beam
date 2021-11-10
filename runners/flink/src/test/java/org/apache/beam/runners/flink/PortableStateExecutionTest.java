@@ -58,6 +58,8 @@ import org.slf4j.LoggerFactory;
  * org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator}.
  */
 @RunWith(Parameterized.class)
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class PortableStateExecutionTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(PortableStateExecutionTest.class);
@@ -130,12 +132,11 @@ public class PortableStateExecutionTest implements Serializable {
                 "statefulDoFn",
                 ParDo.of(
                     new DoFn<KV<String, Integer>, KV<String, String>>() {
-                      @SuppressWarnings("unused")
+
                       @StateId("valueState")
                       private final StateSpec<ValueState<Integer>> valueStateSpec =
                           StateSpecs.value(VarIntCoder.of());
 
-                      @SuppressWarnings("unused")
                       @StateId("valueState2")
                       private final StateSpec<ValueState<Integer>> valueStateSpec2 =
                           StateSpecs.value(VarIntCoder.of());

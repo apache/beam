@@ -65,6 +65,8 @@ import org.joda.time.Duration;
  *     words.apply(Deduplicate.<String>values());
  * }</pre>
  */
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public final class Deduplicate {
   /** The default is the {@link TimeDomain#PROCESSING_TIME processing time domain}. */
   public static final TimeDomain DEFAULT_TIME_DOMAIN = TimeDomain.PROCESSING_TIME;
@@ -289,11 +291,9 @@ public final class Deduplicate {
     private static final String EXPIRY_TIMER = "expiryTimer";
     private static final String SEEN_STATE = "seen";
 
-    @SuppressWarnings("unused")
     @TimerId(EXPIRY_TIMER)
     private final TimerSpec expiryTimerSpec;
 
-    @SuppressWarnings("unused")
     @StateId(SEEN_STATE)
     private final StateSpec<ValueState<Boolean>> seenState = StateSpecs.value(BooleanCoder.of());
 

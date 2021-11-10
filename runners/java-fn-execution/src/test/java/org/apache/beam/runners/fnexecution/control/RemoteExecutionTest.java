@@ -161,7 +161,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "keyfor"
+  "keyfor",
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class RemoteExecutionTest implements Serializable {
 
@@ -1057,12 +1058,10 @@ public class RemoteExecutionTest implements Serializable {
             ParDo.of(
                 new DoFn<KV<String, String>, KV<String, String>>() {
 
-                  @SuppressWarnings("unused")
                   @StateId(stateId)
                   private final StateSpec<BagState<String>> bufferState =
                       StateSpecs.bag(StringUtf8Coder.of());
 
-                  @SuppressWarnings("unused")
                   @StateId(stateId2)
                   private final StateSpec<BagState<String>> bufferState2 =
                       StateSpecs.bag(StringUtf8Coder.of());
@@ -1219,12 +1218,10 @@ public class RemoteExecutionTest implements Serializable {
             ParDo.of(
                 new DoFn<KV<String, String>, KV<String, String>>() {
 
-                  @SuppressWarnings("unused")
                   @StateId(stateId)
                   private final StateSpec<BagState<String>> bufferState =
                       StateSpecs.bag(StringUtf8Coder.of());
 
-                  @SuppressWarnings("unused")
                   @StateId(stateId2)
                   private final StateSpec<BagState<String>> bufferState2 =
                       StateSpecs.bag(StringUtf8Coder.of());
@@ -1469,11 +1466,10 @@ public class RemoteExecutionTest implements Serializable {
             "timer",
             ParDo.of(
                 new DoFn<KV<String, String>, KV<String, String>>() {
-                  @SuppressWarnings("unused")
+
                   @TimerId("event")
                   private final TimerSpec eventTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-                  @SuppressWarnings("unused")
                   @TimerId("processing")
                   private final TimerSpec processingTimerSpec =
                       TimerSpecs.timer(TimeDomain.PROCESSING_TIME);

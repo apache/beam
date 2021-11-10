@@ -86,6 +86,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class PTransformMatchersTest implements Serializable {
   @Rule
@@ -192,7 +193,6 @@ public class PTransformMatchersTest implements Serializable {
       new DoFn<KV<String, Integer>, Integer>() {
         private final String stateId = "mystate";
 
-        @SuppressWarnings("unused")
         @StateId(stateId)
         private final StateSpec<ValueState<Integer>> intState = StateSpecs.value(VarIntCoder.of());
 
@@ -207,7 +207,6 @@ public class PTransformMatchersTest implements Serializable {
       new DoFn<KV<String, Integer>, Integer>() {
         private final String timerId = "myTimer";
 
-        @SuppressWarnings("unused")
         @TimerId(timerId)
         private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

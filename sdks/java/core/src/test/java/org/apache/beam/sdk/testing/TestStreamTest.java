@@ -77,6 +77,8 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestStream}. */
 @RunWith(JUnit4.class)
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class TestStreamTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -438,12 +440,11 @@ public class TestStreamTest implements Serializable {
             .apply(
                 ParDo.of(
                     new DoFn<KV<String, String>, String>() {
-                      @SuppressWarnings("unused")
+
                       @StateId("seen")
                       private final StateSpec<ValueState<String>> seenSpec =
                           StateSpecs.value(StringUtf8Coder.of());
 
-                      @SuppressWarnings("unused")
                       @TimerId("emit")
                       private final TimerSpec emitSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

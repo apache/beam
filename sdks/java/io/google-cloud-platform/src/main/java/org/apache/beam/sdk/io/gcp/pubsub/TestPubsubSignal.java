@@ -74,7 +74,8 @@ import org.slf4j.LoggerFactory;
  * <p>Uses a random temporary Pubsub topic for synchronization.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class TestPubsubSignal implements TestRule {
   private static final Logger LOG = LoggerFactory.getLogger(TestPubsubSignal.class);
@@ -405,7 +406,6 @@ public class TestPubsubSignal implements TestRule {
 
     private static final String SEEN_EVENTS = "seenEvents";
 
-    @SuppressWarnings("unused")
     @StateId(SEEN_EVENTS)
     private final StateSpec<BagState<T>> seenEvents;
 
