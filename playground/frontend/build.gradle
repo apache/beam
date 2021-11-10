@@ -33,7 +33,64 @@ dependencies {
   dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
 }
 
+task analyze  {
+  group = "verification"
+  description = "Analyze dart code"
+  doLast {
+    exec {
+      executable("dart")
+      args("analyze", ".")
+    }
+  }
+}
+
+task pubGet {
+  group = "build"
+  description = "Get packages for the playground frontend project"
+  doLast {
+    exec {
+      executable("flutter")
+      args("pub", "get")
+    }
+  }
+}
+
+task format {
+  group = "build"
+  description = "Idiomatically format Dart source code"
+  doLast {
+    exec {
+      executable("dart")
+      args("format", ".")
+    }
+  }
+}
+
+task run {
+  group = "application"
+  description = "Run application on Google Chrome"
+  doLast {
+    exec {
+      executable("flutter")
+      args("run", "-d", "chrome")
+    }
+  }
+}
+
+task test {
+  group = "verification"
+  description = "flutter test"
+  doLast {
+    exec {
+      executable("flutter")
+      args("test")
+    }
+  }
+}
+
 task copyDockerfileDependencies(type: Copy) {
+   group = "build"
+   description = "Copy files that required to build docker container"
    copy {
       from '.'
       into 'build/'
@@ -46,6 +103,8 @@ task copyDockerfileDependencies(type: Copy) {
 }
 
 docker {
+  group = "build"
+  description = "Build container for playground frontend application"
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "playground-frontend",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
