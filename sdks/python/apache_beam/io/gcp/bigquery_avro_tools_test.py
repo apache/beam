@@ -78,6 +78,33 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
 
     parsed_schema = parse_schema(avro_schema)
     self.assertEqual(type(parsed_schema), dict)
+    # names: key -> name, value ->  different types allowed
+    names = {
+        "number": 4,
+        "species": 2,
+        "quality": 2,
+        "grade": 2,
+        "quantity": 2,
+        "dependents": 2,
+        "birthday": 2,
+        "birthdayMoney": 2,
+        "flighted": 2,
+        "flighted2": 2,
+        "sound": 2,
+        "anniversaryDate": 2,
+        "anniversaryDatetime": 2,
+        "anniversaryTime": 2,
+        "scion": 2,
+        "family": 2,
+        "associates": 2,
+        "geoPositions": 2,
+    }
+    # simple test case to check if the schema is parsed right.
+    fields = parsed_schema["fields"]
+    for i in range(len(fields)):
+      field_ = fields[i]
+      assert 'name' in field_ and field_['name'] in names
+      self.assertEqual(len(field_['type']), names[field_['name']])
 
 
 if __name__ == '__main__':
