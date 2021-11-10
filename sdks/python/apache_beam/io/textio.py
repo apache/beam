@@ -395,10 +395,12 @@ class _TextSource(filebasedsource.FileBasedSource):
     # Returns True if byte at position is preceded with an odd number
     # of escapechar bytes or False if preceded by 0 or even escapes
     # (the even number means that all the escapes are escaped themselves).
-    for current_pos in reversed(range(-1, position)):
+    escape_count = 0
+    for current_pos in reversed(range(0, position)):
       if read_buffer.data[current_pos:current_pos + 1] != self._escapechar:
-        return (position - current_pos + 1) % 2 == 1
-    return False
+        break
+      escape_count += 1
+    return escape_count % 2 == 1
 
 
 class _TextSourceWithFilename(_TextSource):
