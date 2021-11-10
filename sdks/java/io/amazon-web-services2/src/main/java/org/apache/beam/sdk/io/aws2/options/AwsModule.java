@@ -107,11 +107,8 @@ public class AwsModule extends SimpleModule {
               "Serialized AWS credentials provider is null");
 
       String typeNameKey = typeDeserializer.getPropertyName();
-      String typeName = asMap.get(typeNameKey);
-      if (typeName == null) {
-        throw new IOException(
-            String.format("AWS credentials provider type name key '%s' not found", typeNameKey));
-      }
+      String typeName = getNotNull(asMap, typeNameKey, "unknown");
+
       if (hasName(StaticCredentialsProvider.class, typeName)) {
         boolean isSession = asMap.containsKey(SESSION_TOKEN);
         if (isSession) {
@@ -142,14 +139,10 @@ public class AwsModule extends SimpleModule {
       }
     }
 
-    private String getNotNull(Map<String, String> map, String key, String typeName)
-        throws IOException {
-      String value = map.get(key);
-      if (value == null) {
-        throw new IOException(
-            String.format("AWS credentials provider type '%s' is missing '%s'", typeName, key));
-      }
-      return value;
+    @SuppressWarnings({"nullness"})
+    private String getNotNull(Map<String, String> map, String key, String typeName) {
+      return checkNotNull(
+          map.get(key), "AWS credentials provider type '%s' is missing '%s'", typeName, key);
     }
 
     private boolean hasName(Class<? extends AwsCredentialsProvider> clazz, String typeName) {
@@ -367,12 +360,8 @@ public class AwsModule extends SimpleModule {
               parser.readValueAs(new TypeReference<Map<String, String>>() {}),
               "Serialized SSECustomerKey is null");
 
-      final String key = asMap.get("key");
-      final String algorithm = asMap.get("algorithm");
-      if (key == null || algorithm == null) {
-        throw new IOException(
-            "Encryption key or algorithm is missing in serialized SSECustomerKey");
-      }
+      final String key = getNotNull(asMap, "key");
+      final String algorithm = getNotNull(asMap, "algorithm");
       SSECustomerKey.Builder builder = SSECustomerKey.builder().key(key).algorithm(algorithm);
 
       final String md5 = asMap.get("md5");
@@ -380,6 +369,12 @@ public class AwsModule extends SimpleModule {
         builder.md5(md5);
       }
       return builder.build();
+    }
+
+    @SuppressWarnings({"nullness"})
+    private String getNotNull(Map<String, String> map, String key) {
+      return checkNotNull(
+          map.get(key), "Encryption %s is missing in serialized SSECustomerKey", key);
     }
   }
 }

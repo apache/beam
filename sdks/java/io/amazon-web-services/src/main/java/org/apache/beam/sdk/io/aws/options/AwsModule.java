@@ -117,11 +117,7 @@ public class AwsModule extends SimpleModule {
               "Serialized AWS credentials provider is null");
 
       String typeNameKey = typeDeserializer.getPropertyName();
-      String typeName = asMap.get(typeNameKey);
-      if (typeName == null) {
-        throw new IOException(
-            String.format("AWS credentials provider type name key '%s' not found", typeNameKey));
-      }
+      String typeName = getNotNull(asMap, typeNameKey, "unknown");
 
       if (hasName(AWSStaticCredentialsProvider.class, typeName)) {
         boolean isSession = asMap.containsKey(SESSION_TOKEN);
@@ -164,14 +160,10 @@ public class AwsModule extends SimpleModule {
       }
     }
 
-    private String getNotNull(Map<String, String> map, String key, String typeName)
-        throws IOException {
-      String value = map.get(key);
-      if (value == null) {
-        throw new IOException(
-            String.format("AWS credentials provider type '%s' is missing '%s'", typeName, key));
-      }
-      return value;
+    @SuppressWarnings({"nullness"})
+    private String getNotNull(Map<String, String> map, String key, String typeName) {
+      return checkNotNull(
+          map.get(key), "AWS credentials provider type '%s' is missing '%s'", typeName, key);
     }
 
     private boolean hasName(Class<? extends AWSCredentialsProvider> clazz, String typeName) {
@@ -253,6 +245,11 @@ public class AwsModule extends SimpleModule {
     }
   }
 
+  @SuppressWarnings({"nullness"})
+  private static String getNotNull(Map<String, String> map, String key, Class<?> clazz) {
+    return checkNotNull(map.get(key), "`%s` required in serialized %s", key, clazz.getSimpleName());
+  }
+
   /** A mixin to add Jackson annotations to {@link SSECustomerKey}. */
   @JsonDeserialize(using = SSECustomerKeyDeserializer.class)
   private static class SSECustomerKeyMixin {}
@@ -266,12 +263,8 @@ public class AwsModule extends SimpleModule {
               parser.readValueAs(new TypeReference<Map<String, String>>() {}),
               "Serialized SSECustomerKey is null");
 
-      final String key = asMap.get("key");
-      if (key == null) {
-        throw new IOException("Encryption key is missing in serialized SSECustomerKey");
-      }
-      SSECustomerKey sseCustomerKey = new SSECustomerKey(key);
-
+      SSECustomerKey sseCustomerKey =
+          new SSECustomerKey(getNotNull(asMap, "key", SSECustomerKey.class));
       final String algorithm = asMap.get("algorithm");
       final String md5 = asMap.get("md5");
       if (algorithm != null) {
@@ -297,11 +290,9 @@ public class AwsModule extends SimpleModule {
           checkNotNull(
               parser.readValueAs(new TypeReference<Map<String, String>>() {}),
               "Serialized SSEAwsKeyManagementParams is null");
-      final String awsKmsKeyId = asMap.get("awsKmsKeyId");
-      if (awsKmsKeyId == null) {
-        throw new IOException("AWS Kms KeyId is missing in serialized SSEAwsKeyManagementParams");
-      }
-      return new SSEAwsKeyManagementParams(awsKmsKeyId);
+
+      return new SSEAwsKeyManagementParams(
+          getNotNull(asMap, "awsKmsKeyId", SSEAwsKeyManagementParams.class));
     }
   }
 
