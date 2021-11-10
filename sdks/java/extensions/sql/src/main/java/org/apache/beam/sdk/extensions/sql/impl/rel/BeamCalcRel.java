@@ -133,7 +133,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform(
-      PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
+      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
     return new Transform(errorsTransformer);
   }
 
@@ -148,7 +148,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
     Transform() {}
 
-    Transform(PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
+    Transform(@Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
 
       this.errorsTransformer = errorsTransformer;
     }

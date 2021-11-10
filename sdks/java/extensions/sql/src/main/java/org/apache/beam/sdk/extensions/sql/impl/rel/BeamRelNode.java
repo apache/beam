@@ -63,7 +63,7 @@ public interface BeamRelNode extends RelNode {
   PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
 
   default PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform(
-      PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
+      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
     return buildPTransform();
   }
 
