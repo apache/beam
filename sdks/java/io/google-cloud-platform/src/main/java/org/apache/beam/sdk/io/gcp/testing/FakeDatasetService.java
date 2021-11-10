@@ -86,13 +86,15 @@ public class FakeDatasetService implements DatasetService, Serializable {
   public void close() throws Exception {}
 
   static class Stream {
+    final String streamName;
     final List<TableRow> stream;
     final TableContainer tableContainer;
     final Type type;
     long nextFlushPosition;
     boolean finalized;
 
-    Stream(TableContainer tableContainer, Type type) {
+    Stream(String streamName, TableContainer tableContainer, Type type) {
+      this.streamName = streamName;
       this.stream = Lists.newArrayList();
       this.tableContainer = tableContainer;
       this.type = type;
@@ -110,9 +112,20 @@ public class FakeDatasetService implements DatasetService, Serializable {
         throw new RuntimeException("Stream already finalized.");
       }
       if (position != -1 && position != stream.size()) {
-        throw new RuntimeException("Bad append: " + position);
+        throw new RuntimeException(
+            "Bad append: "
+                + position
+                + " + for stream "
+                + streamName
+                + " expected "
+                + stream.size());
       }
       stream.addAll(rowsToAppend);
+      if (type == Type.COMMITTED) {
+        for (TableRow row : rowsToAppend) {
+          tableContainer.addRow(row, "");
+        }
+      }
     }
 
     void flush(long position) {
@@ -249,7 +262,21 @@ public class FakeDatasetService implements DatasetService, Serializable {
             "Tried to get a dataset %s:%s, but no such table was set",
             tableReference.getProjectId(), tableReference.getDatasetId());
       }
-      dataset.computeIfAbsent(tableReference.getTableId(), k -> new TableContainer(table));
+      dataset.computeIfAbsent(
+          tableReference.getTableId(),
+          k -> {
+            TableContainer tableContainer = new TableContainer(table);
+            // Create the default stream.
+            String streamName =
+                String.format(
+                    "projects/%s/datasets/%s/tables/%s/streams/_default",
+                    tableReference.getProjectId(),
+                    tableReference.getDatasetId(),
+                    BigQueryHelpers.stripPartitionDecorator(tableReference.getTableId()));
+            writeStreams.put(streamName, new Stream(streamName, tableContainer, Type.COMMITTED));
+
+            return tableContainer;
+          });
     }
   }
 
@@ -412,9 +439,6 @@ public class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public WriteStream createWriteStream(String tableUrn, Type type)
       throws IOException, InterruptedException {
-    if (type != Type.PENDING && type != Type.BUFFERED) {
-      throw new RuntimeException("We only support PENDING or BUFFERED streams.");
-    }
     TableReference tableReference =
         BigQueryHelpers.parseTableUrn(BigQueryHelpers.stripPartitionDecorator(tableUrn));
     synchronized (tables) {
@@ -424,7 +448,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
               tableReference.getDatasetId(),
               tableReference.getTableId());
       String streamName = UUID.randomUUID().toString();
-      writeStreams.put(streamName, new Stream(tableContainer, type));
+      writeStreams.put(streamName, new Stream(streamName, tableContainer, type));
       return WriteStream.newBuilder().setName(streamName).build();
     }
   }

@@ -76,6 +76,8 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
@@ -135,6 +137,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -6250,6 +6253,129 @@ public class ParDoTest implements Serializable {
           // verify output
           .containsInAnyOrder(1);
       pipeline.run();
+    }
+  }
+
+  /** Tests to validate SchemaInformation. */
+  @RunWith(JUnit4.class)
+  public static class SchemaInformationTests extends SharedTestBase implements Serializable {
+
+    private static final Schema TEST_SCHEMA =
+        Schema.builder().addInt32Field("f_int").addStringField("f_string").build();
+    private static final Row TEST_ROW = Row.withSchema(TEST_SCHEMA).addValues(10, "ten").build();
+
+    @Test
+    public void testUnboxFieldAccess() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(
+                @FieldAccess("f_int") Integer value, OutputReceiver<Integer> r) {
+              r.output(value);
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 1, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertEquals(
+          fieldAccessDescriptor.toString(), 1, fieldAccessDescriptor.getFieldsAccessed().size());
+      assertEquals(
+          "f_int",
+          Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed()).getFieldName());
+      assertFalse(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testSingleFieldAccess() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @FieldAccess("foo")
+            final FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withFieldNames("f_int");
+
+            @ProcessElement
+            public void processElement(@FieldAccess("foo") Row row, OutputReceiver<Integer> r) {
+              r.output(row.getInt32("f_int"));
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 1, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertEquals(
+          fieldAccessDescriptor.toString(), 1, fieldAccessDescriptor.getFieldsAccessed().size());
+      assertEquals(
+          "f_int",
+          Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed()).getFieldName());
+      assertFalse(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testImplicitElement() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(@Element Row row, OutputReceiver<Integer> r) {
+              r.output(row.getInt32("f_int"));
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 0, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertTrue(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testImplicitProcessContext() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+              c.output(c.element().getInt32("f_int"));
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 0, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertTrue(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testNoAccess() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(OutputReceiver<Integer> r) {
+              r.output(1);
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 0, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertFalse(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+      assertTrue(
+          fieldAccessDescriptor.toString(), fieldAccessDescriptor.getFieldsAccessed().isEmpty());
+      assertTrue(
+          fieldAccessDescriptor.toString(),
+          fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty());
     }
   }
 }

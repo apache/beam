@@ -499,7 +499,7 @@ public class BigQueryIO {
    */
   private static final String DATASET_TABLE_REGEXP =
       String.format(
-          "((?<PROJECT>%s):)?(?<DATASET>%s)\\.(?<TABLE>%s)",
+          "((?<PROJECT>%s)[:\\.])?(?<DATASET>%s)\\.(?<TABLE>%s)",
           PROJECT_ID_REGEXP, DATASET_REGEXP, TABLE_REGEXP);
 
   static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
@@ -1756,8 +1756,14 @@ public class BigQueryIO {
        * BigQuery</a>.
        */
       STREAMING_INSERTS,
-      /** Use the new, experimental Storage Write API. */
-      STORAGE_WRITE_API
+      /** Use the new, exactly-once Storage Write API. */
+      STORAGE_WRITE_API,
+      /**
+       * Use the new, Storage Write API without exactly once enabled. This will be cheaper and
+       * provide lower latency, however comes with the caveat that the output table may contain
+       * duplicates.
+       */
+      STORAGE_API_AT_LEAST_ONCE
     }
 
     abstract @Nullable ValueProvider<String> getJsonTableRef();
@@ -2508,8 +2514,11 @@ public class BigQueryIO {
       if (getMethod() != Write.Method.DEFAULT) {
         return getMethod();
       }
-      if (input.getPipeline().getOptions().as(BigQueryOptions.class).getUseStorageWriteApi()) {
-        return Write.Method.STORAGE_WRITE_API;
+      BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+      if (bqOptions.getUseStorageWriteApi()) {
+        return bqOptions.getUseStorageWriteApiAtLeastOnce()
+            ? Method.STORAGE_API_AT_LEAST_ONCE
+            : Method.STORAGE_WRITE_API;
       }
       // By default, when writing an Unbounded PCollection, we use StreamingInserts and
       // BigQuery's streaming import API.
@@ -2857,7 +2866,7 @@ public class BigQueryIO {
           batchLoads.setNumFileShards(getNumFileShards());
         }
         return input.apply(batchLoads);
-      } else if (method == Write.Method.STORAGE_WRITE_API) {
+      } else if (method == Method.STORAGE_WRITE_API || method == Method.STORAGE_API_AT_LEAST_ONCE) {
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
           // This ensures that the Beam rows are directly translated into protos for Sorage API
@@ -2884,7 +2893,8 @@ public class BigQueryIO {
                 getKmsKey(),
                 getStorageApiTriggeringFrequency(bqOptions),
                 getBigQueryServices(),
-                getStorageApiNumStreams(bqOptions));
+                getStorageApiNumStreams(bqOptions),
+                method == Method.STORAGE_API_AT_LEAST_ONCE);
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
