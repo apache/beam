@@ -97,8 +97,8 @@ public class BeamSqlRelUtils {
     String name = node.getClass().getSimpleName() + "_" + node.getId();
     PCollectionList<Row> input =
         buildPCollectionList(node.getPCollectionInputs(), pipeline, errorTransformer, cache);
-    node.withErrorsTransformer(errorTransformer);
-    PTransform<PCollectionList<Row>, PCollection<Row>> transform = node.buildPTransform();
+    PTransform<PCollectionList<Row>, PCollection<Row>> transform =
+        node.buildPTransform(errorTransformer);
     output = Pipeline.applyTransform(name, input, transform);
 
     cache.put(node.getId(), output);
