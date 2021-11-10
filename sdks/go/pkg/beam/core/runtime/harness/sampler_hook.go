@@ -38,8 +38,7 @@ func init() {
 					return ctx, fmt.Errorf("expected 1 option, got %v: %v", len(opts), opts)
 				}
 
-				var sampleTime time.Duration
-				_, err := fmt.Sscan(opts[0], &sampleTime)
+				sampleTime, err := time.ParseDuration(opts[0])
 				if err != nil {
 					return nil, err
 				}

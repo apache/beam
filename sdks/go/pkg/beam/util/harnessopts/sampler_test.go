@@ -35,3 +35,10 @@ func TestSampleInterval(t *testing.T) {
 		t.Errorf("num opts mismatch, got %v, want 1", len(opts))
 	}
 }
+
+func TestSampleInterval_Bad(t *testing.T) {
+	err := SampleInterval(time.Microsecond)
+	if err == nil {
+		t.Error("sample period of less than 1ms worked when it shouldn't.")
+	}
+}

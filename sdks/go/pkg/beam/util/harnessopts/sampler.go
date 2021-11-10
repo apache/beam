@@ -19,7 +19,7 @@
 package harnessopts
 
 import (
-	"strconv"
+	"fmt"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
@@ -29,10 +29,13 @@ const (
 	samplePeriodHook = "beam:go:hook:dofnmetrics:sampletime"
 )
 
-// SampleInterval sets the sampling time period for DoFn metrics sampling.
+// SampleInterval sets the sampling time period (greater than 1ms) for DoFn metrics sampling.
 // Default value is 200ms.
 func SampleInterval(samplePeriod time.Duration) error {
-	sampleTime := strconv.FormatInt(int64(samplePeriod), 10)
+	if samplePeriod <= time.Millisecond {
+		return fmt.Errorf("sample period should be greater than 1ms, got %v", samplePeriod)
+	}
+	sampleTime := samplePeriod.String()
 	// The hook itself is defined in beam/core/runtime/harness/sampler_hook.go
 	return hooks.EnableHook(samplePeriodHook, sampleTime)
 }
