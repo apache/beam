@@ -754,6 +754,7 @@ public class RemoteExecutionTest implements Serializable {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void testMetrics() throws Exception {
     launchSdkHarness(PipelineOptionsFactory.create());
     MetricsDoFn metricsDoFn = new MetricsDoFn();
@@ -1033,6 +1034,15 @@ public class RemoteExecutionTest implements Serializable {
         processor.newBundle(outputReceivers, StateRequestHandler.unsupported(), progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+
+      executor.submit(
+          () -> {
+            checkState(
+                MetricsDoFn.AFTER_PROCESS.get(metricsDoFn.uuid).await(60, TimeUnit.SECONDS),
+                "Runner waited too long for DoFn to get to AFTER_PROCESS.");
+            bundle.requestProgress();
+            return (Void) null;
+          });
     }
     executor.shutdown();
   }
