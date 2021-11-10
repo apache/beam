@@ -433,6 +433,23 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_error_test(
         lambda df: df.set_index(['index2', 'bad', 'really_bad']), df)
 
+  def test_set_axis(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}, index=['X', 'Y', 'Z'])
+
+    self._run_test(lambda df: df.set_axis(['I', 'II'], axis='columns'), df)
+    self._run_test(lambda df: df.set_axis([0, 1], axis=1), df)
+    self._run_inplace_test(
+        lambda df: df.set_axis(['i', 'ii'], axis='columns'), df)
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda df: df.set_axis(['a', 'b', 'c'], axis='index'), df)
+      self._run_test(lambda df: df.set_axis([0, 1, 2], axis=0), df)
+
+  def test_series_set_axis(self):
+    s = pd.Series(list(range(3)), index=['X', 'Y', 'Z'])
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda s: s.set_axis(['a', 'b', 'c']), s)
+      self._run_test(lambda s: s.set_axis([1, 2, 3]), s)
+
   def test_series_drop_ignore_errors(self):
     midx = pd.MultiIndex(
         levels=[['lama', 'cow', 'falcon'], ['speed', 'weight', 'length']],
