@@ -24,9 +24,6 @@ public abstract class PulsarSourceDescriptor implements Serializable {
     @SchemaFieldName("client_url")
     abstract String getClientUrl();
 
-
-
-
     public static PulsarSourceDescriptor of(
             String topic,
             Long startOffsetTimestamp,
