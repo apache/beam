@@ -159,8 +159,8 @@ func Test_getNetworkEnvsFromOsEnvs(t *testing.T) {
 		},
 		{
 			name:      "values from os envs",
-			want:      NewNetworkEnvs("12.12.12.21", 1234, defaultProtocol),
-			envsToSet: map[string]string{serverIpKey: "12.12.12.21", serverPortKey: "1234"},
+			want:      NewNetworkEnvs("12.12.12.21", 1234, "TCP"),
+			envsToSet: map[string]string{serverIpKey: "12.12.12.21", serverPortKey: "1234", protocolTypeKey: "TCP"},
 		},
 		{
 			name:      "not int port in os env, should be default",
