@@ -47,7 +47,7 @@ public class BeamSqlRelUtils {
   public static PCollection<Row> toPCollection(
       Pipeline pipeline,
       BeamRelNode node,
-      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer) {
+      @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorTransformer) {
     return toPCollection(pipeline, node, errorTransformer, new HashMap());
   }
 
@@ -55,7 +55,7 @@ public class BeamSqlRelUtils {
   private static PCollectionList<Row> buildPCollectionList(
       List<RelNode> inputRels,
       Pipeline pipeline,
-      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer,
+      @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorTransformer,
       Map<Integer, PCollection<Row>> cache) {
     if (inputRels.isEmpty()) {
       return PCollectionList.empty(pipeline);
@@ -87,7 +87,7 @@ public class BeamSqlRelUtils {
   static PCollection<Row> toPCollection(
       Pipeline pipeline,
       BeamRelNode node,
-      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer,
+      @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorTransformer,
       Map<Integer, PCollection<Row>> cache) {
     PCollection<Row> output = cache.get(node.getId());
     if (output != null) {
