@@ -22,12 +22,13 @@ public class PulsarIO {
     }
 
     @AutoValue
-    public abstract static class Read extends PTransform<PBegin, PCollection<Message>> {
+    @SuppressWarnings({"rawtypes"})
+    public abstract static class Read extends PTransform<PBegin, PCollection<Message<byte[]>>> {
 
         abstract @Nullable String getClientUrl();
         abstract String getTopic();
         abstract long getStartTimestamp();
-        abstract @Nullable SerializableFunction<Message, Instant> getExtractOutputTimestampFn();
+        abstract @Nullable SerializableFunction<Message<byte[]>, Instant> getExtractOutputTimestampFn();
         abstract Builder builder();
 
         @AutoValue.Builder
@@ -35,7 +36,7 @@ public class PulsarIO {
             abstract Builder setClientUrl(String url);
             abstract Builder setTopic(String topic);
             abstract Builder setStartTimestamp(Long timestamp);
-            abstract Builder setExtractOutputTimestampFn(SerializableFunction<Message, Instant> fn);
+            abstract Builder setExtractOutputTimestampFn(SerializableFunction<Message<byte[]>, Instant> fn);
             abstract Read build();
         }
 
@@ -51,7 +52,7 @@ public class PulsarIO {
             return builder().setStartTimestamp(timestamp).build();
         }
 
-        public Read withExtractOutputTimestampFn(SerializableFunction<Message, Instant> fn) {
+        public Read withExtractOutputTimestampFn(SerializableFunction<Message<byte[]>, Instant> fn) {
             return builder().setExtractOutputTimestampFn(fn).build();
         }
 
@@ -66,7 +67,7 @@ public class PulsarIO {
 
 
         @Override
-        public PCollection<Message> expand(PBegin input) {
+        public PCollection<Message<byte[]>> expand(PBegin input) {
             return input
                     .apply(
                             Create.of(
@@ -80,46 +81,49 @@ public class PulsarIO {
 
     public static Write write() {
         return new AutoValue_PulsarIO_Write.Builder()
-                .withClientUrl(PulsarIOUtils.SERVICE_URL)
+                .setClientUrl(PulsarIOUtils.SERVICE_URL)
                 .build();
     }
 
     @AutoValue
-    public abstract static class Write extends PTransform<PCollection<Message>, PDone> {
+    @SuppressWarnings({"rawtypes"})
+    public abstract static class Write extends PTransform<PCollection<Message<byte[]>>, PDone> {
 
         abstract @Nullable String getTopic();
         abstract String getClientUrl();
         abstract Builder builder();
 
+        @AutoValue.Builder
         abstract static class Builder {
             abstract Builder setTopic(String topic);
             abstract Builder setClientUrl(String clientUrl);
             abstract Write build();
+
         }
 
-        public Builder withTopic(String topic) {
+        public Write withTopic(String topic) {
             return builder().setTopic(topic).build();
         }
 
-        public Builder withClientUrl(String clientUrl) {
+        public Write withClientUrl(String clientUrl) {
             return builder().setClientUrl(clientUrl).build();
         }
 
         @Override
-        public PDone expand(PCollection<Message> input) {
+        public PDone expand(PCollection<Message<byte[]>> input) {
             //TODO checkargument (missing topic?)
-            input.apply(new PulsarWriteer(this));
+            input.apply(ParDo.of(new PulsarWriter(this)));
             return PDone.in(input.getPipeline());
         }
     }
 
 
     static class ExtractOutputTimestampFn {
-        public static SerializableFunction<Message, Instant> useProcessingTime() {
+        public static SerializableFunction<Message<byte[]>, Instant> useProcessingTime() {
             return record -> Instant.now();
         }
 
-        public static SerializableFunction<Message, Instant> usePublishTime() {
+        public static SerializableFunction<Message<byte[]>, Instant> usePublishTime() {
             return record -> new Instant(record.getPublishTime());
         }
     }

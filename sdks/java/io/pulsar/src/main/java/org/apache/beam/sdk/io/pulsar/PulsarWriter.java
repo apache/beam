@@ -3,16 +3,16 @@ package org.apache.beam.sdk.io.pulsar;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.pulsar.client.api.*;
 
-public class PulsarWriter extends DoFn<Message, Void> {
+public class PulsarWriter extends DoFn<Message<byte[]>, Void> {
 
-    private Producer producer;
+    private Producer<byte[]> producer;
     private PulsarClient client;
     private String clientUrl;
     private String topic;
 
-    PulsarWriter(WriteRecords transform) {
-        clientUrl = transform.getClientUrl();
-        topic = transform.getTopic();
+    PulsarWriter(PulsarIO.Write transform) {
+        this.clientUrl = transform.getClientUrl();
+        this.topic = transform.getTopic();
     }
 
     @Setup
@@ -31,11 +31,11 @@ public class PulsarWriter extends DoFn<Message, Void> {
 
     @ProcessElement
     public void processElement(ProcessContext ctx) throws Exception {
-        Message message = ctx.element();
+        Message<byte[]> message = ctx.element();
         Long offset = message.getPublishTime();
         //TODO validate message exists
 
-        producer.send(message);
+        producer.send(message.getData());
     }
 
     @Teardown

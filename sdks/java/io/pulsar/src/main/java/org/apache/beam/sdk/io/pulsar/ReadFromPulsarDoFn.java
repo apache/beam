@@ -6,7 +6,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.*;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.joda.time.Instant;
@@ -16,16 +15,15 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @DoFn.UnboundedPerElement
-public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, Message> {
+public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, Message<byte[]>> {
 
     private PulsarClient client;
     private String topic;
-    private List<String> topics;
     private String clientUrl;
 
-    private final SerializableFunction<Message, Instant> extractOutputTimestampFn;
+    private final SerializableFunction<Message<byte[]>, Instant> extractOutputTimestampFn;
 
-    public ReadFromPulsarDoFn(PulsarIO.Read transform) {
+    ReadFromPulsarDoFn(PulsarIO.Read transform) {
         this.extractOutputTimestampFn = transform.getExtractOutputTimestampFn();
         this.clientUrl = transform.getClientUrl();
         this.topic = transform.getTopic();
@@ -83,8 +81,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, Message> {
     public ProcessContinuation processElement(
             @Element PulsarSourceDescriptor pulsarSourceDescriptor,
             RestrictionTracker<OffsetRange, Long> tracker,
-            WatermarkEstimator watermarkEstimator,
-            OutputReceiver<Message> output) throws IOException {
+            OutputReceiver<Message<byte[]>> output) throws IOException {
 
         long startTimestamp = tracker.currentRestriction().getFrom();
         String topicPartition = pulsarSourceDescriptor.getTopic();
@@ -133,8 +130,8 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, Message> {
 
     private static class PulsarLatestOffsetEstimator implements GrowableOffsetRangeTracker.RangeEndEstimator {
 
-        private final Supplier<Message> memoizedBacklog;
-        private final Reader readerLatestMsg;
+        private final Supplier<Message<byte[]>> memoizedBacklog;
+        private final Reader<byte[]> readerLatestMsg;
 
         private PulsarLatestOffsetEstimator(PulsarClient client, String topic) throws PulsarClientException {
             this.readerLatestMsg = client.newReader()
@@ -168,7 +165,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, Message> {
 
         @Override
         public long estimate() {
-            Message msg = memoizedBacklog.get();
+            Message<byte[]> msg = memoizedBacklog.get();
             return msg.getPublishTime();
         }
     }
