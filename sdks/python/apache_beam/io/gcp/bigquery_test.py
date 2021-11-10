@@ -780,12 +780,12 @@ class TestWriteToBigQuery(unittest.TestCase):
   def test_triggering_frequency_with_streaming_inserts_usage(self):
     # triggering_frequency with STREAMING_INSERTS can only be
     # used with with_auto_sharding=True
+    beam.io.gcp.bigquery.WriteToBigQuery(
+        "dataset.table",
+        method=WriteToBigQuery.Method.STREAMING_INSERTS,
+        triggering_frequency=0.5,
+        with_auto_sharding=True)
     with self.assertRaises(ValueError):
-      beam.io.gcp.bigquery.WriteToBigQuery(
-          "dataset.table",
-          method=WriteToBigQuery.Method.STREAMING_INSERTS,
-          triggering_frequency=0.5,
-          with_auto_sharding=False)
       beam.io.gcp.bigquery.WriteToBigQuery(
           "dataset.table",
           method=WriteToBigQuery.Method.STREAMING_INSERTS,
@@ -972,7 +972,6 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               schema_side_inputs=[],
               schema='anyschema',
               batch_size=None,
-              triggering_frequency=None,
               create_disposition='CREATE_NEVER',
               write_disposition=None,
               kms_key=None,
@@ -1031,7 +1030,6 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               # Set a batch size such that the input elements will be inserted
               # in 2 batches.
               batch_size=2,
-              triggering_frequency=None,
               create_disposition='CREATE_NEVER',
               write_disposition=None,
               kms_key=None,
