@@ -32,7 +32,7 @@ const (
 // SampleInterval sets the sampling time period for DoFn metrics sampling.
 // Default value is 200ms.
 func SampleInterval(samplePeriod time.Duration) error {
-	sampleTime := strconv.FormatInt(int64(samplePeriod/time.Millisecond), 10)
+	sampleTime := strconv.FormatInt(int64(samplePeriod), 10)
 	// The hook itself is defined in beam/core/runtime/harness/sampler_hook.go
 	return hooks.EnableHook(samplePeriodHook, sampleTime)
 }
