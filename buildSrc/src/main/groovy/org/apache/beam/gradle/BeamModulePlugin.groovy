@@ -445,7 +445,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def activemq_version = "5.14.5"
     def autovalue_version = "1.8.2"
     def aws_java_sdk_version = "1.11.974"
-    def aws_java_sdk2_version = "2.15.31"
+    def aws_java_sdk2_version = "2.17.77"
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
