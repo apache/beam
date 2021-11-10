@@ -326,7 +326,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
 
 		sampler := newSampler(store)
-		go sampler.start(ctx, time.Millisecond*200)
+		go sampler.start(ctx, samplePeriod)
 
 		err = plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
 
