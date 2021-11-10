@@ -17,50 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.Objects;
+import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.values.Row;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class BeamCalcRelError {
+@AutoValue
+public abstract class BeamCalcRelError {
 
-  private Row row;
-  private String error;
-
-  public BeamCalcRelError(Row row, String error) {
-    this.row = row;
-    this.error = error == null ? "empty error msg" : error;
+  public static BeamCalcRelError create(Row row, String error) {
+    String errorMessage = error == null ? "empty error msg" : error;
+    return new AutoValue_BeamCalcRelError(row, errorMessage);
   }
 
-  public Row getRow() {
-    return row;
-  }
+  public abstract Row getRow();
 
-  public void setRow(Row row) {
-    this.row = row;
-  }
-
-  public String getError() {
-    return error;
-  }
-
-  public void setError(String error) {
-    this.error = error;
-  }
-
-  @Override
-  public boolean equals(@Nullable Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (!(o instanceof BeamCalcRelError)) {
-      return false;
-    }
-    BeamCalcRelError that = (BeamCalcRelError) o;
-    return Objects.equals(getRow(), that.getRow()) && Objects.equals(getError(), that.getError());
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(getRow(), getError());
-  }
+  public abstract String getError();
 }

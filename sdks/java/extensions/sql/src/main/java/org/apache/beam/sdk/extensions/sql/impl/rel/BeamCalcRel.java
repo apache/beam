@@ -283,20 +283,24 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     }
 
     @ProcessElement
-    public void processElement(@FieldAccess("row") Row row, MultiOutputReceiver r) {
+    public void processElement(
+        @FieldAccess("row") Row row,
+        OutputReceiver<Row> outputReceiver,
+        MultiOutputReceiver multiOutputReceiver) {
       assert se != null;
       try {
         Object[] v = (Object[]) se.evaluate(new Object[] {row, CONTEXT_INSTANCE});
         if (v != null) {
           final Row output = toBeamRow(Arrays.asList(v), outputSchema, verifyRowValues);
-          r.get(rows).output(output);
+          outputReceiver.output(output);
         }
 
       } catch (InvocationTargetException e) {
         if (collectErrors) {
           LOG.error("CalcFn failed to evaluate: " + processElementBlock, e.getCause());
-          BeamCalcRelError beamCalcRelError = new BeamCalcRelError(row, e.getCause().getMessage());
-          r.get(errors).output(beamCalcRelError);
+          BeamCalcRelError beamCalcRelError =
+              BeamCalcRelError.create(row, e.getCause().getMessage());
+          multiOutputReceiver.get(errors).output(beamCalcRelError);
         } else {
           throw new RuntimeException(
               "CalcFn failed to evaluate: " + processElementBlock, e.getCause());
