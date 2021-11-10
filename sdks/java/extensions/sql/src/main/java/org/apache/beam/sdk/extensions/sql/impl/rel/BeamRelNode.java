@@ -62,6 +62,11 @@ public interface BeamRelNode extends RelNode {
 
   PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
 
+  default PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform(
+      PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
+    return buildPTransform();
+  }
+
   /** Perform a DFS(Depth-First-Search) to find the PipelineOptions config. */
   default Map<String, String> getPipelineOptions() {
     Map<String, String> options = null;

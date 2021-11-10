@@ -119,7 +119,6 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   private static final long MILLIS_PER_DAY = 86400000L;
 
   private static final ParameterExpression rowParam = Expressions.parameter(Row.class, "row");
-  private PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer;
   private static final TupleTag<Row> rows = new TupleTag<Row>() {};
   private static final TupleTag<BeamCalcRelError> errors = new TupleTag<BeamCalcRelError>() {};
 
@@ -128,21 +127,31 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   }
 
   @Override
-  public void withErrorsTransformer(PTransform<PCollection<BeamCalcRelError>, POutput> ptransform) {
-    this.errorsTransformer = ptransform;
-  }
-
-  @Override
   public Calc copy(RelTraitSet traitSet, RelNode input, RexProgram program) {
     return new BeamCalcRel(getCluster(), traitSet, input, program);
   }
 
   @Override
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform(
+      PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
+    return new Transform(errorsTransformer);
+  }
+
+  @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform();
+    return new Transform(null);
   }
 
   private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+
+    private PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer;
+
+    Transform() {}
+
+    Transform(PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
+
+      this.errorsTransformer = errorsTransformer;
+    }
 
     /**
      * expand is based on calcite's EnumerableCalc.implement(). This function generates java code
@@ -208,7 +217,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               options.getVerifyRowValues(),
               getJarPaths(program),
               inputGetter.getFieldAccess(),
-              errorsTransformer != null);
+              this.errorsTransformer != null);
 
       PCollectionTuple tuple =
           upstream.apply(ParDo.of(calcFn).withOutputTags(rows, TupleTagList.of(errors)));
