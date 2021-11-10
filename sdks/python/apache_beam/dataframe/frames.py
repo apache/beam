@@ -1546,16 +1546,18 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           n_a, n_b = datum.n, n
           m2_a, m2_b = datum.m2, m2
           m3_a, m3_b = datum.m3, m3
-          mean_a, mean_b = datum.sum / n_a, sum / n_b
+          sum_a, sum_b = datum.sum, sum
+          mean_a, mean_b = sum_a / n_a, sum_b / n_b
           delta = mean_b - mean_a
-          combined_n = n + datum.n
-          m4 += datum.m4 + ((delta**4) * (n_a * n_b) *
-                            (n_a**2 - (n_a * n_b) + n_b**2) / combined_n**3) + (
-                                (6 * delta**2) *
-                                ((n_a**2 * m2_b) +
-                                 (n_b**2 * m2_a)) / combined_n**2) + (
-                                     (4 * delta) * ((n_a * m3_b) -
-                                                    (n_b * m3_a)) / combined_n)
+          combined_n = n_a + n_b
+          m4 += datum.m4 + ((delta**4) * (n_a * n_b) * (
+              (n_a**2) - (n_a * n_b) +
+              (n_b**2)) / combined_n**3) + ((6 * delta**2) * ((n_a**2 * m2_b) +
+                                                              (n_b**2 * m2_a)) /
+                                            (combined_n**2)) + ((4 * delta) *
+                                                                ((n_a * m3_b) -
+                                                                 (n_b * m3_a)) /
+                                                                (combined_n))
           m3 += datum.m3 + (
               (delta**3 * ((n_a * n_b) * (n_a - n_b)) / ((combined_n)**2)) +
               ((3 * delta) * ((n_a * m2_b) - (n_b * m2_a)) / (combined_n)))
@@ -1570,9 +1572,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       else:
         return (((combined_n + 1) * (combined_n) * (combined_n - 1)) /
                 ((combined_n - 2) *
-                 (combined_n - 3))) * (m4 / (np.floor(m2)**2)) - (
-                     (3 * (combined_n - 1)**2) / ((combined_n - 2) *
-                                                  (combined_n - 3)))
+                 (combined_n - 3))) * (m4 /
+                                       (m2)**2) - ((3 * (combined_n - 1)**2) /
+                                                   ((combined_n - 2) *
+                                                    (combined_n - 3)))
 
     moments = expressions.ComputedExpression(
         'compute_moments',
