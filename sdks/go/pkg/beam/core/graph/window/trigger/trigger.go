@@ -86,7 +86,7 @@ func Default() Trigger {
 // Always constructs a trigger that fires immediately
 // whenever an element is received.
 //
-// Equivalent to window.Repeat(window.AfterCount(1))
+// Equivalent to trigger.Repeat(trigger.AfterCount(1))
 func Always() Trigger {
 	return Trigger{Kind: AlwaysTrigger}
 }
@@ -146,7 +146,7 @@ func (tr Trigger) AlignedTo(period time.Duration, offset time.Time) Trigger {
 // Repeat constructs a trigger that fires a trigger repeatedly
 // once the condition has been met.
 //
-// Ex: window.Repeat(window.AfterCount(1)) is same as window.Always().
+// Ex: trigger.Repeat(trigger.AfterCount(1)) is same as trigger.Always().
 func Repeat(tr Trigger) Trigger {
 	return Trigger{Kind: RepeatTrigger, SubTriggers: []Trigger{tr}}
 }
