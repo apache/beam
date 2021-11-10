@@ -170,7 +170,6 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return BeamSqlRelUtils.toPCollection(
         input.getPipeline(),
         sqlEnv.parseQuery(queryString(), queryParameters()),
-        new HashMap<>(),
         errorsTransformer());
   }
 

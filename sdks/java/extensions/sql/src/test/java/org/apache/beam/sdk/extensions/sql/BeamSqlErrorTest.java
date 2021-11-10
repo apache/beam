@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -36,7 +35,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-public class BeamSqlErrorTest extends org.apache.beam.sdk.extensions.sql.BeamSqlDslBase {
+public class BeamSqlErrorTest extends BeamSqlDslBase {
 
   @Test
   public void testFailedExpression() {
@@ -64,7 +63,7 @@ public class BeamSqlErrorTest extends org.apache.beam.sdk.extensions.sql.BeamSql
     Object[] expectedElements =
         rowsOfBytes.stream()
             .filter(row -> Objects.equals(row.getValue("f_func"), "HashingFn"))
-            .map(row -> new BeamCalcRelError(row, "test error"))
+            .map(row -> BeamCalcRelError.create(row, "test error"))
             .toArray();
     Mockito.verify(mock, times(1)).expand(captor.capture());
     PAssert.that(captor.getValue()).containsInAnyOrder(expectedElements);

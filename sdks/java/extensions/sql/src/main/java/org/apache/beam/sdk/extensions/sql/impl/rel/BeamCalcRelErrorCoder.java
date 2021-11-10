@@ -58,7 +58,7 @@ public class BeamCalcRelErrorCoder extends StructuredCoder<BeamCalcRelError> {
     }
     Row row = rowCoder.decode(inStream);
     String error = StringUtf8Coder.of().decode(inStream);
-    return new BeamCalcRelError(row, error);
+    return BeamCalcRelError.create(row, error);
   }
 
   @Override

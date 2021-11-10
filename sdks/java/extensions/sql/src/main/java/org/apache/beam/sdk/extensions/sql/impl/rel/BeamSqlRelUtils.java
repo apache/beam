@@ -41,15 +41,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class BeamSqlRelUtils {
 
   public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {
-    return toPCollection(pipeline, node, new HashMap(), null);
+    return toPCollection(pipeline, node, null, new HashMap());
+  }
+
+  public static PCollection<Row> toPCollection(
+      Pipeline pipeline,
+      BeamRelNode node,
+      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer) {
+    return toPCollection(pipeline, node, errorTransformer, new HashMap());
   }
 
   /** Transforms the inputs into a PInput. */
   private static PCollectionList<Row> buildPCollectionList(
       List<RelNode> inputRels,
       Pipeline pipeline,
-      Map<Integer, PCollection<Row>> cache,
-      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer) {
+      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer,
+      Map<Integer, PCollection<Row>> cache) {
     if (inputRels.isEmpty()) {
       return PCollectionList.empty(pipeline);
     } else {
@@ -67,7 +74,7 @@ public class BeamSqlRelUtils {
                       beamRel = (BeamRelNode) input;
                     }
                     return BeamSqlRelUtils.toPCollection(
-                        pipeline, beamRel, cache, errorTransformer);
+                        pipeline, beamRel, errorTransformer, cache);
                   })
               .collect(Collectors.toList()));
     }
@@ -77,11 +84,11 @@ public class BeamSqlRelUtils {
    * A {@link BeamRelNode} is a recursive structure, the {@code BeamQueryPlanner} visits it with a
    * DFS(Depth-First-Search) algorithm.
    */
-  public static PCollection<Row> toPCollection(
+  static PCollection<Row> toPCollection(
       Pipeline pipeline,
       BeamRelNode node,
-      Map<Integer, PCollection<Row>> cache,
-      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer) {
+      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorTransformer,
+      Map<Integer, PCollection<Row>> cache) {
     PCollection<Row> output = cache.get(node.getId());
     if (output != null) {
       return output;
@@ -89,7 +96,7 @@ public class BeamSqlRelUtils {
 
     String name = node.getClass().getSimpleName() + "_" + node.getId();
     PCollectionList<Row> input =
-        buildPCollectionList(node.getPCollectionInputs(), pipeline, cache, errorTransformer);
+        buildPCollectionList(node.getPCollectionInputs(), pipeline, errorTransformer, cache);
     node.withErrorsTransformer(errorTransformer);
     PTransform<PCollectionList<Row>, PCollection<Row>> transform = node.buildPTransform();
     output = Pipeline.applyTransform(name, input, transform);
