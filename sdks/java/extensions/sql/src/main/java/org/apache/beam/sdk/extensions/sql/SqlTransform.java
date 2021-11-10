@@ -115,7 +115,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract String queryString();
 
-  abstract @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer();
+  abstract @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput>
+      errorsTransformer();
 
   abstract List<String> ddlStrings();
 
@@ -305,7 +306,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   public SqlTransform withErrorsTransformer(
-      PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer) {
+      PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorsTransformer) {
     return toBuilder().setErrorsTransformer(errorsTransformer).build();
   }
 
@@ -343,7 +344,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setQueryPlannerClassName(@Nullable String queryPlannerClassName);
 
     abstract Builder setErrorsTransformer(
-        @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> errorsTransformer);
+        @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorsTransformer);
 
     abstract SqlTransform build();
   }
