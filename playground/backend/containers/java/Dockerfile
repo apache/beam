@@ -16,7 +16,6 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE
-#ARG BEAM_VERSION_ARG=2.33.0
 FROM golang:1.17-buster AS build
 
 # Setup Go Environment
