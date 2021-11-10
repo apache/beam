@@ -19,14 +19,17 @@
 
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.options import pipeline_options
+from apache_beam.utils import retry
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
   import boto3
+  import botocore.exceptions as boto_exception
 
 except ImportError:
   boto3 = None
+  boto_exception = None
 
 
 class Client(object):
@@ -67,52 +70,65 @@ class Client(object):
         aws_secret_access_key=secret_access_key,
         aws_session_token=session_token)
 
-  def get_object_metadata(self, request):
-    r"""Retrieves an object's metadata.
+    self._download_request = None
+    self._download_stream = None
+    self._download_pos = 0
+
+  def get_stream(self, request, start):
+    """Opens a stream object starting at the given position.
 
     Args:
-      request: (GetRequest) input message
-
+      request: (GetRequest) request
+      start: (int) start offset
     Returns:
-      (Object) The response message.
+      (Stream) Boto3 stream object.
     """
-    kwargs = {'Bucket': request.bucket, 'Key': request.object}
 
-    try:
-      boto_response = self.client.head_object(**kwargs)
-    except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
-      raise messages.S3ClientError(message, code)
+    if self._download_request and (
+        start != self._download_pos or
+        request.bucket != self._download_request.bucket or
+        request.object != self._download_request.object):
+      self._download_stream.close()
+      self._download_stream = None
 
-    item = messages.Item(
-        boto_response['ETag'],
-        request.object,
-        boto_response['LastModified'],
-        boto_response['ContentLength'],
-        boto_response['ContentType'])
+    # noinspection PyProtectedMember
+    if not self._download_stream or self._download_stream._raw_stream.closed:
+      try:
+        self._download_stream = self.client.get_object(
+            Bucket=request.bucket,
+            Key=request.object,
+            Range='bytes={}-'.format(start))['Body']
+        self._download_request = request
+        self._download_pos = start
+      except Exception as e:
+        message = e.response['Error'].get(
+            'Message', e.response['Error'].get('Code', ''))
+        code = e.response['ResponseMetadata']['HTTPStatusCode']
+        raise messages.S3ClientError(message, code)
 
-    return item
+    return self._download_stream
 
+  @retry.with_exponential_backoff(initial_delay_secs=0.05)
   def get_range(self, request, start, end):
     r"""Retrieves an object's contents.
 
       Args:
         request: (GetRequest) request
+        start: (int) start offset
+        end: (int) end offset (exclusive)
       Returns:
         (bytes) The response message.
       """
     try:
-      boto_response = self.client.get_object(
-          Bucket=request.bucket,
-          Key=request.object,
-          Range='bytes={}-{}'.format(start, end - 1))
-    except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
-      raise messages.S3ClientError(message, code)
-
-    return boto_response['Body'].read()  # A bytes object
+      stream = self.get_stream(request, start)
+      data = stream.read(end - start)
+      self._download_pos += len(data)
+      return data
+    except boto_exception.BotoCoreError as e:
+      # Read errors are more likely with long-lived connections, so retry if a read fails
+      self._download_stream = None
+      self._download_request = None
+      raise messages.S3ClientError(str(e))
 
   def list(self, request):
     r"""Retrieves a list of objects matching the criteria.
