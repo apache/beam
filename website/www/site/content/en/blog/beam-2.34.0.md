@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.34.0"
-date:   2021-11-XX 00:00:01 -0700
+date:   2021-11-11 00:11:00 -0800
 categories:
   - blog
 authors:
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.34.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#TODO) for this release.
+See the [download page](/get-started/downloads/#2340-2021-11-11) for this release.
 
 <!--more-->
 
