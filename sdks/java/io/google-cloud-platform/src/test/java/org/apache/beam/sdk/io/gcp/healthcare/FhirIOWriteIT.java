@@ -26,7 +26,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIOWrite.Import.ContentStructure;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIOWrite.ContentStructure;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;

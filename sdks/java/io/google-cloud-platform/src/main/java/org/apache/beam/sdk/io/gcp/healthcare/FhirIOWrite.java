@@ -105,7 +105,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
     IMPORT
   }
 
-  /** The enum Content structure. */
+  /** The Content Structure for imports. */
   public enum ContentStructure {
     /** If the content structure is not specified, the default value BUNDLE will be used. */
     CONTENT_STRUCTURE_UNSPECIFIED,
@@ -229,9 +229,10 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
   abstract WriteMethod getWriteMethod();
 
   /**
-   * Gets content structure for an import.
+   * <<<<<<< HEAD Gets content structure for an import.
    *
-   * @return the import content structure
+   * @return the import content structure ======= Gets content structure.
+   * @return the content structure >>>>>>> c22bdba81c30ae67b04c72bc16287a3261f00f88
    */
   abstract Optional<ContentStructure> getContentStructure();
 
