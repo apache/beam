@@ -526,6 +526,10 @@ workers across a cluster may execute instances of your user code in parallel.
 The user code running on each worker generates the output elements that are
 ultimately added to the final output `PCollection` that the transform produces.
 
+> Aggregation is an important concept to understand when learning about Beam's
+> transforms. For an introduction to aggregation, see the Basics of the Beam
+> model [Aggregation section](/documentation/basics/#aggregation).
+
 The Beam SDKs contain a number of different transforms that you can apply to
 your pipeline's `PCollection`s. These include general-purpose core transforms,
 such as [ParDo](#pardo) or [Combine](#combine). There are also pre-written
@@ -1273,6 +1277,19 @@ Simple combine operations, such as sums, can usually be implemented as a simple
 function. More complex combination operations might require you to create a
 <span class="language-java language-py">subclass of</span> `CombineFn`
 that has an accumulation type distinct from the input/output type.
+
+The associativity and commutativity of a `CombineFn` allows runners to
+automatically apply some optimizations:
+
+ * **Combiner lifting**: This is the most significant optimization. Input
+   elements are combined per key and window before they are shuffled, so the
+   volume of data shuffled might be reduced by many orders of magnitude. Another
+   term for this optimization is "mapper-side combine."
+ * **Incremental combining**: When you have a `CombineFn` that reduces the data
+   size by a lot, it is useful to combine elements as they emerge from a
+   streaming shuffle. This spreads out the cost of doing combines over the time
+   that your streaming computation might be idle. Incremental combining also
+   reduces the storage of intermediate accumulators.
 
 ##### 4.2.4.1. Simple combinations using simple functions {#simple-combines}
 
@@ -4780,7 +4797,7 @@ timestamps attached to the data elements. The watermark is a global progress
 metric, and is Beam's notion of input completeness within your pipeline at any
 given point. <span class="language-java">`AfterWatermark.pastEndOfWindow()`</span>
 <span class="language-py">`AfterWatermark`</span>
-<span class="language-go">`window.AfterEndOfWindow`</span> *only* fires when the
+<span class="language-go">`trigger.AfterEndOfWindow`</span> *only* fires when the
 watermark passes the end of the window.
 
 In addition, you can configure triggers that fire if your pipeline receives data
@@ -4826,7 +4843,7 @@ modifying this behavior.
 The `AfterProcessingTime` trigger operates on *processing time*. For example,
 the <span class="language-java">`AfterProcessingTime.pastFirstElementInPane()`</span>
 <span class="language-py">`AfterProcessingTime`</span>
-<span class="language-go">`window.TriggerAfterProcessingTime()`</span> trigger emits a window
+<span class="language-go">`trigger.AfterProcessingTime()`</span> trigger emits a window
 after a certain amount of processing time has passed since data was received.
 The processing time is determined by the system clock, rather than the data
 element's timestamp.
@@ -4840,7 +4857,7 @@ window.
 Beam provides one data-driven trigger,
 <span class="language-java">`AfterPane.elementCountAtLeast()`</span>
 <span class="language-py">`AfterCount`</span>
-<span class="language-go">`window.TriggerAfterCount()`</span>. This trigger works on an element
+<span class="language-go">`trigger.AfterCount()`</span>. This trigger works on an element
 count; it fires after the current pane has collected at least *N* elements. This
 allows a window to emit early results (before all the data has accumulated),
 which can be particularly useful if you are using a single global window.
@@ -4848,7 +4865,7 @@ which can be particularly useful if you are using a single global window.
 It is important to note that if, for example, you specify
 <span class="language-java">`.elementCountAtLeast(50)`</span>
 <span class="language-py">AfterCount(50)</span>
-<span class="language-go">`window.TriggerAfterCount(50)`</span> and only 32 elements arrive,
+<span class="language-go">`trigger.AfterCount(50)`</span> and only 32 elements arrive,
 those 32 elements sit around forever. If the 32 elements are important to you,
 consider using [composite triggers](#composite-triggers) to combine multiple
 conditions. This allows you to specify multiple firing conditions such as "fire

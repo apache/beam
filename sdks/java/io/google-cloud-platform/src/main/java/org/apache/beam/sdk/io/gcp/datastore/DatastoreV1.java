@@ -1563,7 +1563,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.addIfNotNull(DisplayData.item("projectId", projectId).withLabel("Output Project"));
     }
@@ -1597,7 +1597,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(
           DisplayData.item("upsertFn", this.getClass()).withLabel("Create Upsert Mutation"));
     }
@@ -1618,7 +1618,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(
           DisplayData.item("deleteEntityFn", this.getClass()).withLabel("Create Delete Mutation"));
     }
@@ -1639,7 +1639,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(
           DisplayData.item("deleteKeyFn", this.getClass()).withLabel("Create Delete Mutation"));
     }

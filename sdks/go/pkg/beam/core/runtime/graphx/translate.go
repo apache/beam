@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
@@ -56,6 +57,10 @@ const (
 	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
 	URNReshuffleInput       = "beam:go:transform:reshuffleinput:v1"
 	URNReshuffleOutput      = "beam:go:transform:reshuffleoutput:v1"
+
+	URNWindowMappingGlobal  = "beam:go:windowmapping:global:v1"
+	URNWindowMappingFixed   = "beam:go:windowmapping:fixed:v1"
+	URNWindowMappingSliding = "beam:go:windowmapping:sliding:v1"
 
 	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
@@ -386,6 +391,24 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 				// Fixup input map
 				inputs[fmt.Sprintf("i%v", i)] = out
 
+				siWfn := in.From.WindowingStrategy().Fn
+				var mappingUrn string
+				switch siWfn.Kind {
+				case window.GlobalWindows:
+					mappingUrn = URNWindowMappingGlobal
+				case window.FixedWindows:
+					mappingUrn = URNWindowMappingFixed
+				case window.SlidingWindows:
+					mappingUrn = URNWindowMappingSliding
+				case window.Sessions:
+					panic("session windowing is not supported for side inputs")
+				}
+
+				siWSpec, err := makeWindowFn(siWfn)
+				if err != nil {
+					return nil, err
+				}
+
 				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput{
 					AccessPattern: &pipepb.FunctionSpec{
 						Urn: URNMultimapSideInput,
@@ -394,7 +417,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 						Urn: "foo",
 					},
 					WindowMappingFn: &pipepb.FunctionSpec{
-						Urn: "bar",
+						Urn:     mappingUrn,
+						Payload: siWSpec.Payload,
 					},
 				}
 
@@ -1011,21 +1035,21 @@ func makeAccumulationMode(m window.AccumulationMode) pipepb.AccumulationMode_Enu
 	}
 }
 
-func makeTrigger(t window.Trigger) *pipepb.Trigger {
+func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 	switch t.Kind {
-	case window.DefaultTrigger:
+	case trigger.DefaultTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
 				Default: &pipepb.Trigger_Default{},
 			},
 		}
-	case window.AlwaysTrigger:
+	case trigger.AlwaysTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Always_{
 				Always: &pipepb.Trigger_Always{},
 			},
 		}
-	case window.AfterAnyTrigger:
+	case trigger.AfterAnyTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAny_{
 				AfterAny: &pipepb.Trigger_AfterAny{
@@ -1033,7 +1057,7 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 				},
 			},
 		}
-	case window.AfterAllTrigger:
+	case trigger.AfterAllTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAll_{
 				AfterAll: &pipepb.Trigger_AfterAll{
@@ -1041,7 +1065,7 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 				},
 			},
 		}
-	case window.AfterProcessingTimeTrigger:
+	case trigger.AfterProcessingTimeTrigger:
 		if len(t.TimestampTransforms) == 0 {
 			panic("AfterProcessingTime trigger set without a delay or alignment.")
 		}
@@ -1049,12 +1073,12 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 		for _, tt := range t.TimestampTransforms {
 			var ttp *pipepb.TimestampTransform
 			switch tt := tt.(type) {
-			case window.DelayTransform:
+			case trigger.DelayTransform:
 				ttp = &pipepb.TimestampTransform{
 					TimestampTransform: &pipepb.TimestampTransform_Delay_{
 						Delay: &pipepb.TimestampTransform_Delay{DelayMillis: tt.Delay},
 					}}
-			case window.AlignToTransform:
+			case trigger.AlignToTransform:
 				ttp = &pipepb.TimestampTransform{
 					TimestampTransform: &pipepb.TimestampTransform_AlignTo_{
 						AlignTo: &pipepb.TimestampTransform_AlignTo{
@@ -1072,13 +1096,13 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 				},
 			},
 		}
-	case window.ElementCountTrigger:
+	case trigger.ElementCountTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_ElementCount_{
 				ElementCount: &pipepb.Trigger_ElementCount{ElementCount: t.ElementCount},
 			},
 		}
-	case window.AfterEndOfWindowTrigger:
+	case trigger.AfterEndOfWindowTrigger:
 		var lateTrigger *pipepb.Trigger
 		if t.LateTrigger != nil {
 			lateTrigger = makeTrigger(*t.LateTrigger)
@@ -1091,7 +1115,7 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 				},
 			},
 		}
-	case window.RepeatTrigger:
+	case trigger.RepeatTrigger:
 		if len(t.SubTriggers) != 1 {
 			panic("Only 1 Subtrigger should be passed to Repeat Trigger")
 		}
@@ -1100,13 +1124,13 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTriggers[0])},
 			},
 		}
-	case window.NeverTrigger:
+	case trigger.NeverTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Never_{
 				Never: &pipepb.Trigger_Never{},
 			},
 		}
-	case window.AfterSynchronizedProcessingTimeTrigger:
+	case trigger.AfterSynchronizedProcessingTimeTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterSynchronizedProcessingTime_{
 				AfterSynchronizedProcessingTime: &pipepb.Trigger_AfterSynchronizedProcessingTime{},
@@ -1121,7 +1145,7 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 	}
 }
 
-func extractSubtriggers(t []window.Trigger) []*pipepb.Trigger {
+func extractSubtriggers(t []trigger.Trigger) []*pipepb.Trigger {
 	if len(t) <= 0 {
 		panic("At least one subtrigger required for composite triggers.")
 	}

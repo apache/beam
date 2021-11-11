@@ -34,10 +34,10 @@ import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.ProjectionProducer;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
-import org.apache.beam.sdk.schemas.io.PushdownProjector;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -135,13 +135,15 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
                 SchemaIOTableWrapper.class));
       }
       if (!fieldNames.isEmpty()) {
-        if (readerTransform instanceof PushdownProjector) {
+        if (readerTransform instanceof ProjectionProducer) {
           // The pushdown must return a PTransform that can be applied to a PBegin, or this cast
           // will fail.
-          PushdownProjector<PBegin> pushdownProjector = (PushdownProjector<PBegin>) readerTransform;
+          ProjectionProducer<PTransform<PBegin, PCollection<Row>>> projectionProducer =
+              (ProjectionProducer<PTransform<PBegin, PCollection<Row>>>) readerTransform;
           FieldAccessDescriptor fieldAccessDescriptor =
               FieldAccessDescriptor.withFieldNames(fieldNames);
-          readerTransform = pushdownProjector.withProjectionPushdown(fieldAccessDescriptor);
+          readerTransform =
+              projectionProducer.actuateProjectionPushdown("output", fieldAccessDescriptor);
         } else {
           throw new UnsupportedOperationException(
               String.format("%s does not support projection pushdown.", this.getClass()));
@@ -153,10 +155,11 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
     @Override
     public ProjectSupport supportsProjects() {
       PTransform<PBegin, PCollection<Row>> readerTransform = schemaIO.buildReader();
-      if (readerTransform instanceof PushdownProjector) {
-        return ((PushdownProjector) readerTransform).supportsFieldReordering()
-            ? ProjectSupport.WITH_FIELD_REORDERING
-            : ProjectSupport.WITHOUT_FIELD_REORDERING;
+      if (readerTransform instanceof ProjectionProducer) {
+        if (((ProjectionProducer<?>) readerTransform).supportsProjectionPushdown()) {
+          // For ProjectionProducer, supportsProjectionPushdown implies field reordering support.
+          return ProjectSupport.WITH_FIELD_REORDERING;
+        }
       }
       return ProjectSupport.NONE;
     }

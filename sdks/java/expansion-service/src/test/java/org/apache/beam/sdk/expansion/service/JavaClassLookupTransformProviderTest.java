@@ -151,7 +151,7 @@ public class JavaClassLookupTransformProviderTest {
       }
       DummyComplexType toCompare = (DummyComplexType) obj;
       return (this.complexTypeIntField == toCompare.complexTypeIntField)
-          && (this.complexTypeStrField.equals(toCompare.complexTypeStrField));
+          && this.complexTypeStrField.equals(toCompare.complexTypeStrField);
     }
   }
 

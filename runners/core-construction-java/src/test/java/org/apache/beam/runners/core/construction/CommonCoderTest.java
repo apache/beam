@@ -519,6 +519,7 @@ public class CommonCoderTest {
    * Utility for adding new entries to the common coder spec -- prints the serialized bytes of the
    * given value in the given context using JSON-escaped strings.
    */
+  @SuppressWarnings("unused")
   private static <T> String jsonByteString(Coder<T> coder, T value, Context context)
       throws CoderException {
     byte[] bytes = CoderUtils.encodeToByteArray(coder, value, context);

@@ -39,6 +39,10 @@ configurations.all {
   }
 }
 
+test {
+  maxParallelForks = 1
+}
+
 dependencies {
   testCompile project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
   testCompile "org.elasticsearch.test:framework:$elastic_search_version"

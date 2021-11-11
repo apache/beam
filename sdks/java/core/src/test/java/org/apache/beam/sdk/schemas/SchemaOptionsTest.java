@@ -219,10 +219,6 @@ public class SchemaOptionsTest {
         .setOption("field_option_string", FieldType.STRING, "foo");
   }
 
-  private Schema.Options.Builder setOptionsSet2() {
-    return setOptionsSet2(Schema.Options.builder());
-  }
-
   private void assertOptionSet1(Schema.Options options) {
     assertEquals(true, options.getValue("field_option_boolean"));
     assertEquals(12, (byte) options.getValue("field_option_byte"));

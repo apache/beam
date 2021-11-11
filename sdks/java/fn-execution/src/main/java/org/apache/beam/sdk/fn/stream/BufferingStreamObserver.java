@@ -17,19 +17,15 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Phaser;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.sdk.fn.CancellableQueue;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * A thread safe {@link StreamObserver} which uses a bounded queue to pass elements to a processing
@@ -41,17 +37,31 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * becomes ready.
  */
 @ThreadSafe
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
-public final class BufferingStreamObserver<T> implements StreamObserver<T> {
+public final class BufferingStreamObserver<T extends @NonNull Object> implements StreamObserver<T> {
+  /**
+   * Internal exception used to signal that the queue drainer thread should invoke {@link
+   * StreamObserver#onError}.
+   */
+  private static class OnErrorException extends Exception {
+    public OnErrorException(@NonNull Throwable throwable) {
+      super(throwable);
+    }
+
+    @Override
+    @SuppressWarnings("return.type.incompatible")
+    public synchronized @NonNull Throwable getCause() {
+      return super.getCause();
+    }
+  }
+
   private static final Object POISON_PILL = new Object();
-  private final LinkedBlockingDeque<T> queue;
+  private final CancellableQueue<T> queue;
   private final Phaser phaser;
   private final CallStreamObserver<T> outboundObserver;
   private final Future<?> queueDrainer;
   private final int bufferSize;
 
+  @SuppressWarnings("methodref.receiver.bound.invalid")
   public BufferingStreamObserver(
       Phaser phaser,
       CallStreamObserver<T> outboundObserver,
@@ -59,7 +69,7 @@ public final class BufferingStreamObserver<T> implements StreamObserver<T> {
       int bufferSize) {
     this.phaser = phaser;
     this.bufferSize = bufferSize;
-    this.queue = new LinkedBlockingDeque<>(bufferSize);
+    this.queue = new CancellableQueue<>(bufferSize);
     this.outboundObserver = outboundObserver;
     this.queueDrainer = executor.submit(this::drainQueue);
   }
@@ -73,94 +83,58 @@ public final class BufferingStreamObserver<T> implements StreamObserver<T> {
           if (value != POISON_PILL) {
             outboundObserver.onNext(value);
           } else {
+            outboundObserver.onCompleted();
             return;
           }
         }
         phaser.awaitAdvance(currentPhase);
       }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IllegalStateException(e);
+    } catch (OnErrorException e) {
+      outboundObserver.onError(e.getCause());
+    } catch (Exception e) {
+      queue.cancel(e);
+      outboundObserver.onError(e);
     }
   }
 
   @Override
   public void onNext(T value) {
     try {
-      // Attempt to add an element to the bounded queue occasionally checking to see
-      // if the queue drainer is still alive.
-      while (!queue.offer(value, 60, TimeUnit.SECONDS)) {
-        checkState(!queueDrainer.isDone(), "Stream observer has finished.");
-      }
+      // Attempt to add an element to the bounded queue
+      queue.put(value);
     } catch (InterruptedException e) {
+      queue.cancel(e);
       Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } catch (Exception e) {
+      // All the other exception types already imply the queue has been cancelled.
       throw new RuntimeException(e);
     }
   }
 
   @Override
   public void onError(Throwable t) {
-    synchronized (outboundObserver) {
-      // If we are done, then a previous caller has already shutdown the queue processing thread
-      // hence we don't need to do it again.
-      if (!queueDrainer.isDone()) {
-        // We check to see if we were able to successfully insert the poison pill at the front of
-        // the queue to cancel the processing thread eagerly or if the processing thread is done.
-        try {
-          // We shouldn't attempt to insert into the queue if the queue drainer thread is done
-          // since the queue may be full and nothing will be emptying it.
-          while (!queueDrainer.isDone()
-              && !queue.offerFirst((T) POISON_PILL, 60, TimeUnit.SECONDS)) {}
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e);
-        }
-        waitTillFinish();
-      }
-      outboundObserver.onError(t);
+    queue.cancel(new OnErrorException(t));
+    try {
+      queueDrainer.get();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 
   @Override
   public void onCompleted() {
-    synchronized (outboundObserver) {
-      // If we are done, then a previous caller has already shutdown the queue processing thread
-      // hence we don't need to do it again.
-      if (!queueDrainer.isDone()) {
-        // We check to see if we were able to successfully insert the poison pill at the end of
-        // the queue forcing the remainder of the elements to be processed or if the processing
-        // thread is done.
-        try {
-          // We shouldn't attempt to insert into the queue if the queue drainer thread is done
-          // since the queue may be full and nothing will be emptying it.
-          while (!queueDrainer.isDone()
-              && !queue.offerLast((T) POISON_PILL, 60, TimeUnit.SECONDS)) {}
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e);
-        }
-        waitTillFinish();
-      }
-      outboundObserver.onCompleted();
+    try {
+      queue.put((T) POISON_PILL);
+      queueDrainer.get();
+    } catch (Exception e) {
+      queue.cancel(e);
+      throw new RuntimeException(e);
     }
   }
 
   @VisibleForTesting
   public int getBufferSize() {
     return bufferSize;
-  }
-
-  private void waitTillFinish() {
-    try {
-      queueDrainer.get();
-    } catch (CancellationException e) {
-      // Cancellation is expected
-      return;
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      throw new RuntimeException(e);
-    }
   }
 }

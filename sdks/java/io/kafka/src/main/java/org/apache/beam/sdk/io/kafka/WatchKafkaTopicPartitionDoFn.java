@@ -174,6 +174,6 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
         });
 
     // Reset the timer.
-    timer.set(Instant.now().plus(checkDuration.getMillis()));
+    timer.set(Instant.now().plus(Duration.millis(checkDuration.getMillis())));
   }
 }

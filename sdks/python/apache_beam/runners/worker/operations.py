@@ -39,7 +39,6 @@ from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
 from apache_beam import coders
 from apache_beam.internal import pickler
@@ -232,7 +231,7 @@ class Operation(object):
   """
 
   def __init__(self,
-               name_context,  # type: Union[str, common.NameContext]
+               name_context,  # type: common.NameContext
                spec,
                counter_factory,
                state_sampler  # type: StateSampler
@@ -240,19 +239,14 @@ class Operation(object):
     """Initializes a worker operation instance.
 
     Args:
-      name_context: A NameContext instance or string(deprecated), with the
-        name information for this operation.
+      name_context: A NameContext instance, with the name information for this
+        operation.
       spec: A operation_specs.Worker* instance.
       counter_factory: The CounterFactory to use for our counters.
       state_sampler: The StateSampler for the current operation.
     """
-    if isinstance(name_context, common.NameContext):
-      # TODO(BEAM-4028): Clean this up once it's completely migrated.
-      # We use the specific operation name that is used for metrics and state
-      # sampling.
-      self.name_context = name_context
-    else:
-      self.name_context = common.NameContext(name_context)
+    assert isinstance(name_context, common.NameContext)
+    self.name_context = name_context
 
     self.spec = spec
     self.counter_factory = counter_factory
@@ -501,7 +495,7 @@ class ReadOperation(Operation):
 class ImpulseReadOperation(Operation):
   def __init__(
       self,
-      name_context,  # type: Union[str, common.NameContext]
+      name_context,  # type: common.NameContext
       counter_factory,
       state_sampler,  # type: StateSampler
       consumers,  # type: Mapping[Any, List[Operation]]

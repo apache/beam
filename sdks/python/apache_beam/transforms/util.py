@@ -44,7 +44,6 @@ from apache_beam.pvalue import AsSideInput
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
-from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Flatten
@@ -160,8 +159,6 @@ class CoGroupByKey(PTransform):
       return pcolls, pcolls
 
   def expand(self, pcolls):
-    if not pcolls:
-      pcolls = (self.pipeline | Create([]), )
     if isinstance(pcolls, dict):
       if all(isinstance(tag, str) and len(tag) < 10 for tag in pcolls.keys()):
         # Small, string tags. Pass them as data.
@@ -726,12 +723,29 @@ class Reshuffle(PTransform):
 
   Reshuffle is experimental. No backwards compatibility guarantees.
   """
+
+  # We use 32-bit integer as the default number of buckets.
+  _DEFAULT_NUM_BUCKETS = 1 << 32
+
+  def __init__(self, num_buckets=None):
+    """
+    :param num_buckets: If set, specifies the maximum random keys that would be
+      generated.
+    """
+    self.num_buckets = num_buckets if num_buckets else self._DEFAULT_NUM_BUCKETS
+
+    valid_buckets = isinstance(num_buckets, int) and num_buckets > 0
+    if not (num_buckets is None or valid_buckets):
+      raise ValueError(
+          'If `num_buckets` is set, it has to be an '
+          'integer greater than 0, got %s' % num_buckets)
+
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
     return (
-        pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
-        with_input_types(T).with_output_types(Tuple[int, T])
+        pcoll | 'AddRandomKeys' >>
+        Map(lambda t: (random.randrange(0, self.num_buckets), t)
+            ).with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
             Tuple[int, T]).with_output_types(T))
