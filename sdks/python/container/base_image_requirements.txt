@@ -28,7 +28,6 @@ avro-python3==1.8.2
 fastavro==1.0.0.post1
 crcmod==1.7
 dill==0.3.1.1
-future==0.18.2
 grpcio==1.40.0
 hdfs==2.5.8
 httplib2==0.19.1

@@ -131,8 +131,7 @@ REQUIRED_PACKAGES = [
     # is Python standard since Python 3.7 and each Python version is compatible
     # with a specific dataclasses version.
     'dataclasses;python_version<"3.7"',
-    # orjson, only available on Python 3.6 and above
-    'orjson<4.0;python_version>="3.6"',
+    'orjson<4.0',
     # Dill doesn't have forwards-compatibility guarantees within minor version.
     # Pickles created with a new version of dill may not unpickle using older
     # version of dill. It is best to use the same version of dill on client and
@@ -140,7 +139,6 @@ REQUIRED_PACKAGES = [
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
     'fastavro>=0.21.4,<2',
-    'future>=0.18.2,<1.0.0',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.20.0',
@@ -281,7 +279,8 @@ if __name__ == '__main__':
               '*/*.h',
               '*/*/*.h',
               'testing/data/*.yaml',
-              'portability/api/*.yaml'
+              'portability/api/*.pyi',
+              'portability/api/*.yaml',
           ]
       },
       ext_modules=cythonize([
