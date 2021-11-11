@@ -215,8 +215,11 @@ public class FhirIOSearch<T>
               SearchResourcesFn.class, FhirIO.BASE_METRIC_PREFIX + "search_resource_latency_ms");
 
       private final Logger LOG = LoggerFactory.getLogger(SearchResourcesFn.class);
-      private HealthcareApiClient client;
+
       private final ValueProvider<String> fhirStore;
+
+      @SuppressWarnings("initialization.fields.uninitialized")
+      private HealthcareApiClient client;
 
       /** Instantiates a new Fhir resources search fn. */
       SearchResourcesFn(ValueProvider<String> fhirStore) {
@@ -271,7 +274,7 @@ public class FhirIOSearch<T>
 
         HashMap<String, Object> parameterObjects = new HashMap<>();
         if (parameters != null) {
-          parameters.forEach(parameterObjects::put);
+          parameters.forEach((k, v) -> parameterObjects.put(k, (Object) v));
         }
         FhirResourcePagesIterator iter =
             new FhirResourcePagesIterator(client, fhirStore, resourceType, parameterObjects);

@@ -169,11 +169,15 @@ public class FhirIORead extends PTransform<PCollection<String>, FhirIORead.Resul
           Metrics.distribution(
               GetResourceFn.class, FhirIO.BASE_METRIC_PREFIX + "read_resource_latency_ms");
 
+      private final ObjectMapper mapper;
+
+      @SuppressWarnings("initialization.fields.uninitialized")
       private HealthcareApiClient client;
-      private ObjectMapper mapper;
 
       /** Instantiates a new FHIR GetResource fn. */
-      GetResourceFn() {}
+      GetResourceFn() {
+        this.mapper = new ObjectMapper();
+      }
 
       /**
        * Instantiate healthcare client.
@@ -183,7 +187,6 @@ public class FhirIORead extends PTransform<PCollection<String>, FhirIORead.Resul
       @Setup
       public void instantiateHealthcareClient() throws IOException {
         this.client = new HttpHealthcareApiClient();
-        this.mapper = new ObjectMapper();
       }
 
       /**

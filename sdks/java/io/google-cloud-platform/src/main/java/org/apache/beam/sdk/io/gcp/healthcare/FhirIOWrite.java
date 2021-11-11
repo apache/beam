@@ -47,7 +47,6 @@ import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIOWrite.Import.ContentStructure;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -104,6 +103,23 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
      * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores/import></a>.
      */
     IMPORT
+  }
+
+  /** The enum Content structure. */
+  public enum ContentStructure {
+    /** If the content structure is not specified, the default value BUNDLE will be used. */
+    CONTENT_STRUCTURE_UNSPECIFIED,
+    /**
+     * The source file contains one or more lines of newline-delimited JSON (ndjson). Each line is a
+     * bundle, which contains one or more resources. Set the bundle type to history to import
+     * resource versions.
+     */
+    BUNDLE,
+    /**
+     * The source file contains one or more lines of newline-delimited JSON (ndjson). Each line is a
+     * single resource.
+     */
+    RESOURCE
   }
 
   /** The type Result. */
@@ -213,9 +229,9 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
   abstract WriteMethod getWriteMethod();
 
   /**
-   * Gets content structure.
+   * Gets content structure for an import.
    *
-   * @return the content structure
+   * @return the import content structure
    */
   abstract Optional<ContentStructure> getContentStructure();
 
@@ -259,7 +275,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
      * @param contentStructure the content structure
      * @return the write builder
      */
-    abstract Builder setContentStructure(ContentStructure contentStructure);
+    abstract Builder setContentStructure(@Nullable ContentStructure contentStructure);
 
     /**
      * Sets import gcs temp path.
@@ -372,7 +388,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
         ValueProvider<String> deadPath =
             getImportGcsDeadLetterPath().orElseThrow(IllegalArgumentException::new);
         ContentStructure contentStructure =
-            getContentStructure().orElseThrow(IllegalArgumentException::new);
+            getContentStructure().orElse(ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED);
         ValueProvider<String> tempPath =
             getImportGcsTempPath()
                 .orElse(StaticValueProvider.of(input.getPipeline().getOptions().getTempLocation()));
@@ -412,15 +428,11 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
         ValueProvider<String> fhirStore,
         ValueProvider<String> tempGcsPath,
         ValueProvider<String> deadLetterGcsPath,
-        @Nullable ContentStructure contentStructure) {
+        ContentStructure contentStructure) {
       this.fhirStore = fhirStore;
       this.tempGcsPath = tempGcsPath;
       this.deadLetterGcsPath = deadLetterGcsPath;
-      if (contentStructure == null) {
-        this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
-      } else {
-        this.contentStructure = contentStructure;
-      }
+      this.contentStructure = contentStructure;
     }
 
     /**
@@ -435,15 +447,11 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
         String fhirStore,
         String tempGcsPath,
         String deadLetterGcsPath,
-        @Nullable ContentStructure contentStructure) {
+        ContentStructure contentStructure) {
       this.fhirStore = StaticValueProvider.of(fhirStore);
       this.tempGcsPath = StaticValueProvider.of(tempGcsPath);
       this.deadLetterGcsPath = StaticValueProvider.of(deadLetterGcsPath);
-      if (contentStructure == null) {
-        this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
-      } else {
-        this.contentStructure = contentStructure;
-      }
+      this.contentStructure = contentStructure;
     }
 
     @Override
@@ -625,6 +633,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
     }
 
     /** Import batches of new line delimited json files to FHIR Store. */
+    @SuppressWarnings("initialization.fields.uninitialized")
     static class ImportFn extends DoFn<ResourceId, HealthcareIOError<String>> {
 
       private static final Counter IMPORT_OPERATION_SUCCESS =
@@ -654,15 +663,11 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
           ValueProvider<String> fhirStore,
           ValueProvider<String> tempGcsPath,
           ValueProvider<String> deadLetterGcsPath,
-          @Nullable ContentStructure contentStructure) {
+          ContentStructure contentStructure) {
         this.fhirStore = fhirStore;
         this.tempGcsPath = tempGcsPath;
         this.deadLetterGcsPath = deadLetterGcsPath;
-        if (contentStructure == null) {
-          this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
-        } else {
-          this.contentStructure = contentStructure;
-        }
+        this.contentStructure = contentStructure;
       }
 
       @Setup
@@ -688,7 +693,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
         this.window = window;
 
         ResourceId file = context.element();
-        assert file != null;
+        assert file != null && file.getFilename() != null;
         files.add(file);
         tempDestinations.add(
             tempDir.resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
@@ -748,23 +753,6 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
               HealthcareIOError.of(importUri.toString(), e), window.maxTimestamp(), window);
         }
       }
-    }
-
-    /** The enum Content structure. */
-    public enum ContentStructure {
-      /** If the content structure is not specified, the default value BUNDLE will be used. */
-      CONTENT_STRUCTURE_UNSPECIFIED,
-      /**
-       * The source file contains one or more lines of newline-delimited JSON (ndjson). Each line is
-       * a bundle, which contains one or more resources. Set the bundle type to history to import
-       * resource versions.
-       */
-      BUNDLE,
-      /**
-       * The source file contains one or more lines of newline-delimited JSON (ndjson). Each line is
-       * a single resource.
-       */
-      RESOURCE
     }
   }
 
@@ -846,6 +834,7 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
       private final ValueProvider<String> fhirStore;
       private final ObjectMapper mapper;
 
+      @SuppressWarnings("initialization.fields.uninitialized")
       private transient HealthcareApiClient client;
 
       ExecuteBundlesFn(ValueProvider<String> fhirStore) {
