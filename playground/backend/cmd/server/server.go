@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
+	"beam.apache.org/playground/backend/internal/cache/redis"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
@@ -98,6 +99,8 @@ func getGrpcWebOptions() []grpcweb.Option {
 // setupCache constructs required cache by application environment
 func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.Cache, error) {
 	switch appEnv.CacheEnvs().CacheType() {
+	case "remote":
+		return redis.New(ctx, appEnv.CacheEnvs().Address())
 	default:
 		return local.New(ctx), nil
 	}

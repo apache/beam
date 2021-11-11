@@ -786,29 +786,29 @@ func TestSchemaProviderInterface(t *testing.T) {
 			},
 		},
 		StructMap: map[int64]testStruct{
-			0: testStruct{
+			0: {
 				A: 17,
 				b: 18,
 			},
-			1: testStruct{
+			1: {
 				A: 19,
 				b: 20,
 			},
-			2: testStruct{
+			2: {
 				A: 21,
 				b: 22,
 			},
 		},
 		StructPtrMap: map[int64]*testStruct{
-			0: &testStruct{
+			0: {
 				A: 23,
 				b: 24,
 			},
-			1: &testStruct{
+			1: {
 				A: 25,
 				b: 26,
 			},
-			2: &testStruct{
+			2: {
 				A: 27,
 				b: 28,
 			},
@@ -825,4 +825,47 @@ func TestSchemaProviderInterface(t *testing.T) {
 	if diff := cmp.Diff(want, got, cmp.AllowUnexported(testStruct{})); diff != "" {
 		t.Errorf("Decode(Encode(%v)): %v", want, diff)
 	}
+}
+
+func TestRowHeader_TrailingZeroBytes(t *testing.T) {
+	// BEAM-13081: The row header should elide trailing 0 bytes.
+	// But be tolerant of trailing 0 bytes.
+
+	const count = 255
+	// For each bit, lets ensure we can check and lookup all the nils.
+	for i := -1; i < count; i++ {
+		t.Run(fmt.Sprintf("%d is nil", i), func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := WriteRowHeader(count, func(f int) bool { return f == i }, &buf); err != nil {
+				t.Fatalf("WriteRowHeader failed: %v", err)
+			}
+			// 3+(i/8+1) is the expected byte count for the header when trailing nils are elided.
+			// 2 bytes for the varint encoded `count`
+			// 1 byte for the varint encoded bitset length
+			// i/8+1 nil filed index to get the number of bytes in the bitset.
+			const fcl = 3
+			if got, want := len(buf.Bytes()), fcl+(i/8+1); i != -1 && got != want {
+				t.Errorf("len(header: %+v) = %v, want %v", buf.Bytes(), got, want)
+			}
+			// In the no nils case, header should only be fcl bytes long.
+			if got, want := len(buf.Bytes()), fcl; i == -1 && got != want {
+				t.Errorf("len(header: %+v) = %v, want %v", buf.Bytes(), got, want)
+			}
+			n, nils, err := ReadRowHeader(&buf)
+			if err != nil {
+				t.Fatalf("ReadRowHeader failed: %v", err)
+			}
+			if got, want := n, count; got != want {
+				t.Fatalf("ReadRowHeader returned %v fields, but want %v", got, want)
+			}
+			// Look up all fields, and ensure they actually match.
+			// Only a single nil field is being set at most, the matching iteration index.
+			for f := 0; f < count; f++ {
+				if got, want := IsFieldNil(nils, f), i == f; got != want {
+					t.Errorf("IsFieldNil(%v, %v) = %v but want %v", nils, f, got, want)
+				}
+			}
+		})
+	}
+
 }

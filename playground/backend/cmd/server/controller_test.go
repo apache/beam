@@ -307,9 +307,6 @@ func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 				if !strings.EqualFold(got.Output, tt.want.Output) {
 					t.Errorf("GetCompileOutput() got = %v, want %v", got.Output, tt.want.Output)
 				}
-				if !reflect.DeepEqual(got.CompilationStatus, tt.want.CompilationStatus) {
-					t.Errorf("GetCompileOutput() got = %v, want %v", got.CompilationStatus, tt.want.CompilationStatus)
-				}
 			}
 		})
 	}
@@ -372,8 +369,79 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 				if !strings.EqualFold(got.Output, tt.want.Output) {
 					t.Errorf("GetRunOutput() got = %v, want %v", got.Output, tt.want.Output)
 				}
-				if !reflect.DeepEqual(got.CompilationStatus, tt.want.CompilationStatus) {
-					t.Errorf("GetRunOutput() got = %v, want %v", got.CompilationStatus, tt.want.CompilationStatus)
+			}
+		})
+	}
+}
+
+func TestPlaygroundController_GetRunError(t *testing.T) {
+	ctx := context.Background()
+	pipelineId := uuid.New()
+	runError := "MOCK_RUN_ERROR"
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
+	if err != nil {
+		t.Fatalf("Failed to dial bufnet: %v", err)
+	}
+	defer conn.Close()
+	client := pb.NewPlaygroundServiceClient(conn)
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetRunErrorRequest
+	}
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		want    *pb.GetRunErrorResponse
+		wantErr bool
+	}{
+		{
+			name:    "pipelineId doesn't exist",
+			prepare: func() {},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetRunErrorRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "run error output doesn't exist",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING)
+			},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetRunErrorRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "run error output exist",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.RunError, runError)
+			},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetRunErrorRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    &pb.GetRunErrorResponse{Output: runError},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := client.GetRunError(tt.args.ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetRunError() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if !strings.EqualFold(got.Output, tt.want.Output) {
+					t.Errorf("GetRunError() got = %v, want %v", got.Output, tt.want.Output)
 				}
 			}
 		})
@@ -381,7 +449,6 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 }
 
 func Test_processCode(t *testing.T) {
-	pipelineId := uuid.New()
 	networkEnvs, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {
 		panic(err)
@@ -394,25 +461,14 @@ func Test_processCode(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+
 	env := environment.NewEnvironment(*networkEnvs, *sdkEnv, *appEnvs)
 
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, os.Getenv("APP_WORK_DIR"))
-	filePath := lc.GetAbsoluteExecutableFilePath()
-	workingDir := lc.GetAbsoluteExecutableFilesFolderPath()
-
-	exec := executors.NewExecutorBuilder().
-		WithValidator().
-		WithSdkValidators(validators.GetJavaValidators(filePath)).
-		WithCompiler().
-		WithCommand(sdkEnv.ExecutorConfig.CompileCmd).
-		WithArgs(sdkEnv.ExecutorConfig.CompileArgs).
-		WithFileName(filePath).
-		WithWorkingDir(workingDir)
-
 	type args struct {
-		ctx context.Context
-		env *environment.Environment
-		sdk pb.Sdk
+		pipelineId uuid.UUID
+		ctx        context.Context
+		env        *environment.Environment
+		sdk        pb.Sdk
 	}
 	tests := []struct {
 		name                  string
@@ -420,11 +476,29 @@ func Test_processCode(t *testing.T) {
 		code                  string
 		expectedStatus        pb.Status
 		expectedRunOutput     interface{}
+		expectedRunError      interface{}
 		expectedCompileOutput interface{}
 		args                  args
 	}{
 		{
-			// Test case with calling processCode method without preparing files with code.
+			// Test case with calling processCode method with small timeout.
+			// As a result status into cache should be set as Status_STATUS_RUN_TIMEOUT.
+			name:                  "small pipeline execution timeout",
+			createExecFile:        false,
+			code:                  "",
+			expectedStatus:        pb.Status_STATUS_RUN_TIMEOUT,
+			expectedCompileOutput: nil,
+			expectedRunOutput:     nil,
+			expectedRunError:      nil,
+			args: args{
+				ctx: context.Background(),
+				env: environment.NewEnvironment(*networkEnvs, *sdkEnv, environment.ApplicationEnvs{}),
+				sdk: pb.Sdk_SDK_JAVA,
+				pipelineId: uuid.New(),
+			},
+		},
+		{
+			// Test case with calling processCode method without creating files with code.
 			// As a result status into cache should be set as Status_STATUS_VALIDATION_ERROR.
 			name:                  "validation failed",
 			createExecFile:        false,
@@ -432,10 +506,12 @@ func Test_processCode(t *testing.T) {
 			expectedStatus:        pb.Status_STATUS_VALIDATION_ERROR,
 			expectedCompileOutput: nil,
 			expectedRunOutput:     nil,
+			expectedRunError:      nil,
 			args: args{
-				ctx: context.Background(),
-				env: env,
-				sdk: pb.Sdk_SDK_JAVA,
+				ctx:        context.Background(),
+				env:        env,
+				sdk:        pb.Sdk_SDK_JAVA,
+				pipelineId: uuid.New(),
 			},
 		},
 		{
@@ -445,27 +521,31 @@ func Test_processCode(t *testing.T) {
 			createExecFile:        true,
 			code:                  "MOCK_CODE",
 			expectedStatus:        pb.Status_STATUS_COMPILE_ERROR,
-			expectedCompileOutput: fmt.Sprintf("error: exit status 1, output: %s:1: error: reached end of file while parsing\nMOCK_CODE\n^\n1 error\n", lc.GetAbsoluteExecutableFilePath()),
+			expectedCompileOutput: "error: exit status 1, output: %s:1: error: reached end of file while parsing\nMOCK_CODE\n^\n1 error\n",
 			expectedRunOutput:     nil,
+			expectedRunError:      nil,
 			args: args{
-				ctx: context.Background(),
-				env: env,
-				sdk: pb.Sdk_SDK_JAVA,
+				ctx:        context.Background(),
+				env:        env,
+				sdk:        pb.Sdk_SDK_JAVA,
+				pipelineId: uuid.New(),
 			},
 		},
 		{
 			// Test case with calling processCode method with incorrect logic into code.
-			// As a result status into cache should be set as Status_STATUS_ERROR.
+			// As a result status into cache should be set as Status_STATUS_RUN_ERROR.
 			name:                  "run failed",
 			createExecFile:        true,
 			code:                  "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(1/0);\n    }\n}",
-			expectedStatus:        pb.Status_STATUS_ERROR,
+			expectedStatus:        pb.Status_STATUS_RUN_ERROR,
 			expectedCompileOutput: "",
-			expectedRunOutput:     fmt.Sprintf("error: exit status 1, output: Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat HelloWorld.main(%s.java:3)\n", pipelineId),
+			expectedRunOutput:     nil,
+			expectedRunError:      "error: exit status 1, output: Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat HelloWorld.main(%s.java:3)\n",
 			args: args{
-				ctx: context.Background(),
-				env: env,
-				sdk: pb.Sdk_SDK_JAVA,
+				ctx:        context.Background(),
+				env:        env,
+				sdk:        pb.Sdk_SDK_JAVA,
+				pipelineId: uuid.New(),
 			},
 		},
 		{
@@ -477,15 +557,30 @@ func Test_processCode(t *testing.T) {
 			expectedStatus:        pb.Status_STATUS_FINISHED,
 			expectedCompileOutput: "",
 			expectedRunOutput:     "Hello world!\n",
+			expectedRunError:      nil,
 			args: args{
-				ctx: context.Background(),
-				env: env,
-				sdk: pb.Sdk_SDK_JAVA,
+				ctx:        context.Background(),
+				env:        env,
+				sdk:        pb.Sdk_SDK_JAVA,
+				pipelineId: uuid.New(),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, os.Getenv("APP_WORK_DIR"))
+			filePath := lc.GetAbsoluteExecutableFilePath()
+			workingDir := lc.GetAbsoluteExecutableFilesFolderPath()
+
+			exec := executors.NewExecutorBuilder().
+				WithValidator().
+				WithSdkValidators(validators.GetJavaValidators(filePath)).
+				WithCompiler().
+				WithCommand(sdkEnv.ExecutorConfig.CompileCmd).
+				WithArgs(sdkEnv.ExecutorConfig.CompileArgs).
+				WithFileName(filePath).
+				WithWorkingDir(workingDir)
+
 			err := lc.CreateFolders()
 			if err != nil {
 				t.Fatalf("error during prepare folders: %s", err.Error())
@@ -494,21 +589,32 @@ func Test_processCode(t *testing.T) {
 				_, _ = lc.CreateExecutableFile(tt.code)
 			}
 
-			processCode(tt.args.ctx, cacheService, lc, exec, pipelineId, tt.args.env, tt.args.sdk)
+			processCode(tt.args.ctx, cacheService, lc, exec, tt.args.pipelineId, tt.args.env, tt.args.sdk)
 
-			status, _ := cacheService.GetValue(tt.args.ctx, pipelineId, cache.Status)
+			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if !reflect.DeepEqual(status, tt.expectedStatus) {
 				t.Errorf("processCode() set status: %s, but expectes: %s", status, tt.expectedStatus)
 			}
 
-			compileOutput, _ := cacheService.GetValue(tt.args.ctx, pipelineId, cache.CompileOutput)
+			compileOutput, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.CompileOutput)
+			if tt.expectedCompileOutput != nil && strings.Contains(tt.expectedCompileOutput.(string), "%s") {
+				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.GetAbsoluteExecutableFilePath())
+			}
 			if !reflect.DeepEqual(compileOutput, tt.expectedCompileOutput) {
 				t.Errorf("processCode() set compileOutput: %s, but expectes: %s", compileOutput, tt.expectedCompileOutput)
 			}
 
-			runOutput, _ := cacheService.GetValue(tt.args.ctx, pipelineId, cache.RunOutput)
+			runOutput, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.RunOutput)
 			if !reflect.DeepEqual(runOutput, tt.expectedRunOutput) {
 				t.Errorf("processCode() set runOutput: %s, but expectes: %s", runOutput, tt.expectedRunOutput)
+			}
+
+			runError, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.RunError)
+			if tt.expectedRunError != nil && strings.Contains(tt.expectedRunError.(string), "%s") {
+				tt.expectedRunError = fmt.Sprintf(tt.expectedRunError.(string), tt.args.pipelineId)
+			}
+			if !reflect.DeepEqual(runError, tt.expectedRunError) {
+				t.Errorf("processCode() set runError: %s, but expectes: %s", runError, tt.expectedRunError)
 			}
 
 			// remove
