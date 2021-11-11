@@ -17,9 +17,11 @@
 
 """End-to-end test for Avro IO's fastavro support.
 
-Writes a configurable number of records to a temporary location with each of
-{avro,fastavro}, then reads them back in, joins the two read datasets, and
-verifies they have the same elements.
+Writes a configurable number of records to a temporary location with fastavro,
+then reads them back in from source, joins the generated records and records
+that are read from the source, and verifies they have the same elements.
+
+
 
 Usage:
 
@@ -62,6 +64,7 @@ from apache_beam.testing.util import BeamAssertException
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Map
+from apache_beam.transforms.util import CoGroupByKey
 
 LABELS = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu', 'vwx']
 COLORS = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'PURPLE', None]
@@ -105,6 +108,7 @@ class FastavroIT(unittest.TestCase):
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.test_pipeline_2 = TestPipeline(is_integration_test=True)
     self.uuid = str(uuid.uuid4())
     self.output = '/'.join([self.test_pipeline.get_option('output'), self.uuid])
 
@@ -112,6 +116,7 @@ class FastavroIT(unittest.TestCase):
   def test_avro_it(self):
     num_records = self.test_pipeline.get_option('records')
     num_records = int(num_records) if num_records else 1000000
+    fastavro_output = '/'.join([self.output, 'fastavro'])
 
     # Seed a `PCollection` with indices that will each be FlatMap'd into
     # `batch_size` records, to avoid having a too-large list in memory at
@@ -133,25 +138,44 @@ class FastavroIT(unittest.TestCase):
         | 'expand-batches' >> FlatMap(batch_indices) \
         | 'create-records' >> Map(record)
 
-    fastavro_output = '/'.join([self.output, 'fastavro'])
     # pylint: disable=expression-not-assigned
     records_pcoll \
     | 'write_fastavro' >> WriteToAvro(
         fastavro_output,
         parse_schema(json.loads(self.SCHEMA_STRING)),
     )
+    result = self.test_pipeline.run()
+    result.wait_until_finish()
+    fastavro_pcoll = self.test_pipeline \
+                     | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
+                     | 'read-fastavro' >> ReadAllFromAvro()
+
+    mapped_fastavro_pcoll = fastavro_pcoll | "map_fastavro" >> Map(
+        lambda x: (x['number'], x))
+    mapped_record_pcoll = records_pcoll | "map_record" >> Map(
+        lambda x: (x['number'], x))
+
+    def validate_record(elem):
+      v = elem[1]
+
+      def assertEqual(l, r):
+        if l != r:
+          raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
+
+      assertEqual(sorted(v.keys()), ['fastavro', 'record_pcoll'])
+      record_pcoll_values = v['record_pcoll']
+      fastavro_values = v['fastavro']
+      assertEqual(record_pcoll_values, fastavro_values)
+      assertEqual(len(record_pcoll_values), 1)
+
+    {
+        "record_pcoll": mapped_record_pcoll, "fastavro": mapped_fastavro_pcoll
+    } | CoGroupByKey() | Map(validate_record)
 
     result = self.test_pipeline.run()
     result.wait_until_finish()
-    assert result.state == PipelineState.DONE
 
-    with TestPipeline(is_integration_test=True) as fastavro_read_pipeline:
-      fastavro_read_pipeline \
-      | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
-      | 'read-fastavro' >> ReadAllFromAvro() \
-      | Map(check)
-
-      self.addCleanup(delete_files, [self.output])
+    self.addCleanup(delete_files, [self.output])
     assert result.state == PipelineState.DONE
 
 
