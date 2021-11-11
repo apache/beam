@@ -929,7 +929,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'truncate',
-            lambda df: df.sort_index().truncate(
+            lambda df:
+            (df.sort_index() if axis in (0, 'index') else df).truncate(
                 before=before, after=after, axis=axis), [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary()))
