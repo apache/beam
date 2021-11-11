@@ -136,9 +136,11 @@ func SetPTransformID(ctx context.Context, id string) context.Context {
 	// Checking for *beamCtx is an optimization, so we don't dig deeply
 	// for ids if not necessary.
 	if bctx, ok := ctx.(*beamCtx); ok {
+		bctx.store.mu.Lock()
 		if _, ok := bctx.store.stateRegistry[id]; !ok {
 			bctx.store.stateRegistry[id] = &[4]ExecutionState{}
 		}
+		bctx.store.mu.Unlock()
 		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, store: bctx.store, ptransformID: id}
 	}
 	// Avoid breaking if the bundle is unset in testing.

@@ -791,7 +791,7 @@ class _CustomBigQuerySource(BoundedSource):
 
   def _create_source(self, path, schema):
     if not self.use_json_exports:
-      return create_avro_source(path, use_fastavro=True)
+      return create_avro_source(path)
     else:
       return TextSource(
           path,
