@@ -1588,6 +1588,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               combine_moments, [moments],
               requires_partition_by=partitionings.Singleton()))
 
+  @frame_base.with_docs_from(pd.Series)
+  def kurt(self, *args, **kwargs):
+      # Compute Kurtosis as kurt is an alias for kurtosis.
+      return self.kurtosis(*args, **kwargs)
+
   def _corr_aligned(self, other, min_periods):
     std_x = self.std()
     std_y = other.std()
@@ -1789,6 +1794,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
                        'corr',
                        'cov',
                        'skew',
+                       'kurt',
                        'kurtosis'):
         result = getattr(self, base_func)(*args, **kwargs)
         if isinstance(func, list):
@@ -1857,7 +1863,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   median = _agg_method(pd.Series, 'median')
   sem = _agg_method(pd.Series, 'sem')
   mad = _agg_method(pd.Series, 'mad')
-  kurt = _agg_method(pd.Series, 'kurt')
 
   argmax = frame_base.wont_implement_method(
       pd.Series, 'argmax', reason='order-sensitive')
