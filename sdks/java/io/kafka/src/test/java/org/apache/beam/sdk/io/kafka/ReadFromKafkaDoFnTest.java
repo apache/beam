@@ -87,7 +87,8 @@ public class ReadFromKafkaDoFnTest {
     private boolean isRemoved = false;
     private long currentPos = 0L;
     private long startOffset = 0L;
-    private long startOffsetForTime = 0L;
+    private KV<Long, Instant> startOffsetForTime = KV.of(0L, Instant.now());
+    private KV<Long, Instant> stopOffsetForTime = KV.of(Long.MAX_VALUE, null);
     private long numOfRecordsPerPoll;
 
     public SimpleMockKafkaConsumer(
@@ -100,7 +101,8 @@ public class ReadFromKafkaDoFnTest {
       this.isRemoved = false;
       this.currentPos = 0L;
       this.startOffset = 0L;
-      this.startOffsetForTime = 0L;
+      this.startOffsetForTime = KV.of(0L, Instant.now());
+      this.stopOffsetForTime = KV.of(Long.MAX_VALUE, null);
       this.numOfRecordsPerPoll = 0L;
     }
 
@@ -116,8 +118,12 @@ public class ReadFromKafkaDoFnTest {
       this.currentPos = pos;
     }
 
-    public void setStartOffsetForTime(long pos) {
+    public void setStartOffsetForTime(KV<Long, Instant> pos) {
       this.startOffsetForTime = pos;
+    }
+
+    public void setStopOffsetForTime(KV<Long, Instant> pos) {
+      this.stopOffsetForTime = pos;
     }
 
     @Override
@@ -173,10 +179,16 @@ public class ReadFromKafkaDoFnTest {
           Iterables.getOnlyElement(
                   timestampsToSearch.keySet().stream().collect(Collectors.toList()))
               .equals(this.topicPartition));
+      Long timeToSearch = Iterables.getOnlyElement(timestampsToSearch.values());
+      Long returnOffset = 0L;
+      if (timeToSearch == this.startOffsetForTime.getValue().getMillis()) {
+        returnOffset = this.startOffsetForTime.getKey();
+      } else if (timeToSearch == this.stopOffsetForTime.getValue().getMillis()) {
+        returnOffset = this.stopOffsetForTime.getKey();
+      }
       return ImmutableMap.of(
           topicPartition,
-          new OffsetAndTimestamp(
-              this.startOffsetForTime, Iterables.getOnlyElement(timestampsToSearch.values())));
+          new OffsetAndTimestamp(returnOffset, timeToSearch));
     }
 
     @Override
@@ -239,7 +251,7 @@ public class ReadFromKafkaDoFnTest {
   @Test
   public void testInitialRestrictionWhenHasStartOffset() throws Exception {
     long expectedStartOffset = 10L;
-    consumer.setStartOffsetForTime(15L);
+    consumer.setStartOffsetForTime(KV.of(15L, Instant.now()));
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(
@@ -254,15 +266,51 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testInitialRestrictionWhenHasStartTime() throws Exception {
+  public void testInitialRestrictionWhenHasStopOffset() throws Exception {
     long expectedStartOffset = 10L;
-    consumer.setStartOffsetForTime(expectedStartOffset);
+    long expectedStopOffset = 20L;
+    consumer.setStartOffsetForTime(KV.of(15L, Instant.now()));
+    consumer.setStopOffsetForTime(KV.of(18L, Instant.now()));
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(
             KafkaSourceDescriptor.of(
-                topicPartition, null, Instant.now(), null, null, ImmutableList.of()));
+                topicPartition,
+                expectedStartOffset,
+                Instant.now(),
+                expectedStopOffset,
+                Instant.now(),
+                ImmutableList.of()));
+    assertEquals(new OffsetRange(expectedStartOffset, expectedStopOffset), result);
+  }
+
+  @Test
+  public void testInitialRestrictionWhenHasStartTime() throws Exception {
+    long expectedStartOffset = 10L;
+    Instant startReadTime = Instant.now();
+    consumer.setStartOffsetForTime(KV.of(expectedStartOffset, startReadTime));
+    consumer.setCurrentPos(5L);
+    OffsetRange result =
+        dofnInstance.initialRestriction(
+            KafkaSourceDescriptor.of(
+                topicPartition, null, startReadTime, null, null, ImmutableList.of()));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
+  }
+
+  @Test
+  public void testInitialRestrictionWhenHasStopTime() throws Exception {
+    long expectedStartOffset = 10L;
+    Instant startReadTime = Instant.now();
+    long expectedStopOffset = 100L;
+    Instant stopReadTime = startReadTime.plus(2000);
+    consumer.setStartOffsetForTime(KV.of(expectedStartOffset, startReadTime));
+    consumer.setStopOffsetForTime(KV.of(expectedStopOffset, stopReadTime));
+    consumer.setCurrentPos(5L);
+    OffsetRange result =
+        dofnInstance.initialRestriction(
+            KafkaSourceDescriptor.of(
+                topicPartition, null, startReadTime, null, stopReadTime, ImmutableList.of()));
+    assertEquals(new OffsetRange(expectedStartOffset, expectedStopOffset), result);
   }
 
   @Test
