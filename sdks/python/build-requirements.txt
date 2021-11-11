@@ -14,6 +14,12 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
+
+# TODO: Consider PEP-517/PEP-518 instead of this file (BEAM-8954).
+
+setuptools
+wheel>=0.36.0
+
 grpcio-tools==1.37.0
 mypy-protobuf==1.18
 
