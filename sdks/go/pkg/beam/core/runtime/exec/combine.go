@@ -140,8 +140,6 @@ func (n *Combine) ProcessElement(ctx context.Context, value *FullValue, values .
 		return errors.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
 
-	n.states.Set(n.ctx, metrics.ProcessBundle)
-
 	// Note that we do not explicitly call merge, although it may
 	// be called implicitly when adding input.
 
@@ -359,6 +357,9 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 	if n.status != Active {
 		return errors.Errorf("invalid status for precombine %v: %v", n.UID, n.status)
 	}
+
+	n.Combine.states.Set(n.Combine.ctx, metrics.ProcessBundle)
+
 	// The cache layer in lifted combines implicitly observes windows. Process each individually.
 	for _, w := range value.Windows {
 		err := n.processElementPerWindow(ctx, value, w)
@@ -470,6 +471,7 @@ func (n *MergeAccumulators) ProcessElement(ctx context.Context, value *FullValue
 	if n.status != Active {
 		return errors.Errorf("invalid status for combine merge %v: %v", n.UID, n.status)
 	}
+	n.Combine.states.Set(n.Combine.ctx, metrics.ProcessBundle)
 	a, err := n.newAccum(n.Combine.ctx, value.Elm)
 	if err != nil {
 		return n.fail(err)
@@ -525,6 +527,7 @@ func (n *ExtractOutput) ProcessElement(ctx context.Context, value *FullValue, va
 	if n.status != Active {
 		return errors.Errorf("invalid status for combine extract %v: %v", n.UID, n.status)
 	}
+	n.Combine.states.Set(n.Combine.ctx, metrics.StartBundle)
 	out, err := n.extract(n.Combine.ctx, value.Elm2)
 	if err != nil {
 		return n.fail(err)
@@ -546,6 +549,7 @@ func (n *ConvertToAccumulators) ProcessElement(ctx context.Context, value *FullV
 	if n.status != Active {
 		return errors.Errorf("invalid status for combine convert %v: %v", n.UID, n.status)
 	}
+	n.Combine.states.Set(n.Combine.ctx, metrics.StartBundle)
 	a, err := n.newAccum(n.Combine.ctx, value.Elm)
 	if err != nil {
 		return n.fail(err)
