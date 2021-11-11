@@ -82,7 +82,7 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.34.0] - Unreleased
+# [2.34.0] - 2021-11-11
 ## Highlights
 
 * The Beam Java API for Calcite SqlTransform is no longer experimental ([BEAM-12680](https://issues.apache.org/jira/browse/BEAM-12680)).
