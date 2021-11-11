@@ -894,12 +894,12 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   /** The type FhirResourcePagesIterator for methods which return paged output. */
   public static class FhirResourcePagesIterator implements Iterator<JsonArray> {
 
-    public enum FHIR_METHOD {
+    public enum FhirMethod {
       SEARCH,
       PATIENT_EVERYTHING
     }
 
-    private final FHIR_METHOD fhirMethod;
+    private final FhirMethod fhirMethod;
     private final String fhirStore;
     private final String resourceType;
     private final String resourceName;
@@ -911,7 +911,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     private boolean isFirstRequest;
 
     private FhirResourcePagesIterator(
-        FHIR_METHOD fhirMethod,
+        FhirMethod fhirMethod,
         HealthcareApiClient client,
         String fhirStore,
         String resourceType,
@@ -942,7 +942,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         String resourceType,
         @Nullable Map<String, Object> parameters) {
       return new FhirResourcePagesIterator(
-          FHIR_METHOD.SEARCH, client, fhirStore, resourceType, "", parameters);
+          FhirMethod.SEARCH, client, fhirStore, resourceType, "", parameters);
     }
 
     /**
@@ -955,7 +955,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     public static FhirResourcePagesIterator ofPatientEverything(
         HealthcareApiClient client, String resourceName, @Nullable Map<String, Object> parameters) {
       return new FhirResourcePagesIterator(
-          FHIR_METHOD.PATIENT_EVERYTHING, client, "", "", resourceName, parameters);
+          FhirMethod.PATIENT_EVERYTHING, client, "", "", resourceName, parameters);
     }
 
     @Override

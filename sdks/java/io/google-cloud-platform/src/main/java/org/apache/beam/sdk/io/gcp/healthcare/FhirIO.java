@@ -1745,16 +1745,16 @@ public class FhirIO {
      */
     class SearchResourcesFn extends DoFn<FhirSearchParameter<T>, KV<String, JsonArray>> {
 
-      private final Counter SEARCH_RESOURCES_ERROR_COUNT =
+      private final Counter searchResourcesErrorCount =
           Metrics.counter(
               SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_error_count");
-      private final Counter SEARCH_RESOURCES_SUCCESS_COUNT =
+      private final Counter searchResourcesSuccessCount =
           Metrics.counter(
               SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_success_count");
-      private final Distribution SEARCH_RESOURCES_LATENCY_MS =
+      private final Distribution searchResourcesLatencyMs =
           Metrics.distribution(
               SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_latency_ms");
-      private final Logger LOG = LoggerFactory.getLogger(SearchResourcesFn.class);
+      private final Logger log = LoggerFactory.getLogger(SearchResourcesFn.class);
 
       private HealthcareApiClient client;
       private final ValueProvider<String> fhirStore;
@@ -1789,8 +1789,8 @@ public class FhirIO {
                   searchResources(
                       fhirSearchParameters.getResourceType(), fhirSearchParameters.getQueries())));
         } catch (IllegalArgumentException | NoSuchElementException e) {
-          SEARCH_RESOURCES_ERROR_COUNT.inc();
-          LOG.warn(
+          searchResourcesErrorCount.inc();
+          log.warn(
               String.format(
                   "Error search FHIR resources writing to Dead Letter "
                       + "Queue. Cause: %s Stack Trace: %s",
@@ -1815,8 +1815,8 @@ public class FhirIO {
         while (iter.hasNext()) {
           result.addAll(iter.next());
         }
-        SEARCH_RESOURCES_LATENCY_MS.update(java.time.Instant.now().toEpochMilli() - start);
-        SEARCH_RESOURCES_SUCCESS_COUNT.inc();
+        searchResourcesLatencyMs.update(java.time.Instant.now().toEpochMilli() - start);
+        searchResourcesSuccessCount.inc();
         return result;
       }
     }

@@ -250,18 +250,18 @@ public class FhirIOPatientEverything
   /** GetPatientEverythingFn executes a GetPatientEverything request. */
   static class GetPatientEverythingFn extends DoFn<PatientEverythingParameter, JsonArray> {
 
-    private final Counter GET_PATIENT_EVERYTHING_ERROR_COUNT =
+    private static final Counter GET_PATIENT_EVERYTHING_ERROR_COUNT =
         Metrics.counter(
             GetPatientEverythingFn.class,
             BASE_METRIC_PREFIX + "get_patient_everything_error_count");
-    private final Counter GET_PATIENT_EVERYTHING_SUCCESS_COUNT =
+    private static final Counter GET_PATIENT_EVERYTHING_SUCCESS_COUNT =
         Metrics.counter(
             GetPatientEverythingFn.class,
             BASE_METRIC_PREFIX + "get_patient_everything_success_count");
-    private final Distribution GET_PATIENT_EVERYTHING_LATENCY_MS =
+    private static final Distribution GET_PATIENT_EVERYTHING_LATENCY_MS =
         Metrics.distribution(
             GetPatientEverythingFn.class, BASE_METRIC_PREFIX + "get_patient_everything_latency_ms");
-    private final Logger LOG = LoggerFactory.getLogger(GetPatientEverythingFn.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GetPatientEverythingFn.class);
 
     @SuppressWarnings("initialization.fields.uninitialized")
     private HealthcareApiClient client;
