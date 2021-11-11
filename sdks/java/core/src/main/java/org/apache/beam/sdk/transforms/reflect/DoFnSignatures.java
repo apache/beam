@@ -65,7 +65,9 @@ import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialRestrictionMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialWatermarkEstimatorStateMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
@@ -212,7 +214,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_SPLIT_RESTRICTION_PARAMETERS =
       ImmutableList.of(
@@ -223,7 +226,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_TRUNCATE_RESTRICTION_PARAMETERS =
@@ -234,7 +238,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_NEW_TRACKER_PARAMETERS =
       ImmutableList.of(
@@ -243,7 +248,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_GET_SIZE_PARAMETERS =
       ImmutableList.of(
@@ -252,7 +258,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_WATERMARK_ESTIMATOR_STATE_PARAMETERS =
@@ -262,7 +269,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_NEW_WATERMARK_ESTIMATOR_PARAMETERS =
@@ -273,7 +281,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
@@ -2521,6 +2530,24 @@ public class DoFnSignatures {
 
   public static boolean usesState(DoFn<?, ?> doFn) {
     return signatureForDoFn(doFn).usesState() || requiresTimeSortedInput(doFn);
+  }
+
+  private static boolean containsBundleFinalizer(List<Parameter> parameters) {
+    return parameters.stream().anyMatch(parameter -> parameter instanceof BundleFinalizerParameter);
+  }
+
+  private static boolean containsBundleFinalizer(@Nullable MethodWithExtraParameters method) {
+    if (method == null) {
+      return false;
+    }
+    return containsBundleFinalizer(method.extraParameters());
+  }
+
+  public static boolean usesBundleFinalizer(DoFn<?, ?> doFn) {
+    DoFnSignature sig = signatureForDoFn(doFn);
+    return containsBundleFinalizer(sig.startBundle())
+        || containsBundleFinalizer(sig.finishBundle())
+        || containsBundleFinalizer(sig.processElement());
   }
 
   public static boolean requiresTimeSortedInput(DoFn<?, ?> doFn) {

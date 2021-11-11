@@ -39,7 +39,6 @@ from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
 from apache_beam import coders
 from apache_beam.internal import pickler

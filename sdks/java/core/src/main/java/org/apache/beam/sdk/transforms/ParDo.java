@@ -49,6 +49,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -637,6 +639,7 @@ public class ParDo {
               fn.getClass().getName()));
     }
   }
+
   /**
    * Extract information on how the DoFn uses schemas. In particular, if the schema of an element
    * parameter does not match the input PCollection's schema, convert.
@@ -662,6 +665,7 @@ public class ParDo {
               input.getSchema(),
               signature.fieldAccessDeclarations(),
               fn);
+      doFnSchemaInformation = doFnSchemaInformation.withFieldAccessDescriptor(accessDescriptor);
       Schema selectedSchema = SelectHelpers.getOutputSchema(input.getSchema(), accessDescriptor);
       ConvertHelpers.ConvertedSchemaInformation converted =
           ConvertHelpers.getConvertedSchemaInformation(selectedSchema, elementT, schemaRegistry);
@@ -681,6 +685,13 @@ public class ParDo {
         doFnSchemaInformation =
             doFnSchemaInformation.withUnboxPrimitiveParameter(
                 (SchemaCoder<?>) input.getCoder(), accessDescriptor, selectedSchema, elementT);
+      }
+    }
+    for (DoFnSignature.Parameter p : processElementMethod.extraParameters()) {
+      if (p instanceof ProcessContextParameter || p instanceof ElementParameter) {
+        doFnSchemaInformation =
+            doFnSchemaInformation.withFieldAccessDescriptor(FieldAccessDescriptor.withAllFields());
+        break;
       }
     }
 

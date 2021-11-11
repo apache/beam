@@ -17,19 +17,19 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
 
 class ExampleState with ChangeNotifier {
   final ExampleRepository _exampleRepository;
-  List<ExampleModel>? examples;
+  List<CategoryModel>? categories;
 
   ExampleState(this._exampleRepository) {
-    _loadExamples();
+    _loadCategories();
   }
 
-  _loadExamples() async {
-    examples = await _exampleRepository.getExamples();
+  _loadCategories() {
+    categories = _exampleRepository.getCategories();
     notifyListeners();
   }
 }

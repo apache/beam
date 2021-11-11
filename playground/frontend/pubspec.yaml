@@ -50,6 +50,7 @@ dependencies:
   code_text_field: ^1.0.0
   flutter_svg: ^0.22.0
   url_launcher: ^6.0.12
+  expansion_widget: ^0.0.2
   grpc: ^3.0.0
 
 dev_dependencies:
@@ -57,6 +58,7 @@ dev_dependencies:
     sdk: flutter
   mockito: ^5.0.16
   build_runner: ^2.1.4
+  google_fonts: ^2.1.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

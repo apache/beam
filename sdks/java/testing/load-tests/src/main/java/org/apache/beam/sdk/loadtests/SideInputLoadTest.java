@@ -156,7 +156,7 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      timestamp = TIME.plus(1L);
+      timestamp = TIME.plus(Duration.millis(1L));
       c.outputWithTimestamp(c.element(), timestamp);
     }
   }

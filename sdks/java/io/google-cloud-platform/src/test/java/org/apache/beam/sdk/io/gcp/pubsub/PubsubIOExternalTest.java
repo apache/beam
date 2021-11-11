@@ -77,7 +77,7 @@ public class PubsubIOExternalTest {
                     .setUniqueName("test")
                     .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn("beam:external:java:pubsub:read:v1")
+                            .setUrn(ExternalRead.URN)
                             .setPayload(payload.toByteString())))
             .setNamespace("test_namespace")
             .build();
@@ -136,7 +136,7 @@ public class PubsubIOExternalTest {
                     .putInputs("input", inputPCollection)
                     .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn("beam:external:java:pubsub:write:v1")
+                            .setUrn(ExternalWrite.URN)
                             .setPayload(payload.toByteString())))
             .setNamespace("test_namespace")
             .build();

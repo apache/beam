@@ -22,6 +22,13 @@ import 'package:playground/modules/editor/repository/code_repository/run_code_re
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
 
 const kPipelineCheckDelay = Duration(seconds: 1);
+const kTimeoutErrorText = 'Code execution exceeded timeout';
+const kFinishedStatuses = [
+  RunCodeStatus.finished,
+  RunCodeStatus.error,
+  RunCodeStatus.timeout,
+  RunCodeStatus.compileError,
+];
 
 class CodeRepository {
   late final CodeClient _client;
@@ -48,8 +55,7 @@ class CodeRepository {
 
   Future<RunCodeStatus> _waitPipelineExecution(String pipelineUuid) async {
     final statusResponse = await _client.checkStatus(pipelineUuid);
-    final isFinished = statusResponse.status == RunCodeStatus.finished ||
-        statusResponse.status == RunCodeStatus.error;
+    final isFinished = kFinishedStatuses.contains(statusResponse.status);
     if (isFinished) {
       return statusResponse.status;
     }
@@ -64,21 +70,25 @@ class CodeRepository {
     String pipelineUuid,
     RunCodeStatus status,
   ) async {
-    final output = await _getPipelineOutput(pipelineUuid, status);
-    return RunCodeResult(status: status, output: output);
+    return _getFinishedPipelineResult(pipelineUuid, status);
   }
 
-  Future<String> _getPipelineOutput(
+  Future<RunCodeResult> _getFinishedPipelineResult(
     String pipelineUuid,
     RunCodeStatus status,
   ) async {
-    if (status == RunCodeStatus.error) {
-      final compileOutput = await _client.getCompileOutput(pipelineUuid);
-      if (compileOutput.output.isNotEmpty) {
-        return compileOutput.output;
-      }
+    switch (status) {
+      case RunCodeStatus.compileError:
+        final compileOutput = await _client.getCompileOutput(pipelineUuid);
+        return RunCodeResult(status: status, output: compileOutput.output);
+      case RunCodeStatus.timeout:
+        return RunCodeResult(status: status, errorMessage: kTimeoutErrorText);
+      case RunCodeStatus.error:
+      case RunCodeStatus.finished:
+        final output = await _client.getRunOutput(pipelineUuid);
+        return RunCodeResult(status: status, output: output.output);
+      default:
+        return RunCodeResult(status: status);
     }
-    final runOutput = await _client.getRunOutput(pipelineUuid);
-    return runOutput.output;
   }
 }

@@ -51,6 +51,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -58,6 +59,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** End-to-end test of Cloud Spanner Sink. */
+@Ignore("BEAM-13222")
 @RunWith(JUnit4.class)
 public class SpannerWriteIT {
 
