@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.fn.data;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -27,7 +25,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.sdk.fn.CancellableQueue;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
@@ -59,7 +56,6 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
           /*instructionId=*/ String, CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>>>
       receivers;
   private final ConcurrentMap<String, Boolean> erroredInstructionIds;
-  private final List<CancellableQueue<BeamFnApi.Elements>> unusedQueues;
 
   public BeamFnDataGrpcMultiplexer2(
       Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor,
@@ -68,11 +64,10 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
           baseOutboundObserverFactory) {
     this.apiServiceDescriptor = apiServiceDescriptor;
     this.receivers = new ConcurrentHashMap<>();
+    this.erroredInstructionIds = new ConcurrentHashMap<>();
     this.inboundObserver = new InboundObserver();
     this.outboundObserver =
         outboundObserverFactory.outboundObserverFor(baseOutboundObserverFactory, inboundObserver);
-    this.erroredInstructionIds = new ConcurrentHashMap<>();
-    this.unusedQueues = new ArrayList<>(100);
   }
 
   @Override
@@ -259,7 +254,6 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
           apiServiceDescriptor == null ? "unknown endpoint" : apiServiceDescriptor,
           t);
       outboundObserver.onCompleted();
-      ;
     }
 
     @Override
@@ -268,7 +262,6 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
           "Hanged up for {}.",
           apiServiceDescriptor == null ? "unknown endpoint" : apiServiceDescriptor);
       outboundObserver.onCompleted();
-      ;
     }
   }
 }

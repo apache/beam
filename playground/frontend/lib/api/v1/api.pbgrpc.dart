@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 ///
 //  Generated code. Do not modify.
 //  source: api/v1/api.proto
@@ -49,12 +50,36 @@ class PlaygroundServiceClient extends $grpc.Client {
           ($0.GetRunOutputRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $0.GetRunOutputResponse.fromBuffer(value));
+  static final _$getRunError =
+      $grpc.ClientMethod<$0.GetRunErrorRequest, $0.GetRunErrorResponse>(
+          '/api.v1.PlaygroundService/GetRunError',
+          ($0.GetRunErrorRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.GetRunErrorResponse.fromBuffer(value));
   static final _$getCompileOutput = $grpc.ClientMethod<
           $0.GetCompileOutputRequest, $0.GetCompileOutputResponse>(
       '/api.v1.PlaygroundService/GetCompileOutput',
       ($0.GetCompileOutputRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetCompileOutputResponse.fromBuffer(value));
+  static final _$getListOfExamples = $grpc.ClientMethod<
+          $0.GetListOfExamplesRequest, $0.GetListOfExamplesResponse>(
+      '/api.v1.PlaygroundService/GetListOfExamples',
+      ($0.GetListOfExamplesRequest value) => value.writeToBuffer(),
+      ($core.List<$core.int> value) =>
+          $0.GetListOfExamplesResponse.fromBuffer(value));
+  static final _$getExample =
+      $grpc.ClientMethod<$0.GetExampleRequest, $0.GetExampleResponse>(
+          '/api.v1.PlaygroundService/GetExample',
+          ($0.GetExampleRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.GetExampleResponse.fromBuffer(value));
+  static final _$getExampleOutput =
+      $grpc.ClientMethod<$0.GetExampleRequest, $0.GetRunOutputResponse>(
+          '/api.v1.PlaygroundService/GetExampleOutput',
+          ($0.GetExampleRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.GetRunOutputResponse.fromBuffer(value));
 
   PlaygroundServiceClient($grpc.ClientChannel channel,
       {$grpc.CallOptions? options,
@@ -78,10 +103,34 @@ class PlaygroundServiceClient extends $grpc.Client {
     return $createUnaryCall(_$getRunOutput, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.GetRunErrorResponse> getRunError(
+      $0.GetRunErrorRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getRunError, request, options: options);
+  }
+
   $grpc.ResponseFuture<$0.GetCompileOutputResponse> getCompileOutput(
       $0.GetCompileOutputRequest request,
       {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getCompileOutput, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetListOfExamplesResponse> getListOfExamples(
+      $0.GetListOfExamplesRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getListOfExamples, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetExampleResponse> getExample(
+      $0.GetExampleRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getExample, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetRunOutputResponse> getExampleOutput(
+      $0.GetExampleRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getExampleOutput, request, options: options);
   }
 }
 
@@ -114,6 +163,15 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.GetRunOutputRequest.fromBuffer(value),
             ($0.GetRunOutputResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.GetRunErrorRequest, $0.GetRunErrorResponse>(
+            'GetRunError',
+            getRunError_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.GetRunErrorRequest.fromBuffer(value),
+            ($0.GetRunErrorResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetCompileOutputRequest,
             $0.GetCompileOutputResponse>(
         'GetCompileOutput',
@@ -123,6 +181,31 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetCompileOutputRequest.fromBuffer(value),
         ($0.GetCompileOutputResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetListOfExamplesRequest,
+            $0.GetListOfExamplesResponse>(
+        'GetListOfExamples',
+        getListOfExamples_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetListOfExamplesRequest.fromBuffer(value),
+        ($0.GetListOfExamplesResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetExampleRequest, $0.GetExampleResponse>(
+        'GetExample',
+        getExample_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GetExampleRequest.fromBuffer(value),
+        ($0.GetExampleResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.GetExampleRequest, $0.GetRunOutputResponse>(
+            'GetExampleOutput',
+            getExampleOutput_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.GetExampleRequest.fromBuffer(value),
+            ($0.GetRunOutputResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.RunCodeResponse> runCode_Pre(
@@ -141,10 +224,32 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getRunOutput(call, await request);
   }
 
+  $async.Future<$0.GetRunErrorResponse> getRunError_Pre($grpc.ServiceCall call,
+      $async.Future<$0.GetRunErrorRequest> request) async {
+    return getRunError(call, await request);
+  }
+
   $async.Future<$0.GetCompileOutputResponse> getCompileOutput_Pre(
       $grpc.ServiceCall call,
       $async.Future<$0.GetCompileOutputRequest> request) async {
     return getCompileOutput(call, await request);
+  }
+
+  $async.Future<$0.GetListOfExamplesResponse> getListOfExamples_Pre(
+      $grpc.ServiceCall call,
+      $async.Future<$0.GetListOfExamplesRequest> request) async {
+    return getListOfExamples(call, await request);
+  }
+
+  $async.Future<$0.GetExampleResponse> getExample_Pre($grpc.ServiceCall call,
+      $async.Future<$0.GetExampleRequest> request) async {
+    return getExample(call, await request);
+  }
+
+  $async.Future<$0.GetRunOutputResponse> getExampleOutput_Pre(
+      $grpc.ServiceCall call,
+      $async.Future<$0.GetExampleRequest> request) async {
+    return getExampleOutput(call, await request);
   }
 
   $async.Future<$0.RunCodeResponse> runCode(
@@ -153,6 +258,14 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
       $grpc.ServiceCall call, $0.CheckStatusRequest request);
   $async.Future<$0.GetRunOutputResponse> getRunOutput(
       $grpc.ServiceCall call, $0.GetRunOutputRequest request);
+  $async.Future<$0.GetRunErrorResponse> getRunError(
+      $grpc.ServiceCall call, $0.GetRunErrorRequest request);
   $async.Future<$0.GetCompileOutputResponse> getCompileOutput(
       $grpc.ServiceCall call, $0.GetCompileOutputRequest request);
+  $async.Future<$0.GetListOfExamplesResponse> getListOfExamples(
+      $grpc.ServiceCall call, $0.GetListOfExamplesRequest request);
+  $async.Future<$0.GetExampleResponse> getExample(
+      $grpc.ServiceCall call, $0.GetExampleRequest request);
+  $async.Future<$0.GetRunOutputResponse> getExampleOutput(
+      $grpc.ServiceCall call, $0.GetExampleRequest request);
 }

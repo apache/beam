@@ -270,7 +270,7 @@ public class DoFnOperatorTest {
   public void testWatermarkContract() throws Exception {
 
     final Instant timerTimestamp = new Instant(1000);
-    final Instant timerOutputTimestamp = timerTimestamp.minus(1);
+    final Instant timerOutputTimestamp = timerTimestamp.minus(Duration.millis(1));
     final String eventTimeMessage = "Event timer fired: ";
     final String processingTimeMessage = "Processing timer fired";
 
@@ -327,7 +327,7 @@ public class DoFnOperatorTest {
                 // Timestamps in processing timer context are defined to be the input watermark
                 // See SimpleDoFnRunner#onTimer
                 "Timer timestamp must match current input watermark",
-                timerTimestamp.plus(1),
+                timerTimestamp.plus(Duration.millis(1)),
                 context.timestamp());
             context.outputWithTimestamp(processingTimeMessage, context.timestamp());
           }
@@ -410,7 +410,7 @@ public class DoFnOperatorTest {
                 eventTimeMessage + eventTimerId, timerTimestamp, window1, PaneInfo.NO_FIRING),
             WindowedValue.of(
                 eventTimeMessage + eventTimerId2,
-                timerTimestamp.minus(1),
+                timerTimestamp.minus(Duration.millis(1)),
                 window1,
                 PaneInfo.NO_FIRING)));
 
@@ -425,7 +425,10 @@ public class DoFnOperatorTest {
             WindowedValue.of(
                 // Timestamps in processing timer context are defined to be the input watermark
                 // See SimpleDoFnRunner#onTimer
-                processingTimeMessage, timerTimestamp.plus(1), window1, PaneInfo.NO_FIRING)));
+                processingTimeMessage,
+                timerTimestamp.plus(Duration.millis(1)),
+                window1,
+                PaneInfo.NO_FIRING)));
 
     testHarness.close();
   }
@@ -487,8 +490,8 @@ public class DoFnOperatorTest {
                     namespace,
                     "timer",
                     "family",
-                    elem.getTimestamp().plus(1),
-                    elem.getTimestamp().plus(1),
+                    elem.getTimestamp().plus(Duration.millis(1)),
+                    elem.getTimestamp().plus(Duration.millis(1)),
                     TimeDomain.EVENT_TIME);
                 timerInternals.setTimer(
                     namespace,
@@ -571,13 +574,15 @@ public class DoFnOperatorTest {
     // process second element, verify we emitted changed hold
     testHarness.processElement(
         new StreamRecord<>(
-            WindowedValue.timestampedValueInGlobalWindow(KV.of("Key", "Hello"), now.plus(2))));
+            WindowedValue.timestampedValueInGlobalWindow(
+                KV.of("Key", "Hello"), now.plus(Duration.millis(2)))));
 
     assertThat(
         emittedWatermarkHolds,
         is(equalTo(Arrays.asList(now.getMillis(), now.getMillis() + 1, now.getMillis() + 2))));
 
-    testHarness.processWatermark(GlobalWindow.INSTANCE.maxTimestamp().plus(1).getMillis());
+    testHarness.processWatermark(
+        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1)).getMillis());
     testHarness.processWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
 
     testHarness.close();
@@ -736,7 +741,7 @@ public class DoFnOperatorTest {
         window1
                 .maxTimestamp()
                 .plus(windowingStrategy.getAllowedLateness())
-                .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
+                .plus(Duration.millis(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS))
                 .getMillis()
             + 1);
 
@@ -787,12 +792,14 @@ public class DoFnOperatorTest {
     assertThat(testHarness.numKeyedStateEntries(), is(2));
 
     // Should not trigger garbage collection yet
-    testHarness.processWatermark(GlobalWindow.INSTANCE.maxTimestamp().plus(1).getMillis());
+    testHarness.processWatermark(
+        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1)).getMillis());
     assertThat(testHarness.numEventTimeTimers(), is(0));
     assertThat(testHarness.numKeyedStateEntries(), is(2));
 
     // Cleanup due to end of global window
-    testHarness.processWatermark(GlobalWindow.INSTANCE.maxTimestamp().plus(2).getMillis());
+    testHarness.processWatermark(
+        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(2)).getMillis());
     assertThat(testHarness.numEventTimeTimers(), is(0));
     assertThat(testHarness.numKeyedStateEntries(), is(0));
 

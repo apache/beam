@@ -159,16 +159,20 @@ public class BigQueryIOWriteTest implements Serializable {
   @Parameters
   public static Iterable<Object[]> data() {
     return ImmutableList.of(
-        new Object[] {false, false},
-        new Object[] {false, true},
-        new Object[] {true, false},
-        new Object[] {true, true});
+        new Object[] {false, false, false},
+        new Object[] {false, false, true},
+        new Object[] {true, false, false},
+        new Object[] {true, false, true},
+        new Object[] {true, true, true});
   }
 
   @Parameter(0)
   public boolean useStorageApi;
 
   @Parameter(1)
+  public boolean useStorageApiApproximate;
+
+  @Parameter(2)
   public boolean useStreaming;
 
   @Rule
@@ -194,6 +198,9 @@ public class BigQueryIOWriteTest implements Serializable {
                   bqOptions.setTempLocation(testFolder.getRoot().getAbsolutePath());
                   if (useStorageApi) {
                     bqOptions.setUseStorageWriteApi(true);
+                    if (useStorageApiApproximate) {
+                      bqOptions.setUseStorageWriteApiAtLeastOnce(true);
+                    }
                     if (useStreaming) {
                       bqOptions.setNumStorageWriteApiStreams(2);
                       bqOptions.setStorageWriteApiTriggeringFrequencySec(1);
@@ -477,7 +484,8 @@ public class BigQueryIOWriteTest implements Serializable {
   public void testTimePartitioning() throws Exception {
     BigQueryIO.Write.Method method;
     if (useStorageApi) {
-      method = Method.STORAGE_WRITE_API;
+      method =
+          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
     } else if (useStreaming) {
       method = Method.STREAMING_INSERTS;
     } else {
@@ -497,7 +505,8 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testClusteringStorageApi() throws Exception {
     if (useStorageApi) {
-      testClustering(Method.STORAGE_WRITE_API);
+      testClustering(
+          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API);
     }
   }
 
@@ -526,7 +535,12 @@ public class BigQueryIOWriteTest implements Serializable {
 
     // withMethod overrides the pipeline option, so we need to explicitly request
     // STORAGE_API_WRITES.
-    BigQueryIO.Write.Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
+    BigQueryIO.Write.Method method =
+        useStorageApi
+            ? (useStorageApiApproximate
+                ? Method.STORAGE_API_AT_LEAST_ONCE
+                : Method.STORAGE_WRITE_API)
+            : Method.FILE_LOADS;
     p.apply(Create.of(row1, row2))
         .apply(
             BigQueryIO.writeTableRows()
@@ -1085,7 +1099,12 @@ public class BigQueryIOWriteTest implements Serializable {
   public void testSchemaWriteLoads() throws Exception {
     // withMethod overrides the pipeline option, so we need to explicitly request
     // STORAGE_API_WRITES.
-    BigQueryIO.Write.Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
+    BigQueryIO.Write.Method method =
+        useStorageApi
+            ? (useStorageApiApproximate
+                ? Method.STORAGE_API_AT_LEAST_ONCE
+                : Method.STORAGE_WRITE_API)
+            : Method.FILE_LOADS;
     p.apply(
             Create.of(
                 new SchemaPojo("a", 1),
@@ -1545,32 +1564,45 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testCreateNeverWithStreaming() throws Exception {
-    if (!useStreaming) {
-      return;
-    }
+  public void testCreateNever() throws Exception {
+    BigQueryIO.Write.Method method =
+        useStreaming
+            ? (useStorageApi
+                ? (useStorageApiApproximate
+                    ? Method.STORAGE_API_AT_LEAST_ONCE
+                    : Method.STORAGE_WRITE_API)
+                : Method.STREAMING_INSERTS)
+            : useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
     p.enableAbandonedNodeEnforcement(false);
 
-    TableReference tableRef = new TableReference();
-    tableRef.setDatasetId("dataset");
-    tableRef.setTableId("sometable");
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset-id.table");
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER")));
+    fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
 
     PCollection<TableRow> tableRows =
-        p.apply(GenerateSequence.from(0))
+        p.apply(GenerateSequence.from(0).to(10))
             .apply(
                 MapElements.via(
                     new SimpleFunction<Long, TableRow>() {
                       @Override
                       public TableRow apply(Long input) {
-                        return null;
+                        return new TableRow().set("name", "name " + input).set("number", input);
                       }
                     }))
             .setCoder(TableRowJsonCoder.of());
     tableRows.apply(
         BigQueryIO.writeTableRows()
             .to(tableRef)
+            .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withTestServices(fakeBqServices)
             .withoutValidation());
+    p.run();
   }
 
   @Test
@@ -2006,7 +2038,8 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
             3,
-            "kms_key");
+            "kms_key",
+            null);
 
     DoFnTester<Iterable<KV<TableDestination, WriteTables.Result>>, Void> tester =
         DoFnTester.of(writeRename);
@@ -2096,7 +2129,11 @@ public class BigQueryIOWriteTest implements Serializable {
     // withMethod overrides the pipeline option, so we need to explicitly requiest
     // STORAGE_API_WRITES.
     BigQueryIO.Write.Method method =
-        useStorageApi ? Method.STORAGE_WRITE_API : Method.STREAMING_INSERTS;
+        useStorageApi
+            ? (useStorageApiApproximate
+                ? Method.STORAGE_API_AT_LEAST_ONCE
+                : Method.STORAGE_WRITE_API)
+            : Method.STREAMING_INSERTS;
     TableSchema schema =
         new TableSchema()
             .setFields(

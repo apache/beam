@@ -18,7 +18,9 @@ package executors
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/preparators"
 	"beam.apache.org/playground/backend/internal/validators"
+	"context"
 	"os"
 	"os/exec"
 	"reflect"
@@ -31,10 +33,14 @@ var (
 )
 
 // BaseExecutorBuilder fills up an executor with base parameters
-func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath string, validatorsFuncs *[]validators.Validator) *ExecutorBuilder {
+func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath string, validatorsFuncs *[]validators.Validator, preparatorsFuncs *[]preparators.Preparator) *ExecutorBuilder {
 	if validatorsFuncs == nil {
 		v := make([]validators.Validator, 0)
 		validatorsFuncs = &v
+	}
+	if preparatorsFuncs == nil {
+		v := make([]preparators.Preparator, 0)
+		preparatorsFuncs = &v
 	}
 	builder := NewExecutorBuilder().
 		WithCompiler().
@@ -48,7 +54,10 @@ func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath 
 		WithClassName("HelloWorld").
 		WithWorkingDir(workingDir).
 		WithValidator().
-		WithSdkValidators(validatorsFuncs).ExecutorBuilder
+		WithSdkValidators(validatorsFuncs).
+		WithPreparator().
+		WithSdkPreparators(preparatorsFuncs).
+		ExecutorBuilder
 	return &builder
 }
 
@@ -95,7 +104,7 @@ func TestExecutor_Compile(t *testing.T) {
 				runArgs:     tt.fields.runArgs,
 				validators:  tt.fields.validators,
 			}
-			if got := ex.Compile(); !reflect.DeepEqual(got.String(), tt.want.String()) {
+			if got := ex.Compile(context.Background()); !reflect.DeepEqual(got.String(), tt.want.String()) {
 				t.Errorf("WithCompiler() = %v, want %v", got, tt.want)
 			}
 		})
@@ -147,7 +156,7 @@ func TestExecutor_Run(t *testing.T) {
 				runArgs:     tt.fields.runArgs,
 				validators:  tt.fields.validators,
 			}
-			if got := ex.Run(); !reflect.DeepEqual(got.String(), tt.want.String()) {
+			if got := ex.Run(context.Background()); !reflect.DeepEqual(got.String(), tt.want.String()) {
 				t.Errorf("WithRunner() = %v, want %v", got, tt.want)
 			}
 		})
@@ -156,12 +165,14 @@ func TestExecutor_Run(t *testing.T) {
 
 func TestBaseExecutorBuilder(t *testing.T) {
 	validatorsFuncs := validators.GetJavaValidators("filePath")
+	preparatorsFuncs := preparators.GetJavaPreparators("filePath")
 
 	type args struct {
-		envs            environment.BeamEnvs
-		workingDir      string
-		filePath        string
-		validatorsFuncs *[]validators.Validator
+		envs             environment.BeamEnvs
+		workingDir       string
+		filePath         string
+		validatorsFuncs  *[]validators.Validator
+		preparatorsFuncs *[]preparators.Preparator
 	}
 	tests := []struct {
 		name string
@@ -171,10 +182,11 @@ func TestBaseExecutorBuilder(t *testing.T) {
 		{
 			name: "NewCmdProvider",
 			args: args{
-				envs:            env.BeamSdkEnvs,
-				workingDir:      "./",
-				filePath:        "filePath",
-				validatorsFuncs: validatorsFuncs,
+				envs:             env.BeamSdkEnvs,
+				workingDir:       "./",
+				filePath:         "filePath",
+				validatorsFuncs:  validatorsFuncs,
+				preparatorsFuncs: preparatorsFuncs,
 			},
 			want: Executor{
 				compileArgs: CmdConfiguration{
@@ -189,13 +201,14 @@ func TestBaseExecutorBuilder(t *testing.T) {
 					commandName: "java",
 					commandArgs: []string{"-cp", "bin:"},
 				},
-				validators: *validatorsFuncs,
+				validators:  *validatorsFuncs,
+				preparators: *preparatorsFuncs,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := BaseExecutorBuilder(tt.args.envs, tt.args.workingDir, tt.args.filePath, tt.args.validatorsFuncs).Build(); !reflect.DeepEqual(got, tt.want) {
+			if got := BaseExecutorBuilder(tt.args.envs, tt.args.workingDir, tt.args.filePath, tt.args.validatorsFuncs, tt.args.preparatorsFuncs).Build(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BaseExecutorBuilder() = %v, want %v", got, tt.want)
 			}
 		})

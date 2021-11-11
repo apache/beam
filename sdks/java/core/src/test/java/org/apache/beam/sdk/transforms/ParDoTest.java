@@ -76,6 +76,8 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
@@ -135,6 +137,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -2711,7 +2714,7 @@ public class ParDoTest implements Serializable {
             @OnTimer("timer")
             public void processTimer(
                 @StateId(stateId) OrderedListState<String> state, @Timestamp Instant ts) {
-              state.clearRange(Instant.EPOCH, ts.plus(1));
+              state.clearRange(Instant.EPOCH, ts.plus(Duration.millis(1)));
             }
 
             @OnWindowExpiration
@@ -3731,7 +3734,7 @@ public class ParDoTest implements Serializable {
       PAssert.that(output)
           .containsInAnyOrder(
               KV.of(3L, BoundedWindow.TIMESTAMP_MIN_VALUE),
-              KV.of(42L, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1774)));
+              KV.of(42L, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1774))));
       pipeline.run();
     }
 
@@ -3943,7 +3946,7 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
               try {
-                timer.set(window.maxTimestamp().plus(1L));
+                timer.set(window.maxTimestamp().plus(Duration.millis(1L)));
                 fail("Should have failed due to out-of-bounds timer.");
               } catch (RuntimeException e) {
                 String message = e.getMessage();
@@ -4028,7 +4031,7 @@ public class ParDoTest implements Serializable {
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
               try {
                 timer
-                    .withOutputTimestamp(window.maxTimestamp().plus(1L))
+                    .withOutputTimestamp(window.maxTimestamp().plus(Duration.millis(1L)))
                     .set(window.maxTimestamp());
                 fail("Should have failed due to out-of-bounds timer.");
               } catch (RuntimeException e) {
@@ -4070,7 +4073,7 @@ public class ParDoTest implements Serializable {
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
               try {
                 timer
-                    .withOutputTimestamp(window.maxTimestamp().plus(1L))
+                    .withOutputTimestamp(window.maxTimestamp().plus(Duration.millis(1L)))
                     .offset(Duration.standardSeconds(1))
                     .setRelative();
                 fail("Should have failed due to processing time with absolute timer.");
@@ -4371,9 +4374,10 @@ public class ParDoTest implements Serializable {
 
       for (int i = 0; i < numTestElements; i++) {
         builder =
-            builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
+            builder.addElements(
+                TimestampedValue.of(KV.of("dummy", "" + i), now.plus(Duration.millis(i * 1000))));
         if ((i + 1) % 10 == 0) {
-          builder = builder.advanceWatermarkTo(now.plus((i + 1) * 1000));
+          builder = builder.advanceWatermarkTo(now.plus(Duration.millis((i + 1) * 1000)));
         }
       }
 
@@ -4395,7 +4399,8 @@ public class ParDoTest implements Serializable {
 
       List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
       for (int i = 0; i < numTestElements; i++) {
-        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
+        elements.add(
+            TimestampedValue.of(KV.of("dummy", "" + i), now.plus(Duration.millis(i * 1000))));
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
@@ -4411,7 +4416,7 @@ public class ParDoTest implements Serializable {
       final String timerIdGc = "gc";
       final String bag = "bag";
       final String minTimestamp = "minTs";
-      final Instant gcTimerStamp = now.plus((numTestElements + 1) * 1000);
+      final Instant gcTimerStamp = now.plus(Duration.millis((numTestElements + 1) * 1000));
 
       DoFn<KV<String, String>, String> fn =
           new DoFn<KV<String, String>, String>() {
@@ -4464,7 +4469,7 @@ public class ParDoTest implements Serializable {
               flush.sort(Comparator.comparing(TimestampedValue::getTimestamp));
               context.output(
                   Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
-              Instant newMinStamp = flushTime.plus(1000);
+              Instant newMinStamp = flushTime.plus(Duration.millis(1000));
               if (flush.size() < numTestElements) {
                 timer.set(newMinStamp);
               }
@@ -4576,7 +4581,7 @@ public class ParDoTest implements Serializable {
 
     private void testTwoTimersSettingEachOther(IsBounded isBounded) {
       Instant now = new Instant(1500000000000L);
-      Instant end = now.plus(100);
+      Instant end = now.plus(Duration.millis(100));
       TestStream<KV<String, String>> input =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
               .addElements(KV.of("", ""))
@@ -4604,7 +4609,7 @@ public class ParDoTest implements Serializable {
 
     private void testTwoTimersSettingEachOtherWithCreateAsInput(IsBounded isBounded) {
       Instant now = new Instant(0L);
-      Instant end = now.plus(100);
+      Instant end = now.plus(Duration.millis(100));
       pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of("", "")), isBounded));
       pipeline.run();
     }
@@ -4907,7 +4912,7 @@ public class ParDoTest implements Serializable {
                             t1.set(start);
                             // set the t2 timer after end, so that we test that
                             // timers are correctly ordered in this case
-                            t2.set(end.plus(1));
+                            t2.set(end.plus(Duration.millis(1)));
                           }
 
                           @OnTimer(timerName1)
@@ -4922,7 +4927,9 @@ public class ParDoTest implements Serializable {
                                 "t1:"
                                     + current
                                     + ":"
-                                    + timestamp.minus(start.getMillis()).getMillis());
+                                    + timestamp
+                                        .minus(Duration.millis(start.getMillis()))
+                                        .getMillis());
                           }
 
                           @OnTimer(timerName2)
@@ -4934,7 +4941,7 @@ public class ParDoTest implements Serializable {
                             Integer current = state.read();
                             if (timestamp.isBefore(end)) {
                               state.write(current + 1);
-                              t1.set(timestamp.plus(1));
+                              t1.set(timestamp.plus(Duration.millis(1)));
                             } else {
                               state.write(-1);
                             }
@@ -4942,7 +4949,9 @@ public class ParDoTest implements Serializable {
                                 "t2:"
                                     + current
                                     + ":"
-                                    + timestamp.minus(start.getMillis()).getMillis());
+                                    + timestamp
+                                        .minus(Duration.millis(start.getMillis()))
+                                        .getMillis());
                           }
                         }));
 
@@ -6133,6 +6142,129 @@ public class ParDoTest implements Serializable {
           // verify output
           .containsInAnyOrder(1);
       pipeline.run();
+    }
+  }
+
+  /** Tests to validate SchemaInformation. */
+  @RunWith(JUnit4.class)
+  public static class SchemaInformationTests extends SharedTestBase implements Serializable {
+
+    private static final Schema TEST_SCHEMA =
+        Schema.builder().addInt32Field("f_int").addStringField("f_string").build();
+    private static final Row TEST_ROW = Row.withSchema(TEST_SCHEMA).addValues(10, "ten").build();
+
+    @Test
+    public void testUnboxFieldAccess() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(
+                @FieldAccess("f_int") Integer value, OutputReceiver<Integer> r) {
+              r.output(value);
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 1, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertEquals(
+          fieldAccessDescriptor.toString(), 1, fieldAccessDescriptor.getFieldsAccessed().size());
+      assertEquals(
+          "f_int",
+          Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed()).getFieldName());
+      assertFalse(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testSingleFieldAccess() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @FieldAccess("foo")
+            final FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withFieldNames("f_int");
+
+            @ProcessElement
+            public void processElement(@FieldAccess("foo") Row row, OutputReceiver<Integer> r) {
+              r.output(row.getInt32("f_int"));
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 1, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertEquals(
+          fieldAccessDescriptor.toString(), 1, fieldAccessDescriptor.getFieldsAccessed().size());
+      assertEquals(
+          "f_int",
+          Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed()).getFieldName());
+      assertFalse(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testImplicitElement() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(@Element Row row, OutputReceiver<Integer> r) {
+              r.output(row.getInt32("f_int"));
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 0, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertTrue(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testImplicitProcessContext() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+              c.output(c.element().getInt32("f_int"));
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 0, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertTrue(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testNoAccess() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(OutputReceiver<Integer> r) {
+              r.output(1);
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 0, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertFalse(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+      assertTrue(
+          fieldAccessDescriptor.toString(), fieldAccessDescriptor.getFieldsAccessed().isEmpty());
+      assertTrue(
+          fieldAccessDescriptor.toString(),
+          fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty());
     }
   }
 }

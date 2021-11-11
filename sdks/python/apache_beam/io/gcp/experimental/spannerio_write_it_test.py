@@ -47,6 +47,7 @@ _LOGGER = logging.getLogger(__name__)
 _TEST_INSTANCE_ID = 'beam-test'
 
 
+@unittest.skip("BEAM-13222")
 @unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')
 class SpannerWriteIntegrationTest(unittest.TestCase):
   TEST_DATABASE = None

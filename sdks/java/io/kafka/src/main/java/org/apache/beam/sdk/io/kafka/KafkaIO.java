@@ -55,7 +55,6 @@ import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
-import org.apache.beam.sdk.io.kafka.KafkaIO.Read.External;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -692,7 +691,7 @@ public class KafkaIO {
 
       abstract Read<K, V> build();
 
-      static void setupExternalBuilder(Builder builder, External.Configuration config) {
+      static void setupExternalBuilder(Builder builder, Read.External.Configuration config) {
         ImmutableList.Builder<String> listBuilder = ImmutableList.builder();
         for (String topic : config.topics) {
           listBuilder.add(topic);
@@ -1537,11 +1536,12 @@ public class KafkaIO {
 
     @Experimental(Kind.PORTABILITY)
     static class Builder<K, V>
-        implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
+        implements ExternalTransformBuilder<
+            Read.External.Configuration, PBegin, PCollection<KV<K, V>>> {
 
       @Override
       public PTransform<PBegin, PCollection<KV<K, V>>> buildExternal(
-          External.Configuration config) {
+          Read.External.Configuration config) {
         Read.Builder<K, V> readBuilder = new AutoValue_KafkaIO_Read.Builder();
         Read.Builder.setupExternalBuilder(readBuilder, config);
 
@@ -1647,10 +1647,11 @@ public class KafkaIO {
 
     @Experimental(Kind.PORTABILITY)
     static class Builder<K, V>
-        implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<Row>> {
+        implements ExternalTransformBuilder<Read.External.Configuration, PBegin, PCollection<Row>> {
 
       @Override
-      public PTransform<PBegin, PCollection<Row>> buildExternal(External.Configuration config) {
+      public PTransform<PBegin, PCollection<Row>> buildExternal(
+          Read.External.Configuration config) {
         Read.Builder<K, V> readBuilder = new AutoValue_KafkaIO_Read.Builder();
         Read.Builder.setupExternalBuilder(readBuilder, config);
 
@@ -2541,7 +2542,8 @@ public class KafkaIO {
     @Experimental(Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V>
-        implements ExternalTransformBuilder<External.Configuration, PCollection<KV<K, V>>, PDone> {
+        implements ExternalTransformBuilder<
+            Write.External.Configuration, PCollection<KV<K, V>>, PDone> {
       abstract Builder<K, V> setTopic(String topic);
 
       abstract Builder<K, V> setWriteRecordsTransform(WriteRecords<K, V> transform);
@@ -2550,7 +2552,7 @@ public class KafkaIO {
 
       @Override
       public PTransform<PCollection<KV<K, V>>, PDone> buildExternal(
-          External.Configuration configuration) {
+          Write.External.Configuration configuration) {
         setTopic(configuration.topic);
 
         Map<String, Object> producerConfig = new HashMap<>(configuration.producerConfig);

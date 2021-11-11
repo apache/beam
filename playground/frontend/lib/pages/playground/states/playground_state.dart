@@ -34,6 +34,7 @@ class PlaygroundState with ChangeNotifier {
   ExampleModel? _selectedExample;
   String _source = '';
   RunCodeResult? _result;
+  DateTime? resetKey;
 
   String get examplesTitle {
     final name = _selectedExample?.name ?? '';
@@ -82,8 +83,8 @@ class PlaygroundState with ChangeNotifier {
   }
 
   reset() {
-    _sdk = SDK.java;
     _source = _selectedExample?.sources[_sdk] ?? '';
+    resetKey = DateTime.now();
     notifyListeners();
   }
 
