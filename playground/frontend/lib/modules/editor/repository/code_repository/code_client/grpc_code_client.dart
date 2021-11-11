@@ -73,13 +73,20 @@ class GrpcCodeClient implements CodeClient {
         .then((response) => OutputResponse(response.output)));
   }
 
+  @override
+  Future<OutputResponse> getRunErrorOutput(String pipelineUuid) {
+    return _runSafely(() => _client
+        .getRunError(grpc.GetRunErrorRequest(pipelineUuid: pipelineUuid))
+        .then((response) => OutputResponse(response.output)));
+  }
+
   Future<T> _runSafely<T>(Future<T> Function() invoke) async {
     try {
       return await invoke();
     } on GrpcError catch (error) {
       throw RunCodeError(error.message);
     } on Exception catch (_) {
-      throw RunCodeError(kGeneralError);
+      throw RunCodeError(null);
     }
   }
 
@@ -104,21 +111,27 @@ class GrpcCodeClient implements CodeClient {
 
   RunCodeStatus _toClientStatus(grpc.Status status) {
     switch (status) {
-      case grpc.Status.STATUS_ERROR:
-      case grpc.Status.STATUS_VALIDATION_ERROR:
-        return RunCodeStatus.error;
-      case grpc.Status.STATUS_EXECUTING:
+      case grpc.Status.STATUS_UNSPECIFIED:
+        return RunCodeStatus.unspecified;
       case grpc.Status.STATUS_VALIDATING:
+      case grpc.Status.STATUS_PREPARING:
+        return RunCodeStatus.preparation;
       case grpc.Status.STATUS_COMPILING:
+        return RunCodeStatus.compiling;
+      case grpc.Status.STATUS_EXECUTING:
         return RunCodeStatus.executing;
       case grpc.Status.STATUS_FINISHED:
         return RunCodeStatus.finished;
-      case grpc.Status.STATUS_UNSPECIFIED:
-        return RunCodeStatus.unspecified;
       case grpc.Status.STATUS_COMPILE_ERROR:
         return RunCodeStatus.compileError;
       case grpc.Status.STATUS_RUN_TIMEOUT:
         return RunCodeStatus.timeout;
+      case grpc.Status.STATUS_RUN_ERROR:
+        return RunCodeStatus.runError;
+      case grpc.Status.STATUS_ERROR:
+      case grpc.Status.STATUS_VALIDATION_ERROR:
+      case grpc.Status.STATUS_PREPARATION_ERROR:
+        return RunCodeStatus.unknownError;
     }
     return RunCodeStatus.unspecified;
   }
