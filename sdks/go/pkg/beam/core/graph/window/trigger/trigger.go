@@ -59,7 +59,7 @@ type AfterCountTrigger struct {
 func (t AfterCountTrigger) trigger() {}
 
 // ElementCount returns the elementCount.
-func (t AfterCountTrigger) ElementCount() int32 {
+func (t *AfterCountTrigger) ElementCount() int32 {
 	return t.elementCount
 }
 
@@ -77,7 +77,7 @@ type AfterProcessingTimeTrigger struct {
 func (t AfterProcessingTimeTrigger) trigger() {}
 
 // TimestampTransforms returns the timestampTransforms.
-func (t AfterProcessingTimeTrigger) TimestampTransforms() []TimestampTransform {
+func (t *AfterProcessingTimeTrigger) TimestampTransforms() []TimestampTransform {
 	return t.timestampTransforms
 }
 
@@ -121,7 +121,7 @@ func (AlignToTransform) timestampTransform() {}
 
 // PlusDelay configures an AfterProcessingTime trigger to fire after a specified delay,
 // no smaller than a millisecond.
-func (tr AfterProcessingTimeTrigger) PlusDelay(delay time.Duration) Trigger {
+func (tr *AfterProcessingTimeTrigger) PlusDelay(delay time.Duration) Trigger {
 	if delay < time.Millisecond {
 		panic(fmt.Errorf("can't apply processing delay of less than a millisecond. Got: %v", delay))
 	}
@@ -134,7 +134,7 @@ func (tr AfterProcessingTimeTrigger) PlusDelay(delay time.Duration) Trigger {
 //
 // * Period may not be smaller than a millisecond.
 // * Offset may be a zero time (time.Time{}).
-func (tr AfterProcessingTimeTrigger) AlignedTo(period time.Duration, offset time.Time) Trigger {
+func (tr *AfterProcessingTimeTrigger) AlignedTo(period time.Duration, offset time.Time) Trigger {
 	if period < time.Millisecond {
 		panic(fmt.Errorf("can't apply an alignment period of less than a millisecond. Got: %v", period))
 	}
@@ -150,13 +150,15 @@ func (tr AfterProcessingTimeTrigger) AlignedTo(period time.Duration, offset time
 	return tr
 }
 
+// RepeatTrigger fires a sub-trigger repeatedly.
 type RepeatTrigger struct {
 	subTrigger Trigger
 }
 
 func (t RepeatTrigger) trigger() {}
 
-func (t RepeatTrigger) SubTrigger() Trigger {
+// SubTrigger returns the trigger to be repeated.
+func (t *RepeatTrigger) SubTrigger() Trigger {
 	return t.subTrigger
 }
 
@@ -165,9 +167,10 @@ func (t RepeatTrigger) SubTrigger() Trigger {
 //
 // Ex: trigger.Repeat(trigger.AfterCount(1)) is same as trigger.Always().
 func Repeat(tr Trigger) Trigger {
-	return RepeatTrigger{subTrigger: tr}
+	return &RepeatTrigger{subTrigger: tr}
 }
 
+// AfterEndOfWindowTrigger provides option to set triggers for early and late firing.
 type AfterEndOfWindowTrigger struct {
 	earlyFiring Trigger
 	lateFiring  Trigger
@@ -175,27 +178,27 @@ type AfterEndOfWindowTrigger struct {
 
 func (t AfterEndOfWindowTrigger) trigger() {}
 
-func (t AfterEndOfWindowTrigger) EarlyTrigger() Trigger {
+// EarlyTrigger returns the Early Firing trigger for AfterEndOfWindowTrigger.
+func (t *AfterEndOfWindowTrigger) EarlyTrigger() Trigger {
 	return t.earlyFiring
 }
 
-func (t AfterEndOfWindowTrigger) LateTrigger() Trigger {
+// LateTrigger returns the Late Firing trigger for AfterEndOfWindowTrigger.
+func (t *AfterEndOfWindowTrigger) LateTrigger() Trigger {
 	return t.lateFiring
 }
 
 // AfterEndOfWindow constructs a trigger that is configurable for early firing
 // (before the end of window) and late firing (after the end of window).
 //
-// Default Options are: Default Trigger for EarlyFiring and No LateFiring.
-// Override it with EarlyFiring and LateFiring methods on this trigger.
-func AfterEndOfWindow() AfterEndOfWindowTrigger {
-	defaultEarly := Default()
-	return AfterEndOfWindowTrigger{earlyFiring: defaultEarly, lateFiring: nil}
+// Must call EarlyFiring or LateFiring method on this trigger at the time of setting.
+func AfterEndOfWindow() *AfterEndOfWindowTrigger {
+	return &AfterEndOfWindowTrigger{earlyFiring: nil, lateFiring: nil}
 }
 
 // EarlyFiring configures an AfterEndOfWindow trigger with an implicitly
 // repeated trigger that applies before the end of the window.
-func (tr *AfterEndOfWindowTrigger) EarlyFiring(early Trigger) *AfterEndOfWindowTrigger {
+func (tr *AfterEndOfWindowTrigger) EarlyFiring(early Trigger) Trigger {
 	tr.earlyFiring = early
 	return tr
 }
@@ -204,39 +207,50 @@ func (tr *AfterEndOfWindowTrigger) EarlyFiring(early Trigger) *AfterEndOfWindowT
 // repeated trigger that applies after the end of the window.
 //
 // Not setting a late firing trigger means elements are discarded.
-func (tr *AfterEndOfWindowTrigger) LateFiring(late Trigger) *AfterEndOfWindowTrigger {
+func (tr *AfterEndOfWindowTrigger) LateFiring(late Trigger) Trigger {
 	tr.lateFiring = late
 	return tr
 }
 
+// TODO(BEAM-3304) Add support for composite triggers.
+// Below defined triggers do not work as of now.
+// Intended for framework use only.
+
+// AfterAnyTrigger fires after any of sub-trigger fires.
 type AfterAnyTrigger struct {
 	subTriggers []Trigger
 }
 
 func (t AfterAnyTrigger) trigger() {}
 
-func (t AfterAnyTrigger) SubTriggers() []Trigger {
+// SubTriggers returns the subTriggers.
+func (t *AfterAnyTrigger) SubTriggers() []Trigger {
 	return t.subTriggers
 }
 
+// AfterAllTrigger fires after all subtriggers are fired.
 type AfterAllTrigger struct {
 	subTriggers []Trigger
 }
 
 func (t AfterAllTrigger) trigger() {}
 
-func (t AfterAllTrigger) SubTriggers() []Trigger {
+// SubTriggers returns the subTriggers.
+func (t *AfterAllTrigger) SubTriggers() []Trigger {
 	return t.subTriggers
 }
 
+// OrFinallyTrigger serves as final condition to cause any trigger to fire.
 type OrFinallyTrigger struct{}
 
 func (t OrFinallyTrigger) trigger() {}
 
+// NeverTrigger is never ready to fire.
 type NeverTrigger struct{}
 
 func (t NeverTrigger) trigger() {}
 
+// AfterSynchronizedProcessingTimeTrigger fires when processing time synchronises with arrival time.
 type AfterSynchronizedProcessingTimeTrigger struct{}
 
 func (t AfterSynchronizedProcessingTimeTrigger) trigger() {}

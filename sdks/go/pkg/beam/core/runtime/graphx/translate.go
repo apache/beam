@@ -1037,19 +1037,19 @@ func makeAccumulationMode(m window.AccumulationMode) pipepb.AccumulationMode_Enu
 
 func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 	switch t := t.(type) {
-	case trigger.DefaultTrigger:
+	case *trigger.DefaultTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
 				Default: &pipepb.Trigger_Default{},
 			},
 		}
-	case trigger.AlwaysTrigger:
+	case *trigger.AlwaysTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Always_{
 				Always: &pipepb.Trigger_Always{},
 			},
 		}
-	case trigger.AfterAnyTrigger:
+	case *trigger.AfterAnyTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAny_{
 				AfterAny: &pipepb.Trigger_AfterAny{
@@ -1057,7 +1057,7 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 				},
 			},
 		}
-	case trigger.AfterAllTrigger:
+	case *trigger.AfterAllTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAll_{
 				AfterAll: &pipepb.Trigger_AfterAll{
@@ -1065,7 +1065,7 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 				},
 			},
 		}
-	case trigger.AfterProcessingTimeTrigger:
+	case *trigger.AfterProcessingTimeTrigger:
 		if len(t.TimestampTransforms()) == 0 {
 			panic("AfterProcessingTime trigger set without a delay or alignment.")
 		}
@@ -1096,13 +1096,13 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 				},
 			},
 		}
-	case trigger.ElementCountTrigger:
+	case *trigger.AfterCountTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_ElementCount_{
 				ElementCount: &pipepb.Trigger_ElementCount{ElementCount: t.ElementCount()},
 			},
 		}
-	case trigger.AfterEndOfWindowTrigger:
+	case *trigger.AfterEndOfWindowTrigger:
 		var lateTrigger *pipepb.Trigger
 		if t.LateTrigger() != nil {
 			lateTrigger = makeTrigger(t.LateTrigger())
@@ -1115,19 +1115,19 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 				},
 			},
 		}
-	case trigger.RepeatTrigger:
+	case *trigger.RepeatTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Repeat_{
 				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTrigger())},
 			},
 		}
-	case trigger.NeverTrigger:
+	case *trigger.NeverTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Never_{
 				Never: &pipepb.Trigger_Never{},
 			},
 		}
-	case trigger.AfterSynchronizedProcessingTimeTrigger:
+	case *trigger.AfterSynchronizedProcessingTimeTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterSynchronizedProcessingTime_{
 				AfterSynchronizedProcessingTime: &pipepb.Trigger_AfterSynchronizedProcessingTime{},

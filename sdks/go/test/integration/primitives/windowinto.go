@@ -259,7 +259,7 @@ func TriggerAfterEndOfWindow(s beam.Scope) {
 	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
 	trigger := trigger.AfterEndOfWindow().
-		EarlyFiring(trigger.AfterCount(2)).
+		EarlyFiring(trigger.AfterCount(2)).(*trigger.AfterEndOfWindowTrigger).
 		LateFiring(trigger.AfterCount(1))
 
 	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
