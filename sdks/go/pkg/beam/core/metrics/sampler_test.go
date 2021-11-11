@@ -140,7 +140,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 // goarch: amd64
 // pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
 // cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-// BenchmarkMsec_SetPTransformState-12    	73519825	        16.52 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkMsec_SetPTransformState-12    	77735638	        15.36 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkMsec_SetPTransformState(b *testing.B) {
 	ctx := context.Background()
 	bctx := SetBundleID(ctx, "benchmark")
@@ -156,7 +156,7 @@ func BenchmarkMsec_SetPTransformState(b *testing.B) {
 // goarch: amd64
 // pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
 // cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-// BenchmarkMsec_Sample-12    	39142482	        29.60 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkMsec_Sample-12    	37351743	        30.41 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkMsec_Sample(b *testing.B) {
 	ctx := context.Background()
 	bctx := SetBundleID(ctx, "benchmark")
@@ -176,7 +176,7 @@ func BenchmarkMsec_Sample(b *testing.B) {
 // goarch: amd64
 // pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
 // cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-// BenchmarkMsec_Combined-12    	28194320	        35.86 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkMsec_Combined-12    	27496028	        38.26 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkMsec_Combined(b *testing.B) {
 	ctx := context.Background()
 	bctx := SetBundleID(ctx, "benchmark")
