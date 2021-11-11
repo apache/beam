@@ -25,6 +25,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
+	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 	"io/fs"
@@ -45,9 +46,11 @@ const (
 
 var lis *bufconn.Listener
 var cacheService cache.Cache
+var opt goleak.Option
 
 func TestMain(m *testing.M) {
 	server := setup()
+	opt = goleak.IgnoreCurrent()
 	defer teardown(server)
 	m.Run()
 }
@@ -115,6 +118,7 @@ func bufDialer(context.Context, string) (net.Conn, error) {
 }
 
 func TestPlaygroundController_RunCode(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
 	type args struct {
 		ctx     context.Context
 		request *pb.RunCodeRequest
@@ -190,6 +194,7 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 }
 
 func TestPlaygroundController_CheckStatus(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	wantStatus := pb.Status_STATUS_FINISHED
@@ -256,6 +261,7 @@ func TestPlaygroundController_CheckStatus(t *testing.T) {
 }
 
 func TestPlaygroundController_GetCompileOutput(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	compileOutput := "MOCK_COMPILE_OUTPUT"
@@ -318,6 +324,7 @@ func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 }
 
 func TestPlaygroundController_GetRunOutput(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	runOutput := "MOCK_RUN_OUTPUT"
@@ -380,6 +387,7 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 }
 
 func TestPlaygroundController_GetRunError(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	runError := "MOCK_RUN_ERROR"
@@ -454,6 +462,7 @@ func TestPlaygroundController_GetRunError(t *testing.T) {
 }
 
 func TestPlaygroundController_Cancel(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
@@ -506,6 +515,7 @@ func TestPlaygroundController_Cancel(t *testing.T) {
 }
 
 func Test_processCode(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
 	networkEnvs, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {
 		panic(err)
