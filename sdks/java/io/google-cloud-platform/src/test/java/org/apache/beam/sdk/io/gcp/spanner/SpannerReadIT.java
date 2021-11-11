@@ -47,14 +47,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** End-to-end test of Cloud Spanner Source. */
-@Ignore("BEAM-13222")
 @RunWith(JUnit4.class)
 public class SpannerReadIT {
 
