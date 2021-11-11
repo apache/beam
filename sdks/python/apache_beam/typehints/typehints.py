@@ -531,6 +531,10 @@ class UnionHint(CompositeTypeHint):
               instance.__class__.__name__,
               error_msg))
 
+    def bind_type_variables(self, bindings):
+      return Union[
+          tuple(bind_type_variables(t, bindings) for t in self.union_types)]
+
   def __getitem__(self, type_params):
     if not isinstance(type_params, (collections.Sequence, set)):
       raise TypeError('Cannot create Union without a sequence of types.')

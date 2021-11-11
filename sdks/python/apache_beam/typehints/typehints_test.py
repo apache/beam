@@ -268,6 +268,21 @@ class UnionHintTestCase(TypeHintTestCase):
         typehints.Union[typehints.Union[()], typehints.Union[()]])
     self.assertEqual(int, typehints.Union[typehints.Union[()], int])
 
+  def test_match_type_variables(self):
+    A = typehints.TypeVariable('A')  # pylint: disable=invalid-name
+    B = typehints.TypeVariable('B')  # pylint: disable=invalid-name
+    hint = typehints.Union[A, B, int]
+    self.assertEqual(
+        hint.bind_type_variables({
+            A: str, B: float
+        }),
+        typehints.Union[str, float, int])
+    self.assertEqual(
+        hint.bind_type_variables({
+            A: str, B: int
+        }), typehints.Union[str, int])
+    self.assertEqual(hint.bind_type_variables({A: int, B: int}), int)
+
 
 class OptionalHintTestCase(TypeHintTestCase):
   def test_getitem_sequence_not_allowed(self):
