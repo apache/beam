@@ -657,7 +657,7 @@ class DeferredFrameTest(_AbstractFrameTest):
 
   def test_dataframe_truncate(self):
     df = pd.DataFrame({
-        'A': list('abcde'), 'B': list('fghij'), 'C': list('klmno')
+        'C': list('abcde'), 'B': list('fghij'), 'A': list('klmno')
     },
                       index=[1, 2, 3, 4, 5])
     self._run_test(lambda df: df.truncate(before=1, after=3), df)
