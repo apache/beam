@@ -66,7 +66,6 @@ class SpannerPartTestRow(NamedTuple):
   f_int64: Optional[int]
 
 
-@unittest.skip("BEAM-13222")
 @unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')
 @unittest.skipIf(
     DockerContainer is None, 'testcontainers package is not installed.')
