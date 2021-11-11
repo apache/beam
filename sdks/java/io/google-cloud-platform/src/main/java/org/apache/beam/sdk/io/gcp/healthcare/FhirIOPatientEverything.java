@@ -79,7 +79,7 @@ public class FhirIOPatientEverything
      */
     private final String resourceName;
     /** Optional filters for the request, eg. start, end, _type, _since, _count */
-    @Nullable private final Map<String, String> filters;
+    private final @Nullable Map<String, String> filters;
 
     PatientEverythingParameter(String resourceName, @Nullable Map<String, String> filters) {
       this.resourceName = resourceName;
@@ -114,7 +114,7 @@ public class FhirIOPatientEverything
       return resourceName;
     }
 
-    public Map<String, String> getFilters() {
+    public @Nullable Map<String, String> getFilters() {
       return filters;
     }
 
@@ -263,6 +263,7 @@ public class FhirIOPatientEverything
             GetPatientEverythingFn.class, BASE_METRIC_PREFIX + "get_patient_everything_latency_ms");
     private final Logger LOG = LoggerFactory.getLogger(GetPatientEverythingFn.class);
 
+    @SuppressWarnings("initialization.fields.uninitialized")
     private HealthcareApiClient client;
 
     /**
