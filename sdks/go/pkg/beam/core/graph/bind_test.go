@@ -91,10 +91,20 @@ func TestBind(t *testing.T) {
 			func(int8, []int16, func(*int32) bool, func(int8, []int16)) {},
 			[]typex.FullType{typex.NewKV(typex.New(reflectx.Int8), typex.New(reflect.SliceOf(reflectx.Int16)))},
 		},
+		{ // MultiMap side input w/ emitter
+			[]typex.FullType{typex.New(reflectx.String), typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int))},
+			func(string, func(string) func(*int) bool, func(int)) {},
+			[]typex.FullType{typex.New(reflectx.Int)},
+		},
 		{ // Generic side input (as iter and re-iter)
 			[]typex.FullType{typex.New(reflectx.Int8), typex.New(reflectx.Int16), typex.New(reflectx.Int32)},
 			func(typex.X, func(*typex.Y) bool, func() func(*typex.T) bool, func(typex.X, []typex.Y)) {},
 			[]typex.FullType{typex.NewKV(typex.New(reflectx.Int8), typex.New(reflect.SliceOf(reflectx.Int16)))},
+		},
+		{ // Generic side input (as multimap)
+			[]typex.FullType{typex.New(reflectx.String), typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int))},
+			func(typex.X, func(typex.X) func(*typex.Y) bool, func(typex.X, []typex.Y)) {},
+			[]typex.FullType{typex.NewKV(typex.New(reflectx.String), typex.New(reflect.SliceOf(reflectx.Int)))},
 		},
 		{ // Generic side output
 			[]typex.FullType{typex.New(reflectx.Int8), typex.New(reflectx.Int16), typex.New(reflectx.Int32)},
