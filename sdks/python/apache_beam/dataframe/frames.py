@@ -2956,7 +2956,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           lambda df: df.assign(**{tmp_weight_column_name:
                                   np.random.rand(len(df))}),
           [self._expr],
-          requires_partition_by=partitionings.Index(),
+          requires_partition_by=partitionings.Arbitrary(),
           preserves_partition_by=partitionings.Arbitrary()))
     else:
       # See "Fast Parallel Weighted Random Sampling" by Efraimidis and Spirakis
