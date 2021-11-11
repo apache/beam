@@ -609,6 +609,16 @@ class DeferredFrameTest(_AbstractFrameTest):
         nonparallel=True,
         check_proxy=False)
 
+  def test_swaplevel(self):
+    df = pd.DataFrame(
+        {"Grade": ["A", "B", "A", "C"]},
+        index=[
+            ["Final exam", "Final exam", "Coursework", "Coursework"],
+            ["History", "Geography", "History", "Geography"],
+            ["January", "February", "March", "April"],
+        ])
+    self._run_test(lambda df: df.swaplevel(), df)
+
   def test_value_counts_with_nans(self):
     # similar to doctests that verify value_counts, but include nan values to
     # make sure we handle them correctly.

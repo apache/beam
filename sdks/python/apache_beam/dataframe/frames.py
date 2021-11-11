@@ -231,6 +231,17 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
+  def swaplevel(self, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'swaplevel',
+            lambda df: df.swaplevel(**kwargs), [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def fillna(self, value, method, axis, limit, **kwargs):
     """When ``axis="index"``, both ``method`` and ``limit`` must be ``None``.
