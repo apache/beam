@@ -1571,8 +1571,8 @@ message StandardProtocols {
     HARNESS_MONITORING_INFOS = 4
         [(beam_urn) = "beam:protocol:harness_monitoring_infos:v1"];
 
-    // Indicates that this SDK can process elements embedded in Fn API
-    // control plane ProcessBundleRequest. See more about the protocol at
+    // Indicates that this SDK can process elements embedded in the
+    // ProcessBundleRequest. See more about the protocol at
     // https://s.apache.org/beam-fn-api-control-data-embedding
     CONTROL_REQUEST_ELEMENTS_EMBEDDING = 6
         [(beam_urn) = "beam:protocol:control_request_elements_embedding:v1"];
@@ -1586,8 +1586,8 @@ message StandardRunnerProtocols {
     // Indicates suport the MonitoringInfo short id protocol.
     MONITORING_INFO_SHORT_IDS = 0 [(beam_urn) = "beam:protocol:monitoring_info_short_ids:v1"];
 
-    // Indicates that this runner can process elements embedded in Fn API
-    // control plane ProcessBundleResponse. See more about the protocol at
+    // Indicates that this runner can process elements embedded in the
+    // ProcessBundleResponse. See more about the protocol at
     // https://s.apache.org/beam-fn-api-control-data-embedding
     CONTROL_RESPONSE_ELEMENTS_EMBEDDING = 6
     [(beam_urn) = "beam:protocol:control_response_elements_embedding:v1"];

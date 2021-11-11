@@ -301,7 +301,8 @@ message ProcessBundleRequest {
   // none of the bundle elements should be included in the ProcessBundleRequest.
   // This elements embedding is to achieve better Fn API efficiency for bundles
   // that contain only small amount of data and are cheap to be processed on the
-  // SDK harness side. See more at
+  // SDK harness side. This field can be set only if the SDK declares that it
+  // supports the CONTROL_REQUEST_ELEMENTS_EMBEDDING capability. See more at
   // https://s.apache.org/beam-fn-api-control-data-embedding.
   Elements elements = 3;
 }
@@ -337,8 +338,10 @@ message ProcessBundleResponse {
 
   // (optional) Output elements of the processed bundle. Either all or
   // none of the bundle elements should be included in the ProcessBundleResponse.
-  // This elements embedding is to achieve better Fn API efficiency for bundles
-  // that only produce small amount of outputs. See more at
+  // This embedding is to achieve better efficiency for bundles that only
+  // contain small amounts of data. his field can be set only if the runner
+  // declares that it supports the CONTROL_RESPONSE_ELEMENTS_EMBEDDING
+  // capability. See more at
   // https://s.apache.org/beam-fn-api-control-data-embedding.
   Elements elements = 6;
 
