@@ -693,12 +693,15 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
         ResourceId file = context.element();
         assert file != null;
         String filename = file.getFilename();
-        assert filename != null;
-        files.add(file);
-        tempDestinations.add(tempDir.resolve(filename, StandardResolveOptions.RESOLVE_FILE));
-        deadLetterDestinations.add(
-            FileSystems.matchNewResource(deadLetterGcsPath.get(), true)
-                .resolve(filename, StandardResolveOptions.RESOLVE_FILE));
+        if (filename != null) {
+          files.add(file);
+          tempDestinations.add(tempDir.resolve(filename, StandardResolveOptions.RESOLVE_FILE));
+          deadLetterDestinations.add(
+              FileSystems.matchNewResource(deadLetterGcsPath.get(), true)
+                  .resolve(filename, StandardResolveOptions.RESOLVE_FILE));
+        } else {
+          throw new IllegalArgumentException(String.format("Expected temp file, got: %s", file));
+        }
       }
 
       @FinishBundle

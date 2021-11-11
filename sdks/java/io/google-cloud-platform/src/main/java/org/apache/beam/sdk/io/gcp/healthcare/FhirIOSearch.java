@@ -323,7 +323,7 @@ public class FhirIOSearch<T>
           Metrics.distribution(
               SearchResourcesFn.class, FhirIO.BASE_METRIC_PREFIX + "search_resource_latency_ms");
 
-      private final Logger LOG = LoggerFactory.getLogger(SearchResourcesFn.class);
+      private final Logger log = LoggerFactory.getLogger(SearchResourcesFn.class);
 
       private final ValueProvider<String> fhirStore;
 
@@ -364,7 +364,7 @@ public class FhirIOSearch<T>
                       fhirSearchParameters.getQueries())));
         } catch (IllegalArgumentException | NoSuchElementException e) {
           searchResourceErrors.inc();
-          LOG.warn(
+          log.warn(
               String.format(
                   "Error search FHIR resources writing to Dead Letter "
                       + "Queue. Cause: %s Stack Trace: %s",
@@ -382,7 +382,11 @@ public class FhirIOSearch<T>
         long start = Instant.now().toEpochMilli();
 
         HashMap<String, Object> parameterObjects = new HashMap<>();
-        parameters.forEach(parameterObjects::put);
+        for (Map.Entry<String, T> param : parameters.entrySet()) {
+          if (param.getValue() != null) {
+            parameterObjects.put(param.getKey(), param.getValue());
+          }
+        }
 
         FhirResourcePagesIterator iter =
             new FhirResourcePagesIterator(client, fhirStore, resourceType, parameterObjects);
