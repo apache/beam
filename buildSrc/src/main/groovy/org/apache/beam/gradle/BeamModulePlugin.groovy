@@ -914,6 +914,33 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
+      def jacocoExcludes = [
+        '**/org/apache/beam/gradle/**',
+        '**/org/apache/beam/model/**',
+        '**/org/apache/beam/runners/dataflow/worker/windmill/**',
+        '**/AutoValue_*'
+      ]
+
+      project.test {
+        jacoco {
+          excludes = jacocoExcludes
+        }
+      }
+
+      project.jacocoTestReport {
+        doFirst {
+          getClassDirectories().setFrom(project.files(
+              project.fileTree(
+              dir: "${project.rootDir}",
+              exclude: jacocoExcludes
+              )
+              )
+              )
+        }
+      }
+
+
+
       if (configuration.shadowClosure) {
         // Ensure that tests are packaged and part of the artifact set.
         project.task('packageTests', type: Jar) {
