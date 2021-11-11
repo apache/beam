@@ -26,7 +26,6 @@ ext.summary = "Add support to Beam for FIX SBE"
 
 dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile library.java.vendored_guava_26_0_jre
     testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
     testCompile library.java.junit
 }
