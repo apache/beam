@@ -32,7 +32,7 @@ const (
 // SampleInterval sets the sampling time period (greater than 1ms) for DoFn metrics sampling.
 // Default value is 200ms.
 func SampleInterval(samplePeriod time.Duration) error {
-	if samplePeriod <= time.Millisecond {
+	if samplePeriod < time.Millisecond {
 		return fmt.Errorf("sample period should be greater than 1ms, got %v", samplePeriod)
 	}
 	sampleTime := samplePeriod.String()
