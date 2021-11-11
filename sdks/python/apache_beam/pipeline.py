@@ -1238,7 +1238,13 @@ class AppliedPTransform(object):
       assert not self.main_inputs and not self.side_inputs
       return {}
     else:
-      return self.transform._named_inputs(self.main_inputs, self.side_inputs)
+      named_inputs = self.transform._named_inputs(
+          self.main_inputs, self.side_inputs)
+      if not self.parts:
+        for name, pc_out in self.outputs.items():
+          if pc_out.producer is not self:
+            named_inputs[f'__implicit_input_{name}'] = pc_out
+      return named_inputs
 
   def named_outputs(self):
     # type: () -> Dict[str, pvalue.PCollection]
