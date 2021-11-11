@@ -13,7 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package window
+// Package trigger helps construct aggregation triggers. It defines the trigger API
+// for Go SDK. It is experimental and subject to change.
+package trigger
 
 import (
 	"fmt"
@@ -77,32 +79,32 @@ const (
 	AfterSynchronizedProcessingTimeTrigger string = "Trigger_AfterSynchronizedProcessingTime_"
 )
 
-// TriggerDefault constructs a default trigger that fires once after the end of window.
+// Default constructs a default trigger that fires once after the end of window.
 // Late Data is discarded.
-func TriggerDefault() Trigger {
+func Default() Trigger {
 	return Trigger{Kind: DefaultTrigger}
 }
 
-// TriggerAlways constructs a trigger that fires immediately
+// Always constructs a trigger that fires immediately
 // whenever an element is received.
 //
-// Equivalent to window.TriggerRepeat(window.TriggerAfterCount(1))
-func TriggerAlways() Trigger {
+// Equivalent to trigger.Repeat(trigger.AfterCount(1))
+func Always() Trigger {
 	return Trigger{Kind: AlwaysTrigger}
 }
 
-// TriggerAfterCount constructs a trigger that fires after
+// AfterCount constructs a trigger that fires after
 // at least `count` number of elements are processed.
-func TriggerAfterCount(count int32) Trigger {
+func AfterCount(count int32) Trigger {
 	return Trigger{Kind: ElementCountTrigger, ElementCount: count}
 }
 
-// TriggerAfterProcessingTime constructs a trigger that fires relative to
+// AfterProcessingTime constructs a trigger that fires relative to
 // when input first arrives.
 //
 // Must be configured with calls to PlusDelay, or AlignedTo. May be
 // configured with additional delay.
-func TriggerAfterProcessingTime() Trigger {
+func AfterProcessingTime() Trigger {
 	return Trigger{Kind: AfterProcessingTimeTrigger}
 }
 
@@ -143,21 +145,21 @@ func (tr Trigger) AlignedTo(period time.Duration, offset time.Time) Trigger {
 	return tr
 }
 
-// TriggerRepeat constructs a trigger that fires a trigger repeatedly
+// Repeat constructs a trigger that fires a trigger repeatedly
 // once the condition has been met.
 //
-// Ex: window.TriggerRepeat(window.TriggerAfterCount(1)) is same as window.TriggerAlways().
-func TriggerRepeat(tr Trigger) Trigger {
+// Ex: trigger.Repeat(trigger.AfterCount(1)) is same as trigger.Always().
+func Repeat(tr Trigger) Trigger {
 	return Trigger{Kind: RepeatTrigger, SubTriggers: []Trigger{tr}}
 }
 
-// TriggerAfterEndOfWindow constructs a trigger that is configurable for early firing
+// AfterEndOfWindow constructs a trigger that is configurable for early firing
 // (before the end of window) and late firing (after the end of window).
 //
 // Default Options are: Default Trigger for EarlyFiring and No LateFiring.
 // Override it with EarlyFiring and LateFiring methods on this trigger.
-func TriggerAfterEndOfWindow() Trigger {
-	defaultEarly := TriggerDefault()
+func AfterEndOfWindow() Trigger {
+	defaultEarly := Default()
 	return Trigger{Kind: AfterEndOfWindowTrigger, EarlyTrigger: &defaultEarly, LateTrigger: nil}
 }
 
