@@ -433,6 +433,7 @@ func (n *LiftedCombine) processElementPerWindow(ctx context.Context, value *Full
 // FinishBundle iterates through the cached (key, accumulator) pairs, and then
 // processes the value in the bundle as normal.
 func (n *LiftedCombine) FinishBundle(ctx context.Context) error {
+	n.Combine.states.Set(n.Combine.ctx, metrics.FinishBundle)
 	// Need to run n.Out.ProcessElement for all the cached precombined KVs, and
 	// then finally Finish bundle as normal.
 	for _, a := range n.cache {
