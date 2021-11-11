@@ -57,7 +57,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -98,7 +97,6 @@ public class ReadSourcePortableTest implements Serializable {
     flinkJobExecutor = null;
   }
 
-  @Ignore
   @Test(timeout = 120_000)
   public void testExecution() throws Exception {
     PipelineOptions options =

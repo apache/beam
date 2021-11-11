@@ -45,7 +45,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -93,7 +92,6 @@ public class PortableStateExecutionTest implements Serializable {
   private static final int CLEAR_STATE = -1;
   private static final int WRITE_STATE = -2;
 
-  @Ignore
   @Test(timeout = 120_000)
   public void testExecution() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").create();
