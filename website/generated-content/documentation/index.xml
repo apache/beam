@@ -9193,7 +9193,7 @@ timestamps attached to the data elements. The watermark is a global progress
 metric, and is Beam&amp;rsquo;s notion of input completeness within your pipeline at any
 given point. &lt;span class="language-java">&lt;code>AfterWatermark.pastEndOfWindow()&lt;/code>&lt;/span>
 &lt;span class="language-py">&lt;code>AfterWatermark&lt;/code>&lt;/span>
-&lt;span class="language-go">&lt;code>window.AfterEndOfWindow&lt;/code>&lt;/span> &lt;em>only&lt;/em> fires when the
+&lt;span class="language-go">&lt;code>trigger.AfterEndOfWindow&lt;/code>&lt;/span> &lt;em>only&lt;/em> fires when the
 watermark passes the end of the window.&lt;/p>
 &lt;p>In addition, you can configure triggers that fire if your pipeline receives data
 before or after the end of the window.&lt;/p>
@@ -9229,10 +9229,10 @@ firings:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">trigger&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterEndOfWindow&lt;/span>&lt;span class="p">().&lt;/span>
-&lt;span class="nf">EarlyFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">trigger&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">trigger&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AfterEndOfWindow&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nf">EarlyFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">trigger&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
 &lt;span class="nf">PlusDelay&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Second&lt;/span>&lt;span class="p">)).&lt;/span>
-&lt;span class="nf">LateFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerRepeat&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterCount&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="nf">LateFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">trigger&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Repeat&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">trigger&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AfterCount&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="default-trigger">9.1.1. Default trigger&lt;/h4>
@@ -9248,7 +9248,7 @@ modifying this behavior.&lt;/p>
 &lt;p>The &lt;code>AfterProcessingTime&lt;/code> trigger operates on &lt;em>processing time&lt;/em>. For example,
 the &lt;span class="language-java">&lt;code>AfterProcessingTime.pastFirstElementInPane()&lt;/code>&lt;/span>
 &lt;span class="language-py">&lt;code>AfterProcessingTime&lt;/code>&lt;/span>
-&lt;span class="language-go">&lt;code>window.TriggerAfterProcessingTime()&lt;/code>&lt;/span> trigger emits a window
+&lt;span class="language-go">&lt;code>trigger.AfterProcessingTime()&lt;/code>&lt;/span> trigger emits a window
 after a certain amount of processing time has passed since data was received.
 The processing time is determined by the system clock, rather than the data
 element&amp;rsquo;s timestamp.&lt;/p>
@@ -9259,14 +9259,14 @@ window.&lt;/p>
 &lt;p>Beam provides one data-driven trigger,
 &lt;span class="language-java">&lt;code>AfterPane.elementCountAtLeast()&lt;/code>&lt;/span>
 &lt;span class="language-py">&lt;code>AfterCount&lt;/code>&lt;/span>
-&lt;span class="language-go">&lt;code>window.TriggerAfterCount()&lt;/code>&lt;/span>. This trigger works on an element
+&lt;span class="language-go">&lt;code>trigger.AfterCount()&lt;/code>&lt;/span>. This trigger works on an element
 count; it fires after the current pane has collected at least &lt;em>N&lt;/em> elements. This
 allows a window to emit early results (before all the data has accumulated),
 which can be particularly useful if you are using a single global window.&lt;/p>
 &lt;p>It is important to note that if, for example, you specify
 &lt;span class="language-java">&lt;code>.elementCountAtLeast(50)&lt;/code>&lt;/span>
 &lt;span class="language-py">AfterCount(50)&lt;/span>
-&lt;span class="language-go">&lt;code>window.TriggerAfterCount(50)&lt;/code>&lt;/span> and only 32 elements arrive,
+&lt;span class="language-go">&lt;code>trigger.AfterCount(50)&lt;/code>&lt;/span> and only 32 elements arrive,
 those 32 elements sit around forever. If the 32 elements are important to you,
 consider using &lt;a href="#composite-triggers">composite triggers&lt;/a> to combine multiple
 conditions. This allows you to specify multiple firing conditions such as &amp;ldquo;fire
@@ -9321,7 +9321,7 @@ The &lt;code>beam.AccumulationMode&lt;/code> parameter sets the window&amp;rsquo
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">windowedItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">pcollection&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">trigger&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
 &lt;span class="nf">PlusDelay&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">)),&lt;/span>
 &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AllowedLateness&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">30&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span>
 &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">PanesDiscard&lt;/span>&lt;span class="p">(),&lt;/span>
@@ -9414,7 +9414,7 @@ when you set your windowing function:&lt;/p>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">allowedToBeLateItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">pcollection&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">trigger&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
 &lt;span class="nf">PlusDelay&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">)),&lt;/span>
 &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AllowedLateness&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">30&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span>
 &lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
@@ -9517,8 +9517,8 @@ trigger stops executing&lt;/li>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">compositeTriggerItems&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewFixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">pcollection&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterEndOfWindow&lt;/span>&lt;span class="p">().&lt;/span>
-&lt;span class="nf">LateFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TriggerAfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Trigger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">trigger&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AfterEndOfWindow&lt;/span>&lt;span class="p">().&lt;/span>
+&lt;span class="nf">LateFiring&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">trigger&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AfterProcessingTime&lt;/span>&lt;span class="p">().&lt;/span>
 &lt;span class="nf">PlusDelay&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">))),&lt;/span>
 &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">AllowedLateness&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="mi">24&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Hour&lt;/span>&lt;span class="p">),&lt;/span>
 &lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
