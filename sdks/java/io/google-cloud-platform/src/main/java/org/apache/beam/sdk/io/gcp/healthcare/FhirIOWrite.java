@@ -556,11 +556,12 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
      * processed into NDJSON. The size of a single file is determined according to the size of a
      * batch's window (large for bounded PCollections).
      */
+    @SuppressWarnings("initialization.fields.uninitialized")
     static class WriteBatchToFilesFn extends DoFn<String, ResourceId> {
 
       private final ValueProvider<String> tempGcsPath;
 
-      private ObjectMapper mapper;
+      private final ObjectMapper mapper;
 
       private ResourceId resourceId;
       private WritableByteChannel ndJsonChannel;
@@ -573,10 +574,6 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
        */
       WriteBatchToFilesFn(ValueProvider<String> tempGcsPath) {
         this.tempGcsPath = tempGcsPath;
-      }
-
-      @Setup
-      public void init() throws IOException {
         this.mapper = new ObjectMapper();
       }
 
@@ -694,13 +691,14 @@ public abstract class FhirIOWrite extends PTransform<PCollection<String>, FhirIO
         this.window = window;
 
         ResourceId file = context.element();
-        assert file != null && file.getFilename() != null;
+        assert file != null;
+        String filename = file.getFilename();
+        assert filename != null;
         files.add(file);
-        tempDestinations.add(
-            tempDir.resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
+        tempDestinations.add(tempDir.resolve(filename, StandardResolveOptions.RESOLVE_FILE));
         deadLetterDestinations.add(
             FileSystems.matchNewResource(deadLetterGcsPath.get(), true)
-                .resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
+                .resolve(filename, StandardResolveOptions.RESOLVE_FILE));
       }
 
       @FinishBundle

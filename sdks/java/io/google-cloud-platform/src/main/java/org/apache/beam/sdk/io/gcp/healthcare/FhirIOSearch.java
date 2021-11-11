@@ -74,6 +74,115 @@ public class FhirIOSearch<T>
     this.fhirStore = StaticValueProvider.of(fhirStore);
   }
 
+  /**
+   * FhirSearchParameter represents the query parameters for a FHIR search request, used as a
+   * parameter for {@link FhirIOSearch}.
+   */
+  @DefaultCoder(SearchParameterCoder.class)
+  public static class SearchParameter<T> {
+
+    private final String resourceType;
+    // The key is used as a key for the search query, if there is source information to propagate
+    // through the pipeline.
+    private final String key;
+    private final Map<String, T> queries;
+
+    private SearchParameter(
+        String resourceType, @Nullable String key, @Nullable Map<String, T> queries) {
+      this.resourceType = resourceType;
+      if (key != null) {
+        this.key = key;
+      } else {
+        this.key = "";
+      }
+      if (queries != null) {
+        this.queries = queries;
+      } else {
+        this.queries = new HashMap<>();
+      }
+    }
+
+    public static <T> SearchParameter<T> of(
+        String resourceType, @Nullable String key, @Nullable Map<String, T> queries) {
+      return new SearchParameter<>(resourceType, key, queries);
+    }
+
+    public static <T> SearchParameter<T> of(String resourceType, @Nullable Map<String, T> queries) {
+      return new SearchParameter<>(resourceType, null, queries);
+    }
+
+    public String getResourceType() {
+      return resourceType;
+    }
+
+    public String getKey() {
+      return key;
+    }
+
+    public Map<String, T> getQueries() {
+      return queries;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SearchParameter<?> that = (SearchParameter<?>) o;
+      return Objects.equals(resourceType, that.resourceType)
+          && Objects.equals(key, that.key)
+          && Objects.equals(queries, that.queries);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(resourceType, queries);
+    }
+
+    @Override
+    public String toString() {
+      return String.format(
+          "FhirSearchParameter{resourceType='%s', key='%s', queries='%s'}",
+          resourceType, key, queries);
+    }
+  }
+
+  /**
+   * SearchParameterCoder is the coder for {@link SearchParameter}, which takes a coder for type T.
+   */
+  public static class SearchParameterCoder<T> extends CustomCoder<SearchParameter<T>> {
+
+    private static final NullableCoder<String> STRING_CODER =
+        NullableCoder.of(StringUtf8Coder.of());
+    private final NullableCoder<Map<String, T>> originalCoder;
+
+    SearchParameterCoder(Coder<T> originalCoder) {
+      this.originalCoder = NullableCoder.of(MapCoder.of(STRING_CODER, originalCoder));
+    }
+
+    public static <T> SearchParameterCoder<T> of(Coder<T> originalCoder) {
+      return new SearchParameterCoder<T>(originalCoder);
+    }
+
+    @Override
+    public void encode(SearchParameter<T> value, OutputStream outStream) throws IOException {
+      STRING_CODER.encode(value.getResourceType(), outStream);
+      STRING_CODER.encode(value.getKey(), outStream);
+      originalCoder.encode(value.getQueries(), outStream);
+    }
+
+    @Override
+    public SearchParameter<T> decode(InputStream inStream) throws IOException {
+      String resourceType = STRING_CODER.decode(inStream);
+      String key = STRING_CODER.decode(inStream);
+      Map<String, T> queries = originalCoder.decode(inStream);
+      return SearchParameter.of(resourceType, key, queries);
+    }
+  }
+
   public static class Result implements POutput, PInput {
 
     private final PCollection<KV<String, JsonArray>> keyedResources;
@@ -268,14 +377,13 @@ public class FhirIOSearch<T>
           HealthcareApiClient client,
           String fhirStore,
           String resourceType,
-          @Nullable Map<String, T> parameters)
+          Map<String, T> parameters)
           throws NoSuchElementException {
         long start = Instant.now().toEpochMilli();
 
         HashMap<String, Object> parameterObjects = new HashMap<>();
-        if (parameters != null) {
-          parameters.forEach((k, v) -> parameterObjects.put(k, (Object) v));
-        }
+        parameters.forEach(parameterObjects::put);
+
         FhirResourcePagesIterator iter =
             new FhirResourcePagesIterator(client, fhirStore, resourceType, parameterObjects);
         JsonArray result = new JsonArray();
@@ -286,111 +394,6 @@ public class FhirIOSearch<T>
         searchResourceSuccess.inc();
         return result;
       }
-    }
-  }
-
-  /**
-   * FhirSearchParameter represents the query parameters for a FHIR search request, used as a
-   * parameter for {@link FhirIOSearch}.
-   */
-  @DefaultCoder(SearchParameterCoder.class)
-  public static class SearchParameter<T> {
-
-    private final String resourceType;
-    // The key is used as a key for the search query, if there is source information to propagate
-    // through the pipeline.
-    private final String key;
-    private final @Nullable Map<String, T> queries;
-
-    private SearchParameter(
-        String resourceType, @Nullable String key, @Nullable Map<String, T> queries) {
-      this.resourceType = resourceType;
-      if (key != null) {
-        this.key = key;
-      } else {
-        this.key = "";
-      }
-      this.queries = queries;
-    }
-
-    public static <T> SearchParameter<T> of(
-        String resourceType, @Nullable String key, @Nullable Map<String, T> queries) {
-      return new SearchParameter<>(resourceType, key, queries);
-    }
-
-    public static <T> SearchParameter<T> of(String resourceType, @Nullable Map<String, T> queries) {
-      return new SearchParameter<>(resourceType, null, queries);
-    }
-
-    public String getResourceType() {
-      return resourceType;
-    }
-
-    public String getKey() {
-      return key;
-    }
-
-    public @Nullable Map<String, T> getQueries() {
-      return queries;
-    }
-
-    @Override
-    public boolean equals(@Nullable Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      SearchParameter<?> that = (SearchParameter<?>) o;
-      return Objects.equals(resourceType, that.resourceType)
-          && Objects.equals(key, that.key)
-          && Objects.equals(queries, that.queries);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(resourceType, queries);
-    }
-
-    @Override
-    public String toString() {
-      return String.format(
-          "FhirSearchParameter{resourceType='%s', key='%s', queries='%s'}",
-          resourceType, key, queries);
-    }
-  }
-
-  /**
-   * SearchParameterCoder is the coder for {@link SearchParameter}, which takes a coder for type T.
-   */
-  public static class SearchParameterCoder<T> extends CustomCoder<SearchParameter<T>> {
-
-    private static final NullableCoder<String> STRING_CODER =
-        NullableCoder.of(StringUtf8Coder.of());
-    private final NullableCoder<Map<String, T>> originalCoder;
-
-    SearchParameterCoder(Coder<T> originalCoder) {
-      this.originalCoder = NullableCoder.of(MapCoder.of(STRING_CODER, originalCoder));
-    }
-
-    public static <T> SearchParameterCoder<T> of(Coder<T> originalCoder) {
-      return new SearchParameterCoder<T>(originalCoder);
-    }
-
-    @Override
-    public void encode(SearchParameter<T> value, OutputStream outStream) throws IOException {
-      STRING_CODER.encode(value.getResourceType(), outStream);
-      STRING_CODER.encode(value.getKey(), outStream);
-      originalCoder.encode(value.getQueries(), outStream);
-    }
-
-    @Override
-    public SearchParameter<T> decode(InputStream inStream) throws IOException {
-      String resourceType = STRING_CODER.decode(inStream);
-      String key = STRING_CODER.decode(inStream);
-      Map<String, T> queries = originalCoder.decode(inStream);
-      return SearchParameter.of(resourceType, key, queries);
     }
   }
 }
