@@ -1036,7 +1036,7 @@ func makeAccumulationMode(m window.AccumulationMode) pipepb.AccumulationMode_Enu
 }
 
 func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
-	switch t.Kind {
+	switch t := t.(type) {
 	case trigger.DefaultTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
@@ -1053,7 +1053,7 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAny_{
 				AfterAny: &pipepb.Trigger_AfterAny{
-					Subtriggers: extractSubtriggers(t.SubTriggers),
+					Subtriggers: extractSubtriggers(t.SubTriggers()),
 				},
 			},
 		}
@@ -1061,16 +1061,16 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAll_{
 				AfterAll: &pipepb.Trigger_AfterAll{
-					Subtriggers: extractSubtriggers(t.SubTriggers),
+					Subtriggers: extractSubtriggers(t.SubTriggers()),
 				},
 			},
 		}
 	case trigger.AfterProcessingTimeTrigger:
-		if len(t.TimestampTransforms) == 0 {
+		if len(t.TimestampTransforms()) == 0 {
 			panic("AfterProcessingTime trigger set without a delay or alignment.")
 		}
 		tts := []*pipepb.TimestampTransform{}
-		for _, tt := range t.TimestampTransforms {
+		for _, tt := range t.TimestampTransforms() {
 			var ttp *pipepb.TimestampTransform
 			switch tt := tt.(type) {
 			case trigger.DelayTransform:
@@ -1099,29 +1099,26 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 	case trigger.ElementCountTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_ElementCount_{
-				ElementCount: &pipepb.Trigger_ElementCount{ElementCount: t.ElementCount},
+				ElementCount: &pipepb.Trigger_ElementCount{ElementCount: t.ElementCount()},
 			},
 		}
 	case trigger.AfterEndOfWindowTrigger:
 		var lateTrigger *pipepb.Trigger
-		if t.LateTrigger != nil {
-			lateTrigger = makeTrigger(*t.LateTrigger)
+		if t.LateTrigger() != nil {
+			lateTrigger = makeTrigger(t.LateTrigger())
 		}
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterEndOfWindow_{
 				AfterEndOfWindow: &pipepb.Trigger_AfterEndOfWindow{
-					EarlyFirings: makeTrigger(*t.EarlyTrigger),
+					EarlyFirings: makeTrigger(t.EarlyTrigger()),
 					LateFirings:  lateTrigger,
 				},
 			},
 		}
 	case trigger.RepeatTrigger:
-		if len(t.SubTriggers) != 1 {
-			panic("Only 1 Subtrigger should be passed to Repeat Trigger")
-		}
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Repeat_{
-				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTriggers[0])},
+				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTrigger())},
 			},
 		}
 	case trigger.NeverTrigger:

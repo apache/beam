@@ -23,17 +23,71 @@ import (
 )
 
 // Trigger describes when to emit new aggregations.
-// Fields are exported for use by the framework, and not intended
-// to be set by end users.
+type Trigger interface {
+	trigger()
+}
+
+// DefaultTrigger fires once after the end of window. Late Data is discarded.
+type DefaultTrigger struct{}
+
+func (t DefaultTrigger) trigger() {}
+
+// Default constructs a default trigger that fires once after the end of window.
+// Late Data is discarded.
+func Default() Trigger {
+	return &DefaultTrigger{}
+}
+
+// AlwaysTrigger fires immediately after receiving an element.
+type AlwaysTrigger struct{}
+
+func (t AlwaysTrigger) trigger() {}
+
+// Always constructs a trigger that fires immediately
+// whenever an element is received.
 //
-// This API is experimental and subject to change.
-type Trigger struct {
-	Kind                string
-	SubTriggers         []Trigger            // Repeat, OrFinally, Any, All
-	TimestampTransforms []TimestampTransform // AfterProcessingTime
-	ElementCount        int32                // ElementCount
-	EarlyTrigger        *Trigger             // AfterEndOfWindow
-	LateTrigger         *Trigger             // AfterEndOfWindow
+// Equivalent to trigger.Repeat(trigger.AfterCount(1))
+func Always() Trigger {
+	return &AlwaysTrigger{}
+}
+
+// AfterCountTrigger fires after receiving elementCount elements.
+type AfterCountTrigger struct {
+	elementCount int32
+}
+
+func (t AfterCountTrigger) trigger() {}
+
+// ElementCount returns the elementCount.
+func (t AfterCountTrigger) ElementCount() int32 {
+	return t.elementCount
+}
+
+// AfterCount constructs a trigger that fires after
+// at least `count` number of elements are processed.
+func AfterCount(count int32) Trigger {
+	return &AfterCountTrigger{elementCount: count}
+}
+
+// AfterProcessingTimeTrigger fires after passage of times defined in timestampTransforms.
+type AfterProcessingTimeTrigger struct {
+	timestampTransforms []TimestampTransform
+}
+
+func (t AfterProcessingTimeTrigger) trigger() {}
+
+// TimestampTransforms returns the timestampTransforms.
+func (t AfterProcessingTimeTrigger) TimestampTransforms() []TimestampTransform {
+	return t.timestampTransforms
+}
+
+// AfterProcessingTime constructs a trigger that fires relative to
+// when input first arrives.
+//
+// Must be configured with calls to PlusDelay, or AlignedTo. May be
+// configured with additional delay.
+func AfterProcessingTime() *AfterProcessingTimeTrigger {
+	return &AfterProcessingTimeTrigger{}
 }
 
 // TimestampTransform describes how an after processing time trigger
@@ -65,59 +119,13 @@ type AlignToTransform struct {
 
 func (AlignToTransform) timestampTransform() {}
 
-const (
-	DefaultTrigger                         string = "Trigger_Default_"
-	AlwaysTrigger                          string = "Trigger_Always_"
-	AfterAnyTrigger                        string = "Trigger_AfterAny_"
-	AfterAllTrigger                        string = "Trigger_AfterAll_"
-	AfterProcessingTimeTrigger             string = "Trigger_AfterProcessing_Time_"
-	ElementCountTrigger                    string = "Trigger_ElementCount_"
-	AfterEndOfWindowTrigger                string = "Trigger_AfterEndOfWindow_"
-	RepeatTrigger                          string = "Trigger_Repeat_"
-	OrFinallyTrigger                       string = "Trigger_OrFinally_"
-	NeverTrigger                           string = "Trigger_Never_"
-	AfterSynchronizedProcessingTimeTrigger string = "Trigger_AfterSynchronizedProcessingTime_"
-)
-
-// Default constructs a default trigger that fires once after the end of window.
-// Late Data is discarded.
-func Default() Trigger {
-	return Trigger{Kind: DefaultTrigger}
-}
-
-// Always constructs a trigger that fires immediately
-// whenever an element is received.
-//
-// Equivalent to trigger.Repeat(trigger.AfterCount(1))
-func Always() Trigger {
-	return Trigger{Kind: AlwaysTrigger}
-}
-
-// AfterCount constructs a trigger that fires after
-// at least `count` number of elements are processed.
-func AfterCount(count int32) Trigger {
-	return Trigger{Kind: ElementCountTrigger, ElementCount: count}
-}
-
-// AfterProcessingTime constructs a trigger that fires relative to
-// when input first arrives.
-//
-// Must be configured with calls to PlusDelay, or AlignedTo. May be
-// configured with additional delay.
-func AfterProcessingTime() Trigger {
-	return Trigger{Kind: AfterProcessingTimeTrigger}
-}
-
 // PlusDelay configures an AfterProcessingTime trigger to fire after a specified delay,
 // no smaller than a millisecond.
-func (tr Trigger) PlusDelay(delay time.Duration) Trigger {
-	if tr.Kind != AfterProcessingTimeTrigger {
-		panic(fmt.Errorf("can't apply processing delay to %s, want: AfterProcessingTimeTrigger", tr.Kind))
-	}
+func (tr AfterProcessingTimeTrigger) PlusDelay(delay time.Duration) Trigger {
 	if delay < time.Millisecond {
 		panic(fmt.Errorf("can't apply processing delay of less than a millisecond. Got: %v", delay))
 	}
-	tr.TimestampTransforms = append(tr.TimestampTransforms, DelayTransform{Delay: int64(delay / time.Millisecond)})
+	tr.timestampTransforms = append(tr.timestampTransforms, DelayTransform{Delay: int64(delay / time.Millisecond)})
 	return tr
 }
 
@@ -126,10 +134,7 @@ func (tr Trigger) PlusDelay(delay time.Duration) Trigger {
 //
 // * Period may not be smaller than a millisecond.
 // * Offset may be a zero time (time.Time{}).
-func (tr Trigger) AlignedTo(period time.Duration, offset time.Time) Trigger {
-	if tr.Kind != AfterProcessingTimeTrigger {
-		panic(fmt.Errorf("can't apply processing delay to %s, want: AfterProcessingTimeTrigger", tr.Kind))
-	}
+func (tr AfterProcessingTimeTrigger) AlignedTo(period time.Duration, offset time.Time) Trigger {
 	if period < time.Millisecond {
 		panic(fmt.Errorf("can't apply an alignment period of less than a millisecond. Got: %v", period))
 	}
@@ -138,11 +143,21 @@ func (tr Trigger) AlignedTo(period time.Duration, offset time.Time) Trigger {
 		// TODO: Change to call UnixMilli() once we move to only supporting a go version > 1.17.
 		offsetMillis = offset.Unix()*1e3 + int64(offset.Nanosecond())/1e6
 	}
-	tr.TimestampTransforms = append(tr.TimestampTransforms, AlignToTransform{
+	tr.timestampTransforms = append(tr.timestampTransforms, AlignToTransform{
 		Period: int64(period / time.Millisecond),
 		Offset: offsetMillis,
 	})
 	return tr
+}
+
+type RepeatTrigger struct {
+	subTrigger Trigger
+}
+
+func (t RepeatTrigger) trigger() {}
+
+func (t RepeatTrigger) SubTrigger() Trigger {
+	return t.subTrigger
 }
 
 // Repeat constructs a trigger that fires a trigger repeatedly
@@ -150,7 +165,22 @@ func (tr Trigger) AlignedTo(period time.Duration, offset time.Time) Trigger {
 //
 // Ex: trigger.Repeat(trigger.AfterCount(1)) is same as trigger.Always().
 func Repeat(tr Trigger) Trigger {
-	return Trigger{Kind: RepeatTrigger, SubTriggers: []Trigger{tr}}
+	return RepeatTrigger{subTrigger: tr}
+}
+
+type AfterEndOfWindowTrigger struct {
+	earlyFiring Trigger
+	lateFiring  Trigger
+}
+
+func (t AfterEndOfWindowTrigger) trigger() {}
+
+func (t AfterEndOfWindowTrigger) EarlyTrigger() Trigger {
+	return t.earlyFiring
+}
+
+func (t AfterEndOfWindowTrigger) LateTrigger() Trigger {
+	return t.lateFiring
 }
 
 // AfterEndOfWindow constructs a trigger that is configurable for early firing
@@ -158,18 +188,15 @@ func Repeat(tr Trigger) Trigger {
 //
 // Default Options are: Default Trigger for EarlyFiring and No LateFiring.
 // Override it with EarlyFiring and LateFiring methods on this trigger.
-func AfterEndOfWindow() Trigger {
+func AfterEndOfWindow() AfterEndOfWindowTrigger {
 	defaultEarly := Default()
-	return Trigger{Kind: AfterEndOfWindowTrigger, EarlyTrigger: &defaultEarly, LateTrigger: nil}
+	return AfterEndOfWindowTrigger{earlyFiring: defaultEarly, lateFiring: nil}
 }
 
 // EarlyFiring configures an AfterEndOfWindow trigger with an implicitly
 // repeated trigger that applies before the end of the window.
-func (tr Trigger) EarlyFiring(early Trigger) Trigger {
-	if tr.Kind != AfterEndOfWindowTrigger {
-		panic(fmt.Errorf("can't apply early firing to %s, want: AfterEndOfWindowTrigger", tr.Kind))
-	}
-	tr.EarlyTrigger = &early
+func (tr *AfterEndOfWindowTrigger) EarlyFiring(early Trigger) *AfterEndOfWindowTrigger {
+	tr.earlyFiring = early
 	return tr
 }
 
@@ -177,10 +204,39 @@ func (tr Trigger) EarlyFiring(early Trigger) Trigger {
 // repeated trigger that applies after the end of the window.
 //
 // Not setting a late firing trigger means elements are discarded.
-func (tr Trigger) LateFiring(late Trigger) Trigger {
-	if tr.Kind != AfterEndOfWindowTrigger {
-		panic(fmt.Errorf("can't apply late firing to %s, want: AfterEndOfWindowTrigger", tr.Kind))
-	}
-	tr.LateTrigger = &late
+func (tr *AfterEndOfWindowTrigger) LateFiring(late Trigger) *AfterEndOfWindowTrigger {
+	tr.lateFiring = late
 	return tr
 }
+
+type AfterAnyTrigger struct {
+	subTriggers []Trigger
+}
+
+func (t AfterAnyTrigger) trigger() {}
+
+func (t AfterAnyTrigger) SubTriggers() []Trigger {
+	return t.subTriggers
+}
+
+type AfterAllTrigger struct {
+	subTriggers []Trigger
+}
+
+func (t AfterAllTrigger) trigger() {}
+
+func (t AfterAllTrigger) SubTriggers() []Trigger {
+	return t.subTriggers
+}
+
+type OrFinallyTrigger struct{}
+
+func (t OrFinallyTrigger) trigger() {}
+
+type NeverTrigger struct{}
+
+func (t NeverTrigger) trigger() {}
+
+type AfterSynchronizedProcessingTimeTrigger struct{}
+
+func (t AfterSynchronizedProcessingTimeTrigger) trigger() {}
