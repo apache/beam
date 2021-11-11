@@ -1659,7 +1659,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // We construct the pipeline options during task execution time in order to get dockerImageName.
         doFirst {
           if (pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
-            def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+            def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-west1'
             if (pipelineOptionsString.contains('use_runner_v2')) {
               def dockerImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerImageName
               allOptionsList.addAll([

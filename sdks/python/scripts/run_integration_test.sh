@@ -69,7 +69,7 @@
 # Default pipeline options
 PROJECT=apache-beam-testing
 RUNNER=TestDataflowRunner
-REGION=us-central1
+REGION=us-west4
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 SDK_LOCATION=build/apache-beam.tar.gz
 NUM_WORKERS=1
