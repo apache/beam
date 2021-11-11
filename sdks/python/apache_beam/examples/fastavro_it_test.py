@@ -108,7 +108,6 @@ class FastavroIT(unittest.TestCase):
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
-    self.test_pipeline_2 = TestPipeline(is_integration_test=True)
     self.uuid = str(uuid.uuid4())
     self.output = '/'.join([self.test_pipeline.get_option('output'), self.uuid])
 
