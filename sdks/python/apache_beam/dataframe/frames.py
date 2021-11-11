@@ -1590,8 +1590,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.Series)
   def kurt(self, *args, **kwargs):
-      # Compute Kurtosis as kurt is an alias for kurtosis.
-      return self.kurtosis(*args, **kwargs)
+    # Compute Kurtosis as kurt is an alias for kurtosis.
+    return self.kurtosis(*args, **kwargs)
 
   def _corr_aligned(self, other, min_periods):
     std_x = self.std()
