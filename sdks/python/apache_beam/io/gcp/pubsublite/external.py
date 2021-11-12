@@ -30,14 +30,13 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 _ReadSchema = typing.NamedTuple(
     '_ReadSchema',
-    [('subscription_path', str),
-     ('min_bundle_timeout', int),
+    [('subscription_path', str), ('min_bundle_timeout', int),
      ('deduplicate', bool)])
 
 
 def _default_io_expansion_service():
   return BeamJarExpansionService(
-    'sdks:java:io:google-cloud-platform:expansion-service:shadowJar')
+      'sdks:java:io:google-cloud-platform:expansion-service:shadowJar')
 
 
 class _ReadExternal(ExternalTransform):
@@ -49,7 +48,6 @@ class _ReadExternal(ExternalTransform):
 
     Experimental; no backwards-compatibility guarantees.
   """
-
   def __init__(
       self,
       subscription_path,
@@ -77,21 +75,17 @@ class _ReadExternal(ExternalTransform):
     if expansion_service is None:
       expansion_service = _default_io_expansion_service()
     super().__init__(
-      'beam:transform:org.apache.beam:pubsublite_read:v1',
-      NamedTupleBasedPayloadBuilder(
-        _ReadSchema(
-          subscription_path=subscription_path,
-          min_bundle_timeout=min_bundle_timeout,
-          deduplicate=deduplicate)),
-      expansion_service)
+        'beam:transform:org.apache.beam:pubsublite_read:v1',
+        NamedTupleBasedPayloadBuilder(
+            _ReadSchema(
+                subscription_path=subscription_path,
+                min_bundle_timeout=min_bundle_timeout,
+                deduplicate=deduplicate)),
+        expansion_service)
 
 
 _WriteSchema = typing.NamedTuple(
-    '_WriteSchema',
-    [
-        ('topic_path', str),
-        ('add_uuids', bool)
-    ])
+    '_WriteSchema', [('topic_path', str), ('add_uuids', bool)])
 
 
 class _WriteExternal(ExternalTransform):

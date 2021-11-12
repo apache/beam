@@ -15,7 +15,6 @@ class ReadFromPubSubLite(PTransform):
 
   Experimental; no backwards-compatibility guarantees.
   """
-
   def __init__(
       self,
       subscription_path,
@@ -37,10 +36,10 @@ class ReadFromPubSubLite(PTransform):
     """
     super().__init__()
     self._source = _ReadExternal(
-      subscription_path=subscription_path,
-      min_bundle_timeout=min_bundle_timeout,
-      deduplicate=deduplicate,
-      expansion_service=expansion_service,
+        subscription_path=subscription_path,
+        min_bundle_timeout=min_bundle_timeout,
+        deduplicate=deduplicate,
+        expansion_service=expansion_service,
     )
 
   def expand(self, pvalue):
@@ -59,7 +58,6 @@ class WriteToPubSubLite(PTransform):
 
   Experimental; no backwards-compatibility guarantees.
   """
-
   def __init__(
       self,
       topic_path,
@@ -75,17 +73,17 @@ class WriteToPubSubLite(PTransform):
     """
     super().__init__()
     self._source = _WriteExternal(
-      topic_path=topic_path,
-      add_uuids=add_uuids,
-      expansion_service=expansion_service,
+        topic_path=topic_path,
+        add_uuids=add_uuids,
+        expansion_service=expansion_service,
     )
 
   @staticmethod
   def _message_to_proto_str(element: pubsublite.PubSubMessage):
     if not isinstance(element, pubsublite.PubSubMessage):
       raise TypeError(
-        'Unexpected element. Type: %s (expected: PubSubMessage), '
-        'value: %r' % (type(element), element))
+          'Unexpected element. Type: %s (expected: PubSubMessage), '
+          'value: %r' % (type(element), element))
     return pubsublite.PubSubMessage.serialize(element)
 
   def expand(self, pcoll):
