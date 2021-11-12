@@ -21,22 +21,22 @@ import PostcommitJobBuilder
 
 // This job runs the Python examples tests with SparkRunner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Spark',
-        'Run Python Examples_Spark', 'Python Spark Runner Examples',this) {
-    description('Runs the Python Examples with SparkRunner.')
+    'Run Python Examples_Spark', 'Python Spark Runner Examples',this) {
+      description('Runs the Python Examples with SparkRunner.')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-    publishers {
+      publishers {
         archiveJunit('**/pytest*.xml')
-    }
+      }
 
-    // Execute shell command to run examples.
-    steps {
+      // Execute shell command to run examples.
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":pythonExamplesSparkPostCommit")
-            commonJobProperties.setGradleSwitches(delegate)
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(":pythonExamplesSparkPostCommit")
+          commonJobProperties.setGradleSwitches(delegate)
         }
+      }
     }
-}

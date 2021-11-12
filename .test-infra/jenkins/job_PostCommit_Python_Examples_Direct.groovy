@@ -21,22 +21,22 @@ import PostcommitJobBuilder
 
 // This job runs the Python examples tests with DirectRunner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Direct',
-        'Run Python Examples_Direct', 'Python Direct Runner Examples',this) {
-    description('Runs the Python Examples with DirectRunner.')
+    'Run Python Examples_Direct', 'Python Direct Runner Examples',this) {
+      description('Runs the Python Examples with DirectRunner.')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-    publishers {
+      publishers {
         archiveJunit('**/pytest*.xml')
-    }
+      }
 
-    // Execute shell command to run examples.
-    steps {
+      // Execute shell command to run examples.
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":pythonExamplesDirectPostCommit")
-            commonJobProperties.setGradleSwitches(delegate)
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(":pythonExamplesDirectPostCommit")
+          commonJobProperties.setGradleSwitches(delegate)
         }
+      }
     }
-}
