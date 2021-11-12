@@ -34,7 +34,7 @@ func TriggerAfterEndOfWindow(s beam.Scope, pCollection beam.PCollection) {
 	// [START after_window_trigger]
 	trigger := trigger.AfterEndOfWindow().
 		EarlyFiring(trigger.AfterProcessingTime().
-			PlusDelay(60 * time.Second)).(*trigger.AfterEndOfWindowTrigger).
+			PlusDelay(60 * time.Second)).
 		LateFiring(trigger.Repeat(trigger.AfterCount(1)))
 	// [END after_window_trigger]
 	beam.WindowInto(s, window.NewFixedWindows(10*time.Second), pCollection, beam.Trigger(trigger), beam.PanesDiscard())
