@@ -42,6 +42,7 @@ enum Status {
   STATUS_RUN_ERROR = 9;
   STATUS_ERROR = 10;
   STATUS_RUN_TIMEOUT = 11;
+  STATUS_CANCELED = 12;
 }
 
 enum ExampleType {
@@ -102,6 +103,15 @@ message GetRunErrorResponse {
   string output = 1;
 }
 
+// CancelRequest request to cancel code processing
+message CancelRequest {
+  string pipeline_uuid = 1;
+}
+
+// CancelResponse response for cancel request
+message CancelResponse {
+}
+
 // ListOfExamplesRequest contains information of the needed examples sdk and categories.
 message GetListOfExamplesRequest{
   Sdk sdk = 1;
@@ -157,6 +167,9 @@ service PlaygroundService {
 
   // Get the result of pipeline compilation.
   rpc GetCompileOutput(GetCompileOutputRequest) returns (GetCompileOutputResponse);
+
+  // Cancel code processing
+  rpc Cancel(CancelRequest) returns (CancelResponse);
 
   // Get the list of precompiled examples.
   rpc GetListOfExamples(GetListOfExamplesRequest) returns (GetListOfExamplesResponse);
