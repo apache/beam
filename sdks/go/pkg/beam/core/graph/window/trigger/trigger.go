@@ -152,14 +152,14 @@ func (tr *AfterProcessingTimeTrigger) AlignedTo(period time.Duration, offset tim
 
 // RepeatTrigger fires a sub-trigger repeatedly.
 type RepeatTrigger struct {
-	subTrigger Trigger
+	subtrigger Trigger
 }
 
 func (t RepeatTrigger) trigger() {}
 
 // SubTrigger returns the trigger to be repeated.
 func (t *RepeatTrigger) SubTrigger() Trigger {
-	return t.subTrigger
+	return t.subtrigger
 }
 
 // Repeat constructs a trigger that fires a trigger repeatedly
@@ -167,7 +167,7 @@ func (t *RepeatTrigger) SubTrigger() Trigger {
 //
 // Ex: trigger.Repeat(trigger.AfterCount(1)) is same as trigger.Always().
 func Repeat(tr Trigger) *RepeatTrigger {
-	return &RepeatTrigger{subTrigger: tr}
+	return &RepeatTrigger{subtrigger: tr}
 }
 
 // AfterEndOfWindowTrigger provides option to set triggers for early and late firing.
@@ -178,13 +178,13 @@ type AfterEndOfWindowTrigger struct {
 
 func (t AfterEndOfWindowTrigger) trigger() {}
 
-// EarlyTrigger returns the Early Firing trigger for AfterEndOfWindowTrigger.
-func (t *AfterEndOfWindowTrigger) EarlyTrigger() Trigger {
+// Early returns the Early Firing trigger for AfterEndOfWindowTrigger.
+func (t *AfterEndOfWindowTrigger) Early() Trigger {
 	return t.earlyFiring
 }
 
-// LateTrigger returns the Late Firing trigger for AfterEndOfWindowTrigger.
-func (t *AfterEndOfWindowTrigger) LateTrigger() Trigger {
+// Late returns the Late Firing trigger for AfterEndOfWindowTrigger.
+func (t *AfterEndOfWindowTrigger) Late() Trigger {
 	return t.lateFiring
 }
 
@@ -213,46 +213,46 @@ func (tr *AfterEndOfWindowTrigger) LateFiring(late Trigger) *AfterEndOfWindowTri
 	return tr
 }
 
-// NYI(BEAM-3304). Intended for framework use only.
 // AfterAnyTrigger fires after any of sub-trigger fires.
+// NYI(BEAM-3304). Intended for framework use only.
 type AfterAnyTrigger struct {
-	subTriggers []Trigger
+	subtriggers []Trigger
 }
 
 func (t AfterAnyTrigger) trigger() {}
 
-// SubTriggers returns the subTriggers.
+// SubTriggers returns the component triggers.
 func (t *AfterAnyTrigger) SubTriggers() []Trigger {
-	return t.subTriggers
+	return t.subtriggers
 }
 
-// NYI(BEAM-3304). Intended for framework use only.
 // AfterAllTrigger fires after all subtriggers are fired.
+// NYI(BEAM-3304). Intended for framework use only.
 type AfterAllTrigger struct {
-	subTriggers []Trigger
+	subtriggers []Trigger
 }
 
 func (t AfterAllTrigger) trigger() {}
 
-// SubTriggers returns the subTriggers.
+// SubTriggers returns the component triggers.
 func (t *AfterAllTrigger) SubTriggers() []Trigger {
-	return t.subTriggers
+	return t.subtriggers
 }
 
-// NYI(BEAM-3304). Intended for framework use only.
 // OrFinallyTrigger serves as final condition to cause any trigger to fire.
+// NYI(BEAM-3304). Intended for framework use only.
 type OrFinallyTrigger struct{}
 
 func (t OrFinallyTrigger) trigger() {}
 
-// NYI(BEAM-3304). Intended for framework use only.
 // NeverTrigger is never ready to fire.
+// NYI(BEAM-3304). Intended for framework use only.
 type NeverTrigger struct{}
 
 func (t NeverTrigger) trigger() {}
 
-// NYI(BEAM-3304). Intended for framework use only.
 // AfterSynchronizedProcessingTimeTrigger fires when processing time synchronises with arrival time.
+// NYI(BEAM-3304). Intended for framework use only.
 type AfterSynchronizedProcessingTimeTrigger struct{}
 
 func (t AfterSynchronizedProcessingTimeTrigger) trigger() {}

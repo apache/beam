@@ -1104,13 +1104,13 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 		}
 	case *trigger.AfterEndOfWindowTrigger:
 		var lateTrigger *pipepb.Trigger
-		if t.LateTrigger() != nil {
-			lateTrigger = makeTrigger(t.LateTrigger())
+		if t.Late() != nil {
+			lateTrigger = makeTrigger(t.Late())
 		}
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterEndOfWindow_{
 				AfterEndOfWindow: &pipepb.Trigger_AfterEndOfWindow{
-					EarlyFirings: makeTrigger(t.EarlyTrigger()),
+					EarlyFirings: makeTrigger(t.Early()),
 					LateFirings:  lateTrigger,
 				},
 			},
