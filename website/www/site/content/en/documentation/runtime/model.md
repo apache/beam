@@ -48,12 +48,9 @@ ways, such as:
     the `ParDo`.
 *   Passing elements between transforms that are running on the same worker.
     This may allow the runner to avoid serializing elements; instead, the runner
-    can just pass the elements in memory.
-
-Passing elements between transforms that are running on the same worker is
-done by Beam and the runner as an optimization on pipelines to save on costs
-of serialization and data transfer. This optimization is called
-*fusion*, and a series of fused transforms is known as a *stage* in Beam.
+    can just pass the elements in memory. This is done as part of an
+    optimization that is known as
+    [fusion](https://beam.apache.org/documentation/glossary/#fusion).
 
 Some situations where the runner may serialize and persist elements are:
 
@@ -106,23 +103,27 @@ Streaming execution modes.
 <sup>1</sup>Not to be confused with the `shuffle` operation in some runners.
 
 #### Data ordering in a pipeline execution
+
 The Beam model does not define strict guidelines regarding the order in which
 runners process elements or transport them across `PTransforms`. Runners are
-free to implement shuffling semantics in different forms.
+free to implement data transfer semantics in different forms.
 
 Some use cases exist where user pipelines may need to rely on specific ordering
 semantics in pipeline execution. The [capability matrix documents](/documentation/runners/capability-matrix/additional-common-features-not-yet-part-of-the-beam-model/index.html)
 runner behavior for **key-ordered delivery**.
 
 Consider a single Beam worker processing a series of bundles from the same Beam
-stage, and consider a `PTransform` that outputs data from this Stage into a
+transform, and consider a `PTransform` that outputs data from this Stage into a
 downstream `PCollection`. Finally, consider two events *with the same key*
 emitted in a certain order by this worker (within the same bundle or as part of
 different bundles).
 
 We say that the Beam runner supports **key-ordered delivery** if it guarantees
-that these two events will be observed downstream in the same order,
-independently of the kind of transmission.
+that these two events will be observed in the same order by a PTransform that is
+immediately downstream independently of the kind of data transmission method.
+
+This characteristic will hold true in runners and operations that have
+key-limited parallelism.
 
 ## Failures and parallelism within and between transforms {#parallelism}
 

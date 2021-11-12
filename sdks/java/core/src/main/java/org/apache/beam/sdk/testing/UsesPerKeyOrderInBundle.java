@@ -21,8 +21,9 @@ import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Category tag for validation tests which rely on a runner providing per-key ordering in between
- * transforms in the same stage. Tests tagged with {@link UsesPerKeyOrderInStage} should be run for
- * runners which support key-to-key ordering of elements within the same stage.
+ * transforms in the same ProcessBundleRequest. Tests tagged with {@link UsesPerKeyOrderInBundle}
+ * should be run for runners which support key-to-key ordering of elements within the same
+ * ProcessBundleRequest.
  */
 @Internal
-public interface UsesPerKeyOrderInStage {}
+public interface UsesPerKeyOrderInBundle {}

@@ -22,7 +22,7 @@ import org.apache.beam.sdk.annotations.Internal;
 /**
  * Category tag for validation tests which rely on a runner providing per-key ordering. Tests tagged
  * with {@link UsesPerKeyOrderedDelivery} should be run for runners which support key-to-key
- * ordering of elements across shuffle / stage boundaries.
+ * ordering of elements across bundle executions.
  */
 @Internal
 public interface UsesPerKeyOrderedDelivery {}
