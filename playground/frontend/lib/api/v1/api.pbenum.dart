@@ -84,20 +84,20 @@ class Status extends $pb.ProtobufEnum {
   const Status._($core.int v, $core.String n) : super(v, n);
 }
 
-class ExampleType extends $pb.ProtobufEnum {
-  static const ExampleType EXAMPLE_TYPE_DEFAULT = ExampleType._(0, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'EXAMPLE_TYPE_DEFAULT');
-  static const ExampleType EXAMPLE_TYPE_KATA = ExampleType._(1, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'EXAMPLE_TYPE_KATA');
-  static const ExampleType EXAMPLE_TYPE_UNIT_TEST = ExampleType._(2, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'EXAMPLE_TYPE_UNIT_TEST');
+class PrecompiledObjectType extends $pb.ProtobufEnum {
+  static const PrecompiledObjectType EXAMPLE = PrecompiledObjectType._(0, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'EXAMPLE');
+  static const PrecompiledObjectType KATA = PrecompiledObjectType._(1, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'KATA');
+  static const PrecompiledObjectType UNIT_TEST = PrecompiledObjectType._(2, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'UNIT_TEST');
 
-  static const $core.List<ExampleType> values = <ExampleType> [
-    EXAMPLE_TYPE_DEFAULT,
-    EXAMPLE_TYPE_KATA,
-    EXAMPLE_TYPE_UNIT_TEST,
+  static const $core.List<PrecompiledObjectType> values = <PrecompiledObjectType> [
+    EXAMPLE,
+    KATA,
+    UNIT_TEST,
   ];
 
-  static final $core.Map<$core.int, ExampleType> _byValue = $pb.ProtobufEnum.initByValue(values);
-  static ExampleType? valueOf($core.int value) => _byValue[value];
+  static final $core.Map<$core.int, PrecompiledObjectType> _byValue = $pb.ProtobufEnum.initByValue(values);
+  static PrecompiledObjectType? valueOf($core.int value) => _byValue[value];
 
-  const ExampleType._($core.int v, $core.String n) : super(v, n);
+  const PrecompiledObjectType._($core.int v, $core.String n) : super(v, n);
 }
 

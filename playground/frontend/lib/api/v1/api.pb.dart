@@ -604,15 +604,15 @@ class CancelResponse extends $pb.GeneratedMessage {
   static CancelResponse? _defaultInstance;
 }
 
-class GetListOfExamplesRequest extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetListOfExamplesRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+class GetPrecompiledObjectsRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetPrecompiledObjectsRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
     ..e<Sdk>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'category')
     ..hasRequiredFields = false
   ;
 
-  GetListOfExamplesRequest._() : super();
-  factory GetListOfExamplesRequest({
+  GetPrecompiledObjectsRequest._() : super();
+  factory GetPrecompiledObjectsRequest({
     Sdk? sdk,
     $core.String? category,
   }) {
@@ -625,26 +625,26 @@ class GetListOfExamplesRequest extends $pb.GeneratedMessage {
     }
     return _result;
   }
-  factory GetListOfExamplesRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory GetListOfExamplesRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  factory GetPrecompiledObjectsRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetPrecompiledObjectsRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
   'Will be removed in next major version')
-  GetListOfExamplesRequest clone() => GetListOfExamplesRequest()..mergeFromMessage(this);
+  GetPrecompiledObjectsRequest clone() => GetPrecompiledObjectsRequest()..mergeFromMessage(this);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
   'Will be removed in next major version')
-  GetListOfExamplesRequest copyWith(void Function(GetListOfExamplesRequest) updates) => super.copyWith((message) => updates(message as GetListOfExamplesRequest)) as GetListOfExamplesRequest; // ignore: deprecated_member_use
+  GetPrecompiledObjectsRequest copyWith(void Function(GetPrecompiledObjectsRequest) updates) => super.copyWith((message) => updates(message as GetPrecompiledObjectsRequest)) as GetPrecompiledObjectsRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
-  static GetListOfExamplesRequest create() => GetListOfExamplesRequest._();
-  GetListOfExamplesRequest createEmptyInstance() => create();
-  static $pb.PbList<GetListOfExamplesRequest> createRepeated() => $pb.PbList<GetListOfExamplesRequest>();
+  static GetPrecompiledObjectsRequest create() => GetPrecompiledObjectsRequest._();
+  GetPrecompiledObjectsRequest createEmptyInstance() => create();
+  static $pb.PbList<GetPrecompiledObjectsRequest> createRepeated() => $pb.PbList<GetPrecompiledObjectsRequest>();
   @$core.pragma('dart2js:noInline')
-  static GetListOfExamplesRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetListOfExamplesRequest>(create);
-  static GetListOfExamplesRequest? _defaultInstance;
+  static GetPrecompiledObjectsRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetPrecompiledObjectsRequest>(create);
+  static GetPrecompiledObjectsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   Sdk get sdk => $_getN(0);
@@ -665,25 +665,25 @@ class GetListOfExamplesRequest extends $pb.GeneratedMessage {
   void clearCategory() => clearField(2);
 }
 
-class Example extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'Example', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
-    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'exampleUuid')
+class PrecompiledObject extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'PrecompiledObject', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cloudPath')
     ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'name')
     ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'description')
-    ..e<ExampleType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: ExampleType.EXAMPLE_TYPE_DEFAULT, valueOf: ExampleType.valueOf, enumValues: ExampleType.values)
+    ..e<PrecompiledObjectType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: PrecompiledObjectType.EXAMPLE, valueOf: PrecompiledObjectType.valueOf, enumValues: PrecompiledObjectType.values)
     ..hasRequiredFields = false
   ;
 
-  Example._() : super();
-  factory Example({
-    $core.String? exampleUuid,
+  PrecompiledObject._() : super();
+  factory PrecompiledObject({
+    $core.String? cloudPath,
     $core.String? name,
     $core.String? description,
-    ExampleType? type,
+    PrecompiledObjectType? type,
   }) {
     final _result = create();
-    if (exampleUuid != null) {
-      _result.exampleUuid = exampleUuid;
+    if (cloudPath != null) {
+      _result.cloudPath = cloudPath;
     }
     if (name != null) {
       _result.name = name;
@@ -696,35 +696,35 @@ class Example extends $pb.GeneratedMessage {
     }
     return _result;
   }
-  factory Example.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory Example.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  factory PrecompiledObject.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory PrecompiledObject.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
   'Will be removed in next major version')
-  Example clone() => Example()..mergeFromMessage(this);
+  PrecompiledObject clone() => PrecompiledObject()..mergeFromMessage(this);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
   'Will be removed in next major version')
-  Example copyWith(void Function(Example) updates) => super.copyWith((message) => updates(message as Example)) as Example; // ignore: deprecated_member_use
+  PrecompiledObject copyWith(void Function(PrecompiledObject) updates) => super.copyWith((message) => updates(message as PrecompiledObject)) as PrecompiledObject; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
-  static Example create() => Example._();
-  Example createEmptyInstance() => create();
-  static $pb.PbList<Example> createRepeated() => $pb.PbList<Example>();
+  static PrecompiledObject create() => PrecompiledObject._();
+  PrecompiledObject createEmptyInstance() => create();
+  static $pb.PbList<PrecompiledObject> createRepeated() => $pb.PbList<PrecompiledObject>();
   @$core.pragma('dart2js:noInline')
-  static Example getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Example>(create);
-  static Example? _defaultInstance;
+  static PrecompiledObject getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<PrecompiledObject>(create);
+  static PrecompiledObject? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.String get exampleUuid => $_getSZ(0);
+  $core.String get cloudPath => $_getSZ(0);
   @$pb.TagNumber(1)
-  set exampleUuid($core.String v) { $_setString(0, v); }
+  set cloudPath($core.String v) { $_setString(0, v); }
   @$pb.TagNumber(1)
-  $core.bool hasExampleUuid() => $_has(0);
+  $core.bool hasCloudPath() => $_has(0);
   @$pb.TagNumber(1)
-  void clearExampleUuid() => clearField(1);
+  void clearCloudPath() => clearField(1);
 
   @$pb.TagNumber(2)
   $core.String get name => $_getSZ(1);
@@ -745,9 +745,9 @@ class Example extends $pb.GeneratedMessage {
   void clearDescription() => clearField(3);
 
   @$pb.TagNumber(4)
-  ExampleType get type => $_getN(3);
+  PrecompiledObjectType get type => $_getN(3);
   @$pb.TagNumber(4)
-  set type(ExampleType v) { setField(4, v); }
+  set type(PrecompiledObjectType v) { setField(4, v); }
   @$pb.TagNumber(4)
   $core.bool hasType() => $_has(3);
   @$pb.TagNumber(4)
@@ -757,21 +757,21 @@ class Example extends $pb.GeneratedMessage {
 class Categories_Category extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'Categories.Category', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
     ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'categoryName')
-    ..pc<Example>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'examples', $pb.PbFieldType.PM, subBuilder: Example.create)
+    ..pc<PrecompiledObject>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'precompiledObjects', $pb.PbFieldType.PM, subBuilder: PrecompiledObject.create)
     ..hasRequiredFields = false
   ;
 
   Categories_Category._() : super();
   factory Categories_Category({
     $core.String? categoryName,
-    $core.Iterable<Example>? examples,
+    $core.Iterable<PrecompiledObject>? precompiledObjects,
   }) {
     final _result = create();
     if (categoryName != null) {
       _result.categoryName = categoryName;
     }
-    if (examples != null) {
-      _result.examples.addAll(examples);
+    if (precompiledObjects != null) {
+      _result.precompiledObjects.addAll(precompiledObjects);
     }
     return _result;
   }
@@ -806,7 +806,7 @@ class Categories_Category extends $pb.GeneratedMessage {
   void clearCategoryName() => clearField(1);
 
   @$pb.TagNumber(2)
-  $core.List<Example> get examples => $_getList(1);
+  $core.List<PrecompiledObject> get precompiledObjects => $_getList(1);
 }
 
 class Categories extends $pb.GeneratedMessage {
@@ -864,102 +864,102 @@ class Categories extends $pb.GeneratedMessage {
   $core.List<Categories_Category> get categories => $_getList(1);
 }
 
-class GetListOfExamplesResponse extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetListOfExamplesResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
-    ..pc<Categories>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdkExamples', $pb.PbFieldType.PM, subBuilder: Categories.create)
+class GetPrecompiledObjectsResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetPrecompiledObjectsResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..pc<Categories>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdkCategories', $pb.PbFieldType.PM, subBuilder: Categories.create)
     ..hasRequiredFields = false
   ;
 
-  GetListOfExamplesResponse._() : super();
-  factory GetListOfExamplesResponse({
-    $core.Iterable<Categories>? sdkExamples,
+  GetPrecompiledObjectsResponse._() : super();
+  factory GetPrecompiledObjectsResponse({
+    $core.Iterable<Categories>? sdkCategories,
   }) {
     final _result = create();
-    if (sdkExamples != null) {
-      _result.sdkExamples.addAll(sdkExamples);
+    if (sdkCategories != null) {
+      _result.sdkCategories.addAll(sdkCategories);
     }
     return _result;
   }
-  factory GetListOfExamplesResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory GetListOfExamplesResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  factory GetPrecompiledObjectsResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetPrecompiledObjectsResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
   'Will be removed in next major version')
-  GetListOfExamplesResponse clone() => GetListOfExamplesResponse()..mergeFromMessage(this);
+  GetPrecompiledObjectsResponse clone() => GetPrecompiledObjectsResponse()..mergeFromMessage(this);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
   'Will be removed in next major version')
-  GetListOfExamplesResponse copyWith(void Function(GetListOfExamplesResponse) updates) => super.copyWith((message) => updates(message as GetListOfExamplesResponse)) as GetListOfExamplesResponse; // ignore: deprecated_member_use
+  GetPrecompiledObjectsResponse copyWith(void Function(GetPrecompiledObjectsResponse) updates) => super.copyWith((message) => updates(message as GetPrecompiledObjectsResponse)) as GetPrecompiledObjectsResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
-  static GetListOfExamplesResponse create() => GetListOfExamplesResponse._();
-  GetListOfExamplesResponse createEmptyInstance() => create();
-  static $pb.PbList<GetListOfExamplesResponse> createRepeated() => $pb.PbList<GetListOfExamplesResponse>();
+  static GetPrecompiledObjectsResponse create() => GetPrecompiledObjectsResponse._();
+  GetPrecompiledObjectsResponse createEmptyInstance() => create();
+  static $pb.PbList<GetPrecompiledObjectsResponse> createRepeated() => $pb.PbList<GetPrecompiledObjectsResponse>();
   @$core.pragma('dart2js:noInline')
-  static GetListOfExamplesResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetListOfExamplesResponse>(create);
-  static GetListOfExamplesResponse? _defaultInstance;
+  static GetPrecompiledObjectsResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetPrecompiledObjectsResponse>(create);
+  static GetPrecompiledObjectsResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.List<Categories> get sdkExamples => $_getList(0);
+  $core.List<Categories> get sdkCategories => $_getList(0);
 }
 
-class GetExampleRequest extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetExampleRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
-    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'exampleUuid')
+class GetPrecompiledObjectRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetPrecompiledObjectRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cloudPath')
     ..hasRequiredFields = false
   ;
 
-  GetExampleRequest._() : super();
-  factory GetExampleRequest({
-    $core.String? exampleUuid,
+  GetPrecompiledObjectRequest._() : super();
+  factory GetPrecompiledObjectRequest({
+    $core.String? cloudPath,
   }) {
     final _result = create();
-    if (exampleUuid != null) {
-      _result.exampleUuid = exampleUuid;
+    if (cloudPath != null) {
+      _result.cloudPath = cloudPath;
     }
     return _result;
   }
-  factory GetExampleRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory GetExampleRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  factory GetPrecompiledObjectRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetPrecompiledObjectRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
   'Will be removed in next major version')
-  GetExampleRequest clone() => GetExampleRequest()..mergeFromMessage(this);
+  GetPrecompiledObjectRequest clone() => GetPrecompiledObjectRequest()..mergeFromMessage(this);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
   'Will be removed in next major version')
-  GetExampleRequest copyWith(void Function(GetExampleRequest) updates) => super.copyWith((message) => updates(message as GetExampleRequest)) as GetExampleRequest; // ignore: deprecated_member_use
+  GetPrecompiledObjectRequest copyWith(void Function(GetPrecompiledObjectRequest) updates) => super.copyWith((message) => updates(message as GetPrecompiledObjectRequest)) as GetPrecompiledObjectRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
-  static GetExampleRequest create() => GetExampleRequest._();
-  GetExampleRequest createEmptyInstance() => create();
-  static $pb.PbList<GetExampleRequest> createRepeated() => $pb.PbList<GetExampleRequest>();
+  static GetPrecompiledObjectRequest create() => GetPrecompiledObjectRequest._();
+  GetPrecompiledObjectRequest createEmptyInstance() => create();
+  static $pb.PbList<GetPrecompiledObjectRequest> createRepeated() => $pb.PbList<GetPrecompiledObjectRequest>();
   @$core.pragma('dart2js:noInline')
-  static GetExampleRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetExampleRequest>(create);
-  static GetExampleRequest? _defaultInstance;
+  static GetPrecompiledObjectRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetPrecompiledObjectRequest>(create);
+  static GetPrecompiledObjectRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.String get exampleUuid => $_getSZ(0);
+  $core.String get cloudPath => $_getSZ(0);
   @$pb.TagNumber(1)
-  set exampleUuid($core.String v) { $_setString(0, v); }
+  set cloudPath($core.String v) { $_setString(0, v); }
   @$pb.TagNumber(1)
-  $core.bool hasExampleUuid() => $_has(0);
+  $core.bool hasCloudPath() => $_has(0);
   @$pb.TagNumber(1)
-  void clearExampleUuid() => clearField(1);
+  void clearCloudPath() => clearField(1);
 }
 
-class GetExampleResponse extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetExampleResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+class GetPrecompiledObjectCodeResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetPrecompiledObjectCodeResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
     ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'code')
     ..hasRequiredFields = false
   ;
 
-  GetExampleResponse._() : super();
-  factory GetExampleResponse({
+  GetPrecompiledObjectCodeResponse._() : super();
+  factory GetPrecompiledObjectCodeResponse({
     $core.String? code,
   }) {
     final _result = create();
@@ -968,26 +968,26 @@ class GetExampleResponse extends $pb.GeneratedMessage {
     }
     return _result;
   }
-  factory GetExampleResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory GetExampleResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  factory GetPrecompiledObjectCodeResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetPrecompiledObjectCodeResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
   'Will be removed in next major version')
-  GetExampleResponse clone() => GetExampleResponse()..mergeFromMessage(this);
+  GetPrecompiledObjectCodeResponse clone() => GetPrecompiledObjectCodeResponse()..mergeFromMessage(this);
   @$core.Deprecated(
   'Using this can add significant overhead to your binary. '
   'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
   'Will be removed in next major version')
-  GetExampleResponse copyWith(void Function(GetExampleResponse) updates) => super.copyWith((message) => updates(message as GetExampleResponse)) as GetExampleResponse; // ignore: deprecated_member_use
+  GetPrecompiledObjectCodeResponse copyWith(void Function(GetPrecompiledObjectCodeResponse) updates) => super.copyWith((message) => updates(message as GetPrecompiledObjectCodeResponse)) as GetPrecompiledObjectCodeResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
-  static GetExampleResponse create() => GetExampleResponse._();
-  GetExampleResponse createEmptyInstance() => create();
-  static $pb.PbList<GetExampleResponse> createRepeated() => $pb.PbList<GetExampleResponse>();
+  static GetPrecompiledObjectCodeResponse create() => GetPrecompiledObjectCodeResponse._();
+  GetPrecompiledObjectCodeResponse createEmptyInstance() => create();
+  static $pb.PbList<GetPrecompiledObjectCodeResponse> createRepeated() => $pb.PbList<GetPrecompiledObjectCodeResponse>();
   @$core.pragma('dart2js:noInline')
-  static GetExampleResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetExampleResponse>(create);
-  static GetExampleResponse? _defaultInstance;
+  static GetPrecompiledObjectCodeResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetPrecompiledObjectCodeResponse>(create);
+  static GetPrecompiledObjectCodeResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get code => $_getSZ(0);

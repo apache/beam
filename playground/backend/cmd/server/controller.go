@@ -17,6 +17,7 @@ package main
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/executors"
@@ -149,38 +150,64 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 	return &pb.CancelResponse{}, nil
 }
 
-//GetListOfExamples returns the list of examples
-func (controller *playgroundController) GetListOfExamples(ctx context.Context, info *pb.GetListOfExamplesRequest) (*pb.GetListOfExamplesResponse, error) {
-	// TODO implement this method
-	example1 := pb.Example{ExampleUuid: "001", Name: "Example1", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_DEFAULT}
-	example2 := pb.Example{ExampleUuid: "003", Name: "Example3", Description: "Test example 3", Type: pb.ExampleType_EXAMPLE_TYPE_KATA}
-
-	cat1 := pb.Categories_Category{
-		CategoryName: "Common",
-		Examples:     []*pb.Example{&example1, {ExampleUuid: "002", Name: "Example2", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_UNIT_TEST}},
+//GetPrecompiledObjects returns the list of examples
+func (controller *playgroundController) GetPrecompiledObjects(ctx context.Context, info *pb.GetPrecompiledObjectsRequest) (*pb.GetPrecompiledObjectsResponse, error) {
+	bucket := cloud_bucket.New()
+	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, info.Sdk, info.Category)
+	if err != nil {
+		logger.Errorf("%s: GetPrecompiledObjects(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjects(): ", err.Error())
 	}
-	cat2 := pb.Categories_Category{
-		CategoryName: "I/O",
-		Examples:     []*pb.Example{&example2},
+	response := pb.GetPrecompiledObjectsResponse{SdkCategories: make([]*pb.Categories, 0)}
+	for sdkName, categories := range *sdkToCategories {
+		sdkCategory := pb.Categories{Sdk: pb.Sdk(pb.Sdk_value[sdkName]), Categories: make([]*pb.Categories_Category, 0)}
+		for categoryName, precompiledObjects := range categories {
+			PutPrecompiledObjectsToCategory(categoryName, &precompiledObjects, &sdkCategory)
+		}
+		response.SdkCategories = append(response.SdkCategories, &sdkCategory)
 	}
-	javaCats := pb.Categories{Sdk: pb.Sdk_SDK_JAVA, Categories: []*pb.Categories_Category{&cat1, &cat2}}
-	goCats := pb.Categories{Sdk: pb.Sdk_SDK_GO, Categories: []*pb.Categories_Category{&cat1, &cat2}}
-	response := pb.GetListOfExamplesResponse{SdkExamples: []*pb.Categories{&javaCats, &goCats}}
 	return &response, nil
 }
 
-// GetExample returns the code of the specific example
-func (controller *playgroundController) GetExample(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetExampleResponse, error) {
-	// TODO implement this method
-	response := pb.GetExampleResponse{Code: "example code"}
+// GetPrecompiledObjectCode returns the code of the specific example
+func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
+	cd := cloud_bucket.New()
+	codeString, err := cd.GetPrecompiledObject(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("%s: GetPrecompiledObject(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjects(): ", err.Error())
+	}
+	response := pb.GetPrecompiledObjectCodeResponse{Code: *codeString}
 	return &response, nil
 }
 
-// GetExampleOutput returns the output of the compiled and run example
-func (controller *playgroundController) GetExampleOutput(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetRunOutputResponse, error) {
-	// TODO implement this method
-	response := pb.GetRunOutputResponse{Output: "Response Output"}
+// GetPrecompiledObjectOutput returns the output of the compiled and run example
+func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetRunOutputResponse, error) {
+	cd := cloud_bucket.New()
+	output, err := cd.GetPrecompiledObjectOutput(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("%s: GetPrecompiledObjectOutput(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjectOutput(): ", err.Error())
+	}
+	response := pb.GetRunOutputResponse{Output: *output}
 	return &response, nil
+}
+
+// PutPrecompiledObjectsToCategory adds categories with precompiled objects to protobuf object
+func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cloud_bucket.PrecompiledObjects, sdkCategory *pb.Categories) {
+	category := pb.Categories_Category{
+		CategoryName:       categoryName,
+		PrecompiledObjects: make([]*pb.PrecompiledObject, 0),
+	}
+	for _, object := range *precompiledObjects {
+		category.PrecompiledObjects = append(category.PrecompiledObjects, &pb.PrecompiledObject{
+			CloudPath:   object.CloudPath,
+			Name:        object.Name,
+			Description: object.Description,
+			Type:        object.Type,
+		})
+	}
+	sdkCategory.Categories = append(sdkCategory.Categories, &category)
 }
 
 // setupLifeCycle creates fs_tool.LifeCycle and prepares files and folders needed to code processing
