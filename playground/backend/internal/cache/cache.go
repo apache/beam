@@ -32,8 +32,14 @@ const (
 	// RunOutput is used to keep run code output value
 	RunOutput SubKey = "RUN_OUTPUT"
 
+	// RunError is used to keep run code error value
+	RunError SubKey = "RUN_ERROR"
+
 	// CompileOutput is used to keep compilation output value
 	CompileOutput SubKey = "COMPILE_OUTPUT"
+
+	// Canceled is used to keep the canceled status
+	Canceled SubKey = "CANCELED"
 )
 
 // Cache is used to store states and outputs for Apache Beam pipelines that running in Playground

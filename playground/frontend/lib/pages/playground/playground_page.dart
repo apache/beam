@@ -46,7 +46,7 @@ class PlaygroundPage extends StatelessWidget {
             builder: (context, state, child) {
               return Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: kLgSpacing,
+                spacing: kXlSpacing,
                 children: [
                   const Logo(),
                   Consumer<ExampleState>(
@@ -58,11 +58,8 @@ class PlaygroundPage extends StatelessWidget {
                       );
                     },
                   ),
-                  SDKSelector(
-                    sdk: state.sdk,
-                    setSdk: state.setSdk,
-                    setExample: state.setExample,
-                  ),
+                  SDKSelector(sdk: state.sdk, setSdk: state.setSdk),
+
                   const NewExampleAction(),
                   ResetAction(reset: state.reset),
                 ],

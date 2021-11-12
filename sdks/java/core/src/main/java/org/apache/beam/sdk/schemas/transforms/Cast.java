@@ -118,7 +118,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
    * <p>Other conversions to may cause loss of precision.
    */
   public static class Widening implements Validator {
-    private final Fold fold = new Fold();
+    private final Widening.Fold fold = new Widening.Fold();
 
     public static Widening of() {
       return new Widening();
@@ -202,7 +202,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
    * </ul>
    */
   public static class Narrowing implements Validator {
-    private final Fold fold = new Fold();
+    private final Narrowing.Fold fold = new Narrowing.Fold();
 
     public static Narrowing of() {
       return new Narrowing();

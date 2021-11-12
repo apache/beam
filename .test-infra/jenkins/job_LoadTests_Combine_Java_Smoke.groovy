@@ -24,7 +24,7 @@ import PhraseTriggeringPostCommitBuilder
 import static LoadTestConfig.fromTemplate
 import static LoadTestConfig.templateConfig
 
-def smokeTestConfigurations = { datasetName ->
+def smokeTestConfigurations = {
   def template = templateConfig {
     title 'CombineLoadTest load test Dataflow-1'
     test 'org.apache.beam.sdk.loadtests.CombineLoadTest'
@@ -34,9 +34,6 @@ def smokeTestConfigurations = { datasetName ->
       appName 'smoke-dsl-java'
       project 'apache-beam-testing'
       tempLocation 'gs://temp-storage-for-perf-tests/smoketests'
-      publishToBigQuery true
-      bigQueryDataset datasetName
-      bigQueryTable 'dataflow_combine'
       numWorkers 5
       autoscalingAlgorithm 'NONE'
       sourceOptions {
@@ -84,6 +81,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     'Java Load Tests Combine Smoke',
     this
     ) {
-      def datasetName = loadTestsBuilder.getBigQueryDataset('load_test_SMOKE', CommonTestProperties.TriggeringContext.PR)
-      loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.JAVA, smokeTestConfigurations(datasetName), "Combine", "smoke")
+      loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.JAVA, smokeTestConfigurations(), "Combine", "smoke")
     }

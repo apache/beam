@@ -21,9 +21,12 @@ import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/notifications/components/notification.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
+
+const kNotificationTitle = 'Run Code';
 
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
@@ -40,15 +43,19 @@ class CodeTextAreaWrapper extends StatelessWidget {
         children: [
           Positioned.fill(
             child: EditorTextArea(
-              key: ValueKey(EditorKeyObject(state.sdk, state.selectedExample)),
+              key: ValueKey(EditorKeyObject(
+                state.sdk,
+                state.selectedExample,
+                state.resetKey,
+              )),
               example: state.selectedExample,
               sdk: state.sdk,
               onSourceChange: state.setSource,
             ),
           ),
           Positioned(
-            right: kLgSpacing,
-            top: kLgSpacing,
+            right: kXlSpacing,
+            top: kXlSpacing,
             width: kRunButtonWidth,
             height: kRunButtonHeight,
             child: RunButton(
@@ -62,8 +69,10 @@ class CodeTextAreaWrapper extends StatelessWidget {
   }
 
   _handleError(BuildContext context, PlaygroundState state) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(state.result?.errorMessage ?? '')),
+    NotificationManager.showError(
+      context,
+      kNotificationTitle,
+      state.result?.errorMessage ?? '',
     );
     state.resetError();
   }
@@ -72,8 +81,9 @@ class CodeTextAreaWrapper extends StatelessWidget {
 class EditorKeyObject {
   final SDK sdk;
   final ExampleModel? example;
+  final DateTime? resetKey;
 
-  const EditorKeyObject(this.sdk, this.example);
+  const EditorKeyObject(this.sdk, this.example, this.resetKey);
 
   @override
   bool operator ==(Object other) =>
@@ -81,8 +91,9 @@ class EditorKeyObject {
       other is EditorKeyObject &&
           runtimeType == other.runtimeType &&
           sdk == other.sdk &&
-          example == other.example;
+          example == other.example &&
+          resetKey == other.resetKey;
 
   @override
-  int get hashCode => sdk.hashCode ^ example.hashCode;
+  int get hashCode => sdk.hashCode ^ example.hashCode ^ resetKey.hashCode;
 }

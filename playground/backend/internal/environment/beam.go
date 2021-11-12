@@ -19,7 +19,11 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 )
 
-// ExecutorConfig contains needed for compiling and execution of the code commands
+// ExecutorConfig contains all environment variables needed for compiling and execution of the code commands:
+// - CompileCmd: command to compile files with code
+// - RunCmd: command to run compiled code
+// - CompileArgs: arguments which are needed to compile files with code
+// - RunArgs: arguments which are needed to run compiled code
 type ExecutorConfig struct {
 	CompileCmd  string   `json:"compile_cmd"`
 	RunCmd      string   `json:"run_cmd"`
@@ -27,6 +31,7 @@ type ExecutorConfig struct {
 	RunArgs     []string `json:"run_args"`
 }
 
+// NewExecutorConfig creates and returns ExecutorConfig
 func NewExecutorConfig(compileCmd string, runCmd string, compileArgs []string, runArgs []string) *ExecutorConfig {
 	return &ExecutorConfig{CompileCmd: compileCmd, RunCmd: runCmd, CompileArgs: compileArgs, RunArgs: runArgs}
 }

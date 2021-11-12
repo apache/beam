@@ -64,7 +64,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.Environments;
@@ -1636,7 +1635,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       implements TransformTranslator<StreamingPubsubIORead> {
 
     @Override
-    public void translate(StreamingPubsubIORead transform, TranslationContext context) {
+    public void translate(
+        StreamingPubsubIORead transform, TransformTranslator.TranslationContext context) {
       checkArgument(
           context.getPipelineOptions().isStreaming(),
           "StreamingPubsubIORead is only for streaming pipelines.");
@@ -1695,7 +1695,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         implements TransformTranslator<StreamingPubsubIOWrite> {
 
       @Override
-      public void translate(StreamingPubsubIOWrite transform, TranslationContext context) {
+      public void translate(
+          StreamingPubsubIOWrite transform, TransformTranslator.TranslationContext context) {
         checkArgument(
             context.getPipelineOptions().isStreaming(),
             "StreamingPubsubIOWrite is only for streaming pipelines.");
@@ -1824,7 +1825,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   CoderTranslation.fromProto(
                       coderSpec.getCoder(),
                       RehydratedComponents.forComponents(coderSpec.getComponents()),
-                      TranslationContext.DEFAULT);
+                      CoderTranslation.TranslationContext.DEFAULT);
         }
         return coder;
       }
@@ -1846,7 +1847,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class ImpulseTranslator implements TransformTranslator<Impulse> {
 
     @Override
-    public void translate(Impulse transform, TranslationContext context) {
+    public void translate(Impulse transform, TransformTranslator.TranslationContext context) {
       if (context.getPipelineOptions().isStreaming()) {
         StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
         stepContext.addInput(PropertyNames.FORMAT, "pubsub");
@@ -1963,7 +1964,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     private static class ReadWithIdsTranslator implements TransformTranslator<ReadWithIds<?>> {
 
       @Override
-      public void translate(ReadWithIds<?> transform, TranslationContext context) {
+      public void translate(
+          ReadWithIds<?> transform, TransformTranslator.TranslationContext context) {
         ReadTranslator.translateReadHelper(transform.getSource(), transform, context);
       }
     }
@@ -2301,7 +2303,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static boolean useUnifiedWorker(DataflowPipelineOptions options) {
     return hasExperiment(options, "beam_fn_api")
         || hasExperiment(options, "use_runner_v2")
-        || hasExperiment(options, "use_unified_worker");
+        || hasExperiment(options, "use_unified_worker")
+        || hasExperiment(options, "enable_prime");
   }
 
   static boolean useStreamingEngine(DataflowPipelineOptions options) {
@@ -2339,6 +2342,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 MapState.class.getSimpleName(),
                 isUnifiedWorker ? "streaming on unified worker" : "streaming engine"));
       }
+    }
+    if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s when not using unified worker because it uses "
+                  + "BundleFinalizers in its implementation. Set the `--experiments=use_runner_v2` "
+                  + "option to use this DoFn.",
+              DataflowRunner.class.getSimpleName(), fn.getClass().getSimpleName()));
     }
   }
 

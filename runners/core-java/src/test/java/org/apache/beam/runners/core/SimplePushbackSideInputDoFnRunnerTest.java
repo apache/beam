@@ -445,11 +445,17 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     // second element, key is hello, WINDOW_2
     runner.processElementInReadyWindows(
         WindowedValue.of(
-            KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
+            KV.of("hello", 1),
+            elementTime.plus(Duration.millis(WINDOW_SIZE)),
+            WINDOW_2,
+            PaneInfo.NO_FIRING));
 
     runner.processElementInReadyWindows(
         WindowedValue.of(
-            KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
+            KV.of("hello", 1),
+            elementTime.plus(Duration.millis(WINDOW_SIZE)),
+            WINDOW_2,
+            PaneInfo.NO_FIRING));
 
     assertEquals(2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
 
@@ -460,9 +466,9 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         timerInternals,
         WINDOW_1
             .maxTimestamp()
-            .plus(ALLOWED_LATENESS)
-            .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
-            .plus(1), // so the watermark is past the GC horizon, not on it
+            .plus(Duration.millis(ALLOWED_LATENESS))
+            .plus(Duration.millis(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS))
+            .plus(Duration.millis(1)), // so the watermark is past the GC horizon, not on it
         runner);
 
     assertTrue(
@@ -476,9 +482,9 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         timerInternals,
         WINDOW_2
             .maxTimestamp()
-            .plus(ALLOWED_LATENESS)
-            .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
-            .plus(1), // so the watermark is past the GC horizon, not on it
+            .plus(Duration.millis(ALLOWED_LATENESS))
+            .plus(Duration.millis(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS))
+            .plus(Duration.millis(1)), // so the watermark is past the GC horizon, not on it
         runner);
 
     assertTrue(

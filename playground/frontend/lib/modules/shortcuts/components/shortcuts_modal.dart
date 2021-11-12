@@ -46,7 +46,7 @@ class ShortcutsModal extends StatelessWidget {
       ),
       content: Wrap(
         crossAxisAlignment: WrapCrossAlignment.start,
-        runSpacing: kLgSpacing,
+        runSpacing: kXlSpacing,
         children: [
           ...globalShortcuts.map(
             (shortcut) => Row(

@@ -17,7 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/output/components/output_result.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
@@ -34,11 +34,9 @@ class OutputArea extends StatelessWidget {
       child: Consumer<PlaygroundState>(
         builder: (context, state, child) {
           return TabBarView(
+            physics: const NeverScrollableScrollPhysics(),
             children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(kLgSpacing),
-                child: Text(state.result?.output ?? ''),
-              ),
+              OutputResult(text: state.result?.output ?? ''),
               const Center(child: Text(kLogText)),
               const Center(child: Text(kGraphText)),
             ],

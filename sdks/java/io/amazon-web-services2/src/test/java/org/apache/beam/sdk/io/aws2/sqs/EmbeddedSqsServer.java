@@ -32,19 +32,17 @@ class EmbeddedSqsServer extends ExternalResource {
   private static SQSRestServer sqsRestServer;
   private static SqsClient client;
   private static String queueUrl;
-  private static int port = 9234;
-  private static String endPoint = String.format("http://localhost:%d", port);
   private static String queueName = "test";
 
   @Override
   protected void before() {
-    sqsRestServer = SQSRestServerBuilder.withPort(port).start();
-
+    sqsRestServer = SQSRestServerBuilder.withDynamicPort().start();
+    int port = sqsRestServer.waitUntilStarted().localAddress().getPort();
     client =
         SqsClient.builder()
             .credentialsProvider(
                 StaticCredentialsProvider.create(AwsBasicCredentials.create("x", "x")))
-            .endpointOverride(URI.create(endPoint))
+            .endpointOverride(URI.create(String.format("http://localhost:%d", port)))
             .region(Region.US_WEST_2)
             .build();
 
@@ -65,5 +63,6 @@ class EmbeddedSqsServer extends ExternalResource {
   @Override
   protected void after() {
     sqsRestServer.stopAndWait();
+    client.close();
   }
 }

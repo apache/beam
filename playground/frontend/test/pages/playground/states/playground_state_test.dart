@@ -36,13 +36,13 @@ void main() {
     state.setSdk(SDK.go);
   });
 
-  test('Playground state reset should set new state and notify all listeners',
+  test(
+      'Playground state reset should reset source to example notify all listeners',
       () {
-    final state = PlaygroundState(sdk: SDK.go);
+    final state = PlaygroundState(sdk: SDK.go, selectedExample: exampleMock);
     state.setSource('source');
     state.addListener(() {
-      expect(state.sdk, SDK.java);
-      expect(state.source, '');
+      expect(state.source, goExample);
     });
     state.reset();
   });

@@ -129,7 +129,7 @@ public class GenerateSequenceTest {
     Instant startTime = Instant.now();
     p.run();
     Instant endTime = Instant.now();
-    assertThat(endTime.isAfter(startTime.plus(expectedRuntimeMillis)), is(true));
+    assertThat(endTime.isAfter(startTime.plus(Duration.millis(expectedRuntimeMillis))), is(true));
   }
 
   private static class ElementValueDiff extends DoFn<Long, Long> {
