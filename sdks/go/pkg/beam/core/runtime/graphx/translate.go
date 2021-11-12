@@ -284,6 +284,21 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PT
 	return nil
 }
 
+func getSideWindowMappingUrn(winFn *window.Fn) string {
+	var mappingUrn string
+	switch winFn.Kind {
+	case window.GlobalWindows:
+		mappingUrn = URNWindowMappingGlobal
+	case window.FixedWindows:
+		mappingUrn = URNWindowMappingFixed
+	case window.SlidingWindows:
+		mappingUrn = URNWindowMappingSliding
+	case window.Sessions:
+		panic("session windowing is not supported for side inputs")
+	}
+	return mappingUrn
+}
+
 func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 	handleErr := func(err error) ([]string, error) {
 		return nil, errors.Wrapf(err, "failed to add input kind: %v", edge)
@@ -392,17 +407,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 				inputs[fmt.Sprintf("i%v", i)] = out
 
 				siWfn := in.From.WindowingStrategy().Fn
-				var mappingUrn string
-				switch siWfn.Kind {
-				case window.GlobalWindows:
-					mappingUrn = URNWindowMappingGlobal
-				case window.FixedWindows:
-					mappingUrn = URNWindowMappingFixed
-				case window.SlidingWindows:
-					mappingUrn = URNWindowMappingSliding
-				case window.Sessions:
-					panic("session windowing is not supported for side inputs")
-				}
+				mappingUrn := getSideWindowMappingUrn(siWfn)
 
 				siWSpec, err := makeWindowFn(siWfn)
 				if err != nil {
@@ -423,8 +428,28 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 				}
 
 			case graph.Map, graph.MultiMap:
-				return nil, errors.Errorf("not implemented")
+				// Already in a MultiMap form, don't need to add a fixed key.
+				// Get window mapping, arrange proto field.
+				siWfn := in.From.WindowingStrategy().Fn
+				mappingUrn := getSideWindowMappingUrn(siWfn)
 
+				siWSpec, err := makeWindowFn(siWfn)
+				if err != nil {
+					return nil, err
+				}
+
+				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput{
+					AccessPattern: &pipepb.FunctionSpec{
+						Urn: URNMultimapSideInput,
+					},
+					ViewFn: &pipepb.FunctionSpec{
+						Urn: "foo",
+					},
+					WindowMappingFn: &pipepb.FunctionSpec{
+						Urn:     mappingUrn,
+						Payload: siWSpec.Payload,
+					},
+				}
 			default:
 				return nil, errors.Errorf("unexpected input kind: %v", edge)
 			}
