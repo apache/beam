@@ -217,6 +217,18 @@ func TestPlaygroundController_CheckStatus(t *testing.T) {
 		wantErr    bool
 	}{
 		{
+			// Test case with calling CheckStatus method with incorrect pipelineId.
+			// As a result, want to receive an error
+			name:    "incorrect pipelineId",
+			prepare: func() {},
+			args: args{
+				ctx:     ctx,
+				request: &pb.CheckStatusRequest{PipelineUuid: "NO_UUID_STRING"},
+			},
+			wantStatus: nil,
+			wantErr:    true,
+		},
+		{
 			// Test case with calling CheckStatus method with pipelineId which doesn't exist.
 			// As a result, want to receive an error.
 			name:    "status is not set",
@@ -284,6 +296,18 @@ func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			// Test case with calling GetCompileOutput method with incorrect pipelineId.
+			// As a result, want to receive an error
+			name:    "incorrect pipelineId",
+			prepare: func() {},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetCompileOutputRequest{PipelineUuid: "NO_UUID_STRING"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
 			name:    "pipelineId doesn't exist",
 			prepare: func() {},
 			args: args{
@@ -347,6 +371,18 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			// Test case with calling GetRunOutput method with incorrect pipelineId.
+			// As a result, want to receive an error
+			name:    "incorrect pipelineId",
+			prepare: func() {},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetRunOutputRequest{PipelineUuid: "NO_UUID_STRING"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
 			name:    "pipelineId doesn't exist",
 			prepare: func() {},
 			args: args{
@@ -409,6 +445,18 @@ func TestPlaygroundController_GetRunError(t *testing.T) {
 		want    *pb.GetRunErrorResponse
 		wantErr bool
 	}{
+		{
+			// Test case with calling GetRunError method with incorrect pipelineId.
+			// As a result, want to receive an error
+			name:    "incorrect pipelineId",
+			prepare: func() {},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetRunErrorRequest{PipelineUuid: "NO_UUID_STRING"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
 		{
 			name:    "pipelineId doesn't exist",
 			prepare: func() {},
@@ -483,6 +531,20 @@ func TestPlaygroundController_Cancel(t *testing.T) {
 		want      *pb.CancelResponse
 		wantErr   bool
 	}{
+		{
+			// Test case with calling Cancel method with incorrect pipelineId.
+			// As a result, want to receive an error
+			name: "incorrect pipelineId",
+			args: args{
+				ctx:  ctx,
+				info: &pb.CancelRequest{PipelineUuid: "NO_UUID_STRING"},
+			},
+			checkFunc: func() bool {
+				return true
+			},
+			want:    nil,
+			wantErr: true,
+		},
 		{
 			// Test case with calling Cancel method.
 			// As a result, want to find value in cache for cache.Canceled subKey.

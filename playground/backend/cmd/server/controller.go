@@ -76,11 +76,15 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 
 //CheckStatus is checking status for the specific pipeline by PipelineUuid
 func (controller *playgroundController) CheckStatus(ctx context.Context, info *pb.CheckStatusRequest) (*pb.CheckStatusResponse, error) {
-	pipelineId := info.PipelineUuid
-	statusInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.Status)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	if err != nil {
+		logger.Errorf("%s: CheckStatus(): pipelineId has incorrect value and couldn't be parse as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("CheckStatus", "pipelineId has incorrect value and couldn't be parse as uuid value: "+info.PipelineUuid)
+	}
+	statusInterface, err := controller.cacheService.GetValue(ctx, pipelineId, cache.Status)
 	if err != nil {
 		logger.Errorf("%s: CheckStatus(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("CheckStatus", "Error during getting cache by pipelineId: "+pipelineId+", subKey: cache.SubKey_Status")
+		return nil, errors.NotFoundError("CheckStatus", "Error during getting cache by pipelineId: "+pipelineId.String()+", subKey: cache.SubKey_Status")
 	}
 	status, converted := statusInterface.(pb.Status)
 	if !converted {
@@ -91,11 +95,15 @@ func (controller *playgroundController) CheckStatus(ctx context.Context, info *p
 
 //GetRunOutput is returning output of execution for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetRunOutput(ctx context.Context, info *pb.GetRunOutputRequest) (*pb.GetRunOutputResponse, error) {
-	pipelineId := info.PipelineUuid
-	runOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.RunOutput)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	if err != nil {
+		logger.Errorf("%s: GetRunOutput(): pipelineId has incorrect value and couldn't be parse as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("GetRunOutput", "pipelineId has incorrect value and couldn't be parse as uuid value: "+info.PipelineUuid)
+	}
+	runOutputInterface, err := controller.cacheService.GetValue(ctx, pipelineId, cache.RunOutput)
 	if err != nil {
 		logger.Errorf("%s: GetRunOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("GetRunOutput", "there is no run output for pipelineId: "+pipelineId+", subKey: cache.SubKey_RunOutput")
+		return nil, errors.NotFoundError("GetRunOutput", "there is no run output for pipelineId: "+pipelineId.String()+", subKey: cache.SubKey_RunOutput")
 	}
 	runOutput, converted := runOutputInterface.(string)
 	if !converted {
@@ -108,11 +116,15 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 
 //GetRunError is returning error output of execution for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetRunError(ctx context.Context, info *pb.GetRunErrorRequest) (*pb.GetRunErrorResponse, error) {
-	pipelineId := info.PipelineUuid
-	runErrorInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.RunError)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	if err != nil {
+		logger.Errorf("%s: GetRunError(): pipelineId has incorrect value and couldn't be parse as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("GetRunError", "pipelineId has incorrect value and couldn't be parse as uuid value: "+info.PipelineUuid)
+	}
+	runErrorInterface, err := controller.cacheService.GetValue(ctx, pipelineId, cache.RunError)
 	if err != nil {
 		logger.Errorf("%s: GetRunError(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("GetRunError", "there is no run error output for pipelineId: "+pipelineId+", subKey: cache.RunError")
+		return nil, errors.NotFoundError("GetRunError", "there is no run error output for pipelineId: "+pipelineId.String()+", subKey: cache.RunError")
 	}
 	runError, converted := runErrorInterface.(string)
 	if !converted {
@@ -125,11 +137,15 @@ func (controller *playgroundController) GetRunError(ctx context.Context, info *p
 
 //GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetCompileOutput(ctx context.Context, info *pb.GetCompileOutputRequest) (*pb.GetCompileOutputResponse, error) {
-	pipelineId := info.PipelineUuid
-	compileOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.CompileOutput)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	if err != nil {
+		logger.Errorf("%s: GetCompileOutput(): pipelineId has incorrect value and couldn't be parse as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("GetCompileOutput", "pipelineId has incorrect value and couldn't be parse as uuid value: "+info.PipelineUuid)
+	}
+	compileOutputInterface, err := controller.cacheService.GetValue(ctx, pipelineId, cache.CompileOutput)
 	if err != nil {
 		logger.Errorf("%s: GetCompileOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("GetCompileOutput", "there is no compile output for pipelineId: "+pipelineId+", subKey: cache.SubKey_CompileOutput")
+		return nil, errors.NotFoundError("GetCompileOutput", "there is no compile output for pipelineId: "+pipelineId.String()+", subKey: cache.SubKey_CompileOutput")
 	}
 	compileOutput, converted := compileOutputInterface.(string)
 	if !converted {
@@ -142,8 +158,12 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 
 // Cancel is setting cancel flag to stop code processing
 func (controller *playgroundController) Cancel(ctx context.Context, info *pb.CancelRequest) (*pb.CancelResponse, error) {
-	pipelineId := info.PipelineUuid
-	if err := setToCache(ctx, controller.cacheService, uuid.MustParse(pipelineId), cache.Canceled, true); err != nil {
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	if err != nil {
+		logger.Errorf("%s: Cancel(): pipelineId has incorrect value and couldn't be parse as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("Cancel", "pipelineId has incorrect value and couldn't be parse as uuid value: "+info.PipelineUuid)
+	}
+	if err := setToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, true); err != nil {
 		return nil, errors.InternalError("Cancel", "error during set cancel flag to cache")
 	}
 	return &pb.CancelResponse{}, nil
