@@ -120,6 +120,7 @@ class GrpcCodeClient implements CodeClient {
         return RunCodeStatus.compiling;
       case grpc.Status.STATUS_EXECUTING:
         return RunCodeStatus.executing;
+      case grpc.Status.STATUS_CANCELED:
       case grpc.Status.STATUS_FINISHED:
         return RunCodeStatus.finished;
       case grpc.Status.STATUS_COMPILE_ERROR:
