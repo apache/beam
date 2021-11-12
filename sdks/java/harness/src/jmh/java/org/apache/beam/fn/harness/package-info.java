@@ -15,16 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-<<<<<<<< HEAD:sdks/java/harness/src/jmh/java/org/apache/beam/fn/harness/package-info.java
 
 /** Benchmarks for the SDK harness. */
 package org.apache.beam.fn.harness;
-========
-/** Defines transforms for reading and writing from Google Cloud Pub/Sub Lite. */
-@CheckReturnValue
-@ParametersAreNonnullByDefault
-package org.apache.beam.sdk.io.gcp.pubsublite.internal;
-
-import com.google.errorprone.annotations.CheckReturnValue;
-import javax.annotation.ParametersAreNonnullByDefault;
->>>>>>>> 1630d5be49 ([BEAM-13052] Restructure pubsublite folder to move non-user interface classes to internal folder):sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/pubsublite/internal/package-info.java
