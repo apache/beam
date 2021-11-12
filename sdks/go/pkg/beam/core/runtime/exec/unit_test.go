@@ -163,6 +163,10 @@ func (a *FixedSideInputAdapter) NewIterable(ctx context.Context, reader StateRea
 	return a.Val, nil
 }
 
+func (a *FixedSideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey string) (ReStream, error) {
+	return a.Val, nil
+}
+
 // BenchRoot is a test Root that emits elements through a channel for benchmarking purposes.
 type BenchRoot struct {
 	UID      UnitID
