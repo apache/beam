@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
@@ -26,6 +27,7 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 class ExampleState with ChangeNotifier {
   final ExampleRepository _exampleRepository;
   Map<SDK, List<CategoryModel>>? sdkCategories;
+  Map<SDK, ExampleModel>? defaultExamplesMap;
   bool isSelectorOpened = false;
 
   ExampleState(this._exampleRepository) {
@@ -50,15 +52,43 @@ class ExampleState with ChangeNotifier {
     return source;
   }
 
+  Future<ExampleModel> loadExampleInfo(ExampleModel example) async {
+    String source = await getExampleSource(example.path);
+    example.setSource(source);
+    final outputs = await getExampleOutput(example.path);
+    example.setOutputs(outputs);
+    return example;
+  }
+
   _loadCategories() async {
     sdkCategories = await _exampleRepository.getListOfExamples(
       GetListOfExamplesRequestWrapper(sdk: null, category: null),
     );
+    _loadDefaultExamples(sdkCategories);
     notifyListeners();
   }
 
   changeSelectorVisibility() {
     isSelectorOpened = !isSelectorOpened;
+    notifyListeners();
+  }
+
+  _loadDefaultExamples(sdkCategories) async {
+    defaultExamplesMap = {};
+    List<MapEntry<SDK, ExampleModel>> entries = [];
+    for (SDK sdk in SDK.values) {
+      ExampleModel? defaultExample = sdkCategories![sdk]?.first.examples.first;
+      if (defaultExample != null) {
+        await getExampleSource(defaultExample.path).then((value) {
+          defaultExample.setSource(value);
+        });
+        getExampleOutput(defaultExample.path).then((value) {
+          defaultExample.setOutputs(value);
+        });
+        entries.add(MapEntry(sdk, defaultExample));
+      }
+    }
+    defaultExamplesMap?.addEntries(entries);
     notifyListeners();
   }
 }

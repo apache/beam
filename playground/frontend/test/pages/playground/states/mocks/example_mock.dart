@@ -22,10 +22,14 @@ final ExampleModel exampleMock1 = ExampleModel(
   source: 'ex1',
   name: 'Example',
   type: ExampleType.example,
+  description: 'description',
+  path: 'SDK/Category/Name',
 );
 
 final ExampleModel exampleMock2 = ExampleModel(
   source: 'ex2',
   name: 'Kata',
   type: ExampleType.kata,
+  description: 'description',
+  path: 'SDK/Category/Name',
 );

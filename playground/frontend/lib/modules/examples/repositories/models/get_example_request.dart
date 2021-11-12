@@ -1,5 +1,5 @@
 class GetExampleRequestWrapper {
-  final String uuid;
+  final String path;
 
-  GetExampleRequestWrapper(this.uuid);
+  GetExampleRequestWrapper(this.path);
 }

@@ -21,6 +21,7 @@ import 'package:playground/api/v1/api.pbgrpc.dart' as grpc;
 import 'package:playground/constants/api.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_client/example_client.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_response.dart';
@@ -45,7 +46,8 @@ class GrpcExampleClient implements ExampleClient {
   ) {
     return _runSafely(
       () => _client
-          .getListOfExamples(_getListOfExamplesRequestToGrpcRequest(request))
+          .getPrecompiledObjects(
+              _getListOfExamplesRequestToGrpcRequest(request))
           .then((response) => GetListOfExampleResponse(
               _toClientCategories(response.sdkCategories))),
     );
@@ -55,7 +57,7 @@ class GrpcExampleClient implements ExampleClient {
   Future<GetExampleResponse> getExample(GetExampleRequestWrapper request) {
     return _runSafely(
       () => _client
-          .getExample(_getExampleRequestToGrpcRequest(request))
+          .getPrecompiledObjectCode(_getExampleRequestToGrpcRequest(request))
           .then((response) => GetExampleResponse(response.code)),
     );
   }
@@ -64,7 +66,7 @@ class GrpcExampleClient implements ExampleClient {
   Future<OutputResponse> getExampleOutput(GetExampleRequestWrapper request) {
     return _runSafely(
       () => _client
-          .getExampleOutput(_getExampleRequestToGrpcRequest(request))
+          .getPrecompiledObjectOutput(_getExampleRequestToGrpcRequest(request))
           .then((response) => OutputResponse(response.output)),
     );
   }
@@ -77,20 +79,20 @@ class GrpcExampleClient implements ExampleClient {
     }
   }
 
-  grpc.GetListOfExamplesRequest _getListOfExamplesRequestToGrpcRequest(
+  grpc.GetPrecompiledObjectsRequest _getListOfExamplesRequestToGrpcRequest(
     GetListOfExamplesRequestWrapper request,
   ) {
-    return grpc.GetListOfExamplesRequest()
+    return grpc.GetPrecompiledObjectsRequest()
       ..category = request.category ?? ''
       ..sdk = request.sdk == null
           ? grpc.Sdk.SDK_UNSPECIFIED
           : _getGrpcSdk(request.sdk!);
   }
 
-  grpc.GetExampleRequest _getExampleRequestToGrpcRequest(
+  grpc.GetPrecompiledObjectRequest _getExampleRequestToGrpcRequest(
     GetExampleRequestWrapper request,
   ) {
-    return grpc.GetExampleRequest()..exampleUuid = request.uuid;
+    return grpc.GetPrecompiledObjectRequest()..cloudPath = request.path;
   }
 
   grpc.Sdk _getGrpcSdk(SDK sdk) {
@@ -106,18 +108,62 @@ class GrpcExampleClient implements ExampleClient {
     }
   }
 
+  SDK _getAppSdk(grpc.Sdk sdk) {
+    switch (sdk) {
+      case grpc.Sdk.SDK_JAVA:
+        return SDK.java;
+      case grpc.Sdk.SDK_GO:
+        return SDK.go;
+      case grpc.Sdk.SDK_PYTHON:
+        return SDK.python;
+      case grpc.Sdk.SDK_SCIO:
+        return SDK.scio;
+      default:
+        return SDK.java;
+    }
+  }
+
+  ExampleType _exampleTypeFromString(grpc.PrecompiledObjectType type) {
+    switch (type) {
+      case grpc.PrecompiledObjectType.EXAMPLE:
+        return ExampleType.example;
+      case grpc.PrecompiledObjectType.KATA:
+        return ExampleType.kata;
+      case grpc.PrecompiledObjectType.UNIT_TEST:
+        return ExampleType.test;
+      default:
+        return ExampleType.example;
+    }
+  }
+
   Map<SDK, List<CategoryModel>> _toClientCategories(
-    Map<String, grpc.CategoryList> response,
+    List<grpc.Categories> response,
   ) {
-    Map<SDK, List<CategoryModel>> output = {};
-    // for (SDK sdk in SDK.values) {
-    //   final sdkName = sdk.displayName.toLowerCase();
-    //   if (response.containsKey(sdkName)) {
-    //         response[sdkName]!.categoryExamples.forEach((key, value) {
-    //           output[sdk]!.add(CategoryModel(name: key, examples: value.example));
-    //         });
-    //   }
-    // }
-    return output;
+    Map<SDK, List<CategoryModel>> sdkCategoriesMap = {};
+    List<MapEntry<SDK, List<CategoryModel>>> entries = [];
+    for (var sdkMap in response) {
+      SDK sdk = _getAppSdk(sdkMap.sdk);
+      List<CategoryModel> categoriesForSdk = [];
+      for (var category in sdkMap.categories) {
+        List<ExampleModel> examples = category.precompiledObjects
+            .map((e) => ExampleModel(
+                  name: e.name,
+                  description: e.description,
+                  type: _exampleTypeFromString(e.type),
+                  path: e.cloudPath,
+                ))
+            .toList();
+        categoriesForSdk.add(CategoryModel(
+          name: category.categoryName,
+          examples: examples,
+        ));
+      }
+      entries.add(MapEntry(
+        sdk,
+        categoriesForSdk,
+      ));
+    }
+    sdkCategoriesMap.addEntries(entries);
+    return sdkCategoriesMap;
   }
 }

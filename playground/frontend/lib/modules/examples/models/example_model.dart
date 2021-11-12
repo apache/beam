@@ -41,14 +41,14 @@ extension ExampleTypeToString on ExampleType {
 class ExampleModel {
   final ExampleType type;
   final String name;
-  final String uuid;
+  final String path;
   final String description;
   String? source;
   String? outputs;
 
   ExampleModel({
     required this.name,
-    required this.uuid,
+    required this.path,
     required this.description,
     required this.type,
     this.source,
