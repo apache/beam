@@ -1324,6 +1324,11 @@ public class JdbcIO {
       this.inner = inner;
     }
 
+    /** See {@link WriteVoid#withAutoSharding()}. */
+    public Write<T> withAutoSharding() {
+      return new Write<>(inner.withAutoSharding());
+    }
+
     /** See {@link WriteVoid#withDataSourceConfiguration(DataSourceConfiguration)}. */
     public Write<T> withDataSourceConfiguration(DataSourceConfiguration config) {
       return new Write<>(inner.withDataSourceConfiguration(config));
@@ -1399,6 +1404,7 @@ public class JdbcIO {
           .setPreparedStatementSetter(inner.getPreparedStatementSetter())
           .setStatement(inner.getStatement())
           .setTable(inner.getTable())
+          .setAutoSharding(inner.getAutoSharding())
           .build();
     }
 
@@ -1565,9 +1571,8 @@ public class JdbcIO {
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
       checkArgument(
-          ((getAutoSharding() == null || !getAutoSharding())
-                  && input.isBounded() == IsBounded.BOUNDED)
-              || input.isBounded() == IsBounded.UNBOUNDED,
+          getAutoSharding() == null
+              || (getAutoSharding() && input.isBounded() != IsBounded.UNBOUNDED),
           "Autosharding is only supported for streaming pipelines.");
       ;
 
@@ -1600,7 +1605,6 @@ public class JdbcIO {
 
                       @FinishBundle
                       public void finish(FinishBundleContext c) {
-                        System.out.println("List size is " + outputList.size());
                         c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
                         outputList = null;
                       }
