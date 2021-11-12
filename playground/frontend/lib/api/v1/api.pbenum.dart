@@ -85,14 +85,16 @@ class Status extends $pb.ProtobufEnum {
 }
 
 class PrecompiledObjectType extends $pb.ProtobufEnum {
-  static const PrecompiledObjectType EXAMPLE = PrecompiledObjectType._(0, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'EXAMPLE');
-  static const PrecompiledObjectType KATA = PrecompiledObjectType._(1, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'KATA');
-  static const PrecompiledObjectType UNIT_TEST = PrecompiledObjectType._(2, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'UNIT_TEST');
+  static const PrecompiledObjectType PRECOMPILED_OBJECT_TYPE_UNSPECIFIED = PrecompiledObjectType._(0, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'PRECOMPILED_OBJECT_TYPE_UNSPECIFIED');
+  static const PrecompiledObjectType PRECOMPILED_OBJECT_TYPE_EXAMPLE = PrecompiledObjectType._(1, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'PRECOMPILED_OBJECT_TYPE_EXAMPLE');
+  static const PrecompiledObjectType PRECOMPILED_OBJECT_TYPE_KATA = PrecompiledObjectType._(2, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'PRECOMPILED_OBJECT_TYPE_KATA');
+  static const PrecompiledObjectType PRECOMPILED_OBJECT_TYPE_UNIT_TEST = PrecompiledObjectType._(3, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'PRECOMPILED_OBJECT_TYPE_UNIT_TEST');
 
   static const $core.List<PrecompiledObjectType> values = <PrecompiledObjectType> [
-    EXAMPLE,
-    KATA,
-    UNIT_TEST,
+    PRECOMPILED_OBJECT_TYPE_UNSPECIFIED,
+    PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+    PRECOMPILED_OBJECT_TYPE_KATA,
+    PRECOMPILED_OBJECT_TYPE_UNIT_TEST,
   ];
 
   static final $core.Map<$core.int, PrecompiledObjectType> _byValue = $pb.ProtobufEnum.initByValue(values);

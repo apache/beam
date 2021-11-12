@@ -65,14 +65,15 @@ final $typed_data.Uint8List statusDescriptor = $convert.base64Decode('CgZTdGF0dX
 const PrecompiledObjectType$json = const {
   '1': 'PrecompiledObjectType',
   '2': const [
-    const {'1': 'EXAMPLE', '2': 0},
-    const {'1': 'KATA', '2': 1},
-    const {'1': 'UNIT_TEST', '2': 2},
+    const {'1': 'PRECOMPILED_OBJECT_TYPE_UNSPECIFIED', '2': 0},
+    const {'1': 'PRECOMPILED_OBJECT_TYPE_EXAMPLE', '2': 1},
+    const {'1': 'PRECOMPILED_OBJECT_TYPE_KATA', '2': 2},
+    const {'1': 'PRECOMPILED_OBJECT_TYPE_UNIT_TEST', '2': 3},
   ],
 };
 
 /// Descriptor for `PrecompiledObjectType`. Decode as a `google.protobuf.EnumDescriptorProto`.
-final $typed_data.Uint8List precompiledObjectTypeDescriptor = $convert.base64Decode('ChVQcmVjb21waWxlZE9iamVjdFR5cGUSCwoHRVhBTVBMRRAAEggKBEtBVEEQARINCglVTklUX1RFU1QQAg==');
+final $typed_data.Uint8List precompiledObjectTypeDescriptor = $convert.base64Decode('ChVQcmVjb21waWxlZE9iamVjdFR5cGUSJwojUFJFQ09NUElMRURfT0JKRUNUX1RZUEVfVU5TUEVDSUZJRUQQABIjCh9QUkVDT01QSUxFRF9PQkpFQ1RfVFlQRV9FWEFNUExFEAESIAocUFJFQ09NUElMRURfT0JKRUNUX1RZUEVfS0FUQRACEiUKIVBSRUNPTVBJTEVEX09CSkVDVF9UWVBFX1VOSVRfVEVTVBAD');
 @$core.Deprecated('Use runCodeRequestDescriptor instead')
 const RunCodeRequest$json = const {
   '1': 'RunCodeRequest',

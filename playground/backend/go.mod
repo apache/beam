@@ -26,7 +26,7 @@ require (
 	github.com/improbable-eng/grpc-web v0.14.1
 	github.com/rs/cors v1.8.0
 	go.uber.org/goleak v1.1.12
-	google.golang.org/api v0.46.0
+	google.golang.org/api v0.58.0
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
 )
