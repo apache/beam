@@ -63,6 +63,7 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 }
 
 func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
+	// TODO(jrmccluskey): re-write to ensure support for non-string keys
 	iterStr, ok := iterKey.(string)
 	if !ok {
 		return nil, fmt.Errorf("failed to convert key %v to string", iterKey)
