@@ -266,8 +266,8 @@ class LogicalTypes {
     @Override
     public BigDecimal toInputType(BigDecimal base) {
       checkArgument(
-          base == null || (base.precision() == precision && base.scale() == scale),
-          "Expected BigDecimal base to be null or have precision = %s (was %s), scale = %s (was %s)",
+          base == null || (base.precision() <= precision && base.scale() <= scale),
+          "Expected BigDecimal base to be null or have precision <= %s (was %s), scale <= %s (was %s)",
           precision,
           base.precision(),
           scale,
