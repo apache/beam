@@ -163,7 +163,7 @@ func (a *FixedSideInputAdapter) NewIterable(ctx context.Context, reader StateRea
 	return a.Val, nil
 }
 
-func (a *FixedSideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey string) (ReStream, error) {
+func (a *FixedSideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
 	return a.Val, nil
 }
 

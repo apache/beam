@@ -33,7 +33,7 @@ const iterableSideInputKey = ""
 // encapsulates StreamID and coding as needed.
 type SideInputAdapter interface {
 	NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error)
-	NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey string) (ReStream, error)
+	NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error)
 }
 
 type sideInputAdapter struct {
@@ -62,8 +62,12 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 	return s.NewKeyedIterable(ctx, reader, w, iterableSideInputKey)
 }
 
-func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey string) (ReStream, error) {
-	key, err := EncodeElement(s.kc, []byte(iterKey))
+func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
+	iterStr, ok := iterKey.(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert key %v to string", iterKey)
+	}
+	key, err := EncodeElement(s.kc, []byte(iterStr))
 	if err != nil {
 		return nil, err
 	}
