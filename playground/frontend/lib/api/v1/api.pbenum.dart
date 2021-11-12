@@ -60,6 +60,7 @@ class Status extends $pb.ProtobufEnum {
   static const Status STATUS_RUN_ERROR = Status._(9, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_RUN_ERROR');
   static const Status STATUS_ERROR = Status._(10, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_ERROR');
   static const Status STATUS_RUN_TIMEOUT = Status._(11, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_RUN_TIMEOUT');
+  static const Status STATUS_CANCELED = Status._(12, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'STATUS_CANCELED');
 
   static const $core.List<Status> values = <Status> [
     STATUS_UNSPECIFIED,
@@ -74,6 +75,7 @@ class Status extends $pb.ProtobufEnum {
     STATUS_RUN_ERROR,
     STATUS_ERROR,
     STATUS_RUN_TIMEOUT,
+    STATUS_CANCELED,
   ];
 
   static final $core.Map<$core.int, Status> _byValue = $pb.ProtobufEnum.initByValue(values);
