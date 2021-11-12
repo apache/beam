@@ -462,7 +462,7 @@ class TypeVariable(AnyTypeConstraint):
     return {self: concrete_type}
 
   def bind_type_variables(self, bindings):
-    return bindings.get(self, self)
+    return bindings.get(self, bindings.get('*', self))
 
 
 class UnionHint(CompositeTypeHint):
