@@ -59,16 +59,11 @@ func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder, wm Wi
 }
 
 func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error) {
-	return s.NewKeyedIterable(ctx, reader, w, iterableSideInputKey)
+	return s.NewKeyedIterable(ctx, reader, w, []byte(iterableSideInputKey))
 }
 
 func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
-	// TODO(BEAM-3293): re-write to ensure support for non-string keys
-	iterStr, ok := iterKey.(string)
-	if !ok {
-		return nil, fmt.Errorf("failed to convert key %v to string", iterKey)
-	}
-	key, err := EncodeElement(s.kc, []byte(iterStr))
+	key, err := EncodeElement(s.kc, iterKey)
 	if err != nil {
 		return nil, err
 	}
