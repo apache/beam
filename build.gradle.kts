@@ -305,6 +305,23 @@ task("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
 }
 
+
+task("pythonExamplesFlinkPostCommit") {
+  dependsOn(":sdks:python:test-suites:portable:py37:postCommitExamplesFlink")
+}
+
+task("pythonExamplesSparkPostCommit") {
+  dependsOn(":sdks:python:test-suites:portable:py37:postCommitExamplesSpark")
+}
+
+task("pythonExamplesDirectPostCommit") {
+  dependsOn(":sdks:python:test-suites:direct:py37:postCommitExamples")
+}
+
+task("pythonExamplesDataflowPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitExamples")
+}
+
 task("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py36:preCommitPy36")
   dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")

@@ -34,6 +34,7 @@ from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
+@pytest.mark.examples_postcommit
 @pytest.mark.it_postcommit
 class JuliaSetTestIT(unittest.TestCase):
   GRID_SIZE = 1000

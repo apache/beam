@@ -42,6 +42,7 @@ class DatastoreWordCountIT(unittest.TestCase):
   DATASTORE_WORDCOUNT_KIND = "DatastoreWordCount"
   EXPECTED_CHECKSUM = '826f69ed0275858c2e098f1e8407d4e3ba5a4b3f'
 
+  @pytest.mark.examples_postcommit
   @pytest.mark.it_postcommit
   def test_datastore_wordcount_it(self):
     test_pipeline = TestPipeline(is_integration_test=True)

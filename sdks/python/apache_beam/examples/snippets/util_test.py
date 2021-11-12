@@ -20,6 +20,7 @@
 
 import unittest
 
+import pytest
 from mock import patch
 
 import apache_beam as beam
@@ -27,6 +28,7 @@ from apache_beam.examples.snippets import util
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
+@pytest.mark.examples_postcommit
 class UtilTest(unittest.TestCase):
   def test_assert_matches_stdout_object(self):
     expected = [
