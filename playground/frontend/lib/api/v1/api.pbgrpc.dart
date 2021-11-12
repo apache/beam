@@ -62,6 +62,11 @@ class PlaygroundServiceClient extends $grpc.Client {
       ($0.GetCompileOutputRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetCompileOutputResponse.fromBuffer(value));
+  static final _$cancel =
+      $grpc.ClientMethod<$0.CancelRequest, $0.CancelResponse>(
+          '/api.v1.PlaygroundService/Cancel',
+          ($0.CancelRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) => $0.CancelResponse.fromBuffer(value));
   static final _$getListOfExamples = $grpc.ClientMethod<
           $0.GetListOfExamplesRequest, $0.GetListOfExamplesResponse>(
       '/api.v1.PlaygroundService/GetListOfExamples',
@@ -113,6 +118,11 @@ class PlaygroundServiceClient extends $grpc.Client {
       $0.GetCompileOutputRequest request,
       {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getCompileOutput, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.CancelResponse> cancel($0.CancelRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$cancel, request, options: options);
   }
 
   $grpc.ResponseFuture<$0.GetListOfExamplesResponse> getListOfExamples(
@@ -181,6 +191,13 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetCompileOutputRequest.fromBuffer(value),
         ($0.GetCompileOutputResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.CancelRequest, $0.CancelResponse>(
+        'Cancel',
+        cancel_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.CancelRequest.fromBuffer(value),
+        ($0.CancelResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetListOfExamplesRequest,
             $0.GetListOfExamplesResponse>(
         'GetListOfExamples',
@@ -235,6 +252,11 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getCompileOutput(call, await request);
   }
 
+  $async.Future<$0.CancelResponse> cancel_Pre(
+      $grpc.ServiceCall call, $async.Future<$0.CancelRequest> request) async {
+    return cancel(call, await request);
+  }
+
   $async.Future<$0.GetListOfExamplesResponse> getListOfExamples_Pre(
       $grpc.ServiceCall call,
       $async.Future<$0.GetListOfExamplesRequest> request) async {
@@ -262,6 +284,8 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
       $grpc.ServiceCall call, $0.GetRunErrorRequest request);
   $async.Future<$0.GetCompileOutputResponse> getCompileOutput(
       $grpc.ServiceCall call, $0.GetCompileOutputRequest request);
+  $async.Future<$0.CancelResponse> cancel(
+      $grpc.ServiceCall call, $0.CancelRequest request);
   $async.Future<$0.GetListOfExamplesResponse> getListOfExamples(
       $grpc.ServiceCall call, $0.GetListOfExamplesRequest request);
   $async.Future<$0.GetExampleResponse> getExample(

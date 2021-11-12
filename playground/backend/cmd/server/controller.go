@@ -25,6 +25,7 @@ import (
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"github.com/google/uuid"
+	"time"
 )
 
 // playgroundController processes `gRPC' requests from clients.
@@ -137,6 +138,15 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 	pipelineResult := pb.GetCompileOutputResponse{Output: compileOutput}
 
 	return &pipelineResult, nil
+}
+
+// Cancel is setting cancel flag to stop code processing
+func (controller *playgroundController) Cancel(ctx context.Context, info *pb.CancelRequest) (*pb.CancelResponse, error) {
+	pipelineId := info.PipelineUuid
+	if err := setToCache(ctx, controller.cacheService, uuid.MustParse(pipelineId), cache.Canceled, true); err != nil {
+		return nil, errors.InternalError("Cancel", "error during set cancel flag to cache")
+	}
+	return &pb.CancelResponse{}, nil
 }
 
 //GetListOfExamples returns the list of examples
@@ -256,6 +266,7 @@ func setupValidators(sdk pb.Sdk, filepath string) *[]validators.Validator {
 // processCode validates, compiles and runs code by pipelineId.
 // During each operation updates status of execution and saves it into cache:
 // - In case of processing works more that timeout duration saves playground.Status_STATUS_RUN_TIMEOUT as cache.Status into cache.
+// - In case of code processing has been canceled saves playground.Status_STATUS_CANCELED as cache.Status into cache.
 // - In case of validation step is failed saves playground.Status_STATUS_VALIDATION_ERROR as cache.Status into cache.
 // - In case of compile step is failed saves playground.Status_STATUS_COMPILE_ERROR as cache.Status and compile logs as cache.CompileOutput into cache.
 // - In case of compile step is completed with no errors saves compile output as cache.CompileOutput into cache.
@@ -263,15 +274,18 @@ func setupValidators(sdk pb.Sdk, filepath string) *[]validators.Validator {
 // - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
 // At the end of this method deletes all created folders.
 func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, compileBuilder *executors.CompileBuilder, pipelineId uuid.UUID, env *environment.Environment, sdk pb.Sdk) {
-	ctxWithTimeout, cancelByTimeoutFunc := context.WithTimeout(ctx, env.ApplicationEnvs.PipelineExecuteTimeout())
+	ctxWithTimeout, finishCtxFunc := context.WithTimeout(ctx, env.ApplicationEnvs.PipelineExecuteTimeout())
 	defer func(lc *fs_tool.LifeCycle) {
-		cancelByTimeoutFunc()
+		finishCtxFunc()
 		cleanUp(pipelineId, lc)
 	}(lc)
 
 	errorChannel := make(chan error, 1)
 	dataChannel := make(chan interface{}, 1)
 	successChannel := make(chan bool, 1)
+	cancelChannel := make(chan bool, 1)
+
+	go cancelCheck(ctxWithTimeout, pipelineId, cancelChannel, cacheService)
 
 	// build executor for validate and compile steps
 	exec := compileBuilder.Build()
@@ -281,35 +295,17 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 	validateFunc := exec.Validate()
 	go validateFunc(successChannel, errorChannel)
 
-	select {
-	case <-ctxWithTimeout.Done():
-		finishByContext(ctxWithTimeout, pipelineId, cacheService)
+	if !processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, errorChannel, pb.Status_STATUS_VALIDATION_ERROR, pb.Status_STATUS_PREPARING) {
 		return
-	case ok := <-successChannel:
-		if !ok {
-			err := <-errorChannel
-			processError(ctx, err, nil, pipelineId, cacheService, pb.Status_STATUS_VALIDATION_ERROR)
-			return
-		}
-		processSuccess(ctx, nil, pipelineId, cacheService, pb.Status_STATUS_PREPARING)
 	}
 
 	// prepare
-	logger.Info("%s: Prepare() ...\n", pipelineId)
+	logger.Infof("%s: Prepare() ...\n", pipelineId)
 	prepareFunc := exec.Prepare()
 	go prepareFunc(successChannel, errorChannel)
 
-	select {
-	case <-ctxWithTimeout.Done():
-		finishByContext(ctxWithTimeout, pipelineId, cacheService)
+	if !processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, errorChannel, pb.Status_STATUS_PREPARATION_ERROR, pb.Status_STATUS_COMPILING) {
 		return
-	case ok := <-successChannel:
-		if !ok {
-			err := <-errorChannel
-			processError(ctx, err, nil, pipelineId, cacheService, pb.Status_STATUS_PREPARATION_ERROR)
-			return
-		}
-		processSuccess(ctx, nil, pipelineId, cacheService, pb.Status_STATUS_COMPILING)
 	}
 
 	// compile
@@ -327,18 +323,8 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 		}
 	}(successChannel, errorChannel, dataChannel)
 
-	select {
-	case <-ctxWithTimeout.Done():
-		finishByContext(ctxWithTimeout, pipelineId, cacheService)
+	if !processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, dataChannel, errorChannel, pb.Status_STATUS_COMPILE_ERROR, pb.Status_STATUS_EXECUTING) {
 		return
-	case ok := <-successChannel:
-		data := <-dataChannel
-		if !ok {
-			err := <-errorChannel
-			processError(ctxWithTimeout, err, data.([]byte), pipelineId, cacheService, pb.Status_STATUS_COMPILE_ERROR)
-			return
-		}
-		processSuccess(ctxWithTimeout, data.([]byte), pipelineId, cacheService, pb.Status_STATUS_EXECUTING)
 	}
 
 	runBuilder, err := setupRunBuilder(pipelineId, lc, sdk, env, compileBuilder)
@@ -366,27 +352,66 @@ func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.Life
 		}
 	}(successChannel, errorChannel, dataChannel)
 
-	select {
-	case <-ctxWithTimeout.Done():
-		finishByContext(ctxWithTimeout, pipelineId, cacheService)
-		return
-	case ok := <-successChannel:
-		data := <-dataChannel
-		if !ok {
-			err := <-errorChannel
-			processError(ctxWithTimeout, err.(error), data.([]byte), pipelineId, cacheService, pb.Status_STATUS_RUN_ERROR)
-			return
-		}
-		processSuccess(ctxWithTimeout, data.([]byte), pipelineId, cacheService, pb.Status_STATUS_FINISHED)
-	}
+	processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, dataChannel, errorChannel, pb.Status_STATUS_RUN_ERROR, pb.Status_STATUS_FINISHED)
 }
 
-// finishByContext is used in case of runCode method finished by timeout
-func finishByContext(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache) {
+// processStep processes each executor's step with cancel and timeout checks.
+// If finishes by canceling, timeout or error - returns false.
+// If finishes successfully returns true.
+func processStep(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, cancelChannel, successChannel chan bool, dataChannel chan interface{}, errorChannel chan error, errorCaseStatus, successCaseStatus pb.Status) bool {
+	select {
+	case <-ctx.Done():
+		finishByTimeout(ctx, pipelineId, cacheService)
+		return false
+	case <-cancelChannel:
+		processCancel(ctx, cacheService, pipelineId)
+		return false
+	case ok := <-successChannel:
+		var data []byte = nil
+		if dataChannel != nil {
+			temp := <-dataChannel
+			data = temp.([]byte)
+		}
+		if !ok {
+			err := <-errorChannel
+			processError(ctx, err, data, pipelineId, cacheService, errorCaseStatus)
+			return false
+		}
+		processSuccess(ctx, data, pipelineId, cacheService, successCaseStatus)
+	}
+	return true
+}
+
+// finishByTimeout is used in case of runCode method finished by timeout
+func finishByTimeout(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache) {
 	logger.Errorf("%s: processCode finish because of timeout\n", pipelineId)
 
 	// set to cache pipelineId: cache.SubKey_Status: Status_STATUS_RUN_TIMEOUT
 	setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_RUN_TIMEOUT)
+}
+
+// cancelCheck checks cancel flag for code processing.
+// If cancel flag doesn't exist in cache continue working.
+// If context is done it means that code processing was finished (successfully/with error/timeout). Return.
+// If cancel flag exists, and it is true it means that code processing was canceled. Set true to cancelChannel and return.
+func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan bool, cacheService cache.Cache) {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	for {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		case _ = <-ticker.C:
+			cancel, err := cacheService.GetValue(ctx, pipelineId, cache.Canceled)
+			if err != nil {
+				continue
+			}
+			if cancel.(bool) {
+				cancelChannel <- true
+			}
+			return
+		}
+	}
 }
 
 // cleanUp removes all prepared folders for received LifeCycle
@@ -451,9 +476,19 @@ func processSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, ca
 	}
 }
 
+// processCancel process case when code processing was canceled
+func processCancel(ctx context.Context, cacheService cache.Cache, pipelineId uuid.UUID) {
+	logger.Infof("%s: was canceled\n", pipelineId)
+
+	// set to cache pipelineId: cache.SubKey_Status: pb.Status_STATUS_CANCELED
+	setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_CANCELED)
+}
+
 // setToCache puts value to cache by key and subKey
-func setToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, value interface{}) {
-	if err := cacheService.SetValue(ctx, key, subKey, value); err != nil {
+func setToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, value interface{}) error {
+	err := cacheService.SetValue(ctx, key, subKey, value)
+	if err != nil {
 		logger.Errorf("%s: cache.SetValue: %s\n", key, err.Error())
 	}
+	return err
 }

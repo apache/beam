@@ -17,11 +17,10 @@
 # pytype: skip-file
 
 import array
-import json
 from collections import OrderedDict
 
 import numpy as np
-from avro.schema import Parse
+from fastavro import parse_schema
 
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
@@ -71,15 +70,13 @@ def infer_typehints_schema(data):
   return column_types
 
 
-def infer_avro_schema(data, use_fastavro=False):
+def infer_avro_schema(data):
   """For internal use only; no backwards-compatibility guarantees.
 
   Infer avro schema for tabular data.
 
   Args:
     data (List[dict]): A list of dictionaries representing rows in a table.
-    use_fastavro (bool): A flag indicating whether the schema should be
-        constructed using fastavro.
 
   Returns:
     An avro schema object.
@@ -112,11 +109,7 @@ def infer_avro_schema(data, use_fastavro=False):
       "type": "record",
       "fields": avro_fields
   }
-  if use_fastavro:
-    from fastavro import parse_schema
-    return parse_schema(schema_dict)
-  else:
-    return Parse(json.dumps(schema_dict))
+  return parse_schema(schema_dict)
 
 
 def infer_pyarrow_schema(data):
