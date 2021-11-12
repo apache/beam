@@ -47,7 +47,9 @@ import java.util.stream.IntStream;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
@@ -84,6 +86,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.DataSourceConnectionFactory;
 import org.apache.commons.dbcp2.PoolableConnectionFactory;
@@ -764,27 +768,28 @@ public class JdbcIO {
     public PCollection<T> expand(PBegin input) {
       checkArgument(getQuery() != null, "withQuery() is required");
       checkArgument(getRowMapper() != null, "withRowMapper() is required");
-      checkArgument(getCoder() != null, "withCoder() is required");
       checkArgument(
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      return input
-          .apply(Create.of((Void) null))
-          .apply(
-              JdbcIO.<Void, T>readAll()
-                  .withDataSourceProviderFn(getDataSourceProviderFn())
-                  .withQuery(getQuery())
-                  .withCoder(getCoder())
-                  .withRowMapper(getRowMapper())
-                  .withFetchSize(getFetchSize())
-                  .withOutputParallelization(getOutputParallelization())
-                  .withParameterSetter(
-                      (element, preparedStatement) -> {
-                        if (getStatementPreparator() != null) {
-                          getStatementPreparator().setParameters(preparedStatement);
-                        }
-                      }));
+      JdbcIO.ReadAll<Void, T> readAll =
+          JdbcIO.<Void, T>readAll()
+              .withDataSourceProviderFn(getDataSourceProviderFn())
+              .withQuery(getQuery())
+              .withRowMapper(getRowMapper())
+              .withFetchSize(getFetchSize())
+              .withOutputParallelization(getOutputParallelization())
+              .withParameterSetter(
+                  (element, preparedStatement) -> {
+                    if (getStatementPreparator() != null) {
+                      getStatementPreparator().setParameters(preparedStatement);
+                    }
+                  });
+
+      if (getCoder() != null) {
+        readAll = readAll.withCoder(getCoder());
+      }
+      return input.apply(Create.of((Void) null)).apply(readAll);
     }
 
     @Override
@@ -792,7 +797,9 @@ public class JdbcIO {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
-      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      if (getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      }
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
       }
@@ -900,8 +907,32 @@ public class JdbcIO {
       return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
+    private Coder<OutputT> inferCoder(CoderRegistry registry) {
+      if (getCoder() != null) {
+        return getCoder();
+      } else {
+        RowMapper<OutputT> rowMapper = getRowMapper();
+        TypeDescriptor<OutputT> outputType =
+            TypeDescriptors.extractFromTypeParameters(
+                rowMapper,
+                RowMapper.class,
+                new TypeVariableExtractor<RowMapper<OutputT>, OutputT>() {});
+        try {
+          return registry.getCoder(outputType);
+        } catch (CannotProvideCoderException e) {
+          return null;
+        }
+      }
+    }
+
     @Override
     public PCollection<OutputT> expand(PCollection<ParameterT> input) {
+      Coder<OutputT> coder = inferCoder(input.getPipeline().getCoderRegistry());
+      checkNotNull(
+          coder,
+          "Unable to infer a coder for JdbcIO.readAll() transform. "
+              + "Provide a coder via withCoder, or ensure that one can be inferred from the"
+              + " provided RowMapper.");
       PCollection<OutputT> output =
           input
               .apply(
@@ -912,14 +943,14 @@ public class JdbcIO {
                           getParameterSetter(),
                           getRowMapper(),
                           getFetchSize())))
-              .setCoder(getCoder());
+              .setCoder(coder);
 
       if (getOutputParallelization()) {
         output = output.apply(new Reparallelize<>());
       }
 
       try {
-        TypeDescriptor<OutputT> typeDesc = getCoder().getEncodedTypeDescriptor();
+        TypeDescriptor<OutputT> typeDesc = coder.getEncodedTypeDescriptor();
         SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
         Schema schema = registry.getSchema(typeDesc);
         output.setSchema(
@@ -939,7 +970,9 @@ public class JdbcIO {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
-      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      if (getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      }
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
       }
@@ -1093,7 +1126,9 @@ public class JdbcIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
-      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      if (getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      }
       builder.add(DisplayData.item("partitionColumn", getPartitionColumn()));
       builder.add(DisplayData.item("table", getTable()));
       builder.add(DisplayData.item("numPartitions", getNumPartitions()));
