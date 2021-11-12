@@ -1,4 +1,139 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Go SDK Exits Experimental in Apache Beam 2.33.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.34.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.34.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2340-2021-11-11">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.34.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12350405">detailed release
+notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>The Beam Java API for Calcite SqlTransform is no longer experimental (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12680">BEAM-12680&lt;/a>).&lt;/li>
+&lt;li>Python&amp;rsquo;s ParDo (Map, FlatMap, etc.) transforms now suport a &lt;code>with_exception_handling&lt;/code> option for easily ignoring bad records and implementing the dead letter pattern.&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>&lt;code>ReadFromBigQuery&lt;/code> and &lt;code>ReadAllFromBigQuery&lt;/code> now run queries with BATCH priority by default. The &lt;code>query_priority&lt;/code> parameter is introduced to the same transforms to allow configuring the query priority (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12913">BEAM-12913&lt;/a>).&lt;/li>
+&lt;li>[EXPERIMENTAL] Support for &lt;a href="https://cloud.google.com/bigquery/docs/reference/storage">BigQuery Storage Read API&lt;/a> added to &lt;code>ReadFromBigQuery&lt;/code>. The newly introduced &lt;code>method&lt;/code> parameter can be set as &lt;code>DIRECT_READ&lt;/code> to use the Storage Read API. The default is &lt;code>EXPORT&lt;/code> which invokes a BigQuery export request. (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10917">BEAM-10917&lt;/a>).&lt;/li>
+&lt;li>[EXPERIMENTAL] Added &lt;code>use_native_datetime&lt;/code> parameter to &lt;code>ReadFromBigQuery&lt;/code> to configure the return type of &lt;a href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#datetime_type">DATETIME&lt;/a> fields when using &lt;code>ReadFromBigQuery&lt;/code>. This parameter can &lt;em>only&lt;/em> be used when &lt;code>method = DIRECT_READ&lt;/code>(Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10917">BEAM-10917&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Upgrade to Calcite 1.26.0 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9379">BEAM-9379&lt;/a>).&lt;/li>
+&lt;li>Added a new &lt;code>dataframe&lt;/code> extra to the Python SDK that tracks &lt;code>pandas&lt;/code> versions
+we&amp;rsquo;ve verified compatibility with. We now recommend installing Beam with &lt;code>pip install apache-beam[dataframe]&lt;/code> when you intend to use the DataFrame API
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12906">BEAM-12906&lt;/a>).&lt;/li>
+&lt;li>Add an &lt;a href="https://github.com/cometta/python-apache-beam-spark">example&lt;/a> of deploying Python Apache Beam job with Spark Cluster&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>SQL Rows are no longer flattened (&lt;a href="https://issues.apache.org/jira/browse/BEAM-5505">BEAM-5505&lt;/a>).&lt;/li>
+&lt;li>[Go SDK] beam.TryCrossLanguage&amp;rsquo;s signature now matches beam.CrossLanguage. Like other Try functions it returns an error instead of panicking. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9918">BEAM-9918&lt;/a>).&lt;/li>
+&lt;li>&lt;a href="https://jira.apache.org/jira/browse/BEAM-12925">BEAM-12925&lt;/a> was fixed. It used to silently pass incorrect null data read from JdbcIO. Pipelines affected by this will now start throwing failures instead of silently passing incorrect data.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed error while writing multiple DeferredFrames to csv (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12701">BEAM-12701&lt;/a>).&lt;/li>
+&lt;li>Fixed error when importing the DataFrame API with pandas 1.0.x installed (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12945">BEAM-12945&lt;/a>).&lt;/li>
+&lt;li>Fixed top.SmallestPerKey implementation in the Go SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12946">BEAM-12946&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.34.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay,
+Aizhamal Nurmamat kyzy,
+Alex Amato,
+Alexander Chermenin,
+Alexey Romanenko,
+AlikRodriguez,
+Andrew Pilloud,
+Andy Xu,
+Ankur Goenka,
+Aydar Farrakhov,
+Aydar Zainutdinov,
+Aydar Zaynutdinov,
+AydarZaynutdinov,
+Benjamin Gonzalez,
+BenWhitehead,
+Brachi Packter,
+Brian Hulette,
+Bu Sun Kim,
+Chamikara Jayalath,
+Chris Gray,
+Chuck Yang,
+Chun Yang,
+Claire McGinty,
+comet,
+Daniel Collins,
+Daniel Oliveira,
+Daniel Thevessen,
+daria.malkova,
+David Cavazos,
+David Huntsperger,
+Dmytro Kozhevin,
+dpcollins-google,
+Eduardo Sánchez López,
+Elias Djurfeldt,
+emily,
+Emily Ye,
+Enis Sert,
+Etienne Chauchot,
+Fernando Morales,
+Heejong Lee,
+Ihor Indyk,
+Ismaël Mejía,
+Israel Herraiz,
+Jack McCluskey,
+Jonathan Hourany,
+Judah Rand,
+Kenneth Knowles,
+KevinGG,
+Ke Wu,
+kileys,
+Kyle Weaver,
+Luke Cwik,
+masahitojp,
+MiguelAnzoWizeline,
+Minbo Bae,
+Niels Basjes,
+Ning Kang,
+Pablo Estrada,
+pareshsarafmdb,
+Paul Féraud,
+Piotr Szczepanik,
+Reuven Lax,
+Ritesh Ghorse,
+R. Miles McCain,
+Robert Bradshaw,
+Robert Burke,
+Rogan Morrow,
+Ruwan Lambrichts,
+rvballada,
+Ryan Thompson,
+Sam Rohde,
+Sam Whittle,
+Ștefan Istrate,
+Steve Niemitz,
+Thomas Li Fredriksen,
+Tomo Suzuki,
+tvalentyn,
+Udi Meiri,
+Vachan,
+Valentyn Tymofieiev,
+Vincent Marquez,
+WinsonT,
+Yichi Zhang,
+Yifan Mai,
+Yilei &amp;ldquo;Dolee&amp;rdquo; Yang,
+zhoufek&lt;/p></description><link>/blog/beam-2.34.0/</link><pubDate>Thu, 11 Nov 2021 00:11:00 -0800</pubDate><guid>/blog/beam-2.34.0/</guid><category>blog</category></item><item><title>Go SDK Exits Experimental in Apache Beam 2.33.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -798,62 +933,4 @@ repository and can be run with no additional code modifications.&lt;/li>
 you more understanding on how pipelines work and look like. If you are already using Beam, we hope
 some code samples in it will be useful for your use cases.&lt;/p>
 &lt;p>Please
-&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a> if you encounter any issues.&lt;/p></description><link>/blog/kafka-to-pubsub-example/</link><pubDate>Fri, 15 Jan 2021 00:00:01 -0800</pubDate><guid>/blog/kafka-to-pubsub-example/</guid><category>blog</category><category>java</category></item><item><title>Apache Beam 2.27.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.27.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2270-2020-12-22">download page&lt;/a> for this release.
-For more information on changes in 2.27.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349380">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Java 11 Containers are now published with all Beam releases.&lt;/li>
-&lt;li>There is a new transform &lt;code>ReadAllFromBigQuery&lt;/code> that can receive multiple requests to read data from BigQuery at pipeline runtime. See &lt;a href="https://github.com/apache/beam/pull/13170">PR 13170&lt;/a>, and &lt;a href="https://issues.apache.org/jira/browse/BEAM-9650">BEAM-9650&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>ReadFromMongoDB can now be used with MongoDB Atlas (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11266">BEAM-11266&lt;/a>.)&lt;/li>
-&lt;li>ReadFromMongoDB/WriteToMongoDB will mask password in display_data (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11444">BEAM-11444&lt;/a>.)&lt;/li>
-&lt;li>There is a new transform &lt;code>ReadAllFromBigQuery&lt;/code> that can receive multiple requests to read data from BigQuery at pipeline runtime. See &lt;a href="https://github.com/apache/beam/pull/13170">PR 13170&lt;/a>, and &lt;a href="https://issues.apache.org/jira/browse/BEAM-9650">BEAM-9650&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Beam modules that depend on Hadoop are now tested for compatibility with Hadoop 3 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8569">BEAM-8569&lt;/a>). (Hive/HCatalog pending)&lt;/li>
-&lt;li>Publishing Java 11 SDK container images now supported as part of Apache Beam release process. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8106">BEAM-8106&lt;/a>)&lt;/li>
-&lt;li>Added Cloud Bigtable Provider extension to Beam SQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11173">BEAM-11173&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-11373">BEAM-11373&lt;/a>)&lt;/li>
-&lt;li>Added a schema provider for thrift data (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11338">BEAM-11338&lt;/a>)&lt;/li>
-&lt;li>Added combiner packing pipeline optimization to Dataflow runner. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10641">BEAM-10641&lt;/a>)&lt;/li>
-&lt;li>Added an example to ingest data from Apache Kafka to Google Pub/Sub. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11065">BEAM-11065&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>HBaseIO hbase-shaded-client dependency should be now provided by the users (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9278">BEAM-9278&lt;/a>).&lt;/li>
-&lt;li>&lt;code>--region&lt;/code> flag in amazon-web-services2 was replaced by &lt;code>--awsRegion&lt;/code> (&lt;a href="https://issues.apache.org/jira/projects/BEAM/issues/BEAM-11331">BEAM-11331&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.27.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Aliraza Nagamia, Allen Pradeep Xavier,
-Andrew Pilloud, andreyKaparulin, Ashwin Ramaswami, Boyuan Zhang, Brent Worden, Brian Hulette,
-Carlos Marin, Chamikara Jayalath, Costi Ciudatu, Damon Douglas, Daniel Collins,
-Daniel Oliveira, David Huntsperger, David Lu, David Moravek, David Wrede,
-dennis, Dennis Yung, dpcollins-google, Emily Ye, emkornfield,
-Esun Kim, Etienne Chauchot, Eugene Nikolaiev, Frank Zhao, Haizhou Zhao,
-Hector Acosta, Heejong Lee, Ilya, Iñigo San Jose Visiers, InigoSJ,
-Ismaël Mejía, janeliulwq, Jan Lukavský, Kamil Wasilewski, Kenneth Jung,
-Kenneth Knowles, Ke Wu, kileys, Kyle Weaver, lostluck,
-Matt Casters, Maximilian Michels, Michal Walenia, Mike Dewar, nehsyc,
-Nelson Osacky, Niels Basjes, Ning Kang, Pablo Estrada, palmere-google,
-Pawel Pasterz, Piotr Szuberski, purbanow, Reuven Lax, rHermes,
-Robert Bradshaw, Robert Burke, Rui Wang, Sam Rohde, Sam Whittle,
-Siyuan Chen, Tim Robertson, Tobiasz Kędzierski, tszerszen,
-Valentyn Tymofieiev, Tyson Hamilton, Udi Meiri, vachan-shetty, Xinyu Liu,
-Yichi Zhang, Yifan Mai, yoshiki.obata, Yueyang Qiu&lt;/p></description><link>/blog/beam-2.27.0/</link><pubDate>Thu, 07 Jan 2021 12:00:00 -0800</pubDate><guid>/blog/beam-2.27.0/</guid><category>blog</category></item></channel></rss>
+&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a> if you encounter any issues.&lt;/p></description><link>/blog/kafka-to-pubsub-example/</link><pubDate>Fri, 15 Jan 2021 00:00:01 -0800</pubDate><guid>/blog/kafka-to-pubsub-example/</guid><category>blog</category><category>java</category></item></channel></rss>
