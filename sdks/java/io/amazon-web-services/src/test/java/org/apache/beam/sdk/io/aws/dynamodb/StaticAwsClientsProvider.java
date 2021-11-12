@@ -17,30 +17,45 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
+import static java.util.Collections.synchronizedMap;
+
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import org.mockito.Mockito;
+import java.util.HashMap;
+import java.util.Map;
 
-/** Mocking AwsClientProvider. */
-public class AwsClientsProviderMock implements AwsClientsProvider {
+/** Client provider supporting unserializable clients such as mock instances for unit tests. */
+class StaticAwsClientsProvider implements AwsClientsProvider {
+  private static final Map<Integer, AmazonDynamoDB> clients = synchronizedMap(new HashMap<>());
 
-  private static AwsClientsProviderMock instance = new AwsClientsProviderMock();
-  private static AmazonDynamoDB db;
+  private final int id;
+  private final transient boolean cleanup;
 
-  private AwsClientsProviderMock() {}
+  private StaticAwsClientsProvider(AmazonDynamoDB client) {
+    this.id = System.identityHashCode(client);
+    this.cleanup = true;
+  }
 
-  public static AwsClientsProviderMock of(AmazonDynamoDB dynamoDB) {
-    db = dynamoDB;
-    return instance;
+  static AwsClientsProvider of(AmazonDynamoDB client) {
+    StaticAwsClientsProvider provider = new StaticAwsClientsProvider(client);
+    clients.put(provider.id, client);
+    return provider;
   }
 
   @Override
   public AmazonCloudWatch getCloudWatchClient() {
-    return Mockito.mock(AmazonCloudWatch.class);
+    return null; // never used
   }
 
   @Override
   public AmazonDynamoDB createDynamoDB() {
-    return db;
+    return clients.get(id);
+  }
+
+  @Override
+  protected void finalize() {
+    if (cleanup) {
+      clients.remove(id);
+    }
   }
 }
