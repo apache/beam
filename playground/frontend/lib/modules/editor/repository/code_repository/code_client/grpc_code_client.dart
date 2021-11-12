@@ -119,6 +119,14 @@ class GrpcCodeClient implements CodeClient {
         return RunCodeStatus.compileError;
       case grpc.Status.STATUS_RUN_TIMEOUT:
         return RunCodeStatus.timeout;
+      case grpc.Status.STATUS_CANCELED:
+        break;
+      case grpc.Status.STATUS_PREPARATION_ERROR:
+        break;
+      case grpc.Status.STATUS_PREPARING:
+        break;
+      case grpc.Status.STATUS_RUN_ERROR:
+        break;
     }
     return RunCodeStatus.unspecified;
   }

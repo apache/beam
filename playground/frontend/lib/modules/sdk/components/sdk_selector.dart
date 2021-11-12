@@ -60,13 +60,15 @@ class SDKSelector extends StatelessWidget {
             ...SDK.values.map((SDK value) {
               return SizedBox(
                 width: double.infinity,
-                child: SdkSelectorRow(
-                  sdk: value,
-                  onSelect: () {
-                    close();
-                    setSdk(value);
-                    setExample(state.sdkCategories![value]!.first.examples.first);
-                  },
+                child: Consumer<ExampleState>(
+                  builder: (context, state, child) => SdkSelectorRow(
+                    sdk: value,
+                    onSelect: () {
+                      close();
+                      setSdk(value);
+                      setExample(state.sdkCategories![value]!.first.examples.first);
+                    },
+                  ),
                 ),
               );
             }).toList()

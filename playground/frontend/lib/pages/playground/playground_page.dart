@@ -58,8 +58,11 @@ class PlaygroundPage extends StatelessWidget {
                       );
                     },
                   ),
-                  SDKSelector(sdk: state.sdk, setSdk: state.setSdk),
-
+                  SDKSelector(
+                    sdk: state.sdk,
+                    setSdk: state.setSdk,
+                    setExample: state.setExample,
+                  ),
                   const NewExampleAction(),
                   ResetAction(reset: state.reset),
                 ],

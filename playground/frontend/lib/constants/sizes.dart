@@ -52,9 +52,3 @@ const double kCursorSize = 1.0;
 const double kContainerHeight = 40.0;
 
 const double kCodeFontSize = 14.0;
-
-// cursor size
-const double kCursorSize = 1.0;
-
-// container size
-const double kContainerHeight = 40.0;
