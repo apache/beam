@@ -6558,19 +6558,19 @@ In this section, we will use [KafkaIO.Read](https://beam.apache.org/releases/jav
 There are two ways to make Java transforms available to other SDKs.
 
 * Option 1: In some cases, you can use existing Java transforms from other SDKs without writing any additional Java code.
-* Option 2: You can use arbitrary Java Transforms from other SDKs by adding few Java classes.
+* Option 2: You can use arbitrary Java Transforms from other SDKs by adding a few Java classes.
 
 ##### 13.1.1.1 Using Existing Java Transforms from Other SDKs Without Writing more Java Code
 
 Starting with Beam 2.34.0, Python SDK users can use some Java transforms without writing additional Java code. This can be useful in many cases. For example,
 * A developer not familiar with Java may need to use an existing Java transform from a Python pipeline
-* A developer may need to make a Java transform that is already released, available to a Python pipeline without writing/releasing more Java code
+* A developer may need to make an existing Java transform available to a Python pipeline without writing/releasing more Java code
 
 > **Note:** This feature is currently only available when using Java transforms from a Python pipeline.
 
-To be eligible for direct usage, API of the Java transforms has to follow the following pattern.
-* Requirement 1: Java transform can be constructed using an available public constructor or a public static method (a constructor method) in the same Java class.
-* Requirement 2: Java transform can be configured using one or more builder methods. Each builder method should be public and should return an instance of the Java transform.
+To be eligible for direct usage, the API of the Java transform has to follow the following pattern.
+* Requirement 1: The Java transform can be constructed using an available public constructor or a public static method (a constructor method) in the same Java class.
+* Requirement 2: The Java transform can be configured using one or more builder methods. Each builder method should be public and should return an instance of the Java transform.
 
 See below for the structure of an example Java class that can be directly used from the Python API.
 
@@ -6615,7 +6615,7 @@ To use this Java transform from Python, you may define an allowlist file in the 
 constructor methods, and builder methods that are directly available to be used from the Python side.
 
 Starting with Beam 2.35.0, you have the option to specify `*` to the `javaClassLookupAllowlistFile` option instead of defining an actual allowlist which
-denotes that all supported transforms in the classpath of the exapansion service may be accessed through the API.
+denotes that all supported transforms in the classpath of the expansion service may be accessed through the API.
 
 {{< highlight >}}
 version: v1
@@ -6636,7 +6636,7 @@ as a local Java process using the following command.
 java -jar <jar file> <port> --javaClassLookupAllowlistFile=<path to the allowlist file>
 {{< /highlight >}}
 
-Starting with Beam 2.35.0, Beam 'JavaExternalTransform' API will automatically startup an expansion service with a given set of `jar` file dependencies
+Starting with Beam 2.35.0, Beam ``JavaExternalTransform` API will automatically startup an expansion service with a given set of `jar` file dependencies
 if an expansion service address was not provided.
 
 ##### Step 3
@@ -6645,8 +6645,8 @@ You can directly use the Java class from your Python pipeline using a stub trans
 using the Java class name and allows you to invoke builder methods to configure the class.
 
 Constructor and method parameter types are mapped between Python and Java using a Beam Schema. The Schema is auto-generated using the object types
-provided in the Python side. If the Java class constructor method or builder method accepts any complex object types, make sure that Beam Schema
-for these objects are registered and available for the Java expansion service. If a schema has not been registered, Java expansion service will
+provided on the Python side. If the Java class constructor method or builder method accepts any complex object types, make sure that the Beam Schema
+for these objects is registered and available for the Java expansion service. If a schema has not been registered, the Java expansion service will
 try to register a schema using [JavaFieldSchema](https://beam.apache.org/documentation/programming-guide/#creating-schemas). In Python arbitrary objects
 can be represented using `NamedTuple`s which will be represented as Beam Rows in the Schema. See below for a Python stub transform that represents the above
 mentioned Java transform.
@@ -6864,12 +6864,12 @@ transforms from other languages; see more at [BEAM-9923](https://issues.apache.o
 #### 13.1.4. Selecting a URN for Cross-language Transforms
 
 Developing a cross-language transform involves defining a URN for registering the transform with an expansion service. In this section
-we provide a convention for defining such URNs. Following this convention is optional but following it will make sure that your transform
+we provide a convention for defining such URNs. Following this convention is optional but it will ensure that your transform
 will not run into conflicts when registering in an expansion service along with transforms developed by other developers.
 
 ##### Schema
 
-Suggested URN consists of the components given below.
+A URN should consist of the following components:
 * ns-id: A namespace identifier. Default recommendation is `beam:transform`.
 * org-identifier: Identifies the organization where the transform was defined. Transforms defined in Apache Beam use `org.apache.beam` for this.
 * functionality-identifier - Identifies the functionality of the cross-language transform.
@@ -6889,7 +6889,7 @@ version = “v” 1*(DIGIT / “.”)  ; For example, ‘v1.2’
 
 ##### Examples
 
-Below we’ve given some example transforms classes and corresponding URNs to be used.
+Below we’ve given some example transform classes and corresponding URNs to be used.
 
 * A transform offered with Apache Beam that writes Parquet files.
     * `beam:transform:org.apache.beam:parquet_write:v1`
