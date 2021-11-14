@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
@@ -40,6 +41,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class BeamSqlRelUtils {
 
+  public static final String ROW = "row";
+  public static final String ERROR = "error";
+
   public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {
     return toPCollection(pipeline, node, null, new HashMap());
   }
@@ -47,7 +51,7 @@ public class BeamSqlRelUtils {
   public static PCollection<Row> toPCollection(
       Pipeline pipeline,
       BeamRelNode node,
-      @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorTransformer) {
+      @Nullable PTransform<PCollection<Row>, ? extends POutput> errorTransformer) {
     return toPCollection(pipeline, node, errorTransformer, new HashMap());
   }
 
@@ -55,7 +59,7 @@ public class BeamSqlRelUtils {
   private static PCollectionList<Row> buildPCollectionList(
       List<RelNode> inputRels,
       Pipeline pipeline,
-      @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorTransformer,
+      @Nullable PTransform<PCollection<Row>, ? extends POutput> errorTransformer,
       Map<Integer, PCollection<Row>> cache) {
     if (inputRels.isEmpty()) {
       return PCollectionList.empty(pipeline);
@@ -87,7 +91,7 @@ public class BeamSqlRelUtils {
   static PCollection<Row> toPCollection(
       Pipeline pipeline,
       BeamRelNode node,
-      @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorTransformer,
+      @Nullable PTransform<PCollection<Row>, ? extends POutput> errorTransformer,
       Map<Integer, PCollection<Row>> cache) {
     PCollection<Row> output = cache.get(node.getId());
     if (output != null) {
@@ -134,5 +138,11 @@ public class BeamSqlRelUtils {
   public static NodeStats getNodeStats(RelNode input, BeamRelMetadataQuery mq) {
     input = getInput(input);
     return mq.getNodeStats(input);
+  }
+
+  public static Schema getErrorRowSchema(Schema upstreamSchema) {
+    return Schema.of(
+        Schema.Field.of(ROW, Schema.FieldType.row(upstreamSchema)),
+        Schema.Field.of(ERROR, Schema.FieldType.STRING));
   }
 }

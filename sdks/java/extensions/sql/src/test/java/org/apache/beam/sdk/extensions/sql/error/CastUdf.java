@@ -15,12 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.udf;
+package org.apache.beam.sdk.extensions.sql.error;
 
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 
-public class CustomUdafWithError implements BeamSqlUdf {
-  public static byte[] eval(byte[] input) {
-    throw new RuntimeException("test error");
+public class CastUdf implements BeamSqlUdf {
+
+  public static Long eval(String input) {
+    try {
+      return Long.parseLong(input);
+    } catch (Exception e) {
+      throw new RuntimeException("Found invalid value " + input);
+    }
   }
 }

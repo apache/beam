@@ -54,6 +54,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalT
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -120,7 +121,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
   private static final ParameterExpression rowParam = Expressions.parameter(Row.class, "row");
   private static final TupleTag<Row> rows = new TupleTag<Row>() {};
-  private static final TupleTag<BeamCalcRelError> errors = new TupleTag<BeamCalcRelError>() {};
+  private static final TupleTag<Row> errors = new TupleTag<Row>() {};
 
   public BeamCalcRel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RexProgram program) {
     super(cluster, traits, input, program);
@@ -133,7 +134,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform(
-      @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorsTransformer) {
+      @Nullable PTransform<PCollection<Row>, ? extends POutput> errorsTransformer) {
     return new Transform(errorsTransformer);
   }
 
@@ -144,12 +145,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
   private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
-    private PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorsTransformer;
+    private PTransform<PCollection<Row>, ? extends POutput> errorsTransformer;
 
     Transform() {}
 
-    Transform(
-        @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorsTransformer) {
+    Transform(@Nullable PTransform<PCollection<Row>, ? extends POutput> errorsTransformer) {
 
       this.errorsTransformer = errorsTransformer;
     }
@@ -222,13 +222,19 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
       PCollectionTuple tuple =
           upstream.apply(ParDo.of(calcFn).withOutputTags(rows, TupleTagList.of(errors)));
-      PCollection<BeamCalcRelError> errorPCollection =
-          tuple.get(errors).setCoder(BeamCalcRelErrorCoder.of(RowCoder.of(upstream.getSchema())));
+      PCollection<Row> errorPCollection =
+          tuple.get(errors).setCoder(getErrorRowCoder(upstream, inputGetter));
       if (errorsTransformer != null) {
         errorPCollection.apply(errorsTransformer);
       }
       return tuple.get(rows).setRowSchema(outputSchema);
     }
+  }
+
+  private RowCoder getErrorRowCoder(PCollection<Row> upstream, InputGetterImpl inputGetter) {
+    return RowCoder.of(
+        BeamSqlRelUtils.getErrorRowSchema(
+            SelectHelpers.getOutputSchema(upstream.getSchema(), inputGetter.getFieldAccess())));
   }
 
   /** {@code CalcFn} is the executor for a {@link BeamCalcRel} step. */
@@ -307,10 +313,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
       } catch (InvocationTargetException e) {
         if (collectErrors) {
+          Schema schema = BeamSqlRelUtils.getErrorRowSchema(row.getSchema());
+          Row errorRow =
+              toBeamRow(Arrays.asList(row.getValues(), e.getCause().getMessage()), schema, true);
           LOG.error("CalcFn failed to evaluate: " + processElementBlock, e.getCause());
-          BeamCalcRelError beamCalcRelError =
-              BeamCalcRelError.create(row, e.getCause().getMessage());
-          multiOutputReceiver.get(errors).output(beamCalcRelError);
+          multiOutputReceiver.get(errors).output(errorRow);
         } else {
           throw new RuntimeException(
               "CalcFn failed to evaluate: " + processElementBlock, e.getCause());
