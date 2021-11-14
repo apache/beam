@@ -123,9 +123,7 @@ abstract class BatchSpannerRead
       // Query was selected.
       if (op.getQuery() != null) {
         return tx.partitionQuery(
-            op.getPartitionOptions(),
-            op.getQuery(),
-            Options.priority(config.getRpcPriority()));
+            op.getPartitionOptions(), op.getQuery(), Options.priority(config.getRpcPriority()));
       }
       // Read with index was selected.
       if (op.getIndex() != null) {
