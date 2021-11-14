@@ -1688,7 +1688,7 @@ public class SpannerIO {
           spannerAccessor
               .getDatabaseClient()
               .writeAtLeastOnceWithOptions(
-                  batch, Options.priority(spannerConfig.getRpcPriority().get()));
+                  batch, Options.priority(spannerConfig.getRpcPriority()));
           serviceCallMetric.call("ok");
           return;
         } catch (AbortedException e) {

@@ -125,7 +125,7 @@ abstract class BatchSpannerRead
         return tx.partitionQuery(
             op.getPartitionOptions(),
             op.getQuery(),
-            Options.priority(config.getRpcPriority().get()));
+            Options.priority(config.getRpcPriority()));
       }
       // Read with index was selected.
       if (op.getIndex() != null) {
@@ -135,7 +135,7 @@ abstract class BatchSpannerRead
             op.getIndex(),
             op.getKeySet(),
             op.getColumns(),
-            Options.priority(config.getRpcPriority().get()));
+            Options.priority(config.getRpcPriority()));
       }
       // Read from table was selected.
       return tx.partitionRead(
@@ -143,7 +143,7 @@ abstract class BatchSpannerRead
           op.getTable(),
           op.getKeySet(),
           op.getColumns(),
-          Options.priority(config.getRpcPriority().get()));
+          Options.priority(config.getRpcPriority()));
     }
   }
 

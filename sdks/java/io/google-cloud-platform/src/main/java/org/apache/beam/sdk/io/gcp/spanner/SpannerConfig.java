@@ -60,7 +60,7 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<Duration> getMaxCumulativeBackoff();
 
-  public abstract @Nullable ValueProvider<RpcPriority> getRpcPriority();
+  public abstract RpcPriority getRpcPriority();
 
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
@@ -73,7 +73,7 @@ public abstract class SpannerConfig implements Serializable {
         .setCommitDeadline(ValueProvider.StaticValueProvider.of(DEFAULT_COMMIT_DEADLINE))
         .setMaxCumulativeBackoff(
             ValueProvider.StaticValueProvider.of(DEFAULT_MAX_CUMULATIVE_BACKOFF))
-        .setRpcPriority(ValueProvider.StaticValueProvider.of(DEFAULT_RPC_PRIORITY))
+        .setRpcPriority(DEFAULT_RPC_PRIORITY)
         .build();
   }
 
@@ -123,7 +123,7 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
-    abstract Builder setRpcPriority(ValueProvider<RpcPriority> rpcPriority);
+    abstract Builder setRpcPriority(RpcPriority rpcPriority);
 
     public abstract SpannerConfig build();
   }
@@ -181,11 +181,7 @@ public abstract class SpannerConfig implements Serializable {
     return toBuilder().setServiceFactory(serviceFactory).build();
   }
 
-  public SpannerConfig withRpcPriority(ValueProvider<RpcPriority> rpcPriority) {
-    return toBuilder().setRpcPriority(rpcPriority).build();
-  }
-
   public SpannerConfig withRpcPriority(RpcPriority rpcPriority) {
-    return withRpcPriority(ValueProvider.StaticValueProvider.of(rpcPriority));
+    return toBuilder().setRpcPriority(rpcPriority).build();
   }
 }

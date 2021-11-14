@@ -358,7 +358,7 @@ public class SpannerIOWriteTest implements Serializable {
             .withHighPriority();
     pipeline.apply(testStream).apply(write);
     pipeline.run();
-    assertEquals(RpcPriority.HIGH, write.getSpannerConfig().getRpcPriority().get());
+    assertEquals(RpcPriority.HIGH, write.getSpannerConfig().getRpcPriority());
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
   }
 
@@ -406,7 +406,7 @@ public class SpannerIOWriteTest implements Serializable {
             .withLowPriority();
     pipeline.apply(testStream).apply(write);
     pipeline.run();
-    assertEquals(RpcPriority.LOW, write.getSpannerConfig().getRpcPriority().get());
+    assertEquals(RpcPriority.LOW, write.getSpannerConfig().getRpcPriority());
 
     // Output should be batches of sorted mutations.
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
