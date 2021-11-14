@@ -69,6 +69,8 @@ var (
 // available at runtime.
 
 func init() {
+	beam.RegisterFunction(extractFn)
+	beam.RegisterFunction(formatFn)
 	// To be correctly serialized on non-direct runners, struct form DoFns must be
 	// registered during initialization.
 	beam.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
