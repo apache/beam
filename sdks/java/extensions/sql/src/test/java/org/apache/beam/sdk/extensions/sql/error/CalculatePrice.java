@@ -15,20 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.rel;
+package org.apache.beam.sdk.extensions.sql.error;
 
-import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 
-@AutoValue
-public abstract class BeamCalcRelError {
+public class CalculatePrice implements BeamSqlUdf {
 
-  public static BeamCalcRelError create(Row row, String error) {
-    String errorMessage = error == null ? "empty error msg" : error;
-    return new AutoValue_BeamCalcRelError(row, errorMessage);
+  private static final Double RATE = 1.0;
+
+  public static Double eval(Long price, String currency) {
+
+    switch (currency) {
+      case "$":
+        return price * RATE;
+      default:
+        throw new RuntimeException("Currency isn't supported " + currency);
+    }
   }
-
-  public abstract Row getRow();
-
-  public abstract String getError();
 }

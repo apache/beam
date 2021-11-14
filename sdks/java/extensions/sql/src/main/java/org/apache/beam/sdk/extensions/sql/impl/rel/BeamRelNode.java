@@ -53,8 +53,7 @@ public interface BeamRelNode extends RelNode {
         : PCollection.IsBounded.UNBOUNDED;
   }
 
-  default void withErrorsTransformer(
-      @Nullable PTransform<PCollection<BeamCalcRelError>, POutput> ptransform) {}
+  default void withErrorsTransformer(@Nullable PTransform<PCollection<Row>, POutput> ptransform) {}
 
   default List<RelNode> getPCollectionInputs() {
     return getInputs();
@@ -63,7 +62,7 @@ public interface BeamRelNode extends RelNode {
   PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
 
   default PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform(
-      @Nullable PTransform<PCollection<BeamCalcRelError>, ? extends POutput> errorsTransformer) {
+      @Nullable PTransform<PCollection<Row>, ? extends POutput> errorsTransformer) {
     return buildPTransform();
   }
 
