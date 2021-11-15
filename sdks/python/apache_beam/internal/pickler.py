@@ -70,7 +70,7 @@ def set_pickle_lib(pickle_lib_enum):
   if pickle_lib_enum == USE_CLOUDPICKLE:
     # Dill will override hooks in the dispatch table of the standard pickler.
     # Those hooks overrides will cause cloudpickle to fail.
-    desired_pickle_lib = cloudPickle_pickler
+    desired_pickle_lib = cloudpickle_pickler
     dill_pickler.override_pickler_hooks(False)
   elif pickle_lib_enum == USE_DILL:
     desired_pickle_lib = dill_pickler
