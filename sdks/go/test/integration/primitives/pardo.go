@@ -18,7 +18,13 @@ package primitives
 import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
+
+func init() {
+	beam.RegisterFunction(splitStringPair)
+	beam.RegisterFunction(asymJoinFn)
+}
 
 func emit3Fn(elm int, emit, emit2, emit3 func(int)) {
 	emit(elm + 1)
@@ -80,4 +86,54 @@ func ParDoKVSideInput() *beam.Pipeline {
 	passert.Sum(s, out, "out", 1, 45)
 
 	return p
+}
+
+type stringPair struct {
+	K, V string
+}
+
+func splitStringPair(e stringPair) (string, string) {
+	return e.K, e.V
+}
+
+var emailSlice = []stringPair{
+	{"amy", "amy@example.com"},
+	{"james", "james@email.com"},
+	{"carl", "carl@example.com"},
+	{"julia", "julia@example.com"},
+	{"carl", "carl@email.com"},
+	{"james", "james@example.com"},
+}
+
+var phoneSlice = []stringPair{
+	{"amy", "111-222-3333"},
+	{"james", "222-333-4444"},
+}
+
+// CreateAndSplit makes a KV PCollection from a list of stringPair types
+func CreateAndSplit(s beam.Scope, input []stringPair) beam.PCollection {
+	initial := beam.CreateList(s, input)
+	return beam.ParDo(s, splitStringPair, initial)
+}
+
+func ParDoMultiMapSideInput() *beam.Pipeline {
+	beam.Init()
+	p, s := beam.NewPipelineWithRoot()
+	emailsKV := CreateAndSplit(s.Scope("CreateEmails"), emailSlice)
+	phonesKV := CreateAndSplit(s.Scope("CreatePhones"), phoneSlice)
+	output := beam.ParDo(s, asymJoinFn, phonesKV, beam.SideInput{Input: emailsKV})
+	passert.Count(s, output, "post-join", 2)
+	debug.Print(s, output)
+	return p
+}
+
+func asymJoinFn(k, v string, mapSide func(string) func(*string) bool) (string, []string) {
+	var out string
+	var results []string
+	results = append(results, v)
+	iter := mapSide(k)
+	for iter(&out) {
+		results = append(results, out)
+	}
+	return k, results
 }
