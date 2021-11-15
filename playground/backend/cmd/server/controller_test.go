@@ -51,8 +51,9 @@ var opt goleak.Option
 func TestMain(m *testing.M) {
 	server := setup()
 	opt = goleak.IgnoreCurrent()
-	defer teardown(server)
-	m.Run()
+	exitValue := m.Run()
+	teardown(server)
+	os.Exit(exitValue)
 }
 
 func setup() *grpc.Server {
@@ -109,7 +110,7 @@ func teardown(server *grpc.Server) {
 
 	err := os.RemoveAll("configs")
 	if err != nil {
-		fmt.Errorf("error during test setup: %s", err.Error())
+		panic(fmt.Errorf("error during test setup: %s", err.Error()))
 	}
 }
 
@@ -684,7 +685,10 @@ func Test_processCode(t *testing.T) {
 				go func(ctx context.Context, pipelineId uuid.UUID) {
 					// to imitate behavior of cancellation
 					time.Sleep(5 * time.Second)
-					cacheService.SetValue(ctx, pipelineId, cache.Canceled, true)
+					err := cacheService.SetValue(ctx, pipelineId, cache.Canceled, true)
+					if err != nil {
+						panic(err)
+					}
 				}(tt.args.ctx, tt.args.pipelineId)
 			}
 			processCode(tt.args.ctx, cacheService, lc, exec, tt.args.pipelineId, tt.args.env, tt.args.sdk)

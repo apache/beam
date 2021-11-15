@@ -143,9 +143,7 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 // Cancel is setting cancel flag to stop code processing
 func (controller *playgroundController) Cancel(ctx context.Context, info *pb.CancelRequest) (*pb.CancelResponse, error) {
 	pipelineId := info.PipelineUuid
-	if err := setToCache(ctx, controller.cacheService, uuid.MustParse(pipelineId), cache.Canceled, true); err != nil {
-		return nil, errors.InternalError("Cancel", "error during set cancel flag to cache")
-	}
+	setToCache(ctx, controller.cacheService, uuid.MustParse(pipelineId), cache.Canceled, true)
 	return &pb.CancelResponse{}, nil
 }
 
@@ -401,7 +399,7 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 		case <-ctx.Done():
 			ticker.Stop()
 			return
-		case _ = <-ticker.C:
+		case <-ticker.C:
 			cancel, err := cacheService.GetValue(ctx, pipelineId, cache.Canceled)
 			if err != nil {
 				continue
@@ -485,10 +483,9 @@ func processCancel(ctx context.Context, cacheService cache.Cache, pipelineId uui
 }
 
 // setToCache puts value to cache by key and subKey
-func setToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, value interface{}) error {
+func setToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, value interface{}) {
 	err := cacheService.SetValue(ctx, key, subKey, value)
 	if err != nil {
 		logger.Errorf("%s: cache.SetValue: %s\n", key, err.Error())
 	}
-	return err
 }
