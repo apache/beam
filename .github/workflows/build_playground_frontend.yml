@@ -17,12 +17,10 @@ name: Build And Deploy Playground Frontend Application
 
 on:
   push:
-    branches: ['master', 'release-*']
     tags: 'v*'
   pull_request:
-    branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['playground/backend/**']
+    paths: ['playground/frontend/**']
   workflow_dispatch:
 
 jobs:
@@ -66,12 +64,16 @@ jobs:
         working-directory: playground/frontend
       - name: Setup GCP account
         run: echo ${{ secrets.GCP_ACCESS_KEY }} | base64 -d > /tmp/gcp_access.json
+        if: startsWith(github.ref, 'ref/tags/')
       - name: Login to Docker Registry
         run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.REGISTRY_NAME }}
+        if: startsWith(github.ref, 'ref/tags/')
       - name: Preapre Build
         run: ./gradlew --debug playground:frontend:dockerPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository'
+        if: startsWith(github.ref, 'ref/tags/')
       - name: Deploy Backend Application
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
         run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PROJECT_ID }}" -var="docker_registry_address=${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository"
         working-directory: playground/terraform/applications/backend
+        if: startsWith(github.ref, 'ref/tags/')
