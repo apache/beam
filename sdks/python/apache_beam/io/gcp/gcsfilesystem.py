@@ -135,7 +135,7 @@ class GCSFileSystem(FileSystem):
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
-    raw_file = gcsio.GcsIO().open(path, mode, mime_type=mime_type)
+    raw_file = self.get_gcsio().open(path, mode, mime_type=mime_type)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     return CompressedFile(raw_file, compression_type=compression_type)
@@ -198,9 +198,9 @@ class GCSFileSystem(FileSystem):
         raise ValueError('Destination %r must be GCS path.' % destination)
       # Use copy_tree if the path ends with / as it is a directory
       if source.endswith('/'):
-        gcsio.GcsIO().copytree(source, destination)
+        self.get_gcsio().copytree(source, destination)
       else:
-        gcsio.GcsIO().copy(source, destination)
+        self.get_gcsio().copy(source, destination)
 
     exceptions = {}
     for source, destination in zip(source_file_names, destination_file_names):
@@ -241,7 +241,7 @@ class GCSFileSystem(FileSystem):
     # Execute GCS renames if any and return exceptions.
     exceptions = {}
     for batch in gcs_batches:
-      copy_statuses = gcsio.GcsIO().copy_batch(batch)
+      copy_statuses = self.get_gcsio().copy_batch(batch)
       copy_succeeded = []
       for src, dest, exception in copy_statuses:
         if exception:
@@ -249,7 +249,7 @@ class GCSFileSystem(FileSystem):
         else:
           copy_succeeded.append((src, dest))
       delete_batch = [src for src, dest in copy_succeeded]
-      delete_statuses = gcsio.GcsIO().delete_batch(delete_batch)
+      delete_statuses = self.get_gcsio().delete_batch(delete_batch)
       for i, (src, exception) in enumerate(delete_statuses):
         dest = copy_succeeded[i][1]
         if exception:
@@ -266,7 +266,7 @@ class GCSFileSystem(FileSystem):
 
     Returns: boolean flag indicating if path exists
     """
-    return gcsio.GcsIO().exists(path)
+    return self.get_gcsio().exists(path)
 
   def size(self, path):
     """Get size of path on the FileSystem.
@@ -279,7 +279,7 @@ class GCSFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if path doesn't exist.
     """
-    return gcsio.GcsIO().size(path)
+    return self.get_gcsio().size(path)
 
   def last_updated(self, path):
     """Get UNIX Epoch time in seconds on the FileSystem.
@@ -292,7 +292,7 @@ class GCSFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if path doesn't exist.
     """
-    return gcsio.GcsIO().last_updated(path)
+    return self.get_gcsio().last_updated(path)
 
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
@@ -307,7 +307,7 @@ class GCSFileSystem(FileSystem):
       ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
-      return gcsio.GcsIO().checksum(path)
+      return self.get_gcsio().checksum(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Checksum operation failed", {path: e})
 
@@ -326,7 +326,7 @@ class GCSFileSystem(FileSystem):
       else:
         path_to_use = path
       match_result = self.match([path_to_use])[0]
-      statuses = gcsio.GcsIO().delete_batch(
+      statuses = self.get_gcsio().delete_batch(
           [m.path for m in match_result.metadata_list])
       # pylint: disable=used-before-assignment
       failures = [e for (_, e) in statuses if e is not None]
@@ -342,3 +342,12 @@ class GCSFileSystem(FileSystem):
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
+
+  @staticmethod
+  def get_gcsio():
+    """
+    Get an instance of gcsio.GcsIO
+    Return:
+      A new instance of gcsio.GcsIO
+    """
+    return gcsio.GcsIO()
