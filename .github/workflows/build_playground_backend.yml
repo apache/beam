@@ -45,13 +45,11 @@ jobs:
       - name: Run Lint
         run: "golangci-lint run internal/..."
         working-directory: playground/backend/
-        continue-on-error: true
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
       - name: Run Tests
         run: ./gradlew playground:backend:test
-        continue-on-error: true
       - name: install npm
         uses: actions/setup-node@v2
         with:
@@ -61,7 +59,6 @@ jobs:
       - name: lint dockerfile
         run: dockerlint Dockerfile
         working-directory: playground/backend/containers/java
-        continue-on-error: true
       - name: Setup GCP account
         run: echo ${{ secrets.GCP_ACCESS_KEY }} | base64 -d > /tmp/gcp_access.json
         if: startsWith(github.ref, 'ref/tags/') 
