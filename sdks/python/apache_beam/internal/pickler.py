@@ -30,6 +30,7 @@ the coders.*PickleCoder classes should be used instead.
 
 from apache_beam.internal import cloudpickle_pickler
 from apache_beam.internal import dill_pickler
+from apache_beam.options import SetupOptions
 
 USE_CLOUDPICKLE = 1
 USE_DILL = 2
@@ -75,6 +76,18 @@ def set_pickle_lib(pickle_lib_enum):
   elif pickle_lib_enum == USE_DILL:
     desired_pickle_lib = dill_pickler
     dill_pickler.override_pickler_hooks(True)
+
+
+def set_pipeline_options(pipeline_options):
+  """ Sets pickle library based on pipeline settings. """
+  selected_library = pipeline_options.view_as(SetupOptions).set_pickle_library
+  if selected_library == 'default':
+    set_pickle_lib(DEFAULT_PICKLE_LIB)
+  elif selected_library == 'dill':
+    set_pickle_lib(USE_DILL)
+  elif selected_library == 'cloudpickle':
+    set_pickle_lib(USE_CLOUDPICKLE)
+
 
 if not desired_pickle_lib:
   set_pickle_lib(DEFAULT_PICKLE_LIB)
