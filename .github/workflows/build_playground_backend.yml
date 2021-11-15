@@ -46,6 +46,9 @@ jobs:
         run: "golangci-lint run internal/..."
         working-directory: playground/backend/
         continue-on-error: true
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue
+        run: rm ~/.m2/settings.xml
       - name: Run Tests
         run: ./gradlew playground:backend:test
         continue-on-error: true
