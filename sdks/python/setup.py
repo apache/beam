@@ -209,6 +209,10 @@ INTERACTIVE_BEAM = [
     # Skip version 6.1.13 due to
     # https://github.com/jupyter/jupyter_client/issues/637
     'jupyter-client>=6.1.11,<6.1.13',
+    # ib.show and ib.collect both require pandas.
+    # No hard version requirement needed, keep in sync with
+    # dataframe dependencies for simplicity.
+    'pandas>=1.0,<1.4',
     'timeloop>=1.0.2,<2',
 ]
 
