@@ -237,7 +237,10 @@ func (v *multiMapValue) invoke(args []reflect.Value) []reflect.Value {
 		panic(fmt.Sprintf("wanted one key value, got %v", args))
 	}
 	key := reflect.ValueOf(Convert(args[0], v.keyType))
-	rs, _ := v.adapter.NewKeyedIterable(v.ctx, v.reader, v.w, key)
+	rs, err := v.adapter.NewKeyedIterable(v.ctx, v.reader, v.w, key)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create keyed iterable, got %v", err))
+	}
 	iter := makeIter(v.t.Out(0), rs)
 	iter.Init()
 	return []reflect.Value{reflect.ValueOf(iter.Value())}

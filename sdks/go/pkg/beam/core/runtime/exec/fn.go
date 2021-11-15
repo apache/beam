@@ -77,7 +77,7 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	n := &invoker{
 		fn:   fn,
 		args: make([]interface{}, len(fn.Param)),
-		in:   fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit | funcx.FnRTracker),
+		in:   fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit | funcx.FnMultiMap | funcx.FnRTracker),
 		out:  fn.Returns(funcx.RetValue),
 	}
 	var ok bool
@@ -268,7 +268,7 @@ func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter
 	if len(in) != len(side)+1 {
 		return nil, errors.Errorf("found %v inbound, want %v", len(in), len(side)+1)
 	}
-	param := fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter)
+	param := fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnMultiMap)
 	if len(param) <= len(side) {
 		return nil, errors.Errorf("found %v params, want >%v", len(param), len(side))
 	}
@@ -278,7 +278,16 @@ func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter
 
 	var ret []ReusableInput
 	for i := 0; i < len(streams); i++ {
-		s, err := makeSideInput(in[i+1].Kind, fn.Param[param[i+offset]].T, streams[i])
+		inKind := in[i+1].Kind
+		params := fn.Param[param[i+offset]].T
+		// Handle MultiMaps separately since they require more/different information
+		// than the other side inputs
+		if inKind == graph.MultiMap {
+			s := makeMultiMap(ctx, params, side[i], reader, w)
+			ret = append(ret, s)
+			continue
+		}
+		s, err := makeSideInput(inKind, params, streams[i])
 		if err != nil {
 			return nil, errors.WithContextf(err, "making side input %v for %v", i, fn)
 		}
