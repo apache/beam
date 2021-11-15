@@ -22,28 +22,31 @@ import static org.mockito.Mockito.when;
 
 import java.util.Set;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import software.amazon.awssdk.services.kinesis.model.Shard;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
 /** * */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(Shard.class)
 public class DynamicCheckpointGeneratorTest {
 
   @Mock private SimplifiedKinesisClient kinesisClient;
   @Mock private StartingPointShardsFinder startingPointShardsFinder;
-  @Mock private Shard shard1, shard2, shard3;
+  private Shard shard1, shard2, shard3;
+
+  @Before
+  public void init() {
+    shard1 = Shard.builder().shardId("shard-01").build();
+    shard2 = Shard.builder().shardId("shard-02").build();
+    shard3 = Shard.builder().shardId("shard-03").build();
+  }
 
   @Test
   public void shouldMapAllShardsToCheckpoints() throws Exception {
-    when(shard1.shardId()).thenReturn("shard-01");
-    when(shard2.shardId()).thenReturn("shard-02");
-    when(shard3.shardId()).thenReturn("shard-03");
     Set<Shard> shards = Sets.newHashSet(shard1, shard2, shard3);
     StartingPoint startingPoint = new StartingPoint(InitialPositionInStream.LATEST);
     when(startingPointShardsFinder.findShardsAtStartingPoint(
@@ -59,9 +62,6 @@ public class DynamicCheckpointGeneratorTest {
 
   @Test
   public void shouldMapAllValidShardsToCheckpoints() throws Exception {
-    when(shard1.shardId()).thenReturn("shard-01");
-    when(shard2.shardId()).thenReturn("shard-02");
-    when(shard3.shardId()).thenReturn("shard-03");
     String streamName = "stream";
     Set<Shard> shards = Sets.newHashSet(shard1, shard2);
     StartingPoint startingPoint = new StartingPoint(InitialPositionInStream.LATEST);
