@@ -57,10 +57,12 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 		}
 	}
 
+	var errs []error
+
 	for _, minfo := range minfos {
 		key, err := extractKey(minfo, pcolToTransform)
 		if err != nil {
-			log.Println(err)
+			errs = append(errs, err)
 			continue
 		}
 
@@ -69,14 +71,14 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 		case UrnToString(UrnUserSumInt64):
 			value, err := extractCounterValue(r)
 			if err != nil {
-				log.Println(err)
+				errs = append(errs, err)
 				continue
 			}
 			counters[key] = value
 		case UrnToString(UrnUserDistInt64):
 			value, err := extractDistributionValue(r)
 			if err != nil {
-				log.Println(err)
+				errs = append(errs, err)
 				continue
 			}
 			distributions[key] = value
@@ -86,7 +88,7 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 			UrnToString(UrnUserBottomNInt64):
 			value, err := extractGaugeValue(r)
 			if err != nil {
-				log.Println(err)
+				errs = append(errs, err)
 				continue
 			}
 			gauges[key] = value
@@ -97,7 +99,7 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 			UrnToString(UrnTransformTotalTime):
 			value, err := extractMsecValue(r)
 			if err != nil {
-				log.Println(err)
+				errs = append(errs, err)
 				continue
 			}
 			v := msecs[key]
@@ -115,7 +117,7 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 		case UrnToString(UrnElementCount):
 			value, err := extractCounterValue(r)
 			if err != nil {
-				log.Println(err)
+				errs = append(errs, err)
 				continue
 			}
 			v := pcols[key]
@@ -124,15 +126,20 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 		case UrnToString(UrnSampledByteSize):
 			value, err := extractDistributionValue(r)
 			if err != nil {
-				log.Println(err)
+				errs = append(errs, err)
 				continue
 			}
 			v := pcols[key]
 			v.SampledByteSize = value
 			pcols[key] = v
+		case UrnToString(UrnDataChannelReadIndex):
+			// Ignore runtime progress metrics.
 		default:
-			log.Println("unknown metric type")
+			log.Println("unknown metric type", minfo.GetUrn())
 		}
+	}
+	if len(errs) > 0 {
+		log.Printf("Warning: %v errors during metrics processing: %v\n", len(errs), errs)
 	}
 	return counters, distributions, gauges, msecs, pcols
 }
@@ -145,7 +152,7 @@ func extractKey(mi *pipepb.MonitoringInfo, pcolToTransform map[string]string) (m
 		stepName = v
 	}
 	if stepName == "" {
-		return metrics.StepKey{}, fmt.Errorf("Failed to deduce Step from MonitoringInfo: %v", mi)
+		return metrics.StepKey{}, fmt.Errorf("failed to deduce Step from MonitoringInfo: %v", mi)
 	}
 	return metrics.StepKey{Step: stepName, Name: labels.Name(), Namespace: labels.Namespace()}, nil
 }
