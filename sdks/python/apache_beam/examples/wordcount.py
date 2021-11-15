@@ -90,5 +90,5 @@ def run(argv=None, save_main_session=True):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
-  run(save_main_session = False)
+  logging.getLogger().setLevel(logging.INFO)
+  run()
