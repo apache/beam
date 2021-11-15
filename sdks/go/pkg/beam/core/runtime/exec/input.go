@@ -233,6 +233,9 @@ func (v *multiMapValue) Reset() error {
 }
 
 func (v *multiMapValue) invoke(args []reflect.Value) []reflect.Value {
+	if len(args) != 1 {
+		panic(fmt.Sprintf("wanted one key value, got %v", args))
+	}
 	key := reflect.ValueOf(Convert(args[0], v.keyType))
 	rs, _ := v.adapter.NewKeyedIterable(v.ctx, v.reader, v.w, key)
 	iter := makeIter(v.t.Out(0), rs)
