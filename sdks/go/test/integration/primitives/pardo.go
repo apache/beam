@@ -18,12 +18,12 @@ package primitives
 import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
 func init() {
 	beam.RegisterFunction(splitStringPair)
 	beam.RegisterFunction(asymJoinFn)
+	beam.RegisterFunction(splitByName)
 }
 
 func emit3Fn(elm int, emit, emit2, emit3 func(int)) {
@@ -123,7 +123,9 @@ func ParDoMultiMapSideInput() *beam.Pipeline {
 	phonesKV := CreateAndSplit(s.Scope("CreatePhones"), phoneSlice)
 	output := beam.ParDo(s, asymJoinFn, phonesKV, beam.SideInput{Input: emailsKV})
 	passert.Count(s, output, "post-join", 2)
-	debug.Print(s, output)
+	amyOut, jamesOut := beam.ParDo2(s, splitByName, output)
+	passert.Equals(s, amyOut, "amy@example.com", "111-222-3333")
+	passert.Equals(s, jamesOut, "james@email.com", "james@example.com", "222-333-4444")
 	return p
 }
 
@@ -137,3 +139,17 @@ func asymJoinFn(k, v string, mapSide func(string) func(*string) bool) (string, [
 	}
 	return k, results
 }
+
+func splitByName(key string, vals []string, a, j func(string)) {
+	var emitter func(string)
+	switch key {
+	case "amy":
+		emitter = a
+	case "james":
+		emitter = j
+	}
+	for _, val := range vals {
+		emitter(val)
+	}
+}
+
