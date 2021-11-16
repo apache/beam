@@ -47,22 +47,4 @@ class ExampleRepository {
     final result = await _client.getExampleOutput(request);
     return result.output;
   }
-
-// Map<SDK, List<CategoryModel>> parseListOfExamplesResponse(Map data) {
-//   Map<SDK, List<CategoryModel>> output = {};
-//   for (SDK sdk in SDK.values) {
-//     final sdkName = sdk.displayName.toLowerCase();
-//     if (data.containsKey(sdkName)) {
-//       output[sdk] = data[sdkName]
-//           .map((category) => CategoryModel.fromJson(category))
-//           .cast<CategoryModel>()
-//           .toList();
-//     }
-//   }
-//   return output;
-// }
-//
-// OutputsModel parsePrecompiledOutputs(Map<String, dynamic> data) {
-//   return OutputsModel.fromJson(data);
-// }
 }
