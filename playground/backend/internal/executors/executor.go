@@ -51,7 +51,6 @@ func (ex *Executor) Validate() func(chan bool, chan error) {
 			}
 		}
 		doneCh <- true
-		return
 	}
 }
 
@@ -67,7 +66,6 @@ func (ex *Executor) Prepare() func(chan bool, chan error) {
 			}
 		}
 		doneCh <- true
-		return
 	}
 }
 

@@ -66,7 +66,7 @@ func TestGetValidators(t *testing.T) {
 				if !reflect.DeepEqual(len(*got), len(*tt.want)) {
 					t.Errorf("GetValidators() len = %v, want %v", len(*got), len(*tt.want))
 				}
-				for i, _ := range *got {
+				for i := range *got {
 					gotVal := (*got)[i]
 					wantVal := (*tt.want)[i]
 					if !reflect.DeepEqual(gotVal.Args, wantVal.Args) {

@@ -29,9 +29,7 @@ func listenHttp(ctx context.Context, errChan chan error, envs environment.Networ
 		return
 	}
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		}
+		<-ctx.Done()
+		return
 	}
 }
