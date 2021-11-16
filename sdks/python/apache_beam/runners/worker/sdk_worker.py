@@ -1277,7 +1277,7 @@ class _Future(Generic[T]):
       raise LookupError()
 
   def set(self, value):
-    # type: (T) -> T
+    # type: (T) -> _Future[T]
     self._value = value
     self._event.set()
     return self
@@ -1292,21 +1292,24 @@ class _Future(Generic[T]):
     return cls.DONE  # type: ignore[attr-defined]
 
 
-class _DeferredCall(_Future):
+class _DeferredCall(_Future[T]):
   def __init__(self, func, *args):
+    # type: (Callable[..., Any], *Any) -> None
     self._func = func
     self._args = [
         arg if isinstance(arg, _Future) else _Future().set(arg) for arg in args
     ]
 
   def wait(self, timeout=None):
-    for arg in self._args:
-      arg.wait(timeout)
+    # type: (Optional[float]) -> bool
+    return all(arg.wait(timeout) for arg in self._args)
 
   def get(self, timeout=None):
+    # type: (Optional[float]) -> T
     return self._func(*(arg.get(timeout) for arg in self._args))
 
-  def set(self):
+  def set(self, value):
+    # type: (T) -> _Future[T]
     raise NotImplementedError()
 
 
