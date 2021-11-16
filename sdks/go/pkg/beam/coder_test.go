@@ -184,8 +184,9 @@ func TestCoders(t *testing.T) {
 }
 
 func TestTestFunc(t *testing.T) {
-    result := TestFunc(2)
+    input := 2
+    result := TestFunc(input)
     if result != 4 {
-        t.Errorf("Error %d %d", total, result)
+        t.Errorf("Error %d %d", result, input)
     }
 }
