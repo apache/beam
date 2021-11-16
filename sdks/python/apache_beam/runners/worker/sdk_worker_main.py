@@ -34,6 +34,7 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
