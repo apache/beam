@@ -104,8 +104,8 @@ public class PTransformTranslation {
   /** @deprecated use {@link #RESHUFFLE_KEYS_URN} or {@link #RESHUFFLE_ELEMENTS_URN} */
   @Deprecated public static final String RESHUFFLE_URN = "beam:transform:reshuffle:v1";
 
-  public static final String RESHUFFLE_KEYS_URN = "beam:transform:reshuffle_per_key:v1";
-  public static final String RESHUFFLE_ELEMENTS_URN = "beam:transform:reshuffle_per_random_key:v1";
+  public static final String RESHUFFLE_KEYS_URN = "beam:transform:reshuffle_keys:v1";
+  public static final String RESHUFFLE_ELEMENTS_URN = "beam:transform:reshuffle_elements:v1";
   public static final String WRITE_FILES_TRANSFORM_URN = "beam:transform:write_files:v1";
   public static final String GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN =
       "beam:transform:group_into_batches_with_sharded_key:v1";
