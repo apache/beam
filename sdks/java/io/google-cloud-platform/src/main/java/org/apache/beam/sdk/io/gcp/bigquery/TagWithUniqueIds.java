@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.io.IOException;
 import java.util.UUID;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
@@ -38,15 +39,32 @@ class TagWithUniqueIds<KeyT, ElementT>
   private transient String randomUUID;
   private transient long sequenceNo = 0L;
 
+  private final SerializableFunction<ElementT, String> elementToId;
+
+  public TagWithUniqueIds() {
+    elementToId = null;
+  }
+
+  public TagWithUniqueIds(SerializableFunction<ElementT, String> elementToId) {
+    this.elementToId = elementToId;
+  }
+
   @StartBundle
   public void startBundle() {
-    randomUUID = UUID.randomUUID().toString();
+    if (elementToId == null) {
+      randomUUID = UUID.randomUUID().toString();
+    }
   }
 
   /** Tag the input with a unique id. */
   @ProcessElement
   public void processElement(ProcessContext context) throws IOException {
-    String uniqueId = randomUUID + sequenceNo++;
+    String uniqueId;
+    if (elementToId == null) {
+      uniqueId = randomUUID + sequenceNo++;
+    } else {
+      uniqueId = elementToId.apply(context.element().getValue());
+    }
     // We output on keys 0-50 to ensure that there's enough batching for
     // BigQuery.
     context.output(

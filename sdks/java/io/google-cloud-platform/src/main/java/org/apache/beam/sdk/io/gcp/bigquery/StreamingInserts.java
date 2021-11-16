@@ -43,10 +43,12 @@ public class StreamingInserts<DestinationT, ElementT>
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
   private final boolean autoSharding;
+  private final boolean skipReshuffle;
   private final String kmsKey;
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
+  private final SerializableFunction<ElementT, String> toUniqueId;
 
   /** Constructor. */
   public StreamingInserts(
@@ -65,9 +67,11 @@ public class StreamingInserts<DestinationT, ElementT>
         false,
         false,
         false,
+        false,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        null,
         null);
   }
 
@@ -82,9 +86,11 @@ public class StreamingInserts<DestinationT, ElementT>
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
       boolean autoSharding,
+      boolean skipReshuffle,
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
       SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
+      SerializableFunction<ElementT, String> toUniqueId,
       String kmsKey) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
@@ -95,9 +101,11 @@ public class StreamingInserts<DestinationT, ElementT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
     this.autoSharding = autoSharding;
+    this.skipReshuffle = skipReshuffle;
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
+    this.toUniqueId = toUniqueId;
     this.kmsKey = kmsKey;
   }
 
@@ -114,9 +122,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        toUniqueId,
         kmsKey);
   }
 
@@ -132,9 +142,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        toUniqueId,
         kmsKey);
   }
 
@@ -149,9 +161,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        toUniqueId,
         kmsKey);
   }
 
@@ -166,9 +180,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        toUniqueId,
         kmsKey);
   }
 
@@ -183,9 +199,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        toUniqueId,
         kmsKey);
   }
 
@@ -200,9 +218,50 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        toUniqueId,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT, ElementT> withSkipReshuffle(boolean skipReshuffle) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
+        skipReshuffle,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow,
+        toUniqueId,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT, ElementT> withToUniqueId(
+      SerializableFunction<ElementT, String> toUniqueId) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
+        skipReshuffle,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow,
+        toUniqueId,
         kmsKey);
   }
 
@@ -217,9 +276,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        toUniqueId,
         kmsKey);
   }
 
@@ -234,9 +295,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        toUniqueId,
         kmsKey);
   }
 
@@ -258,8 +321,10 @@ public class StreamingInserts<DestinationT, ElementT>
             .withIgnoreUnknownValues(ignoreUnknownValues)
             .withIgnoreInsertIds(ignoreInsertIds)
             .withAutoSharding(autoSharding)
+            .withSkipReshuffle(skipReshuffle)
             .withElementCoder(elementCoder)
             .withToTableRow(toTableRow)
-            .withToFailsafeTableRow(toFailsafeTableRow));
+            .withToFailsafeTableRow(toFailsafeTableRow)
+            .withToUniqueId(toUniqueId));
   }
 }

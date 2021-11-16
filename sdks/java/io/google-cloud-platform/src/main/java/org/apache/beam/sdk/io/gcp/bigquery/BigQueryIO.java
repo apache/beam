@@ -1706,6 +1706,8 @@ public class BigQueryIO {
         .setOptimizeWrites(false)
         .setUseBeamSchema(false)
         .setAutoSharding(false)
+        .setSkipReshuffle(false)
+        .setToUniqueIdFunction(null)
         .build();
   }
 
@@ -1844,6 +1846,12 @@ public class BigQueryIO {
     @Experimental
     abstract Boolean getAutoSharding();
 
+    @Experimental
+    abstract Boolean getSkipReshuffle();
+
+    @Experimental
+    abstract @Nullable SerializableFunction<T, String> getToUniqueIdFunction();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1927,6 +1935,12 @@ public class BigQueryIO {
 
       @Experimental
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
+
+      @Experimental
+      abstract Builder<T> setSkipReshuffle(Boolean skipReshuffle);
+
+      @Experimental
+      abstract Builder<T> setToUniqueIdFunction(SerializableFunction<T, String> toUniqueIdFunction);
 
       abstract Write<T> build();
     }
@@ -2427,6 +2441,32 @@ public class BigQueryIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
+    /**
+     * If true, removes the re-shuffle from the BigQueryIO Write by using the keys on which the data
+     * is grouped at the point at which BigQueryIO Write is applied. This may be beneficial as a
+     * performance optimization in the case when the current sharding is already sufficient for
+     * writing to BigQuery. This can be used only with {@link Method#STREAMING_INSERTS} and cannot
+     * be combined with {@link #withAutoSharding}. Enabling this optimization means that the unique
+     * ids generated for each record being inserted into BigQuery will not be checkpointed, and
+     * therefore are no longer guaranteed to be unique. Therefore it is recommended to use this in
+     * conjunction with the {@link #withToUniqueIdFunction} to provide a guaranteed-unique id for
+     * each record.
+     */
+    @Experimental
+    public Write<T> withSkipReshuffle() {
+      return toBuilder().setSkipReshuffle(true).build();
+    }
+
+    /**
+     * Provides a function which can serve as a source of unique ids for each record to be written,
+     * replacing the unique ids generated with the default scheme. This can be used in conjunction
+     * with {@link #withSkipReshuffle}.
+     */
+    @Experimental
+    public Write<T> withToUniqueIdFunction(SerializableFunction<T, String> toUniqueIdFunction) {
+      return toBuilder().setToUniqueIdFunction(toUniqueIdFunction).build();
+    }
+
     @VisibleForTesting
     /** This method is for test usage only */
     public Write<T> withTestServices(BigQueryServices testServices) {
@@ -2606,9 +2646,23 @@ public class BigQueryIO {
 
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
+        checkArgument(
+            !getSkipReshuffle(), "Skipping reshuffle is only applicable to unbounded input.");
       }
       if (method == Write.Method.STORAGE_WRITE_API) {
         checkArgument(!getAutoSharding(), "Auto sharding not yet available for Storage API writes");
+      }
+
+      if (method != Method.STREAMING_INSERTS) {
+        checkArgument(
+            !getSkipReshuffle(), "Skipping reshuffle only available for streaming inserts");
+        checkArgument(
+            getToUniqueIdFunction() == null,
+            "To Unique Id function only usable in streaming inserts mode");
+      }
+      if (getSkipReshuffle()) {
+        checkArgument(
+            !getAutoSharding(), "At most one of skipReshuffle or autoSharding can be set.");
       }
 
       if (getJsonTimePartitioning() != null) {
@@ -2813,6 +2867,8 @@ public class BigQueryIO {
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
                 .withIgnoreInsertIds(getIgnoreInsertIds())
                 .withAutoSharding(getAutoSharding())
+                .withSkipReshuffle(getSkipReshuffle())
+                .withToUniqueId(getToUniqueIdFunction())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
       } else if (method == Write.Method.FILE_LOADS) {
