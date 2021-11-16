@@ -71,7 +71,6 @@ public class Neo4jIOIT {
     neo4jContainer =
         new Neo4jContainer<>(DockerImageName.parse("neo4j").withTag(Neo4jTestUtil.NEO4J_VERSION))
             .withStartupAttempts(1)
-            .withExposedPorts(7687, 7474)
             .withNetwork(network)
             .withEnv(
                 "NEO4J_AUTH", Neo4jTestUtil.NEO4J_USERNAME + "/" + Neo4jTestUtil.NEO4J_PASSWORD)
