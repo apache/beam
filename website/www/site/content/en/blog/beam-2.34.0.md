@@ -59,6 +59,7 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 * Fixed error while writing multiple DeferredFrames to csv (Python) ([BEAM-12701](https://issues.apache.org/jira/browse/BEAM-12701)).
 * Fixed error when importing the DataFrame API with pandas 1.0.x installed ([BEAM-12945](https://issues.apache.org/jira/browse/BEAM-12945)).
 * Fixed top.SmallestPerKey implementation in the Go SDK ([BEAM-12946](https://issues.apache.org/jira/browse/BEAM-12946)).
+* Fixed data loss when using Python WriteToFiles in streaming pipeline ([BEAM-12950](https://issues.apache.org/jira/browse/BEAM-12950)).
 
 ## List of Contributors
 
@@ -88,6 +89,7 @@ Chuck Yang,
 Chun Yang,
 Claire McGinty,
 comet,
+davidpr91,
 Daniel Collins,
 Daniel Oliveira,
 Daniel Thevessen,
