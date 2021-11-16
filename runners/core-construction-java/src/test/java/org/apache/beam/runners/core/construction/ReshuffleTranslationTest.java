@@ -61,15 +61,4 @@ public class ReshuffleTranslationTest {
         PTransformTranslation.urnForTransform(Reshuffle.elements()),
         equalTo(RESHUFFLE_ELEMENTS_URN));
   }
-
-  /**
-   * Tests that the translator is registered so the URN can be retrieved (the only thing you can
-   * meaningfully do with a {@link Reshuffle#viaRandomKey()} ()}).
-   */
-  @Test
-  public void testViaRandomKeyUrnRetrievable() {
-    assertThat(
-        PTransformTranslation.urnForTransform(Reshuffle.viaRandomKey()),
-        equalTo(RESHUFFLE_ELEMENTS_URN));
-  }
 }
