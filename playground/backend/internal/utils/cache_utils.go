@@ -13,31 +13,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package primitives
+package utils
 
 import (
-	"testing"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/v2/go/test/integration"
+	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/logger"
+	"context"
+	"github.com/google/uuid"
 )
 
-func TestParDoMultiOutput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoMultiOutput())
-}
-
-func TestParDoSideInput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoSideInput())
-}
-
-func TestParDoKVSideInput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoKVSideInput())
-}
-
-func TestParDoMultiMapSideInput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoMultiMapSideInput())
+// SetToCache puts value to cache by key and subKey.
+// If error occurs during the function - logs and returns error.
+func SetToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, value interface{}) error {
+	err := cacheService.SetValue(ctx, key, subKey, value)
+	if err != nil {
+		logger.Errorf("%s: cache.SetValue: %s\n", key, err.Error())
+	}
+	return err
 }

@@ -13,31 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package primitives
+package utils
 
 import (
-	"testing"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/v2/go/test/integration"
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/validators"
+	"fmt"
 )
 
-func TestParDoMultiOutput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoMultiOutput())
-}
-
-func TestParDoSideInput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoSideInput())
-}
-
-func TestParDoKVSideInput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoKVSideInput())
-}
-
-func TestParDoMultiMapSideInput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoMultiMapSideInput())
+// GetValidators returns slice of validators.Validator according to sdk
+func GetValidators(sdk pb.Sdk, filepath string) (*[]validators.Validator, error) {
+	var val *[]validators.Validator
+	switch sdk {
+	case pb.Sdk_SDK_JAVA:
+		val = validators.GetJavaValidators(filepath)
+	default:
+		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
+	}
+	return val, nil
 }
