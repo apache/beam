@@ -16,6 +16,20 @@
 #    limitations under the License.
 #
 
+# Generates requirements files, which list PyPI depenedncies to install in
+# Apache Beam Python SDK container images. To generate the list,
+# we use two sources of information:
+# 1) Requirements of Apache Beam itself, as defined by setup.py.
+# 2) A list of dependencies from base_image_requirements_manual.txt, which we
+# maintain manually.
+
+# It is recommended to run this script via gralde commands such as:
+# ./gradlew :sdks:python:container:generatePythonRequirementsAll
+# ./gradlew :sdks:python:container:py38:generatePythonRequirements
+
+# You will need Python intepreters for all versions supported by Beam, see:
+# https://s.apache.org/beam-python-dev-wiki
+
 if [[ $# != 2 ]]; then
   printf "Usage: \n$> ./sdks/python/container/run_generate_requirements.sh <python_version> <sdk_tarball>"
   printf "\n\tpython_version: [required] Python version to generate dependencies for."
@@ -41,8 +55,7 @@ pip check
 echo "Installed dependencies:"
 pip freeze
 
-# Take the version from intepreter instead of $1 to make sure they match. Sample value: py36.
-PY_IMAGE=$(python -c 'import sys; print(f"py{sys.version_info.major}{sys.version_info.minor}")')
+PY_IMAGE="py${PY_VERSION//.}"
 REQUIREMENTS_FILE=$PWD/sdks/python/container/$PY_IMAGE/base_image_requirements.txt
 cat <<EOT > $REQUIREMENTS_FILE
 #    Licensed to the Apache Software Foundation (ASF) under one or more

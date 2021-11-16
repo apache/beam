@@ -234,7 +234,7 @@ If you are not a PMC, please ask for help in dev@ mailing list.
 ## 3. Update base image dependencies for Python container images
 
 1. Check the versions specified in sdks/python/container/base_image_requirements_manual.txt` and update them if necessary.
-2. Regenerate full dependency list by running:
+1. Regenerate full dependency list by running:
 `./gradlew :sdks:python:container:generatePythonRequirementsAll` and commiting
 the changes. Exectution takes about ~5 min per Python version and is somewhat resource-demanding.
 You can also regenerate the dependencies indiviually per version with targets like `./gradlew :sdks:python:container:py38:generatePythonRequirements`.
@@ -242,6 +242,8 @@ You can also regenerate the dependencies indiviually per version with targets li
 
 Ideally, do this at least a week before the release cut, so that any issues
 related to the update have time to surface.
+You will need Python intepreters for all versions supported by Beam, see:
+https://s.apache.org/beam-python-dev-wiki for tips how to install them.
 
 ## 4. Investigate performance regressions
 

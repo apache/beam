@@ -70,16 +70,14 @@ RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=fa
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 RUN pip install --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
 RUN pip check
+# Log complete list of what exact packages and versions are installed.
+RUN pip freeze --all
 
 COPY target/LICENSE /opt/apache/beam/
 COPY target/LICENSE.python /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
 COPY target/launcher/linux_amd64/boot /opt/apache/beam/
 
-# Log complete list of what exact packages and versions are installed.
-RUN pip freeze --all
-# Make sure there are no conflicting dependencies.
-RUN pip check
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
 ####

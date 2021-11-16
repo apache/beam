@@ -24,7 +24,8 @@
 # Consider constraining requirements of Beam itself when necessary.
 
 bs4  # Commonly used HTML processing tool.
-# Let's upgrade to Cython 3.0 in a controlled way, stay on 0.x versions for now.
+# Don't upgrade to Cython 3.x, until it's released, stable and we have consensus
+# to upgrade. Use 0.xx for now.
 cython<1
 google-cloud-profiler
 google-python-cloud-debugger
