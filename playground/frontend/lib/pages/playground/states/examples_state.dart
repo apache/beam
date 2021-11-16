@@ -64,7 +64,7 @@ class ExampleState with ChangeNotifier {
     sdkCategories = await _exampleRepository.getListOfExamples(
       GetListOfExamplesRequestWrapper(sdk: null, category: null),
     );
-    _loadDefaultExamples(sdkCategories);
+    await _loadDefaultExamples(sdkCategories);
     notifyListeners();
   }
 

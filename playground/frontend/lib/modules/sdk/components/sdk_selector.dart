@@ -66,7 +66,7 @@ class SDKSelector extends StatelessWidget {
                     onSelect: () {
                       close();
                       setSdk(value);
-                      setExample(state.sdkCategories![value]!.first.examples.first);
+                      setExample(state.defaultExamplesMap![value]!);
                     },
                   ),
                 ),
