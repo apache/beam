@@ -76,6 +76,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.state.BagState;
@@ -1772,14 +1773,12 @@ public class ParDoTest implements Serializable {
                             @Timestamp Instant timestamp,
                             OutputReceiver<String> r) {
                           r.output(element);
-                          System.out.println("Process: " + element + ":" + timestamp.getMillis());
                         }
 
                         @FinishBundle
                         public void finishBundle(FinishBundleContext c) {
                           Instant ts = new Instant(3);
                           c.output("finish", ts, windowFn.assignWindow(ts));
-                          System.out.println("Finish: 3");
                         }
                       }))
               .apply(ParDo.of(new PrintingDoFn()));
@@ -2549,13 +2548,23 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesOrderedListState.class,
+      UsesOnWindowExpiration.class
+    })
     public void testOrderedListStateBounded() {
       testOrderedListStateImpl(false);
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesOrderedListState.class,
+      UsesOnWindowExpiration.class
+    })
     public void testOrderedListStateUnbounded() {
       testOrderedListStateImpl(true);
     }
@@ -5734,8 +5743,6 @@ public class ParDoTest implements Serializable {
                 @Timestamp Instant ts,
                 @TimerFamily(timerFamilyId) TimerMap timerMap,
                 OutputReceiver<String> r) {
-              System.out.println("timer Id : " + timerId);
-              System.out.println("timerMap : " + timerMap.toString());
               r.output(timerId);
             }
           };
@@ -6121,6 +6128,9 @@ public class ParDoTest implements Serializable {
             }
           };
 
+      if (useStreaming) {
+        pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+      }
       PCollection<Integer> output =
           pipeline
               .apply(
@@ -6131,7 +6141,6 @@ public class ParDoTest implements Serializable {
                       // second window
                       TimestampedValue.of(KV.of("hi", 35), new Instant(13))))
               .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       PAssert.that(output)

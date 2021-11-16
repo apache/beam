@@ -121,6 +121,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,6 +199,8 @@ public class DoFnOperator<InputT, OutputT>
 
   /** If true, we must process elements only after a checkpoint is finished. */
   private final boolean requiresStableInput;
+
+  private final boolean usesOnWindowExpiration;
 
   private final boolean finishBundleBeforeCheckpointing;
 
@@ -303,6 +306,8 @@ public class DoFnOperator<InputT, OutputT>
         // WindowDoFnOperator does not use a DoFn
         doFn != null
             && DoFnSignatures.getSignature(doFn.getClass()).processElement().requiresStableInput();
+    this.usesOnWindowExpiration =
+        doFn != null && DoFnSignatures.getSignature(doFn.getClass()).onWindowExpiration() != null;
 
     if (requiresStableInput) {
       Preconditions.checkState(
@@ -791,11 +796,30 @@ public class DoFnOperator<InputT, OutputT>
 
   private void maybeEmitWatermark(long watermark) {
     if (watermark > currentOutputWatermark) {
+      // If this is the end of the global window, then call onWindowExpiration callbacks. For other
+      // windows, this will
+      // be called as part of the garbage-collection timer.
+      if (usesOnWindowExpiration
+          && keyedStateInternals != null
+          && watermark
+              > adjustTimestampForFlink(GlobalWindow.INSTANCE.maxTimestamp().getMillis())) {
+        final KeyedStateBackend<Object> keyedStateBackend = getKeyedStateBackend();
+        List<ByteBuffer> globalStateKeys = keyedStateInternals.getGlobalWindowStateKeys();
+        Instant outputTimestamp = GlobalWindow.INSTANCE.maxTimestamp().minus(Duration.millis(1));
+        globalStateKeys.forEach(
+            k -> {
+              keyedStateBackend.setCurrentKey(k);
+              pushbackDoFnRunner.onWindowExpiration(
+                  GlobalWindow.INSTANCE, outputTimestamp, FlinkKeyUtils.decodeKey(k, keyCoder));
+            });
+      }
+
       // Must invoke finishBatch before emit the +Inf watermark otherwise there are some late
       // events.
       if (watermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
         invokeFinishBundle();
       }
+
       LOG.debug("Emitting watermark {}", watermark);
       currentOutputWatermark = watermark;
       output.emitWatermark(new Watermark(watermark));

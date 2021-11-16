@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -213,6 +214,22 @@ public class FlinkStateInternals<K> implements StateInternals {
     } catch (Exception e) {
       throw new RuntimeException("Failed to cleanup global state.", e);
     }
+  }
+
+  public List<ByteBuffer> getGlobalWindowStateKeys() {
+    List<ByteBuffer> keys = Lists.newArrayList();
+    for (StateAndNamespaceDescriptor stateAndNamespace : globalWindowStateDescriptors) {
+      try {
+        flinkStateBackend.applyToAllKeys(
+            stateAndNamespace.namespace,
+            stateAndNamespace.namespaceSerializer,
+            stateAndNamespace.stateDescriptor,
+            (key, state) -> keys.add(key));
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to list global-state keys.", e);
+      }
+    }
+    return keys;
   }
 
   private class FlinkStateBinder implements StateBinder {
