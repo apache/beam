@@ -182,3 +182,10 @@ func TestCoders(t *testing.T) {
 		})
 	}
 }
+
+func TestTestFunc(t *testing.T) {
+    result := TestFunc(2)
+    if result != 4 {
+        t.Errorf("Error %d %d", total, result)
+    }
+}

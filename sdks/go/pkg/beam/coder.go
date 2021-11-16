@@ -382,3 +382,7 @@ func newSchemaCoder(t reflect.Type) (*coder.CustomCoder, error) {
 	}
 	return c, nil
 }
+
+func TestFunc(i int) int {
+    return i*2
+}
