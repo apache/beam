@@ -116,8 +116,8 @@ func CreateAndSplit(s beam.Scope, input []stringPair) beam.PCollection {
 	return beam.ParDo(s, splitStringPair, initial)
 }
 
-// ParDoMultiMapSideInput checkls that the multimap side input access pattern
-// works correctly, properly producing the correct output. for the asymmetric joing
+// ParDoMultiMapSideInput checks that the multimap side input access pattern
+// works correctly, properly producing the correct output with an asymmetric join.
 func ParDoMultiMapSideInput() *beam.Pipeline {
 	beam.Init()
 	p, s := beam.NewPipelineWithRoot()
@@ -133,8 +133,7 @@ func ParDoMultiMapSideInput() *beam.Pipeline {
 
 func asymJoinFn(k, v string, mapSide func(string) func(*string) bool) (string, []string) {
 	var out string
-	var results []string
-	results = append(results, v)
+	results := []string{v}
 	iter := mapSide(k)
 	for iter(&out) {
 		results = append(results, out)
