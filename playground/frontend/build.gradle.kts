@@ -84,7 +84,8 @@ task("createConfig") {
   description = "Generate config for the playground frontend project"
   doLast {
     val configFileName = "config.g.dart"
-    val file = File("lib", configFileName)
+    val modulePath = project(":playground:frontend").projectDir.absolutePath
+    val file = File(modulePath + "/lib", configFileName)
     file.writeText("""/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
