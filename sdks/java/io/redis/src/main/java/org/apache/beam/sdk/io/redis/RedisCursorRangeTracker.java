@@ -61,13 +61,10 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
 
   @Override
   public SplitResult<RedisCursorRange> trySplit(double fractionOfRemainder) {
+    ByteKey startKey = RedisCursor.redisCursorToByteKey(range.getStartPosition());
+    ByteKey endKey = RedisCursor.redisCursorToByteKey(range.getEndPosition());
     // No split on an empty range.
-    if (NO_KEYS.equals(range)
-        || (!range.getEndPosition().getByteCursor().isEmpty()
-            && range
-                .getStartPosition()
-                .getByteCursor()
-                .equals(range.getEndPosition().getByteCursor()))) {
+    if (NO_KEYS.equals(range) || (!endKey.isEmpty() && startKey.equals(endKey))) {
       return null;
     }
     // There is no more remaining work after the entire range has been claimed.
@@ -78,10 +75,12 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
     RedisCursor unprocessedRangeStartKey =
         (lastAttemptedKey == null)
             ? range.getStartPosition()
-            : RedisCursor.of(next(lastAttemptedKey), range.getStartPosition().getDbSize());
-    RedisCursor endKey = range.getEndPosition();
+            : RedisCursor.byteKeyToRedisCursor(
+                next(lastAttemptedKey), range.getStartPosition().getDbSize(), true);
+    RedisCursor endCursor = range.getEndPosition();
     // There is no more space for split.
-    if (!endKey.getByteCursor().isEmpty() && unprocessedRangeStartKey.compareTo(endKey) >= 0) {
+    if (!RedisCursor.redisCursorToByteKey(endCursor).isEmpty()
+        && unprocessedRangeStartKey.compareTo(endCursor) >= 0) {
       return null;
     }
 
@@ -94,68 +93,63 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
         // We update our current range to an interval that contains no elements.
         RedisCursorRange rval = range;
         range =
-            range.getStartPosition().getByteCursor().isEmpty()
+            startKey.isEmpty()
                 ? NO_KEYS
                 : RedisCursorRange.of(range.getStartPosition(), range.getStartPosition());
         return SplitResult.of(range, rval);
-      } else {
-        range = RedisCursorRange.of(range.getStartPosition(), unprocessedRangeStartKey);
-        return SplitResult.of(range, RedisCursorRange.of(unprocessedRangeStartKey, endKey));
-      }
+      } /* else {
+          range = RedisCursorRange.of(range.getStartPosition(), unprocessedRangeStartKey);
+          return SplitResult.of(range, RedisCursorRange.of(unprocessedRangeStartKey, endCursor));
+        }*/
     }
 
     return null;
   }
 
   @Override
-  public boolean tryClaim(RedisCursor key) {
+  public boolean tryClaim(RedisCursor cursor) {
+    ByteKey key = RedisCursor.redisCursorToByteKey(cursor);
+    ByteKey startKey = RedisCursor.redisCursorToByteKey(range.getStartPosition());
+    ByteKey endKey = RedisCursor.redisCursorToByteKey(range.getEndPosition());
     // Handle claiming the end of range EMPTY key
-    if (key.getByteCursor().isEmpty()) {
+    if (key.isEmpty()) {
       checkArgument(
           lastAttemptedKey == null || !lastAttemptedKey.isEmpty(),
           "Trying to claim key %s while last attempted key was %s",
           key,
           lastAttemptedKey);
-      lastAttemptedKey = key.getByteCursor();
+      lastAttemptedKey = key;
       return false;
     }
 
-    if (range.getStartPosition().getCursor().equals(RedisCursor.ZERO_CURSOR.getCursor())
-        && range.getEndPosition().getCursor().equals(RedisCursor.ZERO_CURSOR.getCursor())) {
-      lastAttemptedKey = key.getByteCursor();
-      return true;
-    }
-
     checkArgument(
-        lastAttemptedKey == null || key.getByteCursor().compareTo(lastAttemptedKey) > 0,
+        lastAttemptedKey == null || key.compareTo(lastAttemptedKey) > 0,
         "Trying to claim key %s while last attempted key was %s",
         key,
         lastAttemptedKey);
     checkArgument(
-        key.compareTo(range.getStartPosition()) >= 0,
+        key.compareTo(startKey) > -1,
         "Trying to claim key %s before start of the range %s",
         key,
         range);
 
-    lastAttemptedKey = key.getByteCursor();
+    lastAttemptedKey = key;
     // No respective checkArgument for i < range.to() - it's ok to try claiming keys beyond
-    if (!range.getEndPosition().getByteCursor().isEmpty()
-        && key.compareTo(range.getEndPosition()) >= 0) {
+    if (!endKey.isEmpty() && key.compareTo(endKey) > -1) {
       return false;
     }
-    lastClaimedKey = key.getByteCursor();
-    range = range.fromEndPosition(key);
+    lastClaimedKey = key;
     return true;
   }
 
   @Override
   public void checkDone() throws IllegalStateException {
+    ByteKey endKey = RedisCursor.redisCursorToByteKey(range.getEndPosition());
     // Handle checking the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
     if (NO_KEYS.equals(range)
-        || (!range.getEndPosition().getByteCursor().isEmpty()
-            && range.getStartPosition().equals(range.getEndPosition()))) {
+        || (!endKey.isEmpty() && range.getStartPosition().equals(range.getEndPosition()))) {
       return;
     }
 
@@ -171,19 +165,17 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
     }
 
     // The lastAttemptedKey is the last key of current restriction.
-    if (!range.getEndPosition().getByteCursor().isEmpty()
-        && next(lastAttemptedKey).compareTo(range.getEndPosition().getByteCursor()) >= 0) {
+    if (!endKey.isEmpty() && next(lastAttemptedKey).compareTo(endKey) >= 0) {
       return;
     }
 
     // If the last attempted key was not at or beyond the end of the range then throw.
-    if (range.getEndPosition().getByteCursor().isEmpty()
-        || range.getEndPosition().getByteCursor().compareTo(lastAttemptedKey) > 0) {
+    if (endKey.isEmpty() || endKey.compareTo(lastAttemptedKey) > 0) {
       ByteKey nextKey = next(lastAttemptedKey);
       throw new IllegalStateException(
           String.format(
               "Last attempted key was %s in range %s, claiming work in [%s, %s) was not attempted",
-              lastAttemptedKey, range, nextKey, range.getEndPosition().getByteCursor()));
+              lastAttemptedKey, range, nextKey, endKey));
     }
   }
 
@@ -196,6 +188,8 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
 
   @Override
   public Progress getProgress() {
+    ByteKey startKey = RedisCursor.redisCursorToByteKey(range.getStartPosition());
+    ByteKey endKey = RedisCursor.redisCursorToByteKey(range.getEndPosition());
     // Return [0,0] for the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
@@ -211,14 +205,11 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
     // Return [1,0] if the last attempted key was the empty key representing the end of range for
     // all ranges or the last attempted key is beyond the end of the range.
     if (lastAttemptedKey.isEmpty()
-        || !(range.getEndPosition().getByteCursor().isEmpty()
-            || range.getEndPosition().getByteCursor().compareTo(lastAttemptedKey) > 0)) {
+        || !(endKey.isEmpty() || endKey.compareTo(lastAttemptedKey) > 0)) {
       return Progress.from(1, 0);
     }
 
-    ByteKeyRange byteKeyRange =
-        ByteKeyRange.of(
-            range.getStartPosition().getByteCursor(), range.getEndPosition().getByteCursor());
+    ByteKeyRange byteKeyRange = ByteKeyRange.of(startKey, endKey);
     double workCompleted = byteKeyRange.estimateFractionForKey(lastAttemptedKey);
     return Progress.from(workCompleted, 1 - workCompleted);
   }

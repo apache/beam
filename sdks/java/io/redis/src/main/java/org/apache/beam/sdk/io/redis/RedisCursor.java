@@ -32,33 +32,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class RedisCursor implements Comparable<RedisCursor>, Serializable {
 
-  public static final RedisCursor ZERO_CURSOR = RedisCursor.of("0", 8);
-
   private final String cursor;
-  private final ByteKey byteCursor;
   private final long dbSize;
-  private final int nBits;
+  private final boolean isStart;
 
-  public static RedisCursor of(String cursor, long dbSize) {
-    return new RedisCursor(cursor, dbSize);
+  public static final ByteKey ZERO_KEY = ByteKey.of(0x00);
+  public static final RedisCursor ZERO_CURSOR = RedisCursor.of("0", 8, true);
+  public static final RedisCursor END_CURSOR = RedisCursor.of("0", 8, false);
+
+  public static RedisCursor of(String cursor, long dbSize, boolean isStart) {
+    return new RedisCursor(cursor, dbSize, isStart);
   }
 
-  public static RedisCursor of(ByteKey byteCursor, long dbSize) {
-    return new RedisCursor(byteCursor, dbSize);
-  }
-
-  private RedisCursor(ByteKey byteCursor, long dbSize) {
-    this.byteCursor = byteCursor;
-    this.dbSize = dbSize;
-    this.nBits = getTablePow(dbSize);
-    this.cursor = byteKeyToString(byteCursor, nBits);
-  }
-
-  private RedisCursor(String cursor, long dbSize) {
+  private RedisCursor(String cursor, long dbSize, boolean isStart) {
     this.cursor = cursor;
     this.dbSize = dbSize;
-    this.nBits = getTablePow(dbSize);
-    this.byteCursor = stringCursorToByteKey(cursor, this.nBits);
+    this.isStart = isStart;
   }
 
   /**
@@ -80,23 +69,16 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
       return false;
     }
     RedisCursor that = (RedisCursor) o;
-    return dbSize == that.dbSize
-        && nBits == that.nBits
-        && Objects.equals(cursor, that.cursor)
-        && Objects.equals(byteCursor, that.byteCursor);
+    return dbSize == that.dbSize && isStart == that.isStart && Objects.equals(cursor, that.cursor);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(cursor, byteCursor, dbSize, nBits);
+    return Objects.hash(cursor, dbSize, isStart);
   }
 
   public String getCursor() {
     return cursor;
-  }
-
-  public ByteKey getByteCursor() {
-    return byteCursor;
   }
 
   public long getDbSize() {
@@ -104,8 +86,16 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
   }
 
   @VisibleForTesting
-  static ByteKey stringCursorToByteKey(String cursor, int nBits) {
-    long cursorLong = Long.parseLong(cursor);
+  static ByteKey redisCursorToByteKey(RedisCursor cursor) {
+    if ("0".equals(cursor.getCursor())) {
+      if (cursor.isStart) {
+        return ByteKey.of(0x00);
+      } else {
+        return ByteKey.EMPTY;
+      }
+    }
+    int nBits = getTablePow(cursor.dbSize);
+    long cursorLong = Long.parseLong(cursor.getCursor());
     long reversed = shiftBits(cursorLong, nBits);
     BigEndianLongCoder coder = BigEndianLongCoder.of();
     ByteArrayOutputStream os = new ByteArrayOutputStream();
@@ -135,15 +125,20 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
   }
 
   @VisibleForTesting
-  static String byteKeyToString(ByteKey byteKeyStart, int nBites) {
+  static RedisCursor byteKeyToRedisCursor(ByteKey byteKeyStart, long nKeys, boolean isStart) {
+    if (byteKeyStart.isEmpty() || byteKeyStart.equals(ZERO_KEY)) {
+      return RedisCursor.of("0", nKeys, isStart);
+    }
+    int nBits = getTablePow(nKeys);
     ByteBuffer bb = ByteBuffer.wrap(byteKeyStart.getBytes());
-    if (bb.capacity() < nBites) {
-      int rem = nBites - bb.capacity();
+    if (bb.capacity() < nBits) {
+      int rem = nBits - bb.capacity();
       byte[] padding = new byte[rem];
-      bb = ByteBuffer.allocate(nBites).put(padding).put(bb.array());
+      bb = ByteBuffer.allocate(nBits).put(padding).put(bb.array());
       bb.position(0);
     }
     long l = bb.getLong();
-    return Long.toString(l);
+    l = shiftBits(l, nBits);
+    return RedisCursor.of(Long.toString(l), nKeys, isStart);
   }
 }

@@ -20,18 +20,12 @@ package org.apache.beam.sdk.io.redis;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -124,38 +118,6 @@ public class RedisIO {
         .setBatchSize(1000)
         .setOutputParallelization(true)
         .build();
-  }
-
-  public static ByteKey cursorToByteKey(String cursor, long dbSize) throws IOException {
-    long cursorLong = Long.parseLong(cursor);
-    long reversed = shiftBits(cursorLong, dbSize);
-    BigEndianLongCoder coder = BigEndianLongCoder.of();
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    coder.encode(reversed, os);
-    byte[] byteArray = os.toByteArray();
-    return ByteKey.copyFrom(byteArray);
-  }
-
-  public static String byteKeyToString(ByteKey byteKeyStart) {
-    ByteBuffer bb = ByteBuffer.wrap(byteKeyStart.getBytes());
-    if (bb.capacity() < 8) {
-      int rem = 8 - bb.capacity();
-      byte[] padding = new byte[rem];
-      bb = ByteBuffer.allocate(8).put(padding).put(bb.array());
-      bb.position(0);
-    }
-    long l = bb.getLong();
-    return Long.toString(l);
-  }
-
-  public static long shiftBits(long a, long dbSize) {
-    long b = 0;
-    for (long i = 0; i < dbSize; ++i) {
-      b <<= 1;
-      b |= (a & 1);
-      a >>= 1;
-    }
-    return b;
   }
 
   /**
@@ -376,8 +338,7 @@ public class RedisIO {
 
     @GetInitialRestriction
     public RedisCursorRange getInitialRestriction() {
-      long dbSize = jedis.dbSize();
-      return RedisCursorRange.of(RedisCursor.of("0", dbSize), RedisCursor.of("0", dbSize));
+      return RedisCursorRange.of(RedisCursor.ZERO_CURSOR, RedisCursor.END_CURSOR);
     }
 
     @ProcessElement
@@ -388,33 +349,18 @@ public class RedisIO {
       scanParams.match(c.element());
       while (tracker.tryClaim(cursor)) {
         ScanResult<String> scanResult = jedis.scan(cursor.getCursor(), scanParams);
-        List<String> keys = new ArrayList<>();
-        for (String k : scanResult.getResult()) {
-          keys.add(k);
-        }
-        if (keys.size() > 0) {
-          for (KV<String, String> kv : fetchAndFlush(keys)) {
-            c.output(kv);
+        if (scanResult.getResult().size() > 0) {
+          String[] keys = scanResult.getResult().toArray(new String[scanResult.getResult().size()]);
+          List<String> results = jedis.mget(keys);
+          for (int i = 0; i < results.size(); i++) {
+            if (results.get(i) != null) {
+              c.output(KV.of(keys[i], results.get(i)));
+            }
           }
         }
-        if (RedisCursor.ZERO_CURSOR.getCursor().equals(scanResult.getCursor())) {
-          break;
-        }
-        cursor = RedisCursor.of(scanResult.getCursor(), jedis.dbSize());
+        cursor = RedisCursor.of(scanResult.getCursor(), jedis.dbSize(), false);
       }
       return ProcessContinuation.stop();
-    }
-
-    private List<KV<String, String>> fetchAndFlush(List<String> bundle) {
-      List<KV<String, String>> kvs = new ArrayList<>();
-      String[] keys = bundle.toArray(new String[bundle.size()]);
-      List<String> results = jedis.mget(keys);
-      for (int i = 0; i < results.size(); i++) {
-        if (results.get(i) != null) {
-          kvs.add(KV.of(keys[i], results.get(i)));
-        }
-      }
-      return kvs;
     }
   }
 
