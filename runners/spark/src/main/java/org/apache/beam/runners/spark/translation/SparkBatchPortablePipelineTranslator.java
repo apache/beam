@@ -113,7 +113,7 @@ public class SparkBatchPortablePipelineTranslator
         PTransformTranslation.RESHUFFLE_URN,
         SparkBatchPortablePipelineTranslator::translateReshuffle);
     translatorMap.put(
-        PTransformTranslation.RESHUFFLE_PER_KEY_URN,
+        PTransformTranslation.RESHUFFLE_KEYS_URN,
         SparkBatchPortablePipelineTranslator::translateReshuffle);
     this.urnToTransformTranslator = translatorMap.build();
   }
@@ -416,7 +416,7 @@ public class SparkBatchPortablePipelineTranslator
   public static class IsSparkNativeTransform implements NativeTransforms.IsNativeTransform {
     @Override
     public boolean test(RunnerApi.PTransform pTransform) {
-      return PTransformTranslation.RESHUFFLE_PER_KEY_URN.equals(
+      return PTransformTranslation.RESHUFFLE_KEYS_URN.equals(
           PTransformTranslation.urnForTransformOrNull(pTransform))
           || PTransformTranslation.RESHUFFLE_URN.equals(
           PTransformTranslation.urnForTransformOrNull(pTransform));

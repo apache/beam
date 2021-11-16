@@ -159,8 +159,7 @@ class FlinkStreamingTransformTranslators {
         new CreateViewStreamingTranslator());
 
     TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorStreaming());
-    TRANSLATORS.put(
-        PTransformTranslation.RESHUFFLE_PER_KEY_URN, new ReshuffleTranslatorStreaming());
+    TRANSLATORS.put(PTransformTranslation.RESHUFFLE_KEYS_URN, new ReshuffleTranslatorStreaming());
     TRANSLATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator());
     TRANSLATORS.put(
         PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslator());

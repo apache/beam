@@ -224,7 +224,7 @@ public class FlinkStreamingPortablePipelineTranslator
     translatorMap.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, this::translateImpulse);
     translatorMap.put(ExecutableStage.URN, this::translateExecutableStage);
     translatorMap.put(PTransformTranslation.RESHUFFLE_URN, this::translateReshuffle);
-    translatorMap.put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, this::translateReshuffle);
+    translatorMap.put(PTransformTranslation.RESHUFFLE_KEYS_URN, this::translateReshuffle);
 
     // TODO Legacy transforms which need to be removed
     // Consider removing now that timers are supported
@@ -695,7 +695,7 @@ public class FlinkStreamingPortablePipelineTranslator
               PTransformTranslation.urnForTransformOrNull(pTransform))
           || PTransformTranslation.RESHUFFLE_URN.equals(
               PTransformTranslation.urnForTransformOrNull(pTransform))
-          || PTransformTranslation.RESHUFFLE_PER_KEY_URN.equals(
+          || PTransformTranslation.RESHUFFLE_KEYS_URN.equals(
               PTransformTranslation.urnForTransformOrNull(pTransform));
     }
   }

@@ -101,12 +101,11 @@ public class PTransformTranslation {
   public static final String COMBINE_PER_KEY_TRANSFORM_URN = "beam:transform:combine_per_key:v1";
   public static final String COMBINE_GLOBALLY_TRANSFORM_URN = "beam:transform:combine_globally:v1";
 
-  /** @deprecated use {@link #RESHUFFLE_PER_KEY_URN} or {@link #RESHUFFLE_PER_RANDOM_KEY_URN} */
+  /** @deprecated use {@link #RESHUFFLE_KEYS_URN} or {@link #RESHUFFLE_ELEMENTS_URN} */
   @Deprecated public static final String RESHUFFLE_URN = "beam:transform:reshuffle:v1";
 
-  public static final String RESHUFFLE_PER_KEY_URN = "beam:transform:reshuffle_per_key:v1";
-  public static final String RESHUFFLE_PER_RANDOM_KEY_URN =
-      "beam:transform:reshuffle_per_random_key:v1";
+  public static final String RESHUFFLE_KEYS_URN = "beam:transform:reshuffle_per_key:v1";
+  public static final String RESHUFFLE_ELEMENTS_URN = "beam:transform:reshuffle_per_random_key:v1";
   public static final String WRITE_FILES_TRANSFORM_URN = "beam:transform:write_files:v1";
   public static final String GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN =
       "beam:transform:group_into_batches_with_sharded_key:v1";
@@ -183,11 +182,9 @@ public class PTransformTranslation {
         COMBINE_GLOBALLY_TRANSFORM_URN.equals(
             getUrn(StandardPTransforms.Composites.COMBINE_GLOBALLY)));
     checkState(RESHUFFLE_URN.equals(getUrn(StandardPTransforms.Composites.RESHUFFLE)));
+    checkState(RESHUFFLE_KEYS_URN.equals(getUrn(StandardPTransforms.Composites.RESHUFFLE_KEYS)));
     checkState(
-        RESHUFFLE_PER_KEY_URN.equals(getUrn(StandardPTransforms.Composites.RESHUFFLE_PER_KEY)));
-    checkState(
-        RESHUFFLE_PER_RANDOM_KEY_URN.equals(
-            getUrn(StandardPTransforms.Composites.RESHUFFLE_PER_RANDOM_KEY)));
+        RESHUFFLE_ELEMENTS_URN.equals(getUrn(StandardPTransforms.Composites.RESHUFFLE_ELEMENTS)));
     checkState(
         WRITE_FILES_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Composites.WRITE_FILES)));
     checkState(PUBSUB_READ.equals(getUrn(StandardPTransforms.Composites.PUBSUB_READ)));

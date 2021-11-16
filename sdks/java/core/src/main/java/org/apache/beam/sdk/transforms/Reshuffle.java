@@ -49,41 +49,41 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
 
   private Reshuffle() {}
 
-  /** @deprecated use {@link #perKey()}. */
+  /** @deprecated use {@link #keys()}. */
   @Deprecated
   public static <K, V> Reshuffle<K, V> of() {
     return new Reshuffle<>();
   }
 
-  public static <K, V> PerKey<K, V> perKey() {
-    return new PerKey<>();
+  public static <K, V> Keys<K, V> keys() {
+    return new Keys<>();
   }
 
-  /** @deprecated use {@link #perRandomKey()}. */
+  /** @deprecated use {@link #elements()}. */
   @Deprecated
-  public static <T> PerRandomKey<T> viaRandomKey() {
-    return perRandomKey();
+  public static <T> ViaRandomKey<T> viaRandomKey() {
+    return new ViaRandomKey<>();
   }
 
   /**
-   * Encapsulates the sequence "pair input with unique key, apply {@link Reshuffle#perKey()}, drop
-   * the key" commonly used to break fusion.
+   * Encapsulates the sequence "pair input with unique key, apply {@link Reshuffle#keys()}, drop the
+   * key" commonly used to break fusion.
    */
   @Experimental
-  public static <T> PerRandomKey<T> perRandomKey() {
-    return new PerRandomKey<>();
+  public static <T> Elements<T> elements() {
+    return new Elements<>();
   }
 
   @Override
   public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
-    return input.apply(new PerKey<>());
+    return input.apply(new Keys<>());
   }
 
   /** Implementation of {@link #viaRandomKey()}. */
-  public static class PerRandomKey<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    private PerRandomKey() {}
+  public static class ViaRandomKey<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private ViaRandomKey() {}
 
-    private PerRandomKey(@Nullable Integer numBuckets) {
+    private ViaRandomKey(@Nullable Integer numBuckets) {
       this.numBuckets = numBuckets;
     }
 
@@ -91,28 +91,49 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
     // unit sized bundles on the output. If unset, uses a random integer key.
     private @Nullable Integer numBuckets;
 
-    public PerRandomKey<T> withNumBuckets(@Nullable Integer numBuckets) {
-      return new PerRandomKey<>(numBuckets);
+    public ViaRandomKey<T> withNumBuckets(@Nullable Integer numBuckets) {
+      return new ViaRandomKey<>(numBuckets);
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<T> input) {
+      return input.apply(new Elements<>(numBuckets));
+    }
+  }
+
+  /** Implementation of {@link #elements()}. */
+  public static class Elements<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private Elements() {}
+
+    private Elements(@Nullable Integer numBuckets) {
+      this.numBuckets = numBuckets;
+    }
+
+    // The number of buckets to shard into. This is a performance optimization to prevent having
+    // unit sized bundles on the output. If unset, uses a random integer key.
+    private @Nullable Integer numBuckets;
+
+    public Elements<T> withNumBuckets(@Nullable Integer numBuckets) {
+      return new Elements<>(numBuckets);
     }
 
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       return input
           .apply("Pair with random key", ParDo.of(new AssignShardFn<>(numBuckets)))
-          .apply(Reshuffle.perKey())
+          .apply(Reshuffle.keys())
           .apply(Values.create());
     }
   }
 
   /**
-   * Implementation of {@link #perKey*()}.
+   * Implementation of {@link #keys *()}.
    *
    * @param <K> The type of key being reshuffled on.
    * @param <V> The type of value being reshuffled.
    */
-  public static class PerKey<K, V>
-      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
-    private PerKey() {}
+  public static class Keys<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
+    private Keys() {}
 
     @Override
     public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {

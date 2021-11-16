@@ -377,7 +377,7 @@ message StandardPTransforms {
     //
     // Input: KV(K, V)
     // Output: KV(K, V)
-    RESHUFFLE_PER_KEY = 7 [(beam_urn) = "beam:transform:reshuffle_per_key:v1"];
+    RESHUFFLE_KEYS = 7 [(beam_urn) = "beam:transform:reshuffle_keys:v1"];
 
     // Represents Reshuffle.perRandomKey() operator, a PTransform that returns a PCollection
     // equivalent to its input and ideally redistributed among the available workers.
@@ -386,7 +386,7 @@ message StandardPTransforms {
     //
     // Input: element
     // Output: element
-    RESHUFFLE_PER_RANDOM_KEY = 8 [(beam_urn) = "beam:transform:reshuffle_per_random_key:v1"];
+    RESHUFFLE_ELEMENTS = 8 [(beam_urn) = "beam:transform:reshuffle_elements:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {

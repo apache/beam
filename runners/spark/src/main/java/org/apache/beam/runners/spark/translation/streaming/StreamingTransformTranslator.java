@@ -530,10 +530,10 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle.PerKey<K, V>> reshufflePerKey() {
-    return new TransformEvaluator<Reshuffle.PerKey<K, V>>() {
+  private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle.Keys<K, V>> reshuffleKeys() {
+    return new TransformEvaluator<Reshuffle.Keys<K, V>>() {
       @Override
-      public void evaluate(Reshuffle.PerKey<K, V> transform, EvaluationContext context) {
+      public void evaluate(Reshuffle.Keys<K, V> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         UnboundedDataset<KV<K, V>> inputDataset =
             (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
@@ -575,7 +575,7 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, window());
     EVALUATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, flattenPColl());
     EVALUATORS.put(PTransformTranslation.RESHUFFLE_URN, reshuffle());
-    EVALUATORS.put(PTransformTranslation.RESHUFFLE_PER_KEY_URN, reshufflePerKey());
+    EVALUATORS.put(PTransformTranslation.RESHUFFLE_KEYS_URN, reshuffleKeys());
   }
 
   private static @Nullable TransformEvaluator<?> getTranslator(PTransform<?, ?> transform) {

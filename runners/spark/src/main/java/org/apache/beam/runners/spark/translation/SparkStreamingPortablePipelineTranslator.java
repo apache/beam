@@ -114,7 +114,7 @@ public class SparkStreamingPortablePipelineTranslator
         PTransformTranslation.RESHUFFLE_URN,
         SparkStreamingPortablePipelineTranslator::translateReshuffle);
     translatorMap.put(
-        PTransformTranslation.RESHUFFLE_PER_KEY_URN,
+        PTransformTranslation.RESHUFFLE_KEYS_URN,
         SparkStreamingPortablePipelineTranslator::translateReshuffle);
     this.urnToTransformTranslator = translatorMap.build();
   }

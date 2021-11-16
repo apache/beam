@@ -50,29 +50,29 @@ public class ReshuffleTranslation {
   }
 
   static class ReshufflePerKeyTranslator
-      implements TransformPayloadTranslator<Reshuffle.PerKey<?, ?>> {
+      implements TransformPayloadTranslator<Reshuffle.Keys<?, ?>> {
     @Override
-    public String getUrn(Reshuffle.PerKey<?, ?> transform) {
-      return PTransformTranslation.RESHUFFLE_PER_KEY_URN;
+    public String getUrn(Reshuffle.Keys<?, ?> transform) {
+      return PTransformTranslation.RESHUFFLE_KEYS_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, Reshuffle.PerKey<?, ?>> transform, SdkComponents components) {
+        AppliedPTransform<?, ?, Reshuffle.Keys<?, ?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
     }
   }
 
   static class ReshufflePerRandomKeyTranslator
-      implements TransformPayloadTranslator<Reshuffle.PerRandomKey<?>> {
+      implements TransformPayloadTranslator<Reshuffle.Elements<?>> {
     @Override
-    public String getUrn(Reshuffle.PerRandomKey<?> transform) {
-      return PTransformTranslation.RESHUFFLE_PER_RANDOM_KEY_URN;
+    public String getUrn(Reshuffle.Elements<?> transform) {
+      return PTransformTranslation.RESHUFFLE_ELEMENTS_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, Reshuffle.PerRandomKey<?>> transform, SdkComponents components) {
+        AppliedPTransform<?, ?, Reshuffle.Elements<?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
     }
   }
@@ -88,8 +88,8 @@ public class ReshuffleTranslation {
         getTransformPayloadTranslators() {
       return ImmutableMap.of(
           Reshuffle.class, new ReshuffleTranslator(),
-          Reshuffle.PerKey.class, new ReshufflePerKeyTranslator(),
-          Reshuffle.PerRandomKey.class, new ReshufflePerRandomKeyTranslator());
+          Reshuffle.Keys.class, new ReshufflePerKeyTranslator(),
+          Reshuffle.Elements.class, new ReshufflePerRandomKeyTranslator());
     }
   }
 }

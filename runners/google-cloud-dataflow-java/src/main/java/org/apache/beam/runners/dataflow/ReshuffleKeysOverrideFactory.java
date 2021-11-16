@@ -37,17 +37,17 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 
 /**
- * A {@link ReshufflePerKeyOverrideFactory} that overrides {@link Reshuffle} with a version that
- * does not reify timestamps. Dataflow has special handling of the {@link ReshuffleTrigger} which
- * never buffers elements and outputs elements with their original timestamp.
+ * A {@link ReshuffleKeysOverrideFactory} that overrides {@link Reshuffle} with a version that does
+ * not reify timestamps. Dataflow has special handling of the {@link ReshuffleTrigger} which never
+ * buffers elements and outputs elements with their original timestamp.
  */
-class ReshufflePerKeyOverrideFactory<K, V>
+class ReshuffleKeysOverrideFactory<K, V>
     extends SingleInputOutputOverrideFactory<
-        PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle.PerKey<K, V>> {
+        PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle.Keys<K, V>> {
   @Override
   public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, V>>>
       getReplacementTransform(
-          AppliedPTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle.PerKey<K, V>>
+          AppliedPTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle.Keys<K, V>>
               transform) {
     return PTransformOverrideFactory.PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform), new ReshuffleWithOnlyTrigger<>());

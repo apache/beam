@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_PER_KEY_URN;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_PER_RANDOM_KEY_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_ELEMENTS_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_KEYS_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.RESHUFFLE_URN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -43,12 +43,23 @@ public class ReshuffleTranslationTest {
 
   /**
    * Tests that the translator is registered so the URN can be retrieved (the only thing you can
-   * meaningfully do with a {@link Reshuffle#perKey()}).
+   * meaningfully do with a {@link Reshuffle#keys()}).
    */
   @Test
-  public void testPerKeyUrnRetrievable() {
+  public void testKeysUrnRetrievable() {
     assertThat(
-        PTransformTranslation.urnForTransform(Reshuffle.perKey()), equalTo(RESHUFFLE_PER_KEY_URN));
+        PTransformTranslation.urnForTransform(Reshuffle.keys()), equalTo(RESHUFFLE_KEYS_URN));
+  }
+
+  /**
+   * Tests that the translator is registered so the URN can be retrieved (the only thing you can
+   * meaningfully do with a {@link Reshuffle#elements()} ()} ()}).
+   */
+  @Test
+  public void testElementsUrnRetrievable() {
+    assertThat(
+        PTransformTranslation.urnForTransform(Reshuffle.elements()),
+        equalTo(RESHUFFLE_ELEMENTS_URN));
   }
 
   /**
@@ -56,9 +67,9 @@ public class ReshuffleTranslationTest {
    * meaningfully do with a {@link Reshuffle#viaRandomKey()} ()}).
    */
   @Test
-  public void testPerRandomKeyUrnRetrievable() {
+  public void testViaRandomKeyUrnRetrievable() {
     assertThat(
         PTransformTranslation.urnForTransform(Reshuffle.viaRandomKey()),
-        equalTo(RESHUFFLE_PER_RANDOM_KEY_URN));
+        equalTo(RESHUFFLE_ELEMENTS_URN));
   }
 }
