@@ -217,4 +217,5 @@ var (
 // EventTimeType is the reflect.Type of EventTime.
 var EventTimeType = typex.EventTimeType
 
+// MetricResult represents a single metric value, for use in writing predicate functions to query PipelineResults.
 type MetricResult = metrics.SingleResult
