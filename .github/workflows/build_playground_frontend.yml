@@ -41,15 +41,10 @@ jobs:
         uses: subosito/flutter-action@v1
         with:
             channel: 'stable'
-      - name: Prepare Flutter lint
-        run: "flutter pub add flutter_lints --dev"
-        working-directory: playground/frontend/        
       - name: Run Lint
-        run: "flutter analyze"
-        working-directory: playground/frontend/
+        run: ./gradlew playground:frontend:analyze
       - name: Run Tests
-        run: flutter test
-        working-directory: playground/frontend/
+        run: ./gradlew playground:frontend:test
       - name: install npm
         uses: actions/setup-node@v2
         with:
