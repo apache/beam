@@ -778,15 +778,17 @@ class Pipeline(object):
         input_types = type_hints.input_types
         if input_types and input_types[0]:
           declared_input_type = input_types[0][0]
-          result_pcollection.element_type = typehints.bind_type_variables(
+          result_element_type = typehints.bind_type_variables(
               declared_output_type,
               typehints.match_type_variables(
                   declared_input_type, input_element_type))
         else:
-          result_pcollection.element_type = declared_output_type
+          result_element_type = declared_output_type
       else:
-        result_pcollection.element_type = transform.infer_output_type(
-            input_element_type)
+        result_element_type = transform.infer_output_type(input_element_type)
+      # Any remaining type variables have no bindings higher than this scope.
+      result_pcollection.element_type = typehints.bind_type_variables(
+          result_element_type, {'*': typehints.Any})
     elif isinstance(result_pcollection, pvalue.DoOutputsTuple):
       # {Single, multi}-input, multi-output inference.
       # TODO(BEAM-4132): Add support for tagged type hints.
@@ -890,7 +892,9 @@ class Pipeline(object):
                   pcoll.element_type)
             if (isinstance(output.element_type,
                            typehints.TupleHint.TupleConstraint) and
-                len(output.element_type.tuple_types) == 2):
+                len(output.element_type.tuple_types) == 2 and
+                pcoll.element_type.tuple_types[0] ==
+                output.element_type.tuple_types[0]):
               output.requires_deterministic_key_coder = (
                   deterministic_key_coders and transform_node.full_label)
         for side_input in transform_node.transform.side_inputs:

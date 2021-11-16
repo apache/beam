@@ -1839,6 +1839,19 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     assert_that(d, equal_to([6]))
     self.p.run()
 
+  def test_combine_properly_pipeline_type_checks_without_decorator(self):
+    def sum_ints(ints):
+      return sum(ints)
+
+    d = (
+        self.p
+        | beam.Create([1, 2, 3])
+        | beam.Map(lambda x: ('key', x))
+        | beam.CombinePerKey(sum_ints))
+
+    self.assertEqual(typehints.Tuple[str, typehints.Any], d.element_type)
+    self.p.run()
+
   def test_combine_func_type_hint_does_not_take_iterable_using_decorator(self):
     @with_output_types(int)
     @with_input_types(a=int)
