@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.neo4j;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,9 +32,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -101,11 +105,21 @@ public class Neo4jIOIT {
     }
   }
 
+  private static class ParameterizedReadRowToLineFn extends DoFn<Row, String> {
+    @DoFn.ProcessElement
+    public void processElement(ProcessContext context) {
+      Row row = context.element();
+      assert row != null;
+      int one = row.getInt32(0);
+      String string = row.getString(1);
+      context.output(one + "," + string);
+    }
+  }
+
   @Test
   public void testParameterizedRead() throws Exception {
-    PBegin begin = parameterizedReadPipeline.begin();
     PCollection<String> stringsCollections =
-        begin.apply(Create.of(Arrays.asList("one", "two", "three")));
+        parameterizedReadPipeline.apply(Create.of(Arrays.asList("one", "two", "three")));
 
     final Schema outputSchema =
         Schema.of(
@@ -136,7 +150,8 @@ public class Neo4jIOIT {
 
     PCollection<Row> outputRows = stringsCollections.apply(read);
 
-    PCollection<String> outputLines = outputRows.apply(ParDo.of(new RowToLineFn()));
+    PCollection<String> outputLines =
+        outputRows.apply(ParDo.of(new ParameterizedReadRowToLineFn()));
 
     PAssert.that(outputLines).containsInAnyOrder("1,one", "1,two", "1,three");
 
@@ -149,9 +164,8 @@ public class Neo4jIOIT {
 
   @Test
   public void testWriteUnwind() throws Exception {
-    PBegin begin = writeUnwindPipeline.begin();
     PCollection<String> stringsCollections =
-        begin.apply(Create.of(Arrays.asList("one", "two", "three")));
+        writeUnwindPipeline.apply(Create.of(Arrays.asList("one", "two", "three")));
 
     // Every row is represented by a Map<String, Object> in the parameters map.
     // We accumulate the rows and 'unwind' those to Neo4j for performance reasons.
@@ -192,24 +206,22 @@ public class Neo4jIOIT {
                   }
                   return list;
                 });
-        Assert.assertEquals(3, names.size());
-        Assert.assertTrue(names.contains("one"));
-        Assert.assertTrue(names.contains("two"));
-        Assert.assertTrue(names.contains("three"));
+
+        assertThat(names, containsInAnyOrder("one", "two", "three"));
       }
     }
   }
 
   @Test
   public void testLargeWriteUnwind() throws Exception {
-    PBegin begin = largeWriteUnwindPipeline.begin();
-
+    final int startId = 5000;
+    final int endId = 6000;
     // Create 1000 IDs
     List<Integer> idList = new ArrayList<>();
-    for (int i = 5000; i < 6000; i++) {
-      idList.add(i);
+    for (int id = startId; id < endId; id++) {
+      idList.add(id);
     }
-    PCollection<Integer> idCollection = begin.apply(Create.of(idList));
+    PCollection<Integer> idCollection = largeWriteUnwindPipeline.apply(Create.of(idList));
 
     // Every row is represented by a Map<String, Object> in the parameters map.
     // We accumulate the rows and 'unwind' those to Neo4j for performance reasons.
@@ -242,26 +254,27 @@ public class Neo4jIOIT {
     //
     try (Driver driver = Neo4jTestUtil.getDriver()) {
       try (Session session = Neo4jTestUtil.getSession(driver, true)) {
-        int[] values =
+        List<Integer> values =
             session.readTransaction(
                 tx -> {
-                  int[] v = new int[4];
+                  List<Integer> v = null;
                   int nrRows = 0;
                   Result result =
                       tx.run("MATCH(n:Something) RETURN count(n), min(n.id), max(n.id)");
                   while (result.hasNext()) {
                     Record record = result.next();
-                    v[0] = record.get(0).asInt();
-                    v[1] = record.get(1).asInt();
-                    v[2] = record.get(2).asInt();
-                    v[3] = ++nrRows;
+                    v =
+                        Arrays.asList(
+                            record.get(0).asInt(),
+                            record.get(1).asInt(),
+                            record.get(2).asInt(),
+                            ++nrRows);
                   }
                   return v;
                 });
-        Assert.assertEquals(1000, values[0]);
-        Assert.assertEquals(5000, values[1]);
-        Assert.assertEquals(5999, values[2]);
-        Assert.assertEquals(1, values[3]);
+
+        Assert.assertNotNull(values);
+        assertThat(values, contains(endId - startId, startId, endId - 1, 1));
       }
     }
   }

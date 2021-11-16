@@ -282,7 +282,6 @@ public class Neo4jIO {
       return builder().setUrl(url).build();
     }
 
-    // URLS
     public DriverConfiguration withUrls(List<String> urls) {
       return withUrls(ValueProvider.StaticValueProvider.of(urls));
     }
@@ -297,7 +296,6 @@ public class Neo4jIO {
       return builder().setUrls(urls).build();
     }
 
-    // Encryption
     public DriverConfiguration withEncryption() {
       return builder().setEncryption(ValueProvider.StaticValueProvider.of(Boolean.TRUE)).build();
     }
@@ -306,7 +304,6 @@ public class Neo4jIO {
       return builder().setEncryption(ValueProvider.StaticValueProvider.of(Boolean.FALSE)).build();
     }
 
-    // Connection Liveness Check Timout
     public DriverConfiguration withConnectionLivenessCheckTimeoutMs(
         long connectionLivenessCheckTimeoutMs) {
       return withConnectionLivenessCheckTimeoutMs(
@@ -320,7 +317,6 @@ public class Neo4jIO {
           .build();
     }
 
-    // Maximum Connection Lifetime
     public DriverConfiguration withMaxConnectionLifetimeMs(long maxConnectionLifetimeMs) {
       return withMaxConnectionLifetimeMs(
           ValueProvider.StaticValueProvider.of(maxConnectionLifetimeMs));
@@ -331,7 +327,6 @@ public class Neo4jIO {
       return builder().setMaxConnectionLifetimeMs(maxConnectionLifetimeMs).build();
     }
 
-    // Maximum Connection pool size
     public DriverConfiguration withMaxConnectionPoolSize(int maxConnectionPoolSize) {
       return withMaxConnectionPoolSize(ValueProvider.StaticValueProvider.of(maxConnectionPoolSize));
     }
@@ -341,7 +336,6 @@ public class Neo4jIO {
       return builder().setMaxConnectionPoolSize(maxConnectionPoolSize).build();
     }
 
-    // Connection Acq Timeout
     public DriverConfiguration withConnectionAcquisitionTimeoutMs(
         long connectionAcquisitionTimeoutMs) {
       return withConnectionAcquisitionTimeoutMs(
@@ -353,7 +347,6 @@ public class Neo4jIO {
       return builder().setConnectionAcquisitionTimeoutMs(connectionAcquisitionTimeoutMs).build();
     }
 
-    // Connection Timeout
     public DriverConfiguration withConnectionTimeoutMs(long connectionTimeoutMs) {
       return withConnectionTimeoutMs(ValueProvider.StaticValueProvider.of(connectionTimeoutMs));
     }
@@ -362,7 +355,6 @@ public class Neo4jIO {
       return builder().setConnectionTimeoutMs(connectionTimeoutMs).build();
     }
 
-    // Maximum Transaction Retry Time
     public DriverConfiguration withMaxTransactionRetryTimeMs(long maxTransactionRetryTimeMs) {
       return withMaxTransactionRetryTimeMs(
           ValueProvider.StaticValueProvider.of(maxTransactionRetryTimeMs));
@@ -395,7 +387,6 @@ public class Neo4jIO {
       return builder().setPassword(password).build();
     }
 
-    // Encryption
     public DriverConfiguration withRouting() {
       return builder().setRouting(ValueProvider.StaticValueProvider.of(Boolean.TRUE)).build();
     }
@@ -432,7 +423,6 @@ public class Neo4jIO {
         }
       }
 
-      // physical layer
       if (getConnectionLivenessCheckTimeoutMs() != null
           && getConnectionLivenessCheckTimeoutMs().get() != null
           && getConnectionLivenessCheckTimeoutMs().get() > 0) {
@@ -514,6 +504,10 @@ public class Neo4jIO {
           getPassword() != null && getPassword().get() != null,
           "please provide a password to connect to Neo4j");
 
+      // A specific routing driver can be used to connect to specific clustered configurations.
+      // Often we don't need it because the Java driver automatically can figure this out
+      // automatically.
+      //
       Driver driver;
       if (getRouting() != null && getRouting().get() != null && getRouting().get()) {
         driver =
@@ -526,7 +520,6 @@ public class Neo4jIO {
                 uris.get(0), AuthTokens.basic(getUsername().get(), getPassword().get()), config);
       }
 
-      // Now we create a
       return driver;
     }
 
@@ -594,14 +587,12 @@ public class Neo4jIO {
 
     abstract Builder<ParameterT, OutputT> toBuilder();
 
-    // Driver configuration
     public ReadAll<ParameterT, OutputT> withDriverConfiguration(DriverConfiguration config) {
       return toBuilder()
           .setDriverProviderFn(new DriverProviderFromDriverConfiguration(config))
           .build();
     }
 
-    // Cypher
     public ReadAll<ParameterT, OutputT> withCypher(String cypher) {
       checkArgument(
           cypher != null, "Neo4jIO.readAll().withCypher(query) called with null cypher query");
@@ -613,7 +604,6 @@ public class Neo4jIO {
       return toBuilder().setCypher(cypher).build();
     }
 
-    // Transaction timeout
     public ReadAll<ParameterT, OutputT> withTransactionTimeoutMs(long timeout) {
       checkArgument(
           timeout > 0,
@@ -628,7 +618,6 @@ public class Neo4jIO {
       return toBuilder().setTransactionTimeoutMs(timeout).build();
     }
 
-    // Database
     public ReadAll<ParameterT, OutputT> withDatabase(String database) {
       checkArgument(
           database != null, "Neo4jIO.readAll().withDatabase(database) called with null database");
@@ -641,7 +630,6 @@ public class Neo4jIO {
       return toBuilder().setDatabase(database).build();
     }
 
-    // Fetch size
     public ReadAll<ParameterT, OutputT> withFetchSize(long fetchSize) {
       checkArgument(
           fetchSize > 0, "Neo4jIO.readAll().withFetchSize(query) called with fetchSize<=0");
@@ -655,7 +643,6 @@ public class Neo4jIO {
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
-    // Row mapper
     public ReadAll<ParameterT, OutputT> withRowMapper(RowMapper<OutputT> rowMapper) {
       checkArgument(
           rowMapper != null,
@@ -663,7 +650,6 @@ public class Neo4jIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
-    // Parameters mapper
     public ReadAll<ParameterT, OutputT> withParametersFunction(
         SerializableFunction<ParameterT, Map<String, Object>> parametersFunction) {
       checkArgument(
@@ -672,13 +658,11 @@ public class Neo4jIO {
       return toBuilder().setParametersFunction(parametersFunction).build();
     }
 
-    // Coder
     public ReadAll<ParameterT, OutputT> withCoder(Coder<OutputT> coder) {
       checkArgument(coder != null, "Neo4jIO.readAll().withCoder(coder) called with null coder");
       return toBuilder().setCoder(coder).build();
     }
 
-    // Read/Write transaction
     public ReadAll<ParameterT, OutputT> withReadTransaction() {
       return toBuilder()
           .setWriteTransaction(ValueProvider.StaticValueProvider.of(Boolean.FALSE))
@@ -691,7 +675,6 @@ public class Neo4jIO {
           .build();
     }
 
-    // Log cypher statements
     public ReadAll<ParameterT, OutputT> withoutCypherLogging() {
       return toBuilder().setLogCypher(ValueProvider.StaticValueProvider.of(Boolean.FALSE)).build();
     }
