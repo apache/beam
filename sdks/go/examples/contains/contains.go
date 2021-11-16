@@ -38,6 +38,8 @@ var (
 )
 
 func init() {
+	beam.RegisterFunction(extractFn)
+	beam.RegisterFunction(formatFn)
 	beam.RegisterType(reflect.TypeOf((*includeFn)(nil)).Elem())
 }
 

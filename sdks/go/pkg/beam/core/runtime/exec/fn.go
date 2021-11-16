@@ -77,7 +77,7 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	n := &invoker{
 		fn:   fn,
 		args: make([]interface{}, len(fn.Param)),
-		in:   fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit | funcx.FnRTracker),
+		in:   fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit | funcx.FnMultiMap | funcx.FnRTracker),
 		out:  fn.Returns(funcx.RetValue),
 	}
 	var ok bool
@@ -252,15 +252,6 @@ func (n *invoker) ret4(ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3 int
 }
 
 func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter, reader StateReader, fn *funcx.Fn, in []*graph.Inbound) ([]ReusableInput, error) {
-	streams := make([]ReStream, len(side), len(side))
-	for i, adapter := range side {
-		s, err := adapter.NewIterable(ctx, reader, w)
-		if err != nil {
-			return nil, err
-		}
-		streams[i] = s
-	}
-
 	if len(side) == 0 {
 		return nil, nil // ok: no side input
 	}
@@ -268,7 +259,7 @@ func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter
 	if len(in) != len(side)+1 {
 		return nil, errors.Errorf("found %v inbound, want %v", len(in), len(side)+1)
 	}
-	param := fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter)
+	param := fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnMultiMap)
 	if len(param) <= len(side) {
 		return nil, errors.Errorf("found %v params, want >%v", len(param), len(side))
 	}
@@ -277,8 +268,18 @@ func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter
 	offset := len(param) - len(side)
 
 	var ret []ReusableInput
-	for i := 0; i < len(streams); i++ {
-		s, err := makeSideInput(in[i+1].Kind, fn.Param[param[i+offset]].T, streams[i])
+	for i, adapter := range side {
+		inKind := in[i+1].Kind
+		params := fn.Param[param[i+offset]].T
+		// Handle MultiMaps separately since they require more/different information
+		// than the other side inputs
+		if inKind == graph.MultiMap {
+			s := makeMultiMap(ctx, params, side[i], reader, w)
+			ret = append(ret, s)
+			continue
+		}
+		stream, err := adapter.NewIterable(ctx, reader, w)
+		s, err := makeSideInput(inKind, params, stream)
 		if err != nil {
 			return nil, errors.WithContextf(err, "making side input %v for %v", i, fn)
 		}

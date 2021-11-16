@@ -137,7 +137,7 @@ func (w *remoteWriter) Run(ctx context.Context) error {
 	for {
 		err := w.connect(ctx)
 		if err == io.EOF {
-			fmt.Fprintf(os.Stderr, "Remote logging shutting down.")
+			fmt.Fprintf(os.Stderr, "Remote logging shutting down.\n")
 			return nil
 		}
 
