@@ -76,6 +76,11 @@ func TestNew(t *testing.T) {
 			Param: []FnParamKind{FnWindow, FnEventTime, FnType, FnValue},
 		},
 		{
+			Name:  "good6",
+			Fn:    func(int, func(string) func(*int) bool) {},
+			Param: []FnParamKind{FnValue, FnMultiMap},
+		},
+		{
 			Name:  "good-method",
 			Fn:    foo{1}.Do,
 			Param: []FnParamKind{FnContext, FnValue, FnValue},

@@ -46,17 +46,21 @@ const Status$json = const {
     const {'1': 'STATUS_UNSPECIFIED', '2': 0},
     const {'1': 'STATUS_VALIDATING', '2': 1},
     const {'1': 'STATUS_VALIDATION_ERROR', '2': 2},
-    const {'1': 'STATUS_COMPILING', '2': 3},
-    const {'1': 'STATUS_COMPILE_ERROR', '2': 4},
-    const {'1': 'STATUS_EXECUTING', '2': 5},
-    const {'1': 'STATUS_FINISHED', '2': 6},
-    const {'1': 'STATUS_ERROR', '2': 7},
-    const {'1': 'STATUS_RUN_TIMEOUT', '2': 8},
+    const {'1': 'STATUS_PREPARING', '2': 3},
+    const {'1': 'STATUS_PREPARATION_ERROR', '2': 4},
+    const {'1': 'STATUS_COMPILING', '2': 5},
+    const {'1': 'STATUS_COMPILE_ERROR', '2': 6},
+    const {'1': 'STATUS_EXECUTING', '2': 7},
+    const {'1': 'STATUS_FINISHED', '2': 8},
+    const {'1': 'STATUS_RUN_ERROR', '2': 9},
+    const {'1': 'STATUS_ERROR', '2': 10},
+    const {'1': 'STATUS_RUN_TIMEOUT', '2': 11},
+    const {'1': 'STATUS_CANCELED', '2': 12},
   ],
 };
 
 /// Descriptor for `Status`. Decode as a `google.protobuf.EnumDescriptorProto`.
-final $typed_data.Uint8List statusDescriptor = $convert.base64Decode('CgZTdGF0dXMSFgoSU1RBVFVTX1VOU1BFQ0lGSUVEEAASFQoRU1RBVFVTX1ZBTElEQVRJTkcQARIbChdTVEFUVVNfVkFMSURBVElPTl9FUlJPUhACEhQKEFNUQVRVU19DT01QSUxJTkcQAxIYChRTVEFUVVNfQ09NUElMRV9FUlJPUhAEEhQKEFNUQVRVU19FWEVDVVRJTkcQBRITCg9TVEFUVVNfRklOSVNIRUQQBhIQCgxTVEFUVVNfRVJST1IQBxIWChJTVEFUVVNfUlVOX1RJTUVPVVQQCA==');
+final $typed_data.Uint8List statusDescriptor = $convert.base64Decode('CgZTdGF0dXMSFgoSU1RBVFVTX1VOU1BFQ0lGSUVEEAASFQoRU1RBVFVTX1ZBTElEQVRJTkcQARIbChdTVEFUVVNfVkFMSURBVElPTl9FUlJPUhACEhQKEFNUQVRVU19QUkVQQVJJTkcQAxIcChhTVEFUVVNfUFJFUEFSQVRJT05fRVJST1IQBBIUChBTVEFUVVNfQ09NUElMSU5HEAUSGAoUU1RBVFVTX0NPTVBJTEVfRVJST1IQBhIUChBTVEFUVVNfRVhFQ1VUSU5HEAcSEwoPU1RBVFVTX0ZJTklTSEVEEAgSFAoQU1RBVFVTX1JVTl9FUlJPUhAJEhAKDFNUQVRVU19FUlJPUhAKEhYKElNUQVRVU19SVU5fVElNRU9VVBALEhMKD1NUQVRVU19DQU5DRUxFRBAM');
 @$core.Deprecated('Use exampleTypeDescriptor instead')
 const ExampleType$json = const {
   '1': 'ExampleType',
@@ -146,12 +150,48 @@ const GetRunOutputResponse$json = const {
   '1': 'GetRunOutputResponse',
   '2': const [
     const {'1': 'output', '3': 1, '4': 1, '5': 9, '10': 'output'},
-    const {'1': 'compilation_status', '3': 2, '4': 1, '5': 14, '6': '.api.v1.Status', '10': 'compilationStatus'},
   ],
 };
 
 /// Descriptor for `GetRunOutputResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getRunOutputResponseDescriptor = $convert.base64Decode('ChRHZXRSdW5PdXRwdXRSZXNwb25zZRIWCgZvdXRwdXQYASABKAlSBm91dHB1dBI9ChJjb21waWxhdGlvbl9zdGF0dXMYAiABKA4yDi5hcGkudjEuU3RhdHVzUhFjb21waWxhdGlvblN0YXR1cw==');
+final $typed_data.Uint8List getRunOutputResponseDescriptor = $convert.base64Decode('ChRHZXRSdW5PdXRwdXRSZXNwb25zZRIWCgZvdXRwdXQYASABKAlSBm91dHB1dA==');
+@$core.Deprecated('Use getRunErrorRequestDescriptor instead')
+const GetRunErrorRequest$json = const {
+  '1': 'GetRunErrorRequest',
+  '2': const [
+    const {'1': 'pipeline_uuid', '3': 1, '4': 1, '5': 9, '10': 'pipelineUuid'},
+  ],
+};
+
+/// Descriptor for `GetRunErrorRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getRunErrorRequestDescriptor = $convert.base64Decode('ChJHZXRSdW5FcnJvclJlcXVlc3QSIwoNcGlwZWxpbmVfdXVpZBgBIAEoCVIMcGlwZWxpbmVVdWlk');
+@$core.Deprecated('Use getRunErrorResponseDescriptor instead')
+const GetRunErrorResponse$json = const {
+  '1': 'GetRunErrorResponse',
+  '2': const [
+    const {'1': 'output', '3': 1, '4': 1, '5': 9, '10': 'output'},
+  ],
+};
+
+/// Descriptor for `GetRunErrorResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getRunErrorResponseDescriptor = $convert.base64Decode('ChNHZXRSdW5FcnJvclJlc3BvbnNlEhYKBm91dHB1dBgBIAEoCVIGb3V0cHV0');
+@$core.Deprecated('Use cancelRequestDescriptor instead')
+const CancelRequest$json = const {
+  '1': 'CancelRequest',
+  '2': const [
+    const {'1': 'pipeline_uuid', '3': 1, '4': 1, '5': 9, '10': 'pipelineUuid'},
+  ],
+};
+
+/// Descriptor for `CancelRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List cancelRequestDescriptor = $convert.base64Decode('Cg1DYW5jZWxSZXF1ZXN0EiMKDXBpcGVsaW5lX3V1aWQYASABKAlSDHBpcGVsaW5lVXVpZA==');
+@$core.Deprecated('Use cancelResponseDescriptor instead')
+const CancelResponse$json = const {
+  '1': 'CancelResponse',
+};
+
+/// Descriptor for `CancelResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List cancelResponseDescriptor = $convert.base64Decode('Cg5DYW5jZWxSZXNwb25zZQ==');
 @$core.Deprecated('Use getListOfExamplesRequestDescriptor instead')
 const GetListOfExamplesRequest$json = const {
   '1': 'GetListOfExamplesRequest',

@@ -38,6 +38,8 @@ var (
 )
 
 func init() {
+	beam.RegisterFunction(incFn)
+	beam.RegisterFunction(evalFn)
 	beam.RegisterType(reflect.TypeOf((*minFn)(nil)).Elem())
 }
 

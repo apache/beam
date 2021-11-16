@@ -94,7 +94,7 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	}
 	err = WaitForCompletion(ctx, client, jobID)
 
-	res, presultErr := newUniversalPipelineResult(ctx, jobID, client)
+	res, presultErr := newUniversalPipelineResult(ctx, jobID, client, p)
 	if presultErr != nil {
 		if err != nil {
 			return presult, errors.Wrap(err, presultErr.Error())
@@ -109,7 +109,7 @@ type universalPipelineResult struct {
 	metrics *metrics.Results
 }
 
-func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*universalPipelineResult, error) {
+func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.JobServiceClient, p *pipepb.Pipeline) (*universalPipelineResult, error) {
 	request := &jobpb.GetJobMetricsRequest{JobId: jobID}
 	response, err := client.GetJobMetrics(ctx, request)
 	if err != nil {
@@ -117,7 +117,7 @@ func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.
 	}
 
 	monitoredStates := response.GetMetrics()
-	metrics := metricsx.FromMonitoringInfos(monitoredStates.Attempted, monitoredStates.Committed)
+	metrics := metricsx.FromMonitoringInfos(p, monitoredStates.Attempted, monitoredStates.Committed)
 	return &universalPipelineResult{jobID, metrics}, nil
 }
 

@@ -2303,7 +2303,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static boolean useUnifiedWorker(DataflowPipelineOptions options) {
     return hasExperiment(options, "beam_fn_api")
         || hasExperiment(options, "use_runner_v2")
-        || hasExperiment(options, "use_unified_worker");
+        || hasExperiment(options, "use_unified_worker")
+        || hasExperiment(options, "enable_prime");
   }
 
   static boolean useStreamingEngine(DataflowPipelineOptions options) {
@@ -2341,6 +2342,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 MapState.class.getSimpleName(),
                 isUnifiedWorker ? "streaming on unified worker" : "streaming engine"));
       }
+    }
+    if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s when not using unified worker because it uses "
+                  + "BundleFinalizers in its implementation. Set the `--experiments=use_runner_v2` "
+                  + "option to use this DoFn.",
+              DataflowRunner.class.getSimpleName(), fn.getClass().getSimpleName()));
     }
   }
 

@@ -200,9 +200,11 @@ public class ReadWriteIT {
                     // real pipeline!
                     .setMinBundleTimeout(Duration.standardSeconds(5))
                     .build()));
+    return messages;
+    // TODO(BEAM-13230): Fix and re-enable
     // Deduplicate messages based on the uuids added in PubsubLiteIO.addUuids() when writing.
-    return messages.apply(
-        "dedupeMessages", PubsubLiteIO.deduplicate(UuidDeduplicationOptions.newBuilder().build()));
+    // return messages.apply(
+    //   "dedupeMessages", PubsubLiteIO.deduplicate(UuidDeduplicationOptions.newBuilder().build()));
   }
 
   public static SimpleFunction<SequencedMessage, Integer> extractIds() {
@@ -235,6 +237,7 @@ public class ReadWriteIT {
       Thread.sleep(1000);
       try {
         subscription = createSubscription(topic);
+        break;
       } catch (Exception e) {
         lastException = e;
         LOG.info("Retrying exception on subscription creation.", e);
