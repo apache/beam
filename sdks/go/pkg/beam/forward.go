@@ -19,6 +19,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/genx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
@@ -215,3 +216,5 @@ var (
 
 // EventTimeType is the reflect.Type of EventTime.
 var EventTimeType = typex.EventTimeType
+
+type MetricResult = metrics.SingleResult
