@@ -16,6 +16,7 @@
 package exec
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"reflect"
@@ -195,4 +196,51 @@ func (v *fixedValue) Value() interface{} {
 
 func (v *fixedValue) Reset() error {
 	return nil
+}
+
+type multiMapValue struct {
+	t       reflect.Type
+	keyType reflect.Type
+	// These four things are needed to dynamically build the iterables
+	ctx     context.Context
+	adapter SideInputAdapter
+	reader  StateReader
+	w       typex.Window
+	// fn is the actual invoked function
+	fn interface{}
+}
+
+func makeMultiMap(ctx context.Context, t reflect.Type, adapter SideInputAdapter, reader StateReader, w typex.Window) ReusableInput {
+	types, ok := funcx.UnfoldMultiMap(t)
+	if !ok {
+		panic(fmt.Sprintf("illegal multimap type: %v", t))
+	}
+	mm := &multiMapValue{t: t, keyType: types[0], ctx: ctx, adapter: adapter, reader: reader, w: w}
+	mm.fn = reflect.MakeFunc(t, mm.invoke).Interface()
+	return mm
+}
+
+func (v *multiMapValue) Init() error {
+	return nil
+}
+
+func (v *multiMapValue) Value() interface{} {
+	return v.fn
+}
+
+func (v *multiMapValue) Reset() error {
+	return nil
+}
+
+func (v *multiMapValue) invoke(args []reflect.Value) []reflect.Value {
+	if len(args) != 1 {
+		panic(fmt.Sprintf("wanted one key value, got %v", args))
+	}
+	rs, err := v.adapter.NewKeyedIterable(v.ctx, v.reader, v.w, args[0].Interface())
+	if err != nil {
+		panic(fmt.Sprintf("failed to create keyed iterable, got %v", err))
+	}
+	iter := makeIter(v.t.Out(0), rs)
+	iter.Init()
+	return []reflect.Value{reflect.ValueOf(iter.Value())}
 }

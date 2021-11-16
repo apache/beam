@@ -44,7 +44,7 @@ func New(ctx context.Context) *Cache {
 		pipelinesExpiration: pipelinesExpiration,
 	}
 
-	go ls.startGC()
+	go ls.startGC(ctx)
 	return ls
 
 }
@@ -99,16 +99,21 @@ func (lc *Cache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime t
 	return nil
 }
 
-func (lc *Cache) startGC() {
+func (lc *Cache) startGC(ctx context.Context) {
+	ticker := time.NewTicker(lc.cleanupInterval)
 	for {
-		<-time.After(lc.cleanupInterval)
-
-		if lc.items == nil {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
 			return
-		}
+		case <-ticker.C:
+			if lc.items == nil {
+				return
+			}
 
-		if pipelines := lc.expiredPipelines(); len(pipelines) != 0 {
-			lc.clearItems(pipelines)
+			if pipelines := lc.expiredPipelines(); len(pipelines) != 0 {
+				lc.clearItems(pipelines)
+			}
 		}
 	}
 }

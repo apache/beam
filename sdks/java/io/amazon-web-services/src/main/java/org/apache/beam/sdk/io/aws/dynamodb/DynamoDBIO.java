@@ -98,10 +98,12 @@ import org.slf4j.LoggerFactory;
  *       writeRequest>
  * </ul>
  *
- * If primary keys could repeat in your stream (i.e. an upsert stream), you could encounter a
- * ValidationError, as AWS does not allow writing duplicate keys within a single batch operation.
- * For such use cases, you can explicitly set the key names corresponding to the primary key to be
- * deduplicated using the withDeduplicateKeys method
+ * <b>Note:</b> AWS does not allow writing duplicate keys within a single batch operation. If
+ * primary keys possibly repeat in your stream (i.e. an upsert stream), you may encounter a
+ * `ValidationError`. To address this you have to provide the key names corresponding to your
+ * primary key using {@link Write#withDeduplicateKeys(List)}. Based on these keys only the last
+ * observed element is kept. Nevertheless, if no deduplication keys are provided, identical elements
+ * are still deduplicated.
  *
  * <h3>Reading from DynamoDB</h3>
  *
@@ -294,6 +296,8 @@ public final class DynamoDBIO {
    */
   @AutoValue
   public abstract static class RetryConfiguration implements Serializable {
+    private static final Duration DEFAULT_INITIAL_DURATION = Duration.standardSeconds(5);
+
     @VisibleForTesting
     static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
 
@@ -301,18 +305,30 @@ public final class DynamoDBIO {
 
     abstract Duration getMaxDuration();
 
+    abstract Duration getInitialDuration();
+
     abstract DynamoDBIO.RetryConfiguration.RetryPredicate getRetryPredicate();
 
     abstract DynamoDBIO.RetryConfiguration.Builder builder();
 
     public static DynamoDBIO.RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      return create(maxAttempts, maxDuration, DEFAULT_INITIAL_DURATION);
+    }
+
+    static DynamoDBIO.RetryConfiguration create(
+        int maxAttempts, Duration maxDuration, Duration initialDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
       checkArgument(
           maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
           "maxDuration should be greater than 0");
+      checkArgument(
+          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
+          "initialDuration should be greater than 0");
+
       return new AutoValue_DynamoDBIO_RetryConfiguration.Builder()
           .setMaxAttempts(maxAttempts)
           .setMaxDuration(maxDuration)
+          .setInitialDuration(initialDuration)
           .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
           .build();
     }
@@ -322,6 +338,8 @@ public final class DynamoDBIO {
       abstract DynamoDBIO.RetryConfiguration.Builder setMaxAttempts(int maxAttempts);
 
       abstract DynamoDBIO.RetryConfiguration.Builder setMaxDuration(Duration maxDuration);
+
+      abstract DynamoDBIO.RetryConfiguration.Builder setInitialDuration(Duration initialDuration);
 
       abstract DynamoDBIO.RetryConfiguration.Builder setRetryPredicate(
           RetryPredicate retryPredicate);
@@ -438,7 +456,6 @@ public final class DynamoDBIO {
       @VisibleForTesting
       static final String RETRY_ATTEMPT_LOG = "Error writing to DynamoDB. Retry attempt[%d]";
 
-      private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
       private transient FluentBackoff retryBackoff; // defaults to no retries
       private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
       private static final Counter DYNAMO_DB_WRITE_FAILURES =
@@ -456,14 +473,12 @@ public final class DynamoDBIO {
       @Setup
       public void setup() {
         client = spec.getAwsClientsProvider().createDynamoDB();
-        retryBackoff =
-            FluentBackoff.DEFAULT
-                .withMaxRetries(0) // default to no retrying
-                .withInitialBackoff(RETRY_INITIAL_BACKOFF);
+        retryBackoff = FluentBackoff.DEFAULT.withMaxRetries(0); // default to no retrying
         if (spec.getRetryConfiguration() != null) {
           retryBackoff =
               retryBackoff
                   .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
+                  .withInitialBackoff(spec.getRetryConfiguration().getInitialDuration())
                   .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
         }
       }
@@ -486,17 +501,22 @@ public final class DynamoDBIO {
       }
 
       private Map<String, AttributeValue> extractDeduplicateKeyValues(WriteRequest request) {
+        List<String> deduplicationKeys = spec.getDeduplicateKeys();
+        Map<String, AttributeValue> attributes = Collections.emptyMap();
+
         if (request.getPutRequest() != null) {
-          return request.getPutRequest().getItem().entrySet().stream()
-              .filter(entry -> spec.getDeduplicateKeys().contains(entry.getKey()))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+          attributes = request.getPutRequest().getItem();
         } else if (request.getDeleteRequest() != null) {
-          return request.getDeleteRequest().getKey().entrySet().stream()
-              .filter(entry -> spec.getDeduplicateKeys().contains(entry.getKey()))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        } else {
-          return Collections.emptyMap();
+          attributes = request.getDeleteRequest().getKey();
         }
+
+        if (attributes.isEmpty() || deduplicationKeys.isEmpty()) {
+          return attributes;
+        }
+
+        return attributes.entrySet().stream()
+            .filter(entry -> deduplicationKeys.contains(entry.getKey()))
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
       }
 
       @FinishBundle
