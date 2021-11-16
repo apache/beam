@@ -47,10 +47,10 @@ source $ENV_PATH/bin/activate
 pip install --upgrade pip
 pip install wheel
 
-# Use gcp extra deps since these deps are commonly used with Apache Beam.
-# Use dataframe deps to add have Dataframe support in released images.
-# Use test deps since some integration tests need dependencies such as pytest
-# installed in the runner environment.
+# Install gcp extra deps since these deps are commonly used with Apache Beam.
+# Install dataframe deps to add have Dataframe support in released images.
+# Install test deps since some integration tests need dependencies,
+# such as pytest, installed in the runner environment.
 pip install --no-cache-dir $SDK_TARBALL[gcp,dataframe,test]
 pip install --no-cache-dir -r $PWD/sdks/python/container/base_image_requirements_manual.txt
 pip uninstall -y apache-beam
