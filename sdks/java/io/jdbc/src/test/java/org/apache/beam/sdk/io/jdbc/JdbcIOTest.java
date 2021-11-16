@@ -337,8 +337,9 @@ public class JdbcIOTest implements Serializable {
     PAssert.that(output)
         .containsInAnyOrder(
             ImmutableList.of(
-                Row.withSchema(expectedSchema).addValues(
-                    BigDecimal.valueOf(1).setScale(2, RoundingMode.HALF_UP)).build()));
+                Row.withSchema(expectedSchema)
+                    .addValues(BigDecimal.valueOf(1).setScale(2, RoundingMode.HALF_UP))
+                    .build()));
 
     pipeline.run();
   }
