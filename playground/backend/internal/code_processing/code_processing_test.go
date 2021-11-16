@@ -43,9 +43,10 @@ var cacheService cache.Cache
 
 func TestMain(m *testing.M) {
 	setup()
-	defer teardown()
 	opt = goleak.IgnoreCurrent()
-	m.Run()
+	exitValue := m.Run()
+	teardown()
+	os.Exit(exitValue)
 }
 
 func setup() {
@@ -73,11 +74,11 @@ func setup() {
 func teardown() {
 	err := os.RemoveAll("configs")
 	if err != nil {
-		fmt.Errorf("error during test teardown: %s", err.Error())
+		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
 	err = os.RemoveAll("executable_files")
 	if err != nil {
-		fmt.Errorf("error during test teardown: %s", err.Error())
+		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
 	os.Clearenv()
 }
