@@ -46,9 +46,10 @@ var opt goleak.Option
 
 func TestMain(m *testing.M) {
 	server := setup()
-	defer teardown(server)
 	opt = goleak.IgnoreCurrent()
-	m.Run()
+	exitValue := m.Run()
+	teardown(server)
+	os.Exit(exitValue)
 }
 
 func setup() *grpc.Server {
@@ -105,11 +106,11 @@ func teardown(server *grpc.Server) {
 
 	err := os.RemoveAll("configs")
 	if err != nil {
-		fmt.Errorf("error during test teardown: %s", err.Error())
+		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
 	err = os.RemoveAll("executable_files")
 	if err != nil {
-		fmt.Errorf("error during test teardown: %s", err.Error())
+		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
 }
 
