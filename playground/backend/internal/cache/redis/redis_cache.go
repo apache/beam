@@ -101,14 +101,12 @@ func unmarshalBySubKey(subKey cache.SubKey, value string) (result interface{}, e
 	switch subKey {
 	case cache.Status:
 		result = new(pb.Status)
-		err = json.Unmarshal([]byte(value), &result)
 	case cache.RunOutput, cache.RunError, cache.CompileOutput:
 		result = ""
-		err = json.Unmarshal([]byte(value), &result)
 	case cache.Canceled:
 		result = false
-		err = json.Unmarshal([]byte(value), &result)
 	}
+	err = json.Unmarshal([]byte(value), &result)
 	if err != nil {
 		logger.Errorf("Redis Cache: get value: error during unmarshal value, err: %s\n", err.Error())
 	}
