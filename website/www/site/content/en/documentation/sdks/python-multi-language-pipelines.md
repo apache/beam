@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Python multi-language pipelines
+# Python multi-language pipelines quickstart
 
 This page provides a high-level overview of creating multi-language pipelines with the Apache Beam SDK for Python. For a more comprehensive treatment of the topic, see [Apache Beam Programming Guide: Multi-language pipelines](/documentation/programming-guide/#multi-language-pipelines).
 
@@ -164,7 +164,7 @@ At a multi-language boundary, you have to use element types that all the Beam SD
 * `WINDOWED_VALUE`
 * `ROW`
 
-For arbitrary structured types (for example, an arbitrary Java object), use `ROW` (`PCollection<Row>`). You may have to develop a new Java composite transform that produces a `PCollection<Row>`. You can use SDK-specific coders within a composite cross-language transform, as long as these coders don't get used by PCollections that are consumed by the other SDKs.
+For arbitrary structured types (for example, an arbitrary Java object), use `ROW` (`PCollection<Row>`). You may have to develop a new Java composite transform that produces a `PCollection<Row>`. You can use SDK-specific coders within a composite cross-language transform, as long as these coders aren't used by PCollections that are consumed by the other SDKs.
 
 ## Run the pipeline
 
