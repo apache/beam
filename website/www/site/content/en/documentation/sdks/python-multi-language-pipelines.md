@@ -1,6 +1,6 @@
 ---
 type: languages
-title: "Python multi-language pipelines"
+title: "Python multi-language pipelines quickstart"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,9 @@ limitations under the License.
 
 # Python multi-language pipelines
 
-This page provides a high-level overview of creating multi-language pipelines with the Apache Beam SDK for Python. To build and run a multi-language Python pipeline, you need a Python environment with the Beam SDK installed. If you don’t have an environment set up, first complete the [Apache Beam Python SDK Quickstart](/get-started/quickstart-py/).
+This page provides a high-level overview of creating multi-language pipelines with the Apache Beam SDK for Python. For a more comprehensive treatment of the topic, see [Apache Beam Programming Guide: Multi-language pipelines](/documentation/programming-guide/#multi-language-pipelines).
+
+To build and run a multi-language Python pipeline, you need a Python environment with the Beam SDK installed. If you don’t have an environment set up, first complete the [Apache Beam Python SDK Quickstart](/get-started/quickstart-py/).
 
 A *multi-language pipeline* is a pipeline that’s built in one Beam SDK language and uses one or more transforms from another Beam SDK language. These “other-language” transforms are called *cross-language transforms*. The idea is to make pipeline components easier to share across the Beam SDKs, and to grow the pool of available transforms for all the SDKs. In the examples below, the multi-language pipeline is built with the Beam Python SDK, and the cross-language transforms are built with the Beam Java SDK.
 
@@ -90,7 +92,7 @@ You also need to add a registrar class to register your transform with the expan
 @AutoService(ExternalTransformRegistrar.class)
 public class JavaPrefixRegistrar implements ExternalTransformRegistrar {
 
-  final String URN = "my.beam.transform.javaprefix";
+  final String URN = "beam:transform:my.beam.test:javaprefix:v1";
 
   @Override
   public Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {
@@ -120,7 +122,7 @@ with beam.Pipeline(options=pipeline_options) as p:
   java_output = (
       input
       | 'JavaPrefix' >> beam.ExternalTransform(
-            'my.beam.transform.javaprefix',
+            'beam:transform:my.beam.test:javaprefix:v1',
             ImplicitSchemaPayloadBuilder({'prefix': 'java:'}),
             "localhost:12345"))
 
@@ -145,7 +147,7 @@ The URN is simply a unique Beam identifier for the transform, and the expansion 
 
 The Python pipeline example above provides an [ImplicitSchemaPayloadBuilder](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ImplicitSchemaPayloadBuilder) as the second argument to `ExternalTransform`. The `ImplicitSchemaPayloadBuilder` builds a payload that generates a schema from the provided values. In this case, the provided values are contained in the following key-value pair: `{'prefix': 'java:'}`. The `JavaPrefix` transform expects a `prefix` argument, and the payload builder passes in the string `java:`, which will be prepended to each input element.
 
-In general, payload builders help build the payload for the transform in the expansion request. If you provide a Beam schema to the payload builder, the builder uses it to perform a type/field mapping. Instead of the `ImplicitSchemaPayloadBuilder`, you could use a [NamedTupleBasedPayloadBuilder](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.NamedTupleBasedPayloadBuilder), which builds a payload based on a named tuple schema, or an [AnnotationBasedPayloadBuilder](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.AnnotationBasedPayloadBuilder), which builds a schema based on type annotations. For a complete list of available payload builders, see the [transforms.external API reference](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html).
+Payload builders help build the payload for the transform in the expansion request. Instead of the `ImplicitSchemaPayloadBuilder`, you could use a [NamedTupleBasedPayloadBuilder](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.NamedTupleBasedPayloadBuilder), which builds a payload based on a named tuple schema, or an [AnnotationBasedPayloadBuilder](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.AnnotationBasedPayloadBuilder), which builds a schema based on type annotations. For a complete list of available payload builders, see the [transforms.external API reference](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html).
 
 ## Use standard element types
 
@@ -162,7 +164,7 @@ At a multi-language boundary, you have to use element types that all the Beam SD
 * `WINDOWED_VALUE`
 * `ROW`
 
-For arbitrary structured types (for example, an arbitrary Java object), use `ROW` (`PCollection<Row>`). You may have to develop a new Java composite transform that produces a `PCollection<Row>`.
+For arbitrary structured types (for example, an arbitrary Java object), use `ROW` (`PCollection<Row>`). You may have to develop a new Java composite transform that produces a `PCollection<Row>`. You can use SDK-specific coders within a composite cross-language transform, as long as these coders don't get used by PCollections that are consumed by the other SDKs.
 
 ## Run the pipeline
 
