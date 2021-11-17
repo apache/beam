@@ -21,6 +21,7 @@ import static com.google.cloud.pubsublite.internal.wire.ApiServiceUtils.blocking
 
 import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
+import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
@@ -32,7 +33,6 @@ import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -46,7 +46,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 class SubscriptionPartitionProcessorImpl extends Listener
-    implements SubscriptionPartitionProcessor {
+    implements SubscriptionPartitionProcessor, AutoCloseable {
   private final RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   private final OutputReceiver<SequencedMessage> receiver;
   private final Subscriber subscriber;
@@ -64,23 +64,6 @@ class SubscriptionPartitionProcessorImpl extends Listener
     this.receiver = receiver;
     this.subscriber = subscriberFactory.apply(this::onMessages);
     this.flowControlSettings = flowControlSettings;
-  }
-
-  @Override
-  @SuppressWarnings("argument.type.incompatible")
-  public void start() throws CheckedApiException {
-    this.subscriber.addListener(this, SystemExecutors.getFuturesExecutor());
-    this.subscriber.startAsync();
-    this.subscriber.awaitRunning();
-    try {
-      this.subscriber.allowFlow(
-          FlowControlRequest.newBuilder()
-              .setAllowedBytes(flowControlSettings.bytesOutstanding())
-              .setAllowedMessages(flowControlSettings.messagesOutstanding())
-              .build());
-    } catch (Throwable t) {
-      throw ExtractStatus.toCanonical(t);
-    }
   }
 
   private void onMessages(List<SequencedMessage> messages) {
@@ -114,6 +97,22 @@ class SubscriptionPartitionProcessorImpl extends Listener
     completionFuture.setException(ExtractStatus.toCanonical(failure));
   }
 
+  @SuppressWarnings("argument.type.incompatible")
+  private void start() throws ApiException {
+    this.subscriber.addListener(this, SystemExecutors.getFuturesExecutor());
+    this.subscriber.startAsync();
+    this.subscriber.awaitRunning();
+    try {
+      this.subscriber.allowFlow(
+          FlowControlRequest.newBuilder()
+              .setAllowedBytes(flowControlSettings.bytesOutstanding())
+              .setAllowedMessages(flowControlSettings.messagesOutstanding())
+              .build());
+    } catch (Throwable t) {
+      throw ExtractStatus.toCanonical(t).underlying;
+    }
+  }
+
   @Override
   public void close() {
     blockingShutdown(subscriber);
@@ -121,19 +120,18 @@ class SubscriptionPartitionProcessorImpl extends Listener
 
   @Override
   @SuppressWarnings("argument.type.incompatible")
-  public ProcessContinuation waitForCompletion(Duration duration) {
-    try {
+  public ProcessContinuation runFor(Duration duration) {
+    start();
+    try (SubscriptionPartitionProcessorImpl closeThis = this) {
       completionFuture.get(duration.getMillis(), TimeUnit.MILLISECONDS);
       // CompletionFuture set with null when tryClaim returned false.
       return ProcessContinuation.stop();
     } catch (TimeoutException ignored) {
-      // Timed out waiting, yield to the runtime.
-      return ProcessContinuation.resume();
-    } catch (ExecutionException e) {
-      throw ExtractStatus.toCanonical(e.getCause()).underlying;
+      // Timed out waiting, shut down processing and yield to the runtime.
     } catch (Throwable t) {
       throw ExtractStatus.toCanonical(t).underlying;
     }
+    return ProcessContinuation.resume();
   }
 
   @Override
