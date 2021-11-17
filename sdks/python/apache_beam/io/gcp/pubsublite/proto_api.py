@@ -43,7 +43,7 @@ class ReadFromPubSubLite(PTransform):
 
     Args:
       subscription_path: Pub/Sub Lite Subscription in the form
-          "projects/<project>/locations/<location>/subscriptions/<subscription>".
+          projects/<project>/locations/<location>/subscriptions/<subscription>
       min_bundle_timeout: The minimum wall time to pass before allowing
           bundle closure. Setting this to too small of a value will result in
           increased compute costs and lower throughput per byte. Immediate
