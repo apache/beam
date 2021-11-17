@@ -86,5 +86,7 @@ cat <<EOT > $REQUIREMENTS_FILE
 # Reach out to a committer if you need help.
 
 EOT
-pip freeze >> $REQUIREMENTS_FILE
+# Remove pkg_resources to guard against
+# https://stackoverflow.com/questions/39577984/what-is-pkg-resources-0-0-0-in-output-of-pip-freeze-command
+pip freeze | grep -v pkg_resources >> $REQUIREMENTS_FILE
 rm -rf $ENV_PATH
