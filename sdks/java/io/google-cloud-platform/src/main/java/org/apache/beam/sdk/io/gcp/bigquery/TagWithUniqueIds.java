@@ -40,7 +40,7 @@ class TagWithUniqueIds<KeyT, ElementT>
   private transient String randomUUID;
   private transient long sequenceNo = 0L;
 
-  @Nullable private final SerializableFunction<ElementT, String> elementToId;
+  private final @Nullable SerializableFunction<ElementT, String> elementToId;
 
   public TagWithUniqueIds() {
     elementToId = null;
