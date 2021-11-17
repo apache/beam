@@ -24,6 +24,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
@@ -58,6 +59,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Spy;
+import org.mockito.stubbing.Answer;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
@@ -103,64 +105,59 @@ public class SubscriptionPartitionProcessorImplTest {
   @Test
   public void lifecycle() throws Exception {
     when(tracker.currentRestriction()).thenReturn(initialRange());
-    processor.start();
-    verify(subscriber).startAsync();
-    verify(subscriber).awaitRunning();
-    verify(subscriber)
+    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
+    InOrder order = inOrder(subscriber);
+    order.verify(subscriber).startAsync();
+    order.verify(subscriber).awaitRunning();
+    order
+        .verify(subscriber)
         .allowFlow(
             FlowControlRequest.newBuilder()
                 .setAllowedBytes(DEFAULT_FLOW_CONTROL.bytesOutstanding())
                 .setAllowedMessages(DEFAULT_FLOW_CONTROL.messagesOutstanding())
                 .build());
-    processor.close();
-    verify(subscriber).stopAsync();
-    verify(subscriber).awaitTerminated();
+    order.verify(subscriber).stopAsync();
+    order.verify(subscriber).awaitTerminated();
   }
 
   @Test
   public void lifecycleFlowControlThrows() throws Exception {
     when(tracker.currentRestriction()).thenReturn(initialRange());
     doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
-    assertThrows(CheckedApiException.class, () -> processor.start());
-  }
-
-  @Test
-  public void lifecycleSubscriberAwaitThrows() throws Exception {
-    when(tracker.currentRestriction()).thenReturn(initialRange());
-    processor.start();
-    doThrow(new CheckedApiException(Code.INTERNAL).underlying).when(subscriber).awaitTerminated();
-    assertThrows(ApiException.class, () -> processor.close());
-    verify(subscriber).stopAsync();
-    verify(subscriber).awaitTerminated();
+    assertThrows(ApiException.class, () -> processor.runFor(Duration.ZERO));
   }
 
   @Test
   public void subscriberFailureFails() throws Exception {
     when(tracker.currentRestriction()).thenReturn(initialRange());
-    processor.start();
-    subscriber.fail(new CheckedApiException(Code.OUT_OF_RANGE));
+    doAnswer(
+            (Answer<Void>)
+                args -> {
+                  subscriber.fail(new CheckedApiException(Code.OUT_OF_RANGE));
+                  return null;
+                })
+        .when(subscriber)
+        .awaitRunning();
     ApiException e =
         assertThrows(
-            // Longer wait is needed due to listener asynchrony.
-            ApiException.class, () -> processor.waitForCompletion(Duration.standardSeconds(1)));
+            // Longer wait is needed due to listener asynchrony, but should never wait this long.
+            ApiException.class, () -> processor.runFor(Duration.standardMinutes(2)));
     assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
   }
 
   @Test
   public void allowFlowFailureFails() throws Exception {
     when(tracker.currentRestriction()).thenReturn(initialRange());
-    processor.start();
     when(tracker.tryClaim(any())).thenReturn(true);
     doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
     leakedConsumer.accept(ImmutableList.of(messageWithOffset(1)));
-    ApiException e =
-        assertThrows(ApiException.class, () -> processor.waitForCompletion(Duration.ZERO));
+    ApiException e = assertThrows(ApiException.class, () -> processor.runFor(Duration.ZERO));
     assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
   }
 
   @Test
   public void timeoutReturnsResume() {
-    assertEquals(ProcessContinuation.resume(), processor.waitForCompletion(Duration.millis(10)));
+    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
     assertFalse(processor.lastClaimed().isPresent());
   }
 
@@ -169,7 +166,7 @@ public class SubscriptionPartitionProcessorImplTest {
     when(tracker.tryClaim(any())).thenReturn(false);
     leakedConsumer.accept(ImmutableList.of(messageWithOffset(1)));
     verify(tracker, times(1)).tryClaim(any());
-    assertEquals(ProcessContinuation.stop(), processor.waitForCompletion(Duration.millis(10)));
+    assertEquals(ProcessContinuation.stop(), processor.runFor(Duration.millis(10)));
     assertFalse(processor.lastClaimed().isPresent());
     // Future calls to process don't try to claim.
     leakedConsumer.accept(ImmutableList.of(messageWithOffset(2)));
@@ -200,7 +197,7 @@ public class SubscriptionPartitionProcessorImplTest {
                 .setAllowedMessages(2)
                 .setAllowedBytes(message1.getSizeBytes() + message3.getSizeBytes())
                 .build());
-    assertEquals(ProcessContinuation.resume(), processor.waitForCompletion(Duration.millis(10)));
+    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
     assertEquals(processor.lastClaimed().get(), Offset.of(3));
   }
 }
