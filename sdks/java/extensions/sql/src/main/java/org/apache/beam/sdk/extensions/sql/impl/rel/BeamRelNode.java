@@ -25,9 +25,11 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
 @SuppressWarnings({
@@ -51,11 +53,18 @@ public interface BeamRelNode extends RelNode {
         : PCollection.IsBounded.UNBOUNDED;
   }
 
+  default void withErrorsTransformer(@Nullable PTransform<PCollection<Row>, POutput> ptransform) {}
+
   default List<RelNode> getPCollectionInputs() {
     return getInputs();
   };
 
   PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
+
+  default PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform(
+      @Nullable PTransform<PCollection<Row>, ? extends POutput> errorsTransformer) {
+    return buildPTransform();
+  }
 
   /** Perform a DFS(Depth-First-Search) to find the PipelineOptions config. */
   default Map<String, String> getPipelineOptions() {

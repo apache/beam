@@ -18,15 +18,15 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
+	"beam.apache.org/playground/backend/internal/code_processing"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
-	"beam.apache.org/playground/backend/internal/executors"
-	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/validators"
+	"beam.apache.org/playground/backend/internal/setup_tools/compile_builder"
+	"beam.apache.org/playground/backend/internal/setup_tools/life_cycle"
+	"beam.apache.org/playground/backend/internal/utils"
 	"context"
 	"github.com/google/uuid"
-	"time"
 )
 
 // playgroundController processes `gRPC' requests from clients.
@@ -46,6 +46,10 @@ type playgroundController struct {
 //   Returns id of code processing (pipelineId)
 func (controller *playgroundController) RunCode(ctx context.Context, info *pb.RunCodeRequest) (*pb.RunCodeResponse, error) {
 	// check for correct sdk
+	if info.Sdk != controller.env.BeamSdkEnvs.ApacheBeamSdk {
+		logger.Errorf("RunCode(): request contains incorrect sdk: %s\n", info.Sdk)
+		return nil, errors.InvalidArgumentError("Run code()", "incorrect sdk: "+info.Sdk.String())
+	}
 	switch info.Sdk {
 	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_GO, pb.Sdk_SDK_PYTHON, pb.Sdk_SDK_SCIO:
 		logger.Errorf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
@@ -55,102 +59,103 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
 	pipelineId := uuid.New()
 
-	lc, err := setupLifeCycle(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir())
+	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir())
 	if err != nil {
+		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
 		return nil, errors.InternalError("Run code", "Error during setup file system: "+err.Error())
 	}
 
-	compileBuilder := setupCompileBuilder(lc, info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
+	compileBuilder, err := compile_builder.Setup(lc.GetAbsoluteExecutableFilePath(), lc.GetAbsoluteExecutableFilesFolderPath(), info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
+	if err != nil {
+		logger.Errorf("RunCode(): error during setup run builder: %s\n", err.Error())
+		return nil, errors.InvalidArgumentError("Run code", "Error during setup compile builder: "+err.Error())
+	}
 
-	setToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING)
-	if err := controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
+	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
+		return nil, errors.InternalError("Run code()", "Error during set value to cache: "+err.Error())
+	}
+	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
 		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
 	}
 
 	// TODO change using of context.TODO() to context.Background()
-	go processCode(context.TODO(), controller.cacheService, lc, compileBuilder, pipelineId, controller.env, info.Sdk)
+	go code_processing.Process(context.TODO(), controller.cacheService, lc, compileBuilder, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil
 }
 
-//CheckStatus is checking status for the specific pipeline by PipelineUuid
+// CheckStatus is checking status for the specific pipeline by PipelineUuid
 func (controller *playgroundController) CheckStatus(ctx context.Context, info *pb.CheckStatusRequest) (*pb.CheckStatusResponse, error) {
-	pipelineId := info.PipelineUuid
-	statusInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.Status)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
-		logger.Errorf("%s: CheckStatus(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("CheckStatus", "Error during getting cache by pipelineId: "+pipelineId+", subKey: cache.SubKey_Status")
+		logger.Errorf("%s: CheckStatus(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("CheckStatus", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
 	}
-	status, converted := statusInterface.(pb.Status)
-	if !converted {
-		return nil, errors.InternalError("CheckStatus", "status value from cache couldn't be converted to correct status enum")
+	status, err := code_processing.GetProcessingStatus(ctx, controller.cacheService, pipelineId, "CheckStatus")
+	if err != nil {
+		return nil, err
 	}
 	return &pb.CheckStatusResponse{Status: status}, nil
 }
 
-//GetRunOutput is returning output of execution for specific pipeline by PipelineUuid
+// GetRunOutput is returning output of execution for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetRunOutput(ctx context.Context, info *pb.GetRunOutputRequest) (*pb.GetRunOutputResponse, error) {
-	pipelineId := info.PipelineUuid
-	runOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.RunOutput)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
-		logger.Errorf("%s: GetRunOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("GetRunOutput", "there is no run output for pipelineId: "+pipelineId+", subKey: cache.SubKey_RunOutput")
+		logger.Errorf("%s: GetRunOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("GetRunOutput", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
 	}
-	runOutput, converted := runOutputInterface.(string)
-	if !converted {
-		return nil, errors.InternalError("GetRunOutput", "run output can't be converted to string")
+	runOutput, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.RunOutput, "GetRunOutput")
+	if err != nil {
+		return nil, err
 	}
-	pipelineResult := pb.GetRunOutputResponse{Output: runOutput}
-
-	return &pipelineResult, nil
+	return &pb.GetRunOutputResponse{Output: runOutput}, nil
 }
 
-//GetRunError is returning error output of execution for specific pipeline by PipelineUuid
+// GetRunError is returning error output of execution for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetRunError(ctx context.Context, info *pb.GetRunErrorRequest) (*pb.GetRunErrorResponse, error) {
-	pipelineId := info.PipelineUuid
-	runErrorInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.RunError)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
-		logger.Errorf("%s: GetRunError(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("GetRunError", "there is no run error output for pipelineId: "+pipelineId+", subKey: cache.RunError")
+		logger.Errorf("%s: GetRunError(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("GetRunError", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
 	}
-	runError, converted := runErrorInterface.(string)
-	if !converted {
-		return nil, errors.InternalError("GetRunError", "run output can't be converted to string")
+	runError, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.RunError, "GetRunError")
+	if err != nil {
+		return nil, err
 	}
-	pipelineResult := pb.GetRunErrorResponse{Output: runError}
-
-	return &pipelineResult, nil
+	return &pb.GetRunErrorResponse{Output: runError}, nil
 }
 
 //GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetCompileOutput(ctx context.Context, info *pb.GetCompileOutputRequest) (*pb.GetCompileOutputResponse, error) {
-	pipelineId := info.PipelineUuid
-	compileOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.CompileOutput)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
-		logger.Errorf("%s: GetCompileOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("GetCompileOutput", "there is no compile output for pipelineId: "+pipelineId+", subKey: cache.SubKey_CompileOutput")
+		logger.Errorf("%s: GetCompileOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("GetCompileOutput", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
 	}
-	compileOutput, converted := compileOutputInterface.(string)
-	if !converted {
-		return nil, errors.InternalError("GetCompileOutput", "compile output can't be converted to string")
+	compileOutput, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.CompileOutput, "GetCompileOutput")
+	if err != nil {
+		return nil, err
 	}
-	pipelineResult := pb.GetCompileOutputResponse{Output: compileOutput}
-
-	return &pipelineResult, nil
+	return &pb.GetCompileOutputResponse{Output: compileOutput}, nil
 }
 
 // Cancel is setting cancel flag to stop code processing
 func (controller *playgroundController) Cancel(ctx context.Context, info *pb.CancelRequest) (*pb.CancelResponse, error) {
-	pipelineId := info.PipelineUuid
-	if err := setToCache(ctx, controller.cacheService, uuid.MustParse(pipelineId), cache.Canceled, true); err != nil {
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	if err != nil {
+		logger.Errorf("%s: Cancel(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("Cancel", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
+	}
+	if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, true); err != nil {
 		return nil, errors.InternalError("Cancel", "error during set cancel flag to cache")
 	}
 	return &pb.CancelResponse{}, nil
 }
 
-//GetPrecompiledObjects returns the list of examples
+// GetPrecompiledObjects returns the list of examples
 func (controller *playgroundController) GetPrecompiledObjects(ctx context.Context, info *pb.GetPrecompiledObjectsRequest) (*pb.GetPrecompiledObjectsResponse, error) {
 	bucket := cloud_bucket.New()
 	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, info.Sdk, info.Category)

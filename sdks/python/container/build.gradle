@@ -75,6 +75,12 @@ task pushAll {
   dependsOn ':sdks:python:container:py38:dockerPush'
 }
 
+task generatePythonRequirementsAll {
+  dependsOn ':sdks:python:container:py36:generatePythonRequirements'
+  dependsOn ':sdks:python:container:py37:generatePythonRequirements'
+  dependsOn ':sdks:python:container:py38:generatePythonRequirements'
+}
+
 artifacts {
   sdkHarnessLauncher file: file('./build/target/launcher'), builtBy: goBuild
 }
