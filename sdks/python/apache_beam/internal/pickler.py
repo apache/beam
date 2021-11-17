@@ -31,8 +31,8 @@ the coders.*PickleCoder classes should be used instead.
 from apache_beam.internal import cloudpickle_pickler
 from apache_beam.internal import dill_pickler
 
-USE_CLOUDPICKLE = 1
-USE_DILL = 2
+USE_CLOUDPICKLE = 'cloudpickle'
+USE_DILL = 'dill'
 DEFAULT_PICKLE_LIB = USE_DILL
 
 desired_pickle_lib = None
@@ -65,28 +65,16 @@ def load_session(file_path):
   return desired_pickle_lib.load_session(file_path)
 
 
-def set_pickle_lib(pickle_lib_enum):
-  """ Changes pickling library. Users should prefer the default library."""
+def set_library(selected_library = DEFAULT_PICKLE_LIB):
+  """ Sets pickle library that will be used. """
   global desired_pickle_lib
-  if pickle_lib_enum == USE_CLOUDPICKLE:
-    # Dill will override hooks in the dispatch table of the standard pickler.
-    # Those hooks overrides will cause cloudpickle to fail.
-    desired_pickle_lib = cloudpickle_pickler
-    dill_pickler.override_pickler_hooks(False)
-  elif pickle_lib_enum == USE_DILL:
+  if selected_library == USE_DILL and desired_pickle_lib != dill_pickler:
     desired_pickle_lib = dill_pickler
     dill_pickler.override_pickler_hooks(True)
-
-
-def set_pipeline_options(pickler_option):
-  """ Sets pickle library based on pipeline settings. """
-  if selected_library == 'default':
-    set_pickle_lib(DEFAULT_PICKLE_LIB)
-  elif selected_library == 'dill':
-    set_pickle_lib(USE_DILL)
-  elif selected_library == 'cloudpickle':
-    set_pickle_lib(USE_CLOUDPICKLE)
+  elif selected_library == USE_CLOUDPICKLE and desired_pickle_lib != cloudpickle_pickler:
+    desired_pickle_lib = cloudpickle_pickler
+    dill_pickler.override_pickler_hooks(False)
 
 
 if not desired_pickle_lib:
-  set_pickle_lib(DEFAULT_PICKLE_LIB)
+  set_library()

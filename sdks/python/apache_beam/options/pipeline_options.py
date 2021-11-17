@@ -1057,7 +1057,7 @@ class SetupOptions(PipelineOptions):
             'Multiple --beam_plugin options can be specified if more than '
             'one plugin is needed.'))
     parser.add_argument(
-        '--set_pickle_library',
+        '--pickle_library',
         default='default',
         help=(
             'Chooses which pickle library to use. Options are dill, cloudpickle '
