@@ -21,7 +21,7 @@ apply plugin: 'org.apache.beam.module'
 apply plugin: 'base'
 applyDockerNature()
 
-val playgroundBackendUrl: String by project
+def playgroundBackendUrl = project.playgroundBackendUrl
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
 
@@ -130,10 +130,10 @@ task("createConfig") {
   group = "build"
   description = "Generate config for the playground frontend project"
   doLast {
-    val configFileName = "config.g.dart"
-    val modulePath = project(":playground:frontend").projectDir.absolutePath
-    val file = File(modulePath + "/lib", configFileName)
-    file.writeText("""/*
+    def configFileName = "config.g.dart"
+    def modulePath = project(":playground:frontend").projectDir.absolutePath
+    def file = new File(modulePath + "/lib", configFileName)
+    file.write("""/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
