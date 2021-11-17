@@ -321,7 +321,7 @@ task validatesContainer() {
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && cd ${rootDir} && ${runScriptsPath} " +
-              "python${pyversion} " +
+              "${project.ext.pythonVersion} " +
               "${files(configurations.distTarBall.files).singleFile}"
     }
   }
