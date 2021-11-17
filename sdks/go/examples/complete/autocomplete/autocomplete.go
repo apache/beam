@@ -38,10 +38,19 @@ var (
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
+func init() {
+	beam.RegisterFunction(extractFn)
+	beam.RegisterFunction(less)
+}
+
 func extractFn(line string, emit func(string)) {
 	for _, word := range wordRE.FindAllString(line, -1) {
 		emit(word)
 	}
+}
+
+func less(a, b string) bool {
+	return len(a) < len(b)
 }
 
 func main() {
@@ -60,9 +69,7 @@ func main() {
 	}
 	words := beam.ParDo(s, extractFn, lines)
 
-	hits := top.Largest(s, words, *n, func(a, b string) bool {
-		return len(a) < len(b)
-	})
+	hits := top.Largest(s, words, *n, less)
 	debug.Print(s, hits)
 
 	if err := beamx.Run(ctx, p); err != nil {
