@@ -297,8 +297,9 @@ limitations under the License.
 &lt;li>&lt;a href="#create-a-new-version-in-jira">Create a new version in JIRA&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#3-investigate-performance-regressions">3. Investigate performance regressions&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#4-create-a-release-branch-in-apachebeam-repository">4. Create a release branch in apache/beam repository&lt;/a>
+&lt;li>&lt;a href="#3-update-base-image-dependencies-for-python-container-images">3. Update base image dependencies for Python container images&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#4-investigate-performance-regressions">4. Investigate performance regressions&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#5-create-a-release-branch-in-apachebeam-repository">5. Create a release branch in apache/beam repository&lt;/a>
 &lt;ul>
 &lt;li>
 &lt;ul>
@@ -313,7 +314,7 @@ limitations under the License.
 &lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#5-verify-release-branch">5. Verify release branch&lt;/a>
+&lt;li>&lt;a href="#6-verify-release-branch">6. Verify release branch&lt;/a>
 &lt;ul>
 &lt;li>
 &lt;ul>
@@ -326,12 +327,12 @@ limitations under the License.
 &lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#6-triage-release-blocking-issues-in-jira">6. Triage release-blocking issues in JIRA&lt;/a>
+&lt;li>&lt;a href="#7-triage-release-blocking-issues-in-jira">7. Triage release-blocking issues in JIRA&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#review-cherry-picks">Review cherry-picks&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#7-build-a-release-candidate">7. Build a release candidate&lt;/a>
+&lt;li>&lt;a href="#8-build-a-release-candidate">8. Build a release candidate&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#checklist-before-proceeding">Checklist before proceeding&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#tag-a-chosen-commit-for-the-rc">Tag a chosen commit for the RC&lt;/a>&lt;/li>
@@ -343,7 +344,7 @@ limitations under the License.
 &lt;li>&lt;a href="#upload-release-candidate-to-pypi">Upload release candidate to PyPi&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#8-prepare-documents">8. Prepare documents&lt;/a>
+&lt;li>&lt;a href="#9-prepare-documents">9. Prepare documents&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#propose-pull-requests-for-website-updates">Propose pull requests for website updates&lt;/a>
 &lt;ul>
@@ -353,7 +354,7 @@ limitations under the License.
 &lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#9-vote-and-validate-release-candidate">9. Vote and validate release candidate&lt;/a>
+&lt;li>&lt;a href="#10-vote-and-validate-release-candidate">10. Vote and validate release candidate&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#run-validation-tests">Run validation tests&lt;/a>
 &lt;ul>
@@ -366,7 +367,7 @@ limitations under the License.
 &lt;li>&lt;a href="#checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#10-finalize-the-release">10. Finalize the release&lt;/a>
+&lt;li>&lt;a href="#11-finalize-the-release">11. Finalize the release&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI&lt;/a>&lt;/li>
@@ -384,7 +385,7 @@ limitations under the License.
 &lt;li>&lt;a href="#checklist-to-proceed-to-the-next-step-3">Checklist to proceed to the next step&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#11-promote-the-release">11. Promote the release&lt;/a>
+&lt;li>&lt;a href="#12-promote-the-release">12. Promote the release&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#apache-mailing-lists">Apache mailing lists&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#social-media">Social media&lt;/a>&lt;/li>
@@ -411,6 +412,7 @@ This guide complements the foundation-wide &lt;a href="http://www.apache.org/dev
 &lt;ol>
 &lt;li>Decide to release&lt;/li>
 &lt;li>Prepare for the release&lt;/li>
+&lt;li>Update base image dependencies for Python container images&lt;/li>
 &lt;li>Investigate performance regressions&lt;/li>
 &lt;li>Create a release branch&lt;/li>
 &lt;li>Verify release branch&lt;/li>
@@ -582,7 +584,19 @@ If you are not a PMC, please ask for help in dev@ mailing list.&lt;/p>
 &lt;li>At the end of the release, go to the same page and mark the recently released version as released. Use the &lt;code>...&lt;/code> menu and choose &lt;code>Release&lt;/code>.&lt;/li>
 &lt;/ol>
 &lt;hr>
-&lt;h2 id="3-investigate-performance-regressions">3. Investigate performance regressions&lt;/h2>
+&lt;h2 id="3-update-base-image-dependencies-for-python-container-images">3. Update base image dependencies for Python container images&lt;/h2>
+&lt;ol>
+&lt;li>Check the versions specified in sdks/python/container/base_image_requirements_manual.txt` and update them if necessary.&lt;/li>
+&lt;li>Regenerate full dependency list by running:
+&lt;code>./gradlew :sdks:python:container:generatePythonRequirementsAll&lt;/code> and commiting
+the changes. Exectution takes about ~5 min per Python version and is somewhat resource-demanding.
+You can also regenerate the dependencies indiviually per version with targets like &lt;code>./gradlew :sdks:python:container:py38:generatePythonRequirements&lt;/code>.&lt;/li>
+&lt;/ol>
+&lt;p>Ideally, do this at least a week before the release cut, so that any issues
+related to the update have time to surface.
+You will need Python intepreters for all versions supported by Beam, see:
+&lt;a href="https://s.apache.org/beam-python-dev-wiki">https://s.apache.org/beam-python-dev-wiki&lt;/a> for tips how to install them.&lt;/p>
+&lt;h2 id="4-investigate-performance-regressions">4. Investigate performance regressions&lt;/h2>
 &lt;p>Check the Beam load tests for possible performance regressions.
 Measurements are available on &lt;a href="http://metrics.beam.apache.org">metrics.beam.apache.org&lt;/a>.&lt;/p>
 &lt;p>All Runners which publish data should be checked for the following, in both &lt;em>batch&lt;/em> and &lt;em>streaming&lt;/em> mode:&lt;/p>
@@ -595,7 +609,7 @@ Measurements are available on &lt;a href="http://metrics.beam.apache.org">metric
 The role of the release manager is to file JIRA issues for each regression with the &amp;lsquo;Fix Version&amp;rsquo; set to the to-be-released version.
 The release manager oversees these just like any other JIRA issue marked with the &amp;lsquo;Fix Version&amp;rsquo; of the release.&lt;/p>
 &lt;p>The mailing list should be informed to allow fixing the regressions in the course of the release.&lt;/p>
-&lt;h2 id="4-create-a-release-branch-in-apachebeam-repository">4. Create a release branch in apache/beam repository&lt;/h2>
+&lt;h2 id="5-create-a-release-branch-in-apachebeam-repository">5. Create a release branch in apache/beam repository&lt;/h2>
 &lt;p>Attention: Only committer has permission to create release branch in apache/beam.&lt;/p>
 &lt;p>Release candidates are built from a release branch.
 As a final step in preparation for the release, you should create the release branch, push it to the Apache code repository, and update version information on the original branch.
@@ -663,7 +677,7 @@ Once the release branch is cut, these SNAPSHOT versions are no longer found, so 
 &lt;li>Verify that build succeeds.&lt;/li>
 &lt;/ul>
 &lt;hr>
-&lt;h2 id="5-verify-release-branch">5. Verify release branch&lt;/h2>
+&lt;h2 id="6-verify-release-branch">6. Verify release branch&lt;/h2>
 &lt;p>After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.&lt;/p>
 &lt;p>! Dataflow tests will fail if Dataflow worker container is not created and published by this time. (Should be done by Google)&lt;/p>
@@ -788,7 +802,7 @@ For each of the failing tests create a JIRA with the following properties:&lt;/p
 Alongside with this note, a list of pending issues and to-be-triaged issues should be included.
 Afterwards, this list can be refined and updated by the release manager and the Beam community.&lt;/p>
 &lt;hr>
-&lt;h2 id="6-triage-release-blocking-issues-in-jira">6. Triage release-blocking issues in JIRA&lt;/h2>
+&lt;h2 id="7-triage-release-blocking-issues-in-jira">7. Triage release-blocking issues in JIRA&lt;/h2>
 &lt;p>There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate.
 We track them by assigning the blocked release to the issue&amp;rsquo;s &lt;code>Fix version&lt;/code> field before the issue is resolved.&lt;/p>
 &lt;p>The release manager should triage what does and does not block a release.
@@ -841,7 +855,7 @@ Neither late releases nor not fully tested code will provide positive user value
 &lt;p>&lt;strong>Tip&lt;/strong>: Another tool in your toolbox is the known issues section of the release blog.
 Consider adding known issues there for minor issues instead of accepting cherry picks to the release branch.&lt;/p>
 &lt;hr>
-&lt;h2 id="7-build-a-release-candidate">7. Build a release candidate&lt;/h2>
+&lt;h2 id="8-build-a-release-candidate">8. Build a release candidate&lt;/h2>
 &lt;h3 id="checklist-before-proceeding">Checklist before proceeding&lt;/h3>
 &lt;ul>
 &lt;li>Release Manager’s GPG key is published to &lt;code>dist.apache.org&lt;/code>;&lt;/li>
@@ -999,7 +1013,7 @@ Carefully review any new artifacts.&lt;/li>
 &lt;p>You can do a dry run by omitting the &lt;code>--deploy&lt;/code> flag. Then it will only download the release candidate binaries. If it looks good, rerun it with &lt;code>--deploy&lt;/code>.&lt;/p>
 &lt;p>See the source of the script for more details or to run commands manually in case of a problem.&lt;/p>
 &lt;hr>
-&lt;h2 id="8-prepare-documents">8. Prepare documents&lt;/h2>
+&lt;h2 id="9-prepare-documents">9. Prepare documents&lt;/h2>
 &lt;h3 id="propose-pull-requests-for-website-updates">Propose pull requests for website updates&lt;/h3>
 &lt;p>Beam publishes API reference manuals for each release on the website.
 For Java and Python SDKs, that’s Javadoc and PyDoc, respectively.
@@ -1086,7 +1100,7 @@ ${CONTRIBUTORS}
 &lt;pre>&lt;code>docker pull {image_name}
 docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 &lt;/code>&lt;/pre>&lt;hr>
-&lt;h2 id="9-vote-and-validate-release-candidate">9. Vote and validate release candidate&lt;/h2>
+&lt;h2 id="10-vote-and-validate-release-candidate">10. Vote and validate release candidate&lt;/h2>
 &lt;p>Once you have built and individually reviewed the release candidate, please share it for the community-wide review.
 Please review foundation-wide &lt;a href="http://www.apache.org/foundation/voting.html">voting guidelines&lt;/a> for more information.&lt;/p>
 &lt;p>Start the review-and-vote thread on the dev@ mailing list.
@@ -1415,7 +1429,7 @@ Thanks everyone!
 &lt;li>Community votes to release the proposed candidate, with at least three approving PMC votes.&lt;/li>
 &lt;/ol>
 &lt;hr>
-&lt;h2 id="10-finalize-the-release">10. Finalize the release&lt;/h2>
+&lt;h2 id="11-finalize-the-release">11. Finalize the release&lt;/h2>
 &lt;p>Once the release candidate has been reviewed and approved by the community, the release should be finalized.
 This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.&lt;/p>
 &lt;h3 id="deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository&lt;/h3>
@@ -1501,7 +1515,7 @@ If you end up getting permissions errors ask on the mailing list for assistance.
 &lt;li>Release version is listed at reporter.apache.org&lt;/li>
 &lt;/ul>
 &lt;hr>
-&lt;h2 id="11-promote-the-release">11. Promote the release&lt;/h2>
+&lt;h2 id="12-promote-the-release">12. Promote the release&lt;/h2>
 &lt;p>Once the release has been finalized, the last step of the process is to promote the release within the project and beyond.&lt;/p>
 &lt;h3 id="apache-mailing-lists">Apache mailing lists&lt;/h3>
 &lt;p>Announce on the dev@ mailing list that the release has been finished.&lt;/p>
