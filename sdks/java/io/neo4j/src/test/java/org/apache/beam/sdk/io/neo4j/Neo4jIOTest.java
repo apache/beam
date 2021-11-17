@@ -122,4 +122,27 @@ public class Neo4jIOTest {
       throw new AssertionError("Empty password string should not throw an error", e);
     }
   }
+
+  @Test
+  public void testDriverConfigurationBooleanNullValues() {
+    Neo4jIO.DriverConfiguration driverConfiguration = Neo4jIO.DriverConfiguration.create();
+
+    // Test the 3 states of Encryption: null, true or false
+    Assert.assertNull(driverConfiguration.getEncryption());
+    driverConfiguration = driverConfiguration.withEncryption();
+    Assert.assertNotNull(driverConfiguration.getEncryption());
+    Assert.assertTrue(driverConfiguration.getEncryption().get());
+    driverConfiguration = driverConfiguration.withoutEncryption();
+    Assert.assertNotNull(driverConfiguration.getEncryption());
+    Assert.assertFalse(driverConfiguration.getEncryption().get());
+
+    // Test the 3 states of Routing: null, true or false
+    Assert.assertNull(driverConfiguration.getRouting());
+    driverConfiguration = driverConfiguration.withRouting();
+    Assert.assertNotNull(driverConfiguration.getRouting());
+    Assert.assertTrue(driverConfiguration.getRouting().get());
+    driverConfiguration = driverConfiguration.withoutRouting();
+    Assert.assertNotNull(driverConfiguration.getRouting());
+    Assert.assertFalse(driverConfiguration.getRouting().get());
+  }
 }
