@@ -129,14 +129,14 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
         key,
         lastAttemptedKey);
     checkArgument(
-        key.compareTo(startKey) > -1,
+        key.compareTo(startKey) >= 0,
         "Trying to claim key %s before start of the range %s",
         key,
         range);
 
     lastAttemptedKey = key;
     // No respective checkArgument for i < range.to() - it's ok to try claiming keys beyond
-    if (!endKey.isEmpty() && key.compareTo(endKey) > -1) {
+    if (!endKey.isEmpty() && key.compareTo(endKey) >= 0) {
       return false;
     }
     lastClaimedKey = key;
