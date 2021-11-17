@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -61,11 +59,10 @@ public class StreamingWriteTables<ElementT>
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
   private final boolean autoSharding;
-  private final boolean skipReshuffle;
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
-  private final SerializableFunction<ElementT, String> toUniqueId;
+  private final SerializableFunction<ElementT, String> deterministicRecordIdFn;
 
   public StreamingWriteTables() {
     this(
@@ -76,11 +73,10 @@ public class StreamingWriteTables<ElementT>
         false, // ignoreUnknownValues
         false, // ignoreInsertIds
         false, // autoSharding
-        false, // skipReshuffle
         null, // elementCoder
         null, // toTableRow
         null, // toFailsafeTableRow
-        null); // toUniqueId
+        null); // deterministicRecordIdFn
   }
 
   private StreamingWriteTables(
@@ -91,11 +87,10 @@ public class StreamingWriteTables<ElementT>
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
       boolean autoSharding,
-      boolean skipReshuffle,
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
       SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
-      SerializableFunction<ElementT, String> toUniqueId) {
+      SerializableFunction<ElementT, String> deterministicRecordIdFn) {
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
     this.extendedErrorInfo = extendedErrorInfo;
@@ -103,11 +98,10 @@ public class StreamingWriteTables<ElementT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
     this.autoSharding = autoSharding;
-    this.skipReshuffle = skipReshuffle;
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
-    this.toUniqueId = toUniqueId;
+    this.deterministicRecordIdFn = deterministicRecordIdFn;
   }
 
   StreamingWriteTables<ElementT> withTestServices(BigQueryServices bigQueryServices) {
@@ -119,11 +113,10 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
@@ -135,11 +128,10 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withExtendedErrorInfo(boolean extendedErrorInfo) {
@@ -151,11 +143,10 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withSkipInvalidRows(boolean skipInvalidRows) {
@@ -167,11 +158,10 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withIgnoreUnknownValues(boolean ignoreUnknownValues) {
@@ -183,11 +173,10 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withIgnoreInsertIds(boolean ignoreInsertIds) {
@@ -199,11 +188,10 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withAutoSharding(boolean autoSharding) {
@@ -215,27 +203,10 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
-  }
-
-  StreamingWriteTables<ElementT> withSkipReshuffle(boolean skipReshuffle) {
-    return new StreamingWriteTables<>(
-        bigQueryServices,
-        retryPolicy,
-        extendedErrorInfo,
-        skipInvalidRows,
-        ignoreUnknownValues,
-        ignoreInsertIds,
-        autoSharding,
-        skipReshuffle,
-        elementCoder,
-        toTableRow,
-        toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withElementCoder(Coder<ElementT> elementCoder) {
@@ -247,11 +218,10 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withToTableRow(
@@ -264,11 +234,10 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withToFailsafeTableRow(
@@ -281,14 +250,14 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
-  StreamingWriteTables<ElementT> withToUniqueId(SerializableFunction<ElementT, String> toUniqueId) {
+  StreamingWriteTables<ElementT> withDeterministicRecordIdFn(
+      SerializableFunction<ElementT, String> deterministicRecordIdFn) {
     return new StreamingWriteTables<>(
         bigQueryServices,
         retryPolicy,
@@ -297,11 +266,10 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
-        skipReshuffle,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
-        toUniqueId);
+        deterministicRecordIdFn);
   }
 
   @Override
@@ -357,8 +325,7 @@ public class StreamingWriteTables<ElementT>
     // different unique ids, this implementation relies on "checkpointing", which is
     // achieved as a side effect of having BigQuery insertion immediately follow a GBK.
 
-    if (autoSharding) {
-      checkArgument(!skipReshuffle);
+    if (autoSharding && deterministicRecordIdFn == null) {
       // If runner determined dynamic sharding is enabled, group TableRows on table destinations
       // that may be sharded during the runtime. Otherwise, we choose a fixed number of shards per
       // table destination following the logic below in the other branch.
@@ -402,13 +369,15 @@ public class StreamingWriteTables<ElementT>
           input
               .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable<>(numShards)))
               .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), elementCoder))
-              .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds<>(toUniqueId)))
+              .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds<>(deterministicRecordIdFn)))
               .setCoder(
                   KvCoder.of(
                       ShardedKeyCoder.of(StringUtf8Coder.of()),
                       TableRowInfoCoder.of(elementCoder)));
 
-      if (!skipReshuffle) {
+      if (deterministicRecordIdFn == null) {
+        // If not using a deterministic function for record ids, we must apply a reshuffle to ensure
+        // determinism on the generated ids.
         shardedTagged = shardedTagged.apply(Reshuffle.of());
       }
 

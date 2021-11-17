@@ -1706,8 +1706,7 @@ public class BigQueryIO {
         .setOptimizeWrites(false)
         .setUseBeamSchema(false)
         .setAutoSharding(false)
-        .setSkipReshuffle(false)
-        .setToUniqueIdFunction(null)
+        .setDeterministicRecordIdFn(null)
         .build();
   }
 
@@ -1847,10 +1846,7 @@ public class BigQueryIO {
     abstract Boolean getAutoSharding();
 
     @Experimental
-    abstract Boolean getSkipReshuffle();
-
-    @Experimental
-    abstract @Nullable SerializableFunction<T, String> getToUniqueIdFunction();
+    abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
     abstract Builder<T> toBuilder();
 
@@ -1937,10 +1933,8 @@ public class BigQueryIO {
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
 
       @Experimental
-      abstract Builder<T> setSkipReshuffle(Boolean skipReshuffle);
-
-      @Experimental
-      abstract Builder<T> setToUniqueIdFunction(SerializableFunction<T, String> toUniqueIdFunction);
+      abstract Builder<T> setDeterministicRecordIdFn(
+          SerializableFunction<T, String> toUniqueIdFunction);
 
       abstract Write<T> build();
     }
@@ -2442,29 +2436,19 @@ public class BigQueryIO {
     }
 
     /**
-     * If true, removes the re-shuffle from the BigQueryIO Write by using the keys on which the data
-     * is grouped at the point at which BigQueryIO Write is applied. This may be beneficial as a
-     * performance optimization in the case when the current sharding is already sufficient for
-     * writing to BigQuery. This can be used only with {@link Method#STREAMING_INSERTS} and cannot
-     * be combined with {@link #withAutoSharding}. Enabling this optimization means that the unique
-     * ids generated for each record being inserted into BigQuery will not be checkpointed, and
-     * therefore are no longer guaranteed to be unique. Therefore it is recommended to use this in
-     * conjunction with the {@link #withToUniqueIdFunction} to provide a guaranteed-unique id for
-     * each record.
+     * Provides a function which can serve as a source of deterministic unique ids for each record
+     * to be written, replacing the unique ids generated with the default scheme. When used with
+     * {@link Method#STREAMING_INSERTS} This also elides the re-shuffle from the BigQueryIO Write by
+     * using the keys on which the data is grouped at the point at which BigQueryIO Write is
+     * applied, since the reshuffle is necessary only for the checkpointing of the default-generated
+     * ids for determinism. This may be beneficial as a performance optimization in the case when
+     * the current sharding is already sufficient for writing to BigQuery. Thi behavior takes
+     * precedence over {@link #withAutoSharding}.
      */
     @Experimental
-    public Write<T> withSkipReshuffle() {
-      return toBuilder().setSkipReshuffle(true).build();
-    }
-
-    /**
-     * Provides a function which can serve as a source of unique ids for each record to be written,
-     * replacing the unique ids generated with the default scheme. This can be used in conjunction
-     * with {@link #withSkipReshuffle}.
-     */
-    @Experimental
-    public Write<T> withToUniqueIdFunction(SerializableFunction<T, String> toUniqueIdFunction) {
-      return toBuilder().setToUniqueIdFunction(toUniqueIdFunction).build();
+    public Write<T> withDeterministicRecordIdFn(
+        SerializableFunction<T, String> toUniqueIdFunction) {
+      return toBuilder().setDeterministicRecordIdFn(toUniqueIdFunction).build();
     }
 
     @VisibleForTesting
@@ -2628,9 +2612,9 @@ public class BigQueryIO {
       } else {
         checkArgument(
             getTriggeringFrequency() == null && getNumFileShards() == 0,
-            "Triggering frequency or number of file shards can be specified only when writing "
-                + "an unbounded PCollection via FILE_LOADS or STORAGE_API_WRITES, but: the collection was %s "
-                + "and the method was %s",
+            "Triggering frequency or number of file shards can be specified only when writing an"
+                + " unbounded PCollection via FILE_LOADS or STORAGE_API_WRITES, but: the collection"
+                + " was %s and the method was %s",
             input.isBounded(),
             method);
       }
@@ -2646,23 +2630,9 @@ public class BigQueryIO {
 
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
-        checkArgument(
-            !getSkipReshuffle(), "Skipping reshuffle is only applicable to unbounded input.");
       }
       if (method == Write.Method.STORAGE_WRITE_API) {
         checkArgument(!getAutoSharding(), "Auto sharding not yet available for Storage API writes");
-      }
-
-      if (method != Method.STREAMING_INSERTS) {
-        checkArgument(
-            !getSkipReshuffle(), "Skipping reshuffle only available for streaming inserts");
-        checkArgument(
-            getToUniqueIdFunction() == null,
-            "To Unique Id function only usable in streaming inserts mode");
-      }
-      if (getSkipReshuffle()) {
-        checkArgument(
-            !getAutoSharding(), "At most one of skipReshuffle or autoSharding can be set.");
       }
 
       if (getJsonTimePartitioning() != null) {
@@ -2773,7 +2743,8 @@ public class BigQueryIO {
         if (avroRowWriterFactory != null) {
           checkArgument(
               formatFunction == null,
-              "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set, not both.");
+              "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set,"
+                  + " not both.");
 
           SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory =
               getAvroSchemaFactory();
@@ -2867,8 +2838,7 @@ public class BigQueryIO {
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
                 .withIgnoreInsertIds(getIgnoreInsertIds())
                 .withAutoSharding(getAutoSharding())
-                .withSkipReshuffle(getSkipReshuffle())
-                .withToUniqueId(getToUniqueIdFunction())
+                .withDeterministicRecordIdFn(getDeterministicRecordIdFn())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
       } else if (method == Write.Method.FILE_LOADS) {
