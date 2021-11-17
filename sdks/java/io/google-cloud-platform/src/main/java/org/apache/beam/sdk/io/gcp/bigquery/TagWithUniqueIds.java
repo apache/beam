@@ -23,6 +23,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Fn that tags each table row with a unique id and destination table. To avoid calling
@@ -39,7 +40,7 @@ class TagWithUniqueIds<KeyT, ElementT>
   private transient String randomUUID;
   private transient long sequenceNo = 0L;
 
-  private final SerializableFunction<ElementT, String> elementToId;
+  @Nullable private final SerializableFunction<ElementT, String> elementToId;
 
   public TagWithUniqueIds() {
     elementToId = null;
