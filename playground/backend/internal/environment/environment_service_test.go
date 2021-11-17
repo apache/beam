@@ -33,7 +33,7 @@ const (
 func TestMain(m *testing.M) {
 	err := setup()
 	if err != nil {
-		fmt.Errorf("error during test setup: %s", err.Error())
+		panic(fmt.Errorf("error during test setup: %s", err.Error()))
 	}
 	defer teardown()
 	m.Run()
@@ -56,7 +56,7 @@ func setup() error {
 func teardown() {
 	err := os.RemoveAll(configFolderName)
 	if err != nil {
-		fmt.Errorf("error during test setup: %s", err.Error())
+		panic(fmt.Errorf("error during test setup: %s", err.Error()))
 	}
 }
 

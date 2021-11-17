@@ -12,24 +12,33 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package main
+
+package compile_builder
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/environment"
-	"beam.apache.org/playground/backend/internal/logger"
-	"context"
-	"net/http"
+	"beam.apache.org/playground/backend/internal/executors"
+	"beam.apache.org/playground/backend/internal/utils"
 )
 
-// listenHttp binds the http.Handler on the TCP network address
-func listenHttp(ctx context.Context, errChan chan error, envs environment.NetworkEnvs, handler http.Handler) {
-	logger.Infof("listening HTTP at %s\n", envs.Address())
-	if err := http.ListenAndServe(envs.Address(), handler); err != nil {
-		errChan <- err
-		return
+// Setup returns executors.CompileBuilder setup it according to sdk
+func Setup(filePath, filesFolderPath string, sdk pb.Sdk, executorConfig *environment.ExecutorConfig) (*executors.CompileBuilder, error) {
+	val, err := utils.GetValidators(sdk, filePath)
+	if err != nil {
+		return nil, err
 	}
-	for {
-		<-ctx.Done()
-		return
-	}
+
+	compileBuilder := executors.NewExecutorBuilder().
+		WithValidator().
+		WithSdkValidators(val).
+		WithCompiler()
+
+	compileBuilder = compileBuilder.
+		WithCommand(executorConfig.CompileCmd).
+		WithArgs(executorConfig.CompileArgs).
+		WithFileName(filePath).
+		WithWorkingDir(filesFolderPath)
+
+	return compileBuilder, nil
 }

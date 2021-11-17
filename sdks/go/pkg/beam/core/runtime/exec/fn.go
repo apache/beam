@@ -279,6 +279,9 @@ func makeSideInputs(ctx context.Context, w typex.Window, side []SideInputAdapter
 			continue
 		}
 		stream, err := adapter.NewIterable(ctx, reader, w)
+		if err != nil {
+			return nil, err
+		}
 		s, err := makeSideInput(inKind, params, stream)
 		if err != nil {
 			return nil, errors.WithContextf(err, "making side input %v for %v", i, fn)

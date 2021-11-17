@@ -121,12 +121,12 @@ func (AlignToTransform) timestampTransform() {}
 
 // PlusDelay configures an AfterProcessingTime trigger to fire after a specified delay,
 // no smaller than a millisecond.
-func (tr *AfterProcessingTimeTrigger) PlusDelay(delay time.Duration) *AfterProcessingTimeTrigger {
+func (t *AfterProcessingTimeTrigger) PlusDelay(delay time.Duration) *AfterProcessingTimeTrigger {
 	if delay < time.Millisecond {
 		panic(fmt.Errorf("can't apply processing delay of less than a millisecond. Got: %v", delay))
 	}
-	tr.timestampTransforms = append(tr.timestampTransforms, DelayTransform{Delay: int64(delay / time.Millisecond)})
-	return tr
+	t.timestampTransforms = append(t.timestampTransforms, DelayTransform{Delay: int64(delay / time.Millisecond)})
+	return t
 }
 
 // AlignedTo configures an AfterProcessingTime trigger to fire
@@ -134,7 +134,7 @@ func (tr *AfterProcessingTimeTrigger) PlusDelay(delay time.Duration) *AfterProce
 //
 // * Period may not be smaller than a millisecond.
 // * Offset may be a zero time (time.Time{}).
-func (tr *AfterProcessingTimeTrigger) AlignedTo(period time.Duration, offset time.Time) *AfterProcessingTimeTrigger {
+func (t *AfterProcessingTimeTrigger) AlignedTo(period time.Duration, offset time.Time) *AfterProcessingTimeTrigger {
 	if period < time.Millisecond {
 		panic(fmt.Errorf("can't apply an alignment period of less than a millisecond. Got: %v", period))
 	}
@@ -143,11 +143,11 @@ func (tr *AfterProcessingTimeTrigger) AlignedTo(period time.Duration, offset tim
 		// TODO: Change to call UnixMilli() once we move to only supporting a go version > 1.17.
 		offsetMillis = offset.Unix()*1e3 + int64(offset.Nanosecond())/1e6
 	}
-	tr.timestampTransforms = append(tr.timestampTransforms, AlignToTransform{
+	t.timestampTransforms = append(t.timestampTransforms, AlignToTransform{
 		Period: int64(period / time.Millisecond),
 		Offset: offsetMillis,
 	})
-	return tr
+	return t
 }
 
 // RepeatTrigger fires a sub-trigger repeatedly.
@@ -166,8 +166,8 @@ func (t *RepeatTrigger) SubTrigger() Trigger {
 // once the condition has been met.
 //
 // Ex: trigger.Repeat(trigger.AfterCount(1)) is same as trigger.Always().
-func Repeat(tr Trigger) *RepeatTrigger {
-	return &RepeatTrigger{subtrigger: tr}
+func Repeat(t Trigger) *RepeatTrigger {
+	return &RepeatTrigger{subtrigger: t}
 }
 
 // AfterEndOfWindowTrigger provides option to set triggers for early and late firing.
@@ -199,18 +199,18 @@ func AfterEndOfWindow() *AfterEndOfWindowTrigger {
 
 // EarlyFiring configures an AfterEndOfWindow trigger with an implicitly
 // repeated trigger that applies before the end of the window.
-func (tr *AfterEndOfWindowTrigger) EarlyFiring(early Trigger) *AfterEndOfWindowTrigger {
-	tr.earlyFiring = early
-	return tr
+func (t *AfterEndOfWindowTrigger) EarlyFiring(early Trigger) *AfterEndOfWindowTrigger {
+	t.earlyFiring = early
+	return t
 }
 
 // LateFiring configures an AfterEndOfWindow trigger with an implicitly
 // repeated trigger that applies after the end of the window.
 //
 // Not setting a late firing trigger means elements are discarded.
-func (tr *AfterEndOfWindowTrigger) LateFiring(late Trigger) *AfterEndOfWindowTrigger {
-	tr.lateFiring = late
-	return tr
+func (t *AfterEndOfWindowTrigger) LateFiring(late Trigger) *AfterEndOfWindowTrigger {
+	t.lateFiring = late
+	return t
 }
 
 // AfterAnyTrigger fires after any of sub-trigger fires.

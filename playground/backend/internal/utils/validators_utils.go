@@ -13,26 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package harnessopts
+package utils
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
-	"time"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 )
 
-const (
-	samplePeriodHook = "beam:go:hook:dofnmetrics:sampletime"
-)
-
-// SampleInterval sets the sampling time period (greater than 1ms) for DoFn metrics sampling.
-// Default value is 200ms.
-func SampleInterval(samplePeriod time.Duration) error {
-	if samplePeriod < time.Millisecond {
-		return fmt.Errorf("sample period should be greater than 1ms, got %v", samplePeriod)
+// GetValidators returns slice of validators.Validator according to sdk
+func GetValidators(sdk pb.Sdk, filepath string) (*[]validators.Validator, error) {
+	var val *[]validators.Validator
+	switch sdk {
+	case pb.Sdk_SDK_JAVA:
+		val = validators.GetJavaValidators(filepath)
+	default:
+		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}
-	sampleTime := samplePeriod.String()
-	// The hook itself is defined in beam/core/runtime/harness/sampler_hook.go
-	return hooks.EnableHook(samplePeriodHook, sampleTime)
+	return val, nil
 }

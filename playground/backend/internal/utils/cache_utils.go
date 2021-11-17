@@ -13,26 +13,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package harnessopts
+package utils
 
 import (
-	"fmt"
-	"time"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/logger"
+	"context"
+	"github.com/google/uuid"
 )
 
-const (
-	samplePeriodHook = "beam:go:hook:dofnmetrics:sampletime"
-)
-
-// SampleInterval sets the sampling time period (greater than 1ms) for DoFn metrics sampling.
-// Default value is 200ms.
-func SampleInterval(samplePeriod time.Duration) error {
-	if samplePeriod < time.Millisecond {
-		return fmt.Errorf("sample period should be greater than 1ms, got %v", samplePeriod)
+// SetToCache puts value to cache by key and subKey.
+// If error occurs during the function - logs and returns error.
+func SetToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, value interface{}) error {
+	err := cacheService.SetValue(ctx, key, subKey, value)
+	if err != nil {
+		logger.Errorf("%s: cache.SetValue: %s\n", key, err.Error())
 	}
-	sampleTime := samplePeriod.String()
-	// The hook itself is defined in beam/core/runtime/harness/sampler_hook.go
-	return hooks.EnableHook(samplePeriodHook, sampleTime)
+	return err
 }
