@@ -241,29 +241,29 @@ public class RedisIOTest {
   @Test
   public void redisCursorToByteKey() {
     RedisCursor redisCursor = RedisCursor.of("80", 200, true);
-    ByteKey byteKey = RedisCursor.redisCursorToByteKey(redisCursor);
+    ByteKey byteKey = RedisCursorRangeTracker.redisCursorToByteKey(redisCursor);
     assertEquals(ByteKey.of(0, 0, 0, 0, 0, 0, 0, 10), byteKey);
   }
 
   @Test
   public void redisCursorToByteKeyZeroStart() {
     RedisCursor redisCursor = RedisCursor.of("0", 200, true);
-    ByteKey byteKey = RedisCursor.redisCursorToByteKey(redisCursor);
+    ByteKey byteKey = RedisCursorRangeTracker.redisCursorToByteKey(redisCursor);
     assertEquals(RedisCursor.ZERO_KEY, byteKey);
   }
 
   @Test
   public void redisCursorToByteKeyZeroEnd() {
     RedisCursor redisCursor = RedisCursor.of("0", 200, false);
-    ByteKey byteKey = RedisCursor.redisCursorToByteKey(redisCursor);
+    ByteKey byteKey = RedisCursorRangeTracker.redisCursorToByteKey(redisCursor);
     assertEquals(ByteKey.EMPTY, byteKey);
   }
 
   @Test
   public void redisCursorToByteKeyAndBack() {
     RedisCursor redisCursor = RedisCursor.of("80", 200, true);
-    ByteKey byteKey = RedisCursor.redisCursorToByteKey(redisCursor);
-    RedisCursor result = RedisCursor.byteKeyToRedisCursor(byteKey, 200, true);
+    ByteKey byteKey = RedisCursorRangeTracker.redisCursorToByteKey(redisCursor);
+    RedisCursor result = RedisCursorRangeTracker.byteKeyToRedisCursor(byteKey, 200, true);
     assertEquals(redisCursor.getCursor(), result.getCursor());
   }
 

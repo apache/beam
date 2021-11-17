@@ -21,6 +21,10 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -61,8 +65,8 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
 
   @Override
   public SplitResult<RedisCursorRange> trySplit(double fractionOfRemainder) {
-    ByteKey startKey = RedisCursor.redisCursorToByteKey(range.getStartPosition());
-    ByteKey endKey = RedisCursor.redisCursorToByteKey(range.getEndPosition());
+    ByteKey startKey = redisCursorToByteKey(range.getStartPosition());
+    ByteKey endKey = redisCursorToByteKey(range.getEndPosition());
     // No split on an empty range.
     if (NO_KEYS.equals(range) || (!endKey.isEmpty() && startKey.equals(endKey))) {
       return null;
@@ -75,11 +79,11 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
     RedisCursor unprocessedRangeStartKey =
         (lastAttemptedKey == null)
             ? range.getStartPosition()
-            : RedisCursor.byteKeyToRedisCursor(
+            : byteKeyToRedisCursor(
                 next(lastAttemptedKey), range.getStartPosition().getDbSize(), true);
     RedisCursor endCursor = range.getEndPosition();
     // There is no more space for split.
-    if (!RedisCursor.redisCursorToByteKey(endCursor).isEmpty()
+    if (!redisCursorToByteKey(endCursor).isEmpty()
         && unprocessedRangeStartKey.compareTo(endCursor) >= 0) {
       return null;
     }
@@ -108,9 +112,9 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
 
   @Override
   public boolean tryClaim(RedisCursor cursor) {
-    ByteKey key = RedisCursor.redisCursorToByteKey(cursor);
-    ByteKey startKey = RedisCursor.redisCursorToByteKey(range.getStartPosition());
-    ByteKey endKey = RedisCursor.redisCursorToByteKey(range.getEndPosition());
+    ByteKey key = redisCursorToByteKey(cursor);
+    ByteKey startKey = redisCursorToByteKey(range.getStartPosition());
+    ByteKey endKey = redisCursorToByteKey(range.getEndPosition());
     // Handle claiming the end of range EMPTY key
     if (key.isEmpty()) {
       checkArgument(
@@ -144,7 +148,7 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
 
   @Override
   public void checkDone() throws IllegalStateException {
-    ByteKey endKey = RedisCursor.redisCursorToByteKey(range.getEndPosition());
+    ByteKey endKey = redisCursorToByteKey(range.getEndPosition());
     // Handle checking the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
@@ -188,8 +192,8 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
 
   @Override
   public Progress getProgress() {
-    ByteKey startKey = RedisCursor.redisCursorToByteKey(range.getStartPosition());
-    ByteKey endKey = RedisCursor.redisCursorToByteKey(range.getEndPosition());
+    ByteKey startKey = redisCursorToByteKey(range.getStartPosition());
+    ByteKey endKey = redisCursorToByteKey(range.getEndPosition());
     // Return [0,0] for the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
@@ -226,5 +230,62 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
         .add("lastClaimedKey", lastClaimedKey)
         .add("lastAttemptedKey", lastAttemptedKey)
         .toString();
+  }
+
+  @VisibleForTesting
+  static ByteKey redisCursorToByteKey(RedisCursor cursor) {
+    if ("0".equals(cursor.getCursor())) {
+      if (cursor.isStart()) {
+        return ByteKey.of(0x00);
+      } else {
+        return ByteKey.EMPTY;
+      }
+    }
+    int nBits = getTablePow(cursor.getDbSize());
+    long cursorLong = Long.parseLong(cursor.getCursor());
+    long reversed = shiftBits(cursorLong, nBits);
+    BigEndianLongCoder coder = BigEndianLongCoder.of();
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    try {
+      coder.encode(reversed, os);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("invalid redis cursor " + cursor);
+    }
+    byte[] byteArray = os.toByteArray();
+    return ByteKey.copyFrom(byteArray);
+  }
+
+  @VisibleForTesting
+  static long shiftBits(long a, int nBits) {
+    long b = 0;
+    for (int i = 0; i < nBits; ++i) {
+      b <<= 1;
+      b |= (a & 1);
+      a >>= 1;
+    }
+    return b;
+  }
+
+  @VisibleForTesting
+  static int getTablePow(long nKeys) {
+    return 64 - Long.numberOfLeadingZeros(nKeys - 1);
+  }
+
+  @VisibleForTesting
+  static RedisCursor byteKeyToRedisCursor(ByteKey byteKeyStart, long nKeys, boolean isStart) {
+    if (byteKeyStart.isEmpty() || byteKeyStart.equals(RedisCursor.ZERO_KEY)) {
+      return RedisCursor.of("0", nKeys, isStart);
+    }
+    int nBits = getTablePow(nKeys);
+    ByteBuffer bb = ByteBuffer.wrap(byteKeyStart.getBytes());
+    if (bb.capacity() < nBits) {
+      int rem = nBits - bb.capacity();
+      byte[] padding = new byte[rem];
+      bb = ByteBuffer.allocate(nBits).put(padding).put(bb.array());
+      bb.position(0);
+    }
+    long l = bb.getLong();
+    l = shiftBits(l, nBits);
+    return RedisCursor.of(Long.toString(l), nKeys, isStart);
   }
 }
