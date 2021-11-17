@@ -146,7 +146,7 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
     'proto-plus>=1.7.1,<2',
-    'pyarrow>=0.15.1,<6.0.0',
+    'pyarrow>=0.15.1,<7.0.0',
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
@@ -194,7 +194,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-spanner>=1.13.0,<2',
     'grpcio-gcp>=0.2.2,<1',
     # GCP Packages required by ML functionality
-    'google-cloud-dlp>=0.12.0,<2',
+    'google-cloud-dlp>=0.12.0,<4',
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
     'google-cloud-vision>=0.38.0,<2',
