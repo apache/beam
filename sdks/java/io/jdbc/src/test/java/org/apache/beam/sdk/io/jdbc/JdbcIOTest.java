@@ -848,7 +848,9 @@ public class JdbcIOTest implements Serializable {
             ISOChronology.getInstanceUTC());
 
     Row row =
-        Row.withSchema(schema).addValues(dateTime.withTimeAtStartOfDay(), time, dateTime, "Test").build();
+        Row.withSchema(schema)
+            .addValues(dateTime.withTimeAtStartOfDay(), time, dateTime, "Test")
+            .build();
 
     PreparedStatement psMocked = mock(PreparedStatement.class);
 
