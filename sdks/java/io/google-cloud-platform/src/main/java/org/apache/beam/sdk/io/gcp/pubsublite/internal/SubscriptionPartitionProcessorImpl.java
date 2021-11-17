@@ -124,12 +124,21 @@ class SubscriptionPartitionProcessorImpl extends Listener
     start();
     try (SubscriptionPartitionProcessorImpl closeThis = this) {
       completionFuture.get(duration.getMillis(), TimeUnit.MILLISECONDS);
-      // CompletionFuture set with null when tryClaim returned false.
-      return ProcessContinuation.stop();
     } catch (TimeoutException ignored) {
       // Timed out waiting, shut down processing and yield to the runtime.
     } catch (Throwable t) {
       throw ExtractStatus.toCanonical(t).underlying;
+    }
+    // Determine return code after shutdown.
+    if (completionFuture.isDone()) {
+      // Call get() to ensure there is no exception.
+      try {
+        completionFuture.get();
+      } catch (Throwable t) {
+        throw ExtractStatus.toCanonical(t).underlying;
+      }
+      // CompletionFuture set with null when tryClaim returned false.
+      return ProcessContinuation.stop();
     }
     return ProcessContinuation.resume();
   }
