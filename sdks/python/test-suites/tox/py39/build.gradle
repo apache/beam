@@ -17,17 +17,16 @@
  */
 
 /**
- * Unit tests for commont Python components.
+ * Unit tests for Python 3.9
  */
 
-// TODO(BEAM-9980): See if we can avoid hardcoding python version here.
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-toxTask "docs", "py38-docs"
-assemble.dependsOn docs
+// Required to setup a Python 3 virtualenv and task names.
+pythonVersion = '3.9'
 
-task preCommitPyCommon() {
-}
+apply from: "../common.gradle"
 
-toxTask "dependency-check", "py3-dependency-check"
+// TODO(BEAM-8954): Remove this once tox uses isolated builds.
+testPy39Cython.mustRunAfter testPython39, testPy39Cloud
