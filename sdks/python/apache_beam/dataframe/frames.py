@@ -1292,12 +1292,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     # Avoids empty Series error when evaluating proxy
     index_dtype = self._expr.proxy().index.dtype
-    index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
+    index = pd.Index([], dtype=index_dtype)
     proxy = self._expr.proxy().copy()
-    proxy = proxy.append(pd.Series([np.inf], index=index.astype(index_dtype)))
+    proxy.index = index
+    proxy = proxy.append(
+        pd.Series([np.inf], index=np.asarray(['0']).astype(proxy.index.dtype)))
 
     if not skipna:
-      proxy = proxy.append(pd.Series([None], index=index).astype(proxy.dtype))
+      proxy = proxy.append(
+          pd.Series([None],
+                    index=np.asarray(['1']).astype(proxy.index.dtype)).astype(
+                        proxy.dtype))
 
     idx_min = expressions.ComputedExpression(
         'idx_min',
@@ -1329,12 +1334,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     # Avoids empty Series error when evaluating proxy
     index_dtype = self._expr.proxy().index.dtype
-    index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
+    index = pd.Index([], dtype=index_dtype)
     proxy = self._expr.proxy().copy()
-    proxy = proxy.append(pd.Series([-np.inf], index=index.astype(index_dtype)))
+    proxy.index = index
+    proxy = proxy.append(
+        pd.Series([-np.inf], index=np.asarray(['0']).astype(proxy.index.dtype)))
 
     if not skipna:
-      proxy = proxy.append(pd.Series([None], index=index).astype(proxy.dtype))
+      proxy = proxy.append(
+          pd.Series([None],
+                    index=np.asarray(['1']).astype(proxy.index.dtype)).astype(
+                        proxy.dtype))
 
     idx_max = expressions.ComputedExpression(
         'idx_max',
@@ -3639,7 +3649,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     index_dtype = self._expr.proxy().index.dtype
     columns_dtype = self._expr.proxy().columns.dtype
     index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
-    proxy = pd.Series()
+    proxy = pd.Series(dtype=index_dtype)
     proxy = proxy.append(pd.Series([np.inf], index=index).astype(columns_dtype))
 
     if not skipna:
@@ -3673,7 +3683,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     index_dtype = self._expr.proxy().index.dtype
     columns_dtype = self._expr.proxy().columns.dtype
     index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
-    proxy = pd.Series()
+    proxy = pd.Series(dtype=index_dtype)
     proxy = proxy.append(pd.Series([np.inf], index=index).astype(columns_dtype))
 
     if not skipna:
