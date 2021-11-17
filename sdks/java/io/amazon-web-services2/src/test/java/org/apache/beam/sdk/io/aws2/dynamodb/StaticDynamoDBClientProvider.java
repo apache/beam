@@ -17,23 +17,39 @@
  */
 package org.apache.beam.sdk.io.aws2.dynamodb;
 
+import static java.util.Collections.synchronizedMap;
+
+import java.util.HashMap;
+import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
-/** Mocking AwsClientProvider. */
-public class DynamoDbClientProviderMock implements DynamoDbClientProvider {
+/** Client provider supporting unserializable clients such as mock instances for unit tests. */
+class StaticDynamoDBClientProvider implements DynamoDbClientProvider {
+  private static final Map<Integer, DynamoDbClient> clients = synchronizedMap(new HashMap<>());
 
-  private static DynamoDbClientProviderMock instance = new DynamoDbClientProviderMock();
-  private static DynamoDbClient db;
+  private final int id;
+  private final transient boolean cleanup;
 
-  private DynamoDbClientProviderMock() {}
+  private StaticDynamoDBClientProvider(DynamoDbClient client) {
+    this.id = System.identityHashCode(client);
+    this.cleanup = true;
+  }
 
-  public static DynamoDbClientProviderMock of(DynamoDbClient dynamoDB) {
-    db = dynamoDB;
-    return instance;
+  static DynamoDbClientProvider of(DynamoDbClient client) {
+    StaticDynamoDBClientProvider provider = new StaticDynamoDBClientProvider(client);
+    clients.put(provider.id, client);
+    return provider;
   }
 
   @Override
   public DynamoDbClient getDynamoDbClient() {
-    return db;
+    return clients.get(id);
+  }
+
+  @Override
+  protected void finalize() {
+    if (cleanup) {
+      clients.remove(id);
+    }
   }
 }

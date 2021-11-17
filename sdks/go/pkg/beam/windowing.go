@@ -88,7 +88,7 @@ func TryWindowInto(s Scope, wfn *window.Fn, col PCollection, opts ...WindowIntoO
 	if !col.IsValid() {
 		return PCollection{}, errors.New("invalid input pcollection")
 	}
-	ws := window.WindowingStrategy{Fn: wfn, Trigger: trigger.Trigger{}}
+	ws := window.WindowingStrategy{Fn: wfn, Trigger: trigger.DefaultTrigger{}}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case windowTrigger:

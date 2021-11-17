@@ -15,32 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws.dynamodb;
+package org.apache.beam.sdk.extensions.sql.error;
 
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import org.mockito.Mockito;
+import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 
-/** Mocking AwsClientProvider. */
-public class AwsClientsProviderMock implements AwsClientsProvider {
+public class CastUdf implements BeamSqlUdf {
 
-  private static AwsClientsProviderMock instance = new AwsClientsProviderMock();
-  private static AmazonDynamoDB db;
-
-  private AwsClientsProviderMock() {}
-
-  public static AwsClientsProviderMock of(AmazonDynamoDB dynamoDB) {
-    db = dynamoDB;
-    return instance;
-  }
-
-  @Override
-  public AmazonCloudWatch getCloudWatchClient() {
-    return Mockito.mock(AmazonCloudWatch.class);
-  }
-
-  @Override
-  public AmazonDynamoDB createDynamoDB() {
-    return db;
+  public static Long eval(String input) {
+    try {
+      return Long.parseLong(input);
+    } catch (Exception e) {
+      throw new RuntimeException("Found invalid value " + input);
+    }
   }
 }
