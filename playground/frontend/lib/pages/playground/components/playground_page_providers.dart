@@ -43,7 +43,7 @@ class PlaygroundPageProviders extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<ExampleState>(
-          create: (context) => ExampleState(kExampleRepository),
+          create: (context) => ExampleState(kExampleRepository)..init(),
         ),
         ChangeNotifierProxyProvider<ExampleState, PlaygroundState>(
           create: (context) => PlaygroundState(codeRepository: kCodeRepository),

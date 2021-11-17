@@ -30,7 +30,9 @@ class ExampleState with ChangeNotifier {
   Map<SDK, ExampleModel>? defaultExamplesMap;
   bool isSelectorOpened = false;
 
-  ExampleState(this._exampleRepository) {
+  ExampleState(this._exampleRepository);
+
+  init() {
     _loadCategories();
   }
 
@@ -61,6 +63,7 @@ class ExampleState with ChangeNotifier {
   }
 
   _loadCategories() async {
+    print('load');
     sdkCategories = await _exampleRepository.getListOfExamples(
       GetListOfExamplesRequestWrapper(sdk: null, category: null),
     );
@@ -79,12 +82,8 @@ class ExampleState with ChangeNotifier {
     for (SDK sdk in SDK.values) {
       ExampleModel? defaultExample = sdkCategories![sdk]?.first.examples.first;
       if (defaultExample != null) {
-        await getExampleSource(defaultExample.path).then((value) {
-          defaultExample.setSource(value);
-        });
-        getExampleOutput(defaultExample.path).then((value) {
-          defaultExample.setOutputs(value);
-        });
+        // load source and output async
+        loadExampleInfo(defaultExample);
         entries.add(MapEntry(sdk, defaultExample));
       }
     }
