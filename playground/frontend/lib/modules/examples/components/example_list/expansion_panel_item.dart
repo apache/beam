@@ -37,7 +37,7 @@ class ExpansionPanelItem extends StatelessWidget {
           onTap: () async {
             if (playgroundState.selectedExample != example) {
               final exampleWithInfo =
-              await exampleState.loadExampleInfo(example);
+                  await exampleState.loadExampleInfo(example);
               playgroundState.setExample(exampleWithInfo);
             }
           },

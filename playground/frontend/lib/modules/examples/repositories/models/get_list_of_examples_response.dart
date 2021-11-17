@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
 class GetListOfExampleResponse {
   final Map<SDK, List<CategoryModel>> categories;
