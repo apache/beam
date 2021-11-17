@@ -1090,13 +1090,16 @@ class DeferredFrameTest(_AbstractFrameTest):
                       index=['Pork', 'Wheat Products', 'Beef'])
 
     s = pd.Series(data=[4, 3, None, 1], index=['A', 'B', 'C', 'D'])
+    s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
 
-    self._run_test(lambda df: df.idxmin(axis=1), df)
     self._run_test(lambda df: df.idxmin(), df, nonparallel=True)
+    self._run_test(lambda df: df.idxmin(skipna=False), df, nonparallel=True)
+    self._run_test(lambda df: df.idxmin(axis=1), df)
+    self._run_test(lambda df: df.idxmin(axis=1, skipna=False), df)
 
     self._run_test(lambda s: s.idxmin(), s)
-    with self.assertRaises(NotImplementedError):
-      self._run_test(lambda s: s.idxmin(skipna=False), s)
+    self._run_test(lambda s: s.idxmin(skipna=False), s)
+    self._run_test(lambda s2: s2.idxmin(), s2)
 
   def test_idxmax(self):
     df = pd.DataFrame({
@@ -1106,13 +1109,16 @@ class DeferredFrameTest(_AbstractFrameTest):
                       index=['Pork', 'Wheat Products', 'Beef'])
 
     s = pd.Series(data=[1, None, 4, 1], index=['A', 'B', 'C', 'D'])
+    s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
 
     self._run_test(lambda df: df.idxmax(), df, nonparallel=True)
+    self._run_test(lambda df: df.idxmax(skipna=False), df, nonparallel=True)
     self._run_test(lambda df: df.idxmax(axis=1), df)
+    self._run_test(lambda df: df.idxmax(axis=1, skipna=False), df)
 
     self._run_test(lambda s: s.idxmax(), s)
-    with self.assertRaises(NotImplementedError):
-      self._run_test(lambda s: s.idxmax(skipna=False), s)
+    self._run_test(lambda s: s.idxmax(skipna=False), s)
+    self._run_test(lambda s2: s2.idxmax(), s2)
 
 
 # pandas doesn't support kurtosis on GroupBys:

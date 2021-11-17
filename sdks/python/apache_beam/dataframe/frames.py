@@ -1282,17 +1282,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   def idxmin(self, **kwargs):
     skipna = kwargs.get('skipna', True)
-    axis = kwargs.pop('axis', 0)
-
-    if axis in ('index', 0):
-      axis = 0
-    elif axis in ('columns', 1):
-      axis = 1
-
-    kwargs['axis'] = axis
-
-    if not skipna:
-      raise NotImplementedError("idxmin(skipna=False) is not yet supported.")
 
     def compute_idxmin(s):
       min_index = s.idxmin(**kwargs)
@@ -1301,10 +1290,19 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       else:
         return s.loc[[min_index]]
 
+    # Avoids empty DataFrame error when evaluating proxy
+    index_dtype = self._expr.proxy().index.dtype
+    index = pd.Index(['0'], dtype=index_dtype)
+    proxy = self._expr.proxy().copy()
+    proxy = proxy.append(pd.Series([np.inf], index=index.astype(index_dtype)))
+
+    if not skipna:
+      proxy = proxy.append(pd.Series([None], index=index).astype(proxy.dtype))
+
     idx_min = expressions.ComputedExpression(
         'idx_min',
         compute_idxmin, [self._expr],
-        proxy=pd.Series([1], index=['Z']),
+        proxy=proxy,
         requires_partition_by=partitionings.Index(),
         preserves_partition_by=partitionings.Singleton())
 
@@ -1321,17 +1319,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   def idxmax(self, **kwargs):
     skipna = kwargs.get('skipna', True)
-    axis = kwargs.pop('axis', 0)
-
-    if axis in ('index', 0):
-      axis = 0
-    elif axis in ('columns', 1):
-      axis = 1
-
-    kwargs['axis'] = axis
-
-    if not skipna:
-      raise NotImplementedError("idxmax(skipna=False) is not yet supported.")
 
     def compute_idxmax(s):
       max_index = s.idxmax(**kwargs)
@@ -1340,10 +1327,19 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       else:
         return s.loc[[max_index]]
 
+    # Avoids empty DataFrame error when evaluating proxy
+    index_dtype = self._expr.proxy().index.dtype
+    index = pd.Index(['0'], dtype=index_dtype)
+    proxy = self._expr.proxy().copy()
+    proxy = proxy.append(pd.Series([-np.inf], index=index.astype(index_dtype)))
+
+    if not skipna:
+      proxy = proxy.append(pd.Series([None], index=index).astype(proxy.dtype))
+
     idx_max = expressions.ComputedExpression(
         'idx_max',
         compute_idxmax, [self._expr],
-        proxy=pd.Series([1], index=['Z']),
+        proxy=proxy,
         requires_partition_by=partitionings.Index(),
         preserves_partition_by=partitionings.Singleton())
 
@@ -3526,30 +3522,29 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def idxmin(self, **kwargs):
     skipna = kwargs.get('skipna', True)
-    axis = kwargs.pop('axis', 0)
+    axis = kwargs.get('axis', 0)
 
-    if axis in ('index', 0):
-      axis = 0
-    elif axis in ('columns', 1):
-      axis = 1
-
-    kwargs['axis'] = axis
-
-    if not skipna:
-      raise NotImplementedError("idxmin(skipna=False) is not yet supported.")
-
-    if axis:
+    if axis in ('columns', 1):
       requires = partitionings.Index()
     else:
       requires = partitionings.Singleton(
         reason="Only idxmin(index='rows') is parallelizable")
 
+    index_dtype = self._expr.proxy().index.dtype
+    columns_dtype = self._expr.proxy().columns.dtype
+    index = pd.Index(['0'], dtype=index_dtype)
+    proxy = pd.Series()
+    proxy = proxy.append(pd.Series([np.inf], index=index).astype(columns_dtype))
+
+    if not skipna:
+      proxy = proxy.append(pd.Series([None], index=index).astype(columns_dtype))
+
     return frame_base.DeferredFrame.wrap(
       expressions.ComputedExpression(
         'idxmin',
-        lambda df: df.idxmin(**kwargs),
+        lambda df: pd.Series(df.idxmin(**kwargs)),
         [self._expr],
-        proxy=pd.Series(['A'], index=['Z']),
+        proxy = proxy,
         requires_partition_by=requires,
         preserves_partition_by=partitionings.Singleton()))
 
@@ -3560,30 +3555,29 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def idxmax(self, **kwargs):
     skipna = kwargs.get('skipna', True)
-    axis = kwargs.pop('axis', 0)
+    axis = kwargs.get('axis', 0)
 
-    if axis in ('index', 0):
-      axis = 0
-    elif axis in ('columns', 1):
-      axis = 1
-
-    kwargs['axis'] = axis
-
-    if not skipna:
-      raise NotImplementedError("idxmax(skipna=False) is not yet supported.")
-
-    if axis:
+    if axis in ('columns', 1):
       requires = partitionings.Index()
     else:
       requires = partitionings.Singleton(
         reason="Only idxmax(index='rows') is parallelizable")
+
+    index_dtype = self._expr.proxy().index.dtype
+    columns_dtype = self._expr.proxy().columns.dtype
+    index = pd.Index(['0'], dtype=index_dtype)
+    proxy = pd.Series()
+    proxy = proxy.append(pd.Series([np.inf], index=index).astype(columns_dtype))
+
+    if not skipna:
+      proxy = proxy.append(pd.Series([None], index=index).astype(columns_dtype))
 
     return frame_base.DeferredFrame.wrap(
       expressions.ComputedExpression(
         'idxmax',
         lambda df: df.idxmax(**kwargs),
         [self._expr],
-        proxy=pd.Series(['A'], index=['Z']),
+        proxy=proxy,
         requires_partition_by=requires,
         preserves_partition_by=partitionings.Singleton()))
 
