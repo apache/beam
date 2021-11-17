@@ -101,10 +101,7 @@ public class RedisCursorRangeTracker extends RestrictionTracker<RedisCursorRange
                 ? NO_KEYS
                 : RedisCursorRange.of(range.getStartPosition(), range.getStartPosition());
         return SplitResult.of(range, rval);
-      } /* else {
-          range = RedisCursorRange.of(range.getStartPosition(), unprocessedRangeStartKey);
-          return SplitResult.of(range, RedisCursorRange.of(unprocessedRangeStartKey, endCursor));
-        }*/
+      }
     }
 
     return null;
