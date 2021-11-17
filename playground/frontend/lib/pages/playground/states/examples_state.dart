@@ -63,7 +63,6 @@ class ExampleState with ChangeNotifier {
   }
 
   _loadCategories() async {
-    print('load');
     sdkCategories = await _exampleRepository.getListOfExamples(
       GetListOfExamplesRequestWrapper(sdk: null, category: null),
     );
