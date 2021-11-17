@@ -73,6 +73,9 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: "+err.Error())
 	}
+	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
+		return nil, errors.InternalError("Run code()", "Error during set value to cache: "+err.Error())
+	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
 		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
@@ -106,11 +109,23 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 		logger.Errorf("%s: GetRunOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
 		return nil, errors.InvalidArgumentError("GetRunOutput", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
 	}
+	lastIndex, err := code_processing.GetRunOutputLastIndex(ctx, controller.cacheService, pipelineId, "GetRunOutput")
+	if err != nil {
+		return nil, err
+	}
 	runOutput, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.RunOutput, "GetRunOutput")
 	if err != nil {
 		return nil, err
 	}
-	return &pb.GetRunOutputResponse{Output: runOutput}, nil
+	newRunOutput := ""
+	if len(runOutput) > lastIndex {
+		newRunOutput = runOutput[lastIndex:]
+		utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput))
+	}
+
+	pipelineResult := pb.GetRunOutputResponse{Output: newRunOutput}
+
+	return &pipelineResult, nil
 }
 
 // GetRunError is returning error output of execution for specific pipeline by PipelineUuid
