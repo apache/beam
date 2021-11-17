@@ -27,8 +27,8 @@ import org.apache.beam.sdk.values.PCollection;
 
 public class ProtoFromBytes<T extends Message>
     extends PTransform<PCollection<byte[]>, PCollection<T>> {
-  interface ProtoParser<U> extends Serializable {
-    U parse(byte[] bytes) throws InvalidProtocolBufferException;
+  interface ProtoParser<T2> extends Serializable {
+    T2 parse(byte[] bytes) throws InvalidProtocolBufferException;
   }
 
   private final ProtoParser<T> parser;
