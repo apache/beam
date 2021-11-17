@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Python Multi-language pipelines
+# Python multi-language pipelines
 
 This page provides a high-level overview of creating multi-language pipelines with the Apache Beam SDK for Python. To build and run a multi-language Python pipeline, you need a Python environment with the Beam SDK installed. If you don’t have an environment set up, first complete the [Apache Beam Python SDK Quickstart](/get-started/quickstart-py/).
 
