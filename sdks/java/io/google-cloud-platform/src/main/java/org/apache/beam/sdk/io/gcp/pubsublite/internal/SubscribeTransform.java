@@ -26,7 +26,6 @@ import com.google.cloud.pubsublite.AdminClientSettings;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.TopicPath;
-import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.util.List;
@@ -108,7 +107,7 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
         .getInitialOffsetReader();
   }
 
-  private Committer newCommitter(SubscriptionPartition subscriptionPartition) {
+  private BlockingCommitter newCommitter(SubscriptionPartition subscriptionPartition) {
     checkSubscription(subscriptionPartition);
     return new SubscriberAssembler(options, subscriptionPartition.partition()).getCommitter();
   }

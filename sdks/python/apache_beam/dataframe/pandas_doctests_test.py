@@ -275,6 +275,10 @@ class DoctestTest(unittest.TestCase):
                 "df.set_index([s, s**2])",
             ],
 
+            'pandas.core.frame.DataFrame.set_axis': [
+                "df.set_axis(range(0,2), axis='index')",
+            ],
+
             # TODO(BEAM-12495)
             'pandas.core.frame.DataFrame.value_counts': [
               'df.value_counts(dropna=False)'
@@ -300,8 +304,6 @@ class DoctestTest(unittest.TestCase):
                 "df.loc[df.index[5:10], 'b'] = np.nan",
                 'df.cov(min_periods=12)',
             ],
-            # 'pandas.core.frame.DataFrame.idxmax': ['*'],
-            # 'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.rename': [
                 # Returns deferred index.
                 'df.index',
@@ -312,7 +314,11 @@ class DoctestTest(unittest.TestCase):
                 # a DeferredIndex, and we should fail it as order-sensitive.
                 "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
-            'pandas.core.frame.DataFrame.set_axis': ['*'],
+            'pandas.core.frame.DataFrame.set_axis': [
+                # This should pass as set_axis(axis='columns')
+                # and fail with set_axis(axis='index')
+                "df.set_axis(['a', 'b', 'c'], axis='index')"
+            ],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
 
@@ -498,8 +504,7 @@ class DoctestTest(unittest.TestCase):
                 "s1.cov(s2)",
             ],
             'pandas.core.series.Series.duplicated': ['*'],
-            'pandas.core.series.Series.idxmax': ['s.idxmax(skipna=False)'],
-            'pandas.core.series.Series.idxmin': ['s.idxmin(skipna=False)'],
+            'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
             # Raises right exception, but testing framework has matching issues.
@@ -510,7 +515,6 @@ class DoctestTest(unittest.TestCase):
                 # This doctest seems to be incorrectly parsed.
                 "x = pd.Categorical(['apple', 'bread', 'bread',"
             ],
-            'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.to_csv': ['*'],
             'pandas.core.series.Series.to_markdown': ['*'],
             'pandas.core.series.Series.update': ['*'],

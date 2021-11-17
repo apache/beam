@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
@@ -29,6 +30,7 @@ import (
 
 func init() {
 	beam.RegisterFunction(sumPerKey)
+	beam.RegisterFunction(sumSideInputs)
 	beam.RegisterType(reflect.TypeOf((*createTimestampedData)(nil)).Elem())
 }
 
@@ -93,6 +95,56 @@ func WindowSums_Lifted(s beam.Scope) {
 	WindowSums(s.Scope("Lifted"), stats.SumPerKey)
 }
 
+// ValidateWindowedSideInputs checks that side inputs have accurate windowing information when used.
+func ValidateWindowedSideInputs(s beam.Scope) {
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 3}}, beam.Impulse(s))
+
+	timestampedData = beam.DropKey(s, timestampedData)
+
+	windowSize := 1 * time.Second
+
+	validateSums := func(s beam.Scope, wfn, sideFn *window.Fn, in, side beam.PCollection, expected ...interface{}) {
+		wData := beam.WindowInto(s, wfn, in)
+		wSide := beam.WindowInto(s, sideFn, side)
+
+		sums := beam.ParDo(s, sumSideInputs, wData, beam.SideInput{Input: wSide})
+
+		sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
+
+		passert.Equals(s, sums, expected...)
+	}
+
+	validateSums(s.Scope("Fixed-Global"), window.NewFixedWindows(windowSize), window.NewGlobalWindows(), timestampedData, timestampedData, 7, 8, 9)
+	validateSums(s.Scope("Fixed-Same"), window.NewFixedWindows(windowSize), window.NewFixedWindows(windowSize), timestampedData, timestampedData, 2, 4, 6)
+	validateSums(s.Scope("Fixed-Big"), window.NewFixedWindows(windowSize), window.NewFixedWindows(10*time.Second), timestampedData, timestampedData, 7, 8, 9)
+	// Main: With window size 1, each window contains 1 element (1, 2, 3)
+	// Side: Window size 2 with period 1, so each window covers 2 seconds of time
+	//	 Have [1], [1,2], [2,3], [3]
+	// Each main input should map to the earliest occuring sliding window it maps to:
+	// (1, [1]) = 2
+	// (2, [1, 2]) = 5
+	// (3, [2, 3]) = 8
+	validateSums(s.Scope("Fixed-Sliding"), window.NewFixedWindows(windowSize), window.NewSlidingWindows(windowSize, 2*windowSize), timestampedData, timestampedData, 2, 5, 8)
+	// Main: Window size 2 with period 1, so each window has up to two elements
+	//	 Have [1], [1,2], [2,3], [3]
+	// Side: With window size 1, each window contains 1 element (1, 2, 3)
+	// Each main input will map to the window its latest timestamp corresponds to:
+	// ([1], 1) = 2
+	// ([1, 2], 2) = 3, 4
+	// ([2, 3], 3) = 5, 6
+	// ([3], -) = 3
+	validateSums(s.Scope("Sliding-Fixed"), window.NewSlidingWindows(windowSize, 2*windowSize), window.NewFixedWindows(windowSize), timestampedData, timestampedData, 2, 3, 4, 5, 6, 3)
+}
+
+func sumSideInputs(input int, iter func(*int) bool, emit func(int)) {
+	var v, sum int
+	sum += input
+	for iter(&v) {
+		sum += v
+	}
+	emit(sum)
+}
+
 func validateEquals(s beam.Scope, wfn *window.Fn, in beam.PCollection, opts []beam.WindowIntoOption, expected ...interface{}) {
 	windowed := beam.WindowInto(s, wfn, in, opts...)
 	sums := stats.Sum(s, windowed)
@@ -112,7 +164,7 @@ func TriggerDefault(s beam.Scope) {
 	windowSize := 10 * time.Second
 	validateEquals(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerDefault()),
+			beam.Trigger(trigger.Default()),
 		}, 6.0, 9.0)
 }
 
@@ -126,7 +178,7 @@ func TriggerAlways(s beam.Scope) {
 
 	validateEquals(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerAlways()),
+			beam.Trigger(trigger.Always()),
 		}, 1.0, 2.0, 3.0)
 }
 
@@ -157,7 +209,7 @@ func TriggerElementCount(s beam.Scope) {
 	// For the trigger to fire every 2 elements, combine it with Repeat Trigger
 	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerAfterCount(2)),
+			beam.Trigger(trigger.AfterCount(2)),
 		}, 2)
 }
 
@@ -175,7 +227,7 @@ func TriggerAfterProcessingTime(s beam.Scope) {
 
 	validateEquals(s.Scope("Global"), window.NewGlobalWindows(), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerAfterProcessingTime().PlusDelay(5 * time.Second)),
+			beam.Trigger(trigger.AfterProcessingTime().PlusDelay(5 * time.Second)),
 		}, 6.0)
 }
 
@@ -193,7 +245,7 @@ func TriggerRepeat(s beam.Scope) {
 
 	validateCount(s.Scope("Global"), window.NewGlobalWindows(), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerRepeat(window.TriggerAfterCount(2))),
+			beam.Trigger(trigger.Repeat(trigger.AfterCount(2))),
 		}, 3)
 }
 
@@ -206,9 +258,9 @@ func TriggerAfterEndOfWindow(s beam.Scope) {
 
 	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
-	trigger := window.TriggerAfterEndOfWindow().
-		EarlyFiring(window.TriggerAfterCount(2)).
-		LateFiring(window.TriggerAfterCount(1))
+	trigger := trigger.AfterEndOfWindow().
+		EarlyFiring(trigger.AfterCount(2)).
+		LateFiring(trigger.AfterCount(1))
 
 	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{

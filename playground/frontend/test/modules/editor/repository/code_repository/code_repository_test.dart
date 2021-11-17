@@ -35,16 +35,18 @@ final kRequestMock = RunCodeRequestWrapper(
   sdk: SDK.java,
 );
 
-const kPipelineUuid = "1234";
-const kRunOutput = "RunOutput";
-const kCompileOutput = "CompileOutput";
+const kPipelineUuid = '1234';
+const kRunOutput = 'RunOutput';
+const kCompileOutput = 'CompileOutput';
 
 final kRunCodeResponse = RunCodeResponse(kPipelineUuid);
 final kFinishedStatusResponse = CheckStatusResponse(RunCodeStatus.finished);
 final kErrorStatusResponse = CheckStatusResponse(RunCodeStatus.error);
+final kCompileErrorStatusResponse =
+    CheckStatusResponse(RunCodeStatus.compileError);
 final kRunOutputResponse = OutputResponse(kRunOutput);
 final kCompileOutputResponse = OutputResponse(kCompileOutput);
-final kEmptyCompileOutputResponse = OutputResponse("");
+final kEmptyCompileOutputResponse = OutputResponse('');
 
 @GenerateMocks([CodeClient])
 void main() {
@@ -81,15 +83,14 @@ void main() {
       verifyNever(client.getCompileOutput(kPipelineUuid));
     });
 
-    test('should return output from compilation if failed and output not empty',
-        () async {
+    test('should return output from compilation if failed', () async {
       // stubs
       final client = MockCodeClient();
       when(client.runCode(kRequestMock)).thenAnswer(
         (_) async => kRunCodeResponse,
       );
       when(client.checkStatus(kPipelineUuid)).thenAnswer(
-        (_) async => kErrorStatusResponse,
+        (_) async => kCompileErrorStatusResponse,
       );
       when(client.getCompileOutput(kPipelineUuid)).thenAnswer(
         (_) async => kCompileOutputResponse,
@@ -107,12 +108,10 @@ void main() {
         stream,
         emitsInOrder([
           RunCodeResult(status: RunCodeStatus.executing),
-          RunCodeResult(status: RunCodeStatus.error, output: kCompileOutput),
+          RunCodeResult(
+              status: RunCodeStatus.compileError, output: kCompileOutput),
         ]),
       );
-
-      // run output should not be called if compile output is not empty
-      verifyNever(client.getRunOutput(kPipelineUuid));
     });
 
     test('should return output from run if failed and compile output is empty',
@@ -144,9 +143,6 @@ void main() {
           RunCodeResult(status: RunCodeStatus.error, output: kRunOutput),
         ]),
       );
-
-      // compile output should be called
-      verify(client.getCompileOutput(kPipelineUuid)).called(1);
     });
   });
 }

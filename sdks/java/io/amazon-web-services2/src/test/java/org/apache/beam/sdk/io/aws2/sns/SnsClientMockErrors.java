@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
-import org.mockito.Mockito;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.GetTopicAttributesRequest;
@@ -37,13 +36,10 @@ public class SnsClientMockErrors implements SnsClient {
   @Override
   public GetTopicAttributesResponse getTopicAttributes(
       GetTopicAttributesRequest topicAttributesRequest) {
-    GetTopicAttributesResponse response = Mockito.mock(GetTopicAttributesResponse.class);
-    SdkHttpResponse metadata = Mockito.mock(SdkHttpResponse.class);
-
-    Mockito.when(metadata.statusCode()).thenReturn(200);
-    Mockito.when(response.sdkHttpResponse()).thenReturn(metadata);
-
-    return response;
+    return (GetTopicAttributesResponse)
+        GetTopicAttributesResponse.builder()
+            .sdkHttpResponse(SdkHttpResponse.builder().statusCode(200).build())
+            .build();
   }
 
   @Override

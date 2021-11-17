@@ -44,14 +44,14 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.runtime.SqlFunctions;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,7 +59,7 @@ import org.junit.rules.ExpectedException;
 
 /**
  * DSL compliance tests for the row-level operators of {@link
- * org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable}.
+ * org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable}.
  */
 public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
   private static final BigDecimal ZERO_0 = BigDecimal.valueOf(0).setScale(0, UNNECESSARY);
@@ -312,7 +312,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_double + c_bigint", 2.0)
             .addExpr("1 - 1", 0)
             .addExpr("1.0 - 1", ZERO_1)
-            .addExpr("1 - 0.0", ONE_1)
+            .addExpr("1 - 0.0", ONE_0)
             .addExpr("1.0 - 1.0", ZERO_1)
             .addExpr("c_tinyint - c_tinyint", (byte) 0)
             .addExpr("c_smallint - c_smallint", (short) 0)
@@ -327,9 +327,9 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_float - c_bigint", 0.0f)
             .addExpr("c_double - c_bigint", 0.0)
             .addExpr("1 * 1", 1)
-            .addExpr("1.0 * 1", ONE_1)
+            .addExpr("1.0 * 1", ONE_0)
             .addExpr("1 * 1.0", ONE_1)
-            .addExpr("1.0 * 1.0", ONE_2)
+            .addExpr("1.0 * 1.0", ONE_1)
             .addExpr("c_tinyint * c_tinyint", (byte) 1)
             .addExpr("c_smallint * c_smallint", (short) 1)
             .addExpr("c_bigint * c_bigint", 1L)
@@ -744,10 +744,10 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 5) = 'w3resou3rce'")
             .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 7) = 'w3resouce'")
             .addExpr("SUBSTRING('hello' FROM 2) = 'ello'")
-            .addExpr("SUBSTRING('hello' FROM -1) = 'o'")
+            .addExpr("SUBSTRING('hello' FROM -1) = 'hello'")
             .addExpr("SUBSTRING('hello' FROM 2 FOR 2) = 'el'")
             .addExpr("SUBSTRING('hello' FROM 2 FOR 100) = 'ello'")
-            .addExpr("SUBSTRING('hello' FROM -3 for 2) = 'll'")
+            .addExpr("SUBSTRING('hello' FROM -3 for 2) = ''")
             .addExpr("UPPER('hello') = 'HELLO'");
 
     checker.check(pipeline);

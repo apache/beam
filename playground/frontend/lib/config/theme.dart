@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/constants/colors.dart';
 import 'package:playground/constants/font_weight.dart';
+import 'package:playground/constants/fonts.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:provider/provider.dart';
 
@@ -36,23 +37,25 @@ class ThemeProvider extends ChangeNotifier {
 }
 
 TextTheme createTextTheme(Color textColor) {
-  return const TextTheme(
-    headline1: TextStyle(),
-    headline2: TextStyle(),
-    headline3: TextStyle(),
-    headline4: TextStyle(),
-    headline5: TextStyle(),
-    headline6: TextStyle(),
-    subtitle1: TextStyle(),
-    subtitle2: TextStyle(),
-    bodyText1: TextStyle(),
-    bodyText2: TextStyle(),
-    caption: TextStyle(),
-    overline: TextStyle(),
-    button: TextStyle(fontWeight: kBoldWeight),
-  ).apply(
-    bodyColor: textColor,
-    displayColor: textColor,
+  return getBaseFontTheme(
+    const TextTheme(
+      headline1: TextStyle(),
+      headline2: TextStyle(),
+      headline3: TextStyle(),
+      headline4: TextStyle(),
+      headline5: TextStyle(),
+      headline6: TextStyle(),
+      subtitle1: TextStyle(),
+      subtitle2: TextStyle(),
+      bodyText1: TextStyle(),
+      bodyText2: TextStyle(),
+      caption: TextStyle(),
+      overline: TextStyle(),
+      button: TextStyle(fontWeight: kBoldWeight),
+    ).apply(
+      bodyColor: textColor,
+      displayColor: textColor,
+    ),
   );
 }
 
@@ -61,7 +64,7 @@ TextButtonThemeData createTextButtonTheme(Color textColor) {
     style: TextButton.styleFrom(
       primary: textColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(kBorderRadius)),
+        borderRadius: BorderRadius.all(Radius.circular(kLgBorderRadius)),
       ),
     ),
   );
@@ -77,7 +80,7 @@ PopupMenuThemeData createPopupMenuTheme() {
   return const PopupMenuThemeData(
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.all(
-        Radius.circular(kBorderRadius),
+        Radius.circular(kLgBorderRadius),
       ),
     ),
   );
@@ -101,6 +104,16 @@ TabBarTheme createTabBarTheme(Color textColor, Color indicatorColor) {
   );
 }
 
+DialogTheme createDialogTheme(Color textColor) {
+  return DialogTheme(
+    titleTextStyle: TextStyle(
+      color: textColor,
+      fontSize: 32.0,
+      fontWeight: kBoldWeight,
+    ),
+  );
+}
+
 final kLightTheme = ThemeData(
   brightness: Brightness.light,
   primaryColor: kLightPrimary,
@@ -111,6 +124,7 @@ final kLightTheme = ThemeData(
   textButtonTheme: createTextButtonTheme(kLightText),
   elevatedButtonTheme: createElevatedButtonTheme(kLightPrimary),
   tabBarTheme: createTabBarTheme(kLightText, kLightPrimary),
+  dialogTheme: createDialogTheme(kLightText),
 );
 
 final kDarkTheme = ThemeData(
@@ -123,6 +137,7 @@ final kDarkTheme = ThemeData(
   textButtonTheme: createTextButtonTheme(kDarkText),
   elevatedButtonTheme: createElevatedButtonTheme(kDarkPrimary),
   tabBarTheme: createTabBarTheme(kDarkText, kDarkPrimary),
+  dialogTheme: createDialogTheme(kDarkText),
 );
 
 class ThemeColors {
@@ -137,8 +152,27 @@ class ThemeColors {
 
   Color get greyColor => isDark ? kDarkGrey : kLightGrey;
 
+  Color get lightGreyColor => isDark ? kLightGrey1 : kLightGrey;
+
+  Color get primary => isDark ? kLightPrimary : kDarkPrimary;
+
+  Color get primaryBackgroundTextColor => Colors.white;
+
+  Color get lightGreyBackgroundTextColor => Colors.black;
+
   Color get grey1Color => isDark ? kDarkGrey1 : kLightGrey1;
 
   Color get secondaryBackground =>
       isDark ? kDarkSecondaryBackground : kLightSecondaryBackground;
+
+  Color get primaryBackground =>
+      isDark ? kDarkPrimaryBackground : kLightPrimaryBackground;
+
+  Color get code1 => isDark ? kDarkCode2 : kLightCode2;
+
+  Color get code2 => isDark ? kDarkCode1 : kLightCode1;
+
+  Color get codeComment => isDark ? kDarkCodeComment : kLightCodeComment;
+
+  Color get textColor => isDark ? kDarkText : kLightText;
 }

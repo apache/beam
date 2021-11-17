@@ -27,13 +27,13 @@ extension SDKToString on SDK {
   String get displayName {
     switch (this) {
       case SDK.go:
-        return "Go";
+        return 'Go';
       case SDK.java:
-        return "Java";
+        return 'Java';
       case SDK.python:
-        return "Python";
+        return 'Python';
       case SDK.scio:
-        return "SCIO";
+        return 'SCIO';
     }
   }
 }

@@ -16,25 +16,30 @@
  * limitations under the License.
  */
 
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/modules/actions/components/header_icon_button.dart';
+import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
+import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-const kNewExampleButtonText = "New Example";
+const kNewExampleButtonText = 'New Example';
 
 class NewExampleAction extends StatelessWidget {
   const NewExampleAction({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return HeaderIconButton(
-      icon: Icon(
-        Icons.add_circle_outline,
-        color: ThemeColors.of(context).grey1Color,
+    return ShortcutTooltip(
+      shortcut: kNewExampleShortcut,
+      child: HeaderIconButton(
+        icon: Icon(
+          Icons.add_circle_outline,
+          color: ThemeColors.of(context).grey1Color,
+        ),
+        label: kNewExampleButtonText,
+        onPressed: () => launch('/'),
       ),
-      label: kNewExampleButtonText,
-      onPressed: () => launch("/"),
     );
   }
 }

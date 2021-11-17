@@ -1290,9 +1290,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       else:
         return s.loc[[min_index]]
 
-    # Avoids empty DataFrame error when evaluating proxy
+    # Avoids empty Series error when evaluating proxy
     index_dtype = self._expr.proxy().index.dtype
-    index = pd.Index(['0'], dtype=index_dtype)
+    index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
     proxy = self._expr.proxy().copy()
     proxy = proxy.append(pd.Series([np.inf], index=index.astype(index_dtype)))
 
@@ -1327,9 +1327,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       else:
         return s.loc[[max_index]]
 
-    # Avoids empty DataFrame error when evaluating proxy
+    # Avoids empty Series error when evaluating proxy
     index_dtype = self._expr.proxy().index.dtype
-    index = pd.Index(['0'], dtype=index_dtype)
+    index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
     proxy = self._expr.proxy().copy()
     proxy = proxy.append(pd.Series([-np.inf], index=index.astype(index_dtype)))
 
@@ -1521,6 +1521,70 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               [self._expr, other._expr],
               requires_partition_by=partitionings.Singleton(reason=reason)))
 
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def skew(self, axis, skipna, level, numeric_only, **kwargs):
+    if level is not None:
+      raise NotImplementedError("per-level aggregation")
+    if skipna is None or skipna:
+      self = self.dropna()  # pylint: disable=self-cls-assignment
+    # See the online, numerically stable formulae at
+    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
+    # Note that we are calculating the unbias (sample) version of skew here.
+    # See https://en.wikipedia.org/wiki/Skewness#Sample_skewness
+    # for more details.
+    def compute_moments(x):
+      n = len(x)
+      if n == 0:
+        m2, sum, m3 = 0, 0, 0
+      else:
+        m2 = x.std(ddof=0)**2 * n
+        sum = x.sum()
+        m3 = (((x - x.mean())**3).sum())
+      return pd.DataFrame(dict(m2=[m2], sum=[sum], n=[n], m3=[m3]))
+
+    def combine_moments(data):
+      m2 = sum = n = m3 = 0.0
+      for datum in data.itertuples():
+        if datum.n == 0:
+          continue
+        elif n == 0:
+          m2, sum, n, m3 = datum.m2, datum.sum, datum.n, datum.m3
+        else:
+          n_a, n_b = datum.n, n
+          sum_a, sum_b = datum.sum, sum
+          m2_a, m2_b = datum.m2, m2
+          mean_a, mean_b = sum_a / n_a, sum_b / n_b
+          delta = mean_b - mean_a
+          combined_n = n_a + n_b
+          m3 += datum.m3 + (
+              (delta**3 * ((n_a * n_b) * (n_a - n_b)) / ((combined_n)**2)) +
+              ((3 * delta) * ((n_a * m2_b) - (n_b * m2_a)) / (combined_n)))
+          m2 += datum.m2 + delta**2 * n_b * n_a / combined_n
+          sum += datum.sum
+          n += datum.n
+
+      if n < 3:
+        return float('nan')
+      elif m2 == 0:
+        return float(0)
+      else:
+        return combined_n * math.sqrt(combined_n - 1) / (combined_n -
+                                                         2) * m3 / (
+                                                             m2**(3 / 2))
+
+    moments = expressions.ComputedExpression(
+        'compute_moments',
+        compute_moments, [self._expr],
+        requires_partition_by=partitionings.Arbitrary())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'combine_moments',
+              combine_moments, [moments],
+              requires_partition_by=partitionings.Singleton()))
+
   def _corr_aligned(self, other, min_periods):
     std_x = self.std()
     std_y = other.std()
@@ -1590,6 +1654,18 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             lambda df: df.dropna(**kwargs), [self._expr],
             preserves_partition_by=partitionings.Arbitrary(),
             requires_partition_by=partitionings.Arbitrary()))
+
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def set_axis(self, labels, **kwargs):
+    # TODO: assigning the index is generally order-sensitive, but we could
+    # support it in some rare cases, e.g. when assigning the index from one
+    # of a DataFrame's columns
+    raise NotImplementedError(
+        "Assigning an index is not yet supported. "
+        "Consider using set_index() instead.")
 
   isnull = isna = frame_base._elementwise_method('isna', base=pd.Series)
   notnull = notna = frame_base._elementwise_method('notna', base=pd.Series)
@@ -1715,7 +1791,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             "single node.")
 
       # We have specialized distributed implementations for these
-      if base_func in ('quantile', 'std', 'var', 'nunique', 'corr', 'cov'):
+      if base_func in ('quantile',
+                       'std',
+                       'var',
+                       'nunique',
+                       'corr',
+                       'cov',
+                       'skew'):
         result = getattr(self, base_func)(*args, **kwargs)
         if isinstance(func, list):
           with expressions.allow_non_parallel_operations(True):
@@ -1783,7 +1865,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   median = _agg_method(pd.Series, 'median')
   sem = _agg_method(pd.Series, 'sem')
   mad = _agg_method(pd.Series, 'mad')
-  skew = _agg_method(pd.Series, 'skew')
   kurt = _agg_method(pd.Series, 'kurt')
   kurtosis = _agg_method(pd.Series, 'kurtosis')
 
@@ -2323,6 +2404,29 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           [self._expr],
           requires_partition_by=partitionings.Arbitrary(),
           preserves_partition_by=partitionings.Singleton()))
+
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def set_axis(self, labels, axis, **kwargs):
+    if axis in ('index', 0):
+      # TODO: assigning the index is generally order-sensitive, but we could
+      # support it in some rare cases, e.g. when assigning the index from one
+      # of a DataFrame's columns
+      raise NotImplementedError(
+          "Assigning an index is not yet supported. "
+          "Consider using set_index() instead.")
+    else:
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'set_axis',
+              lambda df: df.set_axis(labels, axis, **kwargs),
+              [self._expr],
+              requires_partition_by=partitionings.Arbitrary(),
+              preserves_partition_by=partitionings.Arbitrary()))
+
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
@@ -3381,6 +3485,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       # Fortunately the proxy should be identical to the input.
       proxy = self._expr.proxy().copy()
 
+
       # index is modified, so no partitioning is preserved.
       preserves = partitionings.Singleton()
 
@@ -3530,9 +3635,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       requires = partitionings.Singleton(
         reason="Only idxmin(index='rows') is parallelizable")
 
+    # Avoids empty DataFrame error when evaluating proxy
     index_dtype = self._expr.proxy().index.dtype
     columns_dtype = self._expr.proxy().columns.dtype
-    index = pd.Index(['0'], dtype=index_dtype)
+    index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
     proxy = pd.Series()
     proxy = proxy.append(pd.Series([np.inf], index=index).astype(columns_dtype))
 
@@ -3563,9 +3669,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       requires = partitionings.Singleton(
         reason="Only idxmax(index='rows') is parallelizable")
 
+    # Avoids empty DataFrame error when evaluating proxy
     index_dtype = self._expr.proxy().index.dtype
     columns_dtype = self._expr.proxy().columns.dtype
-    index = pd.Index(['0'], dtype=index_dtype)
+    index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
     proxy = pd.Series()
     proxy = proxy.append(pd.Series([np.inf], index=index).astype(columns_dtype))
 
