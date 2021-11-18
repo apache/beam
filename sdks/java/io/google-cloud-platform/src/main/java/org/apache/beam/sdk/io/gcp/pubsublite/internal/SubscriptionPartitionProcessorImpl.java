@@ -21,7 +21,6 @@ import static com.google.cloud.pubsublite.internal.wire.ApiServiceUtils.blocking
 
 import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
-import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
@@ -30,13 +29,15 @@ import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
+import com.google.common.flogger.GoogleLogger;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -47,10 +48,13 @@ import org.joda.time.Instant;
 
 class SubscriptionPartitionProcessorImpl extends Listener
     implements SubscriptionPartitionProcessor, AutoCloseable {
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
   private final RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   private final OutputReceiver<SequencedMessage> receiver;
   private final Subscriber subscriber;
   private final SettableFuture<Void> completionFuture = SettableFuture.create();
+  // Queue to transfer messages from subscriber callback to runFor downcall, since all
+  private final SynchronousQueue<List<SequencedMessage>> transfer = new SynchronousQueue<>();
   private final FlowControlSettings flowControlSettings;
   private Optional<Offset> lastClaimedOffset = Optional.empty();
 
@@ -62,11 +66,44 @@ class SubscriptionPartitionProcessorImpl extends Listener
       FlowControlSettings flowControlSettings) {
     this.tracker = tracker;
     this.receiver = receiver;
-    this.subscriber = subscriberFactory.apply(this::onMessages);
+    this.subscriber = subscriberFactory.apply(this::onSubscriberMessages);
     this.flowControlSettings = flowControlSettings;
   }
 
-  private void onMessages(List<SequencedMessage> messages) {
+  @Override
+  public void failed(State from, Throwable failure) {
+    completionFuture.setException(ExtractStatus.toCanonical(failure));
+  }
+
+  private void onSubscriberMessages(List<SequencedMessage> messages) {
+    try {
+      while (!completionFuture.isDone()) {
+        if (transfer.offer(messages, 10, TimeUnit.MILLISECONDS)) {
+          return;
+        }
+      }
+    } catch (Throwable t) {
+      throw ExtractStatus.toCanonical(t).underlying;
+    }
+  }
+
+  @SuppressWarnings("argument.type.incompatible")
+  public void start() {
+    this.subscriber.addListener(this, SystemExecutors.getFuturesExecutor());
+    this.subscriber.startAsync();
+    this.subscriber.awaitRunning();
+    try {
+      this.subscriber.allowFlow(
+          FlowControlRequest.newBuilder()
+              .setAllowedBytes(flowControlSettings.bytesOutstanding())
+              .setAllowedMessages(flowControlSettings.messagesOutstanding())
+              .build());
+    } catch (Throwable t) {
+      throw ExtractStatus.toCanonical(t).underlying;
+    }
+  }
+
+  private void handleMessages(List<SequencedMessage> messages) {
     if (completionFuture.isDone()) {
       return;
     }
@@ -93,39 +130,17 @@ class SubscriptionPartitionProcessorImpl extends Listener
   }
 
   @Override
-  public void failed(State from, Throwable failure) {
-    completionFuture.setException(ExtractStatus.toCanonical(failure));
-  }
-
-  @SuppressWarnings("argument.type.incompatible")
-  private void start() throws ApiException {
-    this.subscriber.addListener(this, SystemExecutors.getFuturesExecutor());
-    this.subscriber.startAsync();
-    this.subscriber.awaitRunning();
-    try {
-      this.subscriber.allowFlow(
-          FlowControlRequest.newBuilder()
-              .setAllowedBytes(flowControlSettings.bytesOutstanding())
-              .setAllowedMessages(flowControlSettings.messagesOutstanding())
-              .build());
-    } catch (Throwable t) {
-      throw ExtractStatus.toCanonical(t).underlying;
-    }
-  }
-
-  @Override
-  public void close() {
-    blockingShutdown(subscriber);
-  }
-
-  @Override
   @SuppressWarnings("argument.type.incompatible")
   public ProcessContinuation runFor(Duration duration) {
+    Instant deadline = Instant.now().plus(duration);
     start();
     try (SubscriptionPartitionProcessorImpl closeThis = this) {
-      completionFuture.get(duration.getMillis(), TimeUnit.MILLISECONDS);
-    } catch (TimeoutException ignored) {
-      // Timed out waiting, shut down processing and yield to the runtime.
+      while (!completionFuture.isDone() && deadline.isAfterNow()) {
+        @Nullable List<SequencedMessage> messages = transfer.poll(10, TimeUnit.MILLISECONDS);
+        if (messages != null) {
+          handleMessages(messages);
+        }
+      }
     } catch (Throwable t) {
       throw ExtractStatus.toCanonical(t).underlying;
     }
@@ -141,6 +156,16 @@ class SubscriptionPartitionProcessorImpl extends Listener
       return ProcessContinuation.stop();
     }
     return ProcessContinuation.resume();
+  }
+
+  @Override
+  public void close() {
+    try {
+      blockingShutdown(subscriber);
+    } catch (Throwable t) {
+      // Don't propagate errors on subscriber shutdown.
+      logger.atInfo().withCause(t).log("Error on subscriber shutdown.");
+    }
   }
 
   @Override
