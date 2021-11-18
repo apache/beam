@@ -94,9 +94,9 @@ elif [ "$kernelname" = "Darwin" ]; then
           brew install python@$ver
       fi
       if [ ! $(type -P python$ver) > /dev/null 2>&1 ]; then
-        # For some python packages, brew does not add symlinks...
-        # TODO: use pyenv.
-        ln -s /usr/local/opt/python@$ver/bin/python3 /usr/local/bin/python$ver
+          # For some python packages, brew does not add symlinks...
+          # TODO: Consider using pyenv to manage multiple installations of Python.
+          ln -s /usr/local/opt/python@$ver/bin/python3 /usr/local/bin/python$ver
       fi
     done
 

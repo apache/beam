@@ -15,7 +15,7 @@
 #    limitations under the License.
 #
 
-# TODO: Consider PEP-517/PEP-518 instead of this file (BEAM-8954).
+# TODO(BEAM-8954): Consider PEP-517/PEP-518 instead of this file.
 
 setuptools
 wheel>=0.36.0
