@@ -30,7 +30,8 @@ def spannerio_read_test_2gb = [
   pipelineOptions: [
     job_name             : 'performance-tests-spanner-read-python-2gb' + now,
     project              : 'apache-beam-testing',
-    region               : 'us-central1',
+    // Run in us-west1 to colocate with beam-test spanner instance (BEAM-13222)
+    region               : 'us-west1',
     temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
     spanner_instance     : 'beam-test',
     spanner_database     : 'pyspanner_read_2gb',
@@ -56,7 +57,8 @@ def spannerio_write_test_2gb = [
   pipelineOptions: [
     job_name             : 'performance-tests-spannerio-write-python-batch-2gb' + now,
     project              : 'apache-beam-testing',
-    region               : 'us-central1',
+    // Run in us-west1 to colocate with beam-test spanner instance (BEAM-13222)
+    region               : 'us-west1',
     temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
     spanner_instance     : 'beam-test',
     spanner_database     : 'pyspanner_write_2gb',

@@ -16,7 +16,14 @@
  * limitations under the License.
  */
 
-enum RunCodeStatus { unspecified, executing, error, finished }
+enum RunCodeStatus {
+  unspecified,
+  executing,
+  compileError,
+  timeout,
+  error,
+  finished
+}
 
 class RunCodeResult {
   final RunCodeStatus status;

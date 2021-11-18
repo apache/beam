@@ -93,12 +93,7 @@ class AwsModule extends SimpleModule {
           checkNotNull(jsonParser.readValueAs(new TypeReference<Map<String, String>>() {}));
 
       String typeNameKey = typeDeserializer.getPropertyName();
-      String typeName = asMap.get(typeNameKey);
-      if (typeName == null) {
-        throw new IOException(
-            String.format("AWS credentials provider type name key '%s' not found", typeNameKey));
-      }
-
+      String typeName = getNotNull(asMap, typeNameKey, "unknown");
       if (hasName(AWSStaticCredentialsProvider.class, typeName)) {
         boolean isSession = asMap.containsKey(SESSION_TOKEN);
         if (isSession) {
@@ -135,14 +130,10 @@ class AwsModule extends SimpleModule {
       }
     }
 
-    private String getNotNull(Map<String, String> map, String key, String typeName)
-        throws IOException {
-      String value = map.get(key);
-      if (value == null) {
-        throw new IOException(
-            String.format("AWS credentials provider type '%s' is missing '%s'", typeName, key));
-      }
-      return value;
+    @SuppressWarnings({"nullness"})
+    private String getNotNull(Map<String, String> map, String key, String typeName) {
+      return checkNotNull(
+          map.get(key), "AWS credentials provider type '%s' is missing '%s'", typeName, key);
     }
 
     private boolean hasName(Class<? extends AWSCredentialsProvider> clazz, String typeName) {

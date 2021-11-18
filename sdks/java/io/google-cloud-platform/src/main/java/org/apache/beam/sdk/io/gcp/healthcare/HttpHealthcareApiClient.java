@@ -541,7 +541,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException {
-    LOG.debug(String.format("started opertation %s. polling until complete.", operation.getName()));
+    LOG.debug(String.format("Operation %s started, polling until complete.", operation.getName()));
     while (operation.getDone() == null || !operation.getDone()) {
       // Update the status of the operation with another request.
       Thread.sleep(sleepMs); // Pause between requests.

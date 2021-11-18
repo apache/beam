@@ -125,14 +125,12 @@ except ImportError:
 
 REQUIRED_PACKAGES = [
     # Avro 1.9.2 for python3 was broken. The issue was fixed in version 1.9.2.1
-    'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
     'crcmod>=1.7,<2.0',
     # dataclasses backport for python_version<3.7. No version bound because this
     # is Python standard since Python 3.7 and each Python version is compatible
     # with a specific dataclasses version.
     'dataclasses;python_version<"3.7"',
-    # orjson, only available on Python 3.6 and above
-    'orjson<4.0;python_version>="3.6"',
+    'orjson<4.0',
     # Dill doesn't have forwards-compatibility guarantees within minor version.
     # Pickles created with a new version of dill may not unpickle using older
     # version of dill. It is best to use the same version of dill on client and
@@ -140,7 +138,6 @@ REQUIRED_PACKAGES = [
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
     'fastavro>=0.21.4,<2',
-    'future>=0.18.2,<1.0.0',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.20.0',
@@ -148,7 +145,8 @@ REQUIRED_PACKAGES = [
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
-    'pyarrow>=0.15.1,<6.0.0',
+    'proto-plus>=1.7.1,<2',
+    'pyarrow>=0.15.1,<7.0.0',
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
@@ -168,7 +166,7 @@ REQUIRED_TEST_PACKAGES = [
     'pandas<2.0.0',
     'parameterized>=0.7.1,<0.8.0',
     'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
-    'pyyaml>=3.12,<6.0.0',
+    'pyyaml>=3.12,<7.0.0',
     'requests_mock>=1.7,<2.0',
     'tenacity>=5.0.2,<6.0',
     'pytest>=4.4.0,<5.0',
@@ -196,7 +194,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-spanner>=1.13.0,<2',
     'grpcio-gcp>=0.2.2,<1',
     # GCP Packages required by ML functionality
-    'google-cloud-dlp>=0.12.0,<2',
+    'google-cloud-dlp>=0.12.0,<4',
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
     'google-cloud-vision>=0.38.0,<2',
@@ -281,7 +279,8 @@ if __name__ == '__main__':
               '*/*.h',
               '*/*/*.h',
               'testing/data/*.yaml',
-              'portability/api/*.yaml'
+              'portability/api/*.pyi',
+              'portability/api/*.yaml',
           ]
       },
       ext_modules=cythonize([

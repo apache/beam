@@ -67,6 +67,8 @@ var directFilters = []string{
 	"TestTestStream.*",
 	// (BEAM-13075): The direct runner does not support windowed side inputs
 	"TestValidateWindowedSideInputs",
+	// (BEAM-13075): The direct runner does not currently support multimap side inputs
+	"TestParDoMultiMapSideInput",
 }
 
 var portableFilters = []string{
