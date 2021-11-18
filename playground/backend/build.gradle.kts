@@ -51,7 +51,27 @@ task("test") {
   }
 }
 
+task("installLinter") {
+  doLast {
+    exec {
+      executable("sh")
+      args("env_setup.sh")
+    }
+  }
+}
+
+task("runLint") {
+  dependsOn(":playground:backend:installLinter")
+  doLast {
+    exec {
+      executable("golangci-lint")
+      args("run", "cmd/server/...")      
+    }
+  }
+}
 task("precommit") {
+  dependsOn(":playground:backend:runLint")
   dependsOn(":playground:backend:tidy")
   dependsOn(":playground:backend:test")
 }
+

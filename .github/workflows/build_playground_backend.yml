@@ -30,6 +30,7 @@ jobs:
     env:
       GO_VERSION: 1.17.0
       BEAM_VERSION: 2.33.0
+      TERRAFOM_VERSION: 1.0.9
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
@@ -40,11 +41,6 @@ jobs:
       - uses: actions/setup-go@v2
         with:
             go-version: '${{ env.GO_VERSION }}'
-      - name: Prepare Go lint env
-        run: "sudo ./playground/backend/env_setup.sh"
-      - name: Run Lint
-        run: "golangci-lint run cmd/server/..."
-        working-directory: playground/backend/
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
@@ -59,6 +55,10 @@ jobs:
       - name: lint dockerfile
         run: dockerlint Dockerfile
         working-directory: playground/backend/containers/java
+      - uses: hashicorp/setup-terraform@v1
+        with:
+            terraform_version: ${{ env.TERRAFORM_VERSION }}
+        if: startsWith(github.ref, 'ref/tags/')        
       - name: Setup GCP account
         run: echo ${{ secrets.GCP_ACCESS_KEY }} | base64 -d > /tmp/gcp_access.json
         if: startsWith(github.ref, 'ref/tags/') 
