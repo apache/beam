@@ -49,7 +49,8 @@ import org.slf4j.LoggerFactory;
 
 class SubscriptionPartitionProcessorImpl extends Listener
     implements SubscriptionPartitionProcessor, AutoCloseable {
-  private static final Logger LOG = LoggerFactory.getLogger(SubscriptionPartitionProcessor.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(SubscriptionPartitionProcessorImpl.class);
   private final RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   private final OutputReceiver<SequencedMessage> receiver;
   private final Subscriber subscriber;
