@@ -92,26 +92,6 @@ def retry_on_non_zero_exit(exception):
     return True
 
 
-def remove_dependency_from_requirements(
-    requirements_file,  # type: str
-    dependency_to_remove,  # type: str
-    temp_directory_path):
-  """Function to remove dependencies from a given requirements file."""
-  # read all the dependency names
-  with open(requirements_file, 'r') as f:
-    lines = f.readlines()
-
-  tmp_requirements_filename = os.path.join(
-      temp_directory_path, 'tmp_requirements.txt')
-
-  with open(tmp_requirements_filename, 'w') as tf:
-    for i in range(len(lines)):
-      if not lines[i].startswith(dependency_to_remove):
-        tf.write(lines[i])
-
-  return tmp_requirements_filename
-
-
 class Stager(object):
   """Abstract Stager identifies and copies the appropriate artifacts to the
   staging location.
@@ -659,6 +639,26 @@ class Stager(object):
     return python_bin
 
   @staticmethod
+  def remove_dependency_from_requirements(
+          requirements_file,  # type: str
+          dependency_to_remove,  # type: str
+          temp_directory_path):
+    """Function to remove dependencies from a given requirements file."""
+    # read all the dependency names
+    with open(requirements_file, 'r') as f:
+      lines = f.readlines()
+
+    tmp_requirements_filename = os.path.join(
+        temp_directory_path, 'tmp_requirements.txt')
+
+    with open(tmp_requirements_filename, 'w') as tf:
+      for i in range(len(lines)):
+        if not lines[i].startswith(dependency_to_remove):
+          tf.write(lines[i])
+
+    return tmp_requirements_filename
+
+  @staticmethod
   @retry.with_exponential_backoff(
       num_retries=4, retry_filter=retry_on_non_zero_exit)
   def _populate_requirements_cache(requirements_file, cache_dir):
@@ -670,7 +670,7 @@ class Stager(object):
     # The apache-beam dependency  is excluded from requirements cache population
     # because we  stage the SDK separately.
     with tempfile.TemporaryDirectory() as temp_directory:
-      tmp_requirements_filepath = remove_dependency_from_requirements(
+      tmp_requirements_filepath = Stager.remove_dependency_from_requirements(
           requirements_file=requirements_file,
           dependency_to_remove='apache-beam',
           temp_directory_path=temp_directory)

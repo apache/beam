@@ -683,6 +683,20 @@ class StagerTest(unittest.TestCase):
                              options, staging_location=staging_dir)[1])
     self.assertEqual(['/tmp/remote/remote.jar'], self.remote_copied_files)
 
+  def test_remove_dependency_from_requirements(self):
+    requirements_cache_dir = self.make_temp_dir()
+    requirements = 'apache_beam'
+    self.create_temp_file(
+        os.path.join(requirements_cache_dir, 'abc.txt'), requirements)
+
+    tmp_req_filename = self.stager.remove_dependency_from_requirements(
+        requirements_file=os.path.join(requirements_cache_dir, 'abc.txt'),
+        dependency_to_remove='apache_beam',
+        temp_directory_path=requirements_cache_dir)
+    with open(tmp_req_filename, 'r') as tf:
+      lines = tf.readlines()
+    self.assertEqual(len(lines), 0)
+
 
 class TestStager(stager.Stager):
   def stage_artifact(self, local_path_to_artifact, artifact_name):
