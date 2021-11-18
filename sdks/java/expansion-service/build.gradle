@@ -16,15 +16,10 @@
  * limitations under the License.
  */
 
-apply plugin: 'org.apache.beam.module'
-apply plugin: 'application'
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   suppressUnusedVariable: true,
-  automaticModuleName: 'org.apache.beam.sdk.expansion.service',
-  validateShadowJar: false,
-  shadowClosure: {},
-)
-mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
+  automaticModuleName: 'org.apache.beam.sdk.expansion.service')
 
 
 description = "Apache Beam :: SDKs :: Java :: Expansion Service"

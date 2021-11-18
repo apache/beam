@@ -13,19 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package core contains constants and other static data related to the SDK,
-// such as the SDK Name and version.
-//
-// As a rule, this package should not have dependencies, and should not depend
-// on any package within the Apache Beam Go SDK.
-//
-// Files in this package may be generated or updated by release scripts, allowing
-// for accurate version information to be included.
-package core
+package fs_tool
+
+import (
+	"github.com/google/uuid"
+)
 
 const (
-	// SdkName is the human readable name of the SDK for UserAgents.
-	SdkName = "Apache Beam SDK for Go"
-	// SdkVersion is the current version of the SDK.
-	SdkVersion = "2.36.0.dev"
+	goExecutableFileExtension = ".go"
+	goCompiledFileExtension   = ""
 )
+
+// newGoLifeCycle creates LifeCycle with go SDK environment.
+func newGoLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
+	return newCompilingLifeCycle(pipelineId, workingDir, goExecutableFileExtension, goCompiledFileExtension)
+}
