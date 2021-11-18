@@ -16,36 +16,32 @@
 package fs_tool
 
 import (
-	"errors"
 	"github.com/google/uuid"
-	"os"
 	"path/filepath"
-	"strings"
 )
 
 const (
-	javaExecutableFileExtension = ".java"
-	javaCompiledFileExtension   = ".class"
+	baseFileFolder     = "executable_files"
+	sourceFolderName   = "src"
+	compiledFolderName = "bin"
 )
 
-// newJavaLifeCycle creates LifeCycle with java SDK environment.
-func newJavaLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
-	javaLifeCycle := newCompilingLifeCycle(pipelineId, workingDir, javaExecutableFileExtension, javaCompiledFileExtension)
-	javaLifeCycle.ExecutableName = executableName
-	return javaLifeCycle
-}
-
-// executableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
-func executableName(pipelineId uuid.UUID, workingDir string) (string, error) {
+// newCompilingLifeCycle creates LifeCycle with compiled SDK environment.
+func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir string, executableFileExtension string, compiledFileExtension string) *LifeCycle {
 	baseFileFolder := filepath.Join(workingDir, baseFileFolder, pipelineId.String())
+	srcFileFolder := filepath.Join(baseFileFolder, sourceFolderName)
 	binFileFolder := filepath.Join(baseFileFolder, compiledFolderName)
-	dirEntries, err := os.ReadDir(binFileFolder)
-	if err != nil {
-		return "", err
+	return &LifeCycle{
+		folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
+		Folder: Folder{
+			BaseFolder:       baseFileFolder,
+			ExecutableFolder: srcFileFolder,
+			CompiledFolder:   binFileFolder,
+		},
+		Extension: Extension{
+			ExecutableExtension: executableFileExtension,
+			CompiledExtension:   compiledFileExtension,
+		},
+		pipelineId: pipelineId,
 	}
-	if len(dirEntries) < 1 {
-		return "", errors.New("number of executable files should be at least one")
-	}
-	//TODO need to find a class with a main method instead of using the last file
-	return strings.Split(dirEntries[len(dirEntries)-1].Name(), ".")[0], nil
 }
