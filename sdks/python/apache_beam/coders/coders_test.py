@@ -142,10 +142,10 @@ class ProtoPlusCoderTest(unittest.TestCase):
       keys = list(range(20))
       mm_forward = ProtoPlusMessageWithMap()
       for key in keys:
-        mm_forward.field1[str(key)] = ProtoPlusMessageA(field1=str(key))  # pylint: disable=E1137
+        mm_forward.field1[str(key)].field1 = str(key)
       mm_reverse = ProtoPlusMessageWithMap()
       for key in reversed(keys):
-        mm_reverse.field1[str(key)] = ProtoPlusMessageA(field1=str(key))  # pylint: disable=E1137
+        mm_reverse.field1[str(key)].field1 = str(key)
       coder = coders.ProtoPlusCoder(ProtoPlusMessageWithMap)
       self.assertEqual(coder.encode(mm_forward), coder.encode(mm_reverse))
 
