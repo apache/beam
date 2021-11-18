@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import static org.apache.beam.sdk.nexmark.NexmarkQueryName.PORTABILITY_BATCH;
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode.COMBINED;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -1163,11 +1162,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return null;
       }
 
-      if (configuration.query == PORTABILITY_BATCH && options.isStreaming()) {
-        NexmarkUtils.console("skipping PORTABILITY_BATCH since it does not support streaming mode");
-        return null;
-      }
-
       queryName = query.getName();
 
       // Append queryName to temp location
@@ -1415,7 +1409,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             NexmarkQueryName.SESSION_SIDE_INPUT_JOIN,
             new NexmarkQuery(configuration, new SessionSideInputJoin(configuration)))
         .put(
-            NexmarkQueryName.PORTABILITY_BATCH,
+            NexmarkQueryName.PORTABILITY,
             new NexmarkQuery(configuration, new Query13(configuration)))
         .build();
   }

@@ -28,18 +28,18 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Reshuffle.AssignShardFn;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Query "13" PORTABILITY_BATCH (not in original suite).
+ * Query "13" PORTABILITY (not in original suite).
  *
  * <p>This benchmark is created to stress the boundary of runner and SDK in portability world. The
- * basic shape of this benchmark is source + GBK + ParDo, in which the GBK read + ParDo will require
- * that runner reads from shuffle and connects with SDK to do CPU intensive computation.
+ * basic shape of this benchmark is source + Reshuffle + ParDo, in which the Reshuffle + ParDo will
+ * require that runner reads from shuffle and connects with SDK to do CPU intensive computation.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
@@ -57,19 +57,8 @@ public class Query13 extends NexmarkQueryTransform<Event> {
     final Coder<Event> coder = events.getCoder();
     return events
         .apply("Pair with random key", ParDo.of(new AssignShardFn<>(configuration.numKeyBuckets)))
-        .apply(GroupByKey.create())
-        .apply(
-            "ExpandIterable",
-            ParDo.of(
-                new DoFn<KV<Integer, Iterable<Event>>, Event>() {
-                  @ProcessElement
-                  public void processElement(
-                      @Element KV<Integer, Iterable<Event>> element, OutputReceiver<Event> r) {
-                    for (Event value : element.getValue()) {
-                      r.output(value);
-                    }
-                  }
-                }))
+        .apply(Reshuffle.of())
+        .apply(Values.create())
         // Force round trip through coder.
         .apply(
             name + ".Serialize",
