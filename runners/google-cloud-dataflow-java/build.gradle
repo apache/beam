@@ -45,8 +45,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20210913',
-    'dataflow.fnapi_container_version' : 'beam-master-20210913',
+    'dataflow.legacy_container_version' : 'beam-2.35.0',
+    'dataflow.fnapi_container_version' : 'beam-2.35.0',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
