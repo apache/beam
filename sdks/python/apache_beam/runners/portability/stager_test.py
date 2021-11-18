@@ -685,9 +685,10 @@ class StagerTest(unittest.TestCase):
 
   def test_remove_dependency_from_requirements(self):
     requirements_cache_dir = self.make_temp_dir()
-    requirements = 'apache_beam'
-    self.create_temp_file(
-        os.path.join(requirements_cache_dir, 'abc.txt'), requirements)
+    requirements = ['apache_beam\n', 'avro-python3\n', 'fastavro\n', 'numpy\n']
+    with open(os.path.join(requirements_cache_dir, 'abc.txt'), 'w') as f:
+      for i in range(len(requirements)):
+        f.write(requirements[i])
 
     tmp_req_filename = self.stager.remove_dependency_from_requirements(
         requirements_file=os.path.join(requirements_cache_dir, 'abc.txt'),
@@ -695,7 +696,17 @@ class StagerTest(unittest.TestCase):
         temp_directory_path=requirements_cache_dir)
     with open(tmp_req_filename, 'r') as tf:
       lines = tf.readlines()
-    self.assertEqual(len(lines), 0)
+    self.assertEqual(['avro-python3\n', 'fastavro\n', 'numpy\n'], sorted(lines))
+
+    tmp_req_filename = self.stager.remove_dependency_from_requirements(
+        requirements_file=os.path.join(requirements_cache_dir, 'abc.txt'),
+        dependency_to_remove='fastavro',
+        temp_directory_path=requirements_cache_dir)
+
+    with open(tmp_req_filename, 'r') as tf:
+      lines = tf.readlines()
+    self.assertEqual(['apache_beam\n', 'avro-python3\n', 'numpy\n'],
+                     sorted(lines))
 
 
 class TestStager(stager.Stager):
