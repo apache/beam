@@ -140,7 +140,7 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     """
     :param tuple_instance: an instance of a typing.NamedTuple
     """
-    super(NamedTupleBasedPayloadBuilder, self).__init__()
+    super().__init__()
     self._tuple_instance = tuple_instance
 
   def _get_named_tuple_instance(self):
@@ -287,7 +287,12 @@ class JavaExternalTransform(ptransform.PTransform):
   """
   def __init__(self, class_name, expansion_service=None):
     self._payload_builder = JavaClassLookupPayloadBuilder(class_name)
-    self._expansion_service = None
+    self._expansion_service = expansion_service
+
+    # Beam explicitly looks for following attributes. Hence adding
+    # 'None' values here to prevent '__getattr__' from being called.
+    self.inputs = None
+    self._fn_api_payload = None
 
   def __call__(self, *args, **kwargs):
     self._payload_builder.with_constructor(*args, **kwargs)
@@ -310,8 +315,8 @@ class JavaExternalTransform(ptransform.PTransform):
 
   def expand(self, pcolls):
     return pcolls | ExternalTransform(
-        common_urns.java_class_lookup,
-        self._payload_builder.build(),
+        common_urns.java_class_lookup.urn,
+        self._payload_builder,
         self._expansion_service)
 
 
@@ -384,7 +389,7 @@ class ExternalTransform(ptransform.PTransform):
     """
     expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
     if not urn and isinstance(payload, JavaClassLookupPayloadBuilder):
-      urn = common_urns.java_class_lookup
+      urn = common_urns.java_class_lookup.urn
     self._urn = urn
     self._payload = (
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
@@ -636,7 +641,7 @@ class ExpansionAndArtifactRetrievalStub(
   def __init__(self, channel, **kwargs):
     self._channel = channel
     self._kwargs = kwargs
-    super(ExpansionAndArtifactRetrievalStub, self).__init__(channel, **kwargs)
+    super().__init__(channel, **kwargs)
 
   def artifact_service(self):
     return beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
@@ -651,8 +656,6 @@ class JavaJarExpansionService(object):
   transform.
   """
   def __init__(self, path_to_jar, extra_args=None):
-    if extra_args is None:
-      extra_args = ['{{PORT}}']
     self._path_to_jar = path_to_jar
     self._extra_args = extra_args
     self._service_count = 0
@@ -661,6 +664,8 @@ class JavaJarExpansionService(object):
     if self._service_count == 0:
       self._path_to_jar = subprocess_server.JavaJarServer.local_jar(
           self._path_to_jar)
+      if self._extra_args is None:
+        self._extra_args = ['{{PORT}}', f'--filesToStage={self._path_to_jar}']
       # Consider memoizing these servers (with some timeout).
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,
@@ -686,7 +691,7 @@ class BeamJarExpansionService(JavaJarExpansionService):
   def __init__(self, gradle_target, extra_args=None, gradle_appendix=None):
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
         gradle_target, gradle_appendix)
-    super(BeamJarExpansionService, self).__init__(path_to_jar, extra_args)
+    super().__init__(path_to_jar, extra_args)
 
 
 def memoize(func):

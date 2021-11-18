@@ -18,7 +18,7 @@
 -->
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -47,6 +47,14 @@
 
   <title>playground</title>
   <link rel="manifest" href="manifest.json">
+  <!--  disable grammarly extension-->
+  <style>
+    [contenteditable] ~ grammarly-extension,
+    input ~ grammarly-extension,
+    textarea ~ grammarly-extension {
+      display: none;
+    }
+  </style>
 </head>
 <body>
   <!-- This script installs service_worker.js to provide PWA functionality to

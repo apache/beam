@@ -35,7 +35,6 @@ import mock
 import parameterized
 
 import apache_beam as beam
-import apache_beam.transforms.combiners as combiners
 from apache_beam import WindowInto
 from apache_beam import coders
 from apache_beam import pvalue
@@ -51,6 +50,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import combiners
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterAny
 from apache_beam.transforms.trigger import AfterCount

@@ -123,7 +123,7 @@ class WriteToKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:external:java:kinesis:write:v1'
+  URN = 'beam:transform:org.apache.beam:kinesis_write:v1'
 
   def __init__(
       self,
@@ -153,7 +153,7 @@ class WriteToKinesis(ExternalTransform):
         Example: {'CollectionMaxCount': '1000', 'ConnectTimeout': '10000'}
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(WriteToKinesis, self).__init__(
+    super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             WriteToKinesisSchema(
@@ -199,7 +199,7 @@ class ReadDataFromKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:external:java:kinesis:read_data:v1'
+  URN = 'beam:transform:org.apache.beam:kinesis_read:v1'
 
   def __init__(
       self,
@@ -277,7 +277,7 @@ class ReadDataFromKinesis(ExternalTransform):
     ):
       logging.warning('Provided timestamp emplaced not in the past.')
 
-    super(ReadDataFromKinesis, self).__init__(
+    super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             ReadFromKinesisSchema(

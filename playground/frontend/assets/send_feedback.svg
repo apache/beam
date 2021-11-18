@@ -1,0 +1,24 @@
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path fill-rule="evenodd" clip-rule="evenodd"
+        d="M1.94131 11.9874C2.04214 11.3604 1.9195 10.7244 1.71632 10.1227C1.49128 9.4563 1.36927 8.74242 1.36927 8.00005C1.36927 4.33803 4.33792 1.36938 7.99994 1.36938L8.0133 1.3694C11.6692 1.37661 14.6306 4.34249 14.6306 8.00005C14.6306 11.6621 11.6619 14.6307 7.99994 14.6307C7.26009 14.6307 6.54856 14.5095 5.88409 14.2859C5.27787 14.0819 4.63687 13.9596 4.00582 14.064L2.41812 14.3266C1.98732 14.3979 1.61351 14.0257 1.68284 13.5946L1.94131 11.9874ZM2.36927 8.00005C2.36927 4.89032 4.89021 2.36938 7.99994 2.36938L8.01133 2.3694L8.01185 2.3694C11.1161 2.3758 13.6306 4.89429 13.6306 8.00005C13.6306 11.1098 11.1097 13.6307 7.99994 13.6307C7.36994 13.6307 6.76607 13.5276 6.20303 13.3381C5.52187 13.1089 4.7019 12.9353 3.84265 13.0774L2.74979 13.2582L2.92863 12.1461C3.06592 11.2924 2.89207 10.4789 2.66376 9.80279C2.47307 9.2381 2.36927 8.63222 2.36927 8.00005ZM9.27515 5.31507C9.5355 5.05472 9.95761 5.05472 10.218 5.31507L10.6894 5.78648C10.9497 6.04683 10.9497 6.46894 10.6894 6.72929L8.2672 9.15145L6.85298 7.73724L9.27515 5.31507ZM4.98509 11.0193C5.15365 9.93188 5.66393 8.92629 6.44206 8.14816L7.85628 9.56237C7.07814 10.3405 6.07255 10.8508 4.98509 11.0193Z"
+        fill="#E74D1A" />
+</svg>

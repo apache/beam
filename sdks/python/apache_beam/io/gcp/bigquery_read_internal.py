@@ -132,6 +132,52 @@ class _PassThroughThenCleanup(PTransform):
     return main_output
 
 
+class _PassThroughThenCleanupTempDatasets(PTransform):
+  """A PTransform that invokes a DoFn after the input PCollection has been
+    processed.
+
+    DoFn should have arguments (element, side_input, cleanup_signal).
+
+    Utilizes readiness of PCollection to trigger DoFn.
+  """
+  def __init__(self, side_input=None):
+    self.side_input = side_input
+
+  def expand(self, input):
+    class PassThrough(beam.DoFn):
+      def process(self, element):
+        yield element
+
+    class CleanUpProjects(beam.DoFn):
+      def process(self, unused_element, unused_signal, pipeline_details):
+        bq = bigquery_tools.BigQueryWrapper()
+        pipeline_details = pipeline_details[0]
+        if 'temp_table_ref' in pipeline_details.keys():
+          temp_table_ref = pipeline_details['temp_table_ref']
+          bq._clean_up_beam_labelled_temporary_datasets(
+              project_id=temp_table_ref.projectId,
+              dataset_id=temp_table_ref.datasetId,
+              table_id=temp_table_ref.tableId)
+        elif 'project_id' in pipeline_details.keys():
+          bq._clean_up_beam_labelled_temporary_datasets(
+              project_id=pipeline_details['project_id'],
+              labels=pipeline_details['bigquery_dataset_labels'])
+
+    main_output, cleanup_signal = input | beam.ParDo(
+        PassThrough()).with_outputs(
+        'cleanup_signal', main='main')
+
+    cleanup_input = input.pipeline | beam.Create([None])
+
+    _ = cleanup_input | beam.ParDo(
+        CleanUpProjects(),
+        beam.pvalue.AsSingleton(cleanup_signal),
+        self.side_input,
+    )
+
+    return main_output
+
+
 class _BigQueryReadSplit(beam.transforms.DoFn):
   """Starts the process of reading from BigQuery.
 
@@ -218,7 +264,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
   def _create_source(self, path, schema):
     if not self.use_json_exports:
-      return _create_avro_source(path, use_fastavro=True)
+      return _create_avro_source(path)
     else:
       return _TextSource(
           path,

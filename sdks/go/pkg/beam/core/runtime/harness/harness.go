@@ -36,9 +36,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// This side input cache size is a placeholder value.
-const cacheSize = 20
-
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
@@ -47,8 +44,13 @@ const cacheSize = 20
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	hooks.DeserializeHooksFromOptions(ctx)
 
-	hooks.RunInitHooks(ctx)
-	setupRemoteLogging(ctx, loggingEndpoint)
+	// Pass in the logging endpoint for use w/the default remote logging hook.
+	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
+	ctx, err := hooks.RunInitHooks(ctx)
+	if err != nil {
+		return err
+	}
+
 	recordHeader()
 
 	// Connect to FnAPI control server. Receive and execute work.
@@ -317,11 +319,23 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(ctx, instID, "Failed: %v", err)
 		}
 
+		tokens := msg.GetCacheTokens()
+		c.cache.SetValidTokens(tokens...)
+
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
+
+		sampler := newSampler(store)
+		go sampler.start(ctx, samplePeriod)
+
 		err = plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
+
+		sampler.stop()
+
 		data.Close()
 		state.Close()
+
+		c.cache.CompleteBundle(tokens...)
 
 		mons, pylds := monitoring(plan, store)
 		// Move the plan back to the candidate state

@@ -70,7 +70,7 @@ nums.each {
       shell('kubectl version || echo "kubectl not found"')
       ALL_SUPPORTED_VERSIONS.each { version ->
         def versionSuffix = version.replace('.', '')
-        shell("virtualenv -p python${version} test${versionSuffix} && . ./test${versionSuffix}/bin/activate && python --version && deactivate || echo \"python ${version} not found\"")
+        shell("python${version} -m venv test${versionSuffix} && . ./test${versionSuffix}/bin/activate && python --version && deactivate || echo \"python ${version} not found\"")
       }
       shell('echo "Maven home $MAVEN_HOME"')
       shell('env')

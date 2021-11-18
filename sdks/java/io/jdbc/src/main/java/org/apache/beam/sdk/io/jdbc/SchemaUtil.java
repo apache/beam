@@ -27,7 +27,6 @@ import static java.sql.JDBCType.NUMERIC;
 import static java.sql.JDBCType.NVARCHAR;
 import static java.sql.JDBCType.VARBINARY;
 import static java.sql.JDBCType.VARCHAR;
-import static java.sql.JDBCType.valueOf;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
@@ -169,7 +168,7 @@ class SchemaUtil {
     Schema.Builder schemaBuilder = Schema.builder();
 
     for (int i = 1; i <= md.getColumnCount(); i++) {
-      JDBCType jdbcType = valueOf(md.getColumnType(i));
+      JDBCType jdbcType = JDBCType.valueOf(md.getColumnType(i));
       BeamFieldConverter fieldConverter = jdbcTypeToBeamFieldConverter(jdbcType);
       schemaBuilder.addField(fieldConverter.create(i, md));
     }
@@ -222,7 +221,7 @@ class SchemaUtil {
   /** Converts array fields. */
   private static BeamFieldConverter beamArrayField() {
     return (index, md) -> {
-      JDBCType elementJdbcType = valueOf(md.getColumnTypeName(index));
+      JDBCType elementJdbcType = JDBCType.valueOf(md.getColumnTypeName(index));
       BeamFieldConverter elementFieldConverter = jdbcTypeToBeamFieldConverter(elementJdbcType);
 
       String label = md.getColumnLabel(index);
@@ -351,7 +350,12 @@ class SchemaUtil {
     public Row mapRow(ResultSet rs) throws Exception {
       Row.Builder rowBuilder = Row.withSchema(schema);
       for (int i = 0; i < schema.getFieldCount(); i++) {
-        rowBuilder.addValue(fieldExtractors.get(i).extract(rs, i + 1));
+        Object value = fieldExtractors.get(i).extract(rs, i + 1);
+        if (rs.wasNull()) {
+          rowBuilder.addValue(null);
+        } else {
+          rowBuilder.addValue(value);
+        }
       }
       return rowBuilder.build();
     }

@@ -105,13 +105,21 @@ func (b *RowDecoderBuilder) decoderForType(t reflect.Type) (func(io.Reader) (int
 		return func(r io.Reader) (interface{}, error) {
 			rv := reflect.New(t)
 			err := dec(rv.Elem(), r)
+			// Wrap handles nil cases, but io.EOF should be checked explicitly.
+			if err == io.EOF {
+				return nil, err
+			}
 			return rv.Interface(), errors.Wrapf(err, "decoding a *%v", t)
 		}, nil
 	}
 	return func(r io.Reader) (interface{}, error) {
 		rv := reflect.New(t)
 		err := dec(rv.Elem(), r)
-		return rv.Elem().Interface(), errors.Wrapf(err, "decoding a *%v", t)
+		// Wrap handles nil cases, but io.EOF should be checked explicitly.
+		if err == io.EOF {
+			return nil, err
+		}
+		return rv.Elem().Interface(), errors.Wrapf(err, "decoding a %v", t)
 	}, nil
 }
 

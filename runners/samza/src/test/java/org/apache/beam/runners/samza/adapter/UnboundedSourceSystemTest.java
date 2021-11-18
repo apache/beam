@@ -38,7 +38,6 @@ import java.util.concurrent.CountDownLatch;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.adapter.TestUnboundedSource.SplittableBuilder;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
-import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -48,6 +47,7 @@ import org.apache.samza.system.IncomingMessageEnvelope;
 import org.apache.samza.system.MessageType;
 import org.apache.samza.system.SystemConsumer;
 import org.apache.samza.system.SystemStreamPartition;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -178,7 +178,7 @@ public class UnboundedSourceSystemTest {
   @Test
   public void testAdvanceWatermark() throws IOException, InterruptedException {
     final Instant now = Instant.now();
-    final Instant nowPlusOne = now.plus(1L);
+    final Instant nowPlusOne = now.plus(Duration.millis(1L));
     final TestUnboundedSource<String> source =
         TestUnboundedSource.<String>createBuilder()
             .setTimestamp(now)
@@ -206,8 +206,8 @@ public class UnboundedSourceSystemTest {
   @Ignore("https://issues.apache.org/jira/browse/BEAM-10521")
   public void testMultipleAdvanceWatermark() throws IOException, InterruptedException {
     final Instant now = Instant.now();
-    final Instant nowPlusOne = now.plus(1L);
-    final Instant nowPlusTwo = now.plus(2L);
+    final Instant nowPlusOne = now.plus(Duration.millis(1L));
+    final Instant nowPlusTwo = now.plus(Duration.millis(2L));
     final TestUnboundedSource<String> source =
         TestUnboundedSource.<String>createBuilder()
             .setTimestamp(now)
@@ -287,7 +287,7 @@ public class UnboundedSourceSystemTest {
   public void testTimeout() throws Exception {
     final CountDownLatch advanceLatch = new CountDownLatch(1);
     final Instant now = Instant.now();
-    final Instant nowPlusOne = now.plus(1);
+    final Instant nowPlusOne = now.plus(Duration.millis(1));
 
     final TestUnboundedSource<String> source =
         TestUnboundedSource.<String>createBuilder()
@@ -380,10 +380,6 @@ public class UnboundedSourceSystemTest {
       now = System.currentTimeMillis();
     }
     return accumulator;
-  }
-
-  private static OpMessage.Type getMessageType(IncomingMessageEnvelope envelope) {
-    return ((OpMessage) envelope.getMessage()).getType();
   }
 
   private static List<IncomingMessageEnvelope> pollOnce(

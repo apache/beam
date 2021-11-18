@@ -473,6 +473,22 @@ class ReshuffleTest(unittest.TestCase):
       result = (pipeline | beam.Create(data) | beam.Reshuffle())
       assert_that(result, equal_to(data))
 
+  def test_reshuffle_contents_unchanged_with_buckets(self):
+    with TestPipeline() as pipeline:
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
+      buckets = 2
+      result = (pipeline | beam.Create(data) | beam.Reshuffle(buckets))
+      assert_that(result, equal_to(data))
+
+  def test_reshuffle_contents_unchanged_with_wrong_buckets(self):
+    wrong_buckets = [0, -1, "wrong", 2.5]
+    for wrong_bucket in wrong_buckets:
+      with self.assertRaisesRegex(ValueError,
+                                  'If `num_buckets` is set, it has to be an '
+                                  'integer greater than 0, got %s' %
+                                  wrong_bucket):
+        beam.Reshuffle(wrong_bucket)
+
   def test_reshuffle_after_gbk_contents_unchanged(self):
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
@@ -643,6 +659,25 @@ class ReshuffleTest(unittest.TestCase):
       assert_that(
           before_reshuffle, equal_to(expected_data), label='before_reshuffle')
       after_reshuffle = before_reshuffle | beam.Reshuffle()
+      assert_that(
+          after_reshuffle, equal_to(expected_data), label='after reshuffle')
+
+  def test_reshuffle_streaming_global_window_with_buckets(self):
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as pipeline:
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+      expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
+      buckets = 2
+      before_reshuffle = (
+          pipeline
+          | beam.Create(data)
+          | beam.WindowInto(GlobalWindows())
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
+      assert_that(
+          before_reshuffle, equal_to(expected_data), label='before_reshuffle')
+      after_reshuffle = before_reshuffle | beam.Reshuffle(buckets)
       assert_that(
           after_reshuffle, equal_to(expected_data), label='after reshuffle')
 

@@ -78,6 +78,7 @@ tasks.rat {
     "**/.htaccess",
     "website/www/site/assets/scss/_bootstrap.scss",
     "website/www/site/assets/scss/bootstrap/**/*",
+    "website/www/site/assets/js/**/*",
     "website/www/site/static/images/mascot/*.ai",
     "website/www/site/static/js/bootstrap*.js",
     "website/www/site/static/js/bootstrap/**/*",
@@ -180,6 +181,7 @@ task("javaPostCommit") {
   dependsOn(":sdks:java:io:debezium:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:kinesis:integrationTest")
+  dependsOn(":sdks:java:io:amazon-web-services2:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
   dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
 }
@@ -243,6 +245,15 @@ task("goIntegrationTests") {
   }
   dependsOn(":sdks:go:test:build")
   dependsOn(":runners:google-cloud-dataflow-java:worker:shadowJar")
+}
+
+task("playgroundPreCommit") {
+  dependsOn(":playground:backend:tidy")
+  dependsOn(":playground:backend:test")
+
+  dependsOn(":playground:frontend:pubGet")
+  dependsOn(":playground:frontend:analyze")
+  dependsOn(":playground:frontend:test")
 }
 
 task("pythonPreCommit") {

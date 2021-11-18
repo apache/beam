@@ -187,7 +187,7 @@ class _AbstractFrameTest(unittest.TestCase):
         else:
           cmp = lambda x: np.isclose(expected, x)
       else:
-        cmp = expected.__eq__
+        cmp = lambda x: x == expected
       self.assertTrue(
           cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
@@ -433,6 +433,23 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_error_test(
         lambda df: df.set_index(['index2', 'bad', 'really_bad']), df)
 
+  def test_set_axis(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}, index=['X', 'Y', 'Z'])
+
+    self._run_test(lambda df: df.set_axis(['I', 'II'], axis='columns'), df)
+    self._run_test(lambda df: df.set_axis([0, 1], axis=1), df)
+    self._run_inplace_test(
+        lambda df: df.set_axis(['i', 'ii'], axis='columns'), df)
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda df: df.set_axis(['a', 'b', 'c'], axis='index'), df)
+      self._run_test(lambda df: df.set_axis([0, 1, 2], axis=0), df)
+
+  def test_series_set_axis(self):
+    s = pd.Series(list(range(3)), index=['X', 'Y', 'Z'])
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda s: s.set_axis(['a', 'b', 'c']), s)
+      self._run_test(lambda s: s.set_axis([1, 2, 3]), s)
+
   def test_series_drop_ignore_errors(self):
     midx = pd.MultiIndex(
         levels=[['lama', 'cow', 'falcon'], ['speed', 'weight', 'length']],
@@ -661,6 +678,15 @@ class DeferredFrameTest(_AbstractFrameTest):
   def test_series_is_unique(self, series):
     self._run_test(lambda s: s.is_unique, series)
 
+  @parameterized.expand([
+      (pd.Series(range(10)), ),  # False
+      (pd.Series([1, 2, np.nan, 3, np.nan]), ),  # True
+      (pd.Series(['a', 'b', 'c', 'd', 'e']), ),  # False
+      (pd.Series(['a', 'b', None, 'c', None]), ),  # True
+  ])
+  def test_series_hasnans(self, series):
+    self._run_test(lambda s: s.hasnans, series)
+
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
     self._run_test(lambda df: df['A'], df)
@@ -720,6 +746,9 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda s: s.corr(s + 1), s)
       self._run_test(lambda s: s.corr(s * s), s)
       self._run_test(lambda s: s.cov(s * s), s)
+      self._run_test(lambda s: s.skew(), s)
+      self._run_test(lambda s: s.kurtosis(), s)
+      self._run_test(lambda s: s.kurt(), s)
 
   def test_dataframe_cov_corr(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
@@ -1391,15 +1420,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1418,15 +1439,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1442,15 +1455,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1467,15 +1472,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')

@@ -65,6 +65,10 @@ var directFilters = []string{
 	"TestTrigger.*",
 	// The direct runner does not support the TestStream primitive
 	"TestTestStream.*",
+	// (BEAM-13075): The direct runner does not support windowed side inputs
+	"TestValidateWindowedSideInputs",
+	// (BEAM-13075): The direct runner does not currently support multimap side inputs
+	"TestParDoMultiMapSideInput",
 }
 
 var portableFilters = []string{
@@ -95,6 +99,8 @@ var samzaFilters = []string{
 	"TestTestStream.*",
 	// The trigger tests uses TestStream
 	"TestTrigger.*",
+	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
+	"TestWordCount.*",
 }
 
 var sparkFilters = []string{

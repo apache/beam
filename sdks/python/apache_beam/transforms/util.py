@@ -632,7 +632,7 @@ class _IdentityWindowFn(NonMergingWindowFn):
     Arguments:
       window_coder: coders.Coder object to be used on windows.
     """
-    super(_IdentityWindowFn, self).__init__()
+    super().__init__()
     if window_coder is None:
       raise ValueError('window_coder should not be None')
     self._window_coder = window_coder
@@ -723,12 +723,29 @@ class Reshuffle(PTransform):
 
   Reshuffle is experimental. No backwards compatibility guarantees.
   """
+
+  # We use 32-bit integer as the default number of buckets.
+  _DEFAULT_NUM_BUCKETS = 1 << 32
+
+  def __init__(self, num_buckets=None):
+    """
+    :param num_buckets: If set, specifies the maximum random keys that would be
+      generated.
+    """
+    self.num_buckets = num_buckets if num_buckets else self._DEFAULT_NUM_BUCKETS
+
+    valid_buckets = isinstance(num_buckets, int) and num_buckets > 0
+    if not (num_buckets is None or valid_buckets):
+      raise ValueError(
+          'If `num_buckets` is set, it has to be an '
+          'integer greater than 0, got %s' % num_buckets)
+
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
     return (
-        pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
-        with_input_types(T).with_output_types(Tuple[int, T])
+        pcoll | 'AddRandomKeys' >>
+        Map(lambda t: (random.randrange(0, self.num_buckets), t)
+            ).with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
             Tuple[int, T]).with_output_types(T))
@@ -768,9 +785,9 @@ def WithKeys(pcoll, k, *args, **kwargs):
   """
   if callable(k):
     if fn_takes_side_inputs(k):
-      if all([isinstance(arg, AsSideInput)
-              for arg in args]) and all([isinstance(kwarg, AsSideInput)
-                                         for kwarg in kwargs.values()]):
+      if all(isinstance(arg, AsSideInput)
+             for arg in args) and all(isinstance(kwarg, AsSideInput)
+                                      for kwarg in kwargs.values()):
         return pcoll | Map(
             lambda v,
             *args,
@@ -963,6 +980,7 @@ def _pardo_group_into_batches(
       if count == 1 and max_buffering_duration_secs > 0:
         # This is the first element in batch. Start counting buffering time if a
         # limit was set.
+        # pylint: disable=deprecated-method
         buffering_timer.set(clock() + max_buffering_duration_secs)
       if count >= batch_size:
         return self.flush_batch(element_state, count_state, buffering_timer)

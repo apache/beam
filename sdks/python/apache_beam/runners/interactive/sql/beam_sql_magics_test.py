@@ -59,9 +59,13 @@ class BeamSqlMagicsTest(unittest.TestCase):
     query = """SELECT CAST(1 AS INT) AS `id`,
                       CAST('foo' AS VARCHAR) AS `str`,
                       CAST(3.14  AS DOUBLE) AS `flt`"""
-    processed_query, sql_source = _build_query_components(query, {})
+    processed_query, sql_source, chain = _build_query_components(
+        query, {}, 'output')
     self.assertEqual(processed_query, query)
     self.assertIsInstance(sql_source, beam.Pipeline)
+    self.assertIsInstance(chain.current.source, beam.Pipeline)
+    self.assertEqual('output', chain.current.output_name)
+    self.assertEqual(query, chain.current.query)
 
   def test_build_query_components_when_single_pcoll_queried(self):
     p = beam.Pipeline()
@@ -76,10 +80,14 @@ class BeamSqlMagicsTest(unittest.TestCase):
                cache_key,
                cache_manager,
                element_type: target):
-      processed_query, sql_source = _build_query_components(query, found)
-
-      self.assertEqual(processed_query, 'SELECT * FROM PCOLLECTION where a=1')
+      processed_query, sql_source, chain = _build_query_components(
+          query, found, 'output')
+      expected_query = 'SELECT * FROM PCOLLECTION where a=1'
+      self.assertEqual(expected_query, processed_query)
       self.assertIsInstance(sql_source, beam.PCollection)
+      self.assertIn('target', chain.current.source)
+      self.assertEqual(expected_query, chain.current.query)
+      self.assertEqual('output', chain.current.output_name)
 
   def test_build_query_components_when_multiple_pcolls_queried(self):
     p = beam.Pipeline()
@@ -95,12 +103,17 @@ class BeamSqlMagicsTest(unittest.TestCase):
                cache_key,
                cache_manager,
                element_type: pcoll_1):
-      processed_query, sql_source = _build_query_components(query, found)
+      processed_query, sql_source, chain = _build_query_components(
+          query, found, 'output')
 
       self.assertEqual(processed_query, query)
       self.assertIsInstance(sql_source, dict)
       self.assertIn('pcoll_1', sql_source)
       self.assertIn('pcoll_2', sql_source)
+      self.assertIn('pcoll_1', chain.current.source)
+      self.assertIn('pcoll_2', chain.current.source)
+      self.assertEqual(query, chain.current.query)
+      self.assertEqual('output', chain.current.output_name)
 
   def test_build_query_components_when_unbounded_pcolls_queried(self):
     p = beam.Pipeline()
@@ -115,8 +128,11 @@ class BeamSqlMagicsTest(unittest.TestCase):
                lambda a,
                b,
                c: found):
-      _, sql_source = _build_query_components(query, found)
+      _, sql_source, chain = _build_query_components(query, found, 'output')
       self.assertIs(sql_source, pcoll)
+      self.assertIn('pcoll', chain.current.source)
+      self.assertEqual('SELECT * FROM PCOLLECTION', chain.current.query)
+      self.assertEqual('output', chain.current.output_name)
 
   def test_cache_output(self):
     p_cache_output = beam.Pipeline()

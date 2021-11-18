@@ -251,7 +251,7 @@ class SequenceTypeConstraint(IndexableTypeConstraint):
     for index, elem in enumerate(sequence_instance):
       try:
         check_constraint(self.inner_type, elem)
-      except SimpleTypeHintError as e:
+      except SimpleTypeHintError:
         raise CompositeTypeHintError(
             '%s hint type-constraint violated. The type of element #%s in '
             'the passed %s is incorrect. Expected an instance of type %s, '
@@ -462,7 +462,10 @@ class TypeVariable(AnyTypeConstraint):
     return {self: concrete_type}
 
   def bind_type_variables(self, bindings):
-    return bindings.get(self, self)
+    return bindings.get(
+        self,
+        # Star matches all type variables.
+        bindings.get('*', self))
 
 
 class UnionHint(CompositeTypeHint):
@@ -531,8 +534,25 @@ class UnionHint(CompositeTypeHint):
               instance.__class__.__name__,
               error_msg))
 
+    def match_type_variables(self, concrete_type):
+      sub_bindings = [
+          match_type_variables(t, concrete_type) for t in self.union_types
+          if is_consistent_with(concrete_type, t)
+      ]
+      if sub_bindings:
+        return {
+            var: Union[(sub[var] for sub in sub_bindings)]
+            for var in set.intersection(
+                *[set(sub.keys()) for sub in sub_bindings])
+        }
+      else:
+        return {}
+
+    def bind_type_variables(self, bindings):
+      return Union[(bind_type_variables(t, bindings) for t in self.union_types)]
+
   def __getitem__(self, type_params):
-    if not isinstance(type_params, (collections.Sequence, set)):
+    if not isinstance(type_params, (collections.Iterable, set)):
       raise TypeError('Cannot create Union without a sequence of types.')
 
     # Flatten nested Union's and duplicated repeated type hints.
@@ -599,7 +619,7 @@ class TupleHint(CompositeTypeHint):
   """
   class TupleSequenceConstraint(SequenceTypeConstraint):
     def __init__(self, type_param):
-      super(TupleHint.TupleSequenceConstraint, self).__init__(type_param, tuple)
+      super().__init__(type_param, tuple)
 
     def __repr__(self):
       return 'Tuple[%s, ...]' % _unified_repr(self.inner_type)
@@ -610,7 +630,7 @@ class TupleHint(CompositeTypeHint):
         return all(
             is_consistent_with(elem, self.inner_type)
             for elem in sub.tuple_types)
-      return super(TupleSequenceConstraint, self)._consistent_with_check_(sub)
+      return super()._consistent_with_check_(sub)
 
   class TupleConstraint(IndexableTypeConstraint):
     def __init__(self, type_params):
@@ -731,7 +751,7 @@ class ListHint(CompositeTypeHint):
   """
   class ListConstraint(SequenceTypeConstraint):
     def __init__(self, list_type):
-      super(ListHint.ListConstraint, self).__init__(list_type, list)
+      super().__init__(list_type, list)
 
     def __repr__(self):
       return 'List[%s]' % _unified_repr(self.inner_type)
@@ -912,7 +932,7 @@ class SetHint(CompositeTypeHint):
   """
   class SetTypeConstraint(SequenceTypeConstraint):
     def __init__(self, type_param):
-      super(SetHint.SetTypeConstraint, self).__init__(type_param, set)
+      super().__init__(type_param, set)
 
     def __repr__(self):
       return 'Set[%s]' % _unified_repr(self.inner_type)

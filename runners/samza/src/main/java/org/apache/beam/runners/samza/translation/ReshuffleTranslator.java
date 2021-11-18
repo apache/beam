@@ -20,7 +20,6 @@ package org.apache.beam.runners.samza.translation;
 import com.google.auto.service.AutoService;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.NativeTransforms;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.OpMessage;
@@ -115,8 +114,10 @@ public class ReshuffleTranslator<K, InT, OutT>
   public static class IsSamzaNativeTransform implements NativeTransforms.IsNativeTransform {
     @Override
     public boolean test(RunnerApi.PTransform pTransform) {
-      return PTransformTranslation.RESHUFFLE_URN.equals(
-          PTransformTranslation.urnForTransformOrNull(pTransform));
+      return false;
+      // Re-enable after BEAM-12999 is completed
+      //       return PTransformTranslation.RESHUFFLE_URN.equals(
+      //          PTransformTranslation.urnForTransformOrNull(pTransform));
     }
   }
 }

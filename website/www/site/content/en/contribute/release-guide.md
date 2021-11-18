@@ -43,6 +43,7 @@ The release process consists of several steps:
 
 1. Decide to release
 1. Prepare for the release
+1. Update base image dependencies for Python container images
 1. Investigate performance regressions
 1. Create a release branch
 1. Verify release branch
@@ -230,7 +231,21 @@ If you are not a PMC, please ask for help in dev@ mailing list.
 **********
 
 
-## 3. Investigate performance regressions
+## 3. Update base image dependencies for Python container images
+
+1. Check the versions specified in sdks/python/container/base_image_requirements_manual.txt` and update them if necessary.
+1. Regenerate full dependency list by running:
+`./gradlew :sdks:python:container:generatePythonRequirementsAll` and commiting
+the changes. Exectution takes about ~5 min per Python version and is somewhat resource-demanding.
+You can also regenerate the dependencies indiviually per version with targets like `./gradlew :sdks:python:container:py38:generatePythonRequirements`.
+
+
+Ideally, do this at least a week before the release cut, so that any issues
+related to the update have time to surface.
+You will need Python intepreters for all versions supported by Beam, see:
+https://s.apache.org/beam-python-dev-wiki for tips how to install them.
+
+## 4. Investigate performance regressions
 
 Check the Beam load tests for possible performance regressions.
 Measurements are available on [metrics.beam.apache.org](http://metrics.beam.apache.org).
@@ -247,7 +262,7 @@ The release manager oversees these just like any other JIRA issue marked with th
 
 The mailing list should be informed to allow fixing the regressions in the course of the release.
 
-## 4. Create a release branch in apache/beam repository
+## 5. Create a release branch in apache/beam repository
 
 Attention: Only committer has permission to create release branch in apache/beam.
 
@@ -316,7 +331,7 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 **********
 
 
-## 5. Verify release branch
+## 6. Verify release branch
 
 After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
@@ -367,11 +382,6 @@ To triage the failures and narrow things down you may want to look at `settings.
       ```
       curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
       python get-pip.py
-      ```
-  1. Install virtualenv
-
-      ```
-      pip install --upgrade virtualenv
       ```
   1. Cython
 
@@ -435,7 +445,7 @@ Afterwards, this list can be refined and updated by the release manager and the 
 **********
 
 
-## 6. Triage release-blocking issues in JIRA
+## 7. Triage release-blocking issues in JIRA
 
 There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate.
 We track them by assigning the blocked release to the issue's `Fix version` field before the issue is resolved.
@@ -496,7 +506,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 **********
 
 
-## 7. Build a release candidate
+## 8. Build a release candidate
 
 ### Checklist before proceeding
 
@@ -550,6 +560,10 @@ is perfectly safe since the script does not depend on the current working tree.
 See the source of the script for more details, or to run commands manually in case of a problem.
 
 ### Run build_release_candidate.sh to create a release candidate
+
+Before you start, run this command to make sure you'll be using the latest docker images:
+
+      docker system prune -a
 
 * **Script:** [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
 
@@ -630,7 +644,7 @@ See the source of the script for more details or to run commands manually in cas
 **********
 
 
-## 8. Prepare documents
+## 9. Prepare documents
 
 ### Propose pull requests for website updates
 
@@ -748,7 +762,7 @@ docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 **********
 
 
-## 9. Vote and validate release candidate
+## 10. Vote and validate release candidate
 
 Once you have built and individually reviewed the release candidate, please share it for the community-wide review.
 Please review foundation-wide [voting guidelines](http://www.apache.org/foundation/voting.html) for more information.
@@ -809,6 +823,9 @@ All tests listed in this [spreadsheet](https://s.apache.org/beam-release-validat
 
 Since there are a bunch of tests, we recommend you running validations using automation script.
 In case of script failure, you can still run all of them manually.
+
+You may need to have Python interpreters for all supported Python minor
+versions to run all of the tests. See Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
 
 #### Run validations using run_rc_validation.sh
 * **Script:** [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
@@ -921,13 +938,12 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     unzip apache-beam-2.5.0-source-release.zip
     python setup.py sdist
     ```
-  * **Setup virtualenv**
+  * **Setup virtual environment**
 
     ```
     pip install --upgrade pip
     pip install --upgrade setuptools
-    pip install --upgrade virtualenv
-    virtualenv beam_env
+    python -m venv beam_env
      . beam_env/bin/activate
     ```
   * **Install SDK**
@@ -1098,7 +1114,7 @@ Here’s an email template; please adjust as you see fit.
 **********
 
 
-## 10. Finalize the release
+## 11. Finalize the release
 
 Once the release candidate has been reviewed and approved by the community, the release should be finalized.
 This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.
@@ -1147,7 +1163,16 @@ Merge all of the website pull requests
 Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
 
 ```
+# Optional: unlock the signing key by signing an arbitrary file.
+gpg --output ~/doc.sig --sign ~/.bashrc
+
 VERSION_TAG="v${RELEASE}"
+
+# Tag for Go SDK
+git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
+git push https://github.com/apache/beam "sdks/$VERSION_TAG"
+
+# Tag for repo root.
 git tag -s "$VERSION_TAG" "$RC_TAG"
 git push https://github.com/apache/beam "$VERSION_TAG"
 ```
@@ -1204,7 +1229,7 @@ Use [reporter.apache.org](https://reporter.apache.org/addrelease.html?beam) to s
 **********
 
 
-## 11. Promote the release
+## 12. Promote the release
 
 Once the release has been finalized, the last step of the process is to promote the release within the project and beyond.
 
