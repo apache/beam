@@ -1082,6 +1082,32 @@ class DeferredFrameTest(_AbstractFrameTest):
             'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
         s)
 
+  def test_compare_series(self):
+    s1 = pd.Series(["a", "b", "c", "d", "e"])
+    s2 = pd.Series(["a", "a", "c", "b", "e"])
+
+    self._run_test(lambda s1, s2: s1.compare(s2), s1, s2)
+    self._run_test(lambda s1, s2: s1.compare(s2, align_axis=0), s1, s2)
+    self._run_test(lambda s1, s2: s1.compare(s2, keep_shape=True), s1, s2)
+    self._run_test(
+        lambda s1, s2: s1.compare(s2, keep_shape=True, keep_equal=True), s1, s2)
+
+  def test_compare_dataframe(self):
+    df1 = pd.DataFrame(
+        {
+            "col1": ["a", "a", "b", "b", "a"],
+            "col2": [1.0, 2.0, 3.0, np.nan, 5.0],
+            "col3": [1.0, 2.0, 3.0, 4.0, 5.0]
+        },
+        columns=["col1", "col2", "col3"],
+    )
+    df2 = df1.copy()
+    df2.loc[0, 'col1'] = 'c'
+    df2.loc[2, 'col3'] = 4.0
+
+    self._run_test(
+        lambda df1, df2: df1.compare(df2), df1, df2, nonparallel=True)
+
 
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139

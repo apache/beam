@@ -492,7 +492,7 @@ class DoctestTest(unittest.TestCase):
                 's1.append(s2, verify_integrity=True)',
             ],
             # Throws NotImplementedError when modifying df
-            'pandas.core.series.Series.compare': ['*'],
+            # 'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",

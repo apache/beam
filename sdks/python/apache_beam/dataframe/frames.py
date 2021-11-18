@@ -2049,6 +2049,25 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           "repeat(repeats=) value must be an int or a "
           f"DeferredSeries (encountered {type(repeats)}).")
 
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def compare(self, other, **kwargs):
+    align_axis = kwargs.get('align_axis', 1)
+
+    if align_axis in ('index', 0):
+      preserves_partition = partitionings.Singleton()
+    elif align_axis in ('columns', 1):
+      preserves_partition = partitionings.Arbitrary()
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'compare',
+            lambda s,
+            other: s.compare(other, **kwargs), [self._expr, other._expr],
+            requires_partition_by=partitionings.Index(),
+            preserves_partition_by=preserves_partition))
+
 
 @populate_not_implemented(pd.DataFrame)
 @frame_base.DeferredFrame._register_for(pd.DataFrame)
@@ -3441,6 +3460,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         return result
 
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def compare(self, other, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+      expressions.ComputedExpression(
+        'compare',
+        lambda s, other: s.compare(other, **kwargs), [self._expr, other._expr],
+        requires_partition_by=partitionings.Singleton(reason='YES'),
+        preserves_partition_by=partitionings.Singleton()
+      )
+    )
 
 for io_func in dir(io):
   if io_func.startswith('to_'):
