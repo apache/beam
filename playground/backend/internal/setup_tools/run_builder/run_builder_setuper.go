@@ -43,6 +43,8 @@ func Setup(pipelineId uuid.UUID, lc *fs_tool.LifeCycle, workingDir string, sdkEn
 
 		runBuilder = runBuilder.
 			WithClassName(className)
+	case pb.Sdk_SDK_GO:
+		runBuilder = runBuilder.WithCommand(lc.GetAbsoluteBinaryFilePath())
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdkEnv.ApacheBeamSdk)
 	}
