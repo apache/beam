@@ -15,8 +15,10 @@
 # limitations under the License.
 #
 
-from apache_beam.transforms import Map, PTransform
-from apache_beam.io.gcp.pubsublite.external import _ReadExternal, _WriteExternal
+from apache_beam.io.gcp.pubsublite.external import _ReadExternal
+from apache_beam.io.gcp.pubsublite.external import _WriteExternal
+from apache_beam.transforms import Map
+from apache_beam.transforms import PTransform
 
 try:
   from google.cloud import pubsublite
