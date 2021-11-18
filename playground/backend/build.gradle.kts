@@ -50,3 +50,8 @@ task("test") {
     }
   }
 }
+
+task("precommit") {
+  dependsOn(":playground:backend:tidy")
+  dependsOn(":playground:backend:test")
+}

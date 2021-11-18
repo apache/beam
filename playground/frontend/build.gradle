@@ -92,6 +92,12 @@ task test {
   }
 }
 
+task precommit {
+  dependsOn(":playground:frontend:pubGet")
+  dependsOn(":playground:frontend:analyze")
+  dependsOn(":playground:frontend:test")
+}
+
 task copyDockerfileDependencies(type: Copy) {
    group = "build"
    description = "Copy files that required to build docker container"

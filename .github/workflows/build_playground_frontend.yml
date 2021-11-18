@@ -41,10 +41,8 @@ jobs:
         uses: subosito/flutter-action@v1
         with:
             channel: 'stable'
-      - name: Run Lint
-        run: ./gradlew playground:frontend:analyze
-      - name: Run Tests
-        run: ./gradlew playground:frontend:test
+      - name: Run PreCommit
+        run: ./gradlew playground:frontend:precommit
       - name: install npm
         uses: actions/setup-node@v2
         with:

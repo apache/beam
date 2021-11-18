@@ -43,14 +43,13 @@ jobs:
       - name: Prepare Go lint env
         run: "sudo ./playground/backend/env_setup.sh"
       - name: Run Lint
-#        run: "golangci-lint run internal/..."
         run: "golangci-lint run cmd/server/..."
         working-directory: playground/backend/
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
-      - name: Run Tests
-        run: ./gradlew playground:backend:test
+      - name: Run PreCommit
+        run: ./gradlew playground:backend:precommit
       - name: install npm
         uses: actions/setup-node@v2
         with:
