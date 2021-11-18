@@ -384,5 +384,5 @@ func newSchemaCoder(t reflect.Type) (*coder.CustomCoder, error) {
 }
 
 func TestFunc(i int) int {
-    return i*4
+    return i*6
 }
