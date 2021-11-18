@@ -737,10 +737,6 @@ This only verifies that everything builds with unit tests passing.&lt;/p>
 python get-pip.py
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
-&lt;p>Install virtualenv&lt;/p>
-&lt;pre>&lt;code>pip install --upgrade virtualenv
-&lt;/code>&lt;/pre>&lt;/li>
-&lt;li>
 &lt;p>Cython&lt;/p>
 &lt;pre>&lt;code>sudo pip install cython
 sudo apt-get install gcc
@@ -1148,6 +1144,8 @@ For example, if an issue is found in the website pull request, just correct it o
 &lt;p>All tests listed in this &lt;a href="https://s.apache.org/beam-release-validation">spreadsheet&lt;/a>&lt;/p>
 &lt;p>Since there are a bunch of tests, we recommend you running validations using automation script.
 In case of script failure, you can still run all of them manually.&lt;/p>
+&lt;p>You may need to have Python interpreters for all supported Python minor
+versions to run all of the tests. See Python installation tips in &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters">Developer Wiki&lt;/a>.&lt;/p>
 &lt;h4 id="run-validations-using-run_rc_validationsh">Run validations using run_rc_validation.sh&lt;/h4>
 &lt;ul>
 &lt;li>
@@ -1269,11 +1267,10 @@ unzip apache-beam-2.5.0-source-release.zip
 python setup.py sdist
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
-&lt;p>&lt;strong>Setup virtualenv&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Setup virtual environment&lt;/strong>&lt;/p>
 &lt;pre>&lt;code>pip install --upgrade pip
 pip install --upgrade setuptools
-pip install --upgrade virtualenv
-virtualenv beam_env
+python -m venv beam_env
 . beam_env/bin/activate
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>

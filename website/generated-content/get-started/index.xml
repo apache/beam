@@ -1793,7 +1793,6 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="#check-your-python-version">Check your Python version&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#install-pip">Install pip&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#install-python-virtual-environment">Install Python virtual environment&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#get-apache-beam">Get Apache Beam&lt;/a>
@@ -1850,55 +1849,15 @@ install it. This command might require administrative privileges.&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">python&lt;/span> &lt;span class="n">-m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="n">-upgrade&lt;/span> &lt;span class="n">pip&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;h3 id="install-python-virtual-environment">Install Python virtual environment&lt;/h3>
-&lt;p>It is recommended that you install a &lt;a href="https://docs.python-guide.org/en/latest/dev/virtualenvs/">Python virtual environment&lt;/a>
-for initial experiments. If you do not have &lt;code>virtualenv&lt;/code> version 13.1.0 or
-newer, run the following command to install it. This command might require
-administrative privileges.&lt;/p>
-&lt;div class='shell-unix snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code class="language-unix" data-lang="unix">pip install --upgrade virtualenv&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='shell-powerShell snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">python&lt;/span> &lt;span class="n">-m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="n">-upgrade&lt;/span> &lt;span class="n">virtualenv&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p>If you do not want to use a Python virtual environment (not recommended), ensure
-&lt;code>setuptools&lt;/code> is installed on your machine. If you do not have &lt;code>setuptools&lt;/code>
-version 17.1 or newer, run the following command to install it.&lt;/p>
-&lt;div class='shell-unix snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code class="language-unix" data-lang="unix">pip install --upgrade setuptools&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='shell-powerShell snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">python&lt;/span> &lt;span class="n">-m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="n">-upgrade&lt;/span> &lt;span class="n">setuptools&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
 &lt;h2 id="get-apache-beam">Get Apache Beam&lt;/h2>
 &lt;h3 id="create-and-activate-a-virtual-environment">Create and activate a virtual environment&lt;/h3>
-&lt;p>A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:&lt;/p>
+&lt;p>A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, run:&lt;/p>
 &lt;div class='shell-unix snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-unix" data-lang="unix">virtualenv /path/to/directory&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-unix" data-lang="unix">python -m venv /path/to/directory&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='shell-powerShell snippet'>
@@ -1906,7 +1865,7 @@ version 17.1 or newer, run the following command to install it.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">virtualenv&lt;/span> &lt;span class="n">C:&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">path&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">directory&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">python&lt;/span> &lt;span class="n">-m&lt;/span> &lt;span class="n">venv&lt;/span> &lt;span class="n">C:&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">path&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">directory&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>A virtual environment needs to be activated for each shell that is to use it.
@@ -1930,7 +1889,7 @@ environment&amp;rsquo;s directories.&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;p>That is, execute the &lt;code>activate&lt;/code> script under the virtual environment directory you created.&lt;/p>
-&lt;p>For instructions using other shells, see the &lt;a href="https://virtualenv.pypa.io/en/stable/userguide/#activate-script">virtualenv documentation&lt;/a>.&lt;/p>
+&lt;p>For instructions using other shells, see the &lt;a href="https://docs.python.org/3/library/venv.html">venv documentation&lt;/a>.&lt;/p>
 &lt;h3 id="download-and-install">Download and install&lt;/h3>
 &lt;p>Install the latest Python SDK from PyPI:&lt;/p>
 &lt;div class='shell-unix snippet'>
