@@ -49,3 +49,7 @@ language-specific implementation guidance.
 ## Using Beam Python SDK in your ML pipelines
 
 [TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx) is an end-to-end platform for deploying production ML pipelines. TFX is integrated with Beam. For more information, see [TFX user guide](https://www.tensorflow.org/tfx/guide).
+
+## Python multi-language pipelines quickstart
+
+Apache Beam lets you combine transforms written in any supported SDK language and use them in one multi-language pipeline. To learn how to create a multi-language pipeline using the Python SDK, see the [Python multi-language pipelines quickstart](/documentation/sdks/python-multi-language-pipelines).
