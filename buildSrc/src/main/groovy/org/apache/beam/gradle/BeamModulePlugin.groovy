@@ -2325,14 +2325,17 @@ class BeamModulePlugin implements Plugin<Project> {
       project.task('setupVirtualenv')  {
         doLast {
           def virtualenvCmd = [
-            'virtualenv',
+            "python${project.ext.pythonVersion}",
+            "-m",
+            "venv",
             "${project.ext.envdir}",
-            "--python=python${project.ext.pythonVersion}",
           ]
           project.exec { commandLine virtualenvCmd }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.20.1 -r ${project.rootDir}/sdks/python/build-requirements.txt"
+            args '-c', ". ${project.ext.envdir}/bin/activate && " +
+                "pip install --retries 10 --upgrade pip && " +
+                "pip install --retries 10 --upgrade tox==3.20.1 -r ${project.rootDir}/sdks/python/build-requirements.txt"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
