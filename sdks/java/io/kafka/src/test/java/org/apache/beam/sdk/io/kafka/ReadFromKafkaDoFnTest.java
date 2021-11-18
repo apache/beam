@@ -48,6 +48,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -118,12 +119,12 @@ public class ReadFromKafkaDoFnTest {
       this.currentPos = pos;
     }
 
-    public void setStartOffsetForTime(KV<Long, Instant> pos) {
-      this.startOffsetForTime = pos;
+    public void setStartOffsetForTime(long offset, Instant time) {
+      this.startOffsetForTime = KV.of(offset, time);
     }
 
-    public void setStopOffsetForTime(KV<Long, Instant> pos) {
-      this.stopOffsetForTime = pos;
+    public void setStopOffsetForTime(long offset, Instant time) {
+      this.stopOffsetForTime = KV.of(offset, time);
     }
 
     @Override
@@ -186,9 +187,7 @@ public class ReadFromKafkaDoFnTest {
       } else if (timeToSearch == this.stopOffsetForTime.getValue().getMillis()) {
         returnOffset = this.stopOffsetForTime.getKey();
       }
-      return ImmutableMap.of(
-          topicPartition,
-          new OffsetAndTimestamp(returnOffset, timeToSearch));
+      return ImmutableMap.of(topicPartition, new OffsetAndTimestamp(returnOffset, timeToSearch));
     }
 
     @Override
@@ -251,17 +250,12 @@ public class ReadFromKafkaDoFnTest {
   @Test
   public void testInitialRestrictionWhenHasStartOffset() throws Exception {
     long expectedStartOffset = 10L;
-    consumer.setStartOffsetForTime(KV.of(15L, Instant.now()));
+    consumer.setStartOffsetForTime(15L, Instant.now());
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(
             KafkaSourceDescriptor.of(
-                topicPartition,
-                expectedStartOffset,
-                Instant.now(),
-                null,
-                null,
-                ImmutableList.of()));
+                topicPartition, expectedStartOffset, null, null, null, ImmutableList.of()));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
   }
 
@@ -269,17 +263,17 @@ public class ReadFromKafkaDoFnTest {
   public void testInitialRestrictionWhenHasStopOffset() throws Exception {
     long expectedStartOffset = 10L;
     long expectedStopOffset = 20L;
-    consumer.setStartOffsetForTime(KV.of(15L, Instant.now()));
-    consumer.setStopOffsetForTime(KV.of(18L, Instant.now()));
+    consumer.setStartOffsetForTime(15L, Instant.now());
+    consumer.setStopOffsetForTime(18L, Instant.now());
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(
             KafkaSourceDescriptor.of(
                 topicPartition,
                 expectedStartOffset,
-                Instant.now(),
+                null,
                 expectedStopOffset,
-                Instant.now(),
+                null,
                 ImmutableList.of()));
     assertEquals(new OffsetRange(expectedStartOffset, expectedStopOffset), result);
   }
@@ -288,7 +282,7 @@ public class ReadFromKafkaDoFnTest {
   public void testInitialRestrictionWhenHasStartTime() throws Exception {
     long expectedStartOffset = 10L;
     Instant startReadTime = Instant.now();
-    consumer.setStartOffsetForTime(KV.of(expectedStartOffset, startReadTime));
+    consumer.setStartOffsetForTime(expectedStartOffset, startReadTime);
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(
@@ -302,9 +296,9 @@ public class ReadFromKafkaDoFnTest {
     long expectedStartOffset = 10L;
     Instant startReadTime = Instant.now();
     long expectedStopOffset = 100L;
-    Instant stopReadTime = startReadTime.plus(2000);
-    consumer.setStartOffsetForTime(KV.of(expectedStartOffset, startReadTime));
-    consumer.setStopOffsetForTime(KV.of(expectedStopOffset, stopReadTime));
+    Instant stopReadTime = startReadTime.plus(Duration.millis(2000));
+    consumer.setStartOffsetForTime(expectedStartOffset, startReadTime);
+    consumer.setStopOffsetForTime(expectedStopOffset, stopReadTime);
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(

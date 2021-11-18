@@ -396,9 +396,6 @@ class ReadFromKafkaDoFn<K, V>
             outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
           }
           receiver.outputWithTimestamp(KV.of(kafkaSourceDescriptor, kafkaRecord), outputTimestamp);
-          if (expectedOffset > endOffset) {
-            return ProcessContinuation.stop();
-          }
         }
       }
     }

@@ -994,7 +994,7 @@ public class KafkaIO {
      * <p>Note that this take priority over start offset configuration {@code
      * ConsumerConfig.AUTO_OFFSET_RESET_CONFIG} and any auto committed offsets.
      *
-     * <p>This results in hard failures in either of the following two cases : 1. If one of more
+     * <p>This results in hard failures in either of the following two cases : 1. If one or more
      * partitions do not contain any messages with timestamp larger than or equal to desired
      * timestamp. 2. If the message format version in a partition is before 0.10.0, i.e. the
      * messages do not have timestamps.
@@ -1007,7 +1007,7 @@ public class KafkaIO {
      * Use timestamp to set up stop offset. It is only supported by Kafka Client 0.10.1.0 onwards
      * and the message format version after 0.10.0.
      *
-     * <p>This results in hard failures in either of the following two cases : 1. If one of more
+     * <p>This results in hard failures in either of the following two cases : 1. If one or more
      * partitions do not contain any messages with timestamp larger than or equal to desired
      * timestamp. 2. If the message format version in a partition is before 0.10.0, i.e. the
      * messages do not have timestamps.
@@ -1298,6 +1298,9 @@ public class KafkaIO {
           || getMaxNumRecords() < Long.MAX_VALUE
           || getMaxReadTime() != null
           || runnerRequiresLegacyRead(input.getPipeline().getOptions())) {
+        checkArgument(
+            getStopReadTime() == null,
+            "stopReadTime is set but it is only supported via SDF implementation.");
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
