@@ -702,23 +702,7 @@ public final class TransformTranslator {
     return new TransformEvaluator<Reshuffle<K, V>>() {
       @Override
       public void evaluate(Reshuffle<K, V> transform, EvaluationContext context) {
-        @SuppressWarnings("unchecked")
-        JavaRDD<WindowedValue<KV<K, V>>> inRDD =
-            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
-        @SuppressWarnings("unchecked")
-        final WindowingStrategy<?, W> windowingStrategy =
-            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
-        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
-        @SuppressWarnings("unchecked")
-        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
-
-        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
-
-        JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
-            GroupCombineFunctions.reshuffle(inRDD, wvCoder);
-
-        context.putDataset(transform, new BoundedDataset<>(reshuffled));
+        evaluateReshuffle(transform, context);
       }
 
       @Override
@@ -732,23 +716,7 @@ public final class TransformTranslator {
     return new TransformEvaluator<Reshuffle.Keys<K, V>>() {
       @Override
       public void evaluate(Reshuffle.Keys<K, V> transform, EvaluationContext context) {
-        @SuppressWarnings("unchecked")
-        JavaRDD<WindowedValue<KV<K, V>>> inRDD =
-            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
-        @SuppressWarnings("unchecked")
-        final WindowingStrategy<?, W> windowingStrategy =
-            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
-        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
-        @SuppressWarnings("unchecked")
-        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
-
-        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
-
-        JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
-            GroupCombineFunctions.reshuffle(inRDD, wvCoder);
-
-        context.putDataset(transform, new BoundedDataset<>(reshuffled));
+        evaluateReshuffle(transform, context);
       }
 
       @Override
@@ -756,6 +724,27 @@ public final class TransformTranslator {
         return "repartition(...)";
       }
     };
+  }
+
+  private static <K, V, W extends BoundedWindow> void evaluateReshuffle(
+      PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> transform, EvaluationContext context) {
+    @SuppressWarnings("unchecked")
+    JavaRDD<WindowedValue<KV<K, V>>> inRDD =
+        ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
+    @SuppressWarnings("unchecked")
+    final WindowingStrategy<?, W> windowingStrategy =
+        (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+    final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
+    @SuppressWarnings("unchecked")
+    final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
+
+    final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
+        WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+
+    JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
+        GroupCombineFunctions.reshuffle(inRDD, wvCoder);
+
+    context.putDataset(transform, new BoundedDataset<>(reshuffled));
   }
 
   private static @Nullable Partitioner getPartitioner(EvaluationContext context) {
