@@ -35,7 +35,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Spark',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(":pythonExamplesSparkPostCommit")
+          tasks(":sdks:python:test-suites:portable:sparkExamplesPostCommit")
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

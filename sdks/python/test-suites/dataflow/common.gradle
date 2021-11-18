@@ -124,19 +124,16 @@ task postCommitIT {
   }
 }
 
-task postCommitExamples {
+task examples {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
-    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile", "--collect-only"]
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
             "test_opts": testOpts,
             "sdk_location": files(configurations.distTarBall.files).singleFile,
-            "worker_jar": dataflowWorkerJar,
+            "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}",
             "collect": "examples_postcommit"
     ]

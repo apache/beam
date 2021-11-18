@@ -71,7 +71,6 @@ class TaxirideIT(unittest.TestCase):
 
     pd.testing.assert_frame_equal(expected, result)
 
-  @pytest.mark.examples_postcommit
   @pytest.mark.it_postcommit
   def test_enrich(self):
     # Standard workers OOM with the enrich pipeline

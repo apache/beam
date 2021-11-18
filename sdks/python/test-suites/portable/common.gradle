@@ -185,7 +185,7 @@ project.task("postCommitPy${pythonVersionSuffix}") {
                'portableWordCountSparkRunnerBatch']
 }
 
-project.task("postCommitExamplesFlink") {
+project.task("flinkExamples") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
@@ -215,7 +215,7 @@ project.task("postCommitExamplesFlink") {
   }
 }
 
-project.task("postCommitExamplesSpark") {
+project.task("sparkExamples") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',

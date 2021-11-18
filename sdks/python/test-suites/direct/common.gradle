@@ -57,7 +57,7 @@ task postCommitIT {
   }
 }
 
-task postCommitExamples {
+task examples {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
 

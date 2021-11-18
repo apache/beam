@@ -35,7 +35,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Dataflow',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(":pythonExamplesDataflowPostCommit")
+          tasks(":sdks:python:test-suites:dataflow:examplesPostCommit")
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

@@ -35,7 +35,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Direct',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(":pythonExamplesDirectPostCommit")
+          tasks(":sdks:python:test-suites:direct:examplesPostCommit")
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

@@ -35,7 +35,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Flink',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(":pythonExamplesFlinkPostCommit")
+          tasks(":sdks:python:test-suites:portable:flinkExamplesPostCommit")
           commonJobProperties.setGradleSwitches(delegate)
         }
       }
