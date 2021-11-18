@@ -125,12 +125,14 @@ class GrpcExampleClient implements ExampleClient {
 
   ExampleType _exampleTypeFromString(grpc.PrecompiledObjectType type) {
     switch (type) {
-      case grpc.PrecompiledObjectType.EXAMPLE:
+      case grpc.PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_EXAMPLE:
         return ExampleType.example;
-      case grpc.PrecompiledObjectType.KATA:
+      case grpc.PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_KATA:
         return ExampleType.kata;
-      case grpc.PrecompiledObjectType.UNIT_TEST:
+      case grpc.PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_UNIT_TEST:
         return ExampleType.test;
+      case grpc.PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED:
+        return ExampleType.all;
       default:
         return ExampleType.example;
     }
