@@ -688,3 +688,6 @@ class Row(object):
 
 def _make_Row(*items):
   return Row(**dict(items))
+
+def temp_for_cov(n):
+  return n*2
