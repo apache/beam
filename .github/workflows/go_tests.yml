@@ -45,5 +45,5 @@ jobs:
       - name: Run coverage
         run: cd sdks/go/pkg && go test -coverprofile=coverage.txt -covermode=atomic ./...
       - name: Upload to codecov
-        run: codecov
+        run: bash <(curl -s https://codecov.io/bash)
 
