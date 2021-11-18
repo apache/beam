@@ -186,7 +186,7 @@ func TestCoders(t *testing.T) {
 func TestTestFunc(t *testing.T) {
     input := 2
     result := TestFunc(input)
-    if result != 12 {
+    if result != 14 {
         t.Errorf("Error %d %d", result, input)
     }
 }
