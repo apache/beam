@@ -30,6 +30,7 @@ def dependOnProjects = [":runners:core-construction-java",
                         ]
 
 applyJavaNature(
+  suppressUnusedVariable: true,
         automaticModuleName: 'org.apache.beam.runners.direct',
         classesTriggerCheckerBugs: [
           'ImpulseEvaluatorFactory': 'https://github.com/typetools/checker-framework/issues/3791',
