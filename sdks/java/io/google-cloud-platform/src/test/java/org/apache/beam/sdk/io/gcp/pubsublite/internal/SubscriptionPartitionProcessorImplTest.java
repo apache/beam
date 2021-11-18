@@ -32,12 +32,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.api.core.SettableApiFuture;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.testing.FakeApiService;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
+import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
@@ -150,8 +152,10 @@ public class SubscriptionPartitionProcessorImplTest {
     when(tracker.currentRestriction()).thenReturn(initialRange());
     when(tracker.tryClaim(any())).thenReturn(true);
     doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
-    leakedConsumer.accept(ImmutableList.of(messageWithOffset(1)));
-    ApiException e = assertThrows(ApiException.class, () -> processor.runFor(Duration.ZERO));
+    SystemExecutors.getFuturesExecutor()
+        .execute(() -> leakedConsumer.accept(ImmutableList.of(messageWithOffset(1))));
+    ApiException e =
+        assertThrows(ApiException.class, () -> processor.runFor(Duration.standardHours(10)));
     assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
   }
 
@@ -162,11 +166,20 @@ public class SubscriptionPartitionProcessorImplTest {
   }
 
   @Test
-  public void failedClaimCausesStop() {
+  public void failedClaimCausesStop() throws Exception {
     when(tracker.tryClaim(any())).thenReturn(false);
+    SettableApiFuture<Void> runDone = SettableApiFuture.create();
+    SystemExecutors.getFuturesExecutor()
+        .execute(
+            () -> {
+              assertEquals(
+                  ProcessContinuation.stop(), processor.runFor(Duration.standardHours(10)));
+              runDone.set(null);
+            });
     leakedConsumer.accept(ImmutableList.of(messageWithOffset(1)));
+    runDone.get();
+
     verify(tracker, times(1)).tryClaim(any());
-    assertEquals(ProcessContinuation.stop(), processor.runFor(Duration.millis(10)));
     assertFalse(processor.lastClaimed().isPresent());
     // Future calls to process don't try to claim.
     leakedConsumer.accept(ImmutableList.of(messageWithOffset(2)));
@@ -176,9 +189,19 @@ public class SubscriptionPartitionProcessorImplTest {
   @Test
   public void successfulClaimThenTimeout() throws Exception {
     when(tracker.tryClaim(any())).thenReturn(true);
+    SettableApiFuture<Void> runDone = SettableApiFuture.create();
+    SystemExecutors.getFuturesExecutor()
+        .execute(
+            () -> {
+              assertEquals(
+                  ProcessContinuation.resume(), processor.runFor(Duration.standardSeconds(3)));
+              runDone.set(null);
+            });
+
     SequencedMessage message1 = messageWithOffset(1);
     SequencedMessage message3 = messageWithOffset(3);
     leakedConsumer.accept(ImmutableList.of(message1, message3));
+    runDone.get();
     InOrder order = inOrder(tracker, receiver, subscriber);
     order
         .verify(tracker)
@@ -197,7 +220,6 @@ public class SubscriptionPartitionProcessorImplTest {
                 .setAllowedMessages(2)
                 .setAllowedBytes(message1.getSizeBytes() + message3.getSizeBytes())
                 .build());
-    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
     assertEquals(processor.lastClaimed().get(), Offset.of(3));
   }
 }
