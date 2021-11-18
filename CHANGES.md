@@ -63,6 +63,7 @@
 * We changed the data type for ranges in `JdbcIO.readWithPartitions` from `int` to `long`. This is a relatively minor
     breaking change, which we're implementing to improve the usability of the transform without increasing cruft.
     This transform is relatively new, so we may implement other breaking changes in the future to improve its usability.
+* Support for stopReadTime on KafkaIO SDF (Java).([BEAM-13171](https://issues.apache.org/jira/browse/BEAM-13171)).
 
 ## New Features / Improvements
 
@@ -76,7 +77,6 @@
   https://issues.apache.org/jira/browse/BEAM-11205)). For Google Cloud client library versions set by this BOM,
   see [this table](https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/24.0.0/artifact_details.html).
 * Removed avro-python3 dependency in AvroIO. Fastavro has already been our Avro library of choice on Python 3. Boolean use_fastavro is left for api compatibility, but will have no effect.([BEAM-13016](https://github.com/apache/beam/pull/15900)).
-* Support for stopReadTime on KafkaIO SDF (Java).([BEAM-13171](https://issues.apache.org/jira/browse/BEAM-13171)).
 
 ## Breaking Changes
 
