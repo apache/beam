@@ -19,12 +19,9 @@
 
 # pytype: skip-file
 
-import glob
 import os
 import re
-import shutil
 import socketserver
-import subprocess
 import tempfile
 import threading
 import unittest
@@ -116,54 +113,6 @@ class JavaJarServerTest(unittest.TestCase):
           'http://localhost:%s/path/to/file.jar' % port, temp_dir)
       with open(os.path.join(temp_dir, 'file.jar')) as fin:
         self.assertEqual(fin.read(), 'data')
-
-  @unittest.skipUnless(shutil.which('javac'), 'missing java jdk')
-  def test_classpath_jar(self):
-    with tempfile.TemporaryDirectory() as temp_dir:
-      try:
-        # Avoid having to prefix everything in our test strings.
-        oldwd = os.getcwd()
-        os.chdir(temp_dir)
-
-        with open('Main.java', 'w') as fout:
-          fout.write(
-              """
-public class Main {
-  public static void main(String[] args) { Other.greet(); }
-}
-          """)
-
-        with open('Other.java', 'w') as fout:
-          fout.write(
-              """
-public class Other {
-  public static void greet() { System.out.println("You got me!"); }
-}
-          """)
-
-        os.mkdir('jars')
-        # Using split just for readability/copyability.
-        subprocess.check_call('javac Main.java Other.java'.split())
-        subprocess.check_call('jar cfe jars/Main.jar Main Main.class'.split())
-        subprocess.check_call('jar cf jars/Other.jar Other.class'.split())
-        # Make sure the java and class files don't get picked up.
-        for path in glob.glob('*.*'):
-          os.unlink(path)
-
-        # These should fail.
-        self.assertNotEqual(
-            subprocess.call('java -jar jars/Main.jar'.split()), 0)
-        self.assertNotEqual(
-            subprocess.call('java -jar jars/Other.jar'.split()), 0)
-
-        os.mkdir('beam_temp')
-        composite_jar = subprocess_server.JavaJarServer.make_classpath_jar(
-            'jars/Main.jar', ['jars/Other.jar'], cache_dir='beam_temp')
-        # This, however, should work.
-        subprocess.check_call(f'java -jar {composite_jar}'.split())
-
-      finally:
-        os.chdir(oldwd)
 
 
 if __name__ == '__main__':
