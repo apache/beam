@@ -528,7 +528,7 @@ public class RowJson {
           break;
         case DATETIME:
           // ReadableInstant.toString produces ISO8601 format string
-          gen.writeString(((ReadableInstant)value).toString());
+          gen.writeString(((ReadableInstant) value).toString());
           break;
         case ARRAY:
         case ITERABLE:
