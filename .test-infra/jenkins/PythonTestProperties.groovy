@@ -39,4 +39,7 @@ class PythonTestProperties {
   final static List<String> VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS = ALL_SUPPORTED_VERSIONS
   final static String LOAD_TEST_PYTHON_VERSION = '3.7'
   final static String CHICAGO_TAXI_EXAMPLE_FLINK_PYTHON_VERSION = '3.7'
+  // Use for various shell scripts triggered by Jenkins.
+  // Gradle scripts should use project.ext.pythonVersion defined by PythonNature/BeamModulePlugin.
+  final static String DEFAULT_INTERPRETER = 'python3.8'
 }
