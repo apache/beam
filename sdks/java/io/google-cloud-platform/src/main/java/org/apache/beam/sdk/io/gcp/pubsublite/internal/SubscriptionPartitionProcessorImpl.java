@@ -29,7 +29,6 @@ import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
-import com.google.common.flogger.GoogleLogger;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
 import java.util.Optional;
@@ -45,10 +44,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class SubscriptionPartitionProcessorImpl extends Listener
     implements SubscriptionPartitionProcessor, AutoCloseable {
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final Logger LOG =
+      LoggerFactory.getLogger(SubscriptionPartitionProcessorImpl.class);
   private final RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   private final OutputReceiver<SequencedMessage> receiver;
   private final Subscriber subscriber;
@@ -164,7 +166,7 @@ class SubscriptionPartitionProcessorImpl extends Listener
       blockingShutdown(subscriber);
     } catch (Throwable t) {
       // Don't propagate errors on subscriber shutdown.
-      logger.atInfo().withCause(t).log("Error on subscriber shutdown.");
+      LOG.info("Error on subscriber shutdown.", t);
     }
   }
 
