@@ -88,7 +88,7 @@ class SubscriptionPartitionProcessorImpl extends Listener
   }
 
   @SuppressWarnings("argument.type.incompatible")
-  public void start() {
+  private void start() {
     this.subscriber.addListener(this, SystemExecutors.getFuturesExecutor());
     this.subscriber.startAsync();
     this.subscriber.awaitRunning();
