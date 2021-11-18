@@ -106,12 +106,16 @@ class GrpcCodeClient implements CodeClient {
     switch (status) {
       case grpc.Status.STATUS_ERROR:
       case grpc.Status.STATUS_VALIDATION_ERROR:
+      case grpc.Status.STATUS_RUN_ERROR:
+      case grpc.Status.STATUS_PREPARATION_ERROR:
         return RunCodeStatus.error;
       case grpc.Status.STATUS_EXECUTING:
       case grpc.Status.STATUS_VALIDATING:
       case grpc.Status.STATUS_COMPILING:
+      case grpc.Status.STATUS_PREPARING:
         return RunCodeStatus.executing;
       case grpc.Status.STATUS_FINISHED:
+      case grpc.Status.STATUS_CANCELED:
         return RunCodeStatus.finished;
       case grpc.Status.STATUS_UNSPECIFIED:
         return RunCodeStatus.unspecified;
