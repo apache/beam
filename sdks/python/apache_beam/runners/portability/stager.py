@@ -90,7 +90,26 @@ def retry_on_non_zero_exit(exception):
   if (isinstance(exception, processes.CalledProcessError) and
       exception.returncode != 0):
     return True
-  return False
+
+
+def remove_dependency_from_requirements(
+    requirements_file,  # type: str
+    dependency_to_remove,  # type: str
+    temp_directory_path):
+  """Function to remove dependencies from a given requirements file."""
+  # read all the dependency names
+  with open(requirements_file, 'r') as f:
+    lines = f.readlines()
+
+  tmp_requirements_filename = os.path.join(
+      temp_directory_path, 'tmp_requirements.txt')
+
+  with open(tmp_requirements_filename, 'w') as tf:
+    for i in range(len(lines)):
+      if not lines[i].startswith(dependency_to_remove):
+        tf.write(lines[i])
+
+  return tmp_requirements_filename
 
 
 class Stager(object):
@@ -646,24 +665,32 @@ class Stager(object):
     # The 'pip download' command will not download again if it finds the
     # tarball with the proper version already present.
     # It will get the packages downloaded in the order they are presented in
-    # the requirements file and will not download package dependencies.
-    cmd_args = [
-        Stager._get_python_executable(),
-        '-m',
-        'pip',
-        'download',
-        '--dest',
-        cache_dir,
-        '-r',
-        requirements_file,
-        '--exists-action',
-        'i',
-        # Download from PyPI source distributions.
-        '--no-binary',
-        ':all:'
-    ]
-    _LOGGER.info('Executing command: %s', cmd_args)
-    processes.check_output(cmd_args, stderr=processes.STDOUT)
+    # the requirements file and will download package dependencies.
+
+    # The apache-beam dependency  is excluded from requirements cache population
+    # because we  stage the SDK separately.
+    with tempfile.TemporaryDirectory() as temp_directory:
+      tmp_requirements_filepath = remove_dependency_from_requirements(
+          requirements_file=requirements_file,
+          dependency_to_remove='apache-beam',
+          temp_directory_path=temp_directory)
+      cmd_args = [
+          Stager._get_python_executable(),
+          '-m',
+          'pip',
+          'download',
+          '--dest',
+          cache_dir,
+          '-r',
+          tmp_requirements_filepath,
+          '--exists-action',
+          'i',
+          # Download from PyPI source distributions.
+          '--no-binary',
+          ':all:'
+      ]
+      _LOGGER.info('Executing command: %s', cmd_args)
+      processes.check_output(cmd_args, stderr=processes.STDOUT)
 
   @staticmethod
   def _build_setup_package(setup_file,  # type: str
