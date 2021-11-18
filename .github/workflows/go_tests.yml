@@ -40,5 +40,10 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: '1.16'
+      - name: Delete old coverage
+        run: cd sdks/go/pkg && -rm .coverage
       - name: Run coverage
         run: cd sdks/go/pkg && go test -coverprofile=coverage.txt -covermode=atomic ./...
+      - name: Upload to codecov
+        run: codecov
+
