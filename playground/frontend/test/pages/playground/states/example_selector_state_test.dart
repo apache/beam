@@ -59,10 +59,10 @@ void main() {
       exampleState,
       exampleState.categories!,
       ExampleType.example,
-      'hEl',
+      'hLo'
     );
     state.addListener(() {
-      expect(state.categories, sortedCategories);
+      expect(state.categories, []);
       expect(exampleState.categories, exampleState.categories);
     });
     state.sortCategories();
