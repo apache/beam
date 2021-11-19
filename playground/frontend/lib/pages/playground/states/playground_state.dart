@@ -58,7 +58,7 @@ class PlaygroundState with ChangeNotifier {
 
   String get source => _source;
 
-  bool get isCodeRunning => result?.status == RunCodeStatus.executing;
+  bool get isCodeRunning => !(result?.isFinished ?? true);
 
   RunCodeResult? get result => _result;
 
