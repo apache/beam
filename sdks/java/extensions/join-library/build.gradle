@@ -18,7 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  suppressUnusedVariable: true,
+  suppressUnusedVariable: false,
   automaticModuleName: 'org.apache.beam.sdk.extensions.joinlibrary'
 )
 

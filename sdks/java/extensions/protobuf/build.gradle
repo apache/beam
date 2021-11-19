@@ -18,7 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  suppressUnusedVariable: true,
+  suppressUnusedVariable: false,
   generatedClassPatterns: [
     /^org\.apache\.beam\.sdk\.extensions\.protobuf\.PayloadMessages/,
     /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto2CoderTestMessages/,

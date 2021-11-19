@@ -20,7 +20,7 @@ plugins {
 }
 
 applyJavaNature(
-  suppressUnusedVariable: true,
+  suppressUnusedVariable: false,
         automaticModuleName: 'org.apache.beam.sdk.extensions.schemaio.expansion',
         validateShadowJar: false,
         shadowClosure: {

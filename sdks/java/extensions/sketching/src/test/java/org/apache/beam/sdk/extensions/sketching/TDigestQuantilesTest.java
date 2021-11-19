@@ -118,7 +118,7 @@ public class TDigestQuantilesTest {
       accums.add(std);
     }
     TDigestQuantilesFn fn = TDigestQuantilesFn.create(100);
-    MergingDigest res = fn.mergeAccumulators(accums);
+    fn.mergeAccumulators(accums);
   }
 
   private <T> boolean encodeDecodeEquals(MergingDigest tDigest) throws IOException {
