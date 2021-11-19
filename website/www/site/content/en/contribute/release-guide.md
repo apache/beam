@@ -383,11 +383,6 @@ To triage the failures and narrow things down you may want to look at `settings.
       curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
       python get-pip.py
       ```
-  1. Install virtualenv
-
-      ```
-      pip install --upgrade virtualenv
-      ```
   1. Cython
 
       ```
@@ -829,6 +824,9 @@ All tests listed in this [spreadsheet](https://s.apache.org/beam-release-validat
 Since there are a bunch of tests, we recommend you running validations using automation script.
 In case of script failure, you can still run all of them manually.
 
+You may need to have Python interpreters for all supported Python minor
+versions to run all of the tests. See Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
+
 #### Run validations using run_rc_validation.sh
 * **Script:** [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
 
@@ -940,13 +938,12 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     unzip apache-beam-2.5.0-source-release.zip
     python setup.py sdist
     ```
-  * **Setup virtualenv**
+  * **Setup virtual environment**
 
     ```
     pip install --upgrade pip
     pip install --upgrade setuptools
-    pip install --upgrade virtualenv
-    virtualenv beam_env
+    python -m venv beam_env
      . beam_env/bin/activate
     ```
   * **Install SDK**

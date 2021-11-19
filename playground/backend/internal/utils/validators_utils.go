@@ -27,6 +27,8 @@ func GetValidators(sdk pb.Sdk, filepath string) (*[]validators.Validator, error)
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
 		val = validators.GetJavaValidators(filepath)
+	case pb.Sdk_SDK_GO:
+		val = validators.GetGoValidators()
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}

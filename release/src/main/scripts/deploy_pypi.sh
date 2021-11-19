@@ -41,7 +41,7 @@ fi
 mkdir ${LOCAL_CLONE_DIR}
 cd ${LOCAL_CLONE_DIR}
 
-virtualenv deploy_pypi_env
+python3 -m venv deploy_pypi_env
 source ./deploy_pypi_env/bin/activate
 pip install twine
 

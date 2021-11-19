@@ -378,7 +378,6 @@ if [[ ("$python_leaderboard_direct" = true \
 
   `which pip` install --upgrade pip
   `which pip` install --upgrade setuptools
-  `which pip` install --upgrade virtualenv
 
   echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
     cd ~
@@ -444,7 +443,7 @@ if [[ ("$python_leaderboard_direct" = true \
   do
     rm -rf ./beam_env_${py_version}
     echo "--------------Setting up virtualenv with $py_version interpreter----------------"
-    virtualenv beam_env_${py_version} -p $py_version
+    $py_version -m venv beam_env_${py_version} 
     . beam_env_${py_version}/bin/activate
 
     echo "--------------------------Installing Python SDK-------------------------------"
@@ -621,7 +620,6 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
 
   `which pip` install --upgrade pip
   `which pip` install --upgrade setuptools
-  `which pip` install --upgrade virtualenv
 
   echo "-----------------------Setting up Shell Env Vars------------------------------"
   set_bashrc
@@ -648,7 +646,7 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
   do
     rm -rf ./beam_env_${py_version}
     echo "--------------Setting up virtualenv with $py_version interpreter----------------"
-    virtualenv beam_env_${py_version} -p $py_version
+    $py_version -m venv beam_env_${py_version}
     . beam_env_${py_version}/bin/activate
     ln -s ${LOCAL_BEAM_DIR}/sdks beam_env_${py_version}/lib/sdks
 
