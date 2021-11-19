@@ -18,19 +18,38 @@
 
 enum RunCodeStatus {
   unspecified,
+  preparation,
+  compiling,
   executing,
   compileError,
   timeout,
-  error,
+  runError,
+  unknownError,
   finished
 }
+
+const kFinishedStatuses = [
+  RunCodeStatus.unknownError,
+  RunCodeStatus.timeout,
+  RunCodeStatus.compileError,
+  RunCodeStatus.runError,
+  RunCodeStatus.finished,
+];
 
 class RunCodeResult {
   final RunCodeStatus status;
   final String? output;
   final String? errorMessage;
 
-  RunCodeResult({required this.status, this.output, this.errorMessage});
+  RunCodeResult({
+    required this.status,
+    this.output,
+    this.errorMessage,
+  });
+
+  bool get isFinished {
+    return kFinishedStatuses.contains(status);
+  }
 
   @override
   bool operator ==(Object other) =>

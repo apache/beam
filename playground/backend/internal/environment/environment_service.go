@@ -180,7 +180,7 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 		}, ":")
 		executorConfig.RunArgs[1] += jars
 	case pb.Sdk_SDK_GO:
-		return nil, errors.New("not yet supported")
+		// Go sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_PYTHON:
 		return nil, errors.New("not yet supported")
 	case pb.Sdk_SDK_SCIO:
