@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.Value;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
@@ -48,9 +47,7 @@ public class ZetaSqlNumberTypesTest extends ZetaSqlTestBase {
     thrown.expectMessage("Casting TYPE_DOUBLE as TYPE_NUMERIC would cause overflow of literal");
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(
-            sql, ImmutableMap.of("p0", Value.createDoubleValue(val)));
+    zetaSQLQueryPlanner.convertToBeamRel(sql, ImmutableMap.of("p0", Value.createDoubleValue(val)));
   }
 
   @Test
@@ -62,9 +59,7 @@ public class ZetaSqlNumberTypesTest extends ZetaSqlTestBase {
     thrown.expectMessage("Casting TYPE_DOUBLE as TYPE_NUMERIC would cause underflow of literal");
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(
-            sql, ImmutableMap.of("p0", Value.createDoubleValue(val)));
+    zetaSQLQueryPlanner.convertToBeamRel(sql, ImmutableMap.of("p0", Value.createDoubleValue(val)));
   }
 
   @Test
@@ -76,8 +71,6 @@ public class ZetaSqlNumberTypesTest extends ZetaSqlTestBase {
     thrown.expectMessage("Cannot cast TYPE_DOUBLE as TYPE_NUMERIC: scale 1022 exceeds 9");
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(
-            sql, ImmutableMap.of("p0", Value.createDoubleValue(val)));
+    zetaSQLQueryPlanner.convertToBeamRel(sql, ImmutableMap.of("p0", Value.createDoubleValue(val)));
   }
 }
