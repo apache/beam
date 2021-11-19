@@ -69,7 +69,6 @@ except ImportError:
   dataclasses = None  # type: ignore
 
 if TYPE_CHECKING:
-  import proto
   from apache_beam.transforms import userstate
   from apache_beam.transforms.window import IntervalWindow
 
@@ -309,19 +308,6 @@ class DeterministicProtoCoderImpl(ProtoCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def encode(self, value):
     return value.SerializePartialToString(deterministic=True)
-
-
-class ProtoPlusCoderImpl(SimpleCoderImpl):
-  """For internal use only; no backwards-compatibility guarantees."""
-  def __init__(self, proto_plus_type):
-    # type: (Type[proto.Message]) -> None
-    self.proto_plus_type = proto_plus_type
-
-  def encode(self, value):
-    return value._pb.SerializePartialToString(deterministic=True)
-
-  def decode(self, value):
-    return self.proto_plus_type.deserialize(value)
 
 
 UNKNOWN_TYPE = 0xFF

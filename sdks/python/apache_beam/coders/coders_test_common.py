@@ -157,11 +157,9 @@ class CodersTest(unittest.TestCase):
         coders.FastCoder,
         coders.ListLikeCoder,
         coders.ProtoCoder,
-        coders.ProtoPlusCoder,
         coders.ToBytesCoder
     ])
-    cls.seen_nested -= set(
-        [coders.ProtoCoder, coders.ProtoPlusCoder, CustomCoder])
+    cls.seen_nested -= set([coders.ProtoCoder, CustomCoder])
     assert not standard - cls.seen, str(standard - cls.seen)
     assert not cls.seen_nested - standard, str(cls.seen_nested - standard)
 
