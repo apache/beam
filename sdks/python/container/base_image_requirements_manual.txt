@@ -27,6 +27,10 @@ bs4  # Commonly used HTML processing tool.
 # Don't upgrade to Cython 3.x, until it's released, stable and we have consensus
 # to upgrade. Use 0.xx for now.
 cython<1
+# future is no longer a Beam dependency, but is an implicit dependency in
+# some versions of libraries that lauch Beam pipelines, like tensorflow-transform.
+# Leaving 'future' in our containers for now prevent breaking tft users.
+future
 google-cloud-profiler
 google-python-cloud-debugger
 guppy3  # Memory profiler
