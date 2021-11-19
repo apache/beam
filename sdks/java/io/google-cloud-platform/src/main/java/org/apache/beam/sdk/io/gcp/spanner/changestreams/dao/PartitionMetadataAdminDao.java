@@ -51,7 +51,7 @@ public class PartitionMetadataAdminDao {
   private final String databaseId;
   private final String tableName;
 
-  public PartitionMetadataAdminDao(
+  PartitionMetadataAdminDao(
       DatabaseAdminClient databaseAdminClient,
       String instanceId,
       String databaseId,

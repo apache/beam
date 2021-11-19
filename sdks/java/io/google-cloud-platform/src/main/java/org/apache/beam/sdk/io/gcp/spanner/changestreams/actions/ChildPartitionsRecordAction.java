@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,12 +49,13 @@ public class ChildPartitionsRecordAction {
   private final PartitionMetadataDao partitionMetadataDao;
   private final ChangeStreamMetrics metrics;
 
-  public ChildPartitionsRecordAction(
+  ChildPartitionsRecordAction(
       PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
     this.partitionMetadataDao = partitionMetadataDao;
     this.metrics = metrics;
   }
 
+  @VisibleForTesting
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       ChildPartitionsRecord record,

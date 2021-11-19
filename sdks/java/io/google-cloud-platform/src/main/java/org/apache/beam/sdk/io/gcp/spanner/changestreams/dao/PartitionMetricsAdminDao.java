@@ -49,7 +49,7 @@ public class PartitionMetricsAdminDao {
   private final String databaseId;
   private final String tableName;
 
-  public PartitionMetricsAdminDao(
+  PartitionMetricsAdminDao(
       DatabaseAdminClient databaseAdminClient,
       String instanceId,
       String databaseId,

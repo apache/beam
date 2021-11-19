@@ -42,6 +42,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 // TODO: Add java docs
 public class ChangeStreamRecordMapper {
 
+  ChangeStreamRecordMapper() {}
+
   public List<ChangeStreamRecord> toChangeStreamRecords(
       PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
     return row.getStructList(0).stream()

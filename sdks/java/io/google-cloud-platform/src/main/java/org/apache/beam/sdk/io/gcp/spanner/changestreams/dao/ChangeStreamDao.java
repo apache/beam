@@ -35,7 +35,7 @@ public class ChangeStreamDao {
   private final RpcPriority rpcPriority;
   private final String jobName;
 
-  public ChangeStreamDao(
+  ChangeStreamDao(
       String changeStreamName,
       DatabaseClient databaseClient,
       RpcPriority rpcPriority,

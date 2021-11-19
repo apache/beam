@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -65,7 +66,7 @@ public class QueryChangeStreamAction {
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
 
-  public QueryChangeStreamAction(
+  QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
       PartitionMetadataDao partitionMetadataDao,
       ChangeStreamRecordMapper changeStreamRecordMapper,
@@ -80,6 +81,7 @@ public class QueryChangeStreamAction {
     this.childPartitionsRecordAction = childPartitionsRecordAction;
   }
 
+  @VisibleForTesting
   public ProcessContinuation run(
       PartitionMetadata partition,
       RestrictionTracker<OffsetRange, Long> tracker,

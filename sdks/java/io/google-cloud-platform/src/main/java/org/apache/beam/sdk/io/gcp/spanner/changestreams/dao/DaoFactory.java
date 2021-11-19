@@ -62,7 +62,6 @@ public class DaoFactory implements Serializable {
     this.jobName = jobName;
   }
 
-  // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized PartitionMetadataAdminDao getPartitionMetadataAdminDao() {
     if (partitionMetadataAdminDao == null) {
       DatabaseAdminClient databaseAdminClient =
@@ -77,7 +76,6 @@ public class DaoFactory implements Serializable {
     return partitionMetadataAdminDao;
   }
 
-  // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized PartitionMetricsAdminDao getPartitionMetricsAdminDao() {
     if (partitionMetricsAdminDao == null) {
       DatabaseAdminClient databaseAdminClient =
@@ -92,7 +90,6 @@ public class DaoFactory implements Serializable {
     return partitionMetricsAdminDao;
   }
 
-  // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized PartitionMetadataDao getPartitionMetadataDao() {
     final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(metadataSpannerConfig);
     if (partitionMetadataDaoInstance == null) {
@@ -106,7 +103,6 @@ public class DaoFactory implements Serializable {
     return partitionMetadataDaoInstance;
   }
 
-  // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized ChangeStreamDao getChangeStreamDao() {
     final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(changeStreamSpannerConfig);
     if (changeStreamDaoInstance == null) {

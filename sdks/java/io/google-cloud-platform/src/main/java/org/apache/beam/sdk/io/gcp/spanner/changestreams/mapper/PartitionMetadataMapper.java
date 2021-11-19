@@ -35,6 +35,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 public class PartitionMetadataMapper {
 
+  PartitionMetadataMapper() {}
+
   public PartitionMetadata from(ResultSet resultSet) {
     return PartitionMetadata.newBuilder()
         .setPartitionToken(resultSet.getString(COLUMN_PARTITION_TOKEN))

@@ -28,7 +28,7 @@ public class ChangeStreamResultSetMetadata {
   private final Duration totalStreamDuration;
   private final long numberOfRecordsRead;
 
-  public ChangeStreamResultSetMetadata(
+  ChangeStreamResultSetMetadata(
       Timestamp queryStartedAt,
       Timestamp recordStreamStartedAt,
       Timestamp recordStreamEndedAt,

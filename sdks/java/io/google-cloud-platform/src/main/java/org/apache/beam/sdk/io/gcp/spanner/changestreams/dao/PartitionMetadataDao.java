@@ -51,7 +51,7 @@ public class PartitionMetadataDao {
   private final DatabaseClient databaseClient;
   private final PartitionMetadataMapper mapper;
 
-  public PartitionMetadataDao(
+  PartitionMetadataDao(
       String metadataTableName,
       String metricsTableName,
       DatabaseClient databaseClient,

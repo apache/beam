@@ -32,7 +32,7 @@ public class ChangeStreamResultSet implements AutoCloseable {
   private Duration totalStreamDuration;
   private long numberOfRecordsRead;
 
-  public ChangeStreamResultSet(ResultSet resultSet) {
+  ChangeStreamResultSet(ResultSet resultSet) {
     this.resultSet = resultSet;
     this.totalStreamDuration = Duration.ZERO;
   }

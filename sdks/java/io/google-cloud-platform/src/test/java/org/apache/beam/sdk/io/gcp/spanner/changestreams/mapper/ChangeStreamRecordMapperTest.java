@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStruct;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
@@ -50,8 +52,8 @@ public class ChangeStreamRecordMapperTest {
 
   @Before
   public void setUp() {
-    this.mapper = new ChangeStreamRecordMapper();
-    this.partition =
+    mapper = new ChangeStreamRecordMapper();
+    partition =
         PartitionMetadata.newBuilder()
             .setPartitionToken("partitionToken")
             .setParentTokens(Sets.newHashSet("parentToken"))
@@ -63,14 +65,13 @@ public class ChangeStreamRecordMapperTest {
             .setScheduledAt(Timestamp.ofTimeMicroseconds(13L))
             .setRunningAt(Timestamp.ofTimeMicroseconds(14L))
             .build();
-    this.resultSetMetadata =
-        new ChangeStreamResultSetMetadata(
-            Timestamp.ofTimeMicroseconds(1L),
-            Timestamp.ofTimeMicroseconds(2L),
-            Timestamp.ofTimeMicroseconds(3L),
-            Timestamp.ofTimeMicroseconds(4L),
-            Duration.millis(100),
-            10_000L);
+    resultSetMetadata = mock(ChangeStreamResultSetMetadata.class);
+    when(resultSetMetadata.getQueryStartedAt()).thenReturn(Timestamp.ofTimeMicroseconds(1L));
+    when(resultSetMetadata.getRecordStreamStartedAt()).thenReturn(Timestamp.ofTimeMicroseconds(2L));
+    when(resultSetMetadata.getRecordStreamEndedAt()).thenReturn(Timestamp.ofTimeMicroseconds(3L));
+    when(resultSetMetadata.getRecordReadAt()).thenReturn(Timestamp.ofTimeMicroseconds(4L));
+    when(resultSetMetadata.getTotalStreamDuration()).thenReturn(Duration.millis(100));
+    when(resultSetMetadata.getNumberOfRecordsRead()).thenReturn(10_000L);
   }
 
   @Test
