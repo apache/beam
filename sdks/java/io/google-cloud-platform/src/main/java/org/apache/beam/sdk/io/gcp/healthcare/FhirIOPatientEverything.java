@@ -19,27 +19,23 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIO.BASE_METRIC_PREFIX;
 
+import com.google.auto.value.AutoValue;
 import com.google.gson.JsonArray;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.coders.MapCoder;
-import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIOPatientEverything.PatientEverythingParameter;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.FhirResourcePagesIterator;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -70,105 +66,29 @@ public class FhirIOPatientEverything
    * PatientEverythingParameter defines required attributes for a FHIR GetPatientEverything request
    * in {@link FhirIOPatientEverything}. *
    */
-  @DefaultCoder(PatientEverythingParameterCoder.class)
-  public static class PatientEverythingParameter implements Serializable {
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class PatientEverythingParameter implements Serializable {
 
     /**
      * FHIR Patient resource name in the format of
      * projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}.
      */
-    private final String resourceName;
+    abstract String getResourceName();
     /** Optional filters for the request, eg. start, end, _type, _since, _count */
-    private final @Nullable Map<String, String> filters;
+    abstract @Nullable Map<String, String> getFilters();
 
-    PatientEverythingParameter(String resourceName, @Nullable Map<String, String> filters) {
-      this.resourceName = resourceName;
-      this.filters = filters;
+    static Builder builder() {
+      return new AutoValue_FhirIOPatientEverything_PatientEverythingParameter.Builder();
     }
 
-    /**
-     * Creates a PatientEverythingParameter.
-     *
-     * @param resourceName The FHIR Patient resource name in the format of
-     *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}.
-     * @return the PatientEverythingParameter
-     */
-    public static PatientEverythingParameter of(String resourceName) {
-      return new PatientEverythingParameter(resourceName, null);
-    }
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setResourceName(String resourceName);
 
-    /**
-     * Creates a PatientEverythingParameter.
-     *
-     * @param resourceName The FHIR Patient resource name in the format of
-     *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}.
-     * @param filters Optional filters for the request.
-     * @return the PatientEverythingParameter
-     */
-    public static PatientEverythingParameter of(
-        String resourceName, @Nullable Map<String, String> filters) {
-      return new PatientEverythingParameter(resourceName, filters);
-    }
+      abstract Builder setFilters(Map<String, String> query);
 
-    public String getResourceName() {
-      return resourceName;
-    }
-
-    public @Nullable Map<String, String> getFilters() {
-      return filters;
-    }
-
-    @Override
-    public boolean equals(@Nullable Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      PatientEverythingParameter that = (PatientEverythingParameter) o;
-      return Objects.equals(resourceName, that.getResourceName())
-          && Objects.equals(filters, that.getFilters());
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(resourceName, filters);
-    }
-
-    @Override
-    public String toString() {
-      return String.format(
-          "FhirIOPatientEverything.Parameter{resourcePath='%s', filters='%s'}'",
-          resourceName, filters);
-    }
-  }
-
-  /** PatientEverythingParameterCoder is a coder for {@link PatientEverythingParameter}. */
-  public static class PatientEverythingParameterCoder
-      extends CustomCoder<PatientEverythingParameter> {
-
-    private static final NullableCoder<String> STRING_CODER =
-        NullableCoder.of(StringUtf8Coder.of());
-    private static final NullableCoder<Map<String, String>> MAP_CODER =
-        NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
-
-    public static PatientEverythingParameterCoder of() {
-      return new PatientEverythingParameterCoder();
-    }
-
-    @Override
-    public void encode(PatientEverythingParameter value, OutputStream outStream)
-        throws IOException {
-      STRING_CODER.encode(value.getResourceName(), outStream);
-      MAP_CODER.encode(value.getFilters(), outStream);
-    }
-
-    @Override
-    public PatientEverythingParameter decode(InputStream inStream) throws IOException {
-      String resourceName = STRING_CODER.decode(inStream);
-      Map<String, String> queries = MAP_CODER.decode(inStream);
-      return PatientEverythingParameter.of(resourceName, queries);
+      abstract PatientEverythingParameter build();
     }
   }
 
@@ -301,7 +221,7 @@ public class FhirIOPatientEverything
 
       HashMap<String, Object> filterObjects = new HashMap<>();
       if (filters != null) {
-        filters.forEach(filterObjects::put);
+        filterObjects.putAll(filters);
       }
       FhirResourcePagesIterator iter =
           FhirResourcePagesIterator.ofPatientEverything(client, resourceName, filterObjects);

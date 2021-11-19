@@ -30,7 +30,6 @@ import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIOPatientEverything.PatientEverythingParameter;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIOPatientEverything.PatientEverythingParameterCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -97,7 +96,11 @@ public class FhirIOPatientEverythingIT {
       if (!resourceName.contains("/fhir/Patient/")) {
         continue;
       }
-      input.add(new PatientEverythingParameter(resourceName, filters));
+      input.add(
+          PatientEverythingParameter.builder()
+              .setResourceName(resourceName)
+              .setFilters(filters)
+              .build());
 
       requests++;
       if (requests > 50) {
@@ -118,8 +121,7 @@ public class FhirIOPatientEverythingIT {
   public void testFhirIOSearch() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
-    PCollection<PatientEverythingParameter> everythingConfigs =
-        pipeline.apply(Create.of(input).withCoder(PatientEverythingParameterCoder.of()));
+    PCollection<PatientEverythingParameter> everythingConfigs = pipeline.apply(Create.of(input));
     FhirIOPatientEverything.Result result = everythingConfigs.apply(FhirIO.getPatientEverything());
 
     // Verify that there are no failures.

@@ -103,29 +103,18 @@ import org.slf4j.LoggerFactory;
  * prepared list of resources that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}*) .
  *
- * <<<<<<< HEAD
  * <p>Get Resource contents from the FHIR Store based on the {@link PCollection} of FHIR resource name strings
  * {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to retrieve a
  * {@link PCollection} containing the successfully fetched json resources as {@link String}s and/or {@link
  * FhirIO.Read.Result#getFailedReads()} to retrieve a {@link PCollection} of {@link HealthcareIOError}
- * =======
- * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of FHIR resource name strings
- * {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to retrieve a
- * {@link PCollection} containing the successfully fetched json resources as {@link String}s and/or {@link
- * FhirIO.Read.Result#getFailedReads()}
- * to retrieve a {@link PCollection} of {@link HealthcareIOError}
- * >>>>>>> 58348a0e4a57655eb6509ab709d861ca61af5597
  * containing the resources that could not be fetched and the exception as a
  * {@link HealthcareIOError}, this can be used to write to the dead letter storage system of your
  * choosing. This error handling is mainly to transparently surface errors where the upstream {@link
  * PCollection} contains FHIR resources that are not valid or are not reachable due to permissions issues.
- * <<<<<<< HEAD
  *
  * Additionally, you can query an entire FHIR Patient resource's compartment (resources that
- * refer to the patient, and are referred to by the patient) using {@link FhirIOPatientEverything} to
+ * refer to the patient, and are referred to by the patient) by calling {@link FhirIO.getPatientEverything} to
  * execute a FHIR GetPatientEverythingRequest.
- * =======
- * >>>>>>> 58348a0e4a57655eb6509ab709d861ca61af5597
  *
  * <h3>Writing</h3>
  *
@@ -902,9 +891,8 @@ public class FhirIO {
     }
 
     /**
-     * <<<<<<< HEAD Execute Bundle Method executes a batch of requests in batch or as a single
-     * transaction @see <a ======= Execute Bundle Method executes a batch of requests in batch or as
-     * a single transaction @see <a >>>>>>> 58348a0e4a57655eb6509ab709d861ca61af5597
+     * Execute Bundle Method executes a batch of requests in batch or as a single transaction @see
+     * <a
      * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>.
      *
      * @param fhirStore the fhir store
@@ -918,9 +906,8 @@ public class FhirIO {
     }
 
     /**
-     * <<<<<<< HEAD Execute Bundle Method executes a batch of requests in batch or as a single
-     * transaction @see <a ======= Execute Bundle Method executes a batch of requests in batch or as
-     * a single transaction @see <a >>>>>>> 58348a0e4a57655eb6509ab709d861ca61af5597
+     * Execute Bundle Method executes a batch of requests in batch or as a single transaction @see
+     * <a
      * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>.
      *
      * @param fhirStore the fhir store

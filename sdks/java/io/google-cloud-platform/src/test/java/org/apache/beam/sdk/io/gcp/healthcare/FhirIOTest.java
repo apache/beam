@@ -23,7 +23,6 @@ import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIOPatientEverything.PatientEverythingParameter;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIOPatientEverything.PatientEverythingParameterCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -133,11 +132,10 @@ public class FhirIOTest {
 
   @Test
   public void test_FhirIO_failedPatientEverything() {
-    PatientEverythingParameter input = PatientEverythingParameter.of("bad-resource-name", null);
+    PatientEverythingParameter input =
+        PatientEverythingParameter.builder().setResourceName("bad-resource-name").build();
     FhirIOPatientEverything.Result everythingResult =
-        pipeline
-            .apply(Create.of(input).withCoder(PatientEverythingParameterCoder.of()))
-            .apply(FhirIO.getPatientEverything());
+        pipeline.apply(Create.of(input)).apply(FhirIO.getPatientEverything());
 
     PCollection<HealthcareIOError<String>> failed = everythingResult.getFailedReads();
     PCollection<String> failedEverything =
