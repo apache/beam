@@ -44,4 +44,3 @@ tensorflow==2.6.0 ; python_version=="3.6"
 tensorflow==2.7.0 ; python_version>="3.7"
 nltk  # Commonly used for natural language processing.
 nose==1.3.7  # For Dataflow internal testing. TODO: remove this.
-pillow>=7.1.1,<8  # For interactive Beam testing. Use the same version range as in setup.py. TODO: revise if this dep needed.
