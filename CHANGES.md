@@ -63,6 +63,7 @@
 * We changed the data type for ranges in `JdbcIO.readWithPartitions` from `int` to `long`. This is a relatively minor
     breaking change, which we're implementing to improve the usability of the transform without increasing cruft.
     This transform is relatively new, so we may implement other breaking changes in the future to improve its usability.
+* Side inputs are supported within Splittable DoFns for Dataflow Runner V1 and Dataflow Runner V2. ([BEAM-12522](https://issues.apache.org/jira/browse/BEAM-12522)).
 
 ## New Features / Improvements
 
