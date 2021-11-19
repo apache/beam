@@ -11370,6 +11370,10 @@ use case.&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;h2 id="multi-language-pipelines">13. Multi-language pipelines&lt;/h2>
+&lt;p>This section provides comprehensive documentation of multi-language pipelines. For a short overview of the topic, see:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/sdks/python-multi-language-pipelines">Python multi-language pipelines quickstart&lt;/a>&lt;/li>
+&lt;/ul>
 &lt;p>Beam allows you to combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline. This capability makes it easy to provide new functionality simultaneously in different Apache Beam SDKs through a single cross-language transform. For example, the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py">Apache Kafka connector&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sql.py">SQL transform&lt;/a> from the Java SDK can be used in Python streaming pipelines.&lt;/p>
 &lt;p>Pipelines that use transforms from more than one SDK-language are known as &lt;em>multi-language pipelines&lt;/em>.&lt;/p>
 &lt;h3 id="create-x-lang-transforms">13.1. Creating cross-language transforms&lt;/h3>
