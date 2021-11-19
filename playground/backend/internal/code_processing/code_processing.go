@@ -76,13 +76,17 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
-	// compile
-	logger.Infof("%s: Compile() ...\n", pipelineId)
-	compileCmd := exec.Compile(ctxWithTimeout)
-	go processCmd(compileCmd, successChannel, errorChannel, dataChannel)
+	switch sdkEnv.ApacheBeamSdk {
+	case pb.Sdk_SDK_JAVA:
+	case pb.Sdk_SDK_GO:
+		// compile
+		logger.Infof("%s: Compile() ...\n", pipelineId)
+		compileCmd := exec.Compile(ctxWithTimeout)
+		go processCmd(compileCmd, successChannel, errorChannel, dataChannel)
 
-	if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, dataChannel, errorChannel, pb.Status_STATUS_COMPILE_ERROR, pb.Status_STATUS_EXECUTING); err != nil {
-		return
+		if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, dataChannel, errorChannel, pb.Status_STATUS_COMPILE_ERROR, pb.Status_STATUS_EXECUTING); err != nil {
+			return
+		}
 	}
 
 	runBuilder, err := run_builder.Setup(pipelineId, lc, appEnv.WorkingDir(), sdkEnv, compileBuilder)
