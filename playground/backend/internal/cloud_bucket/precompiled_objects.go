@@ -60,20 +60,30 @@ type SdkToCategories map[string]CategoryToPrecompiledObjects
 // the bucket where examples are stored would be public,
 // and it has a specific structure of files, namely:
 // SDK_JAVA/
-// --------PrecompiledObject1/
-// ----------- PrecompiledObject1.java
-// ----------- PrecompiledObject1.output
+// --------MinimalWordCount/
+// ----------- MinimalWordCount.java
+// ----------- MinimalWordCount.output
 // ----------- meta.info
-// --------PrecompiledObject2/
+// --------JoinExamples/
+// ----------- JoinExamples.java
+// ----------- JoinExamples.output
+// ----------- meta.info
 // ----  ...
 // SDK_GO/
-// --------PrecompiledObject1/
-// ----------- PrecompiledObject1.go
-// ----------- PrecompiledObject1.output
+// --------MinimalWordCount/
+// ----------- MinimalWordCount.go
+// ----------- MinimalWordCount.output
 // ----------- meta.info
-// --------PrecompiledObject2/
+// --------PingPong/
 // ----  ...
 // ...
+// meta.info is a json file that has the following fields:
+// {
+//	"description": "Description of an example",
+//	"type": 1, ## 1 - Example, 2 - Kata, 3 - Unit-test
+//	"categories": ["Common", "IO"]
+// }
+//
 type CloudStorage struct {
 }
 
