@@ -34,11 +34,13 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSetMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao.InTransactionContext;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestTransactionAnswer;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -62,6 +64,7 @@ public class QueryChangeStreamActionTest {
 
   private ChangeStreamDao changeStreamDao;
   private PartitionMetadataDao partitionMetadataDao;
+  private InTransactionContext transaction;
   private PartitionMetadata partition;
   private OffsetRange restriction;
   private RestrictionTracker<OffsetRange, Long> restrictionTracker;
@@ -78,6 +81,7 @@ public class QueryChangeStreamActionTest {
   public void setUp() throws Exception {
     changeStreamDao = mock(ChangeStreamDao.class);
     partitionMetadataDao = mock(PartitionMetadataDao.class);
+    transaction = mock(InTransactionContext.class);
     changeStreamRecordMapper = mock(ChangeStreamRecordMapper.class);
     dataChangeRecordAction = mock(DataChangeRecordAction.class);
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
@@ -110,6 +114,9 @@ public class QueryChangeStreamActionTest {
 
     when(restrictionTracker.currentRestriction()).thenReturn(restriction);
     when(restriction.getFrom()).thenReturn(10L);
+    when(partitionMetadataDao.runInTransaction(any()))
+        .thenAnswer(new TestTransactionAnswer(transaction));
+    when(transaction.getPartition(PARTITION_TOKEN)).thenReturn(partition);
   }
 
   @Test
