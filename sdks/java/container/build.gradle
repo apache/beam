@@ -22,6 +22,7 @@ plugins {
 }
 
 applyGoNature()
+applyPythonNature()
 
 evaluationDependsOn(":sdks:java:harness")
 evaluationDependsOn(":sdks:java:io:kafka")
@@ -92,7 +93,7 @@ task pullLicenses(type: Exec) {
   dependsOn generateLicenseReport
   generateLicenseReport.outputs.cacheIf { false }
 
-  commandLine './license_scripts/license_script.sh'
+  commandLine './license_scripts/license_script.sh', "python${project.ext.pythonVersion}"
   outputs.dir('build/target/third_party_licenses')
   outputs.dir('build/target/java_third_party_licenses')
 }

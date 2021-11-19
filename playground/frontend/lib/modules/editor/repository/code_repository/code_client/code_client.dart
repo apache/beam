@@ -29,4 +29,6 @@ abstract class CodeClient {
   Future<OutputResponse> getCompileOutput(String pipelineUuid);
 
   Future<OutputResponse> getRunOutput(String pipelineUuid);
+
+  Future<OutputResponse> getRunErrorOutput(String pipelineUuid);
 }
