@@ -23,13 +23,19 @@ import 'package:playground/modules/examples/repositories/example_repository.dart
 class ExampleState with ChangeNotifier {
   final ExampleRepository _exampleRepository;
   List<CategoryModel>? categories;
+  bool isSelectorOpened = false;
 
   ExampleState(this._exampleRepository) {
     _loadCategories();
   }
 
   _loadCategories() {
-    categories = _exampleRepository.getCategories();
+    categories = _exampleRepository.getCategories() ?? [];
+    notifyListeners();
+  }
+
+  changeSelectorVisibility() {
+    isSelectorOpened = !isSelectorOpened;
     notifyListeners();
   }
 }
