@@ -21,7 +21,7 @@ plugins {
 }
 
 applyJavaNature(
-  suppressUnusedVariable: true,
+  suppressUnusedVariable: false,
   automaticModuleName: 'org.apache.beam.sdk.io.azure')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Azure"

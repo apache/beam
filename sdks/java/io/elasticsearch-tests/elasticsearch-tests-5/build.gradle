@@ -18,7 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  suppressUnusedVariable: true,
+  suppressUnusedVariable: false,
     publish: false,
     archivesBaseName: 'beam-sdks-java-io-elasticsearch-tests-5'
 )

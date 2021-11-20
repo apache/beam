@@ -23,7 +23,7 @@ plugins {
 }
 
 applyJavaNature(
-  suppressUnusedVariable: true,
+  suppressUnusedVariable: false,
   automaticModuleName: 'org.apache.beam.sdk.io.aws',
 )
 

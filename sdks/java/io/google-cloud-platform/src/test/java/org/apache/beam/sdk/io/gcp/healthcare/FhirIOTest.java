@@ -130,6 +130,4 @@ public class FhirIOTest {
 
     pipeline.run();
   }
-
-  private static final long NUM_ELEMENTS = 11;
 }

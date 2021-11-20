@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(suppressUnusedVariable: true, exportJavadoc: false, publish: false)
+applyJavaNature(suppressUnusedVariable: false, exportJavadoc: false, publish: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

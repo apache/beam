@@ -249,7 +249,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             .setEntity(requestEntity)
             .addHeader("Content-Type", "application/dicom")
             .build();
-    HttpResponse response = httpClient.execute(request);
+    httpClient.execute(request);
     return new Empty();
   }
 

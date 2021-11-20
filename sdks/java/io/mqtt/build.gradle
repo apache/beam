@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(suppressUnusedVariable: true, automaticModuleName: 'org.apache.beam.sdk.io.mqtt')
+applyJavaNature(suppressUnusedVariable: false, automaticModuleName: 'org.apache.beam.sdk.io.mqtt')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: MQTT"
 ext.summary = "IO to read and write to a MQTT broker."

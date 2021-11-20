@@ -145,9 +145,6 @@ import org.slf4j.LoggerFactory;
 class BigQueryServicesImpl implements BigQueryServices {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 
-  // How frequently to log while polling.
-  private static final Duration POLLING_LOG_GAP = Duration.standardMinutes(10);
-
   // The maximum number of retries to execute a BigQuery RPC.
   private static final int MAX_RPC_RETRIES = 9;
 
