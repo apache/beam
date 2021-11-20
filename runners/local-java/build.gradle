@@ -19,7 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-  suppressUnusedVariable: true,
+  suppressUnusedVariable: false,
     automaticModuleName: 'org.apache.beam.runners.local',
     archivesBaseName: 'beam-runners-local-java-core',
 

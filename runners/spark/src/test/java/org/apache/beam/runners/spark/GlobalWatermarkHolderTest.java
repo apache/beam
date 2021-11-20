@@ -25,7 +25,6 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RegexMatcher;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -40,20 +39,21 @@ public class GlobalWatermarkHolderTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Rule public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
-
-  // only needed in-order to get context from the SparkContextFactory.
-  private static final SparkPipelineOptions options =
-      PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
-
   private static final String INSTANT_PATTERN =
       "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}Z";
 
+  // only needed in-order to get context from the SparkContextFactory.
+  private static final SparkPipelineOptions options =
+    PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
+
   @Test
   public void testLowHighWatermarksAdvance() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
 
     Instant instant = new Instant(0);
     // low == high.
+
+    SparkContextFactory.getSparkContext(options);
+
     GlobalWatermarkHolder.add(
         1,
         new SparkWatermarks(
@@ -96,9 +96,8 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testSynchronizedTimeMonotonic() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-
     Instant instant = new Instant(0);
+    SparkContextFactory.getSparkContext(options);
     GlobalWatermarkHolder.add(
         1,
         new SparkWatermarks(
@@ -118,9 +117,8 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testMultiSource() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-
     Instant instant = new Instant(0);
+    SparkContextFactory.getSparkContext(options);
     GlobalWatermarkHolder.add(
         1,
         new SparkWatermarks(

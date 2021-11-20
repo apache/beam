@@ -156,10 +156,10 @@ public class DeduceFlattenLocationsFunction
 
     // Find all predecessor and successor locations for every flatten.
     for (Node flatten : flattens) {
-      AggregatedLocation predecessorLocations = AggregatedLocation.NEITHER;
-      AggregatedLocation successorLocations = AggregatedLocation.NEITHER;
-      predecessorLocations = getPredecessorLocations(flatten, network, predecessorLocationsMap);
-      successorLocations = getSuccessorLocations(flatten, network, successorLocationsMap);
+      AggregatedLocation predecessorLocations =
+          getPredecessorLocations(flatten, network, predecessorLocationsMap);
+      AggregatedLocation successorLocations =
+          getSuccessorLocations(flatten, network, successorLocationsMap);
 
       deducedLocationsMap.put(
           flatten, DEDUCTION_TABLE.get(predecessorLocations, successorLocations));

@@ -428,18 +428,5 @@ public class QueryablePipelineTest {
                 .apply(MapElements.into(TypeDescriptors.longs()).via(l -> l + 1));
           }
         });
-
-    Components augmentedComponents =
-        PipelineTranslation.toProto(p)
-            .getComponents()
-            .toBuilder()
-            .putCoders("extra-coder", RunnerApi.Coder.getDefaultInstance())
-            .putWindowingStrategies(
-                "extra-windowing-strategy", RunnerApi.WindowingStrategy.getDefaultInstance())
-            .putEnvironments("extra-env", RunnerApi.Environment.getDefaultInstance())
-            .putPcollections("extra-pc", RunnerApi.PCollection.getDefaultInstance())
-            .build();
-    Collection<String> primitiveComponents =
-        QueryablePipeline.getPrimitiveTransformIds(augmentedComponents);
   }
 }

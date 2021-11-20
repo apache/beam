@@ -68,14 +68,12 @@ class AssignWindowsParDoFnFactory implements ParDoFnFactory {
   }
 
   private static class AssignWindowsParDoFn<T, W extends BoundedWindow> implements ParDoFn {
-    private final DataflowExecutionContext.DataflowStepContext stepContext;
     private final WindowFn<T, W> windowFn;
 
     private @Nullable Receiver receiver;
 
     AssignWindowsParDoFn(
         WindowFn<T, W> windowFn, DataflowExecutionContext.DataflowStepContext stepContext) {
-      this.stepContext = stepContext;
       this.windowFn = windowFn;
     }
 
