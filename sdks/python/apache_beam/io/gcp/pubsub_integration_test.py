@@ -139,17 +139,19 @@ class PubSubIntegrationTest(unittest.TestCase):
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
+        name=self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
     self.output_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, OUTPUT_TOPIC + self.uuid))
+        name=self.pub_client.topic_path(self.project, OUTPUT_TOPIC + self.uuid))
 
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, INPUT_SUB + self.uuid),
-        self.input_topic.name)
+        name=self.sub_client.subscription_path(
+            self.project, INPUT_SUB + self.uuid),
+        topic=self.input_topic.name)
     self.output_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, OUTPUT_SUB + self.uuid),
-        self.output_topic.name)
+        name=self.sub_client.subscription_path(
+            self.project, OUTPUT_SUB + self.uuid),
+        topic=self.output_topic.name)
 
   def tearDown(self):
     test_utils.cleanup_subscriptions(

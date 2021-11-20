@@ -186,7 +186,7 @@ GCP_REQUIREMENTS = [
     # https://github.com/googleapis/google-cloud-python/issues/10566
     'google-auth>=1.18.0,<3',
     'google-cloud-datastore>=1.8.0,<2',
-    'google-cloud-pubsub>=0.39.0,<2',
+    'google-cloud-pubsub>=2.1.0,<3',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<3',
     'google-cloud-bigquery-storage>=2.6.3',
