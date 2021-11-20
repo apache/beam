@@ -70,6 +70,8 @@ import org.junit.runners.JUnit4;
 /** Test {@link Schema} support. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
+// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class ParDoSchemaTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -727,6 +729,7 @@ public class ParDoSchemaTest implements Serializable {
         new DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues>() {
 
           // This should infer the schema.
+
           @StateId(stateId)
           private final StateSpec<BagState<TestStateSchemaValue>> bufferState = StateSpecs.bag();
 
@@ -777,6 +780,7 @@ public class ParDoSchemaTest implements Serializable {
         new DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues>() {
 
           // This should infer the schema.
+
           @StateId(stateId)
           private final StateSpec<SetState<TestStateSchemaValue>> bufferState = StateSpecs.set();
 

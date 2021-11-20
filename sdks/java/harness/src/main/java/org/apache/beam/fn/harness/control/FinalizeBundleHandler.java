@@ -24,19 +24,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.PriorityQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.FinalizeBundleResponse;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A bundle finalization handler that expires entries after a specified amount of time.
@@ -65,45 +59,13 @@ public class FinalizeBundleHandler {
     public abstract BundleFinalizer.Callback getCallback();
   }
 
-  private static final Logger LOG = LoggerFactory.getLogger(FinalizeBundleHandler.class);
   private final ConcurrentMap<String, Collection<CallbackRegistration>> bundleFinalizationCallbacks;
   private final PriorityQueue<TimestampedValue<String>> cleanUpQueue;
-  private final Future<Void> cleanUpResult;
 
-  public FinalizeBundleHandler(ExecutorService executorService) {
+  public FinalizeBundleHandler() {
     this.bundleFinalizationCallbacks = new ConcurrentHashMap<>();
     this.cleanUpQueue =
         new PriorityQueue<>(11, Comparator.comparing(TimestampedValue::getTimestamp));
-    this.cleanUpResult =
-        executorService.submit(
-            (Callable<Void>)
-                () -> {
-                  while (true) {
-                    synchronized (cleanUpQueue) {
-                      TimestampedValue<String> expiryTime = cleanUpQueue.peek();
-
-                      // Wait until we have at least one element. We are notified on each element
-                      // being added.
-                      while (expiryTime == null) {
-                        cleanUpQueue.wait();
-                        expiryTime = cleanUpQueue.peek();
-                      }
-
-                      // Wait until the current time has past the expiry time for the head of the
-                      // queue.
-                      // We are notified on each element being added.
-                      Instant now = Instant.now();
-                      while (expiryTime.getTimestamp().isAfter(now)) {
-                        Duration timeDifference = new Duration(now, expiryTime.getTimestamp());
-                        cleanUpQueue.wait(timeDifference.getMillis());
-                        expiryTime = cleanUpQueue.peek();
-                        now = Instant.now();
-                      }
-
-                      bundleFinalizationCallbacks.remove(cleanUpQueue.poll().getValue());
-                    }
-                  }
-                });
   }
 
   public void registerCallbacks(String bundleId, Collection<CallbackRegistration> callbacks) {

@@ -18,7 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  suppressUnusedVariable: true,
+  suppressUnusedVariable: false,
   automaticModuleName: 'org.apache.beam.sdk',
   classesTriggerCheckerBugs: [
     'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',

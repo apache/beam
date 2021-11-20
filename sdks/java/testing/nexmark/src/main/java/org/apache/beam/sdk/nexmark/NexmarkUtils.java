@@ -602,6 +602,7 @@ public class NexmarkUtils {
 
                 private static final String DISK_BUSY = "diskBusy";
 
+                @SuppressWarnings("unused")
                 @StateId(DISK_BUSY)
                 private final StateSpec<ValueState<byte[]>> spec =
                     StateSpecs.value(ByteArrayCoder.of());

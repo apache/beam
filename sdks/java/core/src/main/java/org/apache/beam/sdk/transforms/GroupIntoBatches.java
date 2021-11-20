@@ -103,7 +103,8 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-  "rawtypes"
+  "rawtypes",
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
@@ -285,7 +286,6 @@ public class GroupIntoBatches<K, InputT>
 
   @Override
   public PCollection<KV<K, Iterable<InputT>>> expand(PCollection<KV<K, InputT>> input) {
-    Duration allowedLateness = input.getWindowingStrategy().getAllowedLateness();
 
     checkArgument(
         input.getCoder() instanceof KvCoder,
@@ -300,7 +300,6 @@ public class GroupIntoBatches<K, InputT>
                 params.getBatchSize(),
                 params.getBatchSizeBytes(),
                 weigher,
-                allowedLateness,
                 params.getMaxBufferingDuration(),
                 valueCoder)));
   }
@@ -313,7 +312,6 @@ public class GroupIntoBatches<K, InputT>
     private final long batchSize;
     private final long batchSizeBytes;
     @Nullable private final SerializableFunction<InputT, Long> weigher;
-    private final Duration allowedLateness;
     private final Duration maxBufferingDuration;
 
     // The following timer is no longer set. We maintain the spec for update compatibility.
@@ -343,12 +341,14 @@ public class GroupIntoBatches<K, InputT>
     private static final String NUM_BYTES_IN_BATCH_ID = "numBytesInBatch";
 
     // The byte size of the current batch.
+
     @StateId(NUM_BYTES_IN_BATCH_ID)
     private final StateSpec<CombiningState<Long, long[], Long>> batchSizeBytesSpec;
 
     private static final String TIMER_TIMESTAMP = "timerTs";
 
     // The timestamp of the current active timer.
+
     @StateId(TIMER_TIMESTAMP)
     private final StateSpec<ValueState<Long>> timerTsSpec;
 
@@ -366,13 +366,11 @@ public class GroupIntoBatches<K, InputT>
         long batchSize,
         long batchSizeBytes,
         @Nullable SerializableFunction<InputT, Long> weigher,
-        Duration allowedLateness,
         Duration maxBufferingDuration,
         Coder<InputT> inputValueCoder) {
       this.batchSize = batchSize;
       this.batchSizeBytes = batchSizeBytes;
       this.weigher = weigher;
-      this.allowedLateness = allowedLateness;
       this.maxBufferingDuration = maxBufferingDuration;
       this.batchSpec = StateSpecs.bag(inputValueCoder);
 

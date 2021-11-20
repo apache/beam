@@ -60,8 +60,7 @@ public class CachingBeamFnStateClientTest {
           .setUserState(CacheToken.UserState.getDefaultInstance())
           .setToken(ByteString.copyFromUtf8("1"))
           .build();
-  private StateCacheKey defaultCacheKey =
-      StateCacheKey.create(ByteString.copyFromUtf8("1"), ByteString.EMPTY);
+
   private CacheLoader<StateKey, Map<StateCacheKey, StateGetResponse>> loader =
       new CacheLoader<StateKey, Map<StateCacheKey, StateGetResponse>>() {
         @Override
@@ -77,6 +76,7 @@ public class CachingBeamFnStateClientTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void testNoCacheWithoutToken() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1", "A2", "A3")));
@@ -89,11 +89,11 @@ public class CachingBeamFnStateClientTest {
             .setStateKey(key("A"))
             .setGet(BeamFnApi.StateGetRequest.newBuilder().build());
 
-    CompletableFuture<BeamFnApi.StateResponse> response1 = cachingClient.handle(request);
+    cachingClient.handle(request);
     assertEquals(1, fakeClient.getCallCount());
     request.clearId();
 
-    CompletableFuture<BeamFnApi.StateResponse> response2 = cachingClient.handle(request);
+    cachingClient.handle(request);
     assertEquals(2, fakeClient.getCallCount());
   }
 

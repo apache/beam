@@ -137,8 +137,6 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
         throw new IllegalStateException(
             String.format("Unknown request type %s", request.getRequestCase()));
     }
-
-    CompletableFuture<StateResponse> responseFuture = new CompletableFuture<>();
     return CompletableFuture.completedFuture(response.setId(requestBuilder.getId()).build());
   }
 

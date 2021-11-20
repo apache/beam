@@ -167,6 +167,7 @@ import org.junit.runners.JUnit4;
 /** Tests for ParDo. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
 })
 public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
@@ -592,6 +593,7 @@ public class ParDoTest implements Serializable {
           .apply(
               ParDo.of(
                   new DoFn<Integer, Integer>() {
+
                     @TimerId(timerId)
                     private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -895,8 +897,7 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline.apply("Create main input", Create.of(2)).apply(ParDo.of(fn));
+      pipeline.apply("Create main input", Create.of(2)).apply(ParDo.of(fn));
       pipeline.run();
     }
 
@@ -919,10 +920,9 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline
+          .apply("Create main input", Create.of(2))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
       pipeline.run();
     }
 
@@ -945,10 +945,9 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline
+          .apply("Create main input", Create.of(2))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
       pipeline.run();
     }
 
@@ -971,10 +970,9 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline
+          .apply("Create main input", Create.of(2))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
       pipeline.run();
     }
 
@@ -997,10 +995,9 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline
+          .apply("Create main input", Create.of(2))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
       pipeline.run();
     }
 
@@ -1023,10 +1020,9 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline
+          .apply("Create main input", Create.of(2))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
       pipeline.run();
     }
 
@@ -2895,7 +2891,6 @@ public class ParDoTest implements Serializable {
 
       // SideInput tag id
       final String sideInputTag1 = "tag1";
-      private final PCollectionView<Integer> view;
 
       final String stateId = "foo";
       Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
@@ -2903,9 +2898,7 @@ public class ParDoTest implements Serializable {
       @StateId(stateId)
       private final StateSpec<BagState<MyInteger>> bufferState = StateSpecs.bag();
 
-      private TestSimpleStatefulDoFn(PCollectionView<Integer> view) {
-        this.view = view;
-      }
+      private TestSimpleStatefulDoFn(PCollectionView<Integer> view) {}
 
       @ProcessElement
       public void processElem(
@@ -4521,6 +4514,7 @@ public class ParDoTest implements Serializable {
               .apply(
                   ParDo.of(
                       new DoFn<KV<Long, Long>, String>() {
+
                         @TimerId(timerId)
                         private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -5675,6 +5669,7 @@ public class ParDoTest implements Serializable {
   }
 
   private static class TwoTimerDoFn extends DoFn<KV<String, String>, String> {
+
     @TimerId("timer")
     private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -5717,6 +5712,7 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, String> fn =
           new DoFn<KV<String, Integer>, String>() {
 
+            @SuppressWarnings("unused")
             @TimerFamily(timerFamilyId)
             private final TimerSpec spec = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
@@ -5773,9 +5769,11 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, String> fn =
           new DoFn<KV<String, Integer>, String>() {
 
+            @SuppressWarnings("unused")
             @TimerFamily(timerFamilyId1)
             private final TimerSpec spec1 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
+            @SuppressWarnings("unused")
             @TimerFamily(timerFamilyId2)
             private final TimerSpec spec2 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
@@ -5835,6 +5833,7 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, String> fn =
           new DoFn<KV<String, Integer>, String>() {
 
+            @SuppressWarnings("unused")
             @TimerFamily(timerFamilyId)
             private final TimerSpec spec1 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
@@ -5886,6 +5885,7 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
+            @SuppressWarnings("unused")
             @TimerFamily(timerId)
             private final TimerSpec spec = TimerSpecs.timerMap(TimeDomain.PROCESSING_TIME);
 
