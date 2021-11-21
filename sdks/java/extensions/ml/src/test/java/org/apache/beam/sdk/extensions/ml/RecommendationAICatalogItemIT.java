@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.json.GenericJson;
 import com.google.cloud.recommendationengine.v1beta1.CatalogItem;
+import com.google.cloud.recommendationengine.v1beta1.CatalogName;
 import com.google.cloud.recommendationengine.v1beta1.CatalogServiceClient;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -101,11 +102,17 @@ public class RecommendationAICatalogItemIT {
   @AfterClass
   public static void tearDownAfterClass() throws Exception {
     try (CatalogServiceClient catalogServiceClient = CatalogServiceClient.create()) {
-      catalogServiceClient.deleteCatalogItem(
-          "projects/"
-              + projectId
-              + "/locations/global/catalogs/default_catalog/catalogItems/"
-              + randomId);
+      String parent = CatalogName.of("apache-beam-testing", "global", "default_catalog").toString();
+      String filter = "";
+      for (CatalogItem item : catalogServiceClient.listCatalogItems(parent, filter).iterateAll()) {
+        StringBuilder toDelete = new StringBuilder();
+        toDelete.append("projects/");
+        toDelete.append(projectId);
+        toDelete.append("/locations/global/catalogs/default_catalog/catalogItems/");
+        toDelete.append(item.getId());
+
+        catalogServiceClient.deleteCatalogItem(toDelete.toString());
+      }
     }
   }
 
