@@ -108,11 +108,12 @@ class RecommendationAIIT(unittest.TestCase):
   @classmethod
   def tearDownClass(cls):
     client = recommendationengine.CatalogServiceClient()
-    parent=f"projects/{GCP_TEST_PROJECT}/locations/global/catalogs/default_catalog"
+    parent = f"""projects/{GCP_TEST_PROJECT}/locations/
+    global/catalogs/default_catalog"""
     for item in list(client.list_catalog_items(parent=parent)):
       client.delete_catalog_item(
-        name=f"projects/{GCP_TEST_PROJECT}/locations/global/catalogs/"
-        f"default_catalog/catalogItems/{item.id}")
+          name=f"projects/{GCP_TEST_PROJECT}/locations/global/catalogs/"
+          f"default_catalog/catalogItems/{item.id}")
 
 
 if __name__ == '__main__':
