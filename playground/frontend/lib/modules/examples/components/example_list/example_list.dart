@@ -18,34 +18,36 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
+import 'package:playground/pages/playground/states/example_selector_state.dart';
+import 'package:provider/provider.dart';
 
 class ExampleList extends StatelessWidget {
-  final List items;
   final ScrollController controller;
 
   const ExampleList({
     Key? key,
-    required this.items,
     required this.controller,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        color: Theme.of(context).backgroundColor,
-        child: Scrollbar(
-          isAlwaysShown: true,
-          showTrackOnHover: true,
-          controller: controller,
-          child: ListView.builder(
-            itemCount: items.length,
-            itemBuilder: (context, index) => CategoryExpansionPanel(
-              categoryName: items[index].name,
-              examples: items[index].examples,
-            ),
+    return Consumer<ExampleSelectorState>(
+      builder: (context, state, child) => Expanded(
+        child: Container(
+          color: Theme.of(context).backgroundColor,
+          child: Scrollbar(
+            isAlwaysShown: true,
+            showTrackOnHover: true,
             controller: controller,
-            shrinkWrap: true,
+            child: ListView.builder(
+              itemCount: state.categories.length,
+              itemBuilder: (context, index) => CategoryExpansionPanel(
+                categoryName: state.categories[index].name,
+                examples: state.categories[index].examples,
+              ),
+              controller: controller,
+              shrinkWrap: true,
+            ),
           ),
         ),
       ),
