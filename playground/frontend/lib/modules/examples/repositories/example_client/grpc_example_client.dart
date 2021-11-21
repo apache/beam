@@ -18,7 +18,7 @@
 
 import 'package:grpc/grpc_web.dart';
 import 'package:playground/api/v1/api.pbgrpc.dart' as grpc;
-import 'package:playground/constants/api.dart';
+import 'package:playground/config.g.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
