@@ -17,26 +17,30 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import PostcommitJobBuilder
 
 // This job runs the Python examples tests with FlinkRunner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Flink',
-    'Run Python Examples_Flink', 'Python Flink Runner Examples',this) {
-      description('Runs the Python Examples with Flink Runner.')
+job('beam_PostCommit_Python_Examples_Flink') {
+  description('Runs the Python Examples with Flink Runner.')
 
-      // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-      publishers {
-        archiveJunit('**/pytest*.xml')
-      }
+  // Allows triggering this build against pull requests.
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Python Flink Runner Examples',
+      'Run Python Examples_Flink')
 
-      // Execute shell command to run examples.
-      steps {
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(":sdks:python:test-suites:portable:flinkExamplesPostCommit")
-          commonJobProperties.setGradleSwitches(delegate)
-        }
-      }
+  publishers {
+    archiveJunit('**/pytest*.xml')
+  }
+
+  // Execute shell command to run examples.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(":sdks:python:test-suites:portable:flinkExamplesPostCommit")
+      commonJobProperties.setGradleSwitches(delegate)
     }
+  }
+}

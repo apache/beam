@@ -17,26 +17,30 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import PostcommitJobBuilder
 
 // This job runs the Python examples tests with DirectRunner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Direct',
-    'Run Python Examples_Direct', 'Python Direct Runner Examples',this) {
-      description('Runs the Python Examples with DirectRunner.')
+job('beam_PostCommit_Python_Examples_Direct') {
+  description('Runs the Python Examples with DirectRunner.')
 
-      // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-      publishers {
-        archiveJunit('**/pytest*.xml')
-      }
+  // Allows triggering this build against pull requests.
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Python Direct Runner Examples',
+      'Run Python Examples_Direct')
 
-      // Execute shell command to run examples.
-      steps {
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(":sdks:python:test-suites:direct:examplesPostCommit")
-          commonJobProperties.setGradleSwitches(delegate)
-        }
-      }
+  publishers {
+    archiveJunit('**/pytest*.xml')
+  }
+
+  // Execute shell command to run examples.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(":sdks:python:test-suites:direct:examplesPostCommit")
+      commonJobProperties.setGradleSwitches(delegate)
     }
+  }
+}

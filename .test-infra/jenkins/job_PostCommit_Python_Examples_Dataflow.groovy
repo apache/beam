@@ -17,26 +17,30 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import PostcommitJobBuilder
 
 // This job runs the Python examples tests with DataflowRunner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Dataflow',
-    'Run Python Examples_Dataflow', 'Python Dataflow Runner Examples',this) {
-      description('Runs the Python Examples with DataflowRunner.')
+job('beam_PostCommit_Python_Examples_Dataflow') {
+  description('Runs the Python Examples with DataflowRunner.')
 
-      // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-      publishers {
-        archiveJunit('**/pytest*.xml')
-      }
+  // Allows triggering this build against pull requests.
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Python Dataflow Runner Examples',
+      'Run Python Examples_Dataflow')
 
-      // Execute shell command to run examples.
-      steps {
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(":sdks:python:test-suites:dataflow:examplesPostCommit")
-          commonJobProperties.setGradleSwitches(delegate)
-        }
-      }
+  publishers {
+    archiveJunit('**/pytest*.xml')
+  }
+
+  // Execute shell command to run examples.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(":sdks:python:test-suites:dataflow:examplesPostCommit")
+      commonJobProperties.setGradleSwitches(delegate)
     }
+  }
+}
