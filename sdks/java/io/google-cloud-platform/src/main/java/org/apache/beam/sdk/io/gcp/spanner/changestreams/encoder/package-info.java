@@ -17,4 +17,9 @@
  */
 
 /** User model for the Spanner change stream API. */
+
+/** Avro encoders. */
+@Experimental
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder;
+
+import org.apache.beam.sdk.annotations.Experimental;

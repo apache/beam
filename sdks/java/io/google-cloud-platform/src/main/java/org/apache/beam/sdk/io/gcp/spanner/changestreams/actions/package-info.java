@@ -16,5 +16,8 @@
  * limitations under the License.
  */
 
-/** User model for the Spanner change stream API. */
+/** Action processors for each of the types of Change Stream records received. */
+@Experimental
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.actions;
+
+import org.apache.beam.sdk.annotations.Experimental;

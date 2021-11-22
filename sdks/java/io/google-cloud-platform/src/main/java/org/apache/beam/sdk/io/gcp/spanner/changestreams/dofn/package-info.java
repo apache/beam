@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-/**
- * Provides an API for reading change stream data from <a
- * href="https://developers.google.com/spanner/">Google Cloud Spanner</a>.
- */
+/** DoFn and SDF definitions to process Google Cloud Spanner Change Streams. */
+@Experimental
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
+
+import org.apache.beam.sdk.annotations.Experimental;

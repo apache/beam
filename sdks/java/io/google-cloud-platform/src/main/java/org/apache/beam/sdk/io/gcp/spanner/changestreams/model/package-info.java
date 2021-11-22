@@ -16,5 +16,8 @@
  * limitations under the License.
  */
 
-/** User model for the Spanner change stream API. */
+/** User models for the Google Cloud Spanner Change Stream API. */
+@Experimental
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
+
+import org.apache.beam.sdk.annotations.Experimental;
