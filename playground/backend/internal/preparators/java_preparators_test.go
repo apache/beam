@@ -36,7 +36,7 @@ func Test_replace(t *testing.T) {
 	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
-	_, _ = lc.CreateExecutableFile(codeWithPublicClass)
+	_, _ = lc.CreateSourceCodeFile(codeWithPublicClass)
 
 	type args struct {
 		args []interface{}
@@ -54,7 +54,7 @@ func Test_replace(t *testing.T) {
 		},
 		{
 			name:     "original file exists",
-			args:     args{[]interface{}{lc.GetAbsoluteExecutableFilePath(), classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
+			args:     args{[]interface{}{lc.GetAbsoluteSourceFilePath(), classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
 			wantCode: codeWithoutPublicClass,
 			wantErr:  false,
 		},

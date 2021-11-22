@@ -51,7 +51,11 @@ class PlaygroundPage extends StatelessWidget {
                   const Logo(),
                   Consumer<ExampleState>(
                     builder: (context, state, child) {
-                      return ExampleSelector(categories: state.categories!);
+                      return ExampleSelector(
+                        changeSelectorVisibility: state.changeSelectorVisibility,
+                        isSelectorOpened: state.isSelectorOpened,
+                        categories: state.categories!,
+                      );
                     },
                   ),
                   SDKSelector(sdk: state.sdk, setSdk: state.setSdk),

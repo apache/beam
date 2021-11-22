@@ -222,8 +222,8 @@ func Test_Process(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, os.Getenv("APP_WORK_DIR"))
-			filePath := lc.GetAbsoluteExecutableFilePath()
-			workingDir := lc.GetAbsoluteExecutableFilesFolderPath()
+			filePath := lc.GetAbsoluteSourceFilePath()
+			workingDir := lc.GetAbsoluteBaseFolderPath()
 
 			exec := executors.NewExecutorBuilder().
 				WithValidator().
@@ -239,7 +239,7 @@ func Test_Process(t *testing.T) {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
 			if tt.createExecFile {
-				_, _ = lc.CreateExecutableFile(tt.code)
+				_, _ = lc.CreateSourceCodeFile(tt.code)
 			}
 
 			if tt.cancelFunc {
@@ -258,7 +258,7 @@ func Test_Process(t *testing.T) {
 
 			compileOutput, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.CompileOutput)
 			if tt.expectedCompileOutput != nil && strings.Contains(tt.expectedCompileOutput.(string), "%s") {
-				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.GetAbsoluteExecutableFilePath())
+				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.GetAbsoluteSourceFilePath())
 			}
 			if !reflect.DeepEqual(compileOutput, tt.expectedCompileOutput) {
 				t.Errorf("processCode() set compileOutput: %s, but expectes: %s", compileOutput, tt.expectedCompileOutput)

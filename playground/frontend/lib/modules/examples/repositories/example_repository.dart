@@ -46,9 +46,9 @@ object Hello {
 }''';
 
 class ExampleRepository {
-  List<CategoryModel> getCategories() {
-    return [
-      CategoryModel('Side Inputs', const [
+  List<CategoryModel>? getCategories() {
+    return const [
+      CategoryModel('Side Inputs', [
         ExampleModel(
           {
             SDK.java: javaHelloWorld,
@@ -66,11 +66,11 @@ class ExampleRepository {
             SDK.python: 'PYTHON  Source code 1',
             SDK.scio: 'SCIO  Source code 1',
           },
-          'Source code 1',
+          'KATA Source code 1',
           ExampleType.kata,
         ),
       ]),
-      CategoryModel('Side Outputs', const [
+      CategoryModel('Side Outputs', [
         ExampleModel(
           {
             SDK.java: 'JAVA Source code 2',
@@ -78,7 +78,7 @@ class ExampleRepository {
             SDK.python: 'PYTHON  Source code 2',
             SDK.scio: 'SCIO  Source code 2',
           },
-          'Source code 2',
+          'UNIT TEST Source code 2',
           ExampleType.test,
         ),
         ExampleModel(
@@ -88,11 +88,11 @@ class ExampleRepository {
             SDK.python: 'PYTHON  Source code 3',
             SDK.scio: 'SCIO  Source code 3',
           },
-          'Source code 3',
+          'EXAMPLE Source code 3',
           ExampleType.example,
         ),
       ]),
-      CategoryModel('I/O', const [
+      CategoryModel('I/O', [
         ExampleModel(
           {
             SDK.java: 'JAVA Source code 4',
@@ -100,7 +100,7 @@ class ExampleRepository {
             SDK.python: 'PYTHON  Source code 4',
             SDK.scio: 'SCIO  Source code 4',
           },
-          'Source code 4',
+          'KATA Source code 4',
           ExampleType.kata,
         ),
         ExampleModel(
@@ -110,7 +110,7 @@ class ExampleRepository {
             SDK.python: 'PYTHON  Source code 5',
             SDK.scio: 'SCIO  Source code 5',
           },
-          'Source code 5',
+          'UNIT TEST Source code 5',
           ExampleType.test,
         ),
       ]),

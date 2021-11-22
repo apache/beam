@@ -21,6 +21,7 @@ plugins {
   id 'ca.coglinc.javacc'
 }
 applyJavaNature(
+  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.sdk.io.clickhouse',
   generatedClassPatterns: [
     /^org\.apache\.beam\.sdk\.io\.clickhouse\.impl\.parser\..*/,
