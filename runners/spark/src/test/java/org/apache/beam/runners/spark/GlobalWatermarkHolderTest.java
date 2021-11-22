@@ -39,12 +39,13 @@ public class GlobalWatermarkHolderTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Rule public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
-  private static final String INSTANT_PATTERN =
-      "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}Z";
 
   // only needed in-order to get context from the SparkContextFactory.
   private static final SparkPipelineOptions options =
     PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
+
+  private static final String INSTANT_PATTERN =
+    "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}Z";
 
   @Test
   public void testLowHighWatermarksAdvance() {

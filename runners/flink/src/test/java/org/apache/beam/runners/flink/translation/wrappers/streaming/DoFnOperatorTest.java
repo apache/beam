@@ -116,7 +116,7 @@ import org.powermock.reflect.Whitebox;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "keyfor",
-  "unused" // TODO: Remove when new version of errorprone is released (2.11.0)
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class DoFnOperatorTest {
 

@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -472,7 +473,6 @@ public class SideInputContainerTest {
    * windowing strategy is invoked, start a thread that will invoke the callback after the returned
    * {@link CountDownLatch} is counted down once.
    */
-  @SuppressWarnings({"FutureReturnValueIgnored", "CheckReturnValue"})
   private CountDownLatch invokeLatchedCallback(
       PCollectionView<?> view, BoundedWindow window, final CountDownLatch onComplete) {
     final CountDownLatch runLatch = new CountDownLatch(1);
@@ -480,20 +480,25 @@ public class SideInputContainerTest {
             invocation -> {
               Object callback = invocation.getArguments()[3];
               final Runnable callbackRunnable = (Runnable) callback;
-              MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
-                  .submit(
-                      () -> {
-                        try {
-                          if (!runLatch.await(1500L, TimeUnit.MILLISECONDS)) {
-                            fail("Run latch didn't count down within timeout");
-                          }
-                          callbackRunnable.run();
-                          onComplete.countDown();
-                        } catch (InterruptedException e) {
-                          throw new AssertionError(
-                              "Unexpectedly interrupted while waiting for latch ", e);
-                        }
-                      });
+              // Removing unused variable throws new errorprone warnings: FutureReturnValueIgnored
+              // and
+              // CheckReturnValue
+              @SuppressWarnings("unused")
+              ListenableFuture<?> result =
+                  MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
+                      .submit(
+                          () -> {
+                            try {
+                              if (!runLatch.await(1500L, TimeUnit.MILLISECONDS)) {
+                                fail("Run latch didn't count down within timeout");
+                              }
+                              callbackRunnable.run();
+                              onComplete.countDown();
+                            } catch (InterruptedException e) {
+                              throw new AssertionError(
+                                  "Unexpectedly interrupted while waiting for latch ", e);
+                            }
+                          });
               return null;
             })
         .when(context)

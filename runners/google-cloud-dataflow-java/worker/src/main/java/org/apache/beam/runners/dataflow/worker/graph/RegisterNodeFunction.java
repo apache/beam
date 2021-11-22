@@ -129,8 +129,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       IdGenerator idGenerator,
       Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
-    return new RegisterNodeFunction(
-        pipeline, idGenerator, stateApiServiceDescriptor);
+    return new RegisterNodeFunction(pipeline, idGenerator, stateApiServiceDescriptor);
   }
 
   /**
@@ -142,8 +141,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       IdGenerator idGenerator,
       Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
-    return new RegisterNodeFunction(
-        null, idGenerator, stateApiServiceDescriptor);
+    return new RegisterNodeFunction(null, idGenerator, stateApiServiceDescriptor);
   }
 
   private RegisterNodeFunction(
