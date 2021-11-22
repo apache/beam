@@ -26,7 +26,7 @@ import org.apache.beam.sdk.values.Row;
  */
 public abstract class PatternCondition implements Serializable {
 
-  @SuppressWarnings("unused") //Affects a public api
+  @SuppressWarnings("unused") // Affects a public api
   private String patternVar;
 
   PatternCondition(CEPPattern pattern) {
