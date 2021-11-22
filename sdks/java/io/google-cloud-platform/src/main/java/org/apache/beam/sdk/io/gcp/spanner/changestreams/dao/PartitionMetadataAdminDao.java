@@ -27,20 +27,54 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-// TODO: Add java docs
+/**
+ * Data access object for creating and dropping the partition metadata table.
+ *
+ * <p>The partition metadata table will be used to keep the state of a partition as the Connector is
+ * performing change stream queries.
+ */
 public class PartitionMetadataAdminDao {
 
-  // Metadata table column names
+  /** Metadata table column name for the partition token. */
   public static final String COLUMN_PARTITION_TOKEN = "PartitionToken";
+  /** Metadata table column name for parent partition tokens. */
   public static final String COLUMN_PARENT_TOKENS = "ParentTokens";
+  /**
+   * Metadata table column name for the timestamp to start the change stream query of the partition.
+   */
   public static final String COLUMN_START_TIMESTAMP = "StartTimestamp";
+  /**
+   * Metadata table column name for the timestamp to end the change stream query of the partition.
+   */
   public static final String COLUMN_END_TIMESTAMP = "EndTimestamp";
+  /** Metadata table column name for the change stream query heartbeat interval in millis. */
   public static final String COLUMN_HEARTBEAT_MILLIS = "HeartbeatMillis";
+  /**
+   * Metadata table column name for the state that the partition is currently in. Possible states
+   * can be seen in {@link
+   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State}.
+   */
   public static final String COLUMN_STATE = "State";
+  /** Metadata table column name for the current watermark of the partition. */
   public static final String COLUMN_WATERMARK = "Watermark";
+  /** Metadata table column name for the timestamp at which the partition row was first created. */
   public static final String COLUMN_CREATED_AT = "CreatedAt";
+  /**
+   * Metadata table column name for the timestamp at which the partition was scheduled by the {@link
+   * org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn} SDF.
+   */
   public static final String COLUMN_SCHEDULED_AT = "ScheduledAt";
+  /**
+   * Metadata table column name for the timestamp at which the partition was marked as running by
+   * the {@link org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn}
+   * SDF.
+   */
   public static final String COLUMN_RUNNING_AT = "RunningAt";
+  /**
+   * Metadata table column name for the timestamp at which the partition was marked as finished by
+   * the {@link org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn}
+   * SDF.
+   */
   public static final String COLUMN_FINISHED_AT = "FinishedAt";
 
   private static final int TIMEOUT_MINUTES = 10;
@@ -51,6 +85,15 @@ public class PartitionMetadataAdminDao {
   private final String databaseId;
   private final String tableName;
 
+  /**
+   * Constructs the partition metadata admin dao.
+   *
+   * @param databaseAdminClient the {@link DatabaseAdminClient} to be used to manage the metadata
+   *     table
+   * @param instanceId the instance where the metadata table will reside
+   * @param databaseId the database where the metadata table will reside
+   * @param tableName the name of the metadata table
+   */
   PartitionMetadataAdminDao(
       DatabaseAdminClient databaseAdminClient,
       String instanceId,
@@ -62,6 +105,13 @@ public class PartitionMetadataAdminDao {
     this.tableName = tableName;
   }
 
+  /**
+   * Creates the metadata table in the given instance, database configuration, with the constructor
+   * specified table name. The operation is intended to complete in {@link
+   * PartitionMetadataAdminDao#TIMEOUT_MINUTES} minutes and specifies a TTL of partition rows after
+   * they are marked as FINISHED as {@link
+   * PartitionMetadataAdminDao#TTL_AFTER_PARTITION_FINISHED_DAYS} days.
+   */
   public void createPartitionMetadataTable() {
     final String metadataCreateStmt =
         "CREATE TABLE "
@@ -111,6 +161,10 @@ public class PartitionMetadataAdminDao {
     }
   }
 
+  /**
+   * Drops the metadata table. This operation should complete in {@link
+   * PartitionMetadataAdminDao#TIMEOUT_MINUTES} minutes.
+   */
   public void deletePartitionMetadataTable() {
     final String metadataDropStmt = "DROP TABLE " + tableName;
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =

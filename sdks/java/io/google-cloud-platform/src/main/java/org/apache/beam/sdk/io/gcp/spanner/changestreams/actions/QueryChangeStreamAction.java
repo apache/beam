@@ -51,7 +51,18 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Add java docs
+/**
+ * Main action class for querying a partition change stream. This class will perform the change
+ * stream query and depending on the record type received, it will dispatch the processing of it to
+ * one of the following: {@link ChildPartitionsRecordAction}, {@link HeartbeatRecordAction} or
+ * {@link DataChangeRecordAction}.
+ *
+ * <p>This class will also make sure to mirror the current watermark (event timestamp processed) in
+ * the Connector's metadata tables, by registering a bundle after commit action.
+ *
+ * <p>When the change stream query for the partition is finished, this class will update the state
+ * of the partition in the metadata tables as FINISHED, indicating completion.
+ */
 public class QueryChangeStreamAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryChangeStreamAction.class);
@@ -66,6 +77,20 @@ public class QueryChangeStreamAction {
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
 
+  /**
+   * Constructs an action class for performing a change stream query for a given partition.
+   *
+   * @param changeStreamDao DAO class to perform a change stream query
+   * @param partitionMetadataDao DAO class to access the Connector's metadata tables
+   * @param changeStreamRecordMapper mapper class to transform change stream records into the
+   *     Connector's domain models
+   * @param dataChangeRecordAction action class to process {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord}s
+   * @param heartbeatRecordAction action class to process {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord}s
+   * @param childPartitionsRecordAction action class to process {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord}s
+   */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
       PartitionMetadataDao partitionMetadataDao,
@@ -81,6 +106,42 @@ public class QueryChangeStreamAction {
     this.childPartitionsRecordAction = childPartitionsRecordAction;
   }
 
+  /**
+   * This method will dispatch a change stream query for the given partition, it delegate the
+   * processing of the records to one of the corresponding action classes registered and it will
+   * keep the state of the partition up to date in the Connector's metadata table.
+   *
+   * <p>The algorithm is as follows:
+   *
+   * <ol>
+   *   <li>A change stream query for the partition is performed.
+   *   <li>For each record, we check the type of the record and dispatch the processing to one of
+   *       the actions registered.
+   *   <li>If an {@link Optional} with a {@link ProcessContinuation#stop()} is returned from the
+   *       actions, we stop processing and return.
+   *   <li>Before returning we register a bundle finalizer callback to update the watermark of the
+   *       partition in the metadata tables to the latest processed timestamp.
+   *   <li>When a change stream query finishes successfully (no more records) we update the
+   *       partition state to FINISHED.
+   * </ol>
+   *
+   * There might be cases where due to a split at the exact end timestamp of a partition's change
+   * stream query, this function could process a residual with an invalid timestamp. In this case,
+   * the error is ignored and no work is done for the residual.
+   *
+   * @param partition the current partition being processed
+   * @param tracker the restriction tracker of the {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
+   * @param receiver the output receiver of the {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
+   * @param watermarkEstimator the watermark estimator of the {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
+   * @param bundleFinalizer the bundle finalizer for {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
+   *     bundles
+   * @return a {@link ProcessContinuation#stop()} if a record timestamp could not be claimed or if
+   *     the partition processing has finished
+   */
   @VisibleForTesting
   public ProcessContinuation run(
       PartitionMetadata partition,

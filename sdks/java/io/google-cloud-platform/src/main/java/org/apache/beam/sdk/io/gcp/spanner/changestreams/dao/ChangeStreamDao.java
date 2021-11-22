@@ -25,7 +25,10 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 
-// TODO: Add java docs
+/**
+ * Responsible for making change stream queries for a given partition. The result will be given back
+ * as a {@link ResultSet}, which can be consumed until the stream is finished.
+ */
 public class ChangeStreamDao {
 
   private static final String REQUEST_TAG = "change_stream";
@@ -35,6 +38,16 @@ public class ChangeStreamDao {
   private final RpcPriority rpcPriority;
   private final String jobName;
 
+  /**
+   * Constructs a change stream dao. All the queries performed by this class will be for the given
+   * change stream name with the specified rpc priority. The job name will be used to tag all the
+   * queries made.
+   *
+   * @param changeStreamName the name of the change stream to be queried
+   * @param databaseClient a spanner {@link DatabaseClient}
+   * @param rpcPriority the priority to be used for the change stream queries
+   * @param jobName the name of the job performing the query
+   */
   ChangeStreamDao(
       String changeStreamName,
       DatabaseClient databaseClient,
@@ -46,6 +59,25 @@ public class ChangeStreamDao {
     this.jobName = jobName;
   }
 
+  /**
+   * Performs a change stream query. If the partition token given is the initial partition null will
+   * be used in the query instead. The change stream query will be tagged as following: {@code
+   * "action=<REQUEST_TAG>, job=<jobName>"}. The result will be given as a {@link
+   * ChangeStreamResultSet} which can be consumed as a stream, yielding records until no more are
+   * available for the query made. Note that one needs to call {@link ChangeStreamResultSet#next()}
+   * to initiate the change stream query.
+   *
+   * @param partitionToken the unique partition token to be queried. If {@link
+   *     InitialPartition#PARTITION_TOKEN} is given, null will be used in the change stream query
+   *     instead.
+   * @param startTimestamp the inclusive start time for the change stream query
+   * @param endTimestamp the inclusive end time for the change stream query. Null can be provided to
+   *     indicate no end time is available
+   * @param heartbeatMillis the number of milliseconds after the stream is idle, which a heartbeat
+   *     record will be emitted in the change stream query
+   * @return a {@link ChangeStreamResultSet} that will produce a stream of records for the change
+   *     stream query
+   */
   public ChangeStreamResultSet changeStreamQuery(
       String partitionToken,
       Timestamp startTimestamp,

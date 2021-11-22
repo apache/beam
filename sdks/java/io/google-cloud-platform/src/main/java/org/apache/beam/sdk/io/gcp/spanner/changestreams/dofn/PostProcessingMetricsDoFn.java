@@ -27,6 +27,18 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A DoFn class to gather metrics about the emitted {@link DataChangeRecord}s. It will simply
+ * delegate the metrics gathering to the {@link ChangeStreamMetrics}. The metrics measured in this
+ * component are:
+ *
+ * <ol>
+ *   <li>The number of data records emitted.
+ *   <li>The latency between a record's Cloud Spanner commit timestamp and the time it reached this
+ *       component (referred as emit timestamp).
+ *   <li>The streaming latency of a record from the change stream query.
+ * </ol>
+ */
 public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChangeRecord>
     implements Serializable {
 
@@ -41,6 +53,22 @@ public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChange
     this.metrics = metrics;
   }
 
+  /**
+   * Stage to measure a data records latencies and metrics. The metrics gathered are:
+   *
+   * <ol>
+   *   <li>The number of data records emitted.
+   *   <li>The latency between a record's Cloud Spanner commit timestamp and the time it reached
+   *       this component (referred as emit timestamp).
+   *   <li>The streaming latency of a record from the change stream query.
+   * </ol>
+   *
+   * After measurement the record is re-emitted to the next stage.
+   *
+   * @param dataChangeRecord the record to gather metrics for
+   * @param receiver the output receiver of the {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.PostProcessingMetricsDoFn} SDF
+   */
   @ProcessElement
   public void processElement(
       @Element DataChangeRecord dataChangeRecord, OutputReceiver<DataChangeRecord> receiver) {

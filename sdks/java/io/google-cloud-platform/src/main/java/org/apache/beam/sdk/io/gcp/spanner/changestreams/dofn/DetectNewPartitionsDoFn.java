@@ -30,7 +30,6 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadata
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamSourceDescriptor;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.LenientOffsetRangeTracker;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
@@ -44,13 +43,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A SplittableDoFn which reads from {@link ChangeStreamSourceDescriptor} and outputs {@link
- * PartitionMetadata}.
- *
- * <p>{@link DetectNewPartitionsDoFn} implements the logic of querying the partition metadata table
- * from Cloud Spanner. The element is a {@link ChangeStreamSourceDescriptor}, and the restriction is
- * an {@link OffsetRange} which represents record offset. A {@link LenientOffsetRangeTracker} is
- * used to track an {@link OffsetRange} ended with {@code Long.MAX_VALUE}.
+ * A SplittableDoFn (SDF) that is responsible for scheduling partitions to be queried. This
+ * component will periodically scan the partition metadata table looking for partitions in the
+ * {@link State#CREATED}, update their state to {@link State#SCHEDULED} and output them to the next
+ * stage in the pipeline.
  */
 @UnboundedPerElement
 @SuppressWarnings({
@@ -60,6 +56,7 @@ import org.slf4j.LoggerFactory;
 public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, PartitionMetadata> {
 
   private static final long serialVersionUID = 1523712495885011374L;
+  private static final Duration DEFAULT_RESUME_DURATION = Duration.millis(100L);
   private static final Logger LOG = LoggerFactory.getLogger(DetectNewPartitionsDoFn.class);
   private static final Tracer TRACER = Tracing.getTracer();
 
@@ -71,11 +68,33 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
   private transient PartitionMetadataDao partitionMetadataDao;
   private transient PartitionMetadataMapper partitionMetadataMapper;
 
+  /**
+   * This class needs a {@link DaoFactory} to build DAOs to access the partition metadata tables. It
+   * uses mappers to transform database rows into the {@link PartitionMetadata} model. It emits
+   * metrics for the partitions read using the {@link ChangeStreamMetrics}. This constructors sets
+   * the the periodic re-execution of the component to be scheduled using the {@link
+   * DetectNewPartitionsDoFn#DEFAULT_RESUME_DURATION} duration (best effort).
+   *
+   * @param daoFactory the {@link DaoFactory} to construct {@link PartitionMetadataDao}s
+   * @param mapperFactory the {@link MapperFactory} to construct {@link PartitionMetadataMapper}s
+   * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
+   */
   public DetectNewPartitionsDoFn(
       DaoFactory daoFactory, MapperFactory mapperFactory, ChangeStreamMetrics metrics) {
-    this(daoFactory, mapperFactory, metrics, Duration.millis(100L));
+    this(daoFactory, mapperFactory, metrics, DEFAULT_RESUME_DURATION);
   }
 
+  /**
+   * This class needs a {@link DaoFactory} to build DAOs to access the partition metadata tables. It
+   * uses mappers to transform database rows into the {@link PartitionMetadata} model. It emits
+   * metrics for the partitions read using the {@link ChangeStreamMetrics}. It re-schedules the
+   * process element function to be executed according to the specified duration (best effort).
+   *
+   * @param daoFactory the {@link DaoFactory} to construct {@link PartitionMetadataDao}s
+   * @param mapperFactory the {@link MapperFactory} to construct {@link PartitionMetadataMapper}s
+   * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
+   * @param resumeDuration specifies the periodic schedule to re-execute this component
+   */
   public DetectNewPartitionsDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
@@ -98,6 +117,16 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
     return new Manual(watermarkEstimatorState);
   }
 
+  /**
+   * Uses an {@link OffsetRange} with a max range. This is because it does not know before hand how
+   * many partitions it will schedule.
+   *
+   * <p>In order to circumvent a bug in Apache Beam
+   * (https://issues.apache.org/jira/browse/BEAM-12756) we don't use {@link Long#MAX_VALUE}, but
+   * rather a value slightly smaller.
+   *
+   * @return the offset range for the component
+   */
   @GetInitialRestriction
   public OffsetRange initialRestriction() {
     // TODO: Update this after https://issues.apache.org/jira/browse/BEAM-12756 is fixed.
@@ -109,12 +138,40 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
     return new OffsetRangeTracker(restriction);
   }
 
+  /**
+   * Obtains the instances of {@link PartitionMetadataDao} and {@link PartitionMetadataMapper} from
+   * their respective factories.
+   */
   @Setup
   public void setup() {
     this.partitionMetadataDao = daoFactory.getPartitionMetadataDao();
     this.partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
   }
 
+  /**
+   * Main processing function for the {@link DetectNewPartitionsDoFn} function. It follows this
+   * procedure periodically:
+   *
+   * <ol>
+   *   <li>Fetches the min watermark from all the unfinished partitions in the metadata tables.
+   *   <li>Updates the component's watermark to the min fetched.
+   *   <li>Fetches all the partitions that are in {@link State#CREATED}.
+   *   <li>Updates the state of the partitions to {@link State#SCHEDULED}.
+   *   <li>Outputs the partitions to the next stage in the pipeline.
+   *   <li>Schedule the function to resume after the configuration resume duration.
+   * </ol>
+   *
+   * In the beginning of this function if there are no more unfinished partitions, it indicates that
+   * the work is complete. Thus, this function will not be re-scheduled.
+   *
+   * @param tracker an instance of {@link OffsetRangeTracker}
+   * @param receiver a {@link PartitionMetadata} {@link
+   *     org.apache.beam.sdk.transforms.DoFn.OutputReceiver}
+   * @param watermarkEstimator a {@link ManualWatermarkEstimator} of {@link Instant}
+   * @return a {@link ProcessContinuation#stop()} if there are no more partitions to process or
+   *     {@link ProcessContinuation#resume()} to re-schedule the function after the configured
+   *     interval.
+   */
   @ProcessElement
   public ProcessContinuation processElement(
       RestrictionTracker<OffsetRange, Long> tracker,

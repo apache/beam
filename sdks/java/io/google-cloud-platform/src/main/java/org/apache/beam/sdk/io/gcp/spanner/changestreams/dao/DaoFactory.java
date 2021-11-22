@@ -24,10 +24,14 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerAccessor;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 
-// TODO: Add java docs
+/**
+ * Factory class to create data access objects to perform change stream queries and access the
+ * metadata tables. The instances created are all singletons.
+ */
 public class DaoFactory implements Serializable {
 
   private static final long serialVersionUID = 7929063669009832487L;
+
   private static PartitionMetadataAdminDao partitionMetadataAdminDao;
   private static PartitionMetricsAdminDao partitionMetricsAdminDao;
   private static PartitionMetadataDao partitionMetadataDaoInstance;
@@ -43,6 +47,18 @@ public class DaoFactory implements Serializable {
   private final RpcPriority rpcPriority;
   private final String jobName;
 
+  /**
+   * Constructs a {@link DaoFactory} with the configuration to be used for the underlying instances.
+   *
+   * @param changeStreamSpannerConfig the configuration for the change streams DAO
+   * @param changeStreamName the name of the change stream for the change streams DAO
+   * @param metadataSpannerConfig the metadata tables configuration
+   * @param partitionMetadataTableName the name of the created partition metadata table
+   * @param partitionMetricsTableName the name of the created partition metrics table
+   * @param mapperFactory factory class to map change streams records into the Connectors domain
+   * @param rpcPriority the priority of the requests made by the DAO queries
+   * @param jobName the name of the running job
+   */
   public DaoFactory(
       SpannerConfig changeStreamSpannerConfig,
       String changeStreamName,
@@ -62,6 +78,14 @@ public class DaoFactory implements Serializable {
     this.jobName = jobName;
   }
 
+  /**
+   * Creates and returns a singleton DAO instance for admin operations over the partition metadata
+   * table.
+   *
+   * <p>This method is thread safe.
+   *
+   * @return singleton instance of the {@link PartitionMetadataDao}
+   */
   public synchronized PartitionMetadataAdminDao getPartitionMetadataAdminDao() {
     if (partitionMetadataAdminDao == null) {
       DatabaseAdminClient databaseAdminClient =
@@ -76,6 +100,14 @@ public class DaoFactory implements Serializable {
     return partitionMetadataAdminDao;
   }
 
+  /**
+   * Creates and returns a singleton DAO instance for admin operations over the partition metrics
+   * table.
+   *
+   * <p>This method is thread safe.
+   *
+   * @return singleton instance of the {@link PartitionMetricsAdminDao}
+   */
   public synchronized PartitionMetricsAdminDao getPartitionMetricsAdminDao() {
     if (partitionMetricsAdminDao == null) {
       DatabaseAdminClient databaseAdminClient =
@@ -90,6 +122,13 @@ public class DaoFactory implements Serializable {
     return partitionMetricsAdminDao;
   }
 
+  /**
+   * Creates and returns a singleton DAO instance for accessing the partition metadata table.
+   *
+   * <p>This method is thread safe.
+   *
+   * @return singleton instance of the {@link PartitionMetadataDao}
+   */
   public synchronized PartitionMetadataDao getPartitionMetadataDao() {
     final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(metadataSpannerConfig);
     if (partitionMetadataDaoInstance == null) {
@@ -103,6 +142,13 @@ public class DaoFactory implements Serializable {
     return partitionMetadataDaoInstance;
   }
 
+  /**
+   * Creates and returns a singleton DAO instance for querying a partition change stream.
+   *
+   * <p>This method is thread safe.
+   *
+   * @return singleton instance of the {@link ChangeStreamDao}
+   */
   public synchronized ChangeStreamDao getChangeStreamDao() {
     final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(changeStreamSpannerConfig);
     if (changeStreamDaoInstance == null) {

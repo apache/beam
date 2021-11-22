@@ -41,7 +41,13 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Add java docs
+/**
+ * This class is part of the process for {@link
+ * org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF. It is
+ * responsible for processing {@link ChildPartitionsRecord}s. The new child partitions will be
+ * stored in the Connector's metadata tables in order to be scheduled for future querying by the
+ * {@link org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn} SDF.
+ */
 public class ChildPartitionsRecordAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(ChildPartitionsRecordAction.class);
@@ -49,12 +55,58 @@ public class ChildPartitionsRecordAction {
   private final PartitionMetadataDao partitionMetadataDao;
   private final ChangeStreamMetrics metrics;
 
+  /**
+   * Constructs an action class for handling {@link ChildPartitionsRecord}s.
+   *
+   * @param partitionMetadataDao DAO class to access the Connector's metadata tables
+   * @param metrics metrics gathering class
+   */
   ChildPartitionsRecordAction(
       PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
     this.partitionMetadataDao = partitionMetadataDao;
     this.metrics = metrics;
   }
 
+  /**
+   * This is the main processing function for a {@link ChildPartitionsRecord}. It returns an {@link
+   * Optional} of {@link ProcessContinuation} to indicate if the calling function should stop or
+   * not. If the {@link Optional} returned is empty, it means that the calling function can continue
+   * with the processing. If an {@link Optional} of {@link ProcessContinuation#stop()} is returned,
+   * it means that this function was unable to claim the timestamp of the {@link
+   * ChildPartitionsRecord}, so the caller should stop.
+   *
+   * <p>When processing the {@link ChildPartitionsRecord} the following procedure is applied:
+   *
+   * <ol>
+   *   <li>We try to claim the child partition record timestamp. If it is not possible, we stop here
+   *       and return.
+   *   <li>We update the watermark to the child partition record timestamp.
+   *   <li>For each child partition, we try to insert them in the metadata tables if they do not
+   *       exist.
+   *   <li>For each child partition, we check if they originate from a split or a merge and
+   *       increment the corresponding metric.
+   * </ol>
+   *
+   * Dealing with partition splits and merge cases is detailed below:
+   *
+   * <ul>
+   *   <li>Partition Splits: child partition tokens should not exist in the partition metadata
+   *       table, so new rows are just added to such table. In case of a bundle retry, we silently
+   *       ignore duplicate entries.
+   *   <li>Partition Merges: the first parent partition that receives the child token should succeed
+   *       in inserting it. The remaining parents will silently ignore and skip the insertion.
+   * </ul>
+   *
+   * @param partition the current partition being processed
+   * @param record the change stream child partition record received
+   * @param tracker the restriction tracker of the {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
+   * @param watermarkEstimator the watermark estimator of the {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
+   * @return {@link Optional#empty()} if the caller can continue processing more records. A non
+   *     empty {@link Optional} with {@link ProcessContinuation#stop()} if this function was unable
+   *     to claim the {@link ChildPartitionsRecord} timestamp
+   */
   @VisibleForTesting
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,

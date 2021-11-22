@@ -51,7 +51,13 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Add java docs
+/**
+ * A SDF (Splittable DoFn) class which is responsible for performing a change stream query for a
+ * given partition. A different action will be taken depending on the type of record received from
+ * the query. This component will also reflect the partition state in the partition metadata tables.
+ *
+ * <p>The processing of a partition is delegated to the {@link QueryChangeStreamAction}.
+ */
 @UnboundedPerElement
 public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataChangeRecord>
     implements Serializable {
@@ -67,6 +73,20 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   private transient QueryChangeStreamAction queryChangeStreamAction;
 
+  /**
+   * This class needs a {@link DaoFactory} to build DAOs to access the partition metadata tables and
+   * to perform the change streams query. It uses mappers to transform database rows into the {@link
+   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecord} model. It uses the
+   * {@link ActionFactory} to construct the action dispatchers, which will perform the change stream
+   * query and process each type of record received. It emits metrics for the partition using the
+   * {@link ChangeStreamMetrics}.
+   *
+   * @param daoFactory the {@link DaoFactory} to construct {@link PartitionMetadataDao}s and {@link
+   *     ChangeStreamDao}s
+   * @param mapperFactory the {@link MapperFactory} to construct {@link ChangeStreamRecordMapper}s
+   * @param actionFactory the {@link ActionFactory} to construct actions
+   * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
+   */
   public ReadChangeStreamPartitionDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
@@ -89,6 +109,20 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     return new Manual(watermarkEstimatorState);
   }
 
+  /**
+   * The restriction for a partition will be defined from the start and end timestamp to query the
+   * partition for. These timestamps are converted to microseconds. The {@link OffsetRange}
+   * restriction represents a closed-open interval, while the start / end timestamps represent a
+   * closed-closed interval, so we add 1 microsecond to the end timestamp to convert it to
+   * closed-open.
+   *
+   * <p>In this function we also update the partition state to {@link
+   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State#RUNNING}.
+   *
+   * @param partition the partition to be queried
+   * @return the offset range from the partition start timestamp to the partition end timestamp + 1
+   *     microsecond
+   */
   @GetInitialRestriction
   public OffsetRange initialRestriction(@Element PartitionMetadata partition) {
     final String token = partition.getPartitionToken();
@@ -118,6 +152,11 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     return new LenientOffsetRangeTracker(partition, offsetRange);
   }
 
+  /**
+   * Constructs instances for the {@link PartitionMetadataDao}, {@link ChangeStreamDao}, {@link
+   * ChangeStreamRecordMapper}, {@link DataChangeRecordAction}, {@link HeartbeatRecordAction},
+   * {@link ChildPartitionsRecordAction} and {@link QueryChangeStreamAction}.
+   */
   @Setup
   public void setup() {
     final PartitionMetadataDao partitionMetadataDao = daoFactory.getPartitionMetadataDao();
@@ -140,7 +179,22 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             childPartitionsRecordAction);
   }
 
-  // TODO: Close DAOs on teardown
+  /**
+   * Performs a change stream query for a given partition. A different action will be taken
+   * depending on the type of record received from the query. This component will also reflect the
+   * partition state in the partition metadata tables.
+   *
+   * <p>The processing of a partition is delegated to the {@link QueryChangeStreamAction}.
+   *
+   * @param partition the partition to be queried
+   * @param tracker an instance of {@link LenientOffsetRangeTracker}
+   * @param receiver a {@link DataChangeRecord} {@link
+   *     org.apache.beam.sdk.transforms.DoFn.OutputReceiver}
+   * @param watermarkEstimator a {@link ManualWatermarkEstimator} of {@link Instant}
+   * @param bundleFinalizer the bundle finalizer
+   * @return a {@link ProcessContinuation#stop()} if a record timestamp could not be claimed or if
+   *     the partition processing has finished
+   */
   @ProcessElement
   public ProcessContinuation processElement(
       @Element PartitionMetadata partition,

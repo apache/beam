@@ -42,7 +42,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
-// TODO: Add java docs
+/** Data access object for the Connector metadata tables. */
 public class PartitionMetadataDao {
   private static final Tracer TRACER = Tracing.getTracer();
 
@@ -51,6 +51,14 @@ public class PartitionMetadataDao {
   private final DatabaseClient databaseClient;
   private final PartitionMetadataMapper mapper;
 
+  /**
+   * Constructs a partition metadata dao object given the generated name of the tables.
+   *
+   * @param metadataTableName the name of the partition metadata table
+   * @param metricsTableName the name of the partition metrics table
+   * @param databaseClient the {@link DatabaseClient} to perform queries
+   * @param mapper mapper from a {@link ResultSet} row to a {@link PartitionMetadata} model
+   */
   PartitionMetadataDao(
       String metadataTableName,
       String metricsTableName,
@@ -62,6 +70,14 @@ public class PartitionMetadataDao {
     this.mapper = mapper;
   }
 
+  /**
+   * Fetches all the partitions from the partition metadata table that are in the given state and
+   * returns them ordered by the {@link PartitionMetadataAdminDao#COLUMN_START_TIMESTAMP} column in
+   * ascending order.
+   *
+   * @param state the {@link State} to fetch all the partitions
+   * @return a {@link ResultSet} with the partition rows fetched
+   */
   public ResultSet getPartitionsInState(State state) {
     try (Scope scope =
         TRACER.spanBuilder("getPartitionsInState").setRecordEvents(true).startScopedSpan()) {
@@ -80,6 +96,12 @@ public class PartitionMetadataDao {
     }
   }
 
+  /**
+   * Fetches the earliest partition watermark from the partition metadata table that is not in a
+   * {@link State#FINISHED} state.
+   *
+   * @return the earliest partition watermark which is not in a {@link State#FINISHED} state.
+   */
   public Timestamp getUnfinishedMinWatermark() {
     final Statement statement =
         Statement.newBuilder(
@@ -106,30 +128,59 @@ public class PartitionMetadataDao {
     }
   }
 
+  /**
+   * Inserts the partition metadata alongside initial metrics entry.
+   *
+   * @param row the partition metadata to be inserted
+   * @return the commit timestamp of the read / write transaction
+   */
   public Timestamp insert(PartitionMetadata row) {
     final TransactionResult<Void> transactionResult =
         runInTransaction(transaction -> transaction.insert(row));
     return transactionResult.getCommitTimestamp();
   }
 
+  /**
+   * Updates a partition row to {@link State#SCHEDULED} state.
+   *
+   * @param partitionToken the partition unique identifier
+   * @return the commit timestamp of the read / write transaction
+   */
   public Timestamp updateToScheduled(String partitionToken) {
     final TransactionResult<Void> transactionResult =
         runInTransaction(transaction -> transaction.updateToScheduled(partitionToken));
     return transactionResult.getCommitTimestamp();
   }
 
+  /**
+   * Updates a partition row to {@link State#RUNNING} state.
+   *
+   * @param partitionToken the partition unique identifier
+   * @return the commit timestamp of the read / write transaction
+   */
   public Timestamp updateToRunning(String partitionToken) {
     final TransactionResult<Void> transactionResult =
         runInTransaction(transaction -> transaction.updateToRunning(partitionToken));
     return transactionResult.getCommitTimestamp();
   }
 
+  /**
+   * Updates a partition row to {@link State#FINISHED} state.
+   *
+   * @param partitionToken the partition unique identifier
+   * @return the commit timestamp of the read / write transaction
+   */
   public Timestamp updateToFinished(String partitionToken) {
     final TransactionResult<Void> transactionResult =
         runInTransaction(transaction -> transaction.updateToFinished(partitionToken));
     return transactionResult.getCommitTimestamp();
   }
 
+  /**
+   * Updates the partition metrics indicating when the change stream query started at.
+   *
+   * @param partitionToken the partition unique identifier
+   */
   public void updateQueryStartedAt(String partitionToken) {
     runInTransaction(
         transaction -> {
@@ -141,6 +192,13 @@ public class PartitionMetadataDao {
         });
   }
 
+  /**
+   * Update the partition metrics indicating how many records were streamed so far for the change
+   * stream query.
+   *
+   * @param partitionToken the partition unique identifier
+   * @param recordsIncrement the number of records to update the current count to
+   */
   public void updateRecordsProcessed(String partitionToken, long recordsIncrement) {
     runInTransaction(
         transaction -> {
@@ -150,12 +208,29 @@ public class PartitionMetadataDao {
         });
   }
 
+  /**
+   * Update the partition watermark to the given timestamp.
+   *
+   * @param partitionToken the partition unique identifier
+   * @param watermark the new partition watermark
+   * @return the commit timestamp of the read / write transaction
+   */
   public Timestamp updateWatermark(String partitionToken, Timestamp watermark) {
     final TransactionResult<Object> transactionResult =
         runInTransaction(transaction -> transaction.updateWatermark(partitionToken, watermark));
     return transactionResult.getCommitTimestamp();
   }
 
+  /**
+   * Runs a given function in a transaction context. The transaction object is given as the
+   * parameter to the input function. If the function returns successfully, it will be committed. If
+   * the function throws an exception it will be rolled back.
+   *
+   * @param <T> the return type to be returned from the input transactional function
+   * @param callable the function to be executed within the transaction context
+   * @return a transaction result containing the result from the function and a commit timestamp for
+   *     the read / write transaction
+   */
   public <T> TransactionResult<T> runInTransaction(Function<InTransactionContext, T> callable) {
     final TransactionRunner readWriteTransaction = databaseClient.readWriteTransaction();
     final T result =
@@ -169,6 +244,7 @@ public class PartitionMetadataDao {
     return new TransactionResult<>(result, readWriteTransaction.getCommitTimestamp());
   }
 
+  /** Represents the execution of a read / write transaction in Cloud Spanner. */
   public static class InTransactionContext {
 
     private static final Tracer TRACER = Tracing.getTracer();
@@ -178,6 +254,14 @@ public class PartitionMetadataDao {
     private final PartitionMetadataMapper mapper;
     private final Map<State, String> stateToTimestampColumn;
 
+    /**
+     * Constructs a context to execute a user defined function transactionally.
+     *
+     * @param metadataTableName the name of the partition metadata table
+     * @param metricsTableName the name of the partition metrics table
+     * @param mapper mapper from a {@link ResultSet} row to a {@link PartitionMetadata} model
+     * @param transaction the underlying client library transaction to be executed
+     */
     public InTransactionContext(
         String metadataTableName,
         String metricsTableName,
@@ -194,6 +278,11 @@ public class PartitionMetadataDao {
       stateToTimestampColumn.put(State.FINISHED, PartitionMetadataAdminDao.COLUMN_FINISHED_AT);
     }
 
+    /**
+     * Inserts the partition metadata alongside initial metrics entry.
+     *
+     * @param row the partition metadata to be inserted
+     */
     public Void insert(PartitionMetadata row) {
       try (Scope scope = TRACER.spanBuilder("insert").setRecordEvents(true).startScopedSpan()) {
         TRACER
@@ -208,6 +297,11 @@ public class PartitionMetadataDao {
       }
     }
 
+    /**
+     * Updates a partition row to {@link State#SCHEDULED} state.
+     *
+     * @param partitionToken the partition unique identifier
+     */
     public Void updateToScheduled(String partitionToken) {
       try (Scope scope =
           TRACER.spanBuilder("updateToScheduled").setRecordEvents(true).startScopedSpan()) {
@@ -223,6 +317,11 @@ public class PartitionMetadataDao {
       }
     }
 
+    /**
+     * Updates a partition row to {@link State#RUNNING} state.
+     *
+     * @param partitionToken the partition unique identifier
+     */
     public Void updateToRunning(String partitionToken) {
       try (Scope scope =
           TRACER.spanBuilder("updateToRunning").setRecordEvents(true).startScopedSpan()) {
@@ -238,6 +337,11 @@ public class PartitionMetadataDao {
       }
     }
 
+    /**
+     * Updates a partition row to {@link State#FINISHED} state.
+     *
+     * @param partitionToken the partition unique identifier
+     */
     public Void updateToFinished(String partitionToken) {
       try (Scope scope =
           TRACER.spanBuilder("updateToRunning").setRecordEvents(true).startScopedSpan()) {
@@ -253,6 +357,11 @@ public class PartitionMetadataDao {
       }
     }
 
+    /**
+     * Update the partition metrics indicating when the change stream query started at.
+     *
+     * @param partitionToken the partition unique identifier
+     */
     public void updateQueryStartedAt(String partitionToken) {
       Mutation mutation =
           Mutation.newUpdateBuilder(metricsTableName)
@@ -266,6 +375,13 @@ public class PartitionMetadataDao {
       transaction.buffer(mutation);
     }
 
+    /**
+     * Update the partition metrics indicating how many records were streamed so far for the change
+     * stream query.
+     *
+     * @param partitionToken the partition unique identifier
+     * @param recordsProcessed the number of records to update the current count to
+     */
     public void updateRecordsProcessed(long recordsProcessed, String partitionToken) {
       Mutation mutation =
           Mutation.newUpdateBuilder(metricsTableName)
@@ -281,6 +397,13 @@ public class PartitionMetadataDao {
       transaction.buffer(mutation);
     }
 
+    /**
+     * Update the partition watermark to the given timestamp.
+     *
+     * @param partitionToken the partition unique identifier
+     * @param watermark the new partition watermark
+     * @return the commit timestamp of the read / write transaction
+     */
     public Void updateWatermark(String partitionToken, Timestamp watermark) {
       try (Scope scope =
           TRACER.spanBuilder("updateCurrentWatermark").setRecordEvents(true).startScopedSpan()) {
@@ -293,6 +416,13 @@ public class PartitionMetadataDao {
       }
     }
 
+    /**
+     * Returns the number of records processed for the given partition so far.
+     *
+     * @param partitionToken the partition unique identifier
+     * @return the number of records processed for the partition so far or 0 if the partition row
+     *     does not exist
+     */
     public long getRecordsProcessed(String partitionToken) {
       // TODO: Use readRow when java-spanner version >= 6.13.0
       try (ResultSet resultSet =
@@ -316,6 +446,12 @@ public class PartitionMetadataDao {
       }
     }
 
+    /**
+     * Fetches the partition metadata row data for the given partition token.
+     *
+     * @param partitionToken the partition unique identifier
+     * @return the partition metadata for the given token if it exists. Otherwise, returns null
+     */
     public PartitionMetadata getPartition(String partitionToken) {
       try (Scope scope =
           TRACER.spanBuilder("getPartition").setRecordEvents(true).startScopedSpan()) {
@@ -433,6 +569,12 @@ public class PartitionMetadataDao {
     }
   }
 
+  /**
+   * Represents a result from executing a Cloud Spanner read / write transaction. It encapsulates
+   * the return from the transaction function and a commit timestamp.
+   *
+   * @param <T> the return type of the transaction execution
+   */
   public static class TransactionResult<T> {
     private final T result;
     private final Timestamp commitTimestamp;
@@ -442,10 +584,12 @@ public class PartitionMetadataDao {
       this.commitTimestamp = commitTimestamp;
     }
 
+    /** Returns the result of the transaction execution. */
     public T getResult() {
       return result;
     }
 
+    /** Returns the commit timestamp of the read / write transaction. */
     public Timestamp getCommitTimestamp() {
       return commitTimestamp;
     }
