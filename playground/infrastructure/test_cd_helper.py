@@ -13,13 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-from dataclasses import dataclass
+import mock
 
-from api.v1.api_pb2 import SDK_JAVA
+from cd_helper import CDHelper
 
 
-@dataclass(frozen=True)
-class Config:
-    SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
-    SUPPORTED_SDK = {'java': SDK_JAVA}
+@mock.patch('cd_helper.CDHelper._save_to_cloud')
+@mock.patch('cd_helper.CDHelper._run_code')
+def test_store_examples(mock_run_code, mock_save_to_cloud):
+    helper = CDHelper()
+    helper.store_examples([])
+
+    mock_run_code.assert_called_once_with([])
+    mock_save_to_cloud.assert_called_once_with([])
