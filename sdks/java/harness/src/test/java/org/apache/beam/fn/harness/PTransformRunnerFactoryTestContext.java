@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -117,6 +118,8 @@ public abstract class PTransformRunnerFactoryTestContext
         .windowingStrategies(Collections.emptyMap()) // expected to be immutable
         .pCollectionConsumers(new HashMap<>())
         .startBundleFunctions(new ArrayList<>())
+        .processBundleDataFunctions(new ArrayList<>())
+        .processBundleTimerFunctions(new ArrayList<>())
         .finishBundleFunctions(new ArrayList<>())
         .resetFunctions(new ArrayList<>())
         .tearDownFunctions(new ArrayList<>())
@@ -138,7 +141,8 @@ public abstract class PTransformRunnerFactoryTestContext
               public void afterBundleCommit(Instant callbackExpiry, Callback callback) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
-            });
+            })
+        .processBundleRequestEmbeddedElements(Elements.newBuilder().build());
   }
 
   /** A builder to create a context for tests. */
@@ -176,6 +180,10 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder startBundleFunctions(List<ThrowingRunnable> value);
 
+    Builder processBundleDataFunctions(List<ThrowingRunnable> value);
+
+    Builder processBundleTimerFunctions(List<ThrowingRunnable> value);
+
     Builder finishBundleFunctions(List<ThrowingRunnable> value);
 
     Builder resetFunctions(List<ThrowingRunnable> value);
@@ -187,6 +195,9 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder splitListener(BundleSplitListener value);
 
     Builder bundleFinalizer(BundleFinalizer value);
+
+    @Nullable
+    Builder processBundleRequestEmbeddedElements(Elements value);
 
     PTransformRunnerFactoryTestContext build();
   }
@@ -256,6 +267,28 @@ public abstract class PTransformRunnerFactoryTestContext
   @Override
   public void addStartBundleFunction(ThrowingRunnable startBundleFunction) {
     getStartBundleFunctions().add(startBundleFunction);
+  }
+
+  /**
+   * Returns a list of additional methods registered to perform during the phase of {@link
+   * DoFn.ProcessElement}.
+   */
+  public abstract List<ThrowingRunnable> getProcessBundleDataFunctions();
+
+  @Override
+  public void addProcessBundleDataFunction(ThrowingRunnable processBundleDataFunction) {
+    getProcessBundleDataFunctions().add(processBundleDataFunction);
+  }
+
+  /**
+   * Returns a list of additional methods registered to perform during the phase of process timer of
+   * DoFns.
+   */
+  public abstract List<ThrowingRunnable> getProcessBundleTimerFunctions();
+
+  @Override
+  public void addProcessBundleTimerFunction(ThrowingRunnable processBundleTimerFunction) {
+    getProcessBundleTimerFunctions().add(processBundleTimerFunction);
   }
 
   /** Returns a list of methods registered to perform {@link DoFn.FinishBundle}. */

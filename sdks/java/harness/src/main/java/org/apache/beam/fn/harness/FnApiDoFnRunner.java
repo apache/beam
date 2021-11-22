@@ -39,6 +39,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
+import org.apache.beam.fn.harness.data.ElementsTimersDispatcher;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
@@ -187,6 +188,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context.getSplitListener(),
               context.getBundleFinalizer());
 
+      runner.embeddedTimersDispatcher =
+          new ElementsTimersDispatcher(context.getProcessBundleRequestEmbeddedElements());
       for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> entry :
           runner.timerFamilyInfos.entrySet()) {
         String localName = entry.getKey();
@@ -194,7 +197,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Coder<Timer<Object>> coder = entry.getValue().getValue();
         context.addIncomingTimerEndpoint(
             localName, coder, timer -> runner.processTimer(localName, timeDomain, timer));
+        runner.embeddedTimersDispatcher.registerTimerConsumer(
+            localName, coder, timer -> runner.processTimer(localName, timeDomain, timer));
       }
+      context.addProcessBundleTimerFunction(runner.embeddedTimersDispatcher::dispatch);
       return runner;
     }
   }
@@ -235,6 +241,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final ProcessBundleContextBase processContext;
   private final OnTimerContext<?> onTimerContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
+  private ElementsTimersDispatcher embeddedTimersDispatcher;
 
   /**
    * Used to guarantee a consistent view of this {@link FnApiDoFnRunner} while setting up for {@link
@@ -731,7 +738,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     return null;
   }
 
-  private void startBundle() {
+  private void startBundle() throws Exception {
     // Register as a consumer for each timer.
     outboundTimerReceivers = new HashMap<>();
     timerBundleTracker =

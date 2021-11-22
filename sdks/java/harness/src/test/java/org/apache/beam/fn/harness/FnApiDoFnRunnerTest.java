@@ -57,6 +57,8 @@ import org.apache.beam.fn.harness.data.FakeBeamFnTimerClient;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Timers;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -1067,6 +1069,250 @@ public class FnApiDoFnRunnerTest implements Serializable {
               .put(bagUserStateKey("bag", "C"), encode("C0", "processing"))
               .build(),
           fakeStateClient.getData());
+    }
+
+    @Test
+    public void testProcessControlRequestEmbeddedTimers() throws Exception {
+      dateTimeProvider.setDateTimeFixed(10000L);
+
+      Pipeline p = Pipeline.create();
+      PCollection<KV<String, String>> valuePCollection =
+          p.apply(Create.of(KV.of("unused", "unused")));
+      PCollection<String> outputPCollection =
+          valuePCollection.apply(TEST_TRANSFORM_ID, ParDo.of(new TestTimerfulDoFn()));
+
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environment.getDefaultInstance());
+      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+      String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
+      String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
+
+      RunnerApi.PTransform pTransform =
+          pProto
+              .getComponents()
+              .getTransformsOrThrow(
+                  pProto
+                      .getComponents()
+                      .getTransformsOrThrow(TEST_TRANSFORM_ID)
+                      .getSubtransforms(0))
+              .toBuilder()
+              .build();
+
+      FakeBeamFnStateClient fakeStateClient =
+          new FakeBeamFnStateClient(
+              ImmutableMap.of(
+                  bagUserStateKey("bag", "X"), encode("X0"),
+                  bagUserStateKey("bag", "A"), encode("A0"),
+                  bagUserStateKey("bag", "C"), encode("C0")));
+      FakeBeamFnTimerClient fakeTimerClient = new FakeBeamFnTimerClient();
+
+      LogicalEndpoint eventTimer = LogicalEndpoint.timer("57L", TEST_TRANSFORM_ID, "ts-event");
+      LogicalEndpoint processingTimer =
+          LogicalEndpoint.timer("57L", TEST_TRANSFORM_ID, "ts-processing");
+      LogicalEndpoint eventFamilyTimer =
+          LogicalEndpoint.timer("57L", TEST_TRANSFORM_ID, "tfs-event-family");
+      LogicalEndpoint processingFamilyTimer =
+          LogicalEndpoint.timer("57L", TEST_TRANSFORM_ID, "tfs-processing-family");
+      Coder<org.apache.beam.runners.core.construction.Timer<String>> coder =
+          org.apache.beam.runners.core.construction.Timer.Coder.of(
+              StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+      Elements embeddedElements =
+          Elements.newBuilder()
+              .addAllTimers(
+                  ImmutableList.of(
+                      getEncodedTimers(
+                          timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)),
+                          coder,
+                          eventTimer.getTimerFamilyId()),
+                      getEncodedTimers(
+                          timerInGlobalWindow("B", new Instant(1500L), new Instant(2500L)),
+                          coder,
+                          eventTimer.getTimerFamilyId()),
+                      getEncodedTimers(
+                          timerInGlobalWindow("A", new Instant(1600L), new Instant(2600L)),
+                          coder,
+                          eventTimer.getTimerFamilyId()),
+                      getEncodedTimers(
+                          timerInGlobalWindow("X", new Instant(1700L), new Instant(2700L)),
+                          coder,
+                          processingTimer.getTimerFamilyId()),
+                      getEncodedTimers(
+                          timerInGlobalWindow("C", new Instant(1800L), new Instant(2800L)),
+                          coder,
+                          processingTimer.getTimerFamilyId()),
+                      getEncodedTimers(
+                          timerInGlobalWindow("B", new Instant(1500L), new Instant(10032L)),
+                          coder,
+                          processingTimer.getTimerFamilyId()),
+                      getEncodedTimers(
+                          dynamicTimerInGlobalWindow(
+                              "B", "event-timer2", new Instant(2000L), new Instant(1650L)),
+                          coder,
+                          eventFamilyTimer.getTimerFamilyId()),
+                      getEncodedTimers(
+                          dynamicTimerInGlobalWindow(
+                              "Y", "processing-timer2", new Instant(2100L), new Instant(1650L)),
+                          coder,
+                          processingFamilyTimer.getTimerFamilyId())))
+              .build();
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .beamFnStateClient(fakeStateClient)
+              .beamFnTimerClient(fakeTimerClient)
+              .processBundleInstructionId("57L")
+              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+              .coders(pProto.getComponents().getCodersMap())
+              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .processBundleRequestEmbeddedElements(embeddedElements)
+              .build();
+      List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+      context.addPCollectionConsumer(
+          outputPCollectionId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add,
+          StringUtf8Coder.of());
+
+      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+
+      Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
+      // mainOutputValues.clear();
+      // Ensure that bag user state that is initially empty or populated works.
+      // Ensure that the key order does not matter when we traverse over KV pairs.
+      FnDataReceiver<WindowedValue<?>> mainInput =
+          context.getPCollectionConsumer(inputPCollectionId);
+      mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X1"), new Instant(1000L)));
+      mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y1"), new Instant(1100L)));
+      mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X2"), new Instant(1200L)));
+      mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y2"), new Instant(1300L)));
+
+      assertThat(
+          context.getPCollectionConsumers().keySet(),
+          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+
+      Iterables.getOnlyElement(context.getProcessBundleTimerFunctions()).run();
+
+      assertThat(
+          mainOutputValues,
+          contains(
+              timestampedValueInGlobalWindow("key:X mainX[X0]", new Instant(1000L)),
+              timestampedValueInGlobalWindow("key:Y mainY[]", new Instant(1100L)),
+              timestampedValueInGlobalWindow("key:X mainX[X0, X1]", new Instant(1200L)),
+              timestampedValueInGlobalWindow("key:Y mainY[Y1]", new Instant(1300L)),
+              timestampedValueInGlobalWindow("key:A event[A0]", new Instant(1400L)),
+              timestampedValueInGlobalWindow("key:B event[]", new Instant(1500L)),
+              timestampedValueInGlobalWindow("key:A event[A0, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow("key:A event[A0, event, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow(
+                  "key:A event[A0, event, event, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow(
+                  "key:A event[A0, event, event, event, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow(
+                  "key:A event[A0, event, event, event, event, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow(
+                  "key:A event[A0, event, event, event, event, event, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow("key:C processing[C0]", new Instant(1800L)),
+              timestampedValueInGlobalWindow("key:B processing[event]", new Instant(1500L)),
+              timestampedValueInGlobalWindow("key:B event[event, processing]", new Instant(1500)),
+              timestampedValueInGlobalWindow(
+                  "key:B event[event, processing, event]", new Instant(1500)),
+              timestampedValueInGlobalWindow(
+                  "key:B event[event, processing, event, event]", new Instant(1500)),
+              timestampedValueInGlobalWindow(
+                  "key:B event-family[event, processing, event, event, event]", new Instant(2000L)),
+              timestampedValueInGlobalWindow(
+                  "key:Y processing-family[Y1, Y2]", new Instant(2100L))));
+
+      mainOutputValues.clear();
+
+      assertFalse(fakeTimerClient.isOutboundClosed(eventTimer));
+      assertFalse(fakeTimerClient.isOutboundClosed(processingTimer));
+      assertFalse(fakeTimerClient.isOutboundClosed(eventFamilyTimer));
+      assertFalse(fakeTimerClient.isOutboundClosed(processingFamilyTimer));
+
+      // Timers will get delivered to the client when finishBundle is called.
+      Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
+
+      assertThat(
+          fakeTimerClient.getTimers(eventTimer),
+          contains(
+              clearedTimerInGlobalWindow("X"),
+              timerInGlobalWindow("Y", new Instant(2100L), new Instant(2181L)),
+              timerInGlobalWindow("A", new Instant(1400L), new Instant(2617L)),
+              timerInGlobalWindow("B", new Instant(2000L), new Instant(2071L)),
+              timerInGlobalWindow("C", new Instant(1800L), new Instant(1861L))));
+      assertThat(
+          fakeTimerClient.getTimers(processingTimer),
+          contains(
+              clearedTimerInGlobalWindow("X"),
+              timerInGlobalWindow("Y", new Instant(2100L), new Instant(10082L)),
+              timerInGlobalWindow("A", new Instant(1400L), new Instant(10032L)),
+              timerInGlobalWindow("B", new Instant(2000L), new Instant(10072L)),
+              timerInGlobalWindow("C", new Instant(1800L), new Instant(10062L))));
+
+      assertThat(
+          fakeTimerClient.getTimers(eventFamilyTimer),
+          containsInAnyOrder(
+              dynamicTimerInGlobalWindow(
+                  "X", "event-timer1", new Instant(1200L), new Instant(1203L)),
+              clearedTimerInGlobalWindow("X", "to-delete-event"),
+              clearedTimerInGlobalWindow("Y", "to-delete-event"),
+              dynamicTimerInGlobalWindow(
+                  "Y", "event-timer1", new Instant(2100L), new Instant(2183L)),
+              dynamicTimerInGlobalWindow(
+                  "A", "event-timer1", new Instant(1400L), new Instant(2619L)),
+              dynamicTimerInGlobalWindow(
+                  "B", "event-timer1", new Instant(2000L), new Instant(2073L)),
+              dynamicTimerInGlobalWindow(
+                  "C", "event-timer1", new Instant(1800L), new Instant(1863L))));
+      assertThat(
+          fakeTimerClient.getTimers(processingFamilyTimer),
+          containsInAnyOrder(
+              dynamicTimerInGlobalWindow(
+                  "X", "processing-timer1", new Instant(1200L), new Instant(10004L)),
+              clearedTimerInGlobalWindow("X", "to-delete-processing"),
+              dynamicTimerInGlobalWindow(
+                  "Y", "processing-timer1", new Instant(2100L), new Instant(10084L)),
+              clearedTimerInGlobalWindow("Y", "to-delete-processing"),
+              dynamicTimerInGlobalWindow(
+                  "A", "processing-timer1", new Instant(1400L), new Instant(10034L)),
+              dynamicTimerInGlobalWindow(
+                  "B", "processing-timer1", new Instant(2000L), new Instant(10074L)),
+              dynamicTimerInGlobalWindow(
+                  "C", "processing-timer1", new Instant(1800L), new Instant(10064L))));
+
+      assertThat(mainOutputValues, empty());
+
+      assertTrue(fakeTimerClient.isOutboundClosed(eventTimer));
+      assertTrue(fakeTimerClient.isOutboundClosed(processingTimer));
+      assertTrue(fakeTimerClient.isOutboundClosed(eventFamilyTimer));
+      assertTrue(fakeTimerClient.isOutboundClosed(processingFamilyTimer));
+
+      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
+      assertThat(mainOutputValues, empty());
+
+      assertEquals(
+          ImmutableMap.<StateKey, ByteString>builder()
+              .put(bagUserStateKey("bag", "X"), encode("X0", "X1", "X2"))
+              .put(bagUserStateKey("bag", "Y"), encode("Y1", "Y2", "processing-family"))
+              .put(
+                  bagUserStateKey("bag", "A"),
+                  encode("A0", "event", "event", "event", "event", "event", "event", "event"))
+              .put(
+                  bagUserStateKey("bag", "B"),
+                  encode("event", "processing", "event", "event", "event", "event-family"))
+              .put(bagUserStateKey("bag", "C"), encode("C0", "processing"))
+              .build(),
+          fakeStateClient.getData());
+    }
+
+    private <K> Timers getEncodedTimers(
+        org.apache.beam.runners.core.construction.Timer<K> timer,
+        Coder<org.apache.beam.runners.core.construction.Timer<K>> coder,
+        String timerFamilyId)
+        throws IOException {
+      Timers.Builder timers = Timers.newBuilder();
+      ByteString.Output outputStream = ByteString.newOutput();
+      coder.encode(timer, outputStream);
+      return timers.setTimerFamilyId(timerFamilyId).setTimers(outputStream.toByteString()).build();
     }
 
     private <K> org.apache.beam.runners.core.construction.Timer<K> timerInGlobalWindow(

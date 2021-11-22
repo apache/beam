@@ -29,8 +29,10 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
+import org.apache.beam.fn.harness.data.ElementsDataDispatcher;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.DesiredSplit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse;
@@ -92,9 +94,11 @@ public class BeamFnDataReadRunner<OutputT> {
               context.getCoders(),
               context.getBeamFnStateClient(),
               context::addProgressRequestCallback,
+              context.getProcessBundleRequestEmbeddedElements(),
               consumer);
       context.addIncomingDataEndpoint(
           runner.apiServiceDescriptor, runner.coder, runner::forwardElementToConsumer);
+      context.addProcessBundleDataFunction(runner.embeddedElementsDataDispatcher::dispatch);
       context.addFinishBundleFunction(runner::blockTillReadFinishes);
       context.addResetFunction(runner::reset);
       return runner;
@@ -102,6 +106,7 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   private final String pTransformId;
+  private final ElementsDataDispatcher<OutputT> embeddedElementsDataDispatcher;
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final FnDataReceiver<WindowedValue<OutputT>> consumer;
   private final Supplier<String> processBundleInstructionIdSupplier;
@@ -121,6 +126,7 @@ public class BeamFnDataReadRunner<OutputT> {
       Map<String, RunnerApi.Coder> coders,
       BeamFnStateClient beamFnStateClient,
       Consumer<PTransformRunnerFactory.ProgressRequestCallback> addProgressRequestCallback,
+      Elements processBundleRequestEmbeddedElements,
       FnDataReceiver<WindowedValue<OutputT>> consumer)
       throws IOException {
     this.pTransformId = pTransformId;
@@ -147,6 +153,10 @@ public class BeamFnDataReadRunner<OutputT> {
                     return processBundleInstructionIdSupplier;
                   }
                 });
+
+    this.embeddedElementsDataDispatcher =
+        new ElementsDataDispatcher<>(
+            processBundleRequestEmbeddedElements, this.coder, this::forwardElementToConsumer);
 
     addProgressRequestCallback.accept(
         () -> {

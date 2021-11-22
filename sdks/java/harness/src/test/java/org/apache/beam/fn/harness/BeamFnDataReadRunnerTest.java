@@ -147,6 +147,7 @@ public class BeamFnDataReadRunnerTest {
 
       assertThat(context.getTearDownFunctions(), empty());
       assertThat(context.getStartBundleFunctions(), empty());
+      assertThat(context.getProcessBundleDataFunctions(), hasSize(1));
       assertThat(context.getPCollectionConsumers().keySet(), containsInAnyOrder(localOutputId));
       assertThat(context.getIncomingDataEndpoints().keySet(), hasSize(1));
       DataEndpoint<WindowedValue<String>> endpoint =

@@ -53,6 +53,7 @@ import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.state.CachingBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
@@ -238,6 +239,8 @@ public class ProcessBundleHandler {
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
       Set<String> processedPTransformIds,
       PTransformFunctionRegistry startFunctionRegistry,
+      PTransformFunctionRegistry processFunctionRegistry,
+      PTransformFunctionRegistry processTimersFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
       Consumer<ThrowingRunnable> addResetFunction,
       Consumer<ThrowingRunnable> addTearDownFunction,
@@ -246,7 +249,8 @@ public class ProcessBundleHandler {
       Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer,
-      Collection<BeamFnDataReadRunner> channelRoots)
+      Collection<BeamFnDataReadRunner> channelRoots,
+      Elements processBundleRequestEmbeddedElements)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -267,6 +271,8 @@ public class ProcessBundleHandler {
             pCollectionConsumerRegistry,
             processedPTransformIds,
             startFunctionRegistry,
+            processFunctionRegistry,
+            processTimersFunctionRegistry,
             finishFunctionRegistry,
             addResetFunction,
             addTearDownFunction,
@@ -275,7 +281,8 @@ public class ProcessBundleHandler {
             addProgressRequestCallback,
             splitListener,
             bundleFinalizer,
-            channelRoots);
+            channelRoots,
+            processBundleRequestEmbeddedElements);
       }
     }
 
@@ -368,6 +375,17 @@ public class ProcessBundleHandler {
                     }
 
                     @Override
+                    public void addProcessBundleDataFunction(ThrowingRunnable processFunction) {
+                      processFunctionRegistry.register(pTransformId, processFunction);
+                    }
+
+                    @Override
+                    public void addProcessBundleTimerFunction(
+                        ThrowingRunnable processTimerFunction) {
+                      processTimersFunctionRegistry.register(pTransformId, processTimerFunction);
+                    }
+
+                    @Override
                     public void addFinishBundleFunction(ThrowingRunnable finishFunction) {
                       finishFunctionRegistry.register(pTransformId, finishFunction);
                     }
@@ -415,6 +433,11 @@ public class ProcessBundleHandler {
                     public BundleFinalizer getBundleFinalizer() {
                       return bundleFinalizer;
                     }
+
+                    @Override
+                    public Elements getProcessBundleRequestEmbeddedElements() {
+                      return processBundleRequestEmbeddedElements;
+                    }
                   });
       if (runner instanceof BeamFnDataReadRunner) {
         channelRoots.add((BeamFnDataReadRunner) runner);
@@ -446,6 +469,10 @@ public class ProcessBundleHandler {
             });
     try {
       PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
+      PTransformFunctionRegistry processDataFunctionRegistry =
+          bundleProcessor.getProcessBundleDataFunctionRegistry();
+      PTransformFunctionRegistry processTimerFunctionRegistry =
+          bundleProcessor.getProcessBundleTimerFunctionRegistry();
       PTransformFunctionRegistry finishFunctionRegistry =
           bundleProcessor.getFinishFunctionRegistry();
       ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
@@ -453,12 +480,22 @@ public class ProcessBundleHandler {
       try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
         try (Closeable closeTracker = stateTracker.activate()) {
           // Already in reverse topological order so we don't need to do anything.
+          if (request.getProcessBundle().getElements() != null
+              && (request.getProcessBundle().getElements().getDataCount() > 0
+                  || request.getProcessBundle().getElements().getTimersCount() > 0)) {
+            bundleProcessor.setProcessBundleRequestEmbeddedElements(
+                request.getProcessBundle().getElements());
+          }
           for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
             LOG.debug("Starting function {}", startFunction);
             startFunction.run();
           }
 
-          if (!bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
+          boolean shouldReadElementsFromDataPlane =
+              bundleProcessor.getProcessBundleRequestEmbeddedElements() == null;
+
+          if (shouldReadElementsFromDataPlane
+              && !bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
             BeamFnDataInboundObserver2 observer = bundleProcessor.getInboundObserver();
             beamFnDataClient.registerReceiver(
                 request.getInstructionId(),
@@ -468,6 +505,17 @@ public class ProcessBundleHandler {
             beamFnDataClient.unregisterReceiver(
                 request.getInstructionId(),
                 bundleProcessor.getInboundEndpointApiServiceDescriptors());
+          }
+
+          for (ThrowingRunnable processDataFunction : processDataFunctionRegistry.getFunctions()) {
+            LOG.debug("Executing process function {}", processDataFunction);
+            processDataFunction.run();
+          }
+
+          for (ThrowingRunnable processTimerFunction :
+              processTimerFunctionRegistry.getFunctions()) {
+            LOG.debug("Executing process timer function {}", processTimerFunction);
+            processTimerFunction.run();
           }
 
           // Need to reverse this since we want to call finish in topological order.
@@ -610,6 +658,14 @@ public class ProcessBundleHandler {
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
             metricsContainerRegistry, stateTracker, ExecutionStateTracker.START_STATE_NAME);
+    PTransformFunctionRegistry processFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, stateTracker, ExecutionStateTracker.PROCESS_STATE_NAME);
+    PTransformFunctionRegistry processTimersFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry,
+            stateTracker,
+            ExecutionStateTracker.PROCESS_TIMERS_STATE_NAME);
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             metricsContainerRegistry, stateTracker, ExecutionStateTracker.FINISH_STATE_NAME);
@@ -674,6 +730,8 @@ public class ProcessBundleHandler {
         BundleProcessor.create(
             bundleDescriptor,
             startFunctionRegistry,
+            processFunctionRegistry,
+            processTimersFunctionRegistry,
             finishFunctionRegistry,
             resetFunctions,
             tearDownFunctions,
@@ -712,6 +770,8 @@ public class ProcessBundleHandler {
           pCollectionConsumerRegistry,
           processedPTransformIds,
           startFunctionRegistry,
+          processFunctionRegistry,
+          processTimersFunctionRegistry,
           finishFunctionRegistry,
           resetFunctions::add,
           tearDownFunctions::add,
@@ -732,7 +792,8 @@ public class ProcessBundleHandler {
           progressRequestCallbacks::add,
           splitListener,
           bundleFinalizer,
-          bundleProcessor.getChannelRoots());
+          bundleProcessor.getChannelRoots(),
+          bundleProcessor.getProcessBundleRequestEmbeddedElements());
     }
     bundleProcessor.finish();
 
@@ -856,6 +917,8 @@ public class ProcessBundleHandler {
     public static BundleProcessor create(
         ProcessBundleDescriptor processBundleDescriptor,
         PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry processFunctionRegistry,
+        PTransformFunctionRegistry processTimerFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         List<ThrowingRunnable> resetFunctions,
         List<ThrowingRunnable> tearDownFunctions,
@@ -869,6 +932,8 @@ public class ProcessBundleHandler {
       return new AutoValue_ProcessBundleHandler_BundleProcessor(
           processBundleDescriptor,
           startFunctionRegistry,
+          processFunctionRegistry,
+          processTimerFunctionRegistry,
           finishFunctionRegistry,
           resetFunctions,
           tearDownFunctions,
@@ -882,7 +947,7 @@ public class ProcessBundleHandler {
           /*inboundDataEndpoints=*/ new ArrayList<>(),
           /*timerEndpoints=*/ new ArrayList<>(),
           bundleFinalizationCallbackRegistrations,
-          new ArrayList<>());
+          /*channelRoots=*/ new ArrayList<>());
     }
 
     private String instructionId;
@@ -890,6 +955,10 @@ public class ProcessBundleHandler {
     abstract ProcessBundleDescriptor getProcessBundleDescriptor();
 
     abstract PTransformFunctionRegistry getStartFunctionRegistry();
+
+    abstract PTransformFunctionRegistry getProcessBundleDataFunctionRegistry();
+
+    abstract PTransformFunctionRegistry getProcessBundleTimerFunctionRegistry();
 
     abstract PTransformFunctionRegistry getFinishFunctionRegistry();
 
@@ -919,6 +988,8 @@ public class ProcessBundleHandler {
 
     abstract Collection<BeamFnDataReadRunner> getChannelRoots();
 
+    private Elements processBundleRequestEmbeddedElements;
+
     synchronized String getInstructionId() {
       return this.instructionId;
     }
@@ -939,15 +1010,27 @@ public class ProcessBundleHandler {
       this.instructionId = instructionId;
     }
 
+    void setProcessBundleRequestEmbeddedElements(Elements elements) {
+      this.processBundleRequestEmbeddedElements = elements;
+    }
+
+    Elements getProcessBundleRequestEmbeddedElements() {
+      return this.processBundleRequestEmbeddedElements;
+    }
+
     void reset() throws Exception {
       setInstructionId(null);
       getStartFunctionRegistry().reset();
+      getProcessBundleDataFunctionRegistry().reset();
+      getProcessBundleTimerFunctionRegistry().reset();
       getFinishFunctionRegistry().reset();
       getSplitListener().clear();
       getpCollectionConsumerRegistry().reset();
       getMetricsContainerRegistry().reset();
       getStateTracker().reset();
       getBundleFinalizationCallbackRegistrations().clear();
+      setProcessBundleRequestEmbeddedElements(null);
+
       for (ThrowingRunnable resetFunction : getResetFunctions()) {
         resetFunction.run();
       }

@@ -21,10 +21,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -84,6 +86,18 @@ public interface PTransformRunnerFactory<T> {
     /** Register any {@link DoFn.StartBundle} methods. */
     void addStartBundleFunction(ThrowingRunnable startBundleFunction);
 
+    /**
+     * Registers any additional function methods that should be executed in the DoFn's process
+     * element stage.
+     */
+    void addProcessBundleDataFunction(ThrowingRunnable executeBundleFunction);
+
+    /**
+     * Registers any additional function methods that should be executed in the DoFn's process
+     * OnTimer callback stage.
+     */
+    void addProcessBundleTimerFunction(ThrowingRunnable executeBundleFunction);
+
     /** Register any {@link DoFn.FinishBundle} methods. */
     void addFinishBundleFunction(ThrowingRunnable finishBundleFunction);
 
@@ -129,6 +143,10 @@ public interface PTransformRunnerFactory<T> {
      * instant provides the timeout on how long the finalization callback is valid for.
      */
     DoFn.BundleFinalizer getBundleFinalizer();
+
+    /** Returns the elements embedded in the current ProcessBundleRequest. */
+    @Nullable
+    Elements getProcessBundleRequestEmbeddedElements();
   }
 
   /**

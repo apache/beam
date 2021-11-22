@@ -193,6 +193,16 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
+    PTransformFunctionRegistry getProcessBundleDataFunctionRegistry() {
+      return wrappedBundleProcessor.getProcessBundleDataFunctionRegistry();
+    }
+
+    @Override
+    PTransformFunctionRegistry getProcessBundleTimerFunctionRegistry() {
+      return wrappedBundleProcessor.getProcessBundleTimerFunctionRegistry();
+    }
+
+    @Override
     PTransformFunctionRegistry getFinishFunctionRegistry() {
       return wrappedBundleProcessor.getFinishFunctionRegistry();
     }
@@ -613,6 +623,9 @@ public class ProcessBundleHandlerTest {
   @Test
   public void testBundleProcessorReset() throws Exception {
     PTransformFunctionRegistry startFunctionRegistry = mock(PTransformFunctionRegistry.class);
+    PTransformFunctionRegistry processFunctionRegistry = mock(PTransformFunctionRegistry.class);
+    PTransformFunctionRegistry processTimerFunctionRegistry =
+        mock(PTransformFunctionRegistry.class);
     PTransformFunctionRegistry finishFunctionRegistry = mock(PTransformFunctionRegistry.class);
     BundleSplitListener.InMemory splitListener = mock(BundleSplitListener.InMemory.class);
     Collection<CallbackRegistration> bundleFinalizationCallbacks = mock(Collection.class);
@@ -627,6 +640,8 @@ public class ProcessBundleHandlerTest {
         BundleProcessor.create(
             ProcessBundleDescriptor.getDefaultInstance(),
             startFunctionRegistry,
+            processFunctionRegistry,
+            processTimerFunctionRegistry,
             finishFunctionRegistry,
             Collections.singletonList(resetFunction),
             new ArrayList<>(),
