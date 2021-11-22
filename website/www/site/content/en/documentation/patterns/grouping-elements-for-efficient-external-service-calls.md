@@ -45,12 +45,12 @@ input.apply(
           GroupIntoBatches.<String, GenericJson>ofSize(batchSize)
               .withMaxBufferingDuration(maxBufferingDuration)
               .withShardedKey())
-{{< /highlight java >}}
+{{< /highlight >}}
 
 and in Python:
 
 {{< highlight python >}}
 input | GroupIntoBatches.WithShardedKey(batchSize, maxBufferingDuration)
-{{< /highlight python >}}
+{{< /highlight >}}
 
 Applying these transforms will output groups of elements in a batch on a per-key basis, which you can then use to call an external API in bulk rather than on a per-element basis, resulting in a lower overhead in your pipeline. 
