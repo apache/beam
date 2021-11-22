@@ -52,11 +52,11 @@ func Test_newJavaLifeCycle(t *testing.T) {
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Folder: Folder{
 					BaseFolder:       baseFileFolder,
-					ExecutableFolder: srcFileFolder,
+					SourceFileFolder: srcFileFolder,
 					CompiledFolder:   binFileFolder,
 				},
 				Extension: Extension{
-					ExecutableExtension: javaExecutableFileExtension,
+					SourceFileExtension: javaSourceFileExtension,
 					CompiledExtension:   javaCompiledFileExtension,
 				},
 				ExecutableName: executableName,

@@ -32,14 +32,14 @@ const (
 // For each SDK these values should be set depending on folders that need for the SDK.
 type Folder struct {
 	BaseFolder       string
-	ExecutableFolder string
+	SourceFileFolder string
 	CompiledFolder   string
 }
 
 // Extension contains executable and compiled files' extensions.
 // For each SDK these values should be set depending on SDK's extensions.
 type Extension struct {
-	ExecutableExtension string
+	SourceFileExtension string
 	CompiledExtension   string
 }
 
@@ -88,14 +88,14 @@ func (l *LifeCycle) DeleteFolders() error {
 	return nil
 }
 
-// CreateExecutableFile creates an executable file (i.e. file.{executableExtension}).
-func (l *LifeCycle) CreateExecutableFile(code string) (string, error) {
-	if _, err := os.Stat(l.Folder.ExecutableFolder); os.IsNotExist(err) {
+// CreateSourceCodeFile creates an executable file (i.e. file.{sourceFileExtension}).
+func (l *LifeCycle) CreateSourceCodeFile(code string) (string, error) {
+	if _, err := os.Stat(l.Folder.SourceFileFolder); os.IsNotExist(err) {
 		return "", err
 	}
 
-	fileName := l.pipelineId.String() + l.Extension.ExecutableExtension
-	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
+	fileName := l.pipelineId.String() + l.Extension.SourceFileExtension
+	filePath := filepath.Join(l.Folder.SourceFileFolder, fileName)
 	err := os.WriteFile(filePath, []byte(code), fileMode)
 	if err != nil {
 		return "", err
@@ -103,10 +103,10 @@ func (l *LifeCycle) CreateExecutableFile(code string) (string, error) {
 	return fileName, nil
 }
 
-// GetAbsoluteExecutableFilePath returns absolute filepath to executable file (/path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.{executableExtension}).
-func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
-	fileName := l.pipelineId.String() + l.Extension.ExecutableExtension
-	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
+// GetAbsoluteSourceFilePath returns absolute filepath to executable file (/path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.{sourceFileExtension}).
+func (l *LifeCycle) GetAbsoluteSourceFilePath() string {
+	fileName := l.pipelineId.String() + l.Extension.SourceFileExtension
+	filePath := filepath.Join(l.Folder.SourceFileFolder, fileName)
 	absoluteFilePath, _ := filepath.Abs(filePath)
 	return absoluteFilePath
 }

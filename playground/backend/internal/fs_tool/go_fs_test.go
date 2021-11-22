@@ -50,11 +50,11 @@ func Test_newGoLifeCycle(t *testing.T) {
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Folder: Folder{
 					BaseFolder:       baseFileFolder,
-					ExecutableFolder: srcFileFolder,
+					SourceFileFolder: srcFileFolder,
 					CompiledFolder:   binFileFolder,
 				},
 				Extension: Extension{
-					ExecutableExtension: goExecutableFileExtension,
+					SourceFileExtension: goExecutableFileExtension,
 					CompiledExtension:   goCompiledFileExtension,
 				},
 				pipelineId: pipelineId,

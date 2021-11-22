@@ -53,7 +53,7 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 			name: "executable folder doesn't exist",
 			fields: fields{
 				folder: Folder{
-					ExecutableFolder: srcFileFolder,
+					SourceFileFolder: srcFileFolder,
 					CompiledFolder:   binFileFolder,
 				},
 				pipelineId: pipelineId,
@@ -66,12 +66,12 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 			name:          "executable folder exists",
 			createFolders: []string{srcFileFolder},
 			fields: fields{
-				folder:     Folder{ExecutableFolder: srcFileFolder},
-				extension:  Extension{ExecutableExtension: javaExecutableFileExtension},
+				folder:     Folder{SourceFileFolder: srcFileFolder},
+				extension:  Extension{SourceFileExtension: javaSourceFileExtension},
 				pipelineId: pipelineId,
 			},
 			args:    args{code: "TEST_CODE"},
-			want:    pipelineId.String() + javaExecutableFileExtension,
+			want:    pipelineId.String() + javaSourceFileExtension,
 			wantErr: false,
 		},
 	}
@@ -86,13 +86,13 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 				Extension:   tt.fields.extension,
 				pipelineId:  tt.fields.pipelineId,
 			}
-			got, err := l.CreateExecutableFile(tt.args.code)
+			got, err := l.CreateSourceCodeFile(tt.args.code)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CreateExecutableFile() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("CreateSourceCodeFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("CreateExecutableFile() got = %v, want %v", got, tt.want)
+				t.Errorf("CreateSourceCodeFile() got = %v, want %v", got, tt.want)
 			}
 		})
 		os.RemoveAll(baseFileFolder)
@@ -209,11 +209,11 @@ func TestNewLifeCycle(t *testing.T) {
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Folder: Folder{
 					BaseFolder:       baseFileFolder,
-					ExecutableFolder: srcFileFolder,
+					SourceFileFolder: srcFileFolder,
 					CompiledFolder:   binFileFolder,
 				},
 				Extension: Extension{
-					ExecutableExtension: javaExecutableFileExtension,
+					SourceFileExtension: javaSourceFileExtension,
 					CompiledExtension:   javaCompiledFileExtension,
 				},
 				ExecutableName: executableName,
@@ -260,7 +260,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 
-	filePath := fmt.Sprintf("%s/%s", srcFileFolder, pipelineId.String()+javaExecutableFileExtension)
+	filePath := fmt.Sprintf("%s/%s", srcFileFolder, pipelineId.String()+javaSourceFileExtension)
 	absolutePath, _ := filepath.Abs(filePath)
 	type fields struct {
 		folderGlobs []string
@@ -275,13 +275,13 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "GetAbsoluteExecutableFilePath",
+			name: "GetAbsoluteSourceFilePath",
 			fields: fields{
 				Folder: Folder{
 					BaseFolder:       baseFileFolder,
-					ExecutableFolder: srcFileFolder,
+					SourceFileFolder: srcFileFolder,
 				},
-				Extension:  Extension{ExecutableExtension: javaExecutableFileExtension},
+				Extension:  Extension{SourceFileExtension: javaSourceFileExtension},
 				pipelineId: pipelineId,
 			},
 			want: absolutePath,
@@ -295,9 +295,9 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 				Extension:   tt.fields.Extension,
 				pipelineId:  tt.fields.pipelineId,
 			}
-			got := l.GetAbsoluteExecutableFilePath()
+			got := l.GetAbsoluteSourceFilePath()
 			if got != tt.want {
-				t.Errorf("GetAbsoluteExecutableFilePath() got = %v, want %v", got, tt.want)
+				t.Errorf("GetAbsoluteSourceFilePath() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -324,7 +324,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilesFolderPath(t *testing.T) {
 			name: "GetAbsoluteExecutableFolderPath",
 			fields: fields{
 				Folder:     Folder{BaseFolder: baseFileFolder},
-				Extension:  Extension{ExecutableExtension: javaExecutableFileExtension},
+				Extension:  Extension{SourceFileExtension: javaSourceFileExtension},
 				pipelineId: pipelineId,
 			},
 			want: absolutePath,
