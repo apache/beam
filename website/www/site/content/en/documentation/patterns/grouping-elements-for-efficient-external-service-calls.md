@@ -53,4 +53,4 @@ and in Python:
 input | GroupIntoBatches.WithShardedKey(batchSize, maxBufferingDuration)
 {{< /highlight >}}
 
-Applying these transforms will output groups of elements in a batch on a per-key basis, which you can then use to call an external API in bulk rather than on a per-element basis, resulting in a lower overhead in your pipeline. 
+Applying these transforms will output groups of elements in a batch on a per-key basis, which you can then use to call an external API in bulk rather than on a per-element basis, resulting in a lower overhead in your pipeline.
