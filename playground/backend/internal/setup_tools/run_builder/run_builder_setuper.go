@@ -31,7 +31,7 @@ func Setup(pipelineId uuid.UUID, lc *fs_tool.LifeCycle, workingDir string, sdkEn
 		WithRunner().
 		WithCommand(sdkEnv.ExecutorConfig.RunCmd).
 		WithArgs(sdkEnv.ExecutorConfig.RunArgs).
-		WithWorkingDir(lc.GetAbsoluteExecutableFilesFolderPath())
+		WithWorkingDir(lc.GetAbsoluteBaseFolderPath())
 
 	switch sdkEnv.ApacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
@@ -42,9 +42,9 @@ func Setup(pipelineId uuid.UUID, lc *fs_tool.LifeCycle, workingDir string, sdkEn
 		}
 
 		runBuilder = runBuilder.
-			WithClassName(className)
+			WithExecutableName(className)
 	case pb.Sdk_SDK_GO:
-		runBuilder = runBuilder.WithCommand(lc.GetAbsoluteBinaryFilePath())
+		runBuilder = runBuilder.WithCommand(lc.GetAbsoluteExecutableFilePath())
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdkEnv.ApacheBeamSdk)
 	}

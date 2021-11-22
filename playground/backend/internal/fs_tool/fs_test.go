@@ -53,8 +53,8 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 			name: "executable folder doesn't exist",
 			fields: fields{
 				folder: Folder{
-					SourceFileFolder: srcFileFolder,
-					CompiledFolder:   binFileFolder,
+					SourceFileFolder:     srcFileFolder,
+					ExecutableFileFolder: binFileFolder,
 				},
 				pipelineId: pipelineId,
 			},
@@ -208,13 +208,13 @@ func TestNewLifeCycle(t *testing.T) {
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Folder: Folder{
-					BaseFolder:       baseFileFolder,
-					SourceFileFolder: srcFileFolder,
-					CompiledFolder:   binFileFolder,
+					BaseFolder:           baseFileFolder,
+					SourceFileFolder:     srcFileFolder,
+					ExecutableFileFolder: binFileFolder,
 				},
 				Extension: Extension{
-					SourceFileExtension: javaSourceFileExtension,
-					CompiledExtension:   javaCompiledFileExtension,
+					SourceFileExtension:     javaSourceFileExtension,
+					ExecutableFileExtension: javaCompiledFileExtension,
 				},
 				ExecutableName: executableName,
 				pipelineId:     pipelineId,
@@ -338,9 +338,9 @@ func TestLifeCycle_GetAbsoluteExecutableFilesFolderPath(t *testing.T) {
 				Extension:   tt.fields.Extension,
 				pipelineId:  tt.fields.pipelineId,
 			}
-			got := l.GetAbsoluteExecutableFilesFolderPath()
+			got := l.GetAbsoluteBaseFolderPath()
 			if got != tt.want {
-				t.Errorf("GetAbsoluteExecutableFilesFolderPath() got = %v, want %v", got, tt.want)
+				t.Errorf("GetAbsoluteBaseFolderPath() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -369,8 +369,8 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 			name: "ExecutableName",
 			fields: fields{
 				Folder: Folder{
-					BaseFolder:     baseFileFolder,
-					CompiledFolder: binFileFolder,
+					BaseFolder:           baseFileFolder,
+					ExecutableFileFolder: binFileFolder,
 				},
 				ExecutableName: func(u uuid.UUID, s string) (string, error) {
 					return "MOCK_EXECUTABLE_NAME", nil

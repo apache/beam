@@ -31,16 +31,16 @@ const (
 // Folder contains names of folders with executable and compiled files.
 // For each SDK these values should be set depending on folders that need for the SDK.
 type Folder struct {
-	BaseFolder       string
-	SourceFileFolder string
-	CompiledFolder   string
+	BaseFolder           string
+	SourceFileFolder     string
+	ExecutableFileFolder string
 }
 
 // Extension contains executable and compiled files' extensions.
 // For each SDK these values should be set depending on SDK's extensions.
 type Extension struct {
-	SourceFileExtension string
-	CompiledExtension   string
+	SourceFileExtension     string
+	ExecutableFileExtension string
 }
 
 // LifeCycle is used for preparing folders and files to process code for one request.
@@ -111,16 +111,16 @@ func (l *LifeCycle) GetAbsoluteSourceFilePath() string {
 	return absoluteFilePath
 }
 
-// GetAbsoluteBinaryFilePath returns absolute filepath to compiled file (/path/to/workingDir/executable_files/{pipelineId}/bin/{pipelineId}.{compiledExtension}).
-func (l *LifeCycle) GetAbsoluteBinaryFilePath() string {
-	fileName := l.pipelineId.String() + l.Extension.CompiledExtension
-	filePath := filepath.Join(l.Folder.CompiledFolder, fileName)
+// GetAbsoluteExecutableFilePath returns absolute filepath to compiled file (/path/to/workingDir/executable_files/{pipelineId}/bin/{pipelineId}.{executableExtension}).
+func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
+	fileName := l.pipelineId.String() + l.Extension.ExecutableFileExtension
+	filePath := filepath.Join(l.Folder.ExecutableFileFolder, fileName)
 	absoluteFilePath, _ := filepath.Abs(filePath)
 	return absoluteFilePath
 }
 
-// GetAbsoluteExecutableFilesFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
-func (l *LifeCycle) GetAbsoluteExecutableFilesFolderPath() string {
+// GetAbsoluteBaseFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
+func (l *LifeCycle) GetAbsoluteBaseFolderPath() string {
 	absoluteFilePath, _ := filepath.Abs(l.Folder.BaseFolder)
 	return absoluteFilePath
 }

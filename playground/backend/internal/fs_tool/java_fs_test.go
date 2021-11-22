@@ -51,13 +51,13 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Folder: Folder{
-					BaseFolder:       baseFileFolder,
-					SourceFileFolder: srcFileFolder,
-					CompiledFolder:   binFileFolder,
+					BaseFolder:           baseFileFolder,
+					SourceFileFolder:     srcFileFolder,
+					ExecutableFileFolder: binFileFolder,
 				},
 				Extension: Extension{
-					SourceFileExtension: javaSourceFileExtension,
-					CompiledExtension:   javaCompiledFileExtension,
+					SourceFileExtension:     javaSourceFileExtension,
+					ExecutableFileExtension: javaCompiledFileExtension,
 				},
 				ExecutableName: executableName,
 				pipelineId:     pipelineId,
@@ -103,7 +103,7 @@ func Test_executableName(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			// Test case with calling executableName method with correct pipelineId and workingDir.
+			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
 			// As a result, want to receive a name that should be executed
 			name: "get executable name",
 			prepare: func() {
@@ -122,7 +122,7 @@ func Test_executableName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test case with calling executableName method with correct pipelineId and workingDir.
+			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
 			// As a result, want to receive an error.
 			name:    "directory doesn't exist",
 			prepare: func() {},
@@ -139,11 +139,11 @@ func Test_executableName(t *testing.T) {
 			tt.prepare()
 			got, err := executableName(tt.args.pipelineId, tt.args.workingDir)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("executableName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("sourceFileName() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("executableName() got = %v, want %v", got, tt.want)
+				t.Errorf("sourceFileName() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

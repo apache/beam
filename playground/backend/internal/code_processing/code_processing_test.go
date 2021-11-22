@@ -223,7 +223,7 @@ func Test_Process(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, os.Getenv("APP_WORK_DIR"))
 			filePath := lc.GetAbsoluteSourceFilePath()
-			workingDir := lc.GetAbsoluteExecutableFilesFolderPath()
+			workingDir := lc.GetAbsoluteBaseFolderPath()
 
 			exec := executors.NewExecutorBuilder().
 				WithValidator().

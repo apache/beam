@@ -34,13 +34,13 @@ func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileEx
 	return &LifeCycle{
 		folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 		Folder: Folder{
-			BaseFolder:       baseFileFolder,
-			SourceFileFolder: srcFileFolder,
-			CompiledFolder:   binFileFolder,
+			BaseFolder:           baseFileFolder,
+			SourceFileFolder:     srcFileFolder,
+			ExecutableFileFolder: binFileFolder,
 		},
 		Extension: Extension{
-			SourceFileExtension: sourceFileExtension,
-			CompiledExtension:   compiledFileExtension,
+			SourceFileExtension:     sourceFileExtension,
+			ExecutableFileExtension: compiledFileExtension,
 		},
 		pipelineId: pipelineId,
 	}
