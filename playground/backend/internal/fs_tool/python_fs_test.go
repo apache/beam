@@ -38,7 +38,7 @@ func Test_newPythonLifeCycle(t *testing.T) {
 	}{
 		{
 			// Test case with calling newPythonLifeCycle method with correct pipelineId and workingDir.
-			// As a result, want to receive an expected go life cycle.
+			// As a result, want to receive an expected python life cycle.
 			name: "newPythonLifeCycle",
 			args: args{
 				pipelineId: pipelineId,
