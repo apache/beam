@@ -1,3 +1,21 @@
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
 ## Manual App Install
 To install Playground applications into existed GCP account you'll need to follow several steps, in this document just simple set of commands will be provided that will guide you over install process.
 
@@ -10,7 +28,7 @@ $ cat /root/dt-key.json | docker login -u _json_key --password-stdin REGISTRY_NA
 ```
 you will need to replace `REGISTRY_NAME` to actual registry address that can be found in Google Cloud console of via gcloud tool.
 
-Next step is to specify path to json key to be used to deploy applications to Google App Engine. This could be done by command 
+Next step is to specify path to json key to be used to deploy applications to Google App Engine. This could be done by command
 ```bash
 $ export GOOGLE_APPLICATION_CREDENTIALS=PATH_TO_KEY_JSON_FILE
 ```
@@ -23,7 +41,7 @@ First of all you will need to build and push image to docker registry, this can 
 ```bash
 $ ./gradlew playground:backend:containers:java:dockerTagsPush -Pdocker-repository-root='REGISTRY_NAME' -Pbase-image='apache/beam_java8_sdk:BEAM_VERSION' -Pdocker-tag="BACKEND_TAG"
 ```
-replace placeholders by 
+replace placeholders by
 * `REGISTRY_NAME` with actual registry address, same as was defined in first command(docker login)
 * `BEAM_VERSION` with version of Apache Beam that you want to use
 * `BACKEND_TAG` tag that playground backend docker image will be set and pushed to repo
