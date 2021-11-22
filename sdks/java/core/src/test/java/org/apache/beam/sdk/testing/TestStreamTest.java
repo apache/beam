@@ -77,7 +77,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestStream}. */
 @RunWith(JUnit4.class)
-// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 @SuppressWarnings("unused")
 public class TestStreamTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();

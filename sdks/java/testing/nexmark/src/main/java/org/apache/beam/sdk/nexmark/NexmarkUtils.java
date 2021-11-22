@@ -91,7 +91,8 @@ import org.slf4j.LoggerFactory;
 
 /** Odd's 'n Ends used throughout queries and driver. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class NexmarkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(NexmarkUtils.class);
@@ -602,7 +603,6 @@ public class NexmarkUtils {
 
                 private static final String DISK_BUSY = "diskBusy";
 
-                @SuppressWarnings("unused")
                 @StateId(DISK_BUSY)
                 private final StateSpec<ValueState<byte[]>> spec =
                     StateSpecs.value(ByteArrayCoder.of());

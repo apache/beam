@@ -167,7 +167,7 @@ import org.junit.runners.JUnit4;
 /** Tests for ParDo. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
@@ -5712,7 +5712,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, String> fn =
           new DoFn<KV<String, Integer>, String>() {
 
-            @SuppressWarnings("unused")
             @TimerFamily(timerFamilyId)
             private final TimerSpec spec = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
@@ -5769,11 +5768,9 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, String> fn =
           new DoFn<KV<String, Integer>, String>() {
 
-            @SuppressWarnings("unused")
             @TimerFamily(timerFamilyId1)
             private final TimerSpec spec1 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
-            @SuppressWarnings("unused")
             @TimerFamily(timerFamilyId2)
             private final TimerSpec spec2 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
@@ -5833,7 +5830,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Integer>, String> fn =
           new DoFn<KV<String, Integer>, String>() {
 
-            @SuppressWarnings("unused")
             @TimerFamily(timerFamilyId)
             private final TimerSpec spec1 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
@@ -5885,7 +5881,6 @@ public class ParDoTest implements Serializable {
       DoFn<KV<String, Long>, Long> fn =
           new DoFn<KV<String, Long>, Long>() {
 
-            @SuppressWarnings("unused")
             @TimerFamily(timerId)
             private final TimerSpec spec = TimerSpecs.timerMap(TimeDomain.PROCESSING_TIME);
 

@@ -32,7 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * Test helper for {@link DoFnInvokersTest}, which needs to test package-private access to DoFns in
  * other packages.
  */
-// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 @SuppressWarnings("unused")
 public class DoFnInvokersTestHelper {
 

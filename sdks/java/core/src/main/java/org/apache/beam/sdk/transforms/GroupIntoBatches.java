@@ -104,7 +104,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
   "rawtypes",
-  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {

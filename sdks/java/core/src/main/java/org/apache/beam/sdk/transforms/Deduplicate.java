@@ -65,7 +65,7 @@ import org.joda.time.Duration;
  *     words.apply(Deduplicate.<String>values());
  * }</pre>
  */
-// TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 @SuppressWarnings("unused")
 public final class Deduplicate {
   /** The default is the {@link TimeDomain#PROCESSING_TIME processing time domain}. */
