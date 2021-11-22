@@ -47,10 +47,13 @@ func Test_newPythonLifeCycle(t *testing.T) {
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder},
 				Folder: Folder{
-					BaseFolder: baseFileFolder,
+					BaseFolder:           baseFileFolder,
+					SourceFileFolder:     baseFileFolder,
+					ExecutableFileFolder: baseFileFolder,
 				},
 				Extension: Extension{
-					ExecutableExtension: pythonExecutableFileExtension,
+					SourceFileExtension:     pythonExecutableFileExtension,
+					ExecutableFileExtension: pythonExecutableFileExtension,
 				},
 				pipelineId: pipelineId,
 			},
