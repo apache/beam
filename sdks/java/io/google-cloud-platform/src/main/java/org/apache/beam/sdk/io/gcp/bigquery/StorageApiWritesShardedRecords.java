@@ -84,7 +84,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A transform to write sharded records to BigQuery using the Storage API. */
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "FutureReturnValueIgnored",
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+})
 public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>>, PCollection<Void>> {
@@ -202,12 +205,10 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     private @Nullable DatasetService datasetServiceInternal = null;
 
     // Stores the current stream for this key.
-    @SuppressWarnings("unused")
     @StateId("streamName")
     private final StateSpec<ValueState<String>> streamNameSpec = StateSpecs.value();
 
     // Stores the current stream offset.
-    @SuppressWarnings("unused")
     @StateId("streamOffset")
     private final StateSpec<ValueState<Long>> streamOffsetSpec = StateSpecs.value();
 

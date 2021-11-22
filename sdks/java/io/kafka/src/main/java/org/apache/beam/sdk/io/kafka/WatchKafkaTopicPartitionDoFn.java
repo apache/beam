@@ -51,7 +51,7 @@ import org.joda.time.Instant;
  */
 @SuppressWarnings({
   "nullness",
-  "unused" // TODO(BEAM-11936): Remove when new version of errorprone is released (2.11.0)
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 @Experimental
 class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceDescriptor> {
