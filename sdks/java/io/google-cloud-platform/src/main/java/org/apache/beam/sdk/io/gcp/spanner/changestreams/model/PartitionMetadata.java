@@ -298,7 +298,6 @@ public class PartitionMetadata implements Serializable {
       Preconditions.checkState(startTimestamp != null, "startTimestamp");
       Preconditions.checkState(heartbeatMillis != null, "heartbeatMillis");
       Preconditions.checkState(state != null, "state");
-      // TODO: Add test for default created at
       if (createdAt == null) {
         createdAt = Value.COMMIT_TIMESTAMP;
       }
