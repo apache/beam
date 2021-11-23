@@ -28,7 +28,9 @@ func GetPreparators(sdk pb.Sdk, filepath string) (*[]preparators.Preparator, err
 	case pb.Sdk_SDK_JAVA:
 		prep = preparators.GetJavaPreparators(filepath)
 	case pb.Sdk_SDK_GO:
-		prep = preparators.GetGoPreparators()
+		prep = preparators.GetGoPreparators(filepath)
+	case pb.Sdk_SDK_PYTHON:
+		prep = preparators.GetPythonPreparators(filepath)
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}

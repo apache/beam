@@ -15,7 +15,7 @@
 
 package preparators
 
-// GetGoPreparators returns reparation methods that should be applied to Go code
-func GetGoPreparators(filePath string) *[]Preparator {
+// GetPythonPreparators returns preparation methods that should be applied to Python code
+func GetPythonPreparators(filePath string) *[]Preparator {
 	return &[]Preparator{}
 }
