@@ -71,7 +71,8 @@ def set_library(selected_library=DEFAULT_PICKLE_LIB):
   if selected_library == USE_DILL and desired_pickle_lib != dill_pickler:
     desired_pickle_lib = dill_pickler
     dill_pickler.override_pickler_hooks(True)
-  elif selected_library == USE_CLOUDPICKLE and desired_pickle_lib != cloudpickle_pickler:
+  elif (selected_library == USE_CLOUDPICKLE and
+        desired_pickle_lib != cloudpickle_pickler):
     desired_pickle_lib = cloudpickle_pickler
     dill_pickler.override_pickler_hooks(False)
 

@@ -30,15 +30,8 @@ dump_session and load_session are no ops.
 import base64
 import bz2
 import io
-import logging
-import sys
 import threading
-import traceback
-import types
 import zlib
-from typing import Any
-from typing import Dict
-from typing import Tuple
 from _thread import RLock as RLockType
 
 try:
@@ -51,7 +44,6 @@ import cloudpickle
 # Pickling, especially unpickling, causes broken module imports on Python 3
 # if executed concurrently, see: BEAM-8651, http://bugs.python.org/issue38884.
 _pickle_lock = threading.RLock()
-import __main__ as _main_module
 
 
 def dumps(o, enable_trace=True, use_zlib=False):
