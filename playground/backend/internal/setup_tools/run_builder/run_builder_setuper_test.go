@@ -43,7 +43,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	_, err = os.Create(successLc.Folder.CompiledFolder + "/temp.class")
+	_, err = os.Create(successLc.Folder.ExecutableFileFolder + "/temp.class")
 	if err != nil {
 		panic(err)
 	}
@@ -116,8 +116,8 @@ func TestSetup(t *testing.T) {
 				WithRunner().
 				WithCommand(sdkEnv.ExecutorConfig.RunCmd).
 				WithArgs(sdkEnv.ExecutorConfig.RunArgs).
-				WithWorkingDir(successLc.GetAbsoluteExecutableFilesFolderPath()).
-				WithClassName(className),
+				WithWorkingDir(successLc.GetAbsoluteBaseFolderPath()).
+				WithExecutableName(className),
 			wantErr: false,
 		},
 	}

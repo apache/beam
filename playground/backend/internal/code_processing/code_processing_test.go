@@ -222,8 +222,8 @@ func Test_Process(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, os.Getenv("APP_WORK_DIR"))
-			filePath := lc.GetAbsoluteExecutableFilePath()
-			workingDir := lc.GetAbsoluteExecutableFilesFolderPath()
+			filePath := lc.GetAbsoluteSourceFilePath()
+			workingDir := lc.GetAbsoluteBaseFolderPath()
 
 			exec := executors.NewExecutorBuilder().
 				WithValidator().
@@ -239,7 +239,7 @@ func Test_Process(t *testing.T) {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
 			if tt.createExecFile {
-				_, _ = lc.CreateExecutableFile(tt.code)
+				_, _ = lc.CreateSourceCodeFile(tt.code)
 			}
 
 			if tt.cancelFunc {
@@ -258,7 +258,7 @@ func Test_Process(t *testing.T) {
 
 			compileOutput, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.CompileOutput)
 			if tt.expectedCompileOutput != nil && strings.Contains(tt.expectedCompileOutput.(string), "%s") {
-				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.GetAbsoluteExecutableFilePath())
+				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.GetAbsoluteSourceFilePath())
 			}
 			if !reflect.DeepEqual(compileOutput, tt.expectedCompileOutput) {
 				t.Errorf("processCode() set compileOutput: %s, but expectes: %s", compileOutput, tt.expectedCompileOutput)
@@ -441,6 +441,85 @@ func TestGetProcessingStatus(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("GetProcessingStatus() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetRunOutputLastIndex(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	pipelineId := uuid.New()
+	incorrectConvertPipelineId := uuid.New()
+	err := cacheService.SetValue(context.Background(), pipelineId, cache.RunOutputIndex, 2)
+	if err != nil {
+		panic(err)
+	}
+	err = cacheService.SetValue(context.Background(), incorrectConvertPipelineId, cache.RunOutputIndex, "MOCK_LAST_INDEX")
+	if err != nil {
+		panic(err)
+	}
+
+	type args struct {
+		ctx          context.Context
+		cacheService cache.Cache
+		key          uuid.UUID
+		errorTitle   string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    int
+		wantErr bool
+	}{
+		{
+			// Test case with calling GetRunOutputLastIndex with pipelineId which doesn't contain status.
+			// As a result, want to receive an error.
+			name: "get last index with incorrect pipelineId",
+			args: args{
+				ctx:          context.Background(),
+				cacheService: cacheService,
+				key:          uuid.New(),
+				errorTitle:   "",
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
+			// Test case with calling GetRunOutputLastIndex with pipelineId which contains incorrect status value in cache.
+			// As a result, want to receive an error.
+			name: "get last index with incorrect cache value",
+			args: args{
+				ctx:          context.Background(),
+				cacheService: cacheService,
+				key:          incorrectConvertPipelineId,
+				errorTitle:   "",
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
+			// Test case with calling GetRunOutputLastIndex with pipelineId which contains status.
+			// As a result, want to receive an expected last index.
+			name: "get last index with correct pipelineId",
+			args: args{
+				ctx:          context.Background(),
+				cacheService: cacheService,
+				key:          pipelineId,
+				errorTitle:   "",
+			},
+			want:    2,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetRunOutputLastIndex(tt.args.ctx, tt.args.cacheService, tt.args.key, tt.args.errorTitle)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetRunOutputLastIndex() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetRunOutputLastIndex() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
