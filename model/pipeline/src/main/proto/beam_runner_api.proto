@@ -1095,7 +1095,7 @@ message WindowingStrategy {
   int64 allowed_lateness = 8;
 
   // (Required) Indicate whether empty on-time panes should be omitted.
-  OnTimeBehavior.Enum OnTimeBehavior = 9;
+  OnTimeBehavior.Enum on_time_behavior = 9;
 
   // (Required) Whether or not the window fn assigns inputs to exactly one window
   //
