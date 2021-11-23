@@ -65,7 +65,7 @@ def load_session(file_path):
   return desired_pickle_lib.load_session(file_path)
 
 
-def set_library(selected_library = DEFAULT_PICKLE_LIB):
+def set_library(selected_library=DEFAULT_PICKLE_LIB):
   """ Sets pickle library that will be used. """
   global desired_pickle_lib
   if selected_library == USE_DILL and desired_pickle_lib != dill_pickler:
