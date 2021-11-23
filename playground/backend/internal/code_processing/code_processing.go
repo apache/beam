@@ -24,6 +24,8 @@ import (
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/setup_tools/run_builder"
+	"beam.apache.org/playground/backend/internal/streaming"
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/google/uuid"
@@ -56,23 +58,23 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	go cancelCheck(ctxWithTimeout, pipelineId, cancelChannel, cacheService)
 
 	// build executor for validate and compile steps
-	exec := compileBuilder.Build()
+	executor := compileBuilder.Build()
 
 	// validate
 	logger.Infof("%s: Validate() ...\n", pipelineId)
-	validateFunc := exec.Validate()
+	validateFunc := executor.Validate()
 	go validateFunc(successChannel, errorChannel)
 
-	if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, errorChannel, pb.Status_STATUS_VALIDATION_ERROR, pb.Status_STATUS_PREPARING); err != nil {
+	if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, nil, errorChannel, pb.Status_STATUS_VALIDATION_ERROR, pb.Status_STATUS_PREPARING); err != nil {
 		return
 	}
 
 	// prepare
 	logger.Infof("%s: Prepare() ...\n", pipelineId)
-	prepareFunc := exec.Prepare()
+	prepareFunc := executor.Prepare()
 	go prepareFunc(successChannel, errorChannel)
 
-	if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, errorChannel, pb.Status_STATUS_PREPARATION_ERROR, pb.Status_STATUS_COMPILING); err != nil {
+	if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, nil, errorChannel, pb.Status_STATUS_PREPARATION_ERROR, pb.Status_STATUS_COMPILING); err != nil {
 		return
 	}
 
@@ -81,10 +83,20 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	case pb.Sdk_SDK_GO:
 		// compile
 		logger.Infof("%s: Compile() ...\n", pipelineId)
-		compileCmd := exec.Compile(ctxWithTimeout)
-		go processCmd(compileCmd, successChannel, errorChannel, dataChannel)
+		compileCmd := executor.Compile(ctxWithTimeout)
+		go func(cmd *exec.Cmd, successChannel chan bool, errChannel chan error, dataChannel chan interface{}) {
+		// TODO separate stderr from stdout [BEAM-13208]
+		data, err := cmd.CombinedOutput()
+		dataChannel <- data
+		if err != nil {
+			errChannel <- err
+			successChannel <- false
+		} else {
+			successChannel <- true
+		}
+	}(compileCmd, successChannel, errorChannel, dataChannel)
 
-		if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, dataChannel, errorChannel, pb.Status_STATUS_COMPILE_ERROR, pb.Status_STATUS_EXECUTING); err != nil {
+		if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, dataChannel, nil, errorChannel, pb.Status_STATUS_COMPILE_ERROR, pb.Status_STATUS_EXECUTING); err != nil {
 			return
 		}
 	}
@@ -97,14 +109,27 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 
 	// build executor for run step
-	exec = runBuilder.Build()
+	executor = runBuilder.Build()
 
 	// run
 	logger.Infof("%s: Run() ...\n", pipelineId)
-	runCmd := exec.Run(ctxWithTimeout)
-	go processCmd(runCmd, successChannel, errorChannel, dataChannel)
+	runCmd := executor.Run(ctxWithTimeout)
 
-	processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, dataChannel, errorChannel, pb.Status_STATUS_RUN_ERROR, pb.Status_STATUS_FINISHED)
+	var runError bytes.Buffer
+	runOutput := &streaming.RunOutputWriter{Ctx: ctxWithTimeout, CacheService: cacheService, PipelineId: pipelineId}
+	runCmd.Stderr = &runError
+	runCmd.Stdout = runOutput
+	go func(cmd *exec.Cmd, successChannel chan bool, errChannel chan error, dataChannel chan interface{}) {
+		err := cmd.Run()
+		if err != nil {
+			errChannel <- err
+			successChannel <- false
+		} else {
+			successChannel <- true
+		}
+	}(runCmd, successChannel, errorChannel, dataChannel)
+
+	processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, &runError, errorChannel, pb.Status_STATUS_RUN_ERROR, pb.Status_STATUS_FINISHED)
 }
 
 // GetProcessingOutput gets processing output value from cache by key and subKey.
@@ -142,25 +167,27 @@ func GetProcessingStatus(ctx context.Context, cacheService cache.Cache, key uuid
 	return statusValue, nil
 }
 
-// processCmd is used to run command. The output of the command running is set to dataCh.
-// In case error occurs - set error output to erCh and put false to doneCh.
-// In case command finishes without errors - put true to doneCh.
-func processCmd(cmd *exec.Cmd, doneCh chan bool, errCh chan error, dataCh chan interface{}) {
-	// TODO separate stderr from stdout
-	data, err := cmd.CombinedOutput()
-	dataCh <- data
+// GetRunOutputLastIndex gets run output's last index from cache by key.
+// In case key doesn't exist in cache - returns an errors.NotFoundError.
+// In case value from cache by key and subKey couldn't be converted to int - returns an errors.InternalError.
+func GetRunOutputLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, errorTitle string) (int, error) {
+	value, err := cacheService.GetValue(ctx, key, cache.RunOutputIndex)
 	if err != nil {
-		errCh <- err
-		doneCh <- false
-	} else {
-		doneCh <- true
+		logger.Errorf("%s: GetStringValueFromCache(): cache.GetValue: error: %s", key, err.Error())
+		return 0, errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(cache.RunOutputIndex)))
 	}
+	intValue, converted := value.(int)
+	if !converted {
+		logger.Errorf("%s: couldn't convert value to string: %s", key, value)
+		return 0, errors.InternalError(errorTitle, fmt.Sprintf("Value from cache couldn't be converted to int: %s", value))
+	}
+	return intValue, nil
 }
 
 // processStep processes each executor's step with cancel and timeout checks.
-// If finishes by canceling, timeout or error - returns false.
-// If finishes successfully returns true.
-func processStep(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, cancelChannel, successChannel chan bool, dataChannel chan interface{}, errorChannel chan error, errorCaseStatus, successCaseStatus pb.Status) error {
+// If finishes by canceling, timeout or error - returns error.
+// If finishes successfully returns nil.
+func processStep(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, cancelChannel, successChannel chan bool, dataChannel chan interface{}, errorDataBuffer *bytes.Buffer, errorChannel chan error, errorCaseStatus, successCaseStatus pb.Status) error {
 	select {
 	case <-ctx.Done():
 		finishByTimeout(ctx, pipelineId, cacheService)
@@ -176,7 +203,11 @@ func processStep(ctx context.Context, pipelineId uuid.UUID, cacheService cache.C
 		}
 		if !ok {
 			err := <-errorChannel
-			processError(ctx, err, data, pipelineId, cacheService, errorCaseStatus)
+			var errorData = data
+			if errorDataBuffer != nil {
+				errorData = errorDataBuffer.Bytes()
+			}
+			processError(ctx, err, errorData, pipelineId, cacheService, errorCaseStatus)
 			return fmt.Errorf("%s: code processing finishes with error: %s", pipelineId, err.Error())
 		}
 		processSuccess(ctx, data, pipelineId, cacheService, successCaseStatus)
@@ -273,8 +304,6 @@ func processSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, ca
 		cacheService.SetValue(ctx, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)
 	case pb.Status_STATUS_FINISHED:
 		logger.Infof("%s: Run() finish\n", pipelineId)
-
-		cacheService.SetValue(ctx, pipelineId, cache.RunOutput, string(output))
 
 		cacheService.SetValue(ctx, pipelineId, cache.Status, pb.Status_STATUS_FINISHED)
 	}

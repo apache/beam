@@ -16,8 +16,8 @@ import uuid
 
 import grpc
 
-from infrastructure.api import api_pb2_grpc, api_pb2
-from infrastructure.config import Config
+from api.v1 import api_pb2_grpc, api_pb2
+from config import Config
 
 
 class GRPCClient:

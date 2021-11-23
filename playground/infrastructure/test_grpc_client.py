@@ -17,42 +17,42 @@ import uuid
 from unittest.mock import AsyncMock
 import pytest
 
-from infrastructure.api import api_pb2
-from infrastructure.grpc_client import GRPCClient
+from api.v1 import api_pb2
+from grpc_client import GRPCClient
 
 
 @pytest.fixture()
 def mock_run_code(mocker):
     async_mock = AsyncMock(return_value=str(uuid.uuid4()))
-    mocker.patch('infrastructure.grpc_client.GRPCClient.run_code', side_effect=async_mock)
+    mocker.patch('grpc_client.GRPCClient.run_code', side_effect=async_mock)
     return async_mock
 
 
 @pytest.fixture()
 def mock_check_status(mocker):
     async_mock = AsyncMock(return_value=api_pb2.STATUS_FINISHED)
-    mocker.patch('infrastructure.grpc_client.GRPCClient.check_status', side_effect=async_mock)
+    mocker.patch('grpc_client.GRPCClient.check_status', side_effect=async_mock)
     return async_mock
 
 
 @pytest.fixture()
 def mock_get_run_error(mocker):
     async_mock = AsyncMock(return_value="MOCK_ERROR")
-    mocker.patch('infrastructure.grpc_client.GRPCClient.get_run_error', side_effect=async_mock)
+    mocker.patch('grpc_client.GRPCClient.get_run_error', side_effect=async_mock)
     return async_mock
 
 
 @pytest.fixture()
 def mock_get_run_output(mocker):
     async_mock = AsyncMock(return_value="MOCK_RUN_OUTPUT")
-    mocker.patch('infrastructure.grpc_client.GRPCClient.get_run_output', side_effect=async_mock)
+    mocker.patch('grpc_client.GRPCClient.get_run_output', side_effect=async_mock)
     return async_mock
 
 
 @pytest.fixture()
 def mock_get_compile_output(mocker):
     async_mock = AsyncMock(return_value="MOCK_COMPILE_OUTPUT")
-    mocker.patch('infrastructure.grpc_client.GRPCClient.get_compile_output', side_effect=async_mock)
+    mocker.patch('grpc_client.GRPCClient.get_compile_output', side_effect=async_mock)
     return async_mock
 
 
@@ -68,14 +68,17 @@ class TestGRPCClient:
         result = await GRPCClient().check_status(str(uuid.uuid4()))
         assert result == api_pb2.STATUS_FINISHED
 
+    @pytest.mark.asyncio
     async def test_get_run_error(self, mock_get_run_error):
         result = await GRPCClient().get_run_error(str(uuid.uuid4()))
         assert result == "MOCK_ERROR"
 
+    @pytest.mark.asyncio
     async def test_get_run_output(self, mock_get_run_output):
         result = await GRPCClient().get_run_output(str(uuid.uuid4()))
         assert result == "MOCK_RUN_OUTPUT"
 
+    @pytest.mark.asyncio
     async def test_get_compile_output(self, mock_get_compile_output):
         result = await GRPCClient().get_compile_output(str(uuid.uuid4()))
         assert result == "MOCK_COMPILE_OUTPUT"

@@ -418,6 +418,7 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 			// As a result want to receive response with an expected run output.
 			name: "run output exist",
 			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutputIndex, 0)
 				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutput, runOutput)
 			},
 			args: args{
@@ -425,6 +426,21 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 				info: &pb.GetRunOutputRequest{PipelineUuid: pipelineId.String()},
 			},
 			want:    &pb.GetRunOutputResponse{Output: runOutput},
+			wantErr: false,
+		},
+		{
+			// Test case with calling RunOutput method with pipelineId which contain run output and index of run output is 1.
+			// As a result want to receive response with correct output (output[1:]).
+			name: "get the second part",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutputIndex, 1)
+				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutput, runOutput)
+			},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetRunOutputRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    &pb.GetRunOutputResponse{Output: runOutput[1:]},
 			wantErr: false,
 		},
 	}
