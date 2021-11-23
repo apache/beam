@@ -75,19 +75,19 @@ class SearchField extends StatelessWidget {
             cursorColor: ThemeColors.of(context).lightGreyColor,
             cursorWidth: kCursorSize,
             textAlignVertical: TextAlignVertical.center,
-            onFieldSubmitted: (String filterText) {
-              state.setFilterText(filterText);
-              state.sortCategories();
-            },
-            onChanged: (String filterText) {
-              state.setFilterText(filterText);
-              state.sortCategories();
-            },
+            onFieldSubmitted: (String filterText) =>
+                _onChange(state, filterText),
+            onChanged: (String filterText) => _onChange(state, filterText),
             maxLines: kMinLines,
             minLines: kMaxLines,
           ),
         ),
       ),
     );
+  }
+
+  _onChange(ExampleSelectorState state, String filterText) {
+    state.setFilterText(filterText);
+    state.sortCategories();
   }
 }
