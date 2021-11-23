@@ -60,7 +60,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   void didChangeDependencies() {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: true);
     _codeController = CodeController(
-      text: _codeController?.text ?? widget.example?.sources[widget.sdk] ?? '',
+      text: _codeController?.text ?? widget.example?.source ?? '',
       language: _getLanguageFromSdk(),
       theme: themeProvider.isDarkMode ? kDarkCodeTheme : kLightCodeTheme,
       onChange: (newSource) => widget.onSourceChange(newSource),

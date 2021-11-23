@@ -17,6 +17,7 @@ package main
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/code_processing"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
@@ -58,23 +59,29 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
 	pipelineId := uuid.New()
 
-	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir())
+	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.BeamSdkEnvs.PreparedModDir())
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
 		return nil, errors.InternalError("Run code", "Error during setup file system: "+err.Error())
 	}
 
-	compileBuilder, err := compile_builder.Setup(lc.GetAbsoluteExecutableFilePath(), lc.GetAbsoluteExecutableFilesFolderPath(), info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
+	compileBuilder, err := compile_builder.Setup(lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup run builder: %s\n", err.Error())
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InvalidArgumentError("Run code", "Error during setup compile builder: "+err.Error())
 	}
 
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
+		code_processing.DeleteFolders(pipelineId, lc)
+		return nil, errors.InternalError("Run code()", "Error during set value to cache: "+err.Error())
+	}
+	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: "+err.Error())
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
 	}
 
@@ -106,11 +113,23 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 		logger.Errorf("%s: GetRunOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
 		return nil, errors.InvalidArgumentError("GetRunOutput", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
 	}
+	lastIndex, err := code_processing.GetRunOutputLastIndex(ctx, controller.cacheService, pipelineId, "GetRunOutput")
+	if err != nil {
+		return nil, err
+	}
 	runOutput, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.RunOutput, "GetRunOutput")
 	if err != nil {
 		return nil, err
 	}
-	return &pb.GetRunOutputResponse{Output: runOutput}, nil
+	newRunOutput := ""
+	if len(runOutput) > lastIndex {
+		newRunOutput = runOutput[lastIndex:]
+		utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput))
+	}
+
+	pipelineResult := pb.GetRunOutputResponse{Output: newRunOutput}
+
+	return &pipelineResult, nil
 }
 
 // GetRunError is returning error output of execution for specific pipeline by PipelineUuid
@@ -154,36 +173,45 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 	return &pb.CancelResponse{}, nil
 }
 
-// GetListOfExamples returns the list of examples
-func (controller *playgroundController) GetListOfExamples(ctx context.Context, info *pb.GetListOfExamplesRequest) (*pb.GetListOfExamplesResponse, error) {
-	// TODO implement this method
-	example1 := pb.Example{ExampleUuid: "001", Name: "Example1", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_DEFAULT}
-	example2 := pb.Example{ExampleUuid: "003", Name: "Example3", Description: "Test example 3", Type: pb.ExampleType_EXAMPLE_TYPE_KATA}
-
-	cat1 := pb.Categories_Category{
-		CategoryName: "Common",
-		Examples:     []*pb.Example{&example1, {ExampleUuid: "002", Name: "Example2", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_UNIT_TEST}},
+// GetPrecompiledObjects returns the list of examples
+func (controller *playgroundController) GetPrecompiledObjects(ctx context.Context, info *pb.GetPrecompiledObjectsRequest) (*pb.GetPrecompiledObjectsResponse, error) {
+	bucket := cloud_bucket.New()
+	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, info.Sdk, info.Category)
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjects(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjects(): ", err.Error())
 	}
-	cat2 := pb.Categories_Category{
-		CategoryName: "I/O",
-		Examples:     []*pb.Example{&example2},
+	response := pb.GetPrecompiledObjectsResponse{SdkCategories: make([]*pb.Categories, 0)}
+	for sdkName, categories := range *sdkToCategories {
+		sdkCategory := pb.Categories{Sdk: pb.Sdk(pb.Sdk_value[sdkName]), Categories: make([]*pb.Categories_Category, 0)}
+		for categoryName, precompiledObjects := range categories {
+			utils.PutPrecompiledObjectsToCategory(categoryName, &precompiledObjects, &sdkCategory)
+		}
+		response.SdkCategories = append(response.SdkCategories, &sdkCategory)
 	}
-	javaCats := pb.Categories{Sdk: pb.Sdk_SDK_JAVA, Categories: []*pb.Categories_Category{&cat1, &cat2}}
-	goCats := pb.Categories{Sdk: pb.Sdk_SDK_GO, Categories: []*pb.Categories_Category{&cat1, &cat2}}
-	response := pb.GetListOfExamplesResponse{SdkExamples: []*pb.Categories{&javaCats, &goCats}}
 	return &response, nil
 }
 
-// GetExample returns the code of the specific example
-func (controller *playgroundController) GetExample(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetExampleResponse, error) {
-	// TODO implement this method
-	response := pb.GetExampleResponse{Code: "example code"}
+// GetPrecompiledObjectCode returns the code of the specific example
+func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
+	cd := cloud_bucket.New()
+	codeString, err := cd.GetPrecompiledObject(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("GetPrecompiledObject(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjects(): ", err.Error())
+	}
+	response := pb.GetPrecompiledObjectCodeResponse{Code: *codeString}
 	return &response, nil
 }
 
-// GetExampleOutput returns the output of the compiled and run example
-func (controller *playgroundController) GetExampleOutput(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetRunOutputResponse, error) {
-	// TODO implement this method
-	response := pb.GetRunOutputResponse{Output: "Response Output"}
+// GetPrecompiledObjectOutput returns the output of the compiled and run example
+func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetRunOutputResponse, error) {
+	cd := cloud_bucket.New()
+	output, err := cd.GetPrecompiledObjectOutput(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjectOutput(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjectOutput(): ", err.Error())
+	}
+	response := pb.GetRunOutputResponse{Output: *output}
 	return &response, nil
 }

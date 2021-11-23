@@ -72,13 +72,14 @@ func setOsEnvs(envsToSet map[string]string) error {
 
 func TestNewEnvironment(t *testing.T) {
 	executorConfig := NewExecutorConfig("javac", "java", []string{""}, []string{""})
+	preparedModDir := ""
 	tests := []struct {
 		name string
 		want *Environment
 	}{
 		{name: "create env service with default envs", want: &Environment{
 			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
-			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig),
+			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig, preparedModDir),
 			ApplicationEnvs: *NewApplicationEnvs("/app", &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 		}},
 	}
@@ -86,7 +87,7 @@ func TestNewEnvironment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewEnvironment(
 				*NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
-				*NewBeamEnvs(defaultSdk, executorConfig),
+				*NewBeamEnvs(defaultSdk, executorConfig, preparedModDir),
 				*NewApplicationEnvs("/app", &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
 			}
@@ -97,6 +98,7 @@ func TestNewEnvironment(t *testing.T) {
 func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 	jars := strings.Join([]string{defaultBeamSdkPath, defaultBeamRunner, defaultSLF4j}, ":")
 	workingDir := "./"
+	preparedModDir := ""
 	tests := []struct {
 		name      string
 		want      *BeamEnvs
@@ -111,13 +113,13 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 		},
 		{
 			name:      "default beam envs",
-			want:      NewBeamEnvs(defaultSdk, NewExecutorConfig("javac", "java", []string{"-d", "bin", "-classpath", defaultBeamSdkPath}, []string{"-cp", "bin:" + jars})),
+			want:      NewBeamEnvs(defaultSdk, NewExecutorConfig("javac", "java", []string{"-d", "bin", "-classpath", defaultBeamSdkPath}, []string{"-cp", "bin:" + jars}), preparedModDir),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
 		{
 			name:      "specific sdk key in os envs",
-			want:      NewBeamEnvs(defaultSdk, NewExecutorConfig("javac", "java", []string{"-d", "bin", "-classpath", defaultBeamSdkPath}, []string{"-cp", "bin:" + jars})),
+			want:      NewBeamEnvs(defaultSdk, NewExecutorConfig("javac", "java", []string{"-d", "bin", "-classpath", defaultBeamSdkPath}, []string{"-cp", "bin:" + jars}), preparedModDir),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},

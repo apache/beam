@@ -16,17 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
+class GetExampleRequestWrapper {
+  final String path;
 
-class ExampleDropdownState with ChangeNotifier {
-  String _selectedCategory;
-
-  ExampleDropdownState([this._selectedCategory = 'All']);
-
-  String get selectedCategory => _selectedCategory;
-
-  setSelectedCategory(String name) async {
-    _selectedCategory = name;
-    notifyListeners();
-  }
+  GetExampleRequestWrapper(this.path);
 }

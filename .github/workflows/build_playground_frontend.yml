@@ -19,7 +19,6 @@ on:
   push:
     tags: 'v*'
   pull_request:
-    tags: 'v*'
     paths: ['playground/frontend/**']
   workflow_dispatch:
 
@@ -30,6 +29,7 @@ jobs:
     env:
       GO_VERSION: 1.17.0
       BEAM_VERSION: 2.33.0
+      TERRAFORM_VERSION: 1.0.9
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
@@ -41,10 +41,8 @@ jobs:
         uses: subosito/flutter-action@v1
         with:
             channel: 'stable'
-      - name: Run Lint
-        run: ./gradlew playground:frontend:analyze
-      - name: Run Tests
-        run: ./gradlew playground:frontend:test
+      - name: Run PreCommit
+        run: ./gradlew playground:frontend:precommit
       - name: install npm
         uses: actions/setup-node@v2
         with:
@@ -54,6 +52,10 @@ jobs:
       - name: lint dockerfile
         run: dockerlint Dockerfile
         working-directory: playground/frontend
+      - uses: hashicorp/setup-terraform@v1
+        with:
+            terraform_version: ${{ env.TERRAFORM_VERSION }}
+        if: startsWith(github.ref, 'ref/tags/')
       - name: Setup GCP account
         run: echo ${{ secrets.GCP_ACCESS_KEY }} | base64 -d > /tmp/gcp_access.json
         if: startsWith(github.ref, 'ref/tags/')
