@@ -65,7 +65,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InternalError("Run code", "Error during setup file system: "+err.Error())
 	}
 
-	compileBuilder, err := compile_builder.Setup(lc.GetAbsoluteExecutableFilePath(), lc.GetAbsoluteExecutableFilesFolderPath(), info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
+	compileBuilder, err := compile_builder.Setup(lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup run builder: %s\n", err.Error())
 		return nil, errors.InvalidArgumentError("Run code", "Error during setup compile builder: "+err.Error())

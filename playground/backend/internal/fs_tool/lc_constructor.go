@@ -26,21 +26,21 @@ const (
 	compiledFolderName = "bin"
 )
 
-// newCompilingLifeCycle creates LifeCycle with compiled SDK environment.
-func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir string, executableFileExtension string, compiledFileExtension string) *LifeCycle {
+// newCompilingLifeCycle creates LifeCycle for compiled SDK environment.
+func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileExtension string, compiledFileExtension string) *LifeCycle {
 	baseFileFolder := filepath.Join(workingDir, baseFileFolder, pipelineId.String())
 	srcFileFolder := filepath.Join(baseFileFolder, sourceFolderName)
 	binFileFolder := filepath.Join(baseFileFolder, compiledFolderName)
 	return &LifeCycle{
 		folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 		Folder: Folder{
-			BaseFolder:       baseFileFolder,
-			ExecutableFolder: srcFileFolder,
-			CompiledFolder:   binFileFolder,
+			BaseFolder:           baseFileFolder,
+			SourceFileFolder:     srcFileFolder,
+			ExecutableFileFolder: binFileFolder,
 		},
 		Extension: Extension{
-			ExecutableExtension: executableFileExtension,
-			CompiledExtension:   compiledFileExtension,
+			SourceFileExtension:     sourceFileExtension,
+			ExecutableFileExtension: compiledFileExtension,
 		},
 		pipelineId: pipelineId,
 	}
