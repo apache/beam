@@ -125,7 +125,11 @@ public class RedisIOTest {
 
     String newValue = "newValue";
     PCollection<KV<String, String>> write = p.apply(Create.of(KV.of(key, newValue)));
-    write.apply(RedisIO.write().withEndpoint(REDIS_HOST, port).withMethod(Method.SET).withExpireTime(10_000L));
+    write.apply(
+        RedisIO.write()
+            .withEndpoint(REDIS_HOST, port)
+            .withMethod(Method.SET)
+            .withExpireTime(10_000L));
     p.run();
 
     assertEquals(newValue, client.get(key));
@@ -201,7 +205,11 @@ public class RedisIOTest {
     List<KV<String, String>> data = buildConstantKeyList(key, values);
 
     PCollection<KV<String, String>> write = p.apply(Create.of(data));
-    write.apply(RedisIO.write().withEndpoint(REDIS_HOST, port).withMethod(Method.PFADD).withExpireTime(10_000L));
+    write.apply(
+        RedisIO.write()
+            .withEndpoint(REDIS_HOST, port)
+            .withMethod(Method.PFADD)
+            .withExpireTime(10_000L));
     p.run();
 
     long count = client.pfcount(key);
