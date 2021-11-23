@@ -201,7 +201,7 @@ def typing_to_runner_api(type_):
   except ValueError:
     # Unknown type, just treat it like Any
     return schema_pb2.FieldType(
-        logical_type=schema_pb2.LogicalType(urn=PYTHON_ANY_URN))
+        logical_type=schema_pb2.LogicalType(urn=PYTHON_ANY_URN), nullable=True)
   else:
     # TODO(bhulette): Add support for logical types that require arguments
     return schema_pb2.FieldType(
