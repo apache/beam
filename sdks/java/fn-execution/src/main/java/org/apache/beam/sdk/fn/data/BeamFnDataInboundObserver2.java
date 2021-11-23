@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.CancellableQueue;
 
@@ -104,71 +105,9 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
     try {
       while (true) {
         BeamFnApi.Elements elements = queue.take();
-        for (BeamFnApi.Elements.Data data : elements.getDataList()) {
-          EndpointStatus<DataEndpoint<?>> endpoint =
-              transformIdToDataEndpoint.get(data.getTransformId());
-          if (endpoint == null) {
-            throw new IllegalStateException(
-                String.format(
-                    "Unable to find inbound data receiver for instruction %s and transform %s.",
-                    data.getInstructionId(), data.getTransformId()));
-          } else if (endpoint.isDone) {
-            throw new IllegalStateException(
-                String.format(
-                    "Received data after inbound data receiver is done for instruction %s and transform %s.",
-                    data.getInstructionId(), data.getTransformId()));
-          }
-          InputStream inputStream = data.getData().newInput();
-          Coder<Object> coder = (Coder<Object>) endpoint.endpoint.getCoder();
-          FnDataReceiver<Object> receiver =
-              (FnDataReceiver<Object>) endpoint.endpoint.getReceiver();
-          while (inputStream.available() > 0) {
-            receiver.accept(coder.decode(inputStream));
-          }
-          if (data.getIsLast()) {
-            endpoint.isDone = true;
-            numEndpointsThatAreIncomplete -= 1;
-            if (numEndpointsThatAreIncomplete == 0) {
-              return;
-            }
-          }
-        }
-
-        for (BeamFnApi.Elements.Timers timers : elements.getTimersList()) {
-          Map<String, EndpointStatus<TimerEndpoint<?>>> timerFamilyIdToEndpoints =
-              transformIdToTimerFamilyIdToTimerEndpoint.get(timers.getTransformId());
-          if (timerFamilyIdToEndpoints == null) {
-            throw new IllegalStateException(
-                String.format(
-                    "Unable to find inbound timer receiver for instruction %s, transform %s, and timer family %s.",
-                    timers.getInstructionId(), timers.getTransformId(), timers.getTimerFamilyId()));
-          }
-          EndpointStatus<TimerEndpoint<?>> endpoint =
-              timerFamilyIdToEndpoints.get(timers.getTimerFamilyId());
-          if (endpoint == null) {
-            throw new IllegalStateException(
-                String.format(
-                    "Unable to find inbound timer receiver for instruction %s, transform %s, and timer family %s.",
-                    timers.getInstructionId(), timers.getTransformId(), timers.getTimerFamilyId()));
-          } else if (endpoint.isDone) {
-            throw new IllegalStateException(
-                String.format(
-                    "Received timer after inbound timer receiver is done for instruction %s, transform %s, and timer family %s.",
-                    timers.getInstructionId(), timers.getTransformId(), timers.getTimerFamilyId()));
-          }
-          InputStream inputStream = timers.getTimers().newInput();
-          Coder<Object> coder = (Coder<Object>) endpoint.endpoint.getCoder();
-          FnDataReceiver<Object> receiver =
-              (FnDataReceiver<Object>) endpoint.endpoint.getReceiver();
-          while (inputStream.available() > 0) {
-            receiver.accept(coder.decode(inputStream));
-          }
-          if (timers.getIsLast()) {
-            numEndpointsThatAreIncomplete -= 1;
-            if (numEndpointsThatAreIncomplete == 0) {
-              return;
-            }
-          }
+        multiplexElements(elements, true);
+        if (numEndpointsThatAreIncomplete == 0) {
+          return;
         }
       }
     } catch (Exception e) {
@@ -176,6 +115,80 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
       throw e;
     } finally {
       close();
+    }
+  }
+
+  /**
+   * Dispatches the data and timers from the elements which is known to be complete. Should be used
+   * only if we know that all the data and timers for the bundle are contained in this single
+   * elements object. When invoked, data and timers are multiplexed to corresponding receiver
+   * without endpoint done state tracking (since it is guaranteed that all endpoints are done after
+   * the function call returns.
+   */
+  public void dispatchKnownCompleteElements(Elements elements) throws Exception {
+    multiplexElements(elements, false);
+  }
+
+  private void multiplexElements(Elements elements, boolean expectTerminalElements)
+      throws Exception {
+    for (BeamFnApi.Elements.Data data : elements.getDataList()) {
+      EndpointStatus<DataEndpoint<?>> endpoint =
+          transformIdToDataEndpoint.get(data.getTransformId());
+      if (endpoint == null) {
+        throw new IllegalStateException(
+            String.format(
+                "Unable to find inbound data receiver for instruction %s and transform %s.",
+                data.getInstructionId(), data.getTransformId()));
+      } else if (endpoint.isDone) {
+        throw new IllegalStateException(
+            String.format(
+                "Received data after inbound data receiver is done for instruction %s and transform %s.",
+                data.getInstructionId(), data.getTransformId()));
+      }
+      InputStream inputStream = data.getData().newInput();
+      Coder<Object> coder = (Coder<Object>) endpoint.endpoint.getCoder();
+      FnDataReceiver<Object> receiver = (FnDataReceiver<Object>) endpoint.endpoint.getReceiver();
+      while (inputStream.available() > 0) {
+        receiver.accept(coder.decode(inputStream));
+      }
+      if (expectTerminalElements && data.getIsLast()) {
+        endpoint.isDone = true;
+        numEndpointsThatAreIncomplete -= 1;
+      }
+    }
+
+    for (BeamFnApi.Elements.Timers timers : elements.getTimersList()) {
+      Map<String, EndpointStatus<TimerEndpoint<?>>> timerFamilyIdToEndpoints =
+          transformIdToTimerFamilyIdToTimerEndpoint.get(timers.getTransformId());
+      if (timerFamilyIdToEndpoints == null) {
+        throw new IllegalStateException(
+            String.format(
+                "Unable to find inbound timer receiver for instruction %s, transform %s, and timer family %s.",
+                timers.getInstructionId(), timers.getTransformId(), timers.getTimerFamilyId()));
+      }
+      EndpointStatus<TimerEndpoint<?>> endpoint =
+          timerFamilyIdToEndpoints.get(timers.getTimerFamilyId());
+      if (endpoint == null) {
+        throw new IllegalStateException(
+            String.format(
+                "Unable to find inbound timer receiver for instruction %s, transform %s, and timer family %s.",
+                timers.getInstructionId(), timers.getTransformId(), timers.getTimerFamilyId()));
+      } else if (endpoint.isDone) {
+        throw new IllegalStateException(
+            String.format(
+                "Received timer after inbound timer receiver is done for instruction %s, transform %s, and timer family %s.",
+                timers.getInstructionId(), timers.getTransformId(), timers.getTimerFamilyId()));
+      }
+      InputStream inputStream = timers.getTimers().newInput();
+      Coder<Object> coder = (Coder<Object>) endpoint.endpoint.getCoder();
+      FnDataReceiver<Object> receiver = (FnDataReceiver<Object>) endpoint.endpoint.getReceiver();
+      while (inputStream.available() > 0) {
+        receiver.accept(coder.decode(inputStream));
+      }
+      if (expectTerminalElements && timers.getIsLast()) {
+        endpoint.isDone = true;
+        numEndpointsThatAreIncomplete -= 1;
+      }
     }
   }
 

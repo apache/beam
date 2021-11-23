@@ -459,8 +459,9 @@ public class ProcessBundleHandler {
           }
 
           if (request.getProcessBundle().hasElements()) {
-            bundleProcessor.getInboundObserver().accept(request.getProcessBundle().getElements());
-            bundleProcessor.getInboundObserver().awaitCompletion();
+            bundleProcessor
+                .getInboundObserver()
+                .dispatchKnownCompleteElements(request.getProcessBundle().getElements());
           } else if (!bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
             BeamFnDataInboundObserver2 observer = bundleProcessor.getInboundObserver();
             beamFnDataClient.registerReceiver(
