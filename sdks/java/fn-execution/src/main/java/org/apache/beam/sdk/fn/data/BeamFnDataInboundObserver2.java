@@ -105,7 +105,7 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
     try {
       while (true) {
         BeamFnApi.Elements elements = queue.take();
-        multiplexElements(elements, true);
+        multiplexElements(elements);
         if (numEndpointsThatAreIncomplete == 0) {
           return;
         }
@@ -118,19 +118,8 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
     }
   }
 
-  /**
-   * Dispatches the data and timers from the elements which is known to be complete. Should be used
-   * only if we know that all the data and timers for the bundle are contained in this single
-   * elements object. When invoked, data and timers are multiplexed to corresponding receiver
-   * without endpoint done state tracking (since it is guaranteed that all endpoints are done after
-   * the function call returns.
-   */
-  public void dispatchKnownCompleteElements(Elements elements) throws Exception {
-    multiplexElements(elements, false);
-  }
-
-  private void multiplexElements(Elements elements, boolean expectTerminalElements)
-      throws Exception {
+  /** Dispatches the data and timers from the elements to corresponding receivers. */
+  public void multiplexElements(Elements elements) throws Exception {
     for (BeamFnApi.Elements.Data data : elements.getDataList()) {
       EndpointStatus<DataEndpoint<?>> endpoint =
           transformIdToDataEndpoint.get(data.getTransformId());
@@ -151,7 +140,7 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
       while (inputStream.available() > 0) {
         receiver.accept(coder.decode(inputStream));
       }
-      if (expectTerminalElements && data.getIsLast()) {
+      if (data.getIsLast()) {
         endpoint.isDone = true;
         numEndpointsThatAreIncomplete -= 1;
       }
@@ -185,7 +174,7 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
       while (inputStream.available() > 0) {
         receiver.accept(coder.decode(inputStream));
       }
-      if (expectTerminalElements && timers.getIsLast()) {
+      if (timers.getIsLast()) {
         endpoint.isDone = true;
         numEndpointsThatAreIncomplete -= 1;
       }
