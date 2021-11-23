@@ -40,9 +40,15 @@ func NewExecutorConfig(compileCmd string, runCmd string, compileArgs []string, r
 type BeamEnvs struct {
 	ApacheBeamSdk  pb.Sdk
 	ExecutorConfig *ExecutorConfig
+	preparedModDir string
 }
 
 // NewBeamEnvs is a BeamEnvs constructor
-func NewBeamEnvs(apacheBeamSdk pb.Sdk, executorConfig *ExecutorConfig) *BeamEnvs {
-	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, ExecutorConfig: executorConfig}
+func NewBeamEnvs(apacheBeamSdk pb.Sdk, executorConfig *ExecutorConfig, preparedModDir string) *BeamEnvs {
+	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, ExecutorConfig: executorConfig, preparedModDir: preparedModDir}
+}
+
+// PreparedModDir returns the path to the directory where prepared go.mod and go.sum are located
+func (b *BeamEnvs) PreparedModDir() string {
+	return b.preparedModDir
 }

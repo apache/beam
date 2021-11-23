@@ -47,7 +47,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	ctxWithTimeout, finishCtxFunc := context.WithTimeout(ctx, appEnv.PipelineExecuteTimeout())
 	defer func(lc *fs_tool.LifeCycle) {
 		finishCtxFunc()
-		deleteFolders(pipelineId, lc)
+		DeleteFolders(pipelineId, lc)
 	}(lc)
 
 	errorChannel := make(chan error, 1)
@@ -235,8 +235,8 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 	}
 }
 
-// deleteFolders removes all prepared folders for received LifeCycle
-func deleteFolders(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
+// DeleteFolders removes all prepared folders for received LifeCycle
+func DeleteFolders(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
 	logger.Infof("%s: DeleteFolders() ...\n", pipelineId)
 	if err := lc.DeleteFolders(); err != nil {
 		logger.Error("%s: DeleteFolders(): %s\n", pipelineId, err.Error())
