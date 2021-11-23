@@ -32,10 +32,11 @@ func TestSetup(t *testing.T) {
 		panic(err)
 	}
 	type args struct {
-		sdk        playground.Sdk
-		code       string
-		pipelineId uuid.UUID
-		workingDir string
+		sdk            playground.Sdk
+		code           string
+		pipelineId     uuid.UUID
+		workingDir     string
+		preparedModDir string
 	}
 	tests := []struct {
 		name    string
@@ -68,10 +69,11 @@ func TestSetup(t *testing.T) {
 			// As a result, want to receive an expected life cycle.
 			name: "correct sdk",
 			args: args{
-				sdk:        playground.Sdk_SDK_JAVA,
-				code:       "",
-				pipelineId: successPipelineId,
-				workingDir: "",
+				sdk:            playground.Sdk_SDK_JAVA,
+				code:           "",
+				pipelineId:     successPipelineId,
+				workingDir:     "",
+				preparedModDir: "",
 			},
 			check: func() bool {
 				if _, err := os.Stat("executable_files/" + successPipelineId.String()); os.IsNotExist(err) {
@@ -94,7 +96,7 @@ func TestSetup(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Setup(tt.args.sdk, tt.args.code, tt.args.pipelineId, tt.args.workingDir)
+			got, err := Setup(tt.args.sdk, tt.args.code, tt.args.pipelineId, tt.args.workingDir, tt.args.preparedModDir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Setup() error = %v, wantErr %v", err, tt.wantErr)
 				return
