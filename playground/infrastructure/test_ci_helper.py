@@ -13,13 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-from dataclasses import dataclass
+import mock
 
-from api.v1.api_pb2 import SDK_JAVA
+from ci_helper import CIHelper
 
 
-@dataclass(frozen=True)
-class Config:
-    SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
-    SUPPORTED_SDK = {'java': SDK_JAVA}
+@mock.patch('ci_helper.CIHelper._verify_examples_status')
+@mock.patch('ci_helper.get_statuses')
+def test_verify_examples(mock_get_statuses, mock_verify_examples_statuses):
+    helper = CIHelper()
+    helper.verify_examples([])
+
+    mock_get_statuses.assert_called_once_with([])
+    mock_verify_examples_statuses.assert_called_once_with([])
