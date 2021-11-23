@@ -120,8 +120,8 @@ func (b *RunBuilder) WithArgs(runArgs []string) *RunBuilder {
 	return b
 }
 
-//WithClassName adds file name to executor
-func (b *RunBuilder) WithClassName(name string) *RunBuilder {
+//WithExecutableName adds file name to executor
+func (b *RunBuilder) WithExecutableName(name string) *RunBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
 		e.runArgs.fileName = name
 	})

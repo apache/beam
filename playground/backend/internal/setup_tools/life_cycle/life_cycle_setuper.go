@@ -40,9 +40,9 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string) (*f
 	}
 
 	// create file with code
-	_, err = lc.CreateExecutableFile(code)
+	_, err = lc.CreateSourceCodeFile(code)
 	if err != nil {
-		logger.Errorf("%s: RunCode(): CreateExecutableFile(): %s\n", pipelineId, err.Error())
+		logger.Errorf("%s: RunCode(): CreateSourceCodeFile(): %s\n", pipelineId, err.Error())
 		return nil, err
 	}
 	return lc, nil
