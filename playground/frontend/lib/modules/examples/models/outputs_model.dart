@@ -16,20 +16,10 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_model.dart';
+class OutputsModel {
+  final String output;
+  final String graph;
+  final String log;
 
-final ExampleModel exampleMock1 = ExampleModel(
-  source: 'ex1',
-  name: 'Example',
-  type: ExampleType.example,
-  description: 'description',
-  path: 'SDK/Category/Name',
-);
-
-final ExampleModel exampleMock2 = ExampleModel(
-  source: 'ex2',
-  name: 'Kata',
-  type: ExampleType.kata,
-  description: 'description',
-  path: 'SDK/Category/Name',
-);
+  OutputsModel(this.output, this.graph, this.log);
+}

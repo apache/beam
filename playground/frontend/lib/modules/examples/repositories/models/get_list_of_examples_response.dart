@@ -16,20 +16,11 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-final ExampleModel exampleMock1 = ExampleModel(
-  source: 'ex1',
-  name: 'Example',
-  type: ExampleType.example,
-  description: 'description',
-  path: 'SDK/Category/Name',
-);
+class GetListOfExampleResponse {
+  final Map<SDK, List<CategoryModel>> categories;
 
-final ExampleModel exampleMock2 = ExampleModel(
-  source: 'ex2',
-  name: 'Kata',
-  type: ExampleType.kata,
-  description: 'description',
-  path: 'SDK/Category/Name',
-);
+  GetListOfExampleResponse(this.categories);
+}

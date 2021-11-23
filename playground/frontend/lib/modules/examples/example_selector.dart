@@ -20,7 +20,6 @@ import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
-import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/selector_size_model.dart';
 import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
@@ -37,13 +36,11 @@ const double kLgContainerWidth = 400.0;
 class ExampleSelector extends StatefulWidget {
   final Function changeSelectorVisibility;
   final bool isSelectorOpened;
-  final List<CategoryModel> categories;
 
   const ExampleSelector({
     Key? key,
     required this.changeSelectorVisibility,
     required this.isSelectorOpened,
-    required this.categories,
   }) : super(key: key);
 
   @override
@@ -123,14 +120,14 @@ class _ExampleSelectorState extends State<ExampleSelector>
 
     return OverlayEntry(
       builder: (context) {
-        return Consumer<ExampleState>(
-          builder: (context, state, child) => Stack(
+        return Consumer2<ExampleState, PlaygroundState>(
+          builder: (context, exampleState, playgroundState, child) => Stack(
             children: [
               GestureDetector(
                 onTap: () {
                   animationController.reverse();
                   examplesDropdown?.remove();
-                  state.changeSelectorVisibility();
+                  exampleState.changeSelectorVisibility();
                 },
                 child: Container(
                   color: Colors.transparent,
@@ -140,8 +137,9 @@ class _ExampleSelectorState extends State<ExampleSelector>
               ),
               ChangeNotifierProvider(
                 create: (context) => ExampleSelectorState(
-                  state,
-                  state.categories!,
+                  exampleState,
+                  playgroundState,
+                  exampleState.getCategories(playgroundState.sdk)!,
                 ),
                 builder: (context, _) => Positioned(
                   left: posModel.xAlignment,
