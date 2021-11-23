@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.redis;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,6 +47,7 @@ import redis.embedded.RedisServer;
 public class RedisIOTest {
 
   private static final String REDIS_HOST = "localhost";
+  private static final Long NO_EXPIRATION = -1L;
 
   @Rule public TestPipeline p = TestPipeline.create();
 
@@ -113,6 +115,23 @@ public class RedisIOTest {
     p.run();
 
     assertEquals(newValue, client.get(key));
+    assertEquals(NO_EXPIRATION, client.ttl(key));
+  }
+
+  @Test
+  public void testWriteWithMethodSetWithExpiration() {
+    String key = "testWriteWithMethodSet";
+    client.set(key, "value");
+
+    String newValue = "newValue";
+    PCollection<KV<String, String>> write = p.apply(Create.of(KV.of(key, newValue)));
+    write.apply(RedisIO.write().withEndpoint(REDIS_HOST, port).withMethod(Method.SET).withExpireTime(10_000L));
+    p.run();
+
+    assertEquals(newValue, client.get(key));
+    Long expireTime = client.pttl(key);
+    assertTrue(expireTime.toString(), 9_000 <= expireTime && expireTime <= 10_0000);
+    client.del(key);
   }
 
   @Test
@@ -172,6 +191,24 @@ public class RedisIOTest {
 
     long count = client.pfcount(key);
     assertEquals(6, count);
+    assertEquals(NO_EXPIRATION, client.ttl(key));
+  }
+
+  @Test
+  public void testWriteWithMethodPFAddWithExpireTime() {
+    String key = "testWriteWithMethodPFAdd";
+    List<String> values = Arrays.asList("0", "1", "2", "3", "2", "4", "0", "5");
+    List<KV<String, String>> data = buildConstantKeyList(key, values);
+
+    PCollection<KV<String, String>> write = p.apply(Create.of(data));
+    write.apply(RedisIO.write().withEndpoint(REDIS_HOST, port).withMethod(Method.PFADD).withExpireTime(10_000L));
+    p.run();
+
+    long count = client.pfcount(key);
+    assertEquals(6, count);
+    Long expireTime = client.pttl(key);
+    assertTrue(expireTime.toString(), 9_000 <= expireTime && expireTime <= 10_0000);
+    client.del(key);
   }
 
   @Test
