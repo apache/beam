@@ -339,7 +339,7 @@ class JavaExternalTransform(ptransform.PTransform):
   def expand(self, pcolls):
     if self._expansion_service is None:
       self._expansion_service = BeamJarExpansionService(
-          ':sdks:java:expansion-service:shadowJar',
+          ':sdks:java:expansion-service:app:shadowJar',
           extra_args=['{{PORT}}', '--javaClassLookupAllowlistFile=*'],
           classpath=self._classpath)
     return pcolls | ExternalTransform(
