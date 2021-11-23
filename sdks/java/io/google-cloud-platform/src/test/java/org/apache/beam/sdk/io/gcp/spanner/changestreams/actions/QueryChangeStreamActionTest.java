@@ -104,6 +104,7 @@ public class QueryChangeStreamActionTest {
             .setEndTimestamp(PARTITION_END_TIMESTAMP)
             .setHeartbeatMillis(PARTITION_HEARTBEAT_MILLIS)
             .setState(SCHEDULED)
+            .setWatermark(WATERMARK_TIMESTAMP)
             .setScheduledAt(Timestamp.now())
             .build();
     restriction = mock(OffsetRange.class);

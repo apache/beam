@@ -103,6 +103,7 @@ public class ChildPartitionsRecordActionTest {
                 .setEndTimestamp(endTimestamp)
                 .setHeartbeatMillis(heartbeat)
                 .setState(CREATED)
+                .setWatermark(startTimestamp)
                 .build());
     verify(transaction)
         .insert(
@@ -113,6 +114,7 @@ public class ChildPartitionsRecordActionTest {
                 .setEndTimestamp(endTimestamp)
                 .setHeartbeatMillis(heartbeat)
                 .setState(CREATED)
+                .setWatermark(startTimestamp)
                 .build());
   }
 
@@ -181,6 +183,7 @@ public class ChildPartitionsRecordActionTest {
                 .setEndTimestamp(endTimestamp)
                 .setHeartbeatMillis(heartbeat)
                 .setState(CREATED)
+                .setWatermark(startTimestamp)
                 .build());
   }
 

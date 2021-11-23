@@ -59,11 +59,12 @@ public class ChangeStreamRecordMapperTest {
             .setParentTokens(Sets.newHashSet("parentToken"))
             .setHeartbeatMillis(30_000L)
             .setState(State.RUNNING)
-            .setStartTimestamp(Timestamp.ofTimeMicroseconds(10L))
-            .setEndTimestamp(Timestamp.ofTimeMicroseconds(11L))
-            .setCreatedAt(Timestamp.ofTimeMicroseconds(12L))
-            .setScheduledAt(Timestamp.ofTimeMicroseconds(13L))
-            .setRunningAt(Timestamp.ofTimeMicroseconds(14L))
+            .setWatermark(Timestamp.ofTimeMicroseconds(10L))
+            .setStartTimestamp(Timestamp.ofTimeMicroseconds(11L))
+            .setEndTimestamp(Timestamp.ofTimeMicroseconds(12L))
+            .setCreatedAt(Timestamp.ofTimeMicroseconds(13L))
+            .setScheduledAt(Timestamp.ofTimeMicroseconds(14L))
+            .setRunningAt(Timestamp.ofTimeMicroseconds(15L))
             .build();
     resultSetMetadata = mock(ChangeStreamResultSetMetadata.class);
     when(resultSetMetadata.getQueryStartedAt()).thenReturn(Timestamp.ofTimeMicroseconds(1L));

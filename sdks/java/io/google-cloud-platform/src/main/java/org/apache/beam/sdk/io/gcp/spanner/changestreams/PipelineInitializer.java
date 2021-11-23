@@ -53,6 +53,7 @@ public class PipelineInitializer {
             .setEndTimestamp(inclusiveEndAt)
             .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
             .setState(State.CREATED)
+            .setWatermark(inclusiveStartAt)
             .build();
     partitionMetadataDao.insert(parentPartition);
   }

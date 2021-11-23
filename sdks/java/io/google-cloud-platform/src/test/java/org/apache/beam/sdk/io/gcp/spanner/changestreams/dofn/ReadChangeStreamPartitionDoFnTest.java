@@ -97,6 +97,7 @@ public class ReadChangeStreamPartitionDoFnTest {
             .setEndTimestamp(PARTITION_END_TIMESTAMP)
             .setHeartbeatMillis(PARTITION_HEARTBEAT_MILLIS)
             .setState(SCHEDULED)
+            .setWatermark(PARTITION_START_TIMESTAMP)
             .setScheduledAt(Timestamp.now())
             .build();
     restriction = mock(OffsetRange.class);

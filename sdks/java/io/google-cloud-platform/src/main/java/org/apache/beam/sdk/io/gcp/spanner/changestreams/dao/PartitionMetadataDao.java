@@ -493,7 +493,7 @@ public class PartitionMetadataDao {
           .set(COLUMN_STATE)
           .to(partitionMetadata.getState().toString())
           .set(COLUMN_WATERMARK)
-          .to(partitionMetadata.getStartTimestamp())
+          .to(partitionMetadata.getWatermark())
           .set(PartitionMetadataAdminDao.COLUMN_CREATED_AT)
           .to(Value.COMMIT_TIMESTAMP)
           .build();

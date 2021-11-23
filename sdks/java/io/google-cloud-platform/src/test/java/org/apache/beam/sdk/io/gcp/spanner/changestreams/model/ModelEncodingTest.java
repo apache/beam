@@ -155,6 +155,7 @@ public class ModelEncodingTest {
             Timestamp.now(),
             Timestamp.now(),
             Timestamp.now(),
+            Timestamp.now(),
             Timestamp.now());
 
     assertEquals(partitionMetadata, encodeAndDecode(partitionMetadata));

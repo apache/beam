@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_STATE;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_WATERMARK;
 
 import com.google.cloud.spanner.ResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
@@ -48,6 +49,7 @@ public class PartitionMetadataMapper {
                 : null)
         .setHeartbeatMillis(resultSet.getLong(COLUMN_HEARTBEAT_MILLIS))
         .setState(State.valueOf(resultSet.getString(COLUMN_STATE)))
+        .setWatermark(resultSet.getTimestamp(COLUMN_WATERMARK))
         .setCreatedAt(resultSet.getTimestamp(COLUMN_CREATED_AT))
         .setScheduledAt(
             !resultSet.isNull(COLUMN_SCHEDULED_AT)

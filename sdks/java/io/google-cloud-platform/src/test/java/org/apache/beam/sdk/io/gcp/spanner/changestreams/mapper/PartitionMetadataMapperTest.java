@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_STATE;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_WATERMARK;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -61,10 +62,11 @@ public class PartitionMetadataMapperTest {
     when(resultSet.getTimestamp(COLUMN_END_TIMESTAMP)).thenReturn(Timestamp.ofTimeMicroseconds(20));
     when(resultSet.getLong(COLUMN_HEARTBEAT_MILLIS)).thenReturn(5_000L);
     when(resultSet.getString(COLUMN_STATE)).thenReturn("RUNNING");
-    when(resultSet.getTimestamp(COLUMN_CREATED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(30));
-    when(resultSet.getTimestamp(COLUMN_SCHEDULED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(40));
-    when(resultSet.getTimestamp(COLUMN_RUNNING_AT)).thenReturn(Timestamp.ofTimeMicroseconds(50));
-    when(resultSet.getTimestamp(COLUMN_FINISHED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(60));
+    when(resultSet.getTimestamp(COLUMN_WATERMARK)).thenReturn(Timestamp.ofTimeMicroseconds(30));
+    when(resultSet.getTimestamp(COLUMN_CREATED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(40));
+    when(resultSet.getTimestamp(COLUMN_SCHEDULED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(50));
+    when(resultSet.getTimestamp(COLUMN_RUNNING_AT)).thenReturn(Timestamp.ofTimeMicroseconds(60));
+    when(resultSet.getTimestamp(COLUMN_FINISHED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(70));
 
     final PartitionMetadata partition = mapper.from(resultSet);
 
@@ -79,7 +81,8 @@ public class PartitionMetadataMapperTest {
             Timestamp.ofTimeMicroseconds(30),
             Timestamp.ofTimeMicroseconds(40),
             Timestamp.ofTimeMicroseconds(50),
-            Timestamp.ofTimeMicroseconds(60)),
+            Timestamp.ofTimeMicroseconds(60),
+            Timestamp.ofTimeMicroseconds(70)),
         partition);
   }
 
@@ -92,7 +95,8 @@ public class PartitionMetadataMapperTest {
         .thenReturn(Timestamp.ofTimeMicroseconds(10));
     when(resultSet.getLong(COLUMN_HEARTBEAT_MILLIS)).thenReturn(5_000L);
     when(resultSet.getString(COLUMN_STATE)).thenReturn("CREATED");
-    when(resultSet.getTimestamp(COLUMN_CREATED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(30));
+    when(resultSet.getTimestamp(COLUMN_WATERMARK)).thenReturn(Timestamp.ofTimeMicroseconds(30));
+    when(resultSet.getTimestamp(COLUMN_CREATED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(40));
 
     final PartitionMetadata partition = mapper.from(resultSet);
 
@@ -105,6 +109,7 @@ public class PartitionMetadataMapperTest {
             5_000L,
             State.CREATED,
             Timestamp.ofTimeMicroseconds(30),
+            Timestamp.ofTimeMicroseconds(40),
             null,
             null,
             null),
