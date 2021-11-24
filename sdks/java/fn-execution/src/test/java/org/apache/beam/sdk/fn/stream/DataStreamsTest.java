@@ -32,11 +32,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.SynchronousQueue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.fn.stream.DataStreams.BlockingQueueIterator;
 import org.apache.beam.sdk.fn.stream.DataStreams.DataStreamDecoder;
 import org.apache.beam.sdk.fn.stream.DataStreams.ElementDelimitedOutputStream;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -44,7 +41,6 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -55,41 +51,6 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link DataStreams}. */
 @RunWith(Enclosed.class)
 public class DataStreamsTest {
-
-  /** Tests for {@link DataStreams.BlockingQueueIterator}. */
-  @RunWith(JUnit4.class)
-  public static class BlockingQueueIteratorTest {
-    @Test(timeout = 10_000)
-    public void testBlockingQueueIteratorWithoutBlocking() throws Exception {
-      BlockingQueueIterator<String> iterator =
-          new BlockingQueueIterator<>(new ArrayBlockingQueue<String>(3));
-
-      iterator.accept("A");
-      iterator.accept("B");
-      iterator.close();
-
-      assertEquals(
-          Arrays.asList("A", "B"), Arrays.asList(Iterators.toArray(iterator, String.class)));
-    }
-
-    @Test(timeout = 10_000)
-    public void testBlockingQueueIteratorWithBlocking() throws Exception {
-      // The synchronous queue only allows for one element to transfer at a time and blocks
-      // the sending/receiving parties until both parties are there.
-      final BlockingQueueIterator<String> iterator =
-          new BlockingQueueIterator<>(new SynchronousQueue<String>());
-      final SettableFuture<List<String>> valuesFuture = SettableFuture.create();
-      Thread appender =
-          new Thread(
-              () -> valuesFuture.set(Arrays.asList(Iterators.toArray(iterator, String.class))));
-      appender.start();
-      iterator.accept("A");
-      iterator.accept("B");
-      iterator.close();
-      assertEquals(Arrays.asList("A", "B"), valuesFuture.get());
-      appender.join();
-    }
-  }
 
   /** Tests for {@link DataStreams.DataStreamDecoder}. */
   @RunWith(JUnit4.class)
