@@ -972,6 +972,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               schema_side_inputs=[],
               schema='anyschema',
               batch_size=None,
+              triggering_frequency=None,
               create_disposition='CREATE_NEVER',
               write_disposition=None,
               kms_key=None,
@@ -1030,6 +1031,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               # Set a batch size such that the input elements will be inserted
               # in 2 batches.
               batch_size=2,
+              triggering_frequency=None,
               create_disposition='CREATE_NEVER',
               write_disposition=None,
               kms_key=None,
