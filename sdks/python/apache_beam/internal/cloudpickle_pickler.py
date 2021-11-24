@@ -32,7 +32,10 @@ import bz2
 import io
 import threading
 import zlib
-from _thread import RLock as RLockType
+try:
+  from _thread import RLock as RLockType
+except (ImportError, ModuleNotFoundError):
+  pass
 
 try:
   from absl import flags
@@ -53,14 +56,13 @@ def dumps(o, enable_trace=True, use_zlib=False):
   with _pickle_lock:
     with io.BytesIO() as file:
       pickler = cloudpickle.CloudPickler(file)
-      pickler.dispatch_table[RLockType] = _pickle_rlock
       try:
+        pickler.dispatch_table[RLockType] = _pickle_rlock
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:
         pass
       pickler.dump(o)
       s = file.getvalue()
-      # TODO(ryanthompson): See if echoing dill.enable_trace is useful.
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
