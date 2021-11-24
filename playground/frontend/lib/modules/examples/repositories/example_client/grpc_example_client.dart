@@ -33,7 +33,7 @@ class GrpcExampleClient implements ExampleClient {
   grpc.PlaygroundServiceClient createClient(SDK? sdk) {
     String apiClientURL = kApiClientURL;
     if (sdk != null) {
-      apiClientURL = kApiClientURL + sdk.getRoute;
+      apiClientURL = sdk.getRoute;
     }
     GrpcWebClientChannel channel = GrpcWebClientChannel.xhr(
       Uri.parse(apiClientURL),
