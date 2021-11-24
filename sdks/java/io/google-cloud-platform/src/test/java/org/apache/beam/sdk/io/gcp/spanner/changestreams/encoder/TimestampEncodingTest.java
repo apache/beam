@@ -33,7 +33,6 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.AvroEncode;
 import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncoding;
 import org.junit.Before;
 import org.junit.Test;
 
