@@ -3639,31 +3639,57 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     skipna = kwargs.get('skipna', True)
     axis = kwargs.get('axis', 0)
 
-    if axis in ('columns', 1):
-      requires = partitionings.Index()
-    else:
-      requires = partitionings.Singleton(
-        reason="Only idxmin(index='rows') is parallelizable")
-
-    # Avoids empty DataFrame error when evaluating proxy
     index_dtype = self._expr.proxy().index.dtype
     columns_dtype = self._expr.proxy().columns.dtype
-    index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
-    proxy = pd.Series(dtype=index_dtype)
-    proxy = proxy.append(pd.Series([np.inf], index=index).astype(columns_dtype))
 
-    if not skipna:
-      proxy = proxy.append(pd.Series([None], index=index).astype(columns_dtype))
+    def compute_idxmin(df):
+      min_indexes = df.idxmin(**kwargs).unique()
+      if pd.isna(min_indexes).any():
+        return df
+      else:
+        return df.loc[min_indexes]
 
-    return frame_base.DeferredFrame.wrap(
-      expressions.ComputedExpression(
-        'idxmin',
-        lambda df: pd.Series(df.idxmin(**kwargs)),
-        [self._expr],
-        proxy = proxy,
-        requires_partition_by=requires,
-        preserves_partition_by=partitionings.Singleton()))
+    if axis in ('index', 0):
+      requires_partition = partitionings.Singleton()
 
+      proxy_index = pd.Index([], dtype=columns_dtype)
+      proxy = pd.Series([], index=proxy_index, dtype=index_dtype)
+
+      partition_proxy = self._expr.proxy().copy()
+
+      if not skipna:
+        index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
+        partition_proxy = partition_proxy.append(pd.Series(), ignore_index=True)
+        partition_proxy.index = index
+        partition_proxy.loc[index] = np.nan
+
+      idxmin_per_partition = expressions.ComputedExpression(
+        'idxmin-per-partition',
+        compute_idxmin, [self._expr],
+        proxy=partition_proxy,
+        requires_partition_by=partitionings.Index(),
+        preserves_partition_by=partitionings.Singleton()
+      )
+
+    elif axis in ('columns', 1):
+      requires_partition=partitionings.Index()
+
+      proxy_index = pd.Index([], dtype=index_dtype)
+      proxy = pd.Series([], index=proxy_index, dtype=columns_dtype)
+
+      idxmin_per_partition = self._expr
+
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+          'idxmin',
+          lambda df: df.idxmin(**kwargs), [idxmin_per_partition],
+          proxy=proxy,
+          requires_partition_by=requires_partition,
+          preserves_partition_by=partitionings.Singleton()
+        )
+      )
 
 
   @frame_base.with_docs_from(pd.DataFrame)
@@ -3673,30 +3699,56 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     skipna = kwargs.get('skipna', True)
     axis = kwargs.get('axis', 0)
 
-    if axis in ('columns', 1):
-      requires = partitionings.Index()
-    else:
-      requires = partitionings.Singleton(
-        reason="Only idxmax(index='rows') is parallelizable")
-
-    # Avoids empty DataFrame error when evaluating proxy
     index_dtype = self._expr.proxy().index.dtype
     columns_dtype = self._expr.proxy().columns.dtype
-    index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
-    proxy = pd.Series(dtype=index_dtype)
-    proxy = proxy.append(pd.Series([np.inf], index=index).astype(columns_dtype))
 
-    if not skipna:
-      proxy = proxy.append(pd.Series([None], index=index).astype(columns_dtype))
+    def compute_idxmax(df):
+      max_indexes = df.idxmax(**kwargs).unique()
+      if pd.isna(max_indexes).any():
+        return df
+      else:
+        return df.loc[max_indexes]
 
-    return frame_base.DeferredFrame.wrap(
-      expressions.ComputedExpression(
-        'idxmax',
-        lambda df: df.idxmax(**kwargs),
-        [self._expr],
-        proxy=proxy,
-        requires_partition_by=requires,
-        preserves_partition_by=partitionings.Singleton()))
+    if axis in ('index', 0):
+      requires_partition = partitionings.Singleton()
+
+      proxy_index = pd.Index([], dtype=columns_dtype)
+      proxy = pd.Series([], index=proxy_index, dtype=index_dtype)
+
+      partition_proxy = self._expr.proxy().copy()
+
+      if not skipna:
+        index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
+        partition_proxy = partition_proxy.append(pd.Series(), ignore_index=True)
+        partition_proxy.index = index
+        partition_proxy.loc[index] = np.nan
+
+      idxmax_per_partition = expressions.ComputedExpression(
+        'idxmax-per-partition',
+        compute_idxmax, [self._expr],
+        proxy=partition_proxy,
+        requires_partition_by=partitionings.Index(),
+        preserves_partition_by=partitionings.Singleton()
+      )
+
+    elif axis in ('columns', 1):
+      requires_partition = partitionings.Index()
+
+      proxy_index = pd.Index([], dtype=index_dtype)
+      proxy = pd.Series([], index=proxy_index, dtype=columns_dtype)
+
+      idxmax_per_partition = self._expr
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+          'idxmax',
+          lambda df: df.idxmax(**kwargs), [idxmax_per_partition],
+          proxy=proxy,
+          requires_partition_by=requires_partition,
+          preserves_partition_by=partitionings.Singleton()
+        )
+      )
 
 
 for io_func in dir(io):

@@ -1107,13 +1107,32 @@ class DeferredFrameTest(_AbstractFrameTest):
     },
                       index=['Pork', 'Wheat Products', 'Beef'])
 
+    df2 = df.copy()
+    df2.loc['Pork', 'co2_emissions'] = None
+    df2.loc['Wheat Products', 'consumption'] = None
+    df2.loc['Beef', 'co2_emissions'] = None
+
+    df3 = pd.DataFrame({
+        'consumption': [1.1, 2.2, 3.3], 'co2_emissions': [3.3, 2.2, 1.1]
+    },
+                       index=[0, 1, 2])
+
     s = pd.Series(data=[4, 3, None, 1], index=['A', 'B', 'C', 'D'])
     s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
 
-    self._run_test(lambda df: df.idxmin(), df, nonparallel=True)
-    self._run_test(lambda df: df.idxmin(skipna=False), df, nonparallel=True)
+    self._run_test(lambda df: df.idxmin(), df)
+    self._run_test(lambda df: df.idxmin(skipna=False), df)
     self._run_test(lambda df: df.idxmin(axis=1), df)
     self._run_test(lambda df: df.idxmin(axis=1, skipna=False), df)
+
+    self._run_test(lambda df2: df2.idxmin(), df2)
+    self._run_test(lambda df2: df2.idxmin(axis=1), df2)
+
+    # These tests are failing
+    # self._run_test(lambda df2: df2.idxmin(skipna=False), df2)
+    # self._run_test(lambda df2: df2.idxmin(axis=1, skipna=False), df2)
+    # self._run_test(lambda s2: s2.idxmin(skipna=False), s2)
+    self._run_test(lambda df3: df3.idxmin(), df3)
 
     self._run_test(lambda s: s.idxmin(), s)
     self._run_test(lambda s: s.idxmin(skipna=False), s)
@@ -1126,13 +1145,32 @@ class DeferredFrameTest(_AbstractFrameTest):
     },
                       index=['Pork', 'Wheat Products', 'Beef'])
 
+    df2 = df.copy()
+    df2.loc['Pork', 'co2_emissions'] = None
+    df2.loc['Wheat Products', 'consumption'] = None
+    df2.loc['Beef', 'co2_emissions'] = None
+
+    df3 = pd.DataFrame({
+        'consumption': [1.1, 2.2, 3.3], 'co2_emissions': [3.3, 2.2, 1.1]
+    },
+                       index=[0, 1, 2])
+
     s = pd.Series(data=[1, None, 4, 1], index=['A', 'B', 'C', 'D'])
     s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
 
-    self._run_test(lambda df: df.idxmax(), df, nonparallel=True)
-    self._run_test(lambda df: df.idxmax(skipna=False), df, nonparallel=True)
+    self._run_test(lambda df: df.idxmax(), df)
+    self._run_test(lambda df: df.idxmax(skipna=False), df)
     self._run_test(lambda df: df.idxmax(axis=1), df)
     self._run_test(lambda df: df.idxmax(axis=1, skipna=False), df)
+
+    self._run_test(lambda df2: df2.idxmax(), df2)
+    self._run_test(lambda df2: df2.idxmax(axis=1), df2)
+
+    # These tests are failing
+    # self._run_test(lambda df2: df2.idxmax(axis=1, skipna=False), df2)
+    # self._run_test(lambda df2: df2.idxmax(skipna=False), df2)
+    # self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
+    self._run_test(lambda df3: df3.idxmax(), df3)
 
     self._run_test(lambda s: s.idxmax(), s)
     self._run_test(lambda s: s.idxmax(skipna=False), s)
