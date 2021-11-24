@@ -37,3 +37,20 @@ extension SDKToString on SDK {
     }
   }
 }
+
+extension SdkToRoute on SDK {
+  String get getRoute {
+    switch (this) {
+      case SDK.java:
+        return '/java';
+      case SDK.go:
+        return '/go';
+      case SDK.python:
+        return '/python';
+      case SDK.scio:
+        return '/scio';
+      default:
+        return '';
+    }
+  }
+}

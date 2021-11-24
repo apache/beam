@@ -30,14 +30,15 @@ import 'package:playground/modules/examples/repositories/models/get_list_of_exam
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 class GrpcExampleClient implements ExampleClient {
-  late final GrpcWebClientChannel _channel;
-  late final grpc.PlaygroundServiceClient _client;
-
-  GrpcExampleClient() {
-    _channel = GrpcWebClientChannel.xhr(
-      Uri.parse(kApiClientURL),
+  grpc.PlaygroundServiceClient createClient(SDK? sdk) {
+    String apiClientURL = kApiClientURL;
+    if (sdk != null) {
+      apiClientURL = kApiClientURL + sdk.getRoute;
+    }
+    GrpcWebClientChannel channel = GrpcWebClientChannel.xhr(
+      Uri.parse(apiClientURL),
     );
-    _client = grpc.PlaygroundServiceClient(_channel);
+    return grpc.PlaygroundServiceClient(channel);
   }
 
   @override
@@ -45,7 +46,7 @@ class GrpcExampleClient implements ExampleClient {
     GetListOfExamplesRequestWrapper request,
   ) {
     return _runSafely(
-      () => _client
+      () => createClient(request.sdk)
           .getPrecompiledObjects(
               _getListOfExamplesRequestToGrpcRequest(request))
           .then((response) => GetListOfExampleResponse(
@@ -56,7 +57,7 @@ class GrpcExampleClient implements ExampleClient {
   @override
   Future<GetExampleResponse> getExample(GetExampleRequestWrapper request) {
     return _runSafely(
-      () => _client
+      () => createClient(request.sdk)
           .getPrecompiledObjectCode(_getExampleRequestToGrpcRequest(request))
           .then((response) => GetExampleResponse(response.code)),
     );
@@ -65,7 +66,7 @@ class GrpcExampleClient implements ExampleClient {
   @override
   Future<OutputResponse> getExampleOutput(GetExampleRequestWrapper request) {
     return _runSafely(
-      () => _client
+      () => createClient(request.sdk)
           .getPrecompiledObjectOutput(_getExampleRequestToGrpcRequest(request))
           .then((response) => OutputResponse(response.output)),
     );
