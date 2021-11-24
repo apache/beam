@@ -218,7 +218,11 @@ def typing_from_runner_api(fieldtype_proto):
     base_type = schema_pb2.FieldType()
     base_type.CopyFrom(fieldtype_proto)
     base_type.nullable = False
-    return Optional[typing_from_runner_api(base_type)]
+    base = typing_from_runner_api(base_type)
+    if base == Any:
+      return base
+    else:
+      return Optional[base]
 
   type_info = fieldtype_proto.WhichOneof("type_info")
   if type_info == "atomic_type":
