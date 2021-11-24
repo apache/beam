@@ -17,15 +17,24 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 
-/**
- * Represents the capture type of a change stream. The only supported value at the moment is
- * OLD_AND_NEW_VALUES, meaning that {@link Mod}s will include the column values before and after the
- * database operations were applied.
- */
-@DefaultCoder(AvroCoder.class)
-public enum ValueCaptureType {
-  OLD_AND_NEW_VALUES,
+import com.google.cloud.Timestamp;
+import org.junit.Test;
+
+public class HeartbeatRecordTest {
+
+  @Test
+  public void testMetadataShouldNotInterfereInEquality() {
+    final HeartbeatRecord record1 =
+        new HeartbeatRecord(
+            Timestamp.ofTimeMicroseconds(1L), mock(ChangeStreamRecordMetadata.class));
+    final HeartbeatRecord record2 =
+        new HeartbeatRecord(
+            Timestamp.ofTimeMicroseconds(1L), mock(ChangeStreamRecordMetadata.class));
+
+    assertEquals(record1, record2);
+    assertEquals(record1.hashCode(), record2.hashCode());
+  }
 }

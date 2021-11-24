@@ -20,19 +20,26 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 import com.google.cloud.Timestamp;
 import java.util.List;
 import java.util.Objects;
+import org.apache.avro.reflect.AvroEncode;
 import org.apache.avro.reflect.Nullable;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncoding;
 
 /**
  * A data change record encodes modifications to Cloud Spanner rows. A record will contain one or
  * more modifications made in one table with the same {@link ModType}. There can be multiple data
  * change records for a transaction and commit timestamp.
  */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
+@DefaultCoder(AvroCoder.class)
 public class DataChangeRecord implements ChangeStreamRecord {
 
   private static final long serialVersionUID = 1138762498767540898L;
 
   private String partitionToken;
 
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp commitTimestamp;
 
   private String serverTransactionId;
@@ -180,7 +187,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@javax.annotation.Nullable Object o) {
     if (this == o) {
       return true;
     }

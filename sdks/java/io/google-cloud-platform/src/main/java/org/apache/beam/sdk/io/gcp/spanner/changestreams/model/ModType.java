@@ -17,10 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+
 /**
  * Represents the type of modification applied in the {@link DataChangeRecord}. It can be one of the
  * following: INSERT, UPDATE, INSERT_OR_UPDATE or DELETE.
  */
+@DefaultCoder(AvroCoder.class)
 public enum ModType {
   INSERT,
   UPDATE,

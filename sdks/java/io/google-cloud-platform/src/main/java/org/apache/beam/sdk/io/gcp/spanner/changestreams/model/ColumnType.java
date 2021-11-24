@@ -18,12 +18,18 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
 import java.io.Serializable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import java.util.Objects;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 
 /**
  * Defines a column type from a Cloud Spanner table with the following information: column name,
  * column type, flag indicating if column is primary key and column position in the table.
  */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
+@DefaultCoder(AvroCoder.class)
 public class ColumnType implements Serializable {
 
   private static final long serialVersionUID = 6861617019875340414L;
@@ -36,6 +42,7 @@ public class ColumnType implements Serializable {
   /** Default constructor for serialization only. */
   private ColumnType() {}
 
+  @SchemaCreate
   public ColumnType(String name, TypeCode type, boolean isPrimaryKey, long ordinalPosition) {
     this.name = name;
     this.type = type;
@@ -64,23 +71,23 @@ public class ColumnType implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof ColumnType)) {
       return false;
     }
     ColumnType that = (ColumnType) o;
-    return isPrimaryKey() == that.isPrimaryKey()
-        && getOrdinalPosition() == that.getOrdinalPosition()
-        && Objects.equal(getName(), that.getName())
-        && Objects.equal(getType(), that.getType());
+    return isPrimaryKey == that.isPrimaryKey
+        && ordinalPosition == that.ordinalPosition
+        && Objects.equals(name, that.name)
+        && Objects.equals(type, that.type);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(getName(), getType(), isPrimaryKey(), getOrdinalPosition());
+    return Objects.hash(name, type, isPrimaryKey, ordinalPosition);
   }
 
   @Override

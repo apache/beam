@@ -19,17 +19,26 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
 import com.google.cloud.Timestamp;
 import java.util.Objects;
+import org.apache.avro.reflect.AvroEncode;
+import org.apache.avro.reflect.Nullable;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncoding;
 
 /**
  * A heartbeat record serves as a notification that the change stream query has returned all changes
  * for the partition less or equal to the record timestamp.
  */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
+@DefaultCoder(AvroCoder.class)
 public class HeartbeatRecord implements ChangeStreamRecord {
 
   private static final long serialVersionUID = 5331450064150969956L;
 
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp timestamp;
-  private ChangeStreamRecordMetadata metadata;
+
+  @Nullable private ChangeStreamRecordMetadata metadata;
 
   /** Default constructor for serialization only. */
   private HeartbeatRecord() {}
@@ -67,7 +76,7 @@ public class HeartbeatRecord implements ChangeStreamRecord {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@javax.annotation.Nullable Object o) {
     if (this == o) {
       return true;
     }

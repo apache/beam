@@ -19,18 +19,25 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
 import java.io.Serializable;
 import java.util.Objects;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
 
 /**
  * Represents a modification in a table emitted within a {@link DataChangeRecord}. Each mod contains
  * keys, new values and old values returned as JSON strings.
  */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
+@DefaultCoder(AvroCoder.class)
 public class Mod implements Serializable {
 
   private static final long serialVersionUID = 7362322548913179939L;
 
   private String keysJson;
-  private String oldValuesJson;
-  private String newValuesJson;
+
+  @Nullable @org.apache.avro.reflect.Nullable private String oldValuesJson;
+
+  @Nullable @org.apache.avro.reflect.Nullable private String newValuesJson;
 
   /** Default constructor for serialization only. */
   private Mod() {}
@@ -46,7 +53,7 @@ public class Mod implements Serializable {
    * @param newValuesJson JSON object as String, displaying the new state of the columns modified.
    *     This JSON object can be null in the case of a DELETE
    */
-  public Mod(String keysJson, String oldValuesJson, String newValuesJson) {
+  public Mod(String keysJson, @Nullable String oldValuesJson, @Nullable String newValuesJson) {
     this.keysJson = keysJson;
     this.oldValuesJson = oldValuesJson;
     this.newValuesJson = newValuesJson;
@@ -59,7 +66,7 @@ public class Mod implements Serializable {
    *
    * @return JSON object as String representing the old column values before the row was modified
    */
-  public String getOldValuesJson() {
+  public @Nullable String getOldValuesJson() {
     return oldValuesJson;
   }
 
@@ -70,7 +77,7 @@ public class Mod implements Serializable {
    *
    * @return JSON object as String representing the new column values after the row was modified
    */
-  public String getNewValuesJson() {
+  public @Nullable String getNewValuesJson() {
     return newValuesJson;
   }
 
@@ -86,7 +93,7 @@ public class Mod implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

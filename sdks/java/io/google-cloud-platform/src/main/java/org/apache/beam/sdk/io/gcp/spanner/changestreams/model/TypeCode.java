@@ -19,10 +19,15 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
 import java.io.Serializable;
 import java.util.Objects;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
 
 /**
  * Represents a type of a column within Cloud Spanner. The type itself is encoded in a String code.
  */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
+@DefaultCoder(AvroCoder.class)
 public class TypeCode implements Serializable {
 
   private static final long serialVersionUID = -1935648338090036611L;
@@ -51,11 +56,11 @@ public class TypeCode implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof TypeCode)) {
       return false;
     }
     TypeCode typeCode = (TypeCode) o;

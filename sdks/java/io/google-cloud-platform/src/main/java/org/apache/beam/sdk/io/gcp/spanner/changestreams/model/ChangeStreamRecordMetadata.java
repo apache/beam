@@ -20,24 +20,58 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.annotation.Nullable;
+import org.apache.avro.reflect.AvroEncode;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncoding;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Holds internal execution metrics / metadata for the processed {@link ChangeStreamRecord}. */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
+@DefaultCoder(AvroCoder.class)
 public class ChangeStreamRecordMetadata implements Serializable {
 
   private static final long serialVersionUID = -7294067549709034080L;
 
   private String partitionToken;
+
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp recordTimestamp;
+
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp partitionStartTimestamp;
+
+  @Nullable
+  @org.apache.avro.reflect.Nullable
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp partitionEndTimestamp;
+
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp partitionCreatedAt;
+
+  @Nullable
+  @org.apache.avro.reflect.Nullable
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp partitionScheduledAt;
+
+  @Nullable
+  @org.apache.avro.reflect.Nullable
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp partitionRunningAt;
+
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp queryStartedAt;
+
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp recordStreamStartedAt;
+
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp recordStreamEndedAt;
+
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp recordReadAt;
+
   private long totalStreamTimeMillis;
   private long numberOfRecordsRead;
 
@@ -49,10 +83,10 @@ public class ChangeStreamRecordMetadata implements Serializable {
       String partitionToken,
       Timestamp recordTimestamp,
       Timestamp partitionStartTimestamp,
-      Timestamp partitionEndTimestamp,
+      @Nullable Timestamp partitionEndTimestamp,
       Timestamp partitionCreatedAt,
-      Timestamp partitionScheduledAt,
-      Timestamp partitionRunningAt,
+      @Nullable Timestamp partitionScheduledAt,
+      @Nullable Timestamp partitionRunningAt,
       Timestamp queryStartedAt,
       Timestamp recordStreamStartedAt,
       Timestamp recordStreamEndedAt,
@@ -76,78 +110,73 @@ public class ChangeStreamRecordMetadata implements Serializable {
     this.numberOfRecordsRead = numberOfRecordsRead;
   }
 
-  /** @return the partition token that produced this change stream record */
+  /** The partition token that produced this change stream record. */
   public String getPartitionToken() {
     return partitionToken;
   }
 
-  /** @return the Cloud Spanner timestamp time when this record occurred */
+  /** The Cloud Spanner timestamp time when this record occurred. */
   public Timestamp getRecordTimestamp() {
     return recordTimestamp;
   }
 
-  /** @return the start time for the partition change stream query, which produced this record */
+  /** The start time for the partition change stream query, which produced this record. */
   public Timestamp getPartitionStartTimestamp() {
     return partitionStartTimestamp;
   }
 
-  /** @return the end time for the partition change stream query, which produced this record */
-  public Timestamp getPartitionEndTimestamp() {
+  /** The end time for the partition change stream query, which produced this record. */
+  public @Nullable Timestamp getPartitionEndTimestamp() {
     return partitionEndTimestamp;
   }
 
-  /**
-   * @return the time at which this partition was first detected and created in the metadata table
-   */
+  /** The time at which this partition was first detected and created in the metadata table. */
   public Timestamp getPartitionCreatedAt() {
     return partitionCreatedAt;
   }
 
-  /** @return the time at which this partition was scheduled to be queried */
-  public Timestamp getPartitionScheduledAt() {
+  /** The time at which this partition was scheduled to be queried. */
+  public @Nullable Timestamp getPartitionScheduledAt() {
     return partitionScheduledAt;
   }
 
-  /** @return the time at which the connector started processing this partition */
-  public Timestamp getPartitionRunningAt() {
+  /** The time at which the connector started processing this partition. */
+  public @Nullable Timestamp getPartitionRunningAt() {
     return partitionRunningAt;
   }
 
-  /** @return the time that the change stream query which produced this record started */
+  /** The time that the change stream query which produced this record started. */
   public Timestamp getQueryStartedAt() {
     return queryStartedAt;
   }
 
-  /** @return the time at which the record started to be streamed */
+  /** The time at which the record started to be streamed. */
   public Timestamp getRecordStreamStartedAt() {
     return recordStreamStartedAt;
   }
 
-  /** @return the time at which the record finished streaming */
+  /** The time at which the record finished streaming. */
   public Timestamp getRecordStreamEndedAt() {
     return recordStreamEndedAt;
   }
 
-  /** @return the time at which the record was fully read */
+  /** The time at which the record was fully read. */
   public Timestamp getRecordReadAt() {
     return recordReadAt;
   }
 
-  /** @return the total streaming time (in millis) for this record */
+  /** The total streaming time (in millis) for this record. */
   public long getTotalStreamTimeMillis() {
     return totalStreamTimeMillis;
   }
 
-  /**
-   * @return the number of records read in the partition change stream query before reading this
-   *     record
-   */
+  /** The number of records read in the partition change stream query before reading this record. */
   public long getNumberOfRecordsRead() {
     return numberOfRecordsRead;
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -229,10 +258,10 @@ public class ChangeStreamRecordMetadata implements Serializable {
     private String partitionToken;
     private Timestamp recordTimestamp;
     private Timestamp partitionStartTimestamp;
-    private Timestamp partitionEndTimestamp;
+    @Nullable private Timestamp partitionEndTimestamp;
     private Timestamp partitionCreatedAt;
-    private Timestamp partitionScheduledAt;
-    private Timestamp partitionRunningAt;
+    @Nullable private Timestamp partitionScheduledAt;
+    @Nullable private Timestamp partitionRunningAt;
     private Timestamp queryStartedAt;
     private Timestamp recordStreamStartedAt;
     private Timestamp recordStreamEndedAt;
@@ -279,7 +308,7 @@ public class ChangeStreamRecordMetadata implements Serializable {
      * @param partitionEndTimestamp the timestamp to be set
      * @return Builder
      */
-    public Builder withPartitionEndTimestamp(Timestamp partitionEndTimestamp) {
+    public Builder withPartitionEndTimestamp(@Nullable Timestamp partitionEndTimestamp) {
       this.partitionEndTimestamp = partitionEndTimestamp;
       return this;
     }
@@ -301,7 +330,7 @@ public class ChangeStreamRecordMetadata implements Serializable {
      * @param partitionScheduledAt the timestamp to be set
      * @return Builder
      */
-    public Builder withPartitionScheduledAt(Timestamp partitionScheduledAt) {
+    public Builder withPartitionScheduledAt(@Nullable Timestamp partitionScheduledAt) {
       this.partitionScheduledAt = partitionScheduledAt;
       return this;
     }
@@ -312,7 +341,7 @@ public class ChangeStreamRecordMetadata implements Serializable {
      * @param partitionRunningAt the timestamp to be set
      * @return Builder
      */
-    public Builder withPartitionRunningAt(Timestamp partitionRunningAt) {
+    public Builder withPartitionRunningAt(@Nullable Timestamp partitionRunningAt) {
       this.partitionRunningAt = partitionRunningAt;
       return this;
     }
@@ -385,7 +414,7 @@ public class ChangeStreamRecordMetadata implements Serializable {
     }
 
     /**
-     * Builds the {@link ChangeStreamRecordMetadata}
+     * Builds the {@link ChangeStreamRecordMetadata}.
      *
      * @return ChangeStreamRecordMetadata
      */

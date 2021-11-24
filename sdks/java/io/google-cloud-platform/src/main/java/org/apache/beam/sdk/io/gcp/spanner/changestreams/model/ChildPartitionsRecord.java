@@ -20,6 +20,11 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 import com.google.cloud.Timestamp;
 import java.util.List;
 import java.util.Objects;
+import org.apache.avro.reflect.AvroEncode;
+import org.apache.avro.reflect.Nullable;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncoding;
 
 /**
  * Represents a ChildPartitionsRecord. This record will be emitted in one of the following cases: a
@@ -29,14 +34,18 @@ import java.util.Objects;
  * <p>When receiving this record, the caller should perform new queries using the child partition
  * tokens received.
  */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
+@DefaultCoder(AvroCoder.class)
 public class ChildPartitionsRecord implements ChangeStreamRecord {
 
   private static final long serialVersionUID = 5442772555232576887L;
 
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp startTimestamp;
+
   private String recordSequence;
   private List<ChildPartition> childPartitions;
-  private ChangeStreamRecordMetadata metadata;
+  @Nullable private ChangeStreamRecordMetadata metadata;
 
   /** Default constructor for serialization only. */
   private ChildPartitionsRecord() {}
@@ -106,7 +115,7 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@javax.annotation.Nullable Object o) {
     if (this == o) {
       return true;
     }
