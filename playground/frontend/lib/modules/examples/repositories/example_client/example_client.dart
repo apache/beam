@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
+import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
+import 'package:playground/modules/examples/repositories/models/get_example_response.dart';
+import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
+import 'package:playground/modules/examples/repositories/models/get_list_of_examples_response.dart';
 
-final ExampleModel exampleMock1 = ExampleModel(
-  source: 'ex1',
-  name: 'Example',
-  type: ExampleType.example,
-  description: 'description',
-  path: 'SDK/Category/Name',
-);
+abstract class ExampleClient {
+  Future<GetListOfExampleResponse> getListOfExamples(
+    GetListOfExamplesRequestWrapper request,
+  );
 
-final ExampleModel exampleMock2 = ExampleModel(
-  source: 'ex2',
-  name: 'Kata',
-  type: ExampleType.kata,
-  description: 'description',
-  path: 'SDK/Category/Name',
-);
+  Future<GetExampleResponse> getExample(GetExampleRequestWrapper request);
+
+  Future<OutputResponse> getExampleOutput(GetExampleRequestWrapper request);
+}

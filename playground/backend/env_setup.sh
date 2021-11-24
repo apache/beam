@@ -17,12 +17,18 @@
 GO_LINTER_VERSION=1.42.1
 
 # Install GO Linter
-wget https://github.com/golangci/golangci-lint/releases/download/v1.42.1/golangci-lint-$GO_LINTER_VERSION-linux-amd64.deb
-dpkg -i golangci-lint-$GO_LINTER_VERSION-linux-amd64.deb
+#wget https://github.com/golangci/golangci-lint/releases/download/v1.42.1/golangci-lint-$GO_LINTER_VERSION-linux-amd64.deb
+#dpkg -i golangci-lint-$GO_LINTER_VERSION-linux-amd64.deb
 
-# Install Terraform
-apt-get install -y gnupg software-properties-common curl
-curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -
-apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-apt-get update
-apt-get install -y terraform
+kernelname=$(uname -s)
+
+# Running on Linux
+if [ "$kernelname" = "Linux" ]; then
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v$GO_LINTER_VERSION
+
+# Running on Mac
+elif [ "$kernelname" = "Darwin" ]; then
+    brew tap golangci/tap
+    brew install golangci/tap/golangci-lint
+else echo "Unrecognized Kernel Name: $kernelname"
+fi

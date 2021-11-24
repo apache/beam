@@ -2981,7 +2981,7 @@ class Windowing(object):
         output_time=self.timestamp_combiner,
         # TODO(robertwb): Support EMIT_IF_NONEMPTY
         closing_behavior=beam_runner_api_pb2.ClosingBehavior.EMIT_ALWAYS,
-        OnTimeBehavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
+        on_time_behavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
         allowed_lateness=self.allowed_lateness.micros // 1000,
         environment_id=environment_id)
 

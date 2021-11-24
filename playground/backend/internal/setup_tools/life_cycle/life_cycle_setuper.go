@@ -24,7 +24,7 @@ import (
 
 // Setup returns fs_tool.LifeCycle.
 // Also, prepares files and folders needed to code processing according to sdk
-func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string) (*fs_tool.LifeCycle, error) {
+func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string, preparedModDir string) (*fs_tool.LifeCycle, error) {
 	// create file system service
 	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, workingDir)
 	if err != nil {
@@ -39,10 +39,21 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string) (*f
 		return nil, err
 	}
 
+	// copy necessary files
+	if sdk == pb.Sdk_SDK_GO {
+		err = lc.CopyFiles(workingDir, preparedModDir)
+		if err != nil {
+			logger.Errorf("%s: RunCode(): CopyFiles(): %s\n", pipelineId, err.Error())
+			lc.DeleteFolders()
+			return nil, err
+		}
+	}
+
 	// create file with code
 	_, err = lc.CreateSourceCodeFile(code)
 	if err != nil {
 		logger.Errorf("%s: RunCode(): CreateSourceCodeFile(): %s\n", pipelineId, err.Error())
+		lc.DeleteFolders()
 		return nil, err
 	}
 	return lc, nil

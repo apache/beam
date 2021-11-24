@@ -12,28 +12,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import asyncio
 import os
 
 from cd_helper import CDHelper
 from ci_helper import CIHelper
 from helper import find_examples
+from logger import setup_logger
 
 
 def ci_step():
     """
     CI step to verify all beam examples/tests/katas
     """
+    setup_logger()
     root_dir = os.getenv("BEAM_ROOT_DIR")
     ci_helper = CIHelper()
     examples = find_examples(root_dir)
-    ci_helper.verify_examples(examples)
+    asyncio.run(ci_helper.verify_examples(examples))
 
 
 def cd_step():
     """
     CD step to save all beam examples/tests/katas and their outputs on the Google Cloud
     """
+    setup_logger()
     root_dir = os.getenv("BEAM_ROOT_DIR")
     cd_helper = CDHelper()
     examples = find_examples(root_dir)
