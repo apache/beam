@@ -19,17 +19,20 @@
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 
 import 'examples_state.dart';
 
 class ExampleSelectorState with ChangeNotifier {
   final ExampleState _exampleState;
+  final PlaygroundState _playgroundState;
   ExampleType _selectedFilterType;
   String _filterText;
   List<CategoryModel> categories;
 
   ExampleSelectorState(
     this._exampleState,
+    this._playgroundState,
     this.categories, [
     this._selectedFilterType = ExampleType.all,
     this._filterText = '',
@@ -55,10 +58,11 @@ class ExampleSelectorState with ChangeNotifier {
   }
 
   sortCategories() {
-    final categories = _exampleState.categories!;
+    final categories = _exampleState.getCategories(_playgroundState.sdk)!;
     final sortedCategories = categories
         .map((category) => CategoryModel(
-            category.name, _sortCategoryExamples(category.examples)))
+            name: category.name,
+            examples: _sortCategoryExamples(category.examples)))
         .where((category) => category.examples.isNotEmpty)
         .toList();
     setCategories(sortedCategories);

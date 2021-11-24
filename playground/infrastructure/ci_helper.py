@@ -13,7 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from typing import List
+
+from api.v1.api_pb2 import STATUS_COMPILE_ERROR, STATUS_ERROR, STATUS_RUN_ERROR, STATUS_RUN_TIMEOUT, \
+    STATUS_VALIDATION_ERROR, STATUS_PREPARATION_ERROR
+from config import Config
+from grpc_client import GRPCClient
 from helper import Example, get_statuses
 
 
@@ -24,7 +30,7 @@ class CIHelper:
     It is used to find and verify correctness if beam examples/katas/tests.
     """
 
-    def verify_examples(self, examples: List[Example]):
+    async def verify_examples(self, examples: List[Example]):
         """
         Verify correctness of beam examples.
 
@@ -33,9 +39,9 @@ class CIHelper:
         3. Run processing for all examples to verify examples' code.
         """
         get_statuses(examples)
-        self._verify_examples_status(examples)
+        await self._verify_examples_status(examples)
 
-    def _verify_examples_status(self, examples: List[Example]):
+    async def _verify_examples_status(self, examples: List[Example]):
         """
         Verify statuses of beam examples.
 
@@ -47,5 +53,25 @@ class CIHelper:
         Args:
             examples: beam examples that should be verified
         """
-        # TODO [BEAM-13256] Implement
-        pass
+        client = GRPCClient()
+        verify_failed = False
+        for example in examples:
+            if example.status not in Config.ERROR_STATUSES:
+                continue
+            if example.status == STATUS_VALIDATION_ERROR:
+                logging.error(f"Example: {example.pipeline_id} has validation error")
+            elif example.status == STATUS_PREPARATION_ERROR:
+                logging.error(f"Example: {example.pipeline_id} has preparation error")
+            elif example.status == STATUS_ERROR:
+                logging.error(f"Example: {example.pipeline_id} has error during setup run builder")
+            elif example.status == STATUS_RUN_TIMEOUT:
+                logging.error(f"Example: {example.pipeline_id} failed because of timeout")
+            elif example.status == STATUS_COMPILE_ERROR:
+                err = await client.get_compile_output(example.pipeline_id)
+                logging.error(f"Example: {example.pipeline_id} has compilation error: {err}")
+            elif example.status == STATUS_RUN_ERROR:
+                err = await client.get_run_error(example.pipeline_id)
+                logging.error(f"Example: {example.pipeline_id} has execution error: {err}")
+            verify_failed = True
+        if verify_failed:
+            raise Exception("CI step failed due to errors in the examples")

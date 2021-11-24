@@ -37,7 +37,7 @@ class OutputPlacements extends StatelessWidget {
           children: OutputPlacement.values
               .map(
                 (placement) => Semantics(
-              label: '$kOutputPlacementSemantic ${placement.name}',
+                  label: '$kOutputPlacementSemantic ${placement.name}',
                   child: IconButton(
                     splashRadius: kIconButtonSplashRadius,
                     icon: SvgPicture.asset(

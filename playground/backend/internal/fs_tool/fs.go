@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"fmt"
 	"github.com/google/uuid"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -111,6 +112,50 @@ func (l *LifeCycle) GetAbsoluteSourceFilePath() string {
 	filePath := filepath.Join(l.Folder.SourceFileFolder, fileName)
 	absoluteFilePath, _ := filepath.Abs(filePath)
 	return absoluteFilePath
+}
+
+// CopyFiles copies a prepared go.mod and go.sum in baseFileFolder for executing beam pipeline with go SDK
+func (l *LifeCycle) CopyFiles(workingDir, preparedModDir string) error {
+	err := copyFile("go.mod", preparedModDir, filepath.Join(workingDir, baseFileFolder))
+	if err != nil {
+		return err
+	}
+	err = copyFile("go.sum", preparedModDir, filepath.Join(workingDir, baseFileFolder))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// copyFile copies a file with fileName from sourceDir to destinationDir.
+func copyFile(fileName, sourceDir, destinationDir string) (err error) {
+	absSourcePath := filepath.Join(sourceDir, fileName)
+	absDestinationPath := filepath.Join(destinationDir, fileName)
+	sourceFileStat, err := os.Stat(absSourcePath)
+	if err != nil {
+		return err
+	}
+
+	if !sourceFileStat.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file", fileName)
+	}
+
+	sourceFile, err := os.Open(absSourcePath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(absDestinationPath)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetAbsoluteExecutableFilePath returns absolute filepath to compiled file (/path/to/workingDir/executable_files/{pipelineId}/bin/{pipelineId}.{executableExtension}).

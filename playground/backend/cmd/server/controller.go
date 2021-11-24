@@ -59,7 +59,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
 	pipelineId := uuid.New()
 
-	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir())
+	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.BeamSdkEnvs.PreparedModDir())
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
 		return nil, errors.InternalError("Run code", "Error during setup file system: "+err.Error())
@@ -68,10 +68,12 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	compileBuilder, err := compile_builder.Setup(lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup run builder: %s\n", err.Error())
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InvalidArgumentError("Run code", "Error during setup compile builder: "+err.Error())
 	}
 
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: "+err.Error())
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
@@ -79,6 +81,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
 	}
 
