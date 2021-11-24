@@ -28,6 +28,10 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
  * Factory class to create data access objects to perform change stream queries and access the
  * metadata tables. The instances created are all singletons.
  */
+// static fields are un-initialized, because we start them during the first fetch call (with the
+// singleton pattern)
+// nullness checks for metadata instance and database are handled in the constructor
+@SuppressWarnings({"initialization.static.fields.uninitialized", "nullness"})
 public class DaoFactory implements Serializable {
 
   private static final long serialVersionUID = 7929063669009832487L;
@@ -68,6 +72,12 @@ public class DaoFactory implements Serializable {
       MapperFactory mapperFactory,
       RpcPriority rpcPriority,
       String jobName) {
+    if (metadataSpannerConfig.getInstanceId() == null) {
+      throw new IllegalArgumentException("Metadata instance can not be null");
+    }
+    if (metadataSpannerConfig.getDatabaseId() == null) {
+      throw new IllegalArgumentException("Metadata database can not be null");
+    }
     this.changeStreamSpannerConfig = changeStreamSpannerConfig;
     this.changeStreamName = changeStreamName;
     this.metadataSpannerConfig = metadataSpannerConfig;
@@ -109,6 +119,10 @@ public class DaoFactory implements Serializable {
    * @return singleton instance of the {@link PartitionMetricsAdminDao}
    */
   public synchronized PartitionMetricsAdminDao getPartitionMetricsAdminDao() {
+    assert metadataSpannerConfig != null;
+    assert metadataSpannerConfig.getInstanceId() != null;
+    assert metadataSpannerConfig.getDatabaseId() != null;
+
     if (partitionMetricsAdminDao == null) {
       DatabaseAdminClient databaseAdminClient =
           SpannerAccessor.getOrCreate(metadataSpannerConfig).getDatabaseAdminClient();

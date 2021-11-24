@@ -23,6 +23,7 @@ import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 
 /**
@@ -81,7 +82,7 @@ public class ChangeStreamDao {
   public ChangeStreamResultSet changeStreamQuery(
       String partitionToken,
       Timestamp startTimestamp,
-      Timestamp endTimestamp,
+      @Nullable Timestamp endTimestamp,
       long heartbeatMillis) {
     // For the initial partition we query with a null partition token
     final String partitionTokenOrNull =

@@ -22,6 +22,7 @@ import com.google.cloud.spanner.Value;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.avro.reflect.AvroEncode;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncodin
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /** Model for the partition metadata database table used in the Connector. */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
 @DefaultCoder(AvroCoder.class)
 public class PartitionMetadata implements Serializable {
 
@@ -64,6 +66,8 @@ public class PartitionMetadata implements Serializable {
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp startTimestamp;
 
+  @Nullable
+  @org.apache.avro.reflect.Nullable
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp endTimestamp;
 
@@ -76,12 +80,18 @@ public class PartitionMetadata implements Serializable {
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp createdAt;
 
+  @Nullable
+  @org.apache.avro.reflect.Nullable
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp scheduledAt;
 
+  @Nullable
+  @org.apache.avro.reflect.Nullable
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp runningAt;
 
+  @Nullable
+  @org.apache.avro.reflect.Nullable
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp finishedAt;
 
@@ -92,14 +102,14 @@ public class PartitionMetadata implements Serializable {
       String partitionToken,
       HashSet<String> parentTokens,
       Timestamp startTimestamp,
-      Timestamp endTimestamp,
+      @Nullable Timestamp endTimestamp,
       long heartbeatMillis,
       State state,
       Timestamp watermark,
       Timestamp createdAt,
-      Timestamp scheduledAt,
-      Timestamp runningAt,
-      Timestamp finishedAt) {
+      @Nullable Timestamp scheduledAt,
+      @Nullable Timestamp runningAt,
+      @Nullable Timestamp finishedAt) {
     this.partitionToken = partitionToken;
     this.parentTokens = parentTokens;
     this.startTimestamp = startTimestamp;
@@ -138,7 +148,7 @@ public class PartitionMetadata implements Serializable {
    * The end time for querying this given partition. It does not necessarily mean that the partition
    * exists until this time, but it will be the timestamp used on its change stream query.
    */
-  public Timestamp getEndTimestamp() {
+  public @Nullable Timestamp getEndTimestamp() {
     return endTimestamp;
   }
 
@@ -166,17 +176,17 @@ public class PartitionMetadata implements Serializable {
   }
 
   /** The time at which this partition was scheduled to be queried. */
-  public Timestamp getScheduledAt() {
+  public @Nullable Timestamp getScheduledAt() {
     return scheduledAt;
   }
 
   /** The time at which the connector started processing this partition. */
-  public Timestamp getRunningAt() {
+  public @Nullable Timestamp getRunningAt() {
     return runningAt;
   }
 
   /** The time at which the connector finished processing this partition. */
-  public Timestamp getFinishedAt() {
+  public @Nullable Timestamp getFinishedAt() {
     return finishedAt;
   }
 
@@ -186,7 +196,7 @@ public class PartitionMetadata implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -263,14 +273,14 @@ public class PartitionMetadata implements Serializable {
     private String partitionToken;
     private HashSet<String> parentTokens;
     private Timestamp startTimestamp;
-    private Timestamp endTimestamp;
+    @Nullable private Timestamp endTimestamp;
     private Long heartbeatMillis;
     private State state;
     private Timestamp watermark;
     private Timestamp createdAt;
-    private Timestamp scheduledAt;
-    private Timestamp runningAt;
-    private Timestamp finishedAt;
+    @Nullable private Timestamp scheduledAt;
+    @Nullable private Timestamp runningAt;
+    @Nullable private Timestamp finishedAt;
 
     public Builder() {}
 
@@ -307,7 +317,7 @@ public class PartitionMetadata implements Serializable {
     }
 
     /** Sets the end time of the partition. */
-    public Builder setEndTimestamp(Timestamp endTimestamp) {
+    public Builder setEndTimestamp(@Nullable Timestamp endTimestamp) {
       this.endTimestamp = endTimestamp;
       return this;
     }
@@ -337,19 +347,19 @@ public class PartitionMetadata implements Serializable {
     }
 
     /** Sets the time at which the partition was scheduled. */
-    public Builder setScheduledAt(Timestamp scheduledAt) {
+    public Builder setScheduledAt(@Nullable Timestamp scheduledAt) {
       this.scheduledAt = scheduledAt;
       return this;
     }
 
     /** Sets the time at which the partition started running. */
-    public Builder setRunningAt(Timestamp runningAt) {
+    public Builder setRunningAt(@Nullable Timestamp runningAt) {
       this.runningAt = runningAt;
       return this;
     }
 
     /** Sets the time at which the partition finished running. */
-    public Builder setFinishedAt(Timestamp finishedAt) {
+    public Builder setFinishedAt(@Nullable Timestamp finishedAt) {
       this.finishedAt = finishedAt;
       return this;
     }

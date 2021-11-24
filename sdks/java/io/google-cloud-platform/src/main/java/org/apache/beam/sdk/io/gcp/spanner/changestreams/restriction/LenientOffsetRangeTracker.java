@@ -25,6 +25,10 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 
+// TODO: Add java docs
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class LenientOffsetRangeTracker extends OffsetRangeTracker {
 
   private final PartitionMetadata partition;

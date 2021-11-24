@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 import java.io.Serializable;
 
 // TODO: Add java docs
+// static fields are un-initialized, because we start them during the first fetch call (with the
+// singleton pattern)
+@SuppressWarnings("initialization.static.fields.uninitialized")
 public class MapperFactory implements Serializable {
 
   private static final long serialVersionUID = -813434573067800902L;

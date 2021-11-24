@@ -26,6 +26,7 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
@@ -142,6 +143,8 @@ public class ChildPartitionsRecordAction {
     }
   }
 
+  // Unboxing of runInTransaction result will not produce a null value, we can ignore it
+  @SuppressWarnings("nullness")
   private void processChildPartition(
       PartitionMetadata partition, ChildPartitionsRecord record, ChildPartition childPartition) {
 
@@ -207,7 +210,7 @@ public class ChildPartitionsRecordAction {
 
   private PartitionMetadata toPartitionMetadata(
       Timestamp startTimestamp,
-      Timestamp endTimestamp,
+      @Nullable Timestamp endTimestamp,
       long heartbeatMillis,
       ChildPartition childPartition) {
     // FIXME: The backend only supports microsecond granularity. Remove when fixed.

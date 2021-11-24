@@ -29,6 +29,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncodin
  * A heartbeat record serves as a notification that the change stream query has returned all changes
  * for the partition less or equal to the record timestamp.
  */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
 @DefaultCoder(AvroCoder.class)
 public class HeartbeatRecord implements ChangeStreamRecord {
 
@@ -75,7 +76,7 @@ public class HeartbeatRecord implements ChangeStreamRecord {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@javax.annotation.Nullable Object o) {
     if (this == o) {
       return true;
     }

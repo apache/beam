@@ -58,6 +58,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The processing of a partition is delegated to the {@link QueryChangeStreamAction}.
  */
+// Allows for transient QueryChangeStreamAction
+@SuppressWarnings("initialization.fields.uninitialized")
 @UnboundedPerElement
 public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataChangeRecord>
     implements Serializable {
@@ -135,13 +137,15 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             .map(micros -> micros + 1)
             .orElse(TimestampConverter.MAX_MICROS);
     final com.google.cloud.Timestamp partitionScheduledAt = partition.getScheduledAt();
-
     final com.google.cloud.Timestamp partitionRunningAt =
         daoFactory.getPartitionMetadataDao().updateToRunning(token);
-    metrics.updatePartitionScheduledToRunning(
-        new Duration(
-            partitionScheduledAt.toSqlTimestamp().getTime(),
-            partitionRunningAt.toSqlTimestamp().getTime()));
+
+    if (partitionScheduledAt != null && partitionRunningAt != null) {
+      metrics.updatePartitionScheduledToRunning(
+          new Duration(
+              partitionScheduledAt.toSqlTimestamp().getTime(),
+              partitionRunningAt.toSqlTimestamp().getTime()));
+    }
 
     return new OffsetRange(startMicros, endMicros);
   }

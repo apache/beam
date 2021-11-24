@@ -142,6 +142,7 @@ public class QueryChangeStreamAction {
    * @return a {@link ProcessContinuation#stop()} if a record timestamp could not be claimed or if
    *     the partition processing has finished
    */
+  @SuppressWarnings("nullness")
   @VisibleForTesting
   public ProcessContinuation run(
       PartitionMetadata partition,
@@ -292,6 +293,7 @@ public class QueryChangeStreamAction {
   private boolean isTimestampOutOfRange(SpannerException e) {
     return (e.getErrorCode() == ErrorCode.INVALID_ARGUMENT
             || e.getErrorCode() == ErrorCode.OUT_OF_RANGE)
+        && e.getMessage() != null
         && e.getMessage().contains(OUT_OF_RANGE_ERROR_MESSAGE);
   }
 }

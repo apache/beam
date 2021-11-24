@@ -27,6 +27,9 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecor
  * Factory class for creating instances that will handle each type of record within a change stream
  * query. The instances created are all singletons.
  */
+// static fields are un-initialized, because we start them during the first fetch call (with the
+// singleton pattern)
+@SuppressWarnings("initialization.static.fields.uninitialized")
 public class ActionFactory implements Serializable {
 
   private static final long serialVersionUID = -4060958761369602619L;

@@ -34,6 +34,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncodin
  * <p>When receiving this record, the caller should perform new queries using the child partition
  * tokens received.
  */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
 @DefaultCoder(AvroCoder.class)
 public class ChildPartitionsRecord implements ChangeStreamRecord {
 
@@ -114,7 +115,7 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@javax.annotation.Nullable Object o) {
     if (this == o) {
       return true;
     }

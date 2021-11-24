@@ -75,6 +75,8 @@ public class TimestampEncoding extends CustomEncoding<Timestamp> {
    * @return null if the fields are negative or an instance of a {@link Timestamp} instead.
    * @throws IOException if it was not possible to read the timestamp from the provided decoder
    */
+  // it is possible to return nulls here if the encoded value was null
+  @SuppressWarnings({"override.return.invalid", "return.type.incompatible"})
   @Override
   protected Timestamp read(Object reuse, Decoder in) throws IOException {
     final long seconds = in.readLong();

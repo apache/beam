@@ -21,6 +21,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Value;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.avro.reflect.AvroEncode;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncodin
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /** Model for the partition metadata database table used in the Connector. */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
 @DefaultCoder(AvroCoder.class)
 public class PartitionMetrics implements Serializable {
 
@@ -134,7 +136,7 @@ public class PartitionMetrics implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

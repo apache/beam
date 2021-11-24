@@ -31,6 +31,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncodin
  * more modifications made in one table with the same {@link ModType}. There can be multiple data
  * change records for a transaction and commit timestamp.
  */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
 @DefaultCoder(AvroCoder.class)
 public class DataChangeRecord implements ChangeStreamRecord {
 
@@ -186,7 +187,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@javax.annotation.Nullable Object o) {
     if (this == o) {
       return true;
     }

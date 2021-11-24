@@ -53,7 +53,12 @@ public class ChangeStreamResultSet implements AutoCloseable {
    */
   ChangeStreamResultSet(ResultSet resultSet) {
     this.resultSet = resultSet;
+    this.queryStartedAt = Timestamp.MIN_VALUE;
+    this.recordStreamStartedAt = Timestamp.MIN_VALUE;
+    this.recordStreamEndedAt = Timestamp.MIN_VALUE;
+    this.recordReadAt = Timestamp.MIN_VALUE;
     this.totalStreamDuration = Duration.ZERO;
+    this.numberOfRecordsRead = 0L;
   }
 
   /**

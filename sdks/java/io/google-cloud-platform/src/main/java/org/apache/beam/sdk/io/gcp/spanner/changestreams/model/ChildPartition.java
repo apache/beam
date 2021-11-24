@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -28,6 +29,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * A child partition represents a new partition that should be queried. Child partitions are emitted
  * in {@link ChildPartitionsRecord}.
  */
+@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
 @DefaultCoder(AvroCoder.class)
 public class ChildPartition implements Serializable {
 
@@ -87,7 +89,7 @@ public class ChildPartition implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

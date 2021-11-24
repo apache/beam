@@ -153,7 +153,11 @@ public class PartitionMetadataAdminDao {
       op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     } catch (ExecutionException | TimeoutException e) {
       // If the operation failed or timed out during execution, expose the cause.
-      throw (SpannerException) e.getCause();
+      if (e.getCause() != null) {
+        throw (SpannerException) e.getCause();
+      } else {
+        throw SpannerExceptionFactory.asSpannerException(e);
+      }
     } catch (InterruptedException e) {
       // Throw when a thread is waiting, sleeping, or otherwise occupied,
       // and the thread is interrupted, either before or during the activity.
@@ -175,7 +179,11 @@ public class PartitionMetadataAdminDao {
       op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     } catch (ExecutionException | TimeoutException e) {
       // If the operation failed or timed out during execution, expose the cause.
-      throw (SpannerException) e.getCause();
+      if (e.getCause() != null) {
+        throw (SpannerException) e.getCause();
+      } else {
+        throw SpannerExceptionFactory.asSpannerException(e);
+      }
     } catch (InterruptedException e) {
       // Throw when a thread is waiting, sleeping, or otherwise occupied,
       // and the thread is interrupted, either before or during the activity.

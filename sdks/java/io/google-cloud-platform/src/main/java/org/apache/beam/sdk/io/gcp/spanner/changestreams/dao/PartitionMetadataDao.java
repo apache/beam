@@ -37,6 +37,7 @@ import io.opencensus.trace.Tracing;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
@@ -102,7 +103,7 @@ public class PartitionMetadataDao {
    *
    * @return the earliest partition watermark which is not in a {@link State#FINISHED} state.
    */
-  public Timestamp getUnfinishedMinWatermark() {
+  public @Nullable Timestamp getUnfinishedMinWatermark() {
     final Statement statement =
         Statement.newBuilder(
                 "SELECT "
@@ -181,6 +182,7 @@ public class PartitionMetadataDao {
    *
    * @param partitionToken the partition unique identifier
    */
+  @SuppressWarnings("return.type.incompatible")
   public void updateQueryStartedAt(String partitionToken) {
     runInTransaction(
         transaction -> {
@@ -199,6 +201,7 @@ public class PartitionMetadataDao {
    * @param partitionToken the partition unique identifier
    * @param recordsIncrement the number of records to update the current count to
    */
+  @SuppressWarnings("return.type.incompatible")
   public void updateRecordsProcessed(String partitionToken, long recordsIncrement) {
     runInTransaction(
         transaction -> {
@@ -213,12 +216,9 @@ public class PartitionMetadataDao {
    *
    * @param partitionToken the partition unique identifier
    * @param watermark the new partition watermark
-   * @return the commit timestamp of the read / write transaction
    */
-  public Timestamp updateWatermark(String partitionToken, Timestamp watermark) {
-    final TransactionResult<Object> transactionResult =
-        runInTransaction(transaction -> transaction.updateWatermark(partitionToken, watermark));
-    return transactionResult.getCommitTimestamp();
+  public void updateWatermark(String partitionToken, Timestamp watermark) {
+    runInTransaction(transaction -> transaction.updateWatermark(partitionToken, watermark));
   }
 
   /**
@@ -450,7 +450,8 @@ public class PartitionMetadataDao {
      * Fetches the partition metadata row data for the given partition token.
      *
      * @param partitionToken the partition unique identifier
-     * @return the partition metadata for the given token if it exists. Otherwise, returns null
+     * @return the partition metadata for the given token if it exists. Otherwise, it throws a
+     *     {@link PartitionNotFoundException}
      */
     public PartitionMetadata getPartition(String partitionToken) {
       try (Scope scope =
@@ -473,8 +474,23 @@ public class PartitionMetadataDao {
           if (resultSet.next()) {
             return mapper.from(resultSet);
           }
-          return null;
+          throw new PartitionNotFoundException(partitionToken);
         }
+      }
+    }
+
+    /** Represents a partition not found error as a {@link RuntimeException}. */
+    public static class PartitionNotFoundException extends RuntimeException {
+
+      private static final long serialVersionUID = -9040427803701187936L;
+
+      /**
+       * Constructs a partition not found error.
+       *
+       * @param token the partition unique identifier
+       */
+      public PartitionNotFoundException(String token) {
+        super("Partition " + token + " not found");
       }
     }
 
@@ -514,6 +530,9 @@ public class PartitionMetadataDao {
 
     private Mutation createUpdateMetadataStateMutationFrom(String partitionToken, State state) {
       final String timestampColumn = stateToTimestampColumn.get(state);
+      if (timestampColumn == null) {
+        throw new IllegalArgumentException("No timestamp column name found for state " + state);
+      }
       return Mutation.newUpdateBuilder(metadataTableName)
           .set(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN)
           .to(partitionToken)
@@ -576,16 +595,16 @@ public class PartitionMetadataDao {
    * @param <T> the return type of the transaction execution
    */
   public static class TransactionResult<T> {
-    private final T result;
+    @Nullable private final T result;
     private final Timestamp commitTimestamp;
 
-    public TransactionResult(T result, Timestamp commitTimestamp) {
+    public TransactionResult(@Nullable T result, Timestamp commitTimestamp) {
       this.result = result;
       this.commitTimestamp = commitTimestamp;
     }
 
     /** Returns the result of the transaction execution. */
-    public T getResult() {
+    public @Nullable T getResult() {
       return result;
     }
 
