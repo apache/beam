@@ -1355,7 +1355,7 @@ public class FhirIO {
 
     @Override
     ValueProvider<String> getFhirStore() {
-      return null;
+      return fhirStore;
     }
 
     @Override

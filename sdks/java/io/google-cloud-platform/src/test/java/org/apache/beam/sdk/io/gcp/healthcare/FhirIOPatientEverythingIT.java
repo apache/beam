@@ -118,7 +118,7 @@ public class FhirIOPatientEverythingIT {
   }
 
   @Test
-  public void testFhirIOSearch() {
+  public void testFhirIOPatientEverything() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     PCollection<PatientEverythingParameter> everythingConfigs = pipeline.apply(Create.of(input));
