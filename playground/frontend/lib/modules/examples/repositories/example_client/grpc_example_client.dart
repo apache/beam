@@ -18,7 +18,6 @@
 
 import 'package:grpc/grpc_web.dart';
 import 'package:playground/api/v1/api.pbgrpc.dart' as grpc;
-import 'package:playground/config.g.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
@@ -31,10 +30,10 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 
 class GrpcExampleClient implements ExampleClient {
   grpc.PlaygroundServiceClient createClient(SDK? sdk) {
-    String apiClientURL = kApiClientURL;
-    if (sdk != null) {
-      apiClientURL = sdk.getRoute;
-    }
+    String apiClientURL = SDK.java.getRoute;
+    // if (sdk != null) {
+    //   apiClientURL = sdk.getRoute;
+    // }
     GrpcWebClientChannel channel = GrpcWebClientChannel.xhr(
       Uri.parse(apiClientURL),
     );
