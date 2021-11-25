@@ -20,18 +20,18 @@ import (
 )
 
 const (
-	javaUnitTestFilePath = "unitTestCode.java"
-	javaCodePath         = "code.java"
-	javaUnitTestCode     = "@RunWith(JUnit4.class)\npublic class DeduplicateTest {\n\n  @Rule public TestPipeline p = TestPipeline.create();\n\n  @Test\n  @Category({NeedsRunner.class, UsesTestStream.class})\n  public void testInDifferentWindows() {}}"
-	javaCode             = "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
+	goUnitTestFilePath = "unitTestCode.go"
+	goCodePath         = "code.go"
+	goUnitTestCode     = "func TestDedup(t *testing.T) {\n\ttests := []struct {\n\t\tdups []interface{}\n\t\texp  []interface{}\n}}"
+	goCode             = "func main() {\n\t// beam.Init() is an initialization hook that must be called on startup.\n\tbeam.Init()\n\n\t// Create the Pipeline object and root scope.\n\tp := beam.NewPipeline()\n\ts := p.Root()\n}"
 )
 
-func TestCheckIsUnitTests(t *testing.T) {
+func TestCheckIsUnitTestGo(t *testing.T) {
 	testValidatorArgs := make([]interface{}, 1)
-	testValidatorArgs[0] = javaUnitTestFilePath
+	testValidatorArgs[0] = goUnitTestFilePath
 
 	validatorArgs := make([]interface{}, 1)
-	validatorArgs[0] = javaCodePath
+	validatorArgs[0] = goCodePath
 
 	type args struct {
 		args []interface{}
@@ -63,13 +63,13 @@ func TestCheckIsUnitTests(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CheckIsUnitTestJava(tt.args.args...)
+			got, err := CheckIsUnitTestGo(tt.args.args...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CheckIsUnitTestJava() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("CheckIsUnitTestGo() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("CheckIsUnitTestJava() got = %v, want %v", got, tt.want)
+				t.Errorf("CheckIsUnitTestGo() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

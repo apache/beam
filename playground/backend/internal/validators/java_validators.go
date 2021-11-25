@@ -39,7 +39,7 @@ func GetJavaValidators(filePath string) *[]Validator {
 		Name:      "Valid path",
 	}
 	unitTestValidator := Validator{
-		Validator: CheckIsUnitTests,
+		Validator: CheckIsUnitTestJava,
 		Args:      validatorArgs,
 		Name:      UnitTestValidatorName,
 	}
@@ -47,7 +47,7 @@ func GetJavaValidators(filePath string) *[]Validator {
 	return &validators
 }
 
-func CheckIsUnitTests(args ...interface{}) (bool, error) {
+func CheckIsUnitTestJava(args ...interface{}) (bool, error) {
 	filePath := args[0].(string)
 	code, err := ioutil.ReadFile(filePath)
 	if err != nil {
