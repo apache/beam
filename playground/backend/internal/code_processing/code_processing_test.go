@@ -22,12 +22,14 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"fmt"
 	"github.com/google/uuid"
 	"go.uber.org/goleak"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -36,7 +38,7 @@ import (
 )
 
 const (
-	javaConfig     = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"compile_args\": [\"-d\", \"bin\", \"-classpath\"],\n  \"run_args\": [\"-cp\", \"bin:\"]\n}"
+	javaConfig     = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
 	fileName       = "fakeFileName"
 	baseFileFolder = "executable_files"
 	configFolder   = "configs"
@@ -562,6 +564,115 @@ func Test_setJavaExecutableFile(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("setJavaExecutableFile() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_setJavaExecutableFile(t *testing.T) {
+	pipelineId := uuid.New()
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, os.Getenv("APP_WORK_DIR"))
+	lc.ExecutableName = fakeExecutableName
+	executorBuilder := executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").ExecutorBuilder
+	type args struct {
+		lc              *fs_tool.LifeCycle
+		id              uuid.UUID
+		service         cache.Cache
+		ctx             context.Context
+		executorBuilder *executors.ExecutorBuilder
+		dir             string
+	}
+	tests := []struct {
+		name string
+		args args
+		want executors.Executor
+	}{
+		{
+			name: "set executable name to runner/test runner",
+			args: args{
+				lc:              lc,
+				id:              pipelineId,
+				service:         cacheService,
+				ctx:             context.Background(),
+				executorBuilder: &executorBuilder,
+				dir:             "",
+			},
+			want: executors.NewExecutorBuilder().
+				WithExecutableFileName(fileName).
+				WithRunner().
+				WithCommand("fake cmd").
+				WithTestRunner().
+				Build(),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := setJavaExecutableFile(tt.args.lc, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("setJavaExecutableFile() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getRunOrTestCmd(t *testing.T) {
+	unitTests := make(map[string]bool, 1)
+	unitTests[validators.UnitTestValidatorName] = true
+
+	notUnitTests := make(map[string]bool, 1)
+	notUnitTests[validators.UnitTestValidatorName] = false
+
+	runEx := executors.NewExecutorBuilder().
+		WithRunner().
+		WithCommand("runCommand").
+		WithArgs([]string{"arg1"}).
+		Build()
+
+	testEx := executors.NewExecutorBuilder().
+		WithTestRunner().
+		WithCommand("testCommand").
+		WithArgs([]string{"arg1"}).
+		Build()
+
+	wantRunExec := exec.CommandContext(context.Background(), "runCommand", "arg1", "")
+	wantTestExec := exec.CommandContext(context.Background(), "testCommand", "arg1", "")
+
+	type args struct {
+		valResult      map[string]bool
+		executor       *executors.Executor
+		ctxWithTimeout context.Context
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want *exec.Cmd
+	}{
+		{
+			//Get cmd objects with set run executor
+			name: "get run cmd",
+			args: args{
+				valResult:      notUnitTests,
+				executor:       &runEx,
+				ctxWithTimeout: context.Background(),
+			},
+			want: wantRunExec,
+		},
+		{
+			//Get cmd objects with set test executor
+			name: "get test cmd",
+			args: args{
+				valResult:      unitTests,
+				executor:       &testEx,
+				ctxWithTimeout: context.Background(),
+			},
+			want: wantTestExec,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getExecuteCmd(tt.args.valResult, tt.args.executor, tt.args.ctxWithTimeout); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getExecuteCmd() = %v, want %v", got, tt.want)
 			}
 		})
 	}

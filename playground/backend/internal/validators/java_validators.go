@@ -17,13 +17,18 @@ package validators
 
 import (
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/logger"
+	"io/ioutil"
+	"strings"
 )
 
 const (
-	javaExtension = ".java"
+	javaExtension       = ".java"
+	javaUnitTestPattern = "@RunWith(JUnit4.class)"
 )
 
 // GetJavaValidators return validators methods that should be applied to Java code
+// The last validator should check that the code is unit tests or not
 func GetJavaValidators(filePath string) *[]Validator {
 	validatorArgs := make([]interface{}, 2)
 	validatorArgs[0] = filePath
@@ -31,7 +36,24 @@ func GetJavaValidators(filePath string) *[]Validator {
 	pathCheckerValidator := Validator{
 		Validator: fs_tool.CheckPathIsValid,
 		Args:      validatorArgs,
+		Name:      "Valid path",
 	}
-	validators := []Validator{pathCheckerValidator}
+	unitTestValidator := Validator{
+		Validator: CheckIsUnitTests,
+		Args:      validatorArgs,
+		Name:      UnitTestValidatorName,
+	}
+	validators := []Validator{pathCheckerValidator, unitTestValidator}
 	return &validators
+}
+
+func CheckIsUnitTests(args ...interface{}) (bool, error) {
+	filePath := args[0].(string)
+	code, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())
+		return false, err
+	}
+	// check whether s contains substring unit test
+	return strings.Contains(string(code), javaUnitTestPattern), nil
 }
