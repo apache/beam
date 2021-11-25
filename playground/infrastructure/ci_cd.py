@@ -12,12 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import asyncio
 import os
 
 from cd_helper import CDHelper
 from ci_helper import CIHelper
-from helper import find_examples
+from helper import find_examples, get_supported_categories
 from logger import setup_logger
 
 
@@ -27,8 +28,10 @@ def ci_step():
     """
     setup_logger()
     root_dir = os.getenv("BEAM_ROOT_DIR")
+    categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
+    supported_categories = get_supported_categories(categories_file)
     ci_helper = CIHelper()
-    examples = find_examples(root_dir)
+    examples = find_examples(root_dir, supported_categories)
     asyncio.run(ci_helper.verify_examples(examples))
 
 
@@ -38,6 +41,8 @@ def cd_step():
     """
     setup_logger()
     root_dir = os.getenv("BEAM_ROOT_DIR")
+    categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
+    supported_categories = get_supported_categories(categories_file)
     cd_helper = CDHelper()
-    examples = find_examples(root_dir)
+    examples = find_examples(root_dir, supported_categories)
     cd_helper.store_examples(examples)
