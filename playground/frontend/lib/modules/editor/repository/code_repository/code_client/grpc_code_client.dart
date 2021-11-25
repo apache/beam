@@ -17,6 +17,7 @@
  */
 
 import 'package:grpc/grpc_web.dart';
+import 'package:playground/api/iis_workaround_channel.dart';
 import 'package:playground/api/v1/api.pbgrpc.dart' as grpc;
 import 'package:playground/config.g.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/check_status_response.dart';
@@ -36,7 +37,7 @@ class GrpcCodeClient implements CodeClient {
     if (sdk != null) {
       apiClientURL = sdk.getRoute;
     }
-    GrpcWebClientChannel channel = GrpcWebClientChannel.xhr(
+    IisWorkaroundChannel channel = IisWorkaroundChannel.xhr(
       Uri.parse(apiClientURL),
     );
     return grpc.PlaygroundServiceClient(channel);
