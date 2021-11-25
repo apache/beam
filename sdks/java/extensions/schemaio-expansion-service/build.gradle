@@ -44,3 +44,9 @@ dependencies {
     testCompile library.java.junit
     testCompile library.java.mockito_core
 }
+
+task runExpansionService (type: JavaExec) {
+    main = "org.apache.beam.sdk.expansion.service.ExpansionService"
+    classpath = sourceSets.test.runtimeClasspath
+    args = [project.findProperty("constructionService.port") ?: "8097"]
+}
