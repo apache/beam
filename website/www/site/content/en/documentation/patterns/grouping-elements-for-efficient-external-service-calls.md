@@ -18,6 +18,8 @@ limitations under the License.
 
 # Grouping elements for efficient external service calls using the `GroupIntoBatches`-transform
 
+{{< language-switcher java py >}}
+
 Usually, authoring an Apache Beam pipeline can be done with out-of-the-box tools and transforms like _ParDo_'s, _Window_'s and _GroupByKey_'s. However, when you want more tight control, you can keep state in an otherwise stateless _DoFn_.
 
 State is kept on a per-key and per-windows basis, and as such, the input to your stateful DoFn needs to be keyed (e.g. by the customer identifier if you're tracking clicks from an e-commerce website).
@@ -37,7 +39,7 @@ while abstracting away the implementation details from users.
 
 The `withShardedKey()` functionality increases parallellism by spreading one key over multiple threads.
 
-The transforms are used in the following way in Java:
+The transforms are used in the following way in Java & Python:
 
 {{< highlight java >}}
 input.apply(
@@ -47,9 +49,7 @@ input.apply(
               .withShardedKey())
 {{< /highlight >}}
 
-and in Python:
-
-{{< highlight python >}}
+{{< highlight py >}}
 input | GroupIntoBatches.WithShardedKey(batchSize, maxBufferingDuration)
 {{< /highlight >}}
 
