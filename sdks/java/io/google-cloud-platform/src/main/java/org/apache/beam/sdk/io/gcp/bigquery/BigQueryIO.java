@@ -2884,7 +2884,6 @@ public class BigQueryIO {
         }
         return input.apply(batchLoads);
       } else if (method == Write.Method.STORAGE_WRITE_API) {
-        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
           // This ensures that the Beam rows are directly translated into protos for Sorage API
