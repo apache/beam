@@ -159,20 +159,16 @@ public class BigQueryIOWriteTest implements Serializable {
   @Parameters
   public static Iterable<Object[]> data() {
     return ImmutableList.of(
-        new Object[] {false, false, false},
-        new Object[] {false, false, true},
-        new Object[] {true, false, false},
-        new Object[] {true, false, true},
-        new Object[] {true, true, true});
+        new Object[] {false, false},
+        new Object[] {false, true},
+        new Object[] {true, false},
+        new Object[] {true, true});
   }
 
   @Parameter(0)
   public boolean useStorageApi;
 
   @Parameter(1)
-  public boolean useStorageApiApproximate;
-
-  @Parameter(2)
   public boolean useStreaming;
 
   @Rule
@@ -198,9 +194,6 @@ public class BigQueryIOWriteTest implements Serializable {
                   bqOptions.setTempLocation(testFolder.getRoot().getAbsolutePath());
                   if (useStorageApi) {
                     bqOptions.setUseStorageWriteApi(true);
-                    if (useStorageApiApproximate) {
-                      bqOptions.setUseStorageWriteApiAtLeastOnce(true);
-                    }
                     if (useStreaming) {
                       bqOptions.setNumStorageWriteApiStreams(2);
                       bqOptions.setStorageWriteApiTriggeringFrequencySec(1);
@@ -484,8 +477,7 @@ public class BigQueryIOWriteTest implements Serializable {
   public void testTimePartitioning() throws Exception {
     BigQueryIO.Write.Method method;
     if (useStorageApi) {
-      method =
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+      method = Method.STORAGE_WRITE_API;
     } else if (useStreaming) {
       method = Method.STREAMING_INSERTS;
     } else {
@@ -505,8 +497,7 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testClusteringStorageApi() throws Exception {
     if (useStorageApi) {
-      testClustering(
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API);
+      testClustering(Method.STORAGE_WRITE_API);
     }
   }
 
@@ -535,12 +526,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     // withMethod overrides the pipeline option, so we need to explicitly request
     // STORAGE_API_WRITES.
-    BigQueryIO.Write.Method method =
-        useStorageApi
-            ? (useStorageApiApproximate
-                ? Method.STORAGE_API_AT_LEAST_ONCE
-                : Method.STORAGE_WRITE_API)
-            : Method.FILE_LOADS;
+    BigQueryIO.Write.Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
     p.apply(Create.of(row1, row2))
         .apply(
             BigQueryIO.writeTableRows()
@@ -1099,12 +1085,7 @@ public class BigQueryIOWriteTest implements Serializable {
   public void testSchemaWriteLoads() throws Exception {
     // withMethod overrides the pipeline option, so we need to explicitly request
     // STORAGE_API_WRITES.
-    BigQueryIO.Write.Method method =
-        useStorageApi
-            ? (useStorageApiApproximate
-                ? Method.STORAGE_API_AT_LEAST_ONCE
-                : Method.STORAGE_WRITE_API)
-            : Method.FILE_LOADS;
+    BigQueryIO.Write.Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
     p.apply(
             Create.of(
                 new SchemaPojo("a", 1),
@@ -2129,11 +2110,7 @@ public class BigQueryIOWriteTest implements Serializable {
     // withMethod overrides the pipeline option, so we need to explicitly requiest
     // STORAGE_API_WRITES.
     BigQueryIO.Write.Method method =
-        useStorageApi
-            ? (useStorageApiApproximate
-                ? Method.STORAGE_API_AT_LEAST_ONCE
-                : Method.STORAGE_WRITE_API)
-            : Method.STREAMING_INSERTS;
+        useStorageApi ? Method.STORAGE_WRITE_API : Method.STREAMING_INSERTS;
     TableSchema schema =
         new TableSchema()
             .setFields(

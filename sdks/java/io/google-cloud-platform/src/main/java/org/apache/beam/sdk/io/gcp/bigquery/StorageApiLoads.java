@@ -54,7 +54,6 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final Duration triggeringFrequency;
   private final BigQueryServices bqServices;
   private final int numShards;
-  private final boolean allowInconsistentWrites;
 
   public StorageApiLoads(
       Coder<DestinationT> destinationCoder,
@@ -63,8 +62,7 @@ public class StorageApiLoads<DestinationT, ElementT>
       String kmsKey,
       Duration triggeringFrequency,
       BigQueryServices bqServices,
-      int numShards,
-      boolean allowInconsistentWrites) {
+      int numShards) {
     this.destinationCoder = destinationCoder;
     this.dynamicDestinations = dynamicDestinations;
     this.createDisposition = createDisposition;
@@ -72,31 +70,11 @@ public class StorageApiLoads<DestinationT, ElementT>
     this.triggeringFrequency = triggeringFrequency;
     this.bqServices = bqServices;
     this.numShards = numShards;
-    this.allowInconsistentWrites = allowInconsistentWrites;
   }
 
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, ElementT>> input) {
-    if (allowInconsistentWrites) {
-      return expandInconsistent(input);
-    } else {
-      return triggeringFrequency != null ? expandTriggered(input) : expandUntriggered(input);
-    }
-  }
-
-  public WriteResult expandInconsistent(PCollection<KV<DestinationT, ElementT>> input) {
-    PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
-        input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
-    PCollection<KV<DestinationT, byte[]>> convertedRecords =
-        inputInGlobalWindow
-            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations))
-            .setCoder(KvCoder.of(destinationCoder, ByteArrayCoder.of()));
-    convertedRecords.apply(
-        "StorageApiWriteInconsistent",
-        new StorageApiWriteRecordsInconsistent<>(
-            dynamicDestinations, createDisposition, kmsKey, bqServices, destinationCoder));
-
-    return writeResult(input.getPipeline());
+    return triggeringFrequency != null ? expandTriggered(input) : expandUntriggered(input);
   }
 
   public WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
@@ -152,11 +130,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal", Window.<KV<DestinationT, ElementT>>into(new GlobalWindows()));
-    PCollection<KV<DestinationT, byte[]>> convertedRecords =
-        inputInGlobalWindow
-            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations))
-            .setCoder(KvCoder.of(destinationCoder, ByteArrayCoder.of()));
-    convertedRecords.apply(
+    inputInGlobalWindow.apply(
         "StorageApiWriteUnsharded",
         new StorageApiWriteUnshardedRecords<>(
             dynamicDestinations, createDisposition, kmsKey, bqServices, destinationCoder));

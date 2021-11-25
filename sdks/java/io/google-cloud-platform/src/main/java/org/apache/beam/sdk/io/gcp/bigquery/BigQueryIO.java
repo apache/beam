@@ -1757,14 +1757,8 @@ public class BigQueryIO {
        * BigQuery</a>.
        */
       STREAMING_INSERTS,
-      /** Use the new, exactly-once Storage Write API. */
-      STORAGE_WRITE_API,
-      /**
-       * Use the new, Storage Write API without exactly once enabled. This will be cheaper and
-       * provide lower latency, however comes with the caveat that the output table may contain
-       * duplicates.
-       */
-      STORAGE_API_AT_LEAST_ONCE
+      /** Use the new, experimental Storage Write API. */
+      STORAGE_WRITE_API
     }
 
     abstract @Nullable ValueProvider<String> getJsonTableRef();
@@ -2538,11 +2532,8 @@ public class BigQueryIO {
       if (getMethod() != Write.Method.DEFAULT) {
         return getMethod();
       }
-      BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
-      if (bqOptions.getUseStorageWriteApi()) {
-        return bqOptions.getUseStorageWriteApiAtLeastOnce()
-            ? Method.STORAGE_API_AT_LEAST_ONCE
-            : Method.STORAGE_WRITE_API;
+      if (input.getPipeline().getOptions().as(BigQueryOptions.class).getUseStorageWriteApi()) {
+        return Write.Method.STORAGE_WRITE_API;
       }
       // By default, when writing an Unbounded PCollection, we use StreamingInserts and
       // BigQuery's streaming import API.
@@ -2892,7 +2883,7 @@ public class BigQueryIO {
           batchLoads.setNumFileShards(getNumFileShards());
         }
         return input.apply(batchLoads);
-      } else if (method == Method.STORAGE_WRITE_API || method == Method.STORAGE_API_AT_LEAST_ONCE) {
+      } else if (method == Write.Method.STORAGE_WRITE_API) {
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
@@ -2922,8 +2913,7 @@ public class BigQueryIO {
                 getKmsKey(),
                 getStorageApiTriggeringFrequency(bqOptions),
                 getBigQueryServices(),
-                getStorageApiNumStreams(bqOptions),
-                method == Method.STORAGE_API_AT_LEAST_ONCE);
+                getStorageApiNumStreams(bqOptions));
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
