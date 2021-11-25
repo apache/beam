@@ -47,7 +47,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class RecommendationAICatalogItemIT {
   @Rule public static TestPipeline testPipeline = TestPipeline.create();
-  static String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();
+  private static String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();
   private static final String randomId =
       "aitest-" + Instant.now().getEpochSecond() + UUID.randomUUID().toString();
 
