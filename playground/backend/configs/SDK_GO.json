@@ -1,11 +1,15 @@
 {
   "compile_cmd": "go",
   "run_cmd": "",
+  "test_cmd": "go",
   "compile_args": [
     "build",
     "-o",
     "bin"
   ],
   "run_args": [
+  ],
+  "test_args": [
+    "test"
   ]
 }

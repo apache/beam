@@ -69,7 +69,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	go cancelCheck(ctxWithTimeout, pipelineId, cancelChannel, cacheService)
 
-	executorBuilder, err := builder.SetupExecutorBuilder(lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), lc.GetAbsoluteExecutableFilePath(), sdkEnv)
+	executorBuilder, err := builder.SetupExecutorBuilder(lc, sdkEnv)
 	if err != nil {
 		_ = processSetupError(err, pipelineId, cacheService, ctxWithTimeout)
 		return
@@ -88,6 +88,12 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		_ = processError(ctxWithTimeout, errorChannel, pipelineId, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
 		return
 	}
+	// Check if unit test
+	isUnitTest := false
+	valResult, ok := validationResults.Load(validators.UnitTestValidatorName)
+	if ok && valResult.(bool) {
+		isUnitTest = true
+	}
 	if err := processSuccess(ctxWithTimeout, pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
 		return
 	}
@@ -95,7 +101,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	// Prepare
 	logger.Infof("%s: Prepare() ...\n", pipelineId)
 	prepareFunc := executor.Prepare()
-	go prepareFunc(successChannel, errorChannel)
+	go prepareFunc(successChannel, errorChannel, isUnitTest)
 
 	ok, err = processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {
@@ -111,23 +117,29 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	switch sdkEnv.ApacheBeamSdk {
 	case pb.Sdk_SDK_JAVA, pb.Sdk_SDK_GO:
-		// Compile
-		logger.Infof("%s: Compile() ...\n", pipelineId)
-		compileCmd := executor.Compile(ctxWithTimeout)
-		var compileError bytes.Buffer
-		var compileOutput bytes.Buffer
-		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
+		if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && !isUnitTest {
+			// Compile
+			logger.Infof("%s: Compile() ...\n", pipelineId)
+			compileCmd := executor.Compile(ctxWithTimeout)
+			var compileError bytes.Buffer
+			var compileOutput bytes.Buffer
+			runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
 
-		ok, err = processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
-		if err != nil {
-			return
-		}
-		if !ok {
-			_ = processCompileError(ctxWithTimeout, errorChannel, compileError.Bytes(), pipelineId, cacheService)
-			return
-		}
-		if err := processCompileSuccess(ctxWithTimeout, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
-			return
+			ok, err = processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
+			if err != nil {
+				return
+			}
+			if !ok {
+				_ = processCompileError(ctxWithTimeout, errorChannel, compileError.Bytes(), pipelineId, cacheService)
+				return
+			}
+			if err := processCompileSuccess(ctxWithTimeout, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
+				return
+			}
+		} else {
+			if err := processCompileSuccess(ctxWithTimeout, []byte(""), pipelineId, cacheService); err != nil {
+				return
+			}
 		}
 	case pb.Sdk_SDK_PYTHON:
 		if err := processCompileSuccess(ctxWithTimeout, []byte(""), pipelineId, cacheService); err != nil {
@@ -249,6 +261,7 @@ func runCmdWithOutput(cmd *exec.Cmd, stdOutput io.Writer, stdError *bytes.Buffer
 	cmd.Stdout = stdOutput
 	cmd.Stderr = stdError
 	go func(cmd *exec.Cmd, successChannel chan bool, errChannel chan error) {
+		fmt.Println("!!! cmd: " + cmd.String())
 		err := cmd.Run()
 		if err != nil {
 			errChannel <- err
