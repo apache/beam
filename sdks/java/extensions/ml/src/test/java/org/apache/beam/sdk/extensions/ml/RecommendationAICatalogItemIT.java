@@ -102,7 +102,7 @@ public class RecommendationAICatalogItemIT {
   @AfterClass
   public static void tearDownAfterClass() throws Exception {
     try (CatalogServiceClient catalogServiceClient = CatalogServiceClient.create()) {
-      String parent = CatalogName.of("apache-beam-testing", "global", "default_catalog").toString();
+      String parent = CatalogName.of(projectId, "global", "default_catalog").toString();
       String filter = "";
       for (CatalogItem item : catalogServiceClient.listCatalogItems(parent, filter).iterateAll()) {
         StringBuilder toDelete = new StringBuilder();
