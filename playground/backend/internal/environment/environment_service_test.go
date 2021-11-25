@@ -63,7 +63,7 @@ func setup() error {
 }
 
 func teardown() {
-	err := os.RemoveAll(configFolderName)
+	err := os.Remove(configFolderName)
 	if err != nil {
 		panic(fmt.Errorf("error during test setup: %s", err.Error()))
 	}

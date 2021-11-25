@@ -69,7 +69,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	go cancelCheck(ctxWithTimeout, pipelineId, cancelChannel, cacheService)
 
-	executorBuilder, err := builder.SetupExecutorBuilder(lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), lc.GetAbsoluteExecutableFilePath(), sdkEnv)
+	executorBuilder, err := builder.SetupExecutorBuilder(lc, sdkEnv)
 	if err != nil {
 		_ = processSetupError(err, pipelineId, cacheService, ctxWithTimeout)
 		return
